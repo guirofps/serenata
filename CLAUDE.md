@@ -173,6 +173,72 @@ prioridade é vender fumaça, e no Google Ads isso derruba conta.
   Supabase, não rota escondida no front. Foi assim que lemos os custos e o
   provedor da Cantoria.
 
+## Herança de código
+
+Dois repositórios anteriores do mesmo dono servem de base. **São o mesmo
+código em dois momentos**: `exact-screenshot-match` é o original (Mensagem
+Angelical) e `numaya` é um fork dele. Mesma stack, mesmos utilitários,
+mesmos bugs.
+
+- `C:\Users\Guilherme Rojas\Desktop\exact-screenshot-match` (pipeline de IA)
+- `C:\Users\Guilherme Rojas\Desktop\numaya` (gateway mais novo)
+
+Stack dos dois, que vamos repetir: TanStack Start (React 19) + Vite 7 +
+Tailwind v4 + shadcn/ui + Supabase + Inngest + Vercel (região gru1).
+
+**Não forkar.** Projeto novo do zero, copiando arquivo por arquivo. Os dois
+acumularam camadas sem apagar as anteriores (o numaya tem três funis vivos
+mais a camada angelical inteira; o exact tem 41 scripts de debug versionados
+que conectam no Supabase de produção com service role).
+
+### Copiar (≈1.500 linhas de código maduro)
+
+| O quê | Origem |
+|---|---|
+| Sessão, atribuição first-touch, `_fbp`/`_fbc`, A/B sticky | `src/lib/session-context.ts` (qualquer um) |
+| `trackEvent` + `trackEventOnce` com dedup | `src/lib/track.ts` (qualquer um) |
+| RPC `upsert_quiz_response` (`SECURITY DEFINER`, `GREATEST` no furthest_step) | `supabase/migrations/20260618000000_*` |
+| Política RLS de funil (anon escreve, nunca lê) | `supabase/migrations/20260617000000_*` |
+| Motor `FLOW` declarativo do quiz + type guards | `exact/src/routes/quiz-b.tsx:98-571` (extrair, descartar a rota) |
+| **Pipeline de mídia assíncrona** | `exact/api/generate-face.js:294-345` |
+| Esqueleto do job (IA texto → IA mídia → e-mail) | `exact/inngest/functions/generateReportJob.js` |
+| Webhook idempotente ciente de entrega parcial | `numaya/api/webhook/cakto.js` |
+| Reveal progressivo com máscara e blur | `exact/src/components/RetratoReveal.tsx` |
+| Meta CAPI (está morto nos dois, é só ligar) | `inngest/functions/sendMetaCapiPurchase.js` |
+
+**O achado principal:** `generate-face.js:294-345` é quase exatamente o
+pipeline do Suno. Chama API externa, faz polling de 2 em 2 segundos, baixa o
+binário, pós-processa, sobe no Supabase Storage. Troque Replicate por Suno,
+`sharp` por `ffmpeg -map_metadata -1`, bucket `faces` por `musicas`.
+
+### Não existe em nenhum dos dois (construir)
+
+Gravação de áudio (`MediaRecorder`), player de áudio, upload de foto,
+QR Code, **rota dinâmica por token** (nenhum `$param` em `src/routes/`, o
+acesso lá é magic link), máscaras BR, e PIX transparente (os dois são
+redirect puro pra checkout externo).
+
+### Erros a não repetir
+
+- `admin_session=true` como cookie de sessão admin, forjável por `curl`
+- Webhook fail-open: `const secretOk = !secretEsperado || ...` aceita
+  qualquer POST se a env não estiver setada
+- Endpoints de IA públicos sem autenticação (`api/generate-report.js:630`,
+  `api/generate-face.js:401`): qualquer um queima a conta
+- Crons sem auth: dá pra spammar a base inteira e queimar o domínio
+- Fallback "quiz anônimo mais recente dos últimos 7 dias" no webhook:
+  entrega PII da pessoa errada sob concorrência. Falhe alto, não adivinhe.
+- Índice do passo em `useState`, fora da URL: reload volta pro passo 0
+- Skip condicional por offset numérico (`setIdx(idx + 4)`): quebra em
+  silêncio quando alguém insere uma pergunta
+- `catch {}` vazio nas gravações de lead: falha invisível
+
+### Mudança arquitetural que nenhum dos dois tem
+
+Nos dois, o job de geração dispara **no webhook de pagamento**. Aqui ele
+dispara **na conclusão do quiz**, antes de cobrar. A máquina do Inngest é a
+mesma, muda quem puxa o gatilho.
+
 ## Em aberto
 
 - Nome e marca
