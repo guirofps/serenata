@@ -28,6 +28,25 @@ outras (tese do CLAUDE.md). O fluxo completo:
 O presenteado nunca recebe "um MP3": recebe um link que abre uma experiência.
 O MP3 é do comprador, como garantia de posse ("é meu, posso baixar").
 
+### A pessoa precisa saber O QUE vai receber antes de preencher qualquer coisa
+
+Decisão: nosso funil tem **landing antes do quiz** (como Lovepanda e
+Cantoria; o ForeverSongs joga direto pro quiz e a pessoa preenche às cegas).
+A expectativa do entregável é construída em três camadas:
+
+1. **Landing (antes):** hero com a promessa + **uma página presente de
+   exemplo, real e clicável** (com música tocando) — a pessoa vê e ouve o
+   que vai receber antes do primeiro clique. "Como funciona" em 3 passos:
+   conta a história → lê a letra na hora, grátis → recebe a página presente
+   pronta pra enviar (link + QR Code + MP3).
+2. **Durante o quiz:** o interlúdio deixa de ser só depoimento — mostra um
+   **mockup da página presente montando com o nome que a pessoa acabou de
+   digitar** ("o presente da Maria está começando a nascer", capa com o
+   nome). O quiz não é um formulário: é a montagem do presente ao vivo.
+3. **No reveal:** a letra não aparece numa tela solta — aparece **dentro do
+   mockup da página presente**, faltando a música. O fake door vira o passo
+   natural: "quero ouvir ela cantada e ganhar essa página".
+
 ### Onde entra a foto
 
 A foto é insumo da **página**, não da letra. Por isso ela NÃO entra no quiz
@@ -99,7 +118,7 @@ passo desde o 1 (lead parcial), estado também em localStorage.
 | 1 | `relacao` | "Pra quem é esse presente?" — chips com emoji (Mãe, Pai, Esposa, Marido, Namorada(o), Filha(o), Avó(ô), Irmã(ão), Amiga(o), Pet, Eu mesmo, Outro) | pergunta |
 | 2 | `nome` | "Me conta o nome dela/dele" — input, tom conversacional | pergunta |
 | 3 | `ocasiao` | "Qual é a ocasião?" — chips (Aniversário, Casamento/bodas, Declaração, Homenagem, Saudade/memorial, Formatura, Só porque sim, Outro) | pergunta |
-| 4 | `prova1` | Interlúdio: depoimento + player de 20s de uma música exemplo do mesmo tipo de relação | prova social |
+| 4 | `prova1` | Interlúdio: mockup da página presente com o nome digitado ("o presente da Maria está nascendo") + depoimento + player de 20s de exemplo da mesma relação | prova social + expectativa |
 | 5 | `estilo` | Estilo musical — chips (Sertanejo, Sertanejo universitário, MPB/violão, Pop romântico, Gospel, Pagode/Samba, Forró, Infantil, Outro) | pergunta |
 | 6 | `voz` | Voz — Feminina / Masculina / Surpreenda-me | pergunta |
 | 7 | `historia1` | "O que ela(e) é pra você?" — textarea curta OU áudio | pergunta guiada |
@@ -107,7 +126,7 @@ passo desde o 1 (lead parcial), estado também em localStorage.
 | 9 | `recado` | "Se ela(e) fosse ouvir UMA frase sua no refrão, qual seria?" — opcional | pergunta guiada |
 | 10 | `contato` | "Pra onde eu mando a letra?" — **só e-mail** (com sugestão de domínio enquanto digita) | captura |
 | 11 | `revisao` | Resumo editável por linha → **dispara geração da letra em background** → CTA "Escrever minha letra grátis" | revisão |
-| — | `reveal` | Loading honesto (~6s: "lendo sua história… escolhendo as palavras…") → reveal progressivo da letra → karaokê → 1 refação → **fake door** | entrega |
+| — | `reveal` | Loading honesto (~6s: "lendo sua história… escolhendo as palavras…") → reveal progressivo da letra **dentro do mockup da página presente** → karaokê → 1 refação → **fake door** | entrega |
 
 Fake door (Fase 1): botão "Quero ouvir ela cantada e montar o presente" →
 "estamos abrindo aos poucos — você está na fila, te avisamos no seu e-mail".

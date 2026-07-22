@@ -37,6 +37,11 @@ checkout ou página presente.
 **Objetivo:** validar a hipótese central. A letra bem apresentada segura a
 emoção sozinha?
 
+- **Landing antes do quiz** (decisão: ninguém entra no quiz sem saber o que
+  vai receber): promessa + **página presente de exemplo real e clicável**
+  com música tocando + como funciona em 3 passos + CTA. A página de exemplo
+  é estática e serve de espec viva da página presente da Fase 3.
+
 - Motor `FLOW` declarativo extraído de `exact/src/routes/quiz-b.tsx:98-571`,
   como módulo próprio (`src/lib/flow-engine.ts`), não dentro da rota
 - Skip condicional **por id**, nunca por offset numérico
