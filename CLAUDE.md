@@ -94,6 +94,30 @@ TanStack Start. Painel admin exposto no bundle público (erro deles).
 - Injetam o nome do comprador na letra sem sanitizar (saiu literalmente
   "Que o Teste não cansa de amar" no teste)
 
+### lovetuneoficial.com.br
+
+**O concorrente escalado de verdade no BR.** Análise completa em
+`docs/analise-lovetune.md`. O mais sofisticado dos quatro.
+
+- **Gerador: Suno** (confirmado no bundle), client-orquestrado com polling e
+  **fallback via Supabase Edge Function**. Stack: Supabase + React + Vite.
+- **Checkout: Wiapy** (Stripe "em breve" pra internacional). Atende PT, EN e ES.
+- **Preços: R$ 67 / 87 / 97** (Master inclui vídeo com legenda). Cupom AMOR10.
+  Bem acima do nosso alvo — dá pra entrar por baixo.
+- **Diferencial forte (copiar): letra coautorada por partes.** O usuário
+  escolhe entre opções de estrofe → ponte+refrão → verso final, com 1 regen
+  grátis por seção, depois edita a letra e pode "aprimorar com IA" — tudo
+  antes de pagar. É a nossa "coautoria" levada muito mais fundo que "1 refação".
+- **Prévia de ÁUDIO grátis** (2 versões, "até 1 minuto"). Diverge da nossa
+  aposta (letra grátis / áudio pago): revisitar se prévia de áudio converte
+  mais, sabendo que custa Suno em toda prévia mesmo pra quem não compra.
+- **Validação anti-lixo dura** (história mín. 150 chars, frases reais,
+  palavras variadas) + detecção de relacionamento por regex pra gênero.
+  Copiar: história ruim = letra ruim, e eles blindam isso.
+- **Foto opcional, pós-letra** (fundo do vídeo) — confirma nossa decisão.
+- **Não têm página-presente compartilhável** (entregam música/vídeo). É onde
+  a gente se diferencia com a pegada Lovepanda.
+
 ### lovepanda.com.br
 
 Não é concorrente direto, é o modelo de **embalagem**.
