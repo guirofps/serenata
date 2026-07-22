@@ -138,12 +138,20 @@ galerias. Aquilo é o negócio deles, feito há mais tempo e com custo zero.
 
 | | |
 |---|---|
-| Letra (Claude) | R$ 0,11 |
+| Letra — uma tacada (Claude Sonnet 5) | R$ 0,06 (medido) |
+| Letra — coautorada em 4 etapas (modelo LoveTune) | R$ 0,22 (medido, ~2x com refações) |
 | Música (Suno via revendedor) | R$ 0,35 a R$ 1,00 |
 | Transcrição de áudio | R$ 0,05 |
 | Gerações pré-venda (5 por venda a 20% conv.) | R$ 1,75 |
 | Checkout (~5% + fixo) | R$ 2,30 |
 | **Margem bruta** | **~R$ 33** |
+
+**Custo da letra MEDIDO de verdade** (22/07, chamadas reais ao Sonnet 5,
+`scratch/medir-custo-letra.mjs`), não estimado: uma tacada R$ 0,06; coautorada
+em 4 etapas R$ 0,22 (o cache do system prompt de ~1.200 tokens corta a maior
+parte). Mesmo a coautorada com 1 refação por seção fica < R$ 0,50 — **o Claude
+não é o custo relevante do funil; o Suno é.** Decisão registrada: adotar a letra
+coautorada (mais validada, prende mais), o custo extra é irrelevante.
 
 **A R$ 37 não cabe revisão humana** (6 min de trabalho = R$ 5 = 13% do
 ticket). A operação precisa ser 100% automática, com portões de qualidade
