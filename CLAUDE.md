@@ -139,6 +139,14 @@ prioridade é vender fumaça, e no Google Ads isso derruba conta.
 
 ## Decisões tomadas
 
+- **Canal de contato: só e-mail no lançamento.** Nada de WhatsApp no produto
+  (nem captura, nem envio, nem recuperação) até existir automação que valha.
+- **O comprador é quem entrega o presente.** A área do comprador dá o link
+  da página com uma mensagem pronta pra copiar/colar + QR Code + download do
+  MP3. Nós nunca mandamos nada direto pro presenteado.
+- **Foto não entra no quiz.** É insumo da página, não da letra: entra na
+  montagem do presente, pós-pagamento. 1 foto no base, galeria é order bump.
+
 - **Entrega imediata após o pagamento**, mas **prometer conservador**:
   "em até 30 minutos, normalmente menos de 5". Nunca prometer 60 segundos.
 - **Antecipação vai no agendamento**, não na entrega: o comprador recebe na

@@ -53,9 +53,11 @@ emoção sozinha?
   dispara o áudio, senão o iOS bloqueia.
 - Uma refação grátis, com o botão de comprar visível ao lado (não é portão)
 
-**Fake door no fim:** o botão "quero ouvir ela cantada" ainda não leva a
-checkout. Leva a "estamos abrindo aos poucos, deixa seu WhatsApp". Isso mede
-intenção de compra real sem construir a metade de trás do produto.
+**Fake door no fim:** o botão "quero ouvir ela cantada e montar o presente"
+ainda não leva a checkout. Leva a "estamos abrindo aos poucos — você está na
+fila, te avisamos no seu e-mail" (o e-mail já foi capturado no quiz). Isso
+mede intenção de compra real sem construir a metade de trás do produto.
+**Canal único no lançamento: e-mail.** Nada de WhatsApp por enquanto.
 
 **O que medir:** taxa de conclusão do quiz, uso do botão de áudio, uso da
 refação, e principalmente **cliques no fake door**. Se pouca gente clicar
@@ -99,10 +101,17 @@ de falha por provedor, quantas regenerações o portão de qualidade dispara.
 - Webhook adaptado de `numaya/api/webhook/cakto.js`, **corrigindo o
   fail-open**: se a env do secret não estiver setada, recuse tudo
 - Idempotência por id de pagamento. Sem fallback por "mais recente".
-- Recuperação de PIX abandonado por WhatsApp em 15 e 60 minutos
+- Recuperação de PIX abandonado por e-mail em 15 e 60 minutos (WhatsApp
+  fica pra quando houver automação; decisão: só e-mail no lançamento)
 - **Página presente:** rota por token (`src/routes/p.$token.tsx`), que não
   existe em nenhum dos dois repos anteriores. Conteúdo mínimo: capa, nome,
   player da música, letra na tela, a história em texto, uma foto, QR Code.
+- **Área do comprador** (acesso por e-mail): link da página pronto pra
+  copiar **com mensagem bonita pré-escrita** (ele só cola onde quiser),
+  QR Code pra imprimir e download do MP3. O comprador é quem envia; nós
+  nunca mandamos nada pro presenteado.
+- **Foto entra aqui** (montagem do presente, pós-pagamento): "agora vamos
+  embrulhar — manda uma foto pra capa". 1 foto no base; galeria é o bump.
 - QR Code gerado no servidor, pronto para imprimir
 - Agendamento: o comprador escolhe quando o presenteado recebe (é onde a
   antecipação cabe, e coleta um lead novo)
