@@ -23,3 +23,8 @@ dist-ssr
 .claude/
 .vercel
 scratch/
+
+# Backup com PII do projeto angelical — nunca comitar
+backup-angelical/
+
+.vercel

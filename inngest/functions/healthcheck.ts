@@ -1,4 +1,4 @@
-import { inngest } from "../client";
+import { inngest } from "../client.js";
 
 // Função mínima para provar que o app Inngest registra e executa.
 // Nos repos anteriores o /api/inngest ficou meses quebrado por import de
