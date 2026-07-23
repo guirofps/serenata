@@ -3,32 +3,65 @@ import type { QuestionStep } from "@/lib/flow-engine";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-// Campo de história com validação anti-lixo (mín. de caracteres, palavras
-// reais) + chips-gatilho de detalhe concreto. Gravação de áudio entra na
-// task de MediaRecorder; aqui deixamos o gancho "prefiro contar falando".
+type StoryQuestion = Extract<QuestionStep, { input: "story" }>;
+
+// Validação anti-lixo unificada (inspirada no LoveTune): a MESMA função decide
+// a mensagem sob o campo e se o botão libera — sem isso, a mensagem "Perfeito"
+// contradizia o botão travado. Devolve o motivo específico pra mostrar.
+export function validateStory(
+  step: StoryQuestion,
+  value?: string,
+): { ok: boolean; message: string } {
+  const t = (value ?? "").trim();
+
+  if (t.length === 0) return { ok: false, message: `Escreva pelo menos ${step.minChars} caracteres` };
+
+  const faltam = step.minChars - t.length;
+  if (faltam > 0)
+    return { ok: false, message: `Escreva um pouco mais — faltam ${faltam} caracteres` };
+
+  // Palavras de verdade = sequências de 2+ letras (não dígitos/símbolos).
+  const palavrasReais = t.match(/[\p{L}]{2,}/gu) ?? [];
+  if (palavrasReais.length < 3)
+    return { ok: false, message: "Escreva com frases de verdade — pelo menos 3 palavras." };
+
+  // Conteúdo majoritariamente não-alfabético (parede de dígitos/símbolos).
+  const letras = (t.match(/\p{L}/gu) ?? []).length;
+  if (letras / t.length < 0.5)
+    return { ok: false, message: "Use palavras reais — evite números e símbolos soltos." };
+
+  // Repetição excessiva do mesmo caractere (ex: "aaaaaa", "333333").
+  if (/(.)\1{5,}/.test(t))
+    return { ok: false, message: "Evite repetir o mesmo caractere várias vezes seguidas." };
+
+  return { ok: true, message: "Perfeito ✓" };
+}
+
+// Campo de história com validação anti-lixo + chips-gatilho de detalhe concreto.
+// Gravação de áudio real entra na task de MediaRecorder; aqui fica o gancho.
 export function StoryStep({
   step,
   value,
   onChange,
 }: {
-  step: Extract<QuestionStep, { input: "story" }>;
+  step: StoryQuestion;
   value: string | undefined;
   onChange: (v: string) => void;
 }) {
   const [touched, setTouched] = useState(false);
   const text = value ?? "";
-  const faltam = Math.max(0, step.minChars - text.trim().length);
+  const { ok, message } = validateStory(step, text);
 
   return (
     <div className="space-y-3">
       {step.triggers && step.triggers.length > 0 && (
         <div className="flex flex-wrap justify-center gap-2">
-          {step.triggers.map((t) => (
+          {step.triggers.map((tr) => (
             <span
-              key={t}
+              key={tr}
               className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground"
             >
-              {t}
+              {tr}
             </span>
           ))}
         </div>
@@ -43,19 +76,16 @@ export function StoryStep({
       <div className="flex items-center justify-between text-xs">
         <span
           className={cn(
-            "text-muted-foreground",
-            touched && faltam > 0 && "text-destructive",
+            ok ? "text-muted-foreground" : "text-muted-foreground",
+            !ok && touched && text.length > 0 && "text-destructive",
           )}
         >
-          {faltam > 0
-            ? `Escreva um pouco mais — faltam ${faltam} caracteres`
-            : "Perfeito ✓"}
+          {message}
         </span>
         {step.allowAudio && (
           <button
             type="button"
             className="text-primary underline underline-offset-2"
-            // Gancho: a gravação de áudio real entra na próxima task.
             onClick={() => alert("Gravação de áudio: em construção")}
           >
             Prefiro contar falando
@@ -66,11 +96,7 @@ export function StoryStep({
   );
 }
 
-// Validação usada pelo motor pra habilitar o "Continuar".
-export function storyIsValid(step: Extract<QuestionStep, { input: "story" }>, value?: string) {
-  const t = (value ?? "").trim();
-  if (t.length < step.minChars) return false;
-  // Anti-lixo básico: pelo menos 3 palavras de 2+ letras.
-  const palavras = t.split(/\s+/).filter((w) => w.length >= 2);
-  return palavras.length >= 3;
+// Compat: booleano pro motor (usa a validação unificada).
+export function storyIsValid(step: StoryQuestion, value?: string) {
+  return validateStory(step, value).ok;
 }
