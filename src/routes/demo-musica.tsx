@@ -18,12 +18,15 @@ export const Route = createFileRoute("/demo-musica")({
   validateSearch: z.object({
     m: z.string().optional(),
     v: z.coerce.number().optional(),
+    // ?full=1 libera a música inteira (pra mandar pra alguém ouvir).
+    full: z.coerce.number().optional(),
   }),
   component: Demo,
 });
 
 function Demo() {
-  const { m, v } = Route.useSearch();
+  const { m, v, full } = Route.useSearch();
+  const completo = full === 1;
   const chave = m && EXEMPLOS[m] ? m : "camila";
   const ex = EXEMPLOS[chave];
   const versao = v === 2 ? 2 : 1;
@@ -47,7 +50,7 @@ function Demo() {
           <Link
             key={e.slug}
             to="/demo-musica"
-            search={{ m: e.slug, v: 1 }}
+            search={{ m: e.slug, v: 1, full }}
             className={cn(
               "rounded-full border-2 px-4 py-1.5 text-sm transition-colors",
               e.slug === chave
@@ -63,7 +66,7 @@ function Demo() {
           <Link
             key={n}
             to="/demo-musica"
-            search={{ m: chave, v: n }}
+            search={{ m: chave, v: n, full }}
             className={cn(
               "rounded-full border-2 px-3 py-1.5 text-sm transition-colors",
               n === versao
@@ -86,9 +89,10 @@ function Demo() {
         <div className="px-6 pb-6">
           {words ? (
             <MusicaKaraoke
-              key={base}
+              key={`${base}-${completo ? "full" : "preview"}`}
               audioUrl={`${base}.mp3`}
               words={words}
+              completo={completo}
               onDesbloquear={() => alert("Aqui entraria o checkout (Fase 3)")}
             />
           ) : (

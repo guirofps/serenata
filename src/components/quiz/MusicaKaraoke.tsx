@@ -57,15 +57,20 @@ export function MusicaKaraoke({
   audioUrl,
   words,
   onDesbloquear,
+  // `completo` libera a música inteira (sem a trava do preview). Usado nas
+  // demos que mandamos pra alguém ouvir; o funil real nunca passa isso.
+  completo = false,
 }: {
   audioUrl: string;
   words: PalavraAlinhada[];
   onDesbloquear?: () => void;
+  completo?: boolean;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [tocando, setTocando] = useState(false);
   const [t, setT] = useState(0);
   const [travou, setTravou] = useState(false);
+  const [dur, setDur] = useState(0);
 
   const linhas = useMemo(() => montarLinhas(words), [words]);
 
@@ -91,7 +96,7 @@ export function MusicaKaraoke({
   // com a aba minimizada (visto no teste). timeupdate continua disparando.
   useEffect(() => {
     const a = audioRef.current;
-    if (!a) return;
+    if (!a || completo) return; // modo completo: sem trava
     const trava = () => {
       if (a.currentTime >= PREVIEW_S) {
         a.pause();
@@ -133,7 +138,12 @@ export function MusicaKaraoke({
 
   return (
     <div className="space-y-4">
-      <audio ref={audioRef} src={audioUrl} preload="auto" />
+      <audio
+        ref={audioRef}
+        src={audioUrl}
+        preload="auto"
+        onLoadedMetadata={(e) => setDur(e.currentTarget.duration || 0)}
+      />
 
       {/* Player */}
       <div className="flex items-center gap-3 rounded-2xl bg-secondary/60 px-4 py-3">
@@ -160,12 +170,16 @@ export function MusicaKaraoke({
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border">
             <div
               className="h-full rounded-full bg-primary"
-              style={{ width: `${Math.min(100, (t / PREVIEW_S) * 100)}%` }}
+              style={{ width: `${Math.min(100, (t / (completo ? dur || 1 : PREVIEW_S)) * 100)}%` }}
             />
           </div>
         </div>
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-          {Math.floor(t / 60)}:{String(Math.floor(t % 60)).padStart(2, "0")} / 0:{PREVIEW_S}
+          {Math.floor(t / 60)}:{String(Math.floor(t % 60)).padStart(2, "0")}
+          {" / "}
+          {completo
+            ? `${Math.floor(dur / 60)}:${String(Math.floor(dur % 60)).padStart(2, "0")}`
+            : `0:${PREVIEW_S}`}
         </span>
       </div>
 
