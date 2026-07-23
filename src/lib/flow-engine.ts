@@ -60,13 +60,21 @@ export type ReviewStep = {
   kind: "review";
 };
 
-export type FlowStep = QuestionStep | SocialProofStep | ContactStep | ReviewStep;
+// Reveal: gera a letra, revela progressivamente dentro do mockup da página
+// presente, e termina no fake door.
+export type RevealStep = {
+  id: string;
+  kind: "reveal";
+};
+
+export type FlowStep = QuestionStep | SocialProofStep | ContactStep | ReviewStep | RevealStep;
 
 // ─── Type guards ─────────────────────────────────────────────────
 export const isQuestion = (s: FlowStep): s is QuestionStep => s.kind === "question";
 export const isSocialProof = (s: FlowStep): s is SocialProofStep => s.kind === "social-proof";
 export const isContact = (s: FlowStep): s is ContactStep => s.kind === "contact";
 export const isReview = (s: FlowStep): s is ReviewStep => s.kind === "review";
+export const isReveal = (s: FlowStep): s is RevealStep => s.kind === "reveal";
 
 // ─── Predicado de skip por ID ────────────────────────────────────
 // Um passo pode ser pulado com base nas respostas até aqui. A chave é o ID do

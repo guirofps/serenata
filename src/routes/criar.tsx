@@ -5,6 +5,7 @@ import {
   isQuestion,
   isContact,
   isReview,
+  isReveal,
   isSocialProof,
   nextVisibleIndex,
   prevVisibleIndex,
@@ -19,6 +20,7 @@ import { trackEvent, trackEventOnce } from "@/lib/track";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { ChipsStep } from "@/components/quiz/ChipsStep";
 import { StoryStep, storyIsValid } from "@/components/quiz/StoryStep";
+import { RevealStep } from "@/components/quiz/RevealStep";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -186,19 +188,23 @@ function Criar() {
           </div>
         )}
 
-        {isReview(step) && <ReviewPlaceholder />}
+        {isReview(step) && (
+          <ReviewScreen onGerar={() => navigate({ to: "/criar", search: { step: "reveal" } })} />
+        )}
+
+        {isReveal(step) && <RevealStep />}
       </div>
 
-      {/* Rodapé: continuar */}
-      {!isReview(step) && (
+      {/* Rodapé: continuar (some na revisão e no reveal, que têm CTA próprio) */}
+      {!isReview(step) && !isReveal(step) && (
         <div className="pt-8">
           <Button
             size="lg"
             className="w-full"
             disabled={!canAdvance}
-            onClick={isContact(step) ? () => goToReview(navigate) : goNext}
+            onClick={isContact(step) ? () => navigate({ to: "/criar", search: { step: "revisao" } }) : goNext}
           >
-            {isSocialProof(step) ? "Continuar" : isContact(step) ? "Ver minha letra" : "Continuar"}
+            {isContact(step) ? "Ver minha letra" : "Continuar"}
           </Button>
         </div>
       )}
@@ -206,29 +212,43 @@ function Criar() {
   );
 }
 
-function goToReview(navigate: ReturnType<typeof useNavigate>) {
-  navigate({ to: "/criar", search: { step: "revisao" } });
-}
+// Revisão editável (rótulos legíveis). "Editar" por linha entra no polimento.
+const ROTULO: Record<string, string> = {
+  relacao: "Pra quem",
+  nome: "Nome",
+  ocasiao: "Ocasião",
+  estilo: "Estilo",
+  voz: "Voz",
+  historia1: "Sobre ela(e)",
+  historia2: "Uma memória",
+  recado: "Sua frase",
+};
 
-// Placeholder da revisão — a geração da letra coautorada entra na próxima task.
-function ReviewPlaceholder() {
+function ReviewScreen({ onGerar }: { onGerar: () => void }) {
   const respostas = useQuizStore((s) => s.respostas);
+  const ordem = ["relacao", "nome", "ocasiao", "estilo", "voz", "historia1", "historia2", "recado"];
   return (
-    <div className="space-y-4 text-center">
-      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Tudo certo?</h1>
-      <p className="text-muted-foreground">
-        Última conferida antes de escrever a letra.
-      </p>
-      <div className="mx-auto max-w-md space-y-2 rounded-2xl border bg-card p-6 text-left text-sm">
-        {Object.entries(respostas).map(([k, v]) => (
-          <div key={k} className="flex justify-between gap-4 border-b pb-2 last:border-0">
-            <span className="text-muted-foreground">{k}</span>
-            <span className="text-right font-medium">{Array.isArray(v) ? v.join(", ") : v}</span>
-          </div>
-        ))}
+    <div className="space-y-6 text-center">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Tudo certo?</h1>
+        <p className="text-muted-foreground">Última conferida antes de escrever a letra.</p>
       </div>
-      <Button size="lg" className="w-full" disabled>
-        Escrever minha letra grátis (em construção)
+      <div className="mx-auto max-w-md space-y-3 rounded-2xl border bg-card p-6 text-left text-sm">
+        {ordem
+          .filter((k) => respostas[k])
+          .map((k) => (
+            <div key={k} className="border-b pb-3 last:border-0 last:pb-0">
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                {ROTULO[k] ?? k}
+              </span>
+              <p className="mt-0.5 font-medium">
+                {Array.isArray(respostas[k]) ? (respostas[k] as string[]).join(", ") : (respostas[k] as string)}
+              </p>
+            </div>
+          ))}
+      </div>
+      <Button size="lg" className="w-full" onClick={onGerar}>
+        Escrever minha letra grátis
       </Button>
     </div>
   );
