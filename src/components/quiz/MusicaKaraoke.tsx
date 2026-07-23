@@ -1,0 +1,228 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Play, Pause, Lock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { trackEvent, trackEventOnce } from "@/lib/track";
+
+// Karaokê REAL: a música cantada + cada palavra acendendo no instante em que
+// é cantada (alignedWords do kie.ai, precisão de ms — R$ 0,013 por música).
+//
+// Diferente do karaokê descartado (base instrumental independente da letra,
+// sincronia inventada), aqui as palavras VÊM do áudio: quem lê consegue
+// cantar junto, porque o destaque segue o vocal de verdade.
+//
+// Janela grátis: toca até PREVIEW_S segundos; ali pausa e vira o convite de
+// desbloquear a música completa (o paywall no pico emocional).
+
+export type PalavraAlinhada = { word: string; start: number; end: number };
+
+const PREVIEW_S = 40;
+
+// As palavras vêm com marcadores e quebras embutidos ("[Verse 1]\nHolambra ").
+// Normaliza em linhas: marcador vira rótulo, palavras agrupam por linha.
+type Linha =
+  | { tipo: "marcador"; texto: string }
+  | { tipo: "verso"; palavras: { texto: string; start: number; end: number; idx: number }[] };
+
+function montarLinhas(words: PalavraAlinhada[]): Linha[] {
+  const linhas: Linha[] = [];
+  let atual: Extract<Linha, { tipo: "verso" }> = { tipo: "verso", palavras: [] };
+  let idx = 0;
+
+  const empurra = () => {
+    if (atual.palavras.length) linhas.push(atual);
+    atual = { tipo: "verso", palavras: [] };
+  };
+
+  for (const w of words) {
+    // Um "word" pode conter marcador + quebra + palavra ("[Chorus]\nVocê ").
+    const pedacos = w.word.split("\n");
+    for (let p = 0; p < pedacos.length; p++) {
+      const texto = pedacos[p].trim();
+      if (p > 0) empurra(); // cada \n fecha a linha corrente
+      if (!texto) continue;
+      if (/^\[.*\]$/.test(texto)) {
+        empurra();
+        linhas.push({ tipo: "marcador", texto: texto.replace(/[[\]]/g, "") });
+      } else {
+        atual.palavras.push({ texto, start: w.start, end: w.end, idx: idx++ });
+      }
+    }
+  }
+  empurra();
+  return linhas;
+}
+
+export function MusicaKaraoke({
+  audioUrl,
+  words,
+  onDesbloquear,
+}: {
+  audioUrl: string;
+  words: PalavraAlinhada[];
+  onDesbloquear?: () => void;
+}) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [tocando, setTocando] = useState(false);
+  const [t, setT] = useState(0);
+  const [travou, setTravou] = useState(false);
+
+  const linhas = useMemo(() => montarLinhas(words), [words]);
+
+  // Destaque visual: rAF (~60fps; timeupdate dispara ~4x/s e atrasaria o
+  // acendimento). Só cosmético — a trava NÃO vive aqui.
+  useEffect(() => {
+    if (!tocando) return;
+    let vivo = true;
+    const tick = () => {
+      if (!vivo) return;
+      const a = audioRef.current;
+      if (a) setT(a.currentTime);
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    return () => {
+      vivo = false;
+    };
+  }, [tocando]);
+
+  // TRAVA do preview: no timeupdate + seeking, nunca no rAF — navegadores
+  // congelam rAF em abas em segundo plano, e a música passava do limite
+  // com a aba minimizada (visto no teste). timeupdate continua disparando.
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    const trava = () => {
+      if (a.currentTime >= PREVIEW_S) {
+        a.pause();
+        a.currentTime = PREVIEW_S;
+        setT(PREVIEW_S);
+        setTocando(false);
+        setTravou(true);
+        trackEventOnce("preview_limite", "v1");
+      }
+    };
+    a.addEventListener("timeupdate", trava);
+    a.addEventListener("seeking", trava); // seek além do limite também trava
+    const onPause = () => setTocando(false);
+    a.addEventListener("pause", onPause);
+    return () => {
+      a.removeEventListener("timeupdate", trava);
+      a.removeEventListener("seeking", trava);
+      a.removeEventListener("pause", onPause);
+    };
+  }, []);
+
+  // O clique é o gesto que libera o áudio (iOS bloqueia autoplay).
+  async function alternar() {
+    const a = audioRef.current;
+    if (!a || travou) return;
+    if (tocando) {
+      a.pause();
+      setTocando(false);
+      return;
+    }
+    try {
+      await a.play();
+      setTocando(true);
+      trackEventOnce("musica_play", "v1");
+    } catch (err) {
+      console.error("[karaoke] play falhou:", err);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <audio ref={audioRef} src={audioUrl} preload="auto" />
+
+      {/* Player */}
+      <div className="flex items-center gap-3 rounded-2xl bg-secondary/60 px-4 py-3">
+        <button
+          type="button"
+          onClick={alternar}
+          disabled={travou}
+          aria-label={tocando ? "Pausar" : "Ouvir"}
+          className={cn(
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105",
+            travou && "opacity-50",
+          )}
+        >
+          {tocando ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 translate-x-0.5" />}
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">
+            {travou
+              ? "Você ouviu um pedacinho…"
+              : tocando
+                ? "Cante junto — é a sua música"
+                : "Ouvir a música"}
+          </p>
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border">
+            <div
+              className="h-full rounded-full bg-primary"
+              style={{ width: `${Math.min(100, (t / PREVIEW_S) * 100)}%` }}
+            />
+          </div>
+        </div>
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+          {Math.floor(t / 60)}:{String(Math.floor(t % 60)).padStart(2, "0")} / 0:{PREVIEW_S}
+        </span>
+      </div>
+
+      {/* Letra com destaque palavra a palavra */}
+      <div className="space-y-1">
+        {linhas.map((l, i) =>
+          l.tipo === "marcador" ? (
+            <p
+              key={i}
+              className="pt-3 text-[11px] uppercase tracking-widest text-muted-foreground/60"
+            >
+              {l.texto}
+            </p>
+          ) : (
+            <p key={i} className="text-[15px] leading-relaxed">
+              {l.palavras.map((w) => {
+                const cantada = t >= w.start;
+                const cantando = t >= w.start && t <= w.end + 0.15;
+                return (
+                  <span
+                    key={w.idx}
+                    className={cn(
+                      "transition-colors duration-150",
+                      cantada ? "text-foreground" : "text-muted-foreground/50",
+                      cantando && "font-semibold text-primary",
+                    )}
+                  >
+                    {w.texto}{" "}
+                  </span>
+                );
+              })}
+            </p>
+          ),
+        )}
+      </div>
+
+      {/* Paywall no pico: a música corta no melhor momento */}
+      {travou && (
+        <div className="space-y-3 rounded-2xl border bg-card p-5 text-center">
+          <Lock className="mx-auto h-5 w-5 text-muted-foreground" />
+          <p className="font-semibold">A música continua…</p>
+          <p className="text-sm text-muted-foreground">
+            Desbloqueie a música completa + a página presente pra enviar + o MP3
+            pra guardar.
+          </p>
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={() => {
+              trackEvent("desbloquear_click", {});
+              onDesbloquear?.();
+            }}
+          >
+            Desbloquear minha música
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
