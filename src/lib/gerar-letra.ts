@@ -35,7 +35,10 @@ export const gerarLetra = createServerFn({ method: "POST" })
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 2000,
+        // 2000 cortava a letra no meio da última linha (bug visto em produção:
+        // a música terminava em "tá tudo d"). Uma letra completa em JSON gasta
+        // ~1.400 tokens; 4000 dá folga sem custo relevante (só paga o que usa).
+        max_tokens: 4000,
         output_config: { effort: "medium" },
         // System cacheável (prefixo estável).
         system: [{ type: "text", text: LETRA_SYSTEM, cache_control: { type: "ephemeral" } }],
@@ -56,6 +59,12 @@ Escreva a letra completa no formato do sistema. Responda APENAS com um objeto JS
     }
     const j = await r.json();
     const text: string = j.content?.find((b: { type: string }) => b.type === "text")?.text ?? "";
+
+    // Truncou por limite de tokens: falhe alto em vez de entregar uma música
+    // cortada no meio da última linha (foi o que aconteceu em produção).
+    if (j.stop_reason === "max_tokens") {
+      throw new Error("Letra truncada pelo limite de tokens");
+    }
 
     // Extrai o primeiro objeto JSON da resposta.
     const start = text.indexOf("{");
