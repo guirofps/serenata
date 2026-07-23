@@ -13,19 +13,16 @@ import { trackEventOnce } from "@/lib/track";
 // A fronteira do produto continua honesta:
 //   grátis = sua letra com trilha  |  pago = ela cantada de verdade.
 
-// Trilha por gênero. Hoje todas apontam pro placeholder sintetizado; basta
-// trocar os arquivos em /public/trilhas quando os instrumentais reais entrarem.
-const TRILHAS: Record<string, string> = {
-  sertanejo: "/trilhas/placeholder.mp3",
-  sertanejo_univ: "/trilhas/placeholder.mp3",
-  mpb: "/trilhas/placeholder.mp3",
-  pop_romantico: "/trilhas/placeholder.mp3",
-  gospel: "/trilhas/placeholder.mp3",
-  pagode: "/trilhas/placeholder.mp3",
-  forro: "/trilhas/placeholder.mp3",
-  infantil: "/trilhas/placeholder.mp3",
-};
-const TRILHA_PADRAO = "/trilhas/placeholder.mp3";
+// Trilha instrumental por gênero. VAZIO de propósito: as bases precisam sair
+// do Suno (kie.ai) pra ter qualidade de verdade — um instrumental sintetizado
+// soa pior que silêncio e destrói a emoção em vez de criar.
+//
+// São geradas UMA vez por gênero e reusadas por todos os usuários: ~R$ 0,32
+// cada, custo único. Quando existirem, é só apontar aqui (ex.:
+// sertanejo: "/trilhas/sertanejo.mp3") e o player liga sozinho.
+// Sem trilha, o componente entrega só a letra — sem player quebrado.
+const TRILHAS: Record<string, string> = {};
+const TRILHA_PADRAO = "";
 
 type Linha = { texto: string; marcador: boolean };
 
@@ -47,6 +44,7 @@ export function KaraokePlayer({ letra, genero }: { letra: string; genero?: strin
   const linhas = useMemo(() => parseLinhas(letra), [letra]);
   const cantadas = useMemo(() => linhas.filter((l) => !l.marcador).length, [linhas]);
   const src = (genero && TRILHAS[genero]) || TRILHA_PADRAO;
+  const temTrilha = Boolean(src);
 
   // Distribui as linhas ao longo da trilha, com uma respirada no começo.
   const LEAD_IN = 4;
@@ -95,9 +93,12 @@ export function KaraokePlayer({ letra, genero }: { letra: string; genero?: strin
 
   return (
     <div className="space-y-4">
-      <audio ref={audioRef} src={src} preload="metadata" />
+      {temTrilha && <audio ref={audioRef} src={src} preload="metadata" />}
 
-      {/* Controle: é o gesto do usuário que inicia o áudio */}
+      {/* Controle: é o gesto do usuário que inicia o áudio.
+          Sem trilha disponível, nem aparece — letra pura é melhor que
+          player quebrado ou instrumental ruim. */}
+      {temTrilha && (
       <div className="flex items-center gap-3 rounded-2xl bg-secondary/60 px-4 py-3">
         <button
           type="button"
@@ -120,6 +121,7 @@ export function KaraokePlayer({ letra, genero }: { letra: string; genero?: strin
         </div>
         <Music2 className="h-4 w-4 shrink-0 text-muted-foreground" />
       </div>
+      )}
 
       {/* A letra: revela em ritmo enquanto toca; inteira se não houver música */}
       <div className="space-y-1">
@@ -135,8 +137,8 @@ export function KaraokePlayer({ letra, genero }: { letra: string; genero?: strin
             );
           }
           const idx = contadorCantadas++;
-          const revelada = semMusica || !tocando || idx <= atual;
-          const ehAtual = tocando && !semMusica && idx === atual;
+          const revelada = !temTrilha || semMusica || !tocando || idx <= atual;
+          const ehAtual = temTrilha && tocando && !semMusica && idx === atual;
           return (
             <p
               key={i}
