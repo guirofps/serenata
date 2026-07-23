@@ -284,10 +284,31 @@ Nos dois, o job de geração dispara **no webhook de pagamento**. Aqui ele
 dispara **na conclusão do quiz**, antes de cobrar. A máquina do Inngest é a
 mesma, muda quem puxa o gatilho.
 
+## Validado com teste real (23/07/2026)
+
+Geração de ponta a ponta pelo kie.ai, com a letra do nosso próprio funil:
+
+- **O Suno canta PT-BR convincente.** Julgamento do dono: "ficou no tom
+  perfeito". Derruba a necessidade de testar ElevenLabs antes de validar.
+- **O Suno SEGUE a letra: 95% de fidelidade medida** (18/19 linhas idênticas;
+  a única divergência foi um artigo, "o" → "um").
+  Consequência comercial: **o que a pessoa lê na prévia grátis é o que ela
+  recebe pago** — a letra é prévia honesta, sem isca e troca.
+- **Escrever a letra ANTES, sem conhecer a melodia, funciona.** O Suno adapta
+  a melodia às palavras. Não é preciso inverter o fluxo.
+- **Tempo real:** 84s a 110s do pedido ao arquivo (não os 60s que os
+  concorrentes prometem). Confirma a promessa conservadora.
+- **Custo real:** 12 créditos = R$ 0,32 por geração, que entrega 2 versões.
+- **Karaokê com base instrumental foi DESCARTADO.** Sem melodia real à qual as
+  palavras correspondam, a sincronia é teatro: não dá pra saber entonação nem
+  onde cada verso entra. Pior que silêncio.
+
 ## Em aberto
 
 - Nome e marca
-- Testar se ElevenLabs Music entrega sertanejo e vocal PT-BR convincente
-  (seria a alternativa juridicamente sólida ao Suno)
-- Validar se a letra bem diagramada segura a emoção sozinha, ou se precisa
-  de um trecho curto de áudio junto
+- **Desenho do paywall**, agora que se sabe que a música fica boa e barata:
+  quanto se ouve de graça (trecho? versão 1 completa?) e o que exatamente se
+  paga (música completa + página presente + MP3 + QR). Testado: a letra
+  sozinha, lida em silêncio, NÃO segura a emoção — a música segura.
+- ElevenLabs como alternativa juridicamente sólida ao Suno: só vale
+  investigar depois de validar demanda (o Suno já provou qualidade)
