@@ -302,6 +302,15 @@ Geração de ponta a ponta pelo kie.ai, com a letra do nosso próprio funil:
 - **Karaokê com base instrumental foi DESCARTADO.** Sem melodia real à qual as
   palavras correspondam, a sincronia é teatro: não dá pra saber entonação nem
   onde cada verso entra. Pior que silêncio.
+- **Karaokê REAL funciona**, com a letra sincronizada por timestamps da música
+  cantada (`get-timestamped-lyrics`, 0,5 crédito ≈ R$ 0,013). Cada palavra
+  acende no instante em que é cantada.
+- **Duas músicas aprovadas pelo dono** (Camila/sertanejo universitário e
+  Luiza/sertanejo, histórias e gêneros diferentes): a qualidade é consistente,
+  não foi sorte de uma geração.
+- **Pipeline completo ensaiado à mão** em `scratch/pipeline-completo.mjs`:
+  respostas da sessão → letra (Claude) → música (Suno) → metadados limpos →
+  timestamps. É o job da Fase 2, faltando só rodar no Inngest.
 
 ## Em aberto
 
