@@ -144,14 +144,53 @@ function Home() {
           </p>
         </div>
 
-        {/* a reação — é o produto funcionando */}
-        <figure className="relative">
-          <img
-            src="/img/hero-1.png"
-            alt="Mulher ouvindo uma música na cozinha, com a mão no peito, emocionada"
-            className="w-full rounded-3xl object-cover shadow-[0_24px_70px_-24px_rgba(32,24,15,0.45)]"
-            loading="eager"
-          />
+        {/* O PRODUTO, não uma reação encenada.
+            Nada de foto de "cliente emocionada" gerada por IA: isso é prova
+            social falsa — o pecado que documentamos nos concorrentes, e o que
+            derruba conta no Google Ads. Enquanto não houver cliente real com
+            depoimento real, mostramos a coisa em si: a página-presente. */}
+        <figure className="relative mx-auto w-full max-w-[300px] lg:max-w-none">
+          {/* moldura de celular — é assim que o presente é aberto */}
+          <div className="relative rounded-[2.5rem] border-[10px] border-[#1a1512] bg-[var(--noite)] p-6 shadow-[0_28px_80px_-28px_rgba(32,24,15,0.55)]">
+            <div className="text-center">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-white/40">
+                uma música para
+              </p>
+              <p
+                className="mt-1.5 text-3xl text-[var(--creme)]"
+                style={{ fontFamily: FONTES.display, fontWeight: 500 }}
+              >
+                Eva
+              </p>
+              <p className="mt-1 text-xs text-white/45">Domingo na Casa da Eva</p>
+
+              <div className="mx-auto mt-5 flex h-14 w-14 items-center justify-center rounded-full bg-[oklch(0.84_0.13_78)]">
+                <Play className="h-6 w-6 translate-x-0.5 text-[#0d0a08]" fill="currentColor" />
+              </div>
+            </div>
+
+            {/* a letra acendendo — a assinatura do produto */}
+            <div className="mt-7 space-y-2 text-left">
+              <p className="text-[13px] leading-snug text-white/25">
+                Domingo é sagrado, Eva, é de lei
+              </p>
+              <p
+                className="text-[13px] leading-snug text-[oklch(0.84_0.13_78)]"
+                style={{ textShadow: "0 0 24px oklch(0.84 0.13 78 / 0.45)" }}
+              >
+                Sua mesa posta esperando por mim
+              </p>
+              <p className="text-[13px] leading-snug text-white/25">
+                O cheiro que vem lá da sua cozinha
+              </p>
+              <p className="text-[13px] leading-snug text-white/20">
+                Me chama de volta pro começo, pro fim
+              </p>
+            </div>
+          </div>
+          <figcaption className="mt-4 text-center text-xs text-[var(--tinta-suave)]">
+            Uma música real feita neste site — a letra acende no ritmo do vocal.
+          </figcaption>
         </figure>
       </section>
 
