@@ -140,7 +140,7 @@ galerias. Aquilo é o negócio deles, feito há mais tempo e com custo zero.
 |---|---|
 | Letra — uma tacada (Claude Sonnet 5) | R$ 0,06 (medido) |
 | Letra — coautorada em 4 etapas (modelo LoveTune) | R$ 0,22 (medido, ~2x com refações) |
-| Música (Suno via revendedor) | R$ 0,35 a R$ 1,00 |
+| Música (Suno via kie.ai, 12 créd = 2 versões) | R$ 0,32 (medido) |
 | Transcrição de áudio | R$ 0,05 |
 | Gerações pré-venda (5 por venda a 20% conv.) | R$ 1,75 |
 | Checkout (~5% + fixo) | R$ 2,30 |
@@ -171,6 +171,11 @@ prioridade é vender fumaça, e no Google Ads isso derruba conta.
 
 ## Decisões tomadas
 
+- **Provedor de música: kie.ai primário, sunoapi.org (ou Apiframe) failover.**
+  Preço por geração (2 versões) quase idêntico — kie.ai $0,06 / sunoapi.org
+  $0,055, mesma infra Suno v5. kie.ai vence por ser pay-as-you-go transparente
+  a partir de $5 (sunoapi.org empurra assinatura mensal) e pelos extras baratos
+  de karaokê: letra com timestamps $0,0025, separação de stems $0,05.
 - **Canal de contato: só e-mail no lançamento.** Nada de WhatsApp no produto
   (nem captura, nem envio, nem recuperação) até existir automação que valha.
 - **O comprador é quem entrega o presente.** A área do comprador dá o link
