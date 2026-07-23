@@ -48,9 +48,11 @@ emoção sozinha?
 - Captura parcial de lead a cada passo via RPC (já copiada na Fase 0).
   Isso é vantagem competitiva direta: a Cantoria não salva nada até o submit
   final e perde 100% de quem abandona no meio.
-- Campo de história com **gravação de áudio** (`MediaRecorder`, gravando
-  `audio/webm` no Chrome/Android e `audio/mp4` no Safari/iOS) + transcrição
-  server-side. É o passo de maior abandono e o que mais melhora o insumo.
+- Campo de história com **voz**. Implementado com a **Web Speech API** do
+  navegador (pt-BR): zero chave, zero custo, funciona em Chrome/Android e
+  Safari/iOS. É o passo de maior abandono e o que mais melhora o insumo.
+  O hook (`use-dictation.ts`) é isolado — trocar por `MediaRecorder` +
+  Whisper server-side depois não mexe na UI.
 - Geração da letra: ver `prompts/letra.md`. Dispara **na tela de revisão**,
   antes do submit, para roubar os segundos que a pessoa gasta conferindo.
 - **Karaokê:** base instrumental gravada por gênero (custo zero, sem geração)
