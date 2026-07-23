@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 const EXEMPLOS: Record<string, { slug: string; nome: string; titulo: string; versoes: number }> = {
   camila: { slug: "camila", nome: "Camila", titulo: "Taça de Vinho em Holambra", versoes: 2 },
   luiza: { slug: "luiza", nome: "Luiza", titulo: "De Amiga pra Esposa", versoes: 2 },
+  maria: { slug: "maria", nome: "Maria", titulo: "Strogonoff da Maria", versoes: 2 },
 };
 
 export const Route = createFileRoute("/demo-musica")({
