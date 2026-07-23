@@ -18,10 +18,30 @@ const LOADING = [
 type Estado =
   | { fase: "gerando" }
   | { fase: "pronta"; letra: LetraGerada }
-  | { fase: "erro"; msg: string };
+  | { fase: "erro"; msg: string }
+  | { fase: "sem-dados" };
+
+// Com SSR, a store persistida começa VAZIA e só hidrata do localStorage depois
+// do mount. Sem esperar por isso, a geração dispara sem a história e a letra
+// sai genérica (bug real: reload na tela de reveal produzia letra vazia de
+// detalhes). Este hook segura a geração até os dados existirem de verdade.
+function useStoreHidratada() {
+  const [hidratada, setHidratada] = useState(() =>
+    typeof window === "undefined" ? false : useQuizStore.persist.hasHydrated(),
+  );
+  useEffect(() => {
+    if (hidratada) return;
+    const unsub = useQuizStore.persist.onFinishHydration(() => setHidratada(true));
+    // Se já hidratou entre o render e o efeito, não fica esperando pra sempre.
+    if (useQuizStore.persist.hasHydrated()) setHidratada(true);
+    return unsub;
+  }, [hidratada]);
+  return hidratada;
+}
 
 export function RevealStep() {
   const respostas = useQuizStore((s) => s.respostas);
+  const hidratada = useStoreHidratada();
   const [estado, setEstado] = useState<Estado>({ fase: "gerando" });
   const [loadingIdx, setLoadingIdx] = useState(0);
   const [refez, setRefez] = useState(false);
@@ -31,7 +51,10 @@ export function RevealStep() {
     setEstado({ fase: "gerando" });
     setLoadingIdx(0);
     try {
-      const letra = await gerarLetra({ data: { respostas } });
+      // getState() = estado VIVO da store (pós-hidratação). Não usar o snapshot
+      // do render: com SSR ele ainda pode estar vazio e a letra sairia genérica.
+      const respostasVivas = useQuizStore.getState().respostas;
+      const letra = await gerarLetra({ data: { respostas: respostasVivas } });
       setEstado({ fase: "pronta", letra });
       trackEventOnce("letra_gerada", "v1", { titulo: letra.titulo });
     } catch (err) {
@@ -40,12 +63,26 @@ export function RevealStep() {
     }
   }
 
-  // Gera uma vez ao montar (a revisão já mandou pra cá).
+  // Gera UMA vez, e só depois que a store hidratou e a história existe.
+  // Falhe alto, não adivinhe: sem história, não gera letra genérica.
+  const temHistoriaRender = Boolean(
+    String(respostas.historia1 ?? "").trim() || String(respostas.historia2 ?? "").trim(),
+  );
   useEffect(() => {
-    if (jaGerou.current) return;
+    if (!hidratada || jaGerou.current) return;
+    // Confere no estado VIVO, não no snapshot do render (que pode estar
+    // atrasado logo após a hidratação e faria a letra sair sem história).
+    const r = useQuizStore.getState().respostas;
+    const temHistoria = Boolean(
+      String(r.historia1 ?? "").trim() || String(r.historia2 ?? "").trim(),
+    );
+    if (!temHistoria) {
+      setEstado({ fase: "sem-dados" });
+      return; // sem marcar jaGerou: se a história chegar depois, gera.
+    }
     jaGerou.current = true;
     gerar();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hidratada, temHistoriaRender]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Roda as frases de loading enquanto gera.
   useEffect(() => {
@@ -70,6 +107,23 @@ export function RevealStep() {
       <div className="flex flex-col items-center gap-4 py-16 text-center">
         <p className="text-muted-foreground">{estado.msg}</p>
         <Button onClick={gerar}>Tentar de novo</Button>
+      </div>
+    );
+  }
+
+  // Sem história (link direto / storage limpo): manda de volta pro quiz em vez
+  // de escrever uma letra que serviria pra qualquer pessoa.
+  if (estado.fase === "sem-dados") {
+    return (
+      <div className="flex flex-col items-center gap-4 py-16 text-center">
+        <p className="text-lg font-semibold">Faltou a parte mais importante</p>
+        <p className="max-w-sm text-muted-foreground">
+          Preciso da história pra escrever uma letra que seja só dela. Vamos
+          voltar e me contar?
+        </p>
+        <a href="/criar?step=historia1" className="underline underline-offset-4">
+          Contar a história
+        </a>
       </div>
     );
   }
