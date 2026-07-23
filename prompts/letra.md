@@ -56,6 +56,12 @@ A letra tem que ser lida.
    estrela no céu, saudade eterna. Fale do que a pessoa fazia, de
    como ela era.
 5. Não escreva nada que possa constranger quem vai receber.
+6. NUNCA escreva nome de artista, banda, música existente ou marca — nem na
+   letra, nem no estilo. O gerador de áudio RECUSA a produção quando isso
+   aparece, e a música não sai. Se a história citar "Coldplay" ou "Zeca
+   Pagodinho", fale do gesto, não do nome: "a nossa playlist de sempre",
+   "o samba que ela canta na cozinha", "aquela música que só vocês dois
+   entendem". O detalhe continua concreto, sem citar o nome próprio.
 
 ## Estrutura
 

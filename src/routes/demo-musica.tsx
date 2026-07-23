@@ -13,6 +13,8 @@ const EXEMPLOS: Record<string, { slug: string; nome: string; titulo: string; ver
   luiza: { slug: "luiza", nome: "Luiza", titulo: "De Amiga pra Esposa", versoes: 2 },
   maria: { slug: "maria", nome: "Maria", titulo: "Strogonoff da Maria", versoes: 2 },
   eva: { slug: "eva", nome: "Eva", titulo: "Domingo na Casa da Eva", versoes: 2 },
+  isabela: { slug: "isabela", nome: "Isabela", titulo: "Bebê Gordo", versoes: 2 },
+  denise: { slug: "denise", nome: "Denise", titulo: "Mulher de Palavra", versoes: 2 },
 };
 
 export const Route = createFileRoute("/demo-musica")({

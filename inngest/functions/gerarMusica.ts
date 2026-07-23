@@ -16,6 +16,29 @@ const bucket = "musicas";
 // Preço do provedor (tabela pública do kie.ai) e câmbio, espelhando
 // src/lib/custos.ts. O custo em BRL é congelado na linha: se o preço mudar,
 // o histórico do painel não se reescreve.
+// O Suno RECUSA gerar (GENERATE_AUDIO_FAILED) quando o estilo cita artista
+// real — e a história do usuário naturalmente cita banda favorita. O prompt
+// já proíbe, mas se escapar a música morreria em silêncio. Este fallback
+// troca o estilo por um genérico do gênero e tenta de novo.
+const ESTILO_GENERICO: Record<string, string> = {
+  sertanejo: "sertanejo romântico brasileiro, viola e violão, batida moderada, clima emotivo",
+  sertanejo_univ: "sertanejo universitário, violão e viola, produção pop, romântico",
+  mpb: "MPB intimista, violão acústico dedilhado, andamento lento, arranjo minimalista",
+  pop_romantico: "balada pop romântica, piano, cordas suaves, emocional e cinematográfica",
+  gospel: "gospel brasileiro, piano e órgão, cordas, clima reverente e inspirador",
+  pagode: "pagode romântico, cavaquinho, pandeiro, banjo, clima alegre e caloroso",
+  forro: "forró brasileiro, sanfona, zabumba e triângulo, clima nordestino",
+  infantil: "canção infantil suave, caixinha de música, ukulele, clima doce",
+};
+
+function estiloSemReferencias(estilo: string | null, genero: string | null): string {
+  const limpo = String(estilo ?? "").replace(
+    /,?\s*(refer[êe]ncias?|inspirad[oa]s?|no estilo)\s+(a|de|em|por)?[^,.]*/gi,
+    "",
+  ).trim();
+  return limpo || ESTILO_GENERICO[genero ?? ""] || "música brasileira emotiva, arranjo acústico";
+}
+
 const USD_POR_CREDITO = 0.005;
 const CAMBIO = 5.4;
 const CREDITOS = { musica: 12, timestamps: 0.5 };
@@ -96,46 +119,71 @@ export const gerarMusica = inngest.createFunction(
       return (data?.respostas as Record<string, string> | null)?.voz ?? "surpresa";
     });
 
-    // ─── 2. Dispara no provedor ────────────────────────────────────
-    const taskId = await step.run("iniciar-geracao", async () => {
-      const id = await iniciarGeracao({
-        letra: musica.letra,
-        titulo: musica.titulo ?? "Sua música",
-        estilo: musica.estilo_suno ?? musica.genero ?? "",
-        voz,
-      });
-      // Cobrado no disparo, independente do resultado.
-      await registrarCusto({
-        quizResponseId: musica.quiz_response_id,
-        musicaId,
-        tipo: "musica",
-        creditos: CREDITOS.musica,
-        modelo: "V4_5PLUS",
-      });
-      return id;
-    });
+    // ─── 2 e 3. Dispara e acompanha, com fallback de estilo ────────
+    // Duas tentativas: a segunda com o estilo limpo de referências a
+    // artista, que é a causa conhecida de recusa do provedor.
+    type Faixa = { id: string; audioUrl: string; duration?: number };
+    let faixas: Faixa[] = [];
+    let taskId = "";
+    let recusou = false;
 
-    // ─── 3. Polling ────────────────────────────────────────────────
-    // Medido: 84s a 163s. Damos folga de 6 minutos antes de desistir.
-    let faixas: Array<{ id: string; audioUrl: string; duration?: number }> = [];
-    for (let tentativa = 0; tentativa < 36; tentativa++) {
-      const r = await step.run(`consultar-${tentativa}`, () => consultarGeracao(taskId));
-      if (r.status === "SUCCESS" && r.faixas.length) {
-        faixas = r.faixas;
-        break;
+    const estilos = [
+      { rotulo: "original", valor: musica.estilo_suno ?? musica.genero ?? "" },
+      { rotulo: "sem-referencias", valor: estiloSemReferencias(musica.estilo_suno, musica.genero) },
+    ];
+
+    for (const [n, estilo] of estilos.entries()) {
+      // Se o primeiro estilo já era genérico, não gasta crédito repetindo.
+      if (n > 0 && (!recusou || estilo.valor === estilos[0].valor)) break;
+
+      taskId = await step.run(`iniciar-${estilo.rotulo}`, async () => {
+        const id = await iniciarGeracao({
+          letra: musica.letra,
+          titulo: musica.titulo ?? "Sua música",
+          estilo: estilo.valor,
+          voz,
+        });
+        // Cobrado no disparo, independente do resultado.
+        await registrarCusto({
+          quizResponseId: musica.quiz_response_id,
+          musicaId,
+          tipo: "musica",
+          creditos: CREDITOS.musica,
+          modelo: "V4_5PLUS",
+        });
+        return id;
+      });
+
+      recusou = false;
+      // Medido: 84s a 250s. Folga de 6 minutos antes de desistir.
+      for (let tentativa = 0; tentativa < 36; tentativa++) {
+        const r = await step.run(`consultar-${estilo.rotulo}-${tentativa}`, () =>
+          consultarGeracao(taskId),
+        );
+        if (r.status === "SUCCESS" && r.faixas.length) {
+          faixas = r.faixas;
+          break;
+        }
+        if (/FAIL|ERROR/i.test(r.status)) {
+          recusou = true;
+          break;
+        }
+        await step.sleep(`espera-${estilo.rotulo}-${tentativa}`, "10s");
       }
-      if (/FAIL|ERROR/i.test(r.status)) throw new Error(`provedor falhou: ${r.status}`);
-      await step.sleep(`espera-${tentativa}`, "10s");
+      if (faixas.length) break;
     }
 
     if (!faixas.length) {
-      await step.run("marcar-timeout", async () => {
+      await step.run("marcar-falha", async () => {
         await db()
           .from("musicas")
-          .update({ status: "falhou", erro: "timeout no provedor" })
+          .update({
+            status: "falhou",
+            erro: recusou ? "provedor recusou a geração" : "timeout no provedor",
+          })
           .eq("id", musicaId);
       });
-      throw new Error("timeout esperando a música");
+      throw new Error(recusou ? "provedor recusou" : "timeout esperando a música");
     }
 
     // ─── 4. Baixa e guarda no Storage ──────────────────────────────
