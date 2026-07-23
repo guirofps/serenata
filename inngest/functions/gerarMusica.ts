@@ -186,13 +186,27 @@ export const gerarMusica = inngest.createFunction(
       throw new Error(recusou ? "provedor recusou" : "timeout esperando a música");
     }
 
-    // ─── 4. Baixa e guarda no Storage ──────────────────────────────
-    // As URLs do kie.ai são TEMPORÁRIAS: sem isso, a música do cliente some.
+    // ─── 4. Escolhe a PRINCIPAL e guarda no Storage ────────────────
+    //
+    // O Suno devolve 2 versões. Julgamento do dono, consistente nos testes:
+    // a SEGUNDA costuma sair melhor. Então ela vira a principal (entregue e
+    // tocada), e a primeira fica como alternativa — útil de dar de brinde
+    // quando a pessoa pedir "uma outra versão", já pronta e sem custo novo.
+    //
+    // A ordem é trocada AQUI, na origem, e não na hora de servir: os
+    // timestamps do karaokê são de UMA faixa específica, então principal e
+    // timestamps precisam ser sempre a mesma — senão a letra acende fora
+    // de sincronia.
+    const principal = faixas.length > 1 ? faixas[1] : faixas[0];
+    const alternativa = faixas.length > 1 ? faixas[0] : null;
+
+    // As URLs do kie.ai são TEMPORÁRIAS: sem baixar, a música do cliente some.
     const caminhos = await step.run("guardar-audio", async () => {
       const sb = db();
       const salvos: string[] = [];
-      for (let i = 0; i < Math.min(2, faixas.length); i++) {
-        const resp = await fetch(faixas[i].audioUrl);
+      const ordenadas = [principal, alternativa].filter(Boolean) as Faixa[];
+      for (let i = 0; i < ordenadas.length; i++) {
+        const resp = await fetch(ordenadas[i].audioUrl);
         if (!resp.ok) throw new Error(`download falhou: ${resp.status}`);
         const buf = new Uint8Array(await resp.arrayBuffer());
         const caminho = `${musicaId}/v${i + 1}.mp3`;
@@ -205,11 +219,11 @@ export const gerarMusica = inngest.createFunction(
       return salvos;
     });
 
-    // ─── 5. Timestamps (karaokê real) ──────────────────────────────
+    // ─── 5. Timestamps (karaokê real) da faixa PRINCIPAL ───────────
     // Tolerante a falha: sem timestamps a música ainda toca, só sem destaque.
     const timestamps = await step.run("timestamps", async () => {
       try {
-        const t = await obterTimestamps(taskId, faixas[0].id);
+        const t = await obterTimestamps(taskId, principal.id);
         await registrarCusto({
           quizResponseId: musica.quiz_response_id,
           musicaId,
@@ -230,10 +244,12 @@ export const gerarMusica = inngest.createFunction(
         .from("musicas")
         .update({
           status: "pronta",
+          // audio_path é sempre a PRINCIPAL (a que toca e casa com os
+          // timestamps); audio_path_v2 é a alternativa de brinde.
           audio_path: caminhos[0] ?? null,
           audio_path_v2: caminhos[1] ?? null,
           timestamps,
-          duracao_s: faixas[0].duration ?? null,
+          duracao_s: principal.duration ?? null,
           provider: "kie.ai",
           provider_job_id: taskId,
           gerada_em: new Date().toISOString(),
