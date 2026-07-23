@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { gerarLetra } from "@/lib/gerar-letra";
+import { obterOuGerarLetra } from "@/lib/gerar-letra";
+import { getOrCreateSessionId } from "@/lib/session-context";
 import type { LetraGerada } from "@/lib/letra-prompt";
 import { useQuizStore } from "@/lib/quiz-store";
 import { trackEvent, trackEventOnce } from "@/lib/track";
@@ -48,14 +49,18 @@ export function RevealStep() {
   const [refez, setRefez] = useState(false);
   const jaGerou = useRef(false);
 
-  async function gerar() {
+  // `refazer` só quando a pessoa pede explicitamente: sem isso a letra salva
+  // é reaproveitada, e o que ela leu é o que vira música.
+  async function gerar(refazer = false) {
     setEstado({ fase: "gerando" });
     setLoadingIdx(0);
     try {
       // getState() = estado VIVO da store (pós-hidratação). Não usar o snapshot
       // do render: com SSR ele ainda pode estar vazio e a letra sairia genérica.
       const respostasVivas = useQuizStore.getState().respostas;
-      const letra = await gerarLetra({ data: { respostas: respostasVivas } });
+      const letra = await obterOuGerarLetra({
+        data: { sessionId: getOrCreateSessionId(), respostas: respostasVivas, refazer },
+      });
       setEstado({ fase: "pronta", letra });
       trackEventOnce("letra_gerada", "v1", { titulo: letra.titulo });
     } catch (err) {
@@ -107,7 +112,9 @@ export function RevealStep() {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
         <p className="text-muted-foreground">{estado.msg}</p>
-        <Button onClick={gerar}>Tentar de novo</Button>
+        {/* () => gerar() e não `gerar`: passar a referência faria o MouseEvent
+            virar o argumento `refazer` (truthy) e regerar sem necessidade. */}
+        <Button onClick={() => gerar()}>Tentar de novo</Button>
       </div>
     );
   }
@@ -164,7 +171,7 @@ export function RevealStep() {
             onClick={() => {
               setRefez(true);
               trackEvent("letra_refacao", {});
-              gerar();
+              gerar(true); // explícito: sobrescreve a letra salva
             }}
             className="mx-auto inline-flex items-center gap-2 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
           >
