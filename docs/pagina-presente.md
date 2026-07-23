@@ -67,6 +67,19 @@ Retrospectiva animada, timeline, álbum interativo, conquistas gamificadas.
 É o negócio deles, feito há mais tempo e com custo zero. A gente compete com
 a música original, não com galeria.
 
+### A página é um DOCUMENTO EDITÁVEL, não um render
+
+Decisão de visão (ver CLAUDE.md, "Plataforma, não funil"): a `/p/$token` é a
+**publicação** de algo que o comprador edita dentro da plataforma. Ele compra,
+entra, sobe as fotos, ajusta, e a página publicada reflete isso.
+
+Isso muda o modelo de dados: precisa existir uma entidade **presente**
+(conteúdo, seções, fotos, tema, status de publicação) separada de **musicas**
+(o áudio gerado). Uma música pode existir sem presente publicado; um presente
+sempre aponta pra uma música.
+
+E exige **contas de comprador** — o funil hoje é anônimo de ponta a ponta.
+
 ### Área do comprador (`/meu-presente`)
 
 O comprador é quem entrega. A área dá:

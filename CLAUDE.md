@@ -9,6 +9,35 @@ Tráfego alvo: Google e YouTube (Brasil). Ticket alvo abaixo de R$ 50.
 > Este arquivo guarda as decisões já tomadas e a pesquisa de concorrência.
 > Leia antes de propor arquitetura.
 
+## Visão: plataforma, não funil
+
+O funil é a porta de entrada. O destino é uma **plataforma de criação de
+presenteáveis online**, com a música como entregável mais forte — e, mais
+adiante, possivelmente um aplicativo.
+
+O que isso quer dizer na prática:
+
+1. A pessoa compra e **entra na plataforma**.
+2. Lá dentro ela tem **a página dela**, que ela **customiza pós-compra**:
+   sobe as fotos, ajusta o conteúdo.
+3. A plataforma gera o **link com token no nosso domínio** e uma **mensagem
+   pronta** pra ela copiar e mandar.
+4. Abaixo, o **download do arquivo** (MP3 da música; vídeo depois).
+5. Com o tempo, **mais planos e produtos**: cobrança antes, cobrança depois,
+   e **cobrança por geração** (créditos).
+
+Consequência arquitetural — o que isso exige e ainda NÃO existe:
+
+- **Contas de comprador** (hoje o funil é 100% anônimo, sem login).
+- **A página como documento editável**, não como render de uma vez só: o
+  `/p/$token` é a *publicação* de algo que o dono edita.
+- **Multi-produto / multi-plano**, com créditos por geração.
+- Uma camada visual à altura: numa plataforma, o design não é enfeite,
+  é o produto.
+
+Ordem que isso impõe: identidade visual e modelo de dados de "presente"
+vêm ANTES de construir a página de entrega.
+
 ## A tese central
 
 Os concorrentes erram em pontos opostos e a oportunidade está no meio:
