@@ -25,24 +25,30 @@ export const MARCA = {
 //   íntimo, o "abrir do presente". O contraste faz ele parecer outro lugar.
 //
 // O âmbar atravessa os dois — é a luz da janela, o único acento.
+// PALETA ESCOLHIDA: "papel e vinho" (23/07).
+// Carta antiga, lacre de cera, coisa que se guarda numa gaveta. Romântico
+// clássico sem ser piegas. O vinho é o acento; o dourado entra só como
+// detalhe fino (fio, moldura), nunca como superfície.
 export const CORES = {
-  // claro
-  papel: "#fbf7f0", // fundo principal claro (creme quente, não branco)
-  papelFundo: "#f3ece1", // superfícies e seções alternadas
-  tinta: "#20180f", // texto principal sobre claro
-  tintaSuave: "rgba(32,24,15,0.62)", // texto secundário
-  tintaFraca: "rgba(32,24,15,0.28)", // linhas, terciário
+  // claro — o site é papel
+  papel: "#faf5ee", // creme quente, nunca branco puro
+  papelFundo: "#f2e9dc", // seções alternadas, superfícies
+  tinta: "#2a1518", // texto principal (quase preto, puxado pro vinho)
+  tintaSuave: "rgba(42,21,24,0.62)",
+  tintaFraca: "rgba(42,21,24,0.24)",
 
-  // escuro (presente)
-  noite: "#0d0a08", // preto quente, não puro
-  noiteSuave: "#161110",
-  creme: "#f5efe6",
-  bruma: "rgba(245,239,230,0.55)",
-  sussurro: "rgba(245,239,230,0.25)",
+  // escuro — o presente é a noite da serenata
+  noite: "#1a0f12", // preto avinhado, não neutro
+  noiteSuave: "#251519",
+  creme: "#f7f0e8",
+  bruma: "rgba(247,240,232,0.5)",
+  sussurro: "rgba(247,240,232,0.22)",
 
-  // acento comum aos dois
-  ambar: "oklch(0.72 0.14 62)", // no claro precisa de mais peso pra contrastar
-  ambarLuz: "oklch(0.84 0.13 78)", // no escuro, mais luminoso
+  // acentos
+  vinho: "oklch(0.55 0.16 18)", // acento principal (botões, links, destaque)
+  vinhoClaro: "oklch(0.63 0.15 18)", // hover
+  vinhoFundo: "oklch(0.42 0.13 18)", // pressionado / bordas fortes
+  ouro: "oklch(0.78 0.10 82)", // fio dourado: detalhe, nunca superfície
 } as const;
 
 // ── Tipografia ────────────────────────────────────────────────────
@@ -55,24 +61,28 @@ export const FONTES = {
     "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap",
 } as const;
 
-// Variáveis do mundo CLARO (landing, quiz).
+// Variáveis do mundo CLARO (landing, quiz) — o papel.
 export const TEMA_CLARO: React.CSSProperties = {
   ["--papel" as string]: CORES.papel,
   ["--papel-fundo" as string]: CORES.papelFundo,
   ["--tinta" as string]: CORES.tinta,
   ["--tinta-suave" as string]: CORES.tintaSuave,
   ["--tinta-fraca" as string]: CORES.tintaFraca,
-  ["--ambar" as string]: CORES.ambar,
+  ["--acento" as string]: CORES.vinho,
+  ["--acento-hover" as string]: CORES.vinhoClaro,
+  ["--ouro" as string]: CORES.ouro,
   fontFamily: FONTES.texto,
 };
 
-// Variáveis do mundo ESCURO (página-presente, reveal).
+// Variáveis do mundo ESCURO (página-presente, reveal) — a noite.
 export const TEMA_ESCURO: React.CSSProperties = {
   ["--noite" as string]: CORES.noite,
   ["--noite-suave" as string]: CORES.noiteSuave,
   ["--creme" as string]: CORES.creme,
   ["--bruma" as string]: CORES.bruma,
   ["--sussurro" as string]: CORES.sussurro,
-  ["--ambar" as string]: CORES.ambarLuz,
+  // No escuro o vinho some; o ouro assume como luz (é o que brilha na noite).
+  ["--acento" as string]: CORES.ouro,
+  ["--vinho" as string]: CORES.vinhoClaro,
   fontFamily: FONTES.texto,
 };

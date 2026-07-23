@@ -110,7 +110,7 @@ function Home() {
       {/* ── HERO ────────────────────────────────────────────── */}
       <section className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-2 lg:gap-16 lg:py-24">
         <div className="text-center lg:text-left">
-          <p className="text-[11px] uppercase tracking-[0.35em] text-[var(--ambar)]">
+          <p className="text-[11px] uppercase tracking-[0.35em] text-[var(--acento)]">
             presente que se ouve
           </p>
           <h1
@@ -128,7 +128,7 @@ function Home() {
           <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row lg:items-start">
             <Link
               to="/criar"
-              className="inline-flex items-center gap-2 rounded-full bg-[var(--ambar)] px-8 py-4 text-base font-medium text-white transition-transform hover:scale-[1.03] active:scale-95"
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--acento)] px-8 py-4 text-base font-medium text-white transition-transform hover:scale-[1.03] active:scale-95"
             >
               Criar minha música <ArrowRight className="h-4 w-4" />
             </Link>
@@ -164,8 +164,8 @@ function Home() {
               </p>
               <p className="mt-1 text-xs text-white/45">Domingo na Casa da Eva</p>
 
-              <div className="mx-auto mt-5 flex h-14 w-14 items-center justify-center rounded-full bg-[oklch(0.84_0.13_78)]">
-                <Play className="h-6 w-6 translate-x-0.5 text-[#0d0a08]" fill="currentColor" />
+              <div className="mx-auto mt-5 flex h-14 w-14 items-center justify-center rounded-full bg-[oklch(0.78_0.10_82)]">
+                <Play className="h-6 w-6 translate-x-0.5 text-[#1a0f12]" fill="currentColor" />
               </div>
             </div>
 
@@ -175,7 +175,7 @@ function Home() {
                 Domingo é sagrado, Eva, é de lei
               </p>
               <p
-                className="text-[13px] leading-snug text-[oklch(0.84_0.13_78)]"
+                className="text-[13px] leading-snug text-[oklch(0.78_0.10_82)]"
                 style={{ textShadow: "0 0 24px oklch(0.84 0.13 78 / 0.45)" }}
               >
                 Sua mesa posta esperando por mim
@@ -206,7 +206,7 @@ function Home() {
           <div className="mt-14 grid gap-10 sm:grid-cols-3">
             {PASSOS.map((p) => (
               <div key={p.n}>
-                <p className="text-xs tracking-[0.3em] text-[var(--ambar)]">{p.n}</p>
+                <p className="text-xs tracking-[0.3em] text-[var(--acento)]">{p.n}</p>
                 <h3
                   className="mt-3 text-xl"
                   style={{ fontFamily: FONTES.display, fontWeight: 500 }}
@@ -245,7 +245,7 @@ function Home() {
           <p className="mt-1 text-sm text-white/50">Domingo na Casa da Eva</p>
           <a
             href="/p/533db522753f423e8b2227"
-            className="mt-7 inline-flex items-center gap-2 rounded-full bg-[oklch(0.84_0.13_78)] px-7 py-3.5 text-sm font-medium text-[#0d0a08] transition-transform hover:scale-[1.03]"
+            className="mt-7 inline-flex items-center gap-2 rounded-full bg-[oklch(0.78_0.10_82)] px-7 py-3.5 text-sm font-medium text-[#1a0f12] transition-transform hover:scale-[1.03]"
           >
             <Play className="h-4 w-4" fill="currentColor" /> Abrir esse presente
           </a>
@@ -265,7 +265,7 @@ function Home() {
           </p>
           <Link
             to="/criar"
-            className="mt-10 inline-flex items-center gap-2 rounded-full bg-[var(--ambar)] px-8 py-4 text-base font-medium text-white transition-transform hover:scale-[1.03] active:scale-95"
+            className="mt-10 inline-flex items-center gap-2 rounded-full bg-[var(--acento)] px-8 py-4 text-base font-medium text-white transition-transform hover:scale-[1.03] active:scale-95"
           >
             Começar agora <ArrowRight className="h-4 w-4" />
           </Link>
