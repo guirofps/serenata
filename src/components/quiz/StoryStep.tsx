@@ -1,7 +1,10 @@
 import { useState } from "react";
 import type { QuestionStep } from "@/lib/flow-engine";
 import { Textarea } from "@/components/ui/textarea";
+import { useDictation } from "@/lib/use-dictation";
+import { trackEventOnce } from "@/lib/track";
 import { cn } from "@/lib/utils";
+import { Mic, Square } from "lucide-react";
 
 type StoryQuestion = Extract<QuestionStep, { input: "story" }>;
 
@@ -52,6 +55,14 @@ export function StoryStep({
   const text = value ?? "";
   const { ok, message } = validateStory(step, text);
 
+  // Ditado: o texto falado é ANEXADO ao que já existe, nunca substitui —
+  // a pessoa pode alternar entre falar e digitar sem perder nada.
+  const ditado = useDictation((trecho) => {
+    if (!trecho) return;
+    const base = (value ?? "").trim();
+    onChange(base ? `${base} ${trecho}` : trecho);
+  });
+
   return (
     <div className="space-y-3">
       {step.triggers && step.triggers.length > 0 && (
@@ -66,31 +77,59 @@ export function StoryStep({
           ))}
         </div>
       )}
-      <Textarea
-        value={text}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={() => setTouched(true)}
-        placeholder={step.placeholder}
-        className="min-h-40"
-      />
-      <div className="flex items-center justify-between text-xs">
+      <div className="relative">
+        <Textarea
+          value={text}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={() => setTouched(true)}
+          placeholder={step.placeholder}
+          className={cn("min-h-40", ditado.gravando && "ring-2 ring-primary")}
+        />
+        {/* Preview do que está sendo falado (ainda não confirmado) */}
+        {ditado.gravando && ditado.parcial && (
+          <p className="pointer-events-none absolute inset-x-4 bottom-3 truncate text-sm italic text-muted-foreground">
+            {ditado.parcial}
+          </p>
+        )}
+      </div>
+
+      {step.allowAudio && ditado.suportado && (
+        <button
+          type="button"
+          onClick={() => {
+            if (!ditado.gravando) trackEventOnce("audio_usado", step.id);
+            ditado.alternar();
+          }}
+          className={cn(
+            "inline-flex w-full items-center justify-center gap-2 rounded-full border-2 px-4 py-2.5 text-sm font-medium transition-colors",
+            ditado.gravando
+              ? "border-destructive bg-destructive/10 text-destructive"
+              : "border-primary/40 text-foreground hover:bg-primary/5",
+          )}
+        >
+          {ditado.gravando ? (
+            <>
+              <Square className="h-4 w-4 fill-current" /> Parar de gravar
+            </>
+          ) : (
+            <>
+              <Mic className="h-4 w-4" /> Prefiro contar falando
+            </>
+          )}
+        </button>
+      )}
+
+      {ditado.erro && <p className="text-center text-xs text-destructive">{ditado.erro}</p>}
+
+      <div className="text-center text-xs">
         <span
           className={cn(
-            ok ? "text-muted-foreground" : "text-muted-foreground",
+            "text-muted-foreground",
             !ok && touched && text.length > 0 && "text-destructive",
           )}
         >
           {message}
         </span>
-        {step.allowAudio && (
-          <button
-            type="button"
-            className="text-primary underline underline-offset-2"
-            onClick={() => alert("Gravação de áudio: em construção")}
-          >
-            Prefiro contar falando
-          </button>
-        )}
       </div>
     </div>
   );
