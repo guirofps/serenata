@@ -21,8 +21,10 @@ import { trackEventOnce } from "@/lib/track";
 // cada, custo único. Quando existirem, é só apontar aqui (ex.:
 // sertanejo: "/trilhas/sertanejo.mp3") e o player liga sozinho.
 // Sem trilha, o componente entrega só a letra — sem player quebrado.
-const TRILHAS: Record<string, string> = {};
-const TRILHA_PADRAO = "";
+const TRILHAS: Record<string, string> = {
+  sertanejo: "/trilhas/sertanejo.mp3",
+};
+const TRILHA_PADRAO = "/trilhas/sertanejo.mp3";
 
 type Linha = { texto: string; marcador: boolean };
 
