@@ -5,7 +5,7 @@ import type { LetraGerada } from "@/lib/letra-prompt";
 import { useQuizStore } from "@/lib/quiz-store";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { Button } from "@/components/ui/button";
-import { KaraokePlayer } from "@/components/quiz/KaraokePlayer";
+import { MusicaDaSessao } from "@/components/quiz/MusicaDaSessao";
 import { Music, RefreshCw, QrCode } from "lucide-react";
 
 // Frases de loading HONESTAS (a letra fica pronta em ~6s de verdade). Nada de
@@ -152,10 +152,11 @@ export function RevealStep() {
           <h1 className="mt-1 text-2xl font-bold tracking-tight">{letra.titulo}</h1>
         </div>
 
-        {/* Karaokê: trilha instrumental + letra revelando em ritmo.
-            O que falta ainda é a VOZ — e é isso que o fake door desbloqueia. */}
+        {/* A música está sendo gerada em background desde que a letra foi
+            salva. Enquanto não fica pronta, mostra a letra + aviso honesto;
+            quando fica, vira karaokê real com preview de 40s. */}
         <div className="px-6 pb-6">
-          <KaraokePlayer letra={letra.letra} genero={respostas.estilo as string} />
+          <MusicaDaSessao letra={letra.letra} />
         </div>
 
         {/* Rodapé do presente */}

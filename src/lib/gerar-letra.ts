@@ -16,6 +16,12 @@ import {
 
 const MODEL = "claude-sonnet-5";
 
+// A letra vem acompanhada do id da música, pra o reveal saber o que acompanhar.
+export type LetraComMusica = LetraGerada & {
+  musicaId: string | null;
+  statusMusica: string;
+};
+
 // Geração crua (sem persistência). Uso interno — o funil chama
 // `obterOuGerarLetra`, que salva e reaproveita.
 const gerarLetra = createServerFn({ method: "POST" })
@@ -102,7 +108,7 @@ export const obterOuGerarLetra = createServerFn({ method: "POST" })
       refazer?: boolean;
     }) => data,
   )
-  .handler(async ({ data }): Promise<LetraGerada> => {
+  .handler(async ({ data }): Promise<LetraComMusica> => {
     const db = supabaseAdmin();
 
     // Acha o lead desta sessão (criado pela captura parcial do quiz).
@@ -117,7 +123,7 @@ export const obterOuGerarLetra = createServerFn({ method: "POST" })
     if (qr?.id && !data.refazer) {
       const { data: existente } = await db
         .from("musicas")
-        .select("titulo, letra, estilo_suno, verso_destaque")
+        .select("id, status, titulo, letra, estilo_suno, verso_destaque")
         .eq("quiz_response_id", qr.id)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -128,6 +134,8 @@ export const obterOuGerarLetra = createServerFn({ method: "POST" })
           letra: existente.letra,
           estilo_suno: existente.estilo_suno ?? "",
           verso_destaque: existente.verso_destaque ?? "",
+          musicaId: existente.id,
+          statusMusica: existente.status ?? "aguardando",
         };
       }
     }
@@ -147,11 +155,90 @@ export const obterOuGerarLetra = createServerFn({ method: "POST" })
         verso_destaque: nova.verso_destaque,
         genero: String(data.respostas.estilo ?? ""),
       };
-      const { error } = await db.from("musicas").insert(registro);
-      if (error) console.error("[letra] falha ao salvar musica:", error);
+      const { data: inserida, error } = await db
+        .from("musicas")
+        .insert(registro)
+        .select("id")
+        .single();
+      if (error) {
+        console.error("[letra] falha ao salvar musica:", error);
+      } else {
+        // GATILHO: a música começa a gerar AGORA, enquanto a pessoa lê a
+        // letra — não no pagamento. É a mudança arquitetural do PLANO.
+        await dispararGeracaoMusica(inserida.id);
+        return { ...nova, musicaId: inserida.id, statusMusica: "aguardando" };
+      }
     } else {
       console.error("[letra] sessão sem quiz_response; letra não persistida", data.sessionId);
     }
 
-    return nova;
+    return { ...nova, musicaId: null, statusMusica: "aguardando" };
   });
+
+// Envia o evento pro Inngest por HTTP, em vez de importar o SDK: assim o
+// pacote `inngest` não é arrastado para o bundle do cliente.
+async function dispararGeracaoMusica(musicaId: string): Promise<void> {
+  const eventKey = process.env.INNGEST_EVENT_KEY;
+  if (!eventKey) {
+    console.error("[musica] INNGEST_EVENT_KEY ausente; geração não disparada");
+    return;
+  }
+  try {
+    const r = await fetch(`https://inn.gs/e/${eventKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "musica/gerar", data: { musicaId } }),
+    });
+    if (!r.ok) console.error("[musica] evento recusado:", r.status, await r.text());
+  } catch (err) {
+    // Falha aqui não pode derrubar a entrega da letra.
+    console.error("[musica] falha ao disparar geração:", err);
+  }
+}
+
+// Status da música desta sessão — o reveal faz polling nisto pra trocar a
+// espera pelo player quando ficar pronta.
+export const statusMusica = createServerFn({ method: "POST" })
+  .validator((data: { sessionId: string }) => data)
+  .handler(
+    async ({
+      data,
+    }): Promise<{
+      status: string;
+      audioUrl: string | null;
+      timestamps: Array<{ word: string; start: number; end: number }> | null;
+      titulo: string | null;
+    }> => {
+      const db = supabaseAdmin();
+      const { data: qr } = await db
+        .from("quiz_responses")
+        .select("id")
+        .eq("session_id", data.sessionId)
+        .maybeSingle();
+      if (!qr?.id) return { status: "aguardando", audioUrl: null, timestamps: null, titulo: null };
+
+      const { data: m } = await db
+        .from("musicas")
+        .select("status, audio_path, timestamps, titulo")
+        .eq("quiz_response_id", qr.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!m) return { status: "aguardando", audioUrl: null, timestamps: null, titulo: null };
+
+      // Bucket é privado: a URL é assinada e temporária, gerada no servidor.
+      let audioUrl: string | null = null;
+      if (m.status === "pronta" && m.audio_path) {
+        const { data: assinada } = await db.storage
+          .from("musicas")
+          .createSignedUrl(m.audio_path, 60 * 60);
+        audioUrl = assinada?.signedUrl ?? null;
+      }
+      return {
+        status: m.status,
+        audioUrl,
+        timestamps: (m.timestamps as Array<{ word: string; start: number; end: number }>) ?? null,
+        titulo: m.titulo,
+      };
+    },
+  );
