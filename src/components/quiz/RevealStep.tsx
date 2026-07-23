@@ -4,7 +4,8 @@ import type { LetraGerada } from "@/lib/letra-prompt";
 import { useQuizStore } from "@/lib/quiz-store";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { Button } from "@/components/ui/button";
-import { Music, RefreshCw, QrCode, Play } from "lucide-react";
+import { KaraokePlayer } from "@/components/quiz/KaraokePlayer";
+import { Music, RefreshCw, QrCode } from "lucide-react";
 
 // Frases de loading HONESTAS (a letra fica pronta em ~6s de verdade). Nada de
 // barra de teatro que trava em 99% — o anti-padrão da Cantoria.
@@ -144,24 +145,10 @@ export function RevealStep() {
           <h1 className="mt-1 text-2xl font-bold tracking-tight">{letra.titulo}</h1>
         </div>
 
-        {/* Player travado (a música é o que se paga) */}
-        <div className="mx-6 mb-4 flex items-center gap-3 rounded-2xl bg-secondary/60 px-4 py-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20">
-            <Play className="h-4 w-4 text-primary" />
-          </div>
-          <div className="flex-1">
-            <div className="h-1.5 rounded-full bg-border">
-              <div className="h-full w-0 rounded-full bg-primary" />
-            </div>
-          </div>
-          <span className="text-xs text-muted-foreground">2:47</span>
-        </div>
-
-        {/* A letra */}
+        {/* Karaokê: trilha instrumental + letra revelando em ritmo.
+            O que falta ainda é a VOZ — e é isso que o fake door desbloqueia. */}
         <div className="px-6 pb-6">
-          <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-foreground">
-            {letra.letra}
-          </pre>
+          <KaraokePlayer letra={letra.letra} genero={respostas.estilo as string} />
         </div>
 
         {/* Rodapé do presente */}
