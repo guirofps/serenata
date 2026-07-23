@@ -46,6 +46,11 @@ function Criar() {
   const step = QUIZ_FLOW[idx];
   const total = useMemo(() => totalQuestions(QUIZ_FLOW), []);
   const qNum = questionNumber(QUIZ_FLOW, idx);
+  // Posição no FUNIL (não é o mesmo que o número da pergunta): o passo de
+  // contato vem depois da última pergunta e precisa de um número próprio,
+  // senão ele reporta o mesmo da última pergunta e o painel mostra
+  // "0 completaram" mesmo com gente chegando ao fim.
+  const passoFunil = isContact(step) ? total + 1 : qNum;
 
   useEffect(() => {
     getOrCreateSessionId();
@@ -56,8 +61,8 @@ function Criar() {
   useEffect(() => {
     if (isQuestion(step) || isContact(step)) {
       captureLeadProgress({
-        currentStep: qNum || idx,
-        furthestStep: qNum || idx,
+        currentStep: passoFunil || idx,
+        furthestStep: passoFunil || idx,
         respostas,
         email,
       });

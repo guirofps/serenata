@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CriarRouteImport } from './routes/criar'
 import { Route as DemoMusicaRouteImport } from './routes/demo-musica'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CriarRoute = CriarRouteImport.update({
@@ -31,30 +37,34 @@ const DemoMusicaRoute = DemoMusicaRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/criar': typeof CriarRoute
   '/demo-musica': typeof DemoMusicaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/criar': typeof CriarRoute
   '/demo-musica': typeof DemoMusicaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/criar': typeof CriarRoute
   '/demo-musica': typeof DemoMusicaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/criar' | '/demo-musica'
+  fullPaths: '/' | '/admin' | '/criar' | '/demo-musica'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/criar' | '/demo-musica'
-  id: '__root__' | '/' | '/criar' | '/demo-musica'
+  to: '/' | '/admin' | '/criar' | '/demo-musica'
+  id: '__root__' | '/' | '/admin' | '/criar' | '/demo-musica'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   CriarRoute: typeof CriarRoute
   DemoMusicaRoute: typeof DemoMusicaRoute
 }
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/criar': {
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   CriarRoute: CriarRoute,
   DemoMusicaRoute: DemoMusicaRoute,
 }

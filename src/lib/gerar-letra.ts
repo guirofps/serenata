@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { registrarCustoLetra, type UsoClaude } from "@/lib/custos";
 import {
   LETRA_SYSTEM,
   buildUserMessage,
@@ -23,10 +24,11 @@ export type LetraComMusica = LetraGerada & {
 };
 
 // Geração crua (sem persistência). Uso interno — o funil chama
-// `obterOuGerarLetra`, que salva e reaproveita.
+// `obterOuGerarLetra`, que salva, reaproveita e registra o custo.
+// Devolve o `uso` de tokens junto: sem isso o painel não sabe o custo real.
 const gerarLetra = createServerFn({ method: "POST" })
   .validator((data: { respostas: Record<string, unknown> }) => data)
-  .handler(async ({ data }): Promise<LetraGerada> => {
+  .handler(async ({ data }): Promise<LetraGerada & { uso: UsoClaude }> => {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) throw new Error("ANTHROPIC_API_KEY ausente no servidor");
 
@@ -87,6 +89,7 @@ Escreva a letra completa no formato do sistema. Responda APENAS com um objeto JS
       letra: String(parsed.letra ?? ""),
       estilo_suno: String(parsed.estilo_suno ?? ""),
       verso_destaque: String(parsed.verso_destaque ?? ""),
+      uso: (j.usage ?? {}) as UsoClaude,
     };
   });
 
@@ -140,7 +143,8 @@ export const obterOuGerarLetra = createServerFn({ method: "POST" })
       }
     }
 
-    const nova = await gerarLetra({ data: { respostas: data.respostas } });
+    // `uso` fica só no servidor (vai pra tabela de custos, não pro cliente).
+    const { uso, ...nova } = await gerarLetra({ data: { respostas: data.respostas } });
 
     // Persiste. Sem lead gravado (caso raro), entrega a letra mesmo assim:
     // melhor uma letra não salva do que erro na cara da pessoa.
@@ -163,6 +167,12 @@ export const obterOuGerarLetra = createServerFn({ method: "POST" })
       if (error) {
         console.error("[letra] falha ao salvar musica:", error);
       } else {
+        await registrarCustoLetra({
+          quizResponseId: qr.id,
+          musicaId: inserida.id,
+          modelo: MODEL,
+          uso,
+        });
         // GATILHO: a música começa a gerar AGORA, enquanto a pessoa lê a
         // letra — não no pagamento. É a mudança arquitetural do PLANO.
         await dispararGeracaoMusica(inserida.id);

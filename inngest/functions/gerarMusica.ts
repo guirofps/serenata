@@ -13,6 +13,39 @@ import { iniciarGeracao, consultarGeracao, obterTimestamps } from "../lib/kie.js
 
 const bucket = "musicas";
 
+// Preço do provedor (tabela pública do kie.ai) e câmbio, espelhando
+// src/lib/custos.ts. O custo em BRL é congelado na linha: se o preço mudar,
+// o histórico do painel não se reescreve.
+const USD_POR_CREDITO = 0.005;
+const CAMBIO = 5.4;
+const CREDITOS = { musica: 12, timestamps: 0.5 };
+
+async function registrarCusto(args: {
+  quizResponseId: string | null;
+  musicaId: string;
+  tipo: "musica" | "timestamps";
+  creditos: number;
+  modelo?: string;
+}) {
+  try {
+    const usd = args.creditos * USD_POR_CREDITO;
+    await db().from("custos").insert({
+      quiz_response_id: args.quizResponseId,
+      musica_id: args.musicaId,
+      tipo: args.tipo,
+      provider: "kie.ai",
+      modelo: args.modelo ?? null,
+      creditos: args.creditos,
+      custo_usd: usd,
+      custo_brl: usd * CAMBIO,
+      cambio: CAMBIO,
+    });
+  } catch (err) {
+    // Custo nunca derruba a entrega.
+    console.error("[custos] falha ao registrar:", err);
+  }
+}
+
 function db() {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -64,14 +97,23 @@ export const gerarMusica = inngest.createFunction(
     });
 
     // ─── 2. Dispara no provedor ────────────────────────────────────
-    const taskId = await step.run("iniciar-geracao", () =>
-      iniciarGeracao({
+    const taskId = await step.run("iniciar-geracao", async () => {
+      const id = await iniciarGeracao({
         letra: musica.letra,
         titulo: musica.titulo ?? "Sua música",
         estilo: musica.estilo_suno ?? musica.genero ?? "",
         voz,
-      }),
-    );
+      });
+      // Cobrado no disparo, independente do resultado.
+      await registrarCusto({
+        quizResponseId: musica.quiz_response_id,
+        musicaId,
+        tipo: "musica",
+        creditos: CREDITOS.musica,
+        modelo: "V4_5PLUS",
+      });
+      return id;
+    });
 
     // ─── 3. Polling ────────────────────────────────────────────────
     // Medido: 84s a 163s. Damos folga de 6 minutos antes de desistir.
@@ -119,7 +161,14 @@ export const gerarMusica = inngest.createFunction(
     // Tolerante a falha: sem timestamps a música ainda toca, só sem destaque.
     const timestamps = await step.run("timestamps", async () => {
       try {
-        return await obterTimestamps(taskId, faixas[0].id);
+        const t = await obterTimestamps(taskId, faixas[0].id);
+        await registrarCusto({
+          quizResponseId: musica.quiz_response_id,
+          musicaId,
+          tipo: "timestamps",
+          creditos: CREDITOS.timestamps,
+        });
+        return t;
       } catch (err) {
         console.error("[musica] timestamps falharam:", err);
         return null;
