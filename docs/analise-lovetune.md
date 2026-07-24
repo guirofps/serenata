@@ -33,6 +33,52 @@ o único de fato escalado no BR. Copiar muito daqui.
 >    acendendo, editor pós-compra), não o fato de existir QR.
 >
 > O resto da análise abaixo segue válido.
+>
+> ## Funil percorrido inteiro de novo (24/07, pelo dono)
+>
+> Detalhes da coautoria que a primeira análise não tinha, medidos passo a
+> passo. **Toda a mecânica acontece ANTES do pagamento.**
+>
+> | Etapa | Quantas opções | Quantas escolher | Regenerar? |
+> |---|---|---|---|
+> | Estrofes | **3** | **até 2**, "que se complementem" | sim |
+> | Ponte + refrão | **2** | 1 | sim |
+> | Verso final | **3** | 1 | sim |
+> | Revisão | editor aberto + "aprimorar com IA" | — | — |
+>
+> Cada etapa tem carregamento próprio ("gerando as estrofes…"). A pessoa
+> **constrói a letra junto**, escolhendo e regerando — não recebe um texto
+> pronto. É o oposto do nosso "1 refação grátis".
+>
+> ### A TELA DE ESPERA (o que a gente não tinha mapeado)
+>
+> Depois da letra, enquanto a prévia gera:
+> - barra de **porcentagem crescendo**
+> - "pode levar até **2 minutos**"
+> - mensagens rotativas tipo "nosso especialista em música…"
+> - **exemplos de outras músicas deles, tocáveis, logo abaixo**
+>
+> O objetivo é claro: **segurar a pessoa na tela** enquanto o Suno trabalha.
+>
+> Leitura crítica: as mensagens de "especialista" são teatro (a análise de
+> 22/07 já registrou que a barra deles é encenação) e a gente não copia
+> isso. **Mas os exemplos tocáveis embaixo são honestos e inteligentes** —
+> e para nós saem de graça: os três exemplos reais já estão prontos em
+> `src/components/landing/ExemplosReais.tsx`.
+>
+> ### O que essa passada confirma sobre NÓS
+>
+> - **Os três campos de história a gente já tem** (`historia1`, `historia2`,
+>   `recado`). Medido: 10 de 12 preenchem o recado — o campo funciona, não
+>   precisa mudar.
+> - **A coautoria por partes é o buraco real.** O `CLAUDE.md` já registrou a
+>   decisão de adotá-la ("mais validada, prende mais, o custo extra é
+>   irrelevante") e ela **nunca foi construída**. Custo medido: R$ 0,22 por
+>   letra coautorada em 4 etapas contra R$ 0,06 de uma tacada — irrelevante
+>   perto dos R$ 0,32 do Suno.
+> - **A espera não é problema nosso hoje**, porque a letra sai em ~6s e a
+>   música em 84–110s enquanto a pessoa lê. Mas quando a coautoria entrar,
+>   cada etapa vira uma espera — e aí a tela de espera passa a importar.
 
 ## Stack e fornecedores (confirmados no bundle)
 
