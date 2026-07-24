@@ -7,15 +7,21 @@ import { cn } from "@/lib/utils";
 // prateleira com um ícone do lado — foi essa a diferença que faltava nas
 // primeiras tentativas.
 //
-// PNG e não SVG porque o letreiro é desenhado, não tipografado. Servido em
-// duas versões: `logo-serenata.png` (vinho, para fundo claro) e a mesma com
-// filtro de inversão para o fundo escuro do presente.
-
-// WebP: 37 KB contra 447 KB do PNG. O playbook da Movify põe peso de página
-// abaixo de 1,5 MB em 4G — logo de 450 KB come um terço disso sozinha.
+// Bitmap e não SVG porque o letreiro é desenhado, não tipografado. Um único
+// arquivo serve os dois mundos: no escuro entra um filtro, não um segundo
+// arquivo.
+//
+// TRANSPARÊNCIA: o rascunho do Higgsfield vinha com o xadrez PINTADO nos
+// pixels (pedir "fundo transparente" a um gerador faz ele DESENHAR o
+// padrão). O recorte é feito por saturação em `scratch/extrair-logo.mjs` —
+// o xadrez é cinza puro e a marca é vinho e ouro. Fonte em
+// `docs/marca/logo-serenata.png`; não regerar o WebP na mão.
+//
+// 784x160 cobre a maior exibição (h-20 = 80px) em tela 2x. 45 KB: o playbook
+// da Movify põe a página abaixo de 1,5 MB em 4G.
 const ARQUIVO = "/img/logo-serenata.webp";
-// Proporção real do arquivo (1178x229), declarada pra não causar CLS.
-const RAZAO = 1178 / 229;
+// Proporção real do arquivo (784x160), declarada pra não causar CLS.
+const RAZAO = 784 / 160;
 
 export function Logo({
   className,
@@ -54,25 +60,5 @@ export function Logo({
       }
       draggable={false}
     />
-  );
-}
-
-// Só o símbolo (onda + coração), recortado da logo. Para favicon, avatar e
-// lugares onde não cabe a palavra.
-export function Simbolo({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn("inline-block overflow-hidden", className)}
-      aria-hidden
-      style={{ aspectRatio: "1 / 1" }}
-    >
-      <img
-        src={ARQUIVO}
-        alt=""
-        className="h-full w-auto max-w-none"
-        style={{ objectFit: "none", objectPosition: "6% 50%", transform: "scale(2.6)" }}
-        draggable={false}
-      />
-    </span>
   );
 }
