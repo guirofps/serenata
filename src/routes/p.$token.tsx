@@ -127,11 +127,27 @@ function PaginaPresente() {
         const mm = gsap.matchMedia();
         // Quem pediu menos movimento recebe a página parada — sem exceção.
         mm.add("(prefers-reduced-motion: no-preference)", () => {
-          gsap
+          const abertura = gsap
             .timeline({ defaults: { ease: "power3.out" } })
             .from("[data-abre]", { y: 26, opacity: 0, duration: 0.9, stagger: 0.13 })
             .from("[data-abre-fio]", { scaleX: 0, duration: 0.7 }, "-=0.5")
             .from("[data-abre-play]", { scale: 0.7, opacity: 0, duration: 0.6 }, "-=0.35");
+
+          // REDE DE SEGURANÇA — bug real relatado no celular: o botão de
+          // play sumia.
+          //
+          // `gsap.from()` escreve opacity:0 inline assim que o tween é
+          // criado, e o play só começa a animar ~1,15s depois. Se o relógio
+          // de animação parar nessa janela — o iOS estrangula rAF durante
+          // scroll e ao trocar de app, e o GSAP ainda chega por import
+          // dinâmico — o botão fica invisível PARA SEMPRE. E ele é o único
+          // controle da página: sem ele o presente não abre.
+          //
+          // `progress(1)` aplica o estado final na hora, sem depender do
+          // ticker. Se a animação já terminou, é no-op.
+          const seguro = window.setTimeout(() => {
+            if (abertura.progress() < 1) abertura.progress(1);
+          }, 3500);
 
           // Seções abaixo sobem quando entram na tela.
           //
@@ -166,6 +182,10 @@ function PaginaPresente() {
               },
             });
           }
+
+          // Limpeza do matchMedia: evita o seguro disparar depois de sair
+          // da página (navegação em SPA).
+          return () => window.clearTimeout(seguro);
         });
       }, raizRef);
     })();
@@ -286,7 +306,11 @@ function PaginaPresente() {
             aria-label={tocando ? "Pausar" : "Tocar"}
             className={cn(
               "group mt-10 flex h-20 w-20 items-center justify-center rounded-full transition-all duration-500",
-              "bg-[color:var(--presente-destaque)] text-[#0d0a08]",
+              // A cor NÃO vem de var(--presente-destaque) aqui: se o
+              // navegador não entender oklch, a variável fica inválida e o
+              // fundo vira transparente — o botão some. Ver o @supports no
+              // fim do arquivo.
+              "text-[#0d0a08]",
               "hover:scale-105 active:scale-95",
               !comecou &&
                 "shadow-[0_0_0_0_color-mix(in_oklch,var(--presente-destaque)_60%,transparent)] animate-[pulso_2.6s_ease-out_infinite]",
@@ -439,6 +463,15 @@ function PaginaPresente() {
       )}
 
       <style>{`
+        /* O botão de play é o ÚNICO controle da página: sem ele o presente
+           não abre. Por isso a cor nasce de um hex que todo navegador
+           entende, e só depois é substituída pelo oklch onde há suporte.
+           Usar var(--presente-destaque) direto tornava o fundo transparente
+           em navegador antigo — botão invisível. */
+        [data-abre-play] { background-color: #f0b95f; }
+        @supports (color: oklch(0.84 0.13 78)) {
+          [data-abre-play] { background-color: var(--presente-destaque); }
+        }
         @keyframes pulso {
           0%   { box-shadow: 0 0 0 0 color-mix(in oklch, var(--presente-destaque) 55%, transparent); }
           70%  { box-shadow: 0 0 0 26px transparent; }
