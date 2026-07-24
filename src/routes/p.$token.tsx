@@ -1,4 +1,4 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { carregarPresente } from "@/lib/presente";
 import { LetraSincronizada } from "@/components/presente/LetraSincronizada";
@@ -15,9 +15,17 @@ import { cn } from "@/lib/utils";
 // A pessoa abre isso pelo WhatsApp, no celular. Então: mobile primeiro, um
 // gesto só pra começar (o play), e nada que atrapalhe a emoção.
 
+const searchSchema = (s: Record<string, unknown>) => ({
+  v: s.v === 2 || s.v === "2" ? (2 as const) : undefined,
+});
+
 export const Route = createFileRoute("/p/$token")({
-  loader: async ({ params }) => {
-    const presente = await carregarPresente({ data: { token: params.token } });
+  validateSearch: searchSchema,
+  loaderDeps: ({ search }) => ({ v: search.v }),
+  loader: async ({ params, deps }) => {
+    const presente = await carregarPresente({
+      data: { token: params.token, versao: deps.v },
+    });
     if (!presente) throw notFound();
     return presente;
   },
@@ -60,6 +68,7 @@ export const Route = createFileRoute("/p/$token")({
 
 function PaginaPresente() {
   const p = Route.useLoaderData();
+  const { token } = Route.useParams();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [tocando, setTocando] = useState(false);
   const [t, setT] = useState(0);
@@ -181,9 +190,54 @@ function PaginaPresente() {
       </section>
 
       {/* ── A LETRA ──────────────────────────────────────────── */}
-      {p.timestamps && p.timestamps.length > 0 && (
+      {p.timestamps && p.timestamps.length > 0 ? (
         <section className="mx-auto max-w-2xl px-6 py-16">
           <LetraSincronizada words={p.timestamps} tempo={t} tocando={tocando} />
+        </section>
+      ) : (
+        // Sem sincronia (é o caso da segunda gravação): a letra aparece
+        // inteira e parada. Acender no tempo errado seria pior que não acender.
+        p.letra && (
+          <section className="mx-auto max-w-2xl px-6 py-16">
+            <p
+              className="whitespace-pre-line text-lg leading-relaxed text-white/45 sm:text-xl"
+              style={{ fontFamily: "Fraunces, ui-serif, Georgia, serif" }}
+            >
+              {p.letra.replace(/^\[.*\]\s*$/gm, "").trim()}
+            </p>
+          </section>
+        )
+      )}
+
+      {/* ── AS DUAS GRAVAÇÕES ────────────────────────────────── */}
+      {p.temAlternativa && (
+        <section className="mx-auto max-w-2xl px-6 pb-4 text-center">
+          <p className="text-[11px] uppercase tracking-[0.3em] text-white/35">
+            a mesma letra, duas gravações
+          </p>
+          <div className="mt-5 inline-flex rounded-full border border-white/15 p-1">
+            {([1, 2] as const).map((n) => (
+              <Link
+                key={n}
+                to="/p/$token"
+                params={{ token }}
+                search={{ v: n === 2 ? (2 as const) : undefined }}
+                className={cn(
+                  "rounded-full px-5 py-2 text-sm transition-colors",
+                  p.versao === n
+                    ? "bg-[color:var(--presente-destaque)] text-[#0d0a08]"
+                    : "text-white/55 hover:text-white",
+                )}
+              >
+                {n === 1 ? "Versão 1" : "Versão 2"}
+              </Link>
+            ))}
+          </div>
+          {p.versao === 2 && (
+            <p className="mt-4 text-xs text-white/35">
+              Nesta a letra não acende — a sincronia é da gravação 1.
+            </p>
+          )}
         </section>
       )}
 

@@ -17,17 +17,23 @@ export type Presente = {
   audioUrl: string | null;
   timestamps: Array<{ word: string; start: number; end: number }> | null;
   duracaoS: number | null;
+  /** Existe uma segunda versão pra ouvir? */
+  temAlternativa: boolean;
+  /** Qual está tocando agora. */
+  versao: 1 | 2;
 };
 
 export const carregarPresente = createServerFn({ method: "GET" })
-  .validator((data: { token: string }) => data)
+  // `versao: 2` toca a alternativa. O Suno devolve duas gravações da mesma
+  // letra numa única chamada; as duas fazem parte do que a pessoa leva.
+  .validator((data: { token: string; versao?: number }) => data)
   .handler(async ({ data }): Promise<Presente | null> => {
     const db = supabaseAdmin();
 
     const { data: m } = await db
       .from("musicas")
       .select(
-        "titulo, letra, status, audio_path, timestamps, duracao_s, quiz_response_id",
+        "titulo, letra, status, audio_path, audio_path_v2, timestamps, duracao_s, quiz_response_id",
       )
       .eq("token", data.token)
       .maybeSingle();
@@ -42,12 +48,18 @@ export const carregarPresente = createServerFn({ method: "GET" })
 
     const r = (q?.respostas ?? {}) as Record<string, string>;
 
+    const temAlternativa = Boolean(m.audio_path_v2);
+    // Só cai na alternativa se ela existir de verdade — link com ?v=2 numa
+    // música de uma versão só toca a principal em vez de dar tela muda.
+    const versao: 1 | 2 = data.versao === 2 && temAlternativa ? 2 : 1;
+    const caminho = versao === 2 ? m.audio_path_v2 : m.audio_path;
+
     let audioUrl: string | null = null;
-    if (m.audio_path) {
+    if (caminho) {
       // 7 dias: tempo de sobra pra pessoa abrir, reabrir e mostrar pros outros.
       const { data: assinada } = await db.storage
         .from("musicas")
-        .createSignedUrl(m.audio_path, 60 * 60 * 24 * 7);
+        .createSignedUrl(caminho, 60 * 60 * 24 * 7);
       audioUrl = assinada?.signedUrl ?? null;
     }
 
@@ -60,8 +72,15 @@ export const carregarPresente = createServerFn({ method: "GET" })
       // A história vira o "encarte" do disco.
       historia: [r.historia1, r.historia2].filter(Boolean).join("\n\n") || null,
       audioUrl,
+      // Os timestamps são de UMA gravação específica (a principal). Usá-los
+      // na alternativa acenderia a letra fora do que se ouve — pior que não
+      // acender. Na v2 mostramos a letra estática.
       timestamps:
-        (m.timestamps as Array<{ word: string; start: number; end: number }>) ?? null,
-      duracaoS: m.duracao_s ? Number(m.duracao_s) : null,
+        versao === 1
+          ? ((m.timestamps as Array<{ word: string; start: number; end: number }>) ?? null)
+          : null,
+      duracaoS: versao === 1 && m.duracao_s ? Number(m.duracao_s) : null,
+      temAlternativa,
+      versao,
     };
   });
