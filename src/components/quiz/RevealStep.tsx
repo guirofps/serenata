@@ -149,7 +149,7 @@ export function RevealStep() {
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
             uma música pra {nome}
           </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">{letra.titulo}</h1>
+          <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight">{letra.titulo}</h1>
         </div>
 
         {/* A música está sendo gerada em background desde que a letra foi

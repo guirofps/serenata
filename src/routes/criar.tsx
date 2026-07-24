@@ -45,6 +45,12 @@ function Criar() {
   const idx = indexOfId(QUIZ_FLOW, stepId);
   const step = QUIZ_FLOW[idx];
   const total = useMemo(() => totalQuestions(QUIZ_FLOW), []);
+  // Personaliza os títulos com o nome já dado (truque do HeartMoments: usar o
+  // nome nos passos seguintes aumenta o compromisso). Fallback "essa pessoa"
+  // cobre navegação direta por URL sem ter passado pelo passo do nome — e o
+  // nome ainda resolve o gênero (ela/ele) de brinde.
+  const nomePessoa = (respostas.nome as string)?.trim() || "essa pessoa";
+  const preencher = (s?: string) => s?.replace(/\{nome\}/g, nomePessoa);
   const qNum = questionNumber(QUIZ_FLOW, idx);
   // Posição no FUNIL (não é o mesmo que o número da pergunta): o passo de
   // contato vem depois da última pergunta e precisa de um número próprio,
@@ -122,8 +128,8 @@ function Criar() {
               </p>
             )}
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{step.text}</h1>
-              {step.subtext && <p className="text-muted-foreground">{step.subtext}</p>}
+              <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{preencher(step.text)}</h1>
+              {step.subtext && <p className="text-muted-foreground">{preencher(step.subtext)}</p>}
             </div>
 
             {step.input === "chips" && (
@@ -178,8 +184,8 @@ function Criar() {
         {isContact(step) && (
           <div className="space-y-6 text-center">
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{step.text}</h1>
-              {step.subtext && <p className="text-muted-foreground">{step.subtext}</p>}
+              <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{preencher(step.text)}</h1>
+              {step.subtext && <p className="text-muted-foreground">{preencher(step.subtext)}</p>}
             </div>
             <Input
               type="email"
@@ -235,7 +241,7 @@ function ReviewScreen({ onGerar }: { onGerar: () => void }) {
   return (
     <div className="space-y-6 text-center">
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Tudo certo?</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Tudo certo?</h1>
         <p className="text-muted-foreground">Última conferida antes de escrever a letra.</p>
       </div>
       <div className="mx-auto max-w-md space-y-3 rounded-2xl border bg-card p-6 text-left text-sm">
