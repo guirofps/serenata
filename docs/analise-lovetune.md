@@ -4,6 +4,36 @@ lovetuneoficial.com.br, dissecado em 22/07/2026 (funil ao vivo + bundle JS
 `index-BfmW94rW.js` e `Quiz-DizdXprD.js`). **É o mais avançado dos quatro** e
 o único de fato escalado no BR. Copiar muito daqui.
 
+> ## Reconferido em 24/07/2026 (bundle novo `index-C-0_Seyq.js`)
+>
+> Redeployaram desde a primeira análise. Gerador **continua Suno**
+> (confirmado: `SunoStudioModal` no bundle), Supabase segue. O que mudou
+> importa pra nós:
+>
+> 1. **Preço agora é testado A/B — seis tabelas no bundle**, não mais um
+>    valor fixo. Básico varia de **R$ 47** (a mais barata) a R$ 77; uma
+>    tabela tem valores quebrados (`basic:52,67 / premium:71,15 /
+>    master:89,63`), assinatura de **otimização automática de preço**. Ou
+>    seja: o "entram em R$ 67" da tabela abaixo virou **"entram já em R$ 47"**
+>    em parte do tráfego — a folga pra gente entrar por baixo diminuiu.
+> 2. **Novo tier `express: R$ 197`** em todas as tabelas = **entrega rápida**
+>    ("entrega imediata", "entrega até 12:00 do dia seguinte"). Contraria
+>    frontalmente a nossa regra do `CLAUDE.md` de **não vender entrega
+>    expressa** — eles vendem, e caro. É aposta deles, não validação da nossa;
+>    no Google Ads isso é justamente o que derruba conta.
+> 3. **Order bumps com preço no bundle**: `video_letra R$ 23,01`,
+>    `video_fotos R$ 53,50`, `alteracao` (revisão extra paga). Confirma a
+>    lógica de AOV via add-on que a gente já planejou.
+> 4. **⚠️ Novo tipo de plano `qrcode: R$ 97`** sendo testado numa das
+>    tabelas. Não consegui ver a feature (deve estar em chunk lazy), mas
+>    "qrcode" como **plano** é sinal de que eles estão indo atrás do
+>    entregável QR/página — **o nosso diferencial declarado (pegada
+>    Lovepanda).** Não é mais terreno livre: vigiar. Nossa vantagem passa a
+>    ser a *execução* da página-presente (link no nosso domínio, letra
+>    acendendo, editor pós-compra), não o fato de existir QR.
+>
+> O resto da análise abaixo segue válido.
+
 ## Stack e fornecedores (confirmados no bundle)
 
 - **Supabase** (`vacxcqmfzduzdxxmntfo.supabase.co`) + React + Vite. Mesma
