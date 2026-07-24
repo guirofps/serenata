@@ -31,27 +31,34 @@ código ou medido.
 pra WebP (**447 KB → 37 KB**, 12x menor), com `width`/`height` declarados
 (anti-CLS) e `fetchpriority="high"`.
 
-### 🔴 P1 — Arquitetura da página (§2)
+### 🔴 P1 — Arquitetura da página (§2) — **CORRIGIDO**
 
-O playbook define 12 blocos, com objeção que cada um derruba. Temos 4.
+O playbook define 12 blocos, com objeção que cada um derruba. Tínhamos 4.
 
 | # | Bloco | Objeção | Temos? |
 |---|---|---|---|
 | 01 | Herói: promessa + mecanismo + CTA | "O que é isso?" | ✅ |
-| 02 | Prova imediata (número, selo) | "Isso é sério?" | ❌ |
-| 03 | Dor nomeada | "Isso é pra mim?" | ❌ |
+| 02 | Prova imediata (número, selo) | "Isso é sério?" | ✅ fatos medidos |
+| 03 | Dor nomeada | "Isso é pra mim?" | ✅ |
 | 04 | Mecanismo em 3 passos | "Por que funciona?" | ✅ |
-| 05 | Benefícios em cards | "O que eu ganho?" | ❌ |
+| 05 | Benefícios em cards | "O que eu ganho?" | ✅ |
 | 06 | Demonstração | "Me mostra" | ✅ (exemplo tocável) |
 | 07 | Prova social | "Funcionou pra alguém?" | ❌ bloqueado (sem cliente real) |
-| 08 | Ancoragem de valor | "Tá caro" | ❌ |
-| 09 | Oferta + garantia | "E se der errado?" | ❌ |
-| 10 | FAQ (6 objeções) | dúvidas residuais | ❌ |
+| 08 | Ancoragem de valor | "Tá caro" | ✅ |
+| 09 | Oferta + garantia | "E se der errado?" | ✅ |
+| 10 | FAQ (6 objeções) | dúvidas residuais | ✅ |
 | 11 | CTA final | fechamento | ✅ |
-| 12 | Barra flutuante de CTA | resgate de scroll | ❌ |
+| 12 | Barra flutuante de CTA | resgate de scroll | ✅ |
 
-**Faltam 7 blocos obrigatórios.** É a causa do "está seco" — não é falta de
-animação, é falta de argumento.
+**11 de 12.** O 07 é o único que falta e ele segue **bloqueado de propósito**:
+prova social só entra quando houver cliente real (§3.5 proíbe inventar).
+
+Verificado em produção (`serenatagift.com`): 9 `<section>` na ordem do
+playbook, `h1` = 73,6px pelo `clamp()`, barra flutuante em `opacity: 1` após
+o herói sair da tela e `aria-hidden`/`tabIndex -1` antes disso.
+
+**Pendência de conteúdo, não de código:** o preço em `Oferta` é um
+placeholder de R$ 47 — nunca foi decidido. O `PLANO.md` mira R$ 37–50.
 
 ### 🟡 P2 — Motion (§4, §5)
 
@@ -65,11 +72,12 @@ Regras a respeitar quando implementar:
 - `gsap.matchMedia()` com `prefers-reduced-motion`
 - `useGSAP()` pra cleanup automático no React
 
-### 🟡 P2 — Tipografia e espaçamento (§3.2, §3.3)
+### 🟡 P2 — Tipografia e espaçamento (§3.2, §3.3) — **CORRIGIDO**
 
-- Sem escala fluida com `clamp()` — hoje são breakpoints soltos
-- Sem escala de espaçamento 4/8 documentada
-- Espaço entre seções: playbook pede 96–128px desktop / 56–72px mobile
+Escala fluida em `src/lib/marca.ts` (`TEXTO`, `SECAO`), exposta como
+variáveis CSS (`--t-xs` … `--t-hero`, `--secao`) nos dois temas. Um único
+`clamp()` por degrau no lugar de breakpoints soltos; `--secao` entrega
+56px no mobile e 128px no desktop, exatamente a faixa do playbook.
 
 ### 🟡 P2 — Uma cor de destaque só (§3.4)
 
@@ -94,11 +102,13 @@ tráfego pago: GTM, Pixel + CAPI, UTM por criativo, e o teste final —
 ## Ordem sugerida (custo × impacto)
 
 1. ✅ **Peso** — feito (21 MB fora, logo 12x menor)
-2. **Os 7 blocos que faltam** — é o que faz o site parecer incompleto
-3. **Escala tipográfica com `clamp()`** + espaçamento 4/8
-4. **Motion com GSAP** — depois do conteúdo existir, nunca antes
-5. **Estados e foco visível**
-6. **Medição** — quando houver tráfego
+2. ✅ **Os 7 blocos que faltam** — feito (11 de 12; o 07 fica bloqueado)
+3. ✅ **Escala tipográfica com `clamp()`** + espaçamento 4/8
+4. **Levar a marca pro quiz e pra página-presente** — a landing já é
+   Serenata, o quiz ainda é o cinza genérico. Hoje é a maior quebra.
+5. **Motion com GSAP** — agora o conteúdo existe, então já pode
+6. **Estados e foco visível**
+7. **Medição** — quando houver tráfego
 
 > Regra do playbook que vale repetir aqui: *"Estética é a quinta prioridade."*
 > Animação antes de conteúdo é o erro que a gente estava prestes a cometer.
