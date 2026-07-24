@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { Logo } from "@/components/marca/Logo";
 import { MARCA, FONTES, TEMA_CLARO } from "@/lib/marca";
 import { ProvaImediata, Dor, Beneficios, Oferta, FAQ } from "@/components/landing/Secoes";
+import { ExemplosReais } from "@/components/landing/ExemplosReais";
 import { BarraCTA } from "@/components/landing/BarraCTA";
 import { Play, ArrowRight, Menu, X } from "lucide-react";
 
@@ -258,39 +259,8 @@ function Home() {
       {/* ── 05 · BENEFÍCIOS ─────────────────────────────────── */}
       <Beneficios />
 
-      {/* ── 06 · DEMONSTRAÇÃO (exemplo real, tocável) ───────── */}
-      <section
-        id="exemplo"
-        className="mx-auto max-w-2xl px-6 text-center"
-        style={{ paddingBlock: "var(--secao)" }}
-      >
-        <h2
-          className="text-3xl sm:text-4xl"
-          style={{ fontFamily: FONTES.display, fontWeight: 500 }}
-        >
-          Um presente de verdade, feito aqui
-        </h2>
-        <p className="mx-auto mt-4 max-w-md text-[var(--tinta-suave)]">
-          Essa música nasceu de uma história real contada nesse site. Abre e
-          escuta — é exatamente isso que a pessoa recebe.
-        </p>
-
-        <div className="mt-10 overflow-hidden rounded-3xl bg-[var(--noite)] p-8 text-[var(--creme)]">
-          <p className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-            uma música para
-          </p>
-          <p className="mt-2 text-4xl" style={{ fontFamily: FONTES.display, fontWeight: 500 }}>
-            Eva
-          </p>
-          <p className="mt-1 text-sm text-white/50">Domingo na Casa da Eva</p>
-          <a
-            href="/p/533db522753f423e8b2227"
-            className="mt-7 inline-flex items-center gap-2 rounded-full bg-[oklch(0.78_0.10_82)] px-7 py-3.5 text-sm font-medium text-[#1a0f12] transition-transform hover:scale-[1.03]"
-          >
-            <Play className="h-4 w-4" fill="currentColor" /> Abrir esse presente
-          </a>
-        </div>
-      </section>
+      {/* ── 06 · DEMONSTRAÇÃO (três músicas reais, tocáveis) ── */}
+      <ExemplosReais />
 
       {/* ── 08 + 09 · ANCORAGEM E OFERTA ────────────────────── */}
       <Oferta />
