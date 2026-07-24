@@ -72,18 +72,22 @@ export function FotosSincronizadas({
             transform: i === atual ? "scale(1.08)" : "scale(1)",
             transitionProperty: "opacity, transform",
             transitionDuration: i === atual ? "2200ms, 9000ms" : "2200ms, 0ms",
-            filter: "saturate(0.9) blur(1px)",
+            filter: "saturate(0.95)",
           }}
         />
       ))}
 
-      {/* Escurecimento: sem isto a letra some sobre foto clara. Mais forte no
-          topo e na base, onde ficam o cabeçalho e o player. */}
+      {/* Escurecimento pra letra não sumir sobre foto clara.
+          O primeiro ajuste ficou em 72–92% de preto e as fotos
+          desapareciam — a pessoa não via foto nenhuma. Agora o miolo (onde
+          a letra corre) fica em 50%, que ainda dá contraste pro texto
+          branco e deixa a foto existir. Topo e base seguem mais fechados
+          porque ali moram o nome e o player. */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(to bottom, rgba(13,10,8,0.88) 0%, rgba(13,10,8,0.72) 30%, rgba(13,10,8,0.72) 70%, rgba(13,10,8,0.92) 100%)",
+            "linear-gradient(to bottom, rgba(13,10,8,0.78) 0%, rgba(13,10,8,0.50) 26%, rgba(13,10,8,0.50) 74%, rgba(13,10,8,0.86) 100%)",
         }}
       />
     </div>
