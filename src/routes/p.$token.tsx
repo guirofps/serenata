@@ -232,6 +232,28 @@ function PaginaPresente() {
         ref={capaRef}
         className="relative flex min-h-[100svh] flex-col items-center justify-center px-6 text-center"
       >
+        {/* Foto do comprador, quando existe: vira o FUNDO da capa, não um
+            quadradinho ao lado. É o rosto de quem recebe dominando a tela.
+            Escurecida o suficiente pra o nome continuar legível sobre
+            qualquer foto — clara, escura ou estourada. */}
+        {p.fotoUrl && (
+          <div aria-hidden className="absolute inset-0 overflow-hidden">
+            <img
+              src={p.fotoUrl}
+              alt=""
+              className="h-full w-full object-cover"
+              style={{ filter: "saturate(0.85)" }}
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to bottom, rgba(13,10,8,0.62) 0%, rgba(13,10,8,0.78) 55%, #0d0a08 100%)",
+              }}
+            />
+          </div>
+        )}
+
         <div className="relative z-10 flex flex-col items-center">
           <p
             data-abre
@@ -278,6 +300,22 @@ function PaginaPresente() {
           </button>
 
           {!comecou && <p data-abre className="mt-5 text-sm text-white/40">toque para ouvir</p>}
+
+          {/* Dedicatória: a voz do comprador, com as palavras dele. É a única
+              coisa nesta página que não foi gerada. */}
+          {p.dedicatoria && (
+            <p
+              data-abre
+              className="mt-10 max-w-sm text-balance text-white/70"
+              style={{
+                fontFamily: "Fraunces, ui-serif, Georgia, serif",
+                fontSize: "var(--t-base)",
+                lineHeight: 1.65,
+              }}
+            >
+              {p.dedicatoria}
+            </p>
+          )}
         </div>
 
         {comecou && (

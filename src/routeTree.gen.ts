@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CriarRouteImport } from './routes/criar'
 import { Route as DemoMusicaRouteImport } from './routes/demo-musica'
 import { Route as MarcaRouteImport } from './routes/marca'
+import { Route as EditarTokenEdicaoRouteImport } from './routes/editar.$tokenEdicao'
 import { Route as PTokenRouteImport } from './routes/p.$token'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,6 +42,11 @@ const MarcaRoute = MarcaRouteImport.update({
   path: '/marca',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EditarTokenEdicaoRoute = EditarTokenEdicaoRouteImport.update({
+  id: '/editar/$tokenEdicao',
+  path: '/editar/$tokenEdicao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PTokenRoute = PTokenRouteImport.update({
   id: '/p/$token',
   path: '/p/$token',
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/criar': typeof CriarRoute
   '/demo-musica': typeof DemoMusicaRoute
   '/marca': typeof MarcaRoute
+  '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/p/$token': typeof PTokenRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/criar': typeof CriarRoute
   '/demo-musica': typeof DemoMusicaRoute
   '/marca': typeof MarcaRoute
+  '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/p/$token': typeof PTokenRoute
 }
 export interface FileRoutesById {
@@ -70,13 +78,28 @@ export interface FileRoutesById {
   '/criar': typeof CriarRoute
   '/demo-musica': typeof DemoMusicaRoute
   '/marca': typeof MarcaRoute
+  '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/p/$token': typeof PTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/criar' | '/demo-musica' | '/marca' | '/p/$token'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/criar'
+    | '/demo-musica'
+    | '/marca'
+    | '/editar/$tokenEdicao'
+    | '/p/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/criar' | '/demo-musica' | '/marca' | '/p/$token'
+  to:
+    | '/'
+    | '/admin'
+    | '/criar'
+    | '/demo-musica'
+    | '/marca'
+    | '/editar/$tokenEdicao'
+    | '/p/$token'
   id:
     | '__root__'
     | '/'
@@ -84,6 +107,7 @@ export interface FileRouteTypes {
     | '/criar'
     | '/demo-musica'
     | '/marca'
+    | '/editar/$tokenEdicao'
     | '/p/$token'
   fileRoutesById: FileRoutesById
 }
@@ -93,6 +117,7 @@ export interface RootRouteChildren {
   CriarRoute: typeof CriarRoute
   DemoMusicaRoute: typeof DemoMusicaRoute
   MarcaRoute: typeof MarcaRoute
+  EditarTokenEdicaoRoute: typeof EditarTokenEdicaoRoute
   PTokenRoute: typeof PTokenRoute
 }
 
@@ -133,6 +158,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarcaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/editar/$tokenEdicao': {
+      id: '/editar/$tokenEdicao'
+      path: '/editar/$tokenEdicao'
+      fullPath: '/editar/$tokenEdicao'
+      preLoaderRoute: typeof EditarTokenEdicaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p/$token': {
       id: '/p/$token'
       path: '/p/$token'
@@ -149,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   CriarRoute: CriarRoute,
   DemoMusicaRoute: DemoMusicaRoute,
   MarcaRoute: MarcaRoute,
+  EditarTokenEdicaoRoute: EditarTokenEdicaoRoute,
   PTokenRoute: PTokenRoute,
 }
 export const routeTree = rootRouteImport

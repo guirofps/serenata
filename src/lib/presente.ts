@@ -21,6 +21,9 @@ export type Presente = {
   temAlternativa: boolean;
   /** Qual está tocando agora. */
   versao: 1 | 2;
+  /** Personalização do comprador (pode não existir). */
+  fotoUrl: string | null;
+  dedicatoria: string | null;
 };
 
 export const carregarPresente = createServerFn({ method: "GET" })
@@ -33,7 +36,7 @@ export const carregarPresente = createServerFn({ method: "GET" })
     const { data: m } = await db
       .from("musicas")
       .select(
-        "titulo, letra, status, audio_path, audio_path_v2, timestamps, duracao_s, quiz_response_id",
+        "titulo, letra, status, audio_path, audio_path_v2, timestamps, duracao_s, quiz_response_id, foto_path, dedicatoria",
       )
       .eq("token", data.token)
       .maybeSingle();
@@ -82,5 +85,15 @@ export const carregarPresente = createServerFn({ method: "GET" })
       duracaoS: versao === 1 && m.duracao_s ? Number(m.duracao_s) : null,
       temAlternativa,
       versao,
+      // Bucket de fotos é PRIVADO (são fotos de família): URL assinada, do
+      // mesmo jeito que o áudio.
+      fotoUrl: m.foto_path
+        ? ((
+            await db.storage
+              .from("fotos")
+              .createSignedUrl(m.foto_path, 60 * 60 * 24 * 7)
+          ).data?.signedUrl ?? null)
+        : null,
+      dedicatoria: m.dedicatoria ?? null,
     };
   });
