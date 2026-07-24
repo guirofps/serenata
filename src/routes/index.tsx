@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Logo } from "@/components/marca/Logo";
 import { MARCA, FONTES, TEMA_CLARO } from "@/lib/marca";
+import { ProvaImediata, Dor, Beneficios, Oferta, FAQ } from "@/components/landing/Secoes";
+import { BarraCTA } from "@/components/landing/BarraCTA";
 import { Play, ArrowRight, Menu, X } from "lucide-react";
 
 // Landing da Serenata — mundo CLARO.
@@ -57,6 +59,8 @@ const PASSOS = [
 
 function Home() {
   const [menuAberto, setMenuAberto] = useState(false);
+  // Referência do herói: a barra de CTA só aparece quando ele sai da tela.
+  const heroRef = useRef<HTMLElement>(null);
 
   return (
     <div className="min-h-screen bg-[var(--papel)] text-[var(--tinta)]" style={TEMA_CLARO}>
@@ -107,19 +111,37 @@ function Home() {
         )}
       </header>
 
-      {/* ── HERO ────────────────────────────────────────────── */}
-      <section className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-2 lg:gap-16 lg:py-24">
+      {/* ── 01 · HERO ───────────────────────────────────────────
+          O H1 entra VISÍVEL no HTML, sem depender de JS pra aparecer:
+          animar a promessa principal atrasa o LCP e queima tráfego pago
+          (playbook §5.5). Anima-se o que está em volta, nunca isto. */}
+      <section
+        ref={heroRef}
+        className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-2 lg:gap-16 lg:py-24"
+      >
         <div className="text-center lg:text-left">
-          <p className="text-[11px] uppercase tracking-[0.35em] text-[var(--acento)]">
+          <p
+            className="uppercase tracking-[0.35em] text-[var(--acento)]"
+            style={{ fontSize: "var(--t-xs)" }}
+          >
             presente que se ouve
           </p>
           <h1
-            className="mt-5 text-balance text-4xl leading-[1.06] sm:text-5xl lg:text-6xl"
-            style={{ fontFamily: FONTES.display, fontWeight: 500 }}
+            className="mt-5 text-balance"
+            style={{
+              fontFamily: FONTES.display,
+              fontWeight: 500,
+              fontSize: "var(--t-hero)",
+              lineHeight: 1.06,
+              letterSpacing: "-0.02em",
+            }}
           >
             Uma música feita da história de quem você ama
           </h1>
-          <p className="mx-auto mt-6 max-w-lg text-lg leading-relaxed text-[var(--tinta-suave)] lg:mx-0">
+          <p
+            className="mx-auto mt-6 max-w-lg text-[var(--tinta-suave)] lg:mx-0"
+            style={{ fontSize: "var(--t-lg)", lineHeight: 1.6 }}
+          >
             Conte a história. A letra fica pronta na hora, de graça. A música
             cantada vira uma página que você envia — com a letra acendendo no
             ritmo, no nome de quem vai receber.
@@ -194,8 +216,18 @@ function Home() {
         </figure>
       </section>
 
-      {/* ── COMO FUNCIONA ───────────────────────────────────── */}
-      <section id="como-funciona" className="bg-[var(--papel-fundo)] py-20">
+      {/* ── 02 · PROVA IMEDIATA ─────────────────────────────── */}
+      <ProvaImediata />
+
+      {/* ── 03 · DOR ────────────────────────────────────────── */}
+      <Dor />
+
+      {/* ── 04 · MECANISMO (como funciona) ──────────────────── */}
+      <section
+        id="como-funciona"
+        className="bg-[var(--papel-fundo)]"
+        style={{ paddingBlock: "var(--secao)" }}
+      >
         <div className="mx-auto max-w-5xl px-6">
           <h2
             className="text-center text-3xl sm:text-4xl"
@@ -222,8 +254,15 @@ function Home() {
         </div>
       </section>
 
-      {/* ── EXEMPLO REAL ────────────────────────────────────── */}
-      <section id="exemplo" className="mx-auto max-w-2xl px-6 py-24 text-center">
+      {/* ── 05 · BENEFÍCIOS ─────────────────────────────────── */}
+      <Beneficios />
+
+      {/* ── 06 · DEMONSTRAÇÃO (exemplo real, tocável) ───────── */}
+      <section
+        id="exemplo"
+        className="mx-auto max-w-2xl px-6 text-center"
+        style={{ paddingBlock: "var(--secao)" }}
+      >
         <h2
           className="text-3xl sm:text-4xl"
           style={{ fontFamily: FONTES.display, fontWeight: 500 }}
@@ -252,12 +291,26 @@ function Home() {
         </div>
       </section>
 
-      {/* ── FECHAMENTO ──────────────────────────────────────── */}
-      <section className="bg-[var(--papel-fundo)] py-24 text-center">
+      {/* ── 08 + 09 · ANCORAGEM E OFERTA ────────────────────── */}
+      <Oferta />
+
+      {/* ── 10 · FAQ ────────────────────────────────────────── */}
+      <FAQ />
+
+      {/* ── 11 · CTA FINAL (repete a promessa do herói) ─────── */}
+      <section
+        className="bg-[var(--papel-fundo)] text-center"
+        style={{ paddingBlock: "var(--secao)" }}
+      >
         <div className="mx-auto max-w-2xl px-6">
           <p
-            className="text-balance text-3xl leading-snug sm:text-4xl"
-            style={{ fontFamily: FONTES.display, fontWeight: 400 }}
+            className="text-balance"
+            style={{
+              fontFamily: FONTES.display,
+              fontWeight: 400,
+              fontSize: "var(--t-3xl)",
+              lineHeight: 1.25,
+            }}
           >
             Presente todo mundo esquece.
             <br />
@@ -296,7 +349,12 @@ function Home() {
         <p className="mt-10 text-center text-xs text-[var(--tinta-fraca)]">
           {MARCA.dominio} · © {new Date().getFullYear()} {MARCA.nome}
         </p>
+        {/* Espaço pra barra flutuante não cobrir o rodapé no mobile. */}
+        <div className="h-16" aria-hidden />
       </footer>
+
+      {/* ── 12 · BARRA FLUTUANTE DE CTA ─────────────────────── */}
+      <BarraCTA alvoRef={heroRef} />
     </div>
   );
 }

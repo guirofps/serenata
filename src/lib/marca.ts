@@ -61,21 +61,56 @@ export const FONTES = {
     "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap",
 } as const;
 
+// ── Escala tipográfica fluida ─────────────────────────────────────
+// clamp() em vez de 15 breakpoints (playbook Movify §3.2).
+// Entrelinha: 1.1–1.2 em display, 1.5–1.65 em corpo.
+export const TEXTO = {
+  xs: "clamp(0.75rem, 0.72rem + 0.15vw, 0.8125rem)",
+  sm: "clamp(0.875rem, 0.85rem + 0.15vw, 0.9375rem)",
+  base: "clamp(1rem, 0.95rem + 0.25vw, 1.125rem)",
+  lg: "clamp(1.125rem, 1.05rem + 0.35vw, 1.3125rem)",
+  xl: "clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem)",
+  "2xl": "clamp(1.5rem, 1.3rem + 1vw, 2rem)",
+  "3xl": "clamp(1.875rem, 1.5rem + 1.6vw, 2.75rem)",
+  hero: "clamp(2.5rem, 1.8rem + 3.5vw, 5rem)",
+} as const;
+
+// ── Espaçamento entre seções ──────────────────────────────────────
+// 56–72px mobile / 96–128px desktop (§3.3). "Ar é o que faz parecer caro."
+export const SECAO = "clamp(3.5rem, 2rem + 6vw, 8rem)";
+
+// Tokens de texto e espaço como variáveis CSS, pra usar em qualquer tema.
+const ESCALA: React.CSSProperties = {
+  ["--t-xs" as string]: TEXTO.xs,
+  ["--t-sm" as string]: TEXTO.sm,
+  ["--t-base" as string]: TEXTO.base,
+  ["--t-lg" as string]: TEXTO.lg,
+  ["--t-xl" as string]: TEXTO.xl,
+  ["--t-2xl" as string]: TEXTO["2xl"],
+  ["--t-3xl" as string]: TEXTO["3xl"],
+  ["--t-hero" as string]: TEXTO.hero,
+  ["--secao" as string]: SECAO,
+};
+
 // Variáveis do mundo CLARO (landing, quiz) — o papel.
 export const TEMA_CLARO: React.CSSProperties = {
+  ...ESCALA,
   ["--papel" as string]: CORES.papel,
   ["--papel-fundo" as string]: CORES.papelFundo,
   ["--tinta" as string]: CORES.tinta,
   ["--tinta-suave" as string]: CORES.tintaSuave,
   ["--tinta-fraca" as string]: CORES.tintaFraca,
+  // UMA cor de destaque só (playbook §3.4): o vinho é do CTA e de mais nada.
   ["--acento" as string]: CORES.vinho,
   ["--acento-hover" as string]: CORES.vinhoClaro,
+  // O ouro NÃO entra em botão — só fio, moldura e o mundo escuro.
   ["--ouro" as string]: CORES.ouro,
   fontFamily: FONTES.texto,
 };
 
 // Variáveis do mundo ESCURO (página-presente, reveal) — a noite.
 export const TEMA_ESCURO: React.CSSProperties = {
+  ...ESCALA,
   ["--noite" as string]: CORES.noite,
   ["--noite-suave" as string]: CORES.noiteSuave,
   ["--creme" as string]: CORES.creme,
