@@ -142,9 +142,9 @@ function Home() {
             className="mx-auto mt-6 max-w-lg text-[var(--tinta-suave)] lg:mx-0"
             style={{ fontSize: "var(--t-lg)", lineHeight: 1.6 }}
           >
-            Conte a história. A letra fica pronta na hora, de graça. A música
-            cantada vira uma página que você envia — com a letra acendendo no
-            ritmo, no nome de quem vai receber.
+            Conte a história. A letra fica pronta na hora, de graça, e você já
+            ouve um trecho cantado. A música completa vira uma página que você
+            envia — com a letra acendendo no ritmo, no nome de quem vai receber.
           </p>
 
           <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row lg:items-start">
@@ -162,7 +162,8 @@ function Home() {
             </a>
           </div>
           <p className="mt-4 text-sm text-[var(--tinta-suave)]">
-            A letra é grátis. Você só paga se quiser ouvir cantada.
+            A letra e um trecho da música são grátis. Você paga só pra ter a
+            música inteira e a página pronta pra enviar.
           </p>
         </div>
 

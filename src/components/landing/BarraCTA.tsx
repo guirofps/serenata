@@ -55,10 +55,10 @@ export function BarraCTA({ alvoRef }: { alvoRef: React.RefObject<HTMLElement | n
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="hidden sm:block">
           <p className="font-medium" style={{ fontSize: "var(--t-sm)" }}>
-            A letra é grátis
+            A letra e um trecho da música, grátis
           </p>
           <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
-            Você só paga se quiser ouvir cantada
+            Você paga só pela música inteira e a página
           </p>
         </div>
         <Link

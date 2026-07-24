@@ -146,9 +146,10 @@ export function Beneficios() {
 
 // ── 08 + 09 · ANCORAGEM E OFERTA ── objeções: "tá caro" / "e se der errado?"
 // Ancoragem por comparação de custo, não por preço riscado falso.
-export function Oferta({ preco = "47" }: { preco?: string }) {
+export function Oferta({ preco = "37" }: { preco?: string }) {
   const inclui = [
     "A letra, feita da sua história (grátis, antes de decidir)",
+    "Um trecho da música cantado, pra ouvir antes de pagar",
     "A música gravada e cantada, completa",
     "Duas versões — você escolhe a que preferir",
     "A página presente com link pra enviar",
@@ -204,9 +205,9 @@ export function Oferta({ preco = "47" }: { preco?: string }) {
             style={{ fontSize: "var(--t-sm)", lineHeight: 1.6 }}
           >
             <strong className="text-[var(--tinta)]">
-              Você lê a letra inteira antes de pagar.
+              Você lê a letra inteira e ouve um trecho cantado antes de pagar.
             </strong>{" "}
-            Se ela não for a cara da pessoa, você não paga nada — e ainda pode
+            Se não for a cara da pessoa, você não paga nada — e ainda pode
             pedir pra reescrever de graça.
           </p>
         </div>
