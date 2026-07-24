@@ -2,18 +2,30 @@ import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { carregarPresente } from "@/lib/presente";
 import { LetraSincronizada } from "@/components/presente/LetraSincronizada";
+import { Ambiente } from "@/components/presente/Ambiente";
 import { Play, Pause, Download, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // A PÁGINA PRESENTE — o entregável.
 //
-// Conceito visual: o lançamento de um DISCO de uma música só, feita pra uma
-// pessoa. Não imita o Spotify (o Lovepanda faz isso; é derivado e é trade
-// dress dos outros). A referência é uma página de release: escuro, quente,
-// tipografia editorial, e a letra acendendo sobre a música original.
+// Conceito: o lançamento de um DISCO de uma música só, feita pra uma pessoa.
+// Não imita o Spotify (o Lovepanda faz isso; é derivado e é trade dress dos
+// outros). A referência é uma página de release: escuro, quente, tipografia
+// editorial, e a letra acendendo sobre a música original.
 //
 // A pessoa abre isso pelo WhatsApp, no celular. Então: mobile primeiro, um
 // gesto só pra começar (o play), e nada que atrapalhe a emoção.
+
+// GSAP NÃO é importado no topo, e isso não é estilo — são dois bugs reais
+// que já derrubaram esta rota:
+//
+//  1. `@gsap/react` (useGSAP) arrasta a própria cópia do React e quebra a
+//     página com "Invalid hook call". Descartado: `gsap.context()` faz o
+//     mesmo (escopo + limpeza) sem dependência nova.
+//  2. `gsap/ScrollTrigger` toca `document` já no import. No SSR isso
+//     derruba a rota inteira com HTTP 500 (visto em produção). Por isso o
+//     import é DINÂMICO, dentro do efeito: nunca roda no servidor.
+type Gsap = typeof import("gsap")["gsap"];
 
 const searchSchema = (s: Record<string, unknown>) => ({
   v: s.v === 2 || s.v === "2" ? (2 as const) : undefined,
@@ -46,14 +58,6 @@ export const Route = createFileRoute("/p/$token")({
       },
       { property: "og:type", content: "music.song" },
     ],
-    links: [
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500&display=swap",
-      },
-    ],
   }),
   component: PaginaPresente,
   notFoundComponent: () => (
@@ -70,26 +74,107 @@ function PaginaPresente() {
   const p = Route.useLoaderData();
   const { token } = Route.useParams();
   const audioRef = useRef<HTMLAudioElement>(null);
+  const raizRef = useRef<HTMLDivElement>(null);
+  const capaRef = useRef<HTMLElement>(null);
+  // Guarda o gsap depois do import dinâmico, pra usar fora do efeito.
+  const gsapRef = useRef<Gsap | null>(null);
   const [tocando, setTocando] = useState(false);
   const [t, setT] = useState(0);
   const [comecou, setComecou] = useState(false);
 
-  // rAF pro destaque da letra: timeupdate dispara ~4x/s e o acendimento
-  // ficaria atrasado em relação ao que se ouve.
+  // Relógio da letra: rAF mantém o acendimento colado no vocal (timeupdate
+  // dispara ~4x/s e atrasa visivelmente). `timeupdate` fica junto como rede
+  // de segurança — em ambiente que não compõe frames, rAF não roda.
   useEffect(() => {
-    if (!tocando) return;
+    const a = audioRef.current;
+    if (!a) return;
+    const pelosEventos = () => setT(a.currentTime);
+    a.addEventListener("timeupdate", pelosEventos);
+    if (!tocando) return () => a.removeEventListener("timeupdate", pelosEventos);
     let vivo = true;
     const tick = () => {
       if (!vivo) return;
-      const a = audioRef.current;
-      if (a) setT(a.currentTime);
+      setT(a.currentTime);
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
     return () => {
       vivo = false;
+      a.removeEventListener("timeupdate", pelosEventos);
     };
   }, [tocando]);
+
+  // ── ABERTURA ──────────────────────────────────────────────
+  // O H1 renderiza VISÍVEL no HTML e só então é animado com gsap.from():
+  // nada de opacity:0 no CSS, que mataria o LCP se o JS falhasse (§5.5).
+  useEffect(() => {
+    let vivo = true;
+    let ctx: { revert: () => void } | undefined;
+
+    (async () => {
+      const [{ gsap }, { ScrollTrigger }] = await Promise.all([
+        import("gsap"),
+        import("gsap/ScrollTrigger"),
+      ]);
+      if (!vivo) return; // desmontou antes do chunk chegar
+      gsap.registerPlugin(ScrollTrigger);
+      gsapRef.current = gsap;
+
+      // `gsap.context` com escopo na raiz: os seletores só enxergam esta
+      // página, e o revert() no cleanup desfaz tudo (essencial em SPA, senão
+      // ScrollTrigger vaza entre navegações).
+      ctx = gsap.context(() => {
+        const mm = gsap.matchMedia();
+        // Quem pediu menos movimento recebe a página parada — sem exceção.
+        mm.add("(prefers-reduced-motion: no-preference)", () => {
+          gsap
+            .timeline({ defaults: { ease: "power3.out" } })
+            .from("[data-abre]", { y: 26, opacity: 0, duration: 0.9, stagger: 0.13 })
+            .from("[data-abre-fio]", { scaleX: 0, duration: 0.7 }, "-=0.5")
+            .from("[data-abre-play]", { scale: 0.7, opacity: 0, duration: 0.6 }, "-=0.35");
+
+          // Seções abaixo sobem quando entram na tela.
+          //
+          // `immediateRender: false` é obrigatório aqui, não estilo: sem ele
+          // o gsap.from() zera a opacidade de TODAS as seções no mount, e se
+          // o ScrollTrigger não disparar (erro, motor sem frames, chunk que
+          // não chegou) a LETRA E O RODAPÉ somem pra sempre. Com ele, o
+          // conteúdo nasce visível e a animação é só um bônus.
+          gsap.utils.toArray<HTMLElement>("[data-revela]").forEach((el) => {
+            gsap.from(el, {
+              y: 34,
+              opacity: 0,
+              duration: 0.8,
+              ease: "power3.out",
+              immediateRender: false,
+              scrollTrigger: { trigger: el, start: "top 88%" },
+            });
+          });
+
+          // A capa afunda de leve conforme rola: dá profundidade sem parallax
+          // pesado (só transform e opacity).
+          if (capaRef.current) {
+            gsap.to(capaRef.current, {
+              scale: 0.94,
+              opacity: 0.35,
+              ease: "none",
+              scrollTrigger: {
+                trigger: capaRef.current,
+                start: "top top",
+                end: "bottom top",
+                scrub: true,
+              },
+            });
+          }
+        });
+      }, raizRef);
+    })();
+
+    return () => {
+      vivo = false;
+      ctx?.revert();
+    };
+  }, []);
 
   // O CLIQUE é o gesto que libera o áudio (iOS bloqueia autoplay).
   async function alternar() {
@@ -103,7 +188,17 @@ function PaginaPresente() {
     try {
       await a.play();
       setTocando(true);
-      setComecou(true);
+      if (!comecou) {
+        setComecou(true);
+        // A capa "acende" no primeiro play: o momento de abrir o presente.
+        // Opcional de propósito — se o chunk do GSAP ainda não chegou, o
+        // play não pode falhar por causa de um enfeite.
+        gsapRef.current?.fromTo(
+          capaRef.current,
+          { filter: "brightness(1)" },
+          { filter: "brightness(1.25)", duration: 0.5, yoyo: true, repeat: 1 },
+        );
+      }
     } catch (err) {
       console.error("[presente] play falhou:", err);
     }
@@ -116,44 +211,46 @@ function PaginaPresente() {
 
   return (
     <div
-      className="min-h-screen bg-[#0d0a08] text-white"
+      ref={raizRef}
+      className="relative min-h-screen bg-[#0d0a08] text-white"
       style={
         {
           // Paleta do presente: preto quente + âmbar. Escuro faz a letra
           // brilhar e deixa a foto (quando houver) dominar a capa.
           "--presente-destaque": "oklch(0.84 0.13 78)",
+          "--presente-vinho": "oklch(0.55 0.16 18)",
           fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
         } as React.CSSProperties
       }
     >
+      <Ambiente intenso={tocando} />
+
       {p.audioUrl && <audio ref={audioRef} src={p.audioUrl} preload="auto" />}
 
       {/* ── CAPA ─────────────────────────────────────────────── */}
-      <section className="relative flex min-h-[100svh] flex-col items-center justify-center px-6 text-center">
-        {/* Brilho quente atrás — o "calor" da capa */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(60% 50% at 50% 38%, color-mix(in oklch, var(--presente-destaque) 22%, transparent), transparent 70%)",
-          }}
-        />
-
+      <section
+        ref={capaRef}
+        className="relative flex min-h-[100svh] flex-col items-center justify-center px-6 text-center"
+      >
         <div className="relative z-10 flex flex-col items-center">
-          <p className="text-[11px] uppercase tracking-[0.35em] text-white/45">
+          <p
+            data-abre
+            className="text-[11px] uppercase tracking-[0.35em] text-white/45"
+          >
             uma música para
           </p>
           <h1
+            data-abre
             className="mt-3 text-5xl leading-none sm:text-7xl"
             style={{ fontFamily: "Fraunces, ui-serif, Georgia, serif", fontWeight: 600 }}
           >
             {p.nome}
           </h1>
 
-          <div className="mt-10 h-px w-16 bg-white/15" />
+          <div data-abre-fio className="mt-10 h-px w-16 bg-white/20" />
 
           <p
+            data-abre
             className="mt-8 text-xl text-white/80 sm:text-2xl"
             style={{ fontFamily: "Fraunces, ui-serif, Georgia, serif" }}
           >
@@ -162,6 +259,7 @@ function PaginaPresente() {
 
           {/* O gesto que começa tudo */}
           <button
+            data-abre-play
             onClick={alternar}
             aria-label={tocando ? "Pausar" : "Tocar"}
             className={cn(
@@ -179,9 +277,7 @@ function PaginaPresente() {
             )}
           </button>
 
-          {!comecou && (
-            <p className="mt-5 text-sm text-white/40">toque para ouvir</p>
-          )}
+          {!comecou && <p data-abre className="mt-5 text-sm text-white/40">toque para ouvir</p>}
         </div>
 
         {comecou && (
@@ -191,14 +287,14 @@ function PaginaPresente() {
 
       {/* ── A LETRA ──────────────────────────────────────────── */}
       {p.timestamps && p.timestamps.length > 0 ? (
-        <section className="mx-auto max-w-2xl px-6 py-16">
+        <section data-revela className="relative mx-auto max-w-2xl px-6 py-16">
           <LetraSincronizada words={p.timestamps} tempo={t} tocando={tocando} />
         </section>
       ) : (
         // Sem sincronia (é o caso da segunda gravação): a letra aparece
         // inteira e parada. Acender no tempo errado seria pior que não acender.
         p.letra && (
-          <section className="mx-auto max-w-2xl px-6 py-16">
+          <section data-revela className="relative mx-auto max-w-2xl px-6 py-16">
             <p
               className="whitespace-pre-line text-lg leading-relaxed text-white/45 sm:text-xl"
               style={{ fontFamily: "Fraunces, ui-serif, Georgia, serif" }}
@@ -211,7 +307,7 @@ function PaginaPresente() {
 
       {/* ── AS DUAS GRAVAÇÕES ────────────────────────────────── */}
       {p.temAlternativa && (
-        <section className="mx-auto max-w-2xl px-6 pb-4 text-center">
+        <section data-revela className="relative mx-auto max-w-2xl px-6 pb-4 text-center">
           <p className="text-[11px] uppercase tracking-[0.3em] text-white/35">
             a mesma letra, duas gravações
           </p>
@@ -243,7 +339,7 @@ function PaginaPresente() {
 
       {/* ── ENCARTE: a história que virou música ─────────────── */}
       {p.historia && (
-        <section className="mx-auto max-w-2xl px-6 pb-20">
+        <section data-revela className="relative mx-auto max-w-2xl px-6 pb-20">
           <div className="h-px w-full bg-white/10" />
           <p className="mt-10 text-[11px] uppercase tracking-[0.3em] text-white/35">
             a história que virou música
@@ -258,7 +354,7 @@ function PaginaPresente() {
       )}
 
       {/* ── RODAPÉ: baixar ───────────────────────────────────── */}
-      <footer className="mx-auto max-w-2xl px-6 pb-32 text-center">
+      <footer data-revela className="relative mx-auto max-w-2xl px-6 pb-32 text-center">
         {p.audioUrl && (
           <a
             href={p.audioUrl}
@@ -268,6 +364,9 @@ function PaginaPresente() {
             <Download className="h-4 w-4" /> Baixar a música
           </a>
         )}
+        <p className="mt-10 text-[11px] uppercase tracking-[0.3em] text-white/20">
+          feito com Serenata
+        </p>
       </footer>
 
       {/* ── PLAYER FIXO (aparece depois do primeiro play) ────── */}
