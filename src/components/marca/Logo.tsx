@@ -17,11 +17,11 @@ import { cn } from "@/lib/utils";
 // o xadrez é cinza puro e a marca é vinho e ouro. Fonte em
 // `docs/marca/logo-serenata.png`; não regerar o WebP na mão.
 //
-// 784x160 cobre a maior exibição (h-20 = 80px) em tela 2x. 45 KB: o playbook
+// 779x160 cobre a maior exibição (h-20 = 80px) em tela 2x. 37 KB: o playbook
 // da Movify põe a página abaixo de 1,5 MB em 4G.
 const ARQUIVO = "/img/logo-serenata.webp";
-// Proporção real do arquivo (784x160), declarada pra não causar CLS.
-const RAZAO = 784 / 160;
+// Proporção real do arquivo (779x160), declarada pra não causar CLS.
+const RAZAO = 779 / 160;
 
 export function Logo({
   className,
