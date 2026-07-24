@@ -24,7 +24,28 @@ export type Presente = {
   /** Personalização do comprador (pode não existir). */
   fotoUrl: string | null;
   dedicatoria: string | null;
+  /** Fotos que passam atrás da letra, na ordem. */
+  galeria: string[];
+  /** Segundo em que cada seção da música entra (intro, verso, refrão…). */
+  secoes: number[];
 };
+
+// O Suno devolve os marcadores de seção DENTRO das palavras com timestamp:
+// a primeira palavra de cada bloco vem como "[Chorus]\nPalavra". Isso dá o
+// segundo exato em que o refrão entra — de graça, no dado que já compramos.
+//
+// É o que permite a foto virar no compasso certo. Quem usa música de
+// catálogo não tem como fazer isso: não há sincronia possível entre uma
+// faixa pronta e a história de alguém.
+function extrairSecoes(
+  palavras: Array<{ word: string; start: number }> | null,
+): number[] {
+  if (!palavras?.length) return [];
+  const marcos = palavras.filter((p) => /\[[^\]]+\]/.test(p.word)).map((p) => p.start);
+  // Sem marcador (ou só o do início), não inventa estrutura: quem consome
+  // decide o que fazer com a lista vazia.
+  return marcos.length > 1 ? marcos : [];
+}
 
 export const carregarPresente = createServerFn({ method: "GET" })
   // `versao: 2` toca a alternativa. O Suno devolve duas gravações da mesma
@@ -36,7 +57,7 @@ export const carregarPresente = createServerFn({ method: "GET" })
     const { data: m } = await db
       .from("musicas")
       .select(
-        "titulo, letra, status, audio_path, audio_path_v2, timestamps, duracao_s, quiz_response_id, foto_path, dedicatoria",
+        "titulo, letra, status, audio_path, audio_path_v2, timestamps, duracao_s, quiz_response_id, foto_path, dedicatoria, galeria",
       )
       .eq("token", data.token)
       .maybeSingle();
@@ -95,5 +116,21 @@ export const carregarPresente = createServerFn({ method: "GET" })
           ).data?.signedUrl ?? null)
         : null,
       dedicatoria: m.dedicatoria ?? null,
+      // Galeria só na v1: ela é sincronizada com as seções, e os marcos de
+      // tempo são da gravação principal.
+      galeria:
+        versao === 1 && m.galeria?.length
+          ? (
+              await db.storage
+                .from("fotos")
+                .createSignedUrls(m.galeria as string[], 60 * 60 * 24 * 7)
+            ).data
+              ?.map((d) => d.signedUrl)
+              .filter((u): u is string => Boolean(u)) ?? []
+          : [],
+      secoes:
+        versao === 1
+          ? extrairSecoes(m.timestamps as Array<{ word: string; start: number }> | null)
+          : [],
     };
   });

@@ -4,6 +4,7 @@ import { carregarPresente } from "@/lib/presente";
 import { LetraSincronizada } from "@/components/presente/LetraSincronizada";
 import { Ambiente } from "@/components/presente/Ambiente";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
+import { FotosSincronizadas } from "@/components/presente/FotosSincronizadas";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -245,7 +246,18 @@ function PaginaPresente() {
         } as React.CSSProperties
       }
     >
-      <Ambiente intenso={tocando} />
+      {/* Com galeria, as fotos VIRAM o ambiente: dois fundos concorrendo
+          brigariam. Sem galeria, o ambiente de gradiente segura a cena. */}
+      {p.galeria.length > 0 ? (
+        <FotosSincronizadas
+          fotos={p.galeria}
+          secoes={p.secoes}
+          tempo={t}
+          duracao={p.duracaoS ?? 0}
+        />
+      ) : (
+        <Ambiente intenso={tocando} />
+      )}
 
       {p.audioUrl && <audio ref={audioRef} src={p.audioUrl} preload="auto" />}
 

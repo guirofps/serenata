@@ -4,13 +4,16 @@ import {
   carregarParaEditar,
   salvarPersonalizacao,
   removerFoto,
+  adicionarNaGaleria,
+  removerDaGaleria,
+  MAX_GALERIA,
 } from "@/lib/personalizar";
 import { prepararFoto } from "@/lib/imagem";
 import { QrCode } from "@/components/presente/QrCode";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
-import { ImagePlus, Trash2, Check, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { ImagePlus, Trash2, Check, Copy, ExternalLink, Loader2, X } from "lucide-react";
 
 // A ÁREA DO COMPRADOR — onde o presente deixa de ser um render e vira o
 // documento dela.
@@ -55,12 +58,15 @@ function Editor() {
   const { tokenEdicao } = Route.useParams();
 
   const [fotoUrl, setFotoUrl] = useState(p.fotoUrl);
+  const [galeria, setGaleria] = useState(p.galeria);
+  const [subindoGaleria, setSubindoGaleria] = useState(false);
   const [dedicatoria, setDedicatoria] = useState(p.dedicatoria ?? "");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const inputFoto = useRef<HTMLInputElement>(null);
+  const inputGaleria = useRef<HTMLInputElement>(null);
 
   const linkPublico =
     typeof window !== "undefined"
@@ -97,6 +103,49 @@ function Editor() {
       // value continuar igual).
       if (inputFoto.current) inputFoto.current.value = "";
     }
+  }
+
+  async function aoEscolherGaleria(e: React.ChangeEvent<HTMLInputElement>) {
+    const arquivos = [...(e.target.files ?? [])];
+    if (!arquivos.length) return;
+    setErro(null);
+    setSubindoGaleria(true);
+    try {
+      const cabem = MAX_GALERIA - galeria.length;
+      if (cabem <= 0) {
+        setErro(`A galeria já está cheia (${MAX_GALERIA} fotos).`);
+        return;
+      }
+      // Corta e comprime cada uma no navegador ANTES de subir — o mesmo
+      // motivo da capa, multiplicado pelo número de fotos.
+      const prontas: string[] = [];
+      for (const a of arquivos.slice(0, cabem)) {
+        try {
+          prontas.push((await prepararFoto(a)).base64);
+        } catch (err) {
+          console.error("[galeria] foto ignorada:", err);
+        }
+      }
+      if (!prontas.length) {
+        setErro("Não consegui usar essas fotos.");
+        return;
+      }
+      const r = await adicionarNaGaleria({ data: { tokenEdicao, fotosBase64: prontas } });
+      if (!r.ok) {
+        setErro(r.erro ?? "Não consegui salvar as fotos.");
+        return;
+      }
+      setGaleria(r.galeria ?? []);
+      setSalvo(true);
+    } finally {
+      setSubindoGaleria(false);
+      if (inputGaleria.current) inputGaleria.current.value = "";
+    }
+  }
+
+  async function tirarDaGaleria(caminho: string) {
+    const r = await removerDaGaleria({ data: { tokenEdicao, caminho } });
+    if (r.ok) setGaleria(r.galeria);
   }
 
   async function tirarFoto() {
@@ -216,6 +265,73 @@ function Editor() {
                   </button>
                 )}
               </div>
+            </section>
+
+            {/* galeria — as fotos que passam durante a música */}
+            <section>
+              <h2 className="font-medium" style={{ fontSize: "var(--t-lg)" }}>
+                As fotos que passam com a música
+              </h2>
+              <p
+                className="mt-1 text-[var(--tinta-suave)]"
+                style={{ fontSize: "var(--t-sm)" }}
+              >
+                Elas ficam atrás da letra e trocam nas viradas da canção — a
+                foto muda bem quando o refrão entra. Até {MAX_GALERIA}.
+              </p>
+
+              <input
+                ref={inputGaleria}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                onChange={aoEscolherGaleria}
+                className="sr-only"
+                id="galeria"
+              />
+
+              {galeria.length > 0 && (
+                <ul className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {galeria.map((g, i) => (
+                    <li key={g.caminho} className="group relative">
+                      <img
+                        src={g.url}
+                        alt=""
+                        className="aspect-square w-full rounded-[var(--raio)] object-cover"
+                      />
+                      {/* A ordem importa: é a sequência em que aparecem */}
+                      <span className="absolute left-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-[var(--tinta)]/70 text-[10px] font-medium text-[var(--papel)]">
+                        {i + 1}
+                      </span>
+                      <button
+                        onClick={() => tirarDaGaleria(g.caminho)}
+                        aria-label={`Remover foto ${i + 1}`}
+                        className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-[var(--tinta)]/70 text-[var(--papel)] transition-colors duration-150 hover:bg-[var(--acento)]"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {galeria.length < MAX_GALERIA && (
+                <label
+                  htmlFor="galeria"
+                  className={cn(
+                    "mt-4 inline-flex h-12 cursor-pointer items-center gap-2 rounded-full border border-[var(--tinta-fraca)] px-6 transition-colors duration-150 hover:border-[var(--acento)]",
+                    subindoGaleria && "pointer-events-none opacity-60",
+                  )}
+                  style={{ fontSize: "var(--t-sm)" }}
+                >
+                  {subindoGaleria ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ImagePlus className="h-4 w-4" />
+                  )}
+                  {galeria.length ? "Adicionar mais fotos" : "Escolher as fotos"}
+                </label>
+              )}
             </section>
 
             {/* dedicatória */}

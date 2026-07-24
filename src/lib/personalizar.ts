@@ -15,9 +15,13 @@ export type PresenteEditavel = {
   nome: string;
   dedicatoria: string | null;
   fotoUrl: string | null;
+  /** Galeria que passa atrás da letra. Caminho + URL assinada, na ordem. */
+  galeria: Array<{ caminho: string; url: string }>;
   tokenPublico: string;
   publicada: boolean;
 };
+
+export const MAX_GALERIA = 12;
 
 const MAX_DEDICATORIA = 280;
 // O bucket recusa acima de 5 MB, mas a checagem aqui evita subir o payload
@@ -29,10 +33,27 @@ async function buscarPorTokenEdicao(tokenEdicao: string) {
   const db = supabaseAdmin();
   const { data } = await db
     .from("musicas")
-    .select("id, token, titulo, foto_path, dedicatoria, personalizada_em, quiz_response_id")
+    .select(
+      "id, token, titulo, foto_path, galeria, dedicatoria, personalizada_em, quiz_response_id",
+    )
     .eq("token_edicao", tokenEdicao)
     .maybeSingle();
   return data;
+}
+
+/** Assina vários caminhos de uma vez, preservando a ordem. */
+export async function assinarGaleria(
+  caminhos: string[] | null,
+): Promise<Array<{ caminho: string; url: string }>> {
+  if (!caminhos?.length) return [];
+  const { data } = await supabaseAdmin()
+    .storage.from("fotos")
+    .createSignedUrls(caminhos, 60 * 60 * 24 * 7);
+  // createSignedUrls devolve na ordem pedida; um caminho que sumiu do bucket
+  // vem sem signedUrl e é descartado, em vez de virar imagem quebrada.
+  return (data ?? [])
+    .map((d, i) => ({ caminho: caminhos[i], url: d.signedUrl ?? "" }))
+    .filter((x) => x.url);
 }
 
 async function urlDaFoto(caminho: string | null): Promise<string | null> {
@@ -62,9 +83,76 @@ export const carregarParaEditar = createServerFn({ method: "GET" })
       nome: r.nome ?? "você",
       dedicatoria: m.dedicatoria,
       fotoUrl: await urlDaFoto(m.foto_path),
+      galeria: await assinarGaleria(m.galeria),
       tokenPublico: m.token,
       publicada: Boolean(m.personalizada_em),
     };
+  });
+
+/** Acrescenta fotos à galeria (as que passam atrás da letra). */
+export const adicionarNaGaleria = createServerFn({ method: "POST" })
+  .validator((data: { tokenEdicao: string; fotosBase64: string[] }) => data)
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: boolean; galeria?: Array<{ caminho: string; url: string }>; erro?: string }> => {
+      const m = await buscarPorTokenEdicao(data.tokenEdicao);
+      if (!m) return { ok: false, erro: "não encontrado" };
+
+      const atual: string[] = m.galeria ?? [];
+      const cabem = MAX_GALERIA - atual.length;
+      if (cabem <= 0) return { ok: false, erro: `A galeria já tem ${MAX_GALERIA} fotos.` };
+
+      const db = supabaseAdmin();
+      const novos: string[] = [];
+
+      for (const [i, b64] of data.fotosBase64.slice(0, cabem).entries()) {
+        const casa = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/.exec(b64);
+        if (!casa) continue; // ignora o inválido em vez de derrubar o lote
+        const [, tipo, corpo] = casa;
+        const bytes = Buffer.from(corpo, "base64");
+        if (bytes.length > MAX_FOTO_BYTES) continue;
+
+        // Nome único por posição+tempo: sem isso, subir duas fotos no mesmo
+        // segundo sobrescreveria uma com a outra.
+        const ext = tipo === "image/png" ? "png" : tipo === "image/webp" ? "webp" : "jpg";
+        const caminho = `${m.id}/g-${Date.now()}-${atual.length + i}.${ext}`;
+        const { error } = await db.storage
+          .from("fotos")
+          .upload(caminho, bytes, { contentType: tipo, upsert: false });
+        if (error) {
+          console.error("[galeria] upload falhou:", error.message);
+          continue;
+        }
+        novos.push(caminho);
+      }
+
+      if (!novos.length) return { ok: false, erro: "Nenhuma foto pôde ser usada." };
+
+      const galeria = [...atual, ...novos];
+      const { error } = await db
+        .from("musicas")
+        .update({ galeria, personalizada_em: new Date().toISOString() })
+        .eq("id", m.id);
+      if (error) {
+        console.error("[galeria] update falhou:", error.message);
+        return { ok: false, erro: "Não consegui salvar agora." };
+      }
+      return { ok: true, galeria: await assinarGaleria(galeria) };
+    },
+  );
+
+/** Remove uma foto da galeria (e do bucket). */
+export const removerDaGaleria = createServerFn({ method: "POST" })
+  .validator((data: { tokenEdicao: string; caminho: string }) => data)
+  .handler(async ({ data }): Promise<{ ok: boolean; galeria: Array<{ caminho: string; url: string }> }> => {
+    const m = await buscarPorTokenEdicao(data.tokenEdicao);
+    if (!m) return { ok: false, galeria: [] };
+    const db = supabaseAdmin();
+    const galeria = (m.galeria ?? []).filter((c: string) => c !== data.caminho);
+    await db.storage.from("fotos").remove([data.caminho]);
+    await db.from("musicas").update({ galeria }).eq("id", m.id);
+    return { ok: true, galeria: await assinarGaleria(galeria) };
   });
 
 /**
