@@ -54,12 +54,21 @@ export function useDictation(onTexto: (trecho: string) => void): DictationState 
   // Guarda o callback num ref: evita recriar o reconhecedor a cada tecla.
   const onTextoRef = useRef(onTexto);
   onTextoRef.current = onTexto;
+  // O interino também num ref: `parar` precisa lê-lo no instante do clique,
+  // e um closure sobre o state leria o valor do render anterior.
+  const parcialRef = useRef("");
 
   useEffect(() => {
     setSuportado(getRecognitionCtor() !== null);
   }, []);
 
   const parar = useCallback(() => {
+    // Aproveita o que estava sendo falado e ainda não virou resultado final.
+    // Sem isso, a última frase (justamente a que a pessoa acabou de dizer
+    // antes de apertar "parar") é jogada fora.
+    const restante = parcialRef.current.trim();
+    if (restante) onTextoRef.current(restante);
+    parcialRef.current = "";
     recRef.current?.stop();
     recRef.current = null;
     setGravando(false);
@@ -90,6 +99,7 @@ export function useDictation(onTexto: (trecho: string) => void): DictationState 
           interino += t;
         }
       }
+      parcialRef.current = interino;
       setParcial(interino);
     };
     rec.onerror = (e) => {
@@ -104,7 +114,12 @@ export function useDictation(onTexto: (trecho: string) => void): DictationState 
       setGravando(false);
       recRef.current = null;
     };
+    // O reconhecedor encerra sozinho por silêncio, sem passar pelo `parar`.
+    // Aqui o interino também precisa ser aproveitado, pelo mesmo motivo.
     rec.onend = () => {
+      const restante = parcialRef.current.trim();
+      if (restante) onTextoRef.current(restante);
+      parcialRef.current = "";
       setGravando(false);
       setParcial("");
       recRef.current = null;

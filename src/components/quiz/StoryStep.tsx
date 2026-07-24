@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { QuestionStep } from "@/lib/flow-engine";
 import { Textarea } from "@/components/ui/textarea";
 import { useDictation } from "@/lib/use-dictation";
@@ -55,12 +55,26 @@ export function StoryStep({
   const text = value ?? "";
   const { ok, message } = validateStory(step, text);
 
+  // O valor VIVO do campo, num ref.
+  //
+  // Não é otimização: o reconhecedor entrega vários trechos finais no MESMO
+  // tick (o onresult percorre o array de resultados inteiro). Lendo `value`
+  // do render, todas as chamadas enxergam o mesmo texto velho e cada uma
+  // sobrescreve a anterior — quem fala perde tudo menos o último pedaço, o
+  // contador anda pra trás e o botão nunca libera. O ref é atualizado na
+  // hora, então trechos seguidos se acumulam de verdade.
+  const vivoRef = useRef(text);
+  vivoRef.current = text;
+
   // Ditado: o texto falado é ANEXADO ao que já existe, nunca substitui —
   // a pessoa pode alternar entre falar e digitar sem perder nada.
   const ditado = useDictation((trecho) => {
-    if (!trecho) return;
-    const base = (value ?? "").trim();
-    onChange(base ? `${base} ${trecho}` : trecho);
+    const t = trecho.trim();
+    if (!t) return;
+    const base = vivoRef.current.trim();
+    const novo = base ? `${base} ${t}` : t;
+    vivoRef.current = novo;
+    onChange(novo);
   });
 
   return (
