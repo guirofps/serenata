@@ -79,6 +79,40 @@ export const TEXTO = {
 // 56–72px mobile / 96–128px desktop (§3.3). "Ar é o que faz parecer caro."
 export const SECAO = "clamp(3.5rem, 2rem + 6vw, 8rem)";
 
+// ── Raio, sombra e tempo ──────────────────────────────────────────
+// Medido no Lovepanda (24/07), que é a referência de acabamento: eles NÃO
+// usam biblioteca de animação nenhuma — nem GSAP, nem Framer, nem AOS, e
+// zero @keyframes ativo. O que faz parecer caro é sistema fechado:
+//   um raio dominante (12px), sombras suaves em camadas,
+//   transições CURTAS (0,15–0,3s) com a mesma curva em tudo.
+//
+// Ou seja: acabamento não vem de motion, vem de repetição disciplinada.
+// Três valores de cada, e nada fora disso.
+export const RAIO = {
+  sm: "0.5rem", // 8px  — chips, tags
+  md: "0.75rem", // 12px — o dominante: cartões, campos, caixas
+  lg: "1.5rem", // 24px — blocos grandes
+  pilula: "9999px", // botões e seletores
+} as const;
+
+// Sombras em CAMADAS (uma perto e dura, uma longe e suave). Sombra de uma
+// camada só é o que dá aquela cara de caixa colada na página.
+export const SOMBRA = {
+  sutil: "0 1px 2px rgba(42,21,24,0.06)",
+  media: "0 4px 6px -1px rgba(42,21,24,0.08), 0 2px 4px -2px rgba(42,21,24,0.06)",
+  alta: "0 10px 15px -3px rgba(42,21,24,0.10), 0 4px 6px -4px rgba(42,21,24,0.08)",
+  flutuante: "0 28px 50px -18px rgba(42,21,24,0.45)",
+} as const;
+
+// UMA curva pra tudo. Misturar easing é o que faz a interface parecer
+// remendada.
+export const CURVA = "cubic-bezier(0.4, 0, 0.2, 1)";
+export const TEMPO = {
+  toque: `0.15s ${CURVA}`, // hover, foco — tem que ser quase instantâneo
+  troca: `0.3s ${CURVA}`, // troca de estado, entrada de elemento
+  cena: `0.7s ${CURVA}`, // mudança grande de layout
+} as const;
+
 // Tokens de texto e espaço como variáveis CSS, pra usar em qualquer tema.
 const ESCALA: React.CSSProperties = {
   ["--t-xs" as string]: TEXTO.xs,
@@ -90,6 +124,17 @@ const ESCALA: React.CSSProperties = {
   ["--t-3xl" as string]: TEXTO["3xl"],
   ["--t-hero" as string]: TEXTO.hero,
   ["--secao" as string]: SECAO,
+  ["--raio-sm" as string]: RAIO.sm,
+  ["--raio" as string]: RAIO.md,
+  ["--raio-lg" as string]: RAIO.lg,
+  ["--sombra-sutil" as string]: SOMBRA.sutil,
+  ["--sombra" as string]: SOMBRA.media,
+  ["--sombra-alta" as string]: SOMBRA.alta,
+  ["--sombra-flutuante" as string]: SOMBRA.flutuante,
+  ["--curva" as string]: CURVA,
+  ["--t-toque" as string]: TEMPO.toque,
+  ["--t-troca" as string]: TEMPO.troca,
+  ["--t-cena" as string]: TEMPO.cena,
 };
 
 // Variáveis do mundo CLARO (landing, quiz) — o papel.

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { carregarPresente } from "@/lib/presente";
 import { LetraSincronizada } from "@/components/presente/LetraSincronizada";
 import { Ambiente } from "@/components/presente/Ambiente";
-import { Play, Pause, Download, ChevronDown } from "lucide-react";
+import { Play, Pause, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // A PÁGINA PRESENTE — o entregável.
@@ -178,21 +178,11 @@ function PaginaPresente() {
             });
           });
 
-          // A capa afunda de leve conforme rola: dá profundidade sem parallax
-          // pesado (só transform e opacity).
-          if (capaRef.current) {
-            gsap.to(capaRef.current, {
-              scale: 0.94,
-              opacity: 0.35,
-              ease: "none",
-              scrollTrigger: {
-                trigger: capaRef.current,
-                start: "top top",
-                end: "bottom top",
-                scrub: true,
-              },
-            });
-          }
+          // NÃO existe parallax na capa de propósito. Ele foi removido: a
+          // capa muda de ALTURA quando a música começa (ver `comecou`), e
+          // ScrollTrigger com scrub sobre um elemento que muda de layout
+          // trabalha com medidas velhas. Entre um efeito discreto no scroll
+          // e a letra chegando na tela no play, a segunda ganha.
 
           // Limpeza do matchMedia: evita o seguro disparar depois de sair
           // da página (navegação em SPA).
@@ -259,9 +249,18 @@ function PaginaPresente() {
       {p.audioUrl && <audio ref={audioRef} src={p.audioUrl} preload="auto" />}
 
       {/* ── CAPA ─────────────────────────────────────────────── */}
+      {/* Antes do play a capa ocupa a tela inteira: é o convite, e o único
+          gesto possível é apertar. Depois do play ela ENCOLHE e a letra sobe
+          — a lição medida no Lovepanda, cujo presente inteiro cabe numa tela
+          (720px, sem rolar). O nosso conteúdo principal é a letra acendendo;
+          deixá-la abaixo da dobra era esconder o que temos de melhor. */}
       <section
         ref={capaRef}
-        className="relative flex min-h-[100svh] flex-col items-center justify-center px-6 text-center"
+        className={cn(
+          "relative flex flex-col items-center justify-center px-6 text-center",
+          "transition-[min-height,padding] duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none",
+          comecou ? "min-h-[46svh] py-10" : "min-h-[100svh]",
+        )}
       >
         {/* Foto do comprador, quando existe: vira o FUNDO da capa, não um
             quadradinho ao lado. É o rosto de quem recebe dominando a tela.
@@ -294,29 +293,45 @@ function PaginaPresente() {
           </p>
           <h1
             data-abre
-            className="mt-3 text-5xl leading-none sm:text-7xl"
+            className={cn(
+              "mt-3 leading-none transition-[font-size] duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none",
+              comecou ? "text-4xl sm:text-5xl" : "text-5xl sm:text-7xl",
+            )}
             style={{ fontFamily: "Fraunces, ui-serif, Georgia, serif", fontWeight: 600 }}
           >
             {p.nome}
           </h1>
 
-          <div data-abre-fio className="mt-10 h-px w-16 bg-white/20" />
+          <div
+            data-abre-fio
+            className={cn(
+              "h-px w-16 bg-white/20 transition-[margin] duration-700 ease-[cubic-bezier(0.4,0,0.2,1)]",
+              comecou ? "mt-5" : "mt-10",
+            )}
+          />
 
           <p
             data-abre
-            className="mt-8 text-xl text-white/80 sm:text-2xl"
+            className={cn(
+              "text-white/80 transition-[margin,font-size] duration-700 ease-[cubic-bezier(0.4,0,0.2,1)]",
+              comecou ? "mt-4 text-lg" : "mt-8 text-xl sm:text-2xl",
+            )}
             style={{ fontFamily: "Fraunces, ui-serif, Georgia, serif" }}
           >
             {p.titulo}
           </p>
 
-          {/* O gesto que começa tudo */}
+          {/* O gesto que começa tudo.
+              TAMANHO FIXO de propósito: só a margem muda quando a capa
+              encolhe. Alvo de toque que muda de tamanho no meio do uso é
+              pior que um estável — e 80px é confortável no polegar. */}
           <button
             data-abre-play
             onClick={alternar}
             aria-label={tocando ? "Pausar" : "Tocar"}
             className={cn(
-              "group mt-10 flex h-20 w-20 items-center justify-center rounded-full transition-all duration-500",
+              "group flex h-20 w-20 items-center justify-center rounded-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)]",
+              comecou ? "mt-6" : "mt-10",
               // A cor NÃO vem de var(--presente-destaque) aqui: se o
               // navegador não entender oklch, a variável fica inválida e o
               // fundo vira transparente — o botão some. Ver o @supports no
@@ -353,9 +368,9 @@ function PaginaPresente() {
           )}
         </div>
 
-        {comecou && (
-          <ChevronDown className="absolute bottom-8 h-5 w-5 animate-bounce text-white/25" />
-        )}
+        {/* A seta de "role pra baixo" saiu junto com a capa de tela cheia:
+            com a capa encolhida a letra já aparece sozinha, e a seta viraria
+            ruído sobrepondo o conteúdo. */}
       </section>
 
       {/* ── A LETRA ──────────────────────────────────────────── */}
