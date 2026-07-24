@@ -131,7 +131,18 @@ function PaginaPresente() {
             .timeline({ defaults: { ease: "power3.out" } })
             .from("[data-abre]", { y: 26, opacity: 0, duration: 0.9, stagger: 0.13 })
             .from("[data-abre-fio]", { scaleX: 0, duration: 0.7 }, "-=0.5")
-            .from("[data-abre-play]", { scale: 0.7, opacity: 0, duration: 0.6 }, "-=0.35");
+            // O play anima SÓ escala, nunca opacidade.
+            //
+            // Bug real relatado no celular ("aparece e logo some"):
+            // gsap.from() escreve o estado inicial INLINE assim que o tween
+            // é criado, mas este só começa ~1,15s depois. Com opacity:0 no
+            // estado inicial, o botão ficava invisível nessa janela inteira
+            // — e some de vez se o relógio de animação parar.
+            //
+            // Escala não tem esse problema: em qualquer ponto da animação o
+            // botão continua visível e clicável. Ele é o ÚNICO controle da
+            // página; não pode depender de animação pra existir.
+            .from("[data-abre-play]", { scale: 0.72, duration: 0.6 }, "-=0.35");
 
           // REDE DE SEGURANÇA — bug real relatado no celular: o botão de
           // play sumia.
