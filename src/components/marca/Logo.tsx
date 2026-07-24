@@ -11,7 +11,11 @@ import { cn } from "@/lib/utils";
 // duas versões: `logo-serenata.png` (vinho, para fundo claro) e a mesma com
 // filtro de inversão para o fundo escuro do presente.
 
-const ARQUIVO = "/img/logo-serenata.png";
+// WebP: 37 KB contra 447 KB do PNG. O playbook da Movify põe peso de página
+// abaixo de 1,5 MB em 4G — logo de 450 KB come um terço disso sozinha.
+const ARQUIVO = "/img/logo-serenata.webp";
+// Proporção real do arquivo (1178x229), declarada pra não causar CLS.
+const RAZAO = 1178 / 229;
 
 export function Logo({
   className,
@@ -29,10 +33,17 @@ export function Logo({
     lg: "h-14 sm:h-20",
   }[tamanho];
 
+  // width/height declarados previnem CLS (playbook: CLS < 0,1).
+  const alturaPx = { sm: 28, md: 40, lg: 56 }[tamanho];
+
   return (
     <img
       src={ARQUIVO}
       alt="Serenata"
+      width={Math.round(alturaPx * RAZAO)}
+      height={alturaPx}
+      // A logo é o LCP do header: carrega cedo, sem lazy.
+      fetchPriority="high"
       className={cn(altura, "w-auto select-none", className)}
       style={
         escuro
