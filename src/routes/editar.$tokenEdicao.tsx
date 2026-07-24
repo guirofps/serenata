@@ -6,6 +6,7 @@ import {
   removerFoto,
 } from "@/lib/personalizar";
 import { prepararFoto } from "@/lib/imagem";
+import { QrCode } from "@/components/presente/QrCode";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
@@ -286,6 +287,25 @@ function Editor() {
               >
                 {mensagemPronta}
               </pre>
+
+              {/* QR Code: o caminho de virar presente FÍSICO. Imprime, cola
+                  numa caixa de bombom, e o digital ganha corpo sem logística
+                  nenhuma da nossa parte. */}
+              <div className="mt-6 flex flex-col items-center gap-4 rounded-[var(--raio-lg)] border border-[var(--tinta-fraca)]/30 bg-[var(--papel)] p-5 sm:flex-row sm:items-center sm:text-left">
+                <QrCode url={linkPublico} nome={p.nome} />
+                <div>
+                  <p className="font-medium" style={{ fontSize: "var(--t-sm)" }}>
+                    Prefere entregar na mão?
+                  </p>
+                  <p
+                    className="mt-1 text-[var(--tinta-suave)]"
+                    style={{ fontSize: "var(--t-xs)", lineHeight: 1.6 }}
+                  >
+                    Imprima este código e cole num cartão, numa caixa de bombom
+                    ou no embrulho. Ela aponta a câmera e a música abre.
+                  </p>
+                </div>
+              </div>
 
               <div className="mt-4 flex flex-wrap gap-3">
                 <button

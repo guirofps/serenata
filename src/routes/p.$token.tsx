@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { carregarPresente } from "@/lib/presente";
 import { LetraSincronizada } from "@/components/presente/LetraSincronizada";
 import { Ambiente } from "@/components/presente/Ambiente";
-import { Play, Pause, Download } from "lucide-react";
+import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
+import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // A PÁGINA PRESENTE — o entregável.
@@ -425,32 +426,18 @@ function PaginaPresente() {
         </section>
       )}
 
-      {/* ── ENCARTE: a história que virou música ─────────────── */}
-      {p.historia && (
-        <section data-revela className="relative mx-auto max-w-2xl px-6 pb-20">
-          <div className="h-px w-full bg-white/10" />
-          <p className="mt-10 text-[11px] uppercase tracking-[0.3em] text-white/35">
-            a história que virou música
-          </p>
-          <p
-            className="mt-5 whitespace-pre-line text-lg leading-relaxed text-white/60"
-            style={{ fontFamily: "Fraunces, ui-serif, Georgia, serif" }}
-          >
-            {p.historia}
-          </p>
-        </section>
-      )}
+      {/* A "história que virou música" foi REMOVIDA daqui de propósito.
+          Ela mostrava o texto cru do quiz — do jeito que o comprador digitou,
+          com pressa, no celular. Vinha logo depois de uma música que quase
+          sempre melhora muito o que ele escreveu, então o efeito era desfazer
+          o encanto: a pessoa via a homenagem e em seguida o rascunho dela.
+          O que vale é o entregável, não a matéria-prima. A voz do comprador
+          na página é a DEDICATÓRIA, que ele escolhe e escreve com calma. */}
 
-      {/* ── RODAPÉ: baixar ───────────────────────────────────── */}
+      {/* ── RODAPÉ: guardar / enviar ─────────────────────────── */}
       <footer data-revela className="relative mx-auto max-w-2xl px-6 pb-32 text-center">
         {p.audioUrl && (
-          <a
-            href={p.audioUrl}
-            download={`${p.titulo}.mp3`}
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 px-6 py-3 text-sm text-white/70 transition-colors hover:border-white/30 hover:text-white"
-          >
-            <Download className="h-4 w-4" /> Baixar a música
-          </a>
+          <BotaoGuardar audioUrl={p.audioUrl} titulo={p.titulo} nome={p.nome} />
         )}
         <p className="mt-10 text-[11px] uppercase tracking-[0.3em] text-white/20">
           feito com Serenata
