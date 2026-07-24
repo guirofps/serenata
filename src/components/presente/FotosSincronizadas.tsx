@@ -1,34 +1,34 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 // As fotos passando durante a música — como FOTOS REVELADAS, não como papel
 // de parede.
 //
-// A primeira versão usava a imagem sangrando na tela inteira. Isso cria uma
-// briga insolúvel: pra letra ficar legível é preciso escurecer a foto, e
-// escurecendo o bastante a foto some (aconteceu — ficou em 72% de preto e
-// não se via nada).
+// Por que objeto e não fundo: foto sangrando na tela cria uma briga
+// insolúvel. Pra letra ficar legível é preciso escurecer a imagem, e
+// escurecendo o bastante a foto some (aconteceu: ficou em 72% de preto e
+// não se via nada). Como objeto, o texto corre no escuro AO REDOR dela e a
+// foto pode aparecer clara.
 //
-// Vira objeto e o conflito acaba: a revelada tem borda, sombra e uma leve
-// torta, o texto corre no escuro AO REDOR dela, e por isso a foto pode
-// aparecer clara. De quebra é o que parece presente — pilha de fotos na
-// gaveta, não fundo de site.
-//
-// A troca acontece nas viradas de seção da própria canção.
+// O movimento: a que sai SOBE e some, a próxima chega POR BAIXO — na mesma
+// direção em que a letra corre. E nada disso existe antes do play: a página
+// parada é só o convite.
 
 export function FotosSincronizadas({
   fotos,
   secoes,
   tempo,
   duracao,
+  ativo,
 }: {
   fotos: string[];
   secoes: number[];
   tempo: number;
   duracao: number;
+  /** Só entra em cena depois que a música começa. */
+  ativo: boolean;
 }) {
-  // Momentos de troca: as viradas reais da música. Sem marcador (música sem
-  // seção marcada), divide o tempo em partes iguais pra galeria não ficar
-  // parada por falta de dado.
+  // Momentos de troca: as viradas reais da música. Sem marcador, divide o
+  // tempo em partes iguais pra galeria não ficar parada por falta de dado.
   const marcos = useMemo(() => {
     if (secoes.length > 1) return secoes;
     if (!duracao || fotos.length < 2) return [];
@@ -45,6 +45,17 @@ export function FotosSincronizadas({
     return i % fotos.length;
   }, [marcos, tempo, fotos.length]);
 
+  // Guarda qual foto acabou de sair, pra ela subir em vez de sumir no lugar.
+  // Refs atualizados no render: só trocam quando o valor MUDA, então isto é
+  // idempotente para re-renders com o mesmo `atual` (o que acontece o tempo
+  // todo, já que `tempo` muda a cada frame).
+  const atualRef = useRef(atual);
+  const anteriorRef = useRef(-1);
+  if (atualRef.current !== atual) {
+    anteriorRef.current = atualRef.current;
+    atualRef.current = atual;
+  }
+
   if (!fotos.length) return null;
 
   return (
@@ -54,33 +65,36 @@ export function FotosSincronizadas({
       data-foto={atual}
       data-marcos={marcos.length}
       data-tempo={Math.round(tempo)}
+      data-ativo={ativo ? "1" : "0"}
     >
       {/* Escuro por baixo de tudo: é o fundo real da página, e é ele que
           garante a leitura da letra — não um filtro sobre a foto. */}
       <div className="absolute inset-0 bg-[#0d0a08]" />
 
       {fotos.map((src, i) => {
-        const ativa = i === atual;
-        // Torta alternada, sempre a mesma pra cada foto: assim a pilha
-        // parece jogada na mesa e não gerada por script.
+        const naTela = ativo && i === atual;
+        const acabouDeSair = ativo && i === anteriorRef.current && i !== atual;
+        // Torta fixa por foto: a pilha parece jogada na mesa, não gerada
+        // por script.
         const giro = i % 2 === 0 ? -2.6 : 2.4;
+        // Quem saiu vai pra cima; quem ainda não entrou espera embaixo.
+        const y = naTela ? "0px" : acabouDeSair ? "-14vh" : "16vh";
         return (
           <figure
             key={src}
-            className="absolute left-1/2 top-1/2 m-0 transition-all duration-[1400ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none"
+            className="absolute left-1/2 top-1/2 m-0 will-change-[transform,opacity] transition-all duration-[1600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
             style={{
-              // Largura em vw com teto: no celular ocupa quase a tela, no
-              // desktop não vira outdoor.
+              // No celular quase toma a tela; no desktop não vira outdoor.
               width: "min(78vw, 380px)",
-              // Todas montadas, só a opacidade e o transform mudam. Trocar
-              // o src piscaria branco enquanto a próxima decodifica.
-              opacity: ativa ? 1 : 0,
-              transform: `translate(-50%, -50%) rotate(${giro}deg) scale(${ativa ? 1 : 0.94})`,
+              opacity: naTela ? 1 : 0,
+              transform: `translate(-50%, calc(-50% + ${y})) rotate(${
+                naTela ? giro : giro * 1.8
+              }deg) scale(${naTela ? 1 : 0.92})`,
               // Papel: borda grossa embaixo, como revelada de verdade.
               padding: "12px 12px 46px",
               background: "#f4ece0",
               borderRadius: "3px",
-              boxShadow: ativa
+              boxShadow: naTela
                 ? "0 30px 60px -20px rgba(0,0,0,0.75), 0 2px 6px rgba(0,0,0,0.4)"
                 : "0 10px 30px -20px rgba(0,0,0,0.5)",
             }}
@@ -97,12 +111,13 @@ export function FotosSincronizadas({
         );
       })}
 
-      {/* Véu sobre a foto, MUITO mais leve que na versão de papel de parede
-          (era 72%): aqui ele só assenta a imagem no fundo e devolve o
-          contraste onde a letra passa por cima. */}
+      {/* Véu leve: aqui ele só assenta a imagem no fundo e devolve contraste
+          onde a letra passa por cima. Não precisa mais salvar a leitura —
+          disso cuida o preto atrás. */}
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 transition-opacity duration-1000"
         style={{
+          opacity: ativo ? 1 : 0,
           background:
             "linear-gradient(to bottom, rgba(13,10,8,0.72) 0%, rgba(13,10,8,0.34) 30%, rgba(13,10,8,0.34) 70%, rgba(13,10,8,0.8) 100%)",
         }}

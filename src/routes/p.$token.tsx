@@ -255,6 +255,9 @@ function PaginaPresente() {
           secoes={p.secoes}
           tempo={t}
           duracao={p.duracaoS ?? 0}
+          // Antes do play a página é só o convite: a capa cheia e o botão.
+          // As fotos entram junto com a música.
+          ativo={comecou}
         />
       ) : (
         <Ambiente intenso={tocando} />
