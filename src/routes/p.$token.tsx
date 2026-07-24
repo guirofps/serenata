@@ -5,6 +5,7 @@ import { LetraSincronizada } from "@/components/presente/LetraSincronizada";
 import { Ambiente } from "@/components/presente/Ambiente";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { FotosSincronizadas } from "@/components/presente/FotosSincronizadas";
+import { Logo } from "@/components/marca/Logo";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -451,9 +452,19 @@ function PaginaPresente() {
         {p.audioUrl && (
           <BotaoGuardar audioUrl={p.audioUrl} titulo={p.titulo} nome={p.nome} />
         )}
-        <p className="mt-10 text-[11px] uppercase tracking-[0.3em] text-white/20">
-          feito com Serenata
-        </p>
+        {/* A marca assinando o presente. Logo em vez da palavra escrita: a
+            página vai circular no WhatsApp da família inteira, e é o único
+            lugar onde a Serenata aparece. `escuro` clareia o vinho pra ela
+            existir sobre a noite. */}
+        <a
+          href="/"
+          className="mt-12 inline-flex flex-col items-center gap-2 opacity-45 transition-opacity duration-150 hover:opacity-80"
+        >
+          <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">
+            feito com
+          </span>
+          <Logo tamanho="sm" escuro />
+        </a>
       </footer>
 
       {/* ── PLAYER FIXO (aparece depois do primeiro play) ────── */}

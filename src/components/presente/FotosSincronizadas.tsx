@@ -1,15 +1,19 @@
 import { useMemo } from "react";
 
-// As fotos passando ATRÁS da letra, trocando junto com a música.
+// As fotos passando durante a música — como FOTOS REVELADAS, não como papel
+// de parede.
 //
-// Não é carrossel: é fundo. A letra segue sendo o conteúdo e as fotos
-// respiram por trás — por isso o escurecimento forte e o desfoque leve.
-// Foto nítida atrás de texto disputa a leitura e as duas perdem.
+// A primeira versão usava a imagem sangrando na tela inteira. Isso cria uma
+// briga insolúvel: pra letra ficar legível é preciso escurecer a foto, e
+// escurecendo o bastante a foto some (aconteceu — ficou em 72% de preto e
+// não se via nada).
 //
-// O corte acontece nas VIRADAS DE SEÇÃO da própria canção (os marcadores
-// que vêm nos timestamps). Isso é o que nenhum concorrente consegue: quem
-// usa música de catálogo não tem sincronia nenhuma pra usar, e quem entrega
-// só o arquivo não tem página onde mostrar.
+// Vira objeto e o conflito acaba: a revelada tem borda, sombra e uma leve
+// torta, o texto corre no escuro AO REDOR dela, e por isso a foto pode
+// aparecer clara. De quebra é o que parece presente — pilha de fotos na
+// gaveta, não fundo de site.
+//
+// A troca acontece nas viradas de seção da própria canção.
 
 export function FotosSincronizadas({
   fotos,
@@ -22,9 +26,9 @@ export function FotosSincronizadas({
   tempo: number;
   duracao: number;
 }) {
-  // Momentos de troca. Preferimos as viradas reais da música; sem elas
-  // (música sem marcador), divide o tempo em partes iguais — assim a
-  // galeria nunca fica parada por falta de dado.
+  // Momentos de troca: as viradas reais da música. Sem marcador (música sem
+  // seção marcada), divide o tempo em partes iguais pra galeria não ficar
+  // parada por falta de dado.
   const marcos = useMemo(() => {
     if (secoes.length > 1) return secoes;
     if (!duracao || fotos.length < 2) return [];
@@ -32,13 +36,12 @@ export function FotosSincronizadas({
     return Array.from({ length: fotos.length }, (_, i) => i * passo);
   }, [secoes, duracao, fotos.length]);
 
-  // Qual foto está no ar. Com mais seções que fotos, a sequência dá a volta
-  // — repetir é melhor que a tela ficar preta no fim da música.
   const atual = useMemo(() => {
-    if (!fotos.length) return 0;
-    if (!marcos.length) return 0;
+    if (!fotos.length || !marcos.length) return 0;
     let i = 0;
     for (let k = 0; k < marcos.length; k++) if (tempo >= marcos[k]) i = k;
+    // Mais seções que fotos: a sequência dá a volta. Repetir é melhor que
+    // deixar a tela vazia no fim da música.
     return i % fotos.length;
   }, [marcos, tempo, fotos.length]);
 
@@ -48,46 +51,60 @@ export function FotosSincronizadas({
     <div
       aria-hidden
       className="pointer-events-none fixed inset-0 overflow-hidden"
-      // Estado no DOM: sem isto, descobrir por que a foto não troca exige
-      // adivinhação. Custa nada e torna o comportamento verificável.
       data-foto={atual}
       data-marcos={marcos.length}
       data-tempo={Math.round(tempo)}
     >
-      {fotos.map((src, i) => (
-        <img
-          key={src}
-          src={src}
-          alt=""
-          // A primeira carrega com prioridade; as outras podem esperar.
-          loading={i === 0 ? "eager" : "lazy"}
-          decoding="async"
-          className="absolute inset-0 h-full w-full object-cover transition-opacity duration-[2200ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none"
-          style={{
-            // Todas ficam montadas e só a opacidade muda: trocar o `src`
-            // causaria um piscar branco enquanto a próxima decodifica.
-            opacity: i === atual ? 1 : 0,
-            // Zoom lento e contínuo. É o que separa "slideshow" de "cinema"
-            // e custa nada: só transform, na GPU.
-            transform: i === atual ? "scale(1.08)" : "scale(1)",
-            transitionProperty: "opacity, transform",
-            transitionDuration: i === atual ? "2200ms, 9000ms" : "2200ms, 0ms",
-            filter: "saturate(0.95)",
-          }}
-        />
-      ))}
+      {/* Escuro por baixo de tudo: é o fundo real da página, e é ele que
+          garante a leitura da letra — não um filtro sobre a foto. */}
+      <div className="absolute inset-0 bg-[#0d0a08]" />
 
-      {/* Escurecimento pra letra não sumir sobre foto clara.
-          O primeiro ajuste ficou em 72–92% de preto e as fotos
-          desapareciam — a pessoa não via foto nenhuma. Agora o miolo (onde
-          a letra corre) fica em 50%, que ainda dá contraste pro texto
-          branco e deixa a foto existir. Topo e base seguem mais fechados
-          porque ali moram o nome e o player. */}
+      {fotos.map((src, i) => {
+        const ativa = i === atual;
+        // Torta alternada, sempre a mesma pra cada foto: assim a pilha
+        // parece jogada na mesa e não gerada por script.
+        const giro = i % 2 === 0 ? -2.6 : 2.4;
+        return (
+          <figure
+            key={src}
+            className="absolute left-1/2 top-1/2 m-0 transition-all duration-[1400ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none"
+            style={{
+              // Largura em vw com teto: no celular ocupa quase a tela, no
+              // desktop não vira outdoor.
+              width: "min(78vw, 380px)",
+              // Todas montadas, só a opacidade e o transform mudam. Trocar
+              // o src piscaria branco enquanto a próxima decodifica.
+              opacity: ativa ? 1 : 0,
+              transform: `translate(-50%, -50%) rotate(${giro}deg) scale(${ativa ? 1 : 0.94})`,
+              // Papel: borda grossa embaixo, como revelada de verdade.
+              padding: "12px 12px 46px",
+              background: "#f4ece0",
+              borderRadius: "3px",
+              boxShadow: ativa
+                ? "0 30px 60px -20px rgba(0,0,0,0.75), 0 2px 6px rgba(0,0,0,0.4)"
+                : "0 10px 30px -20px rgba(0,0,0,0.5)",
+            }}
+          >
+            <img
+              src={src}
+              alt=""
+              loading={i === 0 ? "eager" : "lazy"}
+              decoding="async"
+              className="block aspect-square w-full object-cover"
+              style={{ filter: "saturate(0.96) contrast(1.02)" }}
+            />
+          </figure>
+        );
+      })}
+
+      {/* Véu sobre a foto, MUITO mais leve que na versão de papel de parede
+          (era 72%): aqui ele só assenta a imagem no fundo e devolve o
+          contraste onde a letra passa por cima. */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(to bottom, rgba(13,10,8,0.78) 0%, rgba(13,10,8,0.50) 26%, rgba(13,10,8,0.50) 74%, rgba(13,10,8,0.86) 100%)",
+            "linear-gradient(to bottom, rgba(13,10,8,0.72) 0%, rgba(13,10,8,0.34) 30%, rgba(13,10,8,0.34) 70%, rgba(13,10,8,0.8) 100%)",
         }}
       />
     </div>
