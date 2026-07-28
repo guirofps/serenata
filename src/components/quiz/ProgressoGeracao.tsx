@@ -11,9 +11,11 @@ import { cn } from "@/lib/utils";
 // do fim sem mentir que terminou, e o parent troca pelo player no instante
 // em que a música fica pronta.
 
-// Estimativa central do intervalo medido. A barra mira aqui; se passar,
-// segura no topo com um texto honesto em vez de fingir 100%.
-const ESTIMATIVA_S = 110;
+// Estimativa central, MEDIDA no banco: das músicas geradas, a mediana é 133s
+// e 6 de 8 caíram entre 111s e 146s (só o retry anti-artista estoura pra
+// ~13min). A barra mira nos 135s; se passar, segura no topo com um texto
+// honesto em vez de fingir 100%.
+const ESTIMATIVA_S = 135;
 const TETO = 93; // nunca "completa" sozinha: só a música pronta leva a 100%
 
 // Mensagens amarradas ao PROGRESSO, não a um timer separado: assim a frase
