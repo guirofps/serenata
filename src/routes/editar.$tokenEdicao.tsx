@@ -224,8 +224,15 @@ function Editor() {
       style={TEMA_CLARO}
     >
       <header className="border-b border-[var(--tinta-fraca)]/30">
-        <div className="mx-auto max-w-5xl px-6 py-4">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <Logo tamanho="sm" />
+          <a
+            href="/dashboard"
+            className="text-[var(--tinta-suave)] transition-colors hover:text-[var(--tinta)]"
+            style={{ fontSize: "var(--t-sm)" }}
+          >
+            sua conta
+          </a>
         </div>
       </header>
 

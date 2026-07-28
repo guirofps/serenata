@@ -12,8 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CriarRouteImport } from './routes/criar'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DemoMusicaRouteImport } from './routes/demo-musica'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as MarcaRouteImport } from './routes/marca'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as EditarTokenEdicaoRouteImport } from './routes/editar.$tokenEdicao'
 import { Route as PTokenRouteImport } from './routes/p.$token'
 
@@ -32,14 +35,29 @@ const CriarRoute = CriarRouteImport.update({
   path: '/criar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DemoMusicaRoute = DemoMusicaRouteImport.update({
   id: '/demo-musica',
   path: '/demo-musica',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MarcaRoute = MarcaRouteImport.update({
   id: '/marca',
   path: '/marca',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EditarTokenEdicaoRoute = EditarTokenEdicaoRouteImport.update({
@@ -57,8 +75,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/criar': typeof CriarRoute
+  '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
+  '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/p/$token': typeof PTokenRoute
 }
@@ -66,8 +87,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/criar': typeof CriarRoute
+  '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
+  '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/p/$token': typeof PTokenRoute
 }
@@ -76,8 +100,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/criar': typeof CriarRoute
+  '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
+  '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/p/$token': typeof PTokenRoute
 }
@@ -87,8 +114,11 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/criar'
+    | '/dashboard'
     | '/demo-musica'
+    | '/login'
     | '/marca'
+    | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/p/$token'
   fileRoutesByTo: FileRoutesByTo
@@ -96,8 +126,11 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/criar'
+    | '/dashboard'
     | '/demo-musica'
+    | '/login'
     | '/marca'
+    | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/p/$token'
   id:
@@ -105,8 +138,11 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/criar'
+    | '/dashboard'
     | '/demo-musica'
+    | '/login'
     | '/marca'
+    | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/p/$token'
   fileRoutesById: FileRoutesById
@@ -115,8 +151,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   CriarRoute: typeof CriarRoute
+  DashboardRoute: typeof DashboardRoute
   DemoMusicaRoute: typeof DemoMusicaRoute
+  LoginRoute: typeof LoginRoute
   MarcaRoute: typeof MarcaRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   EditarTokenEdicaoRoute: typeof EditarTokenEdicaoRoute
   PTokenRoute: typeof PTokenRoute
 }
@@ -144,6 +183,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CriarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/demo-musica': {
       id: '/demo-musica'
       path: '/demo-musica'
@@ -151,11 +197,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoMusicaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/marca': {
       id: '/marca'
       path: '/marca'
       fullPath: '/marca'
       preLoaderRoute: typeof MarcaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/editar/$tokenEdicao': {
@@ -179,8 +239,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   CriarRoute: CriarRoute,
+  DashboardRoute: DashboardRoute,
   DemoMusicaRoute: DemoMusicaRoute,
+  LoginRoute: LoginRoute,
   MarcaRoute: MarcaRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   EditarTokenEdicaoRoute: EditarTokenEdicaoRoute,
   PTokenRoute: PTokenRoute,
 }
