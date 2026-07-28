@@ -118,21 +118,22 @@ export const carregarPresente = createServerFn({ method: "GET" })
           ).data?.signedUrl ?? null)
         : null,
       dedicatoria: m.dedicatoria ?? null,
-      // Galeria só na v1: ela é sincronizada com as seções, e os marcos de
-      // tempo são da gravação principal.
-      galeria:
-        versao === 1 && m.galeria?.length
-          ? (
-              await db.storage
-                .from("fotos")
-                .createSignedUrls(m.galeria as string[], 60 * 60 * 24 * 7)
-            ).data
-              ?.map((d) => d.signedUrl)
-              .filter((u): u is string => Boolean(u)) ?? []
-          : [],
-      secoes:
-        versao === 1
-          ? extrairSecoes(m.timestamps as Array<{ word: string; start: number }> | null)
-          : [],
+      // Galeria nas DUAS versões: as fotos são as mesmas, o que muda é o
+      // COMPASSO em que elas trocam — por isso as seções vêm dos timestamps
+      // da versão que está tocando (a v2 tem timing próprio).
+      galeria: m.galeria?.length
+        ? (
+            await db.storage
+              .from("fotos")
+              .createSignedUrls(m.galeria as string[], 60 * 60 * 24 * 7)
+          ).data
+            ?.map((d) => d.signedUrl)
+            .filter((u): u is string => Boolean(u)) ?? []
+        : [],
+      secoes: extrairSecoes(
+        (versao === 1 ? m.timestamps : m.timestamps_v2) as
+          | Array<{ word: string; start: number }>
+          | null,
+      ),
     };
   });
