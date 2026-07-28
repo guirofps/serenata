@@ -16,14 +16,23 @@ import { Music } from "lucide-react";
 // leva de 84s a 163s. A barra reflete o tempo real (ver ProgressoGeracao), e
 // as músicas tocáveis embaixo fazem a espera passar mais rápido.
 
-const INTERVALO_MS = 6000;
-const TENTATIVAS_MAX = 60; // ~6 minutos
+// 4s (não 6): a geração leva 84s+, então polling não é o gargalo — mas perto
+// do fim, 4s corta a espera entre "ficou pronta" e "apareceu".
+const INTERVALO_MS = 4000;
+const TENTATIVAS_MAX = 90; // ~6 minutos
+// Quanto a barra fica em "Pronta! 100%" antes de revelar o player. Curto o
+// bastante pra não atrasar de verdade, longo o bastante pra o olho ver a
+// barra completar em vez de a peça sumir no meio.
+const COMPLETAR_MS = 1000;
 
 export function MusicaDaSessao({ letra }: { letra: string }) {
   const [status, setStatus] = useState<string>("aguardando");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [words, setWords] = useState<PalavraAlinhada[] | null>(null);
   const [desistiu, setDesistiu] = useState(false);
+  // A música existe, mas ainda estamos na animação de "Pronta!". Separa o
+  // instante em que a prévia FICA pronta do instante em que ENTRA na tela.
+  const [revelar, setRevelar] = useState(false);
   const tentativas = useRef(0);
 
   useEffect(() => {
@@ -61,13 +70,23 @@ export function MusicaDaSessao({ letra }: { letra: string }) {
     };
   }, []);
 
-  // Pronta: karaokê real, com destaque palavra a palavra e trava no preview.
-  if (audioUrl && words) {
-    return <MusicaKaraoke audioUrl={audioUrl} words={words} />;
-  }
-  // Pronta mas sem timestamps: toca do mesmo jeito (falha tolerada no job).
-  if (audioUrl) {
-    return (
+  // Ficou pronta: deixa a barra completar em "Pronta! 100%" por um instante,
+  // e só então revela o player. É o que faz a barra parecer que ACELEROU até
+  // o fim, em vez de sumir no meio quando a música chega.
+  const pronta = audioUrl !== null;
+  useEffect(() => {
+    if (!pronta) return;
+    const t = setTimeout(() => setRevelar(true), COMPLETAR_MS);
+    return () => clearTimeout(t);
+  }, [pronta]);
+
+  // Já revelou: mostra o player.
+  if (revelar && audioUrl) {
+    // Com timestamps: karaokê real, destaque palavra a palavra + trava no
+    // preview. Sem (falha tolerada no job): toca do mesmo jeito.
+    return words ? (
+      <MusicaKaraoke audioUrl={audioUrl} words={words} />
+    ) : (
       <div className="space-y-4">
         <audio controls src={audioUrl} className="w-full" />
         <KaraokePlayer letra={letra} />
@@ -95,10 +114,11 @@ export function MusicaDaSessao({ letra }: { letra: string }) {
     );
   }
 
-  // Gravando: barra honesta + músicas pra ouvir enquanto espera.
+  // Gravando (ou no instante "Pronta!" antes de revelar): barra honesta +
+  // músicas pra ouvir. Quando `pronta`, a barra salta pra 100%.
   return (
     <div className="space-y-5">
-      <ProgressoGeracao />
+      <ProgressoGeracao pronta={pronta} />
       <OuvirEnquantoEspera />
     </div>
   );
