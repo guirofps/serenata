@@ -80,16 +80,23 @@ export const QUIZ_FLOW: FlowStep[] = [
     subtext: "É o clima da música — dá pra mudar depois.",
     field: "estilo",
     input: "chips",
+    // Sem "Outro": num seletor de GÊNERO, "outro" virava "à escolha do
+    // compositor" e saía qualquer coisa — a IA escolhia sem direção, e o
+    // Suno precisa de um estilo concreto. A saída é cobrir bem os gêneros
+    // reais do presente brasileiro. Ordenados por quanto se pede.
     options: [
-      { value: "sertanejo", label: "Sertanejo", emoji: "🎵" },
-      { value: "sertanejo_univ", label: "Sertanejo universitário", emoji: "🎶" },
-      { value: "mpb", label: "MPB / voz e violão", emoji: "🎙️" },
-      { value: "pop_romantico", label: "Pop romântico", emoji: "💕" },
-      { value: "gospel", label: "Gospel", emoji: "📖" },
+      { value: "sertanejo", label: "Sertanejo", emoji: "🤠" },
+      { value: "sertanejo_univ", label: "Sertanejo universitário", emoji: "🎸" },
+      { value: "piseiro", label: "Piseiro / arrocha", emoji: "🎹" },
       { value: "pagode", label: "Pagode / samba", emoji: "🥁" },
-      { value: "forro", label: "Forró", emoji: "🪕" },
+      { value: "forro", label: "Forró", emoji: "🪗" },
+      { value: "pop_romantico", label: "Pop romântico", emoji: "💕" },
+      { value: "mpb", label: "MPB / voz e violão", emoji: "🎙️" },
+      { value: "bossa", label: "Bossa nova", emoji: "🌙" },
+      { value: "rock", label: "Rock", emoji: "🤘" },
+      { value: "gospel", label: "Gospel", emoji: "📖" },
+      { value: "rap", label: "Rap / hip-hop", emoji: "🎤" },
       { value: "infantil", label: "Infantil", emoji: "⭐" },
-      { value: "outro", label: "Outro", emoji: "✏️" },
     ],
   },
   {

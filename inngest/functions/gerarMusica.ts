@@ -23,11 +23,15 @@ const bucket = "musicas";
 const ESTILO_GENERICO: Record<string, string> = {
   sertanejo: "sertanejo romântico brasileiro, viola e violão, batida moderada, clima emotivo",
   sertanejo_univ: "sertanejo universitário, violão e viola, produção pop, romântico",
-  mpb: "MPB intimista, violão acústico dedilhado, andamento lento, arranjo minimalista",
-  pop_romantico: "balada pop romântica, piano, cordas suaves, emocional e cinematográfica",
-  gospel: "gospel brasileiro, piano e órgão, cordas, clima reverente e inspirador",
+  piseiro: "piseiro romântico brasileiro, teclado marcante, batida eletrônica dançante, vocal melódico, clima apaixonado",
   pagode: "pagode romântico, cavaquinho, pandeiro, banjo, clima alegre e caloroso",
   forro: "forró brasileiro, sanfona, zabumba e triângulo, clima nordestino",
+  pop_romantico: "balada pop romântica, piano, cordas suaves, emocional e cinematográfica",
+  mpb: "MPB intimista, violão acústico dedilhado, andamento lento, arranjo minimalista",
+  bossa: "bossa nova, violão de nylon dedilhado, batida suave, vocal intimista e sussurrado, clima sofisticado",
+  rock: "rock nacional romântico, guitarra com distorção suave, bateria marcada, vocal emotivo, clima de balada rock",
+  gospel: "gospel brasileiro, piano e órgão, cordas, clima reverente e inspirador",
+  rap: "rap/hip-hop melódico brasileiro, batida boom-bap suave, piano, vocal falado e cantado, clima intimista",
   infantil: "canção infantil suave, caixinha de música, ukulele, clima doce",
 };
 

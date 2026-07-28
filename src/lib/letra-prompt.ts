@@ -116,13 +116,16 @@ const OCASIAO: Record<string, string> = {
 const ESTILO: Record<string, string> = {
   sertanejo: "sertanejo",
   sertanejo_univ: "sertanejo universitário",
-  mpb: "MPB (voz e violão)",
-  pop_romantico: "pop romântico",
-  gospel: "gospel",
+  piseiro: "piseiro/arrocha romântico",
   pagode: "pagode/samba",
   forro: "forró",
+  pop_romantico: "pop romântico",
+  mpb: "MPB (voz e violão)",
+  bossa: "bossa nova",
+  rock: "rock nacional romântico",
+  gospel: "gospel",
+  rap: "rap/hip-hop melódico",
   infantil: "infantil",
-  outro: "à escolha do compositor",
 };
 const VOZ: Record<string, string> = {
   feminina: "feminina",
