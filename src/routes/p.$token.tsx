@@ -46,7 +46,7 @@ export const Route = createFileRoute("/p/$token")({
   },
   head: ({ loaderData }) => ({
     meta: [
-      { title: loaderData ? `${loaderData.titulo} — para ${loaderData.nome}` : "Um presente" },
+      { title: loaderData ? `${loaderData.titulo} · para ${loaderData.nome}` : "Um presente" },
       {
         name: "description",
         content: loaderData
@@ -436,7 +436,7 @@ function PaginaPresente() {
           </div>
           {p.versao === 2 && (
             <p className="mt-4 text-xs text-white/35">
-              Nesta a letra não acende — a sincronia é da gravação 1.
+              Nesta a letra não acende: a sincronia é da gravação 1.
             </p>
           )}
         </section>

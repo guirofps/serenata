@@ -36,7 +36,7 @@ export const Route = createFileRoute("/editar/$tokenEdicao")({
   head: () => ({
     // Área privada: fora do índice dos buscadores.
     meta: [
-      { title: `Monte o presente — ${MARCA.nome}` },
+      { title: `Monte o presente · ${MARCA.nome}` },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
@@ -73,7 +73,7 @@ function Editor() {
       ? `${window.location.origin}/p/${p.tokenPublico}`
       : `/p/${p.tokenPublico}`;
 
-  const mensagemPronta = `Fiz uma música pra você. É sua, só sua — a letra é sobre a gente.\n\n${linkPublico}`;
+  const mensagemPronta = `Fiz uma música pra você. É sua, só sua, a letra é sobre a gente.\n\n${linkPublico}`;
 
   async function aoEscolherFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const arquivo = e.target.files?.[0];
@@ -276,7 +276,7 @@ function Editor() {
                 className="mt-1 text-[var(--tinta-suave)]"
                 style={{ fontSize: "var(--t-sm)" }}
               >
-                Elas ficam atrás da letra e trocam nas viradas da canção — a
+                Elas ficam atrás da letra e trocam nas viradas da canção. A
                 foto muda bem quando o refrão entra. Até {MAX_GALERIA}.
               </p>
 

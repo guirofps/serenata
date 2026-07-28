@@ -164,7 +164,7 @@ export function MusicaKaraoke({
             {travou
               ? "Você ouviu um pedacinho…"
               : tocando
-                ? "Cante junto — é a sua música"
+                ? "Cante junto, é a sua música"
                 : "Ouvir a música"}
           </p>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border">

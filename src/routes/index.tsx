@@ -19,13 +19,13 @@ import { Play, ArrowRight, Menu, X } from "lucide-react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: `${MARCA.nome} — ${MARCA.promessa}` },
+      { title: `${MARCA.nome} · ${MARCA.promessa}` },
       {
         name: "description",
         content:
           "Conte a história de alguém querido e receba a letra de uma música personalizada na hora, de graça. A música completa vira uma página presente pra você enviar.",
       },
-      { property: "og:title", content: `${MARCA.nome} — ${MARCA.promessa}` },
+      { property: "og:title", content: `${MARCA.nome} · ${MARCA.promessa}` },
       { property: "og:type", content: "website" },
     ],
     links: [
@@ -48,7 +48,7 @@ const PASSOS = [
     n: "02",
     titulo: "Leia a letra na hora",
     texto:
-      "Em segundos, de graça. Feita com os detalhes que você contou — o apelido, a comida, o lugar. Não é frase pronta.",
+      "Em segundos, de graça. Feita com os detalhes que você contou: o apelido, a comida, o lugar. Não é frase pronta.",
   },
   {
     n: "03",
@@ -145,7 +145,7 @@ function Home() {
           >
             Conte a história. A letra fica pronta na hora, de graça, e você já
             ouve um trecho cantado. A música completa vira uma página que você
-            envia — com a letra acendendo no ritmo, no nome de quem vai receber.
+            envia, com a letra acendendo no ritmo, no nome de quem vai receber.
           </p>
 
           <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row lg:items-start">
@@ -213,7 +213,7 @@ function Home() {
             </div>
           </div>
           <figcaption className="mt-4 text-center text-xs text-[var(--tinta-suave)]">
-            Uma música real feita neste site — a letra acende no ritmo do vocal.
+            Uma música real feita neste site. A letra acende no ritmo do vocal.
           </figcaption>
         </figure>
       </section>

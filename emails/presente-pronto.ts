@@ -32,7 +32,7 @@ export function emailPresentePronto(args: {
 
         <tr><td style="padding:22px 36px 4px;color:rgba(42,21,24,0.75);font-size:15px;line-height:1.7;">
           Falta só uma coisa: <strong style="color:#2a1518;">montar o presente</strong>.
-          Coloque uma foto e escreva uma frase sua — é o que transforma a
+          Coloque uma foto e escreva uma frase sua. É o que transforma a
           página em algo que só vocês dois entendem.
         </td></tr>
 

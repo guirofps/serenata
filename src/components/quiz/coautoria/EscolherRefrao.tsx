@@ -40,7 +40,7 @@ export function EscolherRefrao({
           Qual refrão fica melhor?
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          É a parte que mais se canta. Escolha a que te tocar — dá pra ajustar
+          É a parte que mais se canta. Escolha a que te tocar, dá pra ajustar
           tudo depois.
         </p>
       </div>

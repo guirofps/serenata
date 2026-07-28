@@ -30,6 +30,7 @@ const ESTILO_GENERICO: Record<string, string> = {
   mpb: "MPB intimista, violão acústico dedilhado, andamento lento, arranjo minimalista",
   bossa: "bossa nova, violão de nylon dedilhado, batida suave, vocal intimista e sussurrado, clima sofisticado",
   rock: "rock nacional romântico, guitarra com distorção suave, bateria marcada, vocal emotivo, clima de balada rock",
+  reggae: "reggae romântico brasileiro, guitarra no contratempo, baixo marcante, batida cadenciada, vocal suave, clima praiano e apaixonado",
   gospel: "gospel brasileiro, piano e órgão, cordas, clima reverente e inspirador",
   rap: "rap/hip-hop melódico brasileiro, batida boom-bap suave, piano, vocal falado e cantado, clima intimista",
   infantil: "canção infantil suave, caixinha de música, ukulele, clima doce",

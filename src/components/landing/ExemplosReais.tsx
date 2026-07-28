@@ -112,7 +112,7 @@ export function ExemplosReais() {
             className="mx-auto mt-4 max-w-md text-[var(--tinta-suave)]"
             style={{ fontSize: "var(--t-base)", lineHeight: 1.6 }}
           >
-            Nenhuma é exemplo de catálogo. Toque e ouça — é exatamente isso que
+            Nenhuma é exemplo de catálogo. Toque e ouça. É exatamente isso que
             a pessoa recebe.
           </p>
         </div>

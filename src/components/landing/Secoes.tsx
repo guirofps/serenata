@@ -69,7 +69,7 @@ export function Dor() {
           </p>
           <p className="font-medium text-[var(--tinta)]">
             Não porque você não se importa. É porque presente que emociona
-            precisa ser sobre a pessoa — e isso dá trabalho.
+            precisa ser sobre a pessoa, e isso dá trabalho.
           </p>
         </div>
       </div>
@@ -97,7 +97,7 @@ export function Beneficios() {
       icone: Clock,
       titulo: "Você não precisa saber nada",
       texto:
-        "Não precisa escrever bem, nem cantar, nem ter ideia. Você conta a história do seu jeito — pode até falar em vez de digitar.",
+        "Não precisa escrever bem, nem cantar, nem ter ideia. Você conta a história do seu jeito. Pode até falar em vez de digitar.",
     },
     {
       icone: Link2,
@@ -151,7 +151,7 @@ export function Oferta({ preco = "37" }: { preco?: string }) {
     "A letra, feita da sua história (grátis, antes de decidir)",
     "Um trecho da música cantado, pra ouvir antes de pagar",
     "A música gravada e cantada, completa",
-    "Duas versões — você escolhe a que preferir",
+    "Duas versões, você escolhe a que preferir",
     "A página presente com link pra enviar",
     "O arquivo MP3 pra guardar e baixar",
     "QR Code pra imprimir e colar num presente físico",
@@ -207,7 +207,7 @@ export function Oferta({ preco = "37" }: { preco?: string }) {
             <strong className="text-[var(--tinta)]">
               Você lê a letra inteira e ouve um trecho cantado antes de pagar.
             </strong>{" "}
-            Se não for a cara da pessoa, você não paga nada — e ainda pode
+            Se não for a cara da pessoa, você não paga nada, e ainda pode
             pedir pra reescrever de graça.
           </p>
         </div>
@@ -220,7 +220,7 @@ export function Oferta({ preco = "37" }: { preco?: string }) {
 const PERGUNTAS = [
   {
     q: "E se a letra não ficar boa?",
-    a: "Você lê antes de pagar qualquer coisa. Se não gostar, pode pedir pra reescrever de graça — e se ainda assim não for a cara da pessoa, é só não seguir. Você não paga nada pela letra.",
+    a: "Você lê antes de pagar qualquer coisa. Se não gostar, pode pedir pra reescrever de graça. E se ainda assim não for a cara da pessoa, é só não seguir. Você não paga nada pela letra.",
   },
   {
     q: "Quanto tempo demora?",
@@ -232,7 +232,7 @@ const PERGUNTAS = [
   },
   {
     q: "Preciso escrever bem pra ficar bom?",
-    a: "Não. Quanto mais simples e verdadeiro, melhor. Um detalhe pequeno — o apelido, o prato de domingo, a mania dela — vale mais que texto bonito. E dá pra falar em vez de digitar, se preferir.",
+    a: "Não. Quanto mais simples e verdadeiro, melhor. Um detalhe pequeno (o apelido, o prato de domingo, a mania dela) vale mais que texto bonito. E dá pra falar em vez de digitar, se preferir.",
   },
   {
     q: "Como eu entrego pra pessoa?",
@@ -240,7 +240,7 @@ const PERGUNTAS = [
   },
   {
     q: "E se ela não gostar?",
-    a: "Você é quem conhece a pessoa. Por isso a letra vem antes: você lê e decide se aquilo é ela. É o mesmo cuidado de escolher um presente — só que aqui você confere antes.",
+    a: "Você é quem conhece a pessoa. Por isso a letra vem antes: você lê e decide se aquilo é ela. É o mesmo cuidado de escolher um presente, só que aqui você confere antes.",
   },
 ];
 

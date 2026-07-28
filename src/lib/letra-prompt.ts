@@ -123,6 +123,7 @@ const ESTILO: Record<string, string> = {
   mpb: "MPB (voz e violão)",
   bossa: "bossa nova",
   rock: "rock nacional romântico",
+  reggae: "reggae romântico brasileiro",
   gospel: "gospel",
   rap: "rap/hip-hop melódico",
   infantil: "infantil",

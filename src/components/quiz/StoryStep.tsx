@@ -21,17 +21,17 @@ export function validateStory(
 
   const faltam = step.minChars - t.length;
   if (faltam > 0)
-    return { ok: false, message: `Escreva um pouco mais — faltam ${faltam} caracteres` };
+    return { ok: false, message: `Escreva um pouco mais, faltam ${faltam} caracteres` };
 
   // Palavras de verdade = sequências de 2+ letras (não dígitos/símbolos).
   const palavrasReais = t.match(/[\p{L}]{2,}/gu) ?? [];
   if (palavrasReais.length < 3)
-    return { ok: false, message: "Escreva com frases de verdade — pelo menos 3 palavras." };
+    return { ok: false, message: "Escreva com frases de verdade, pelo menos 3 palavras." };
 
   // Conteúdo majoritariamente não-alfabético (parede de dígitos/símbolos).
   const letras = (t.match(/\p{L}/gu) ?? []).length;
   if (letras / t.length < 0.5)
-    return { ok: false, message: "Use palavras reais — evite números e símbolos soltos." };
+    return { ok: false, message: "Use palavras reais, evite números e símbolos soltos." };
 
   // Repetição excessiva do mesmo caractere (ex: "aaaaaa", "333333").
   if (/(.)\1{5,}/.test(t))

@@ -62,7 +62,7 @@ export function EditorLetra({
           Essa é a sua letra
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Mude o que quiser — cada palavra é sua. É ela que vira música.
+          Mude o que quiser, cada palavra é sua. É ela que vira música.
         </p>
       </div>
 

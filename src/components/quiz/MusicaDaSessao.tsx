@@ -3,14 +3,18 @@ import { statusMusica } from "@/lib/gerar-letra";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { MusicaKaraoke, type PalavraAlinhada } from "@/components/quiz/MusicaKaraoke";
 import { KaraokePlayer } from "@/components/quiz/KaraokePlayer";
+import { ProgressoGeracao } from "@/components/quiz/ProgressoGeracao";
+import { OuvirEnquantoEspera } from "@/components/quiz/OuvirEnquantoEspera";
 import { trackEventOnce } from "@/lib/track";
-import { Music, Loader2 } from "lucide-react";
+import { Music } from "lucide-react";
 
-// Acompanha a música da sessão: enquanto grava, mostra a letra + um aviso
-// honesto; quando fica pronta, troca pelo karaokê real (preview de 40s).
+// Acompanha a música da sessão: enquanto grava, mostra uma barra de progresso
+// honesta + outras músicas pra ouvir; quando fica pronta, troca pelo karaokê
+// real (preview de 40s).
 //
 // Espera honesta: nada de barra que corre até 99% e trava. Medido, a geração
-// leva de 84s a 163s — dizemos "em torno de 2 minutos" e não prometemos menos.
+// leva de 84s a 163s. A barra reflete o tempo real (ver ProgressoGeracao), e
+// as músicas tocáveis embaixo fazem a espera passar mais rápido.
 
 const INTERVALO_MS = 6000;
 const TENTATIVAS_MAX = 60; // ~6 minutos
@@ -73,28 +77,29 @@ export function MusicaDaSessao({ letra }: { letra: string }) {
 
   const falhou = status === "falhou" || desistiu;
 
-  return (
-    <div className="space-y-4">
-      {/* Aviso honesto enquanto grava */}
-      <div className="flex items-center gap-3 rounded-2xl border border-dashed bg-secondary/30 px-4 py-3">
-        {falhou ? (
+  // Demorou demais: aviso honesto (avisamos por e-mail) + a letra pra reler.
+  if (falhou) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 rounded-2xl border border-dashed bg-secondary/30 px-4 py-3">
           <Music className="h-5 w-5 shrink-0 text-muted-foreground" />
-        ) : (
-          <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" />
-        )}
-        <div className="min-w-0">
-          <p className="text-sm font-medium">
-            {falhou ? "A gravação demorou mais que o esperado" : "Sua música está sendo gravada…"}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {falhou
-              ? "Assim que ficar pronta, avisamos no seu e-mail."
-              : "Leva cerca de 2 minutos. Pode ir lendo a letra abaixo."}
-          </p>
+          <div className="min-w-0">
+            <p className="text-sm font-medium">A gravação demorou mais que o esperado</p>
+            <p className="text-xs text-muted-foreground">
+              Assim que ficar pronta, avisamos no seu e-mail.
+            </p>
+          </div>
         </div>
+        <KaraokePlayer letra={letra} />
       </div>
+    );
+  }
 
-      <KaraokePlayer letra={letra} />
+  // Gravando: barra honesta + músicas pra ouvir enquanto espera.
+  return (
+    <div className="space-y-5">
+      <ProgressoGeracao />
+      <OuvirEnquantoEspera />
     </div>
   );
 }
