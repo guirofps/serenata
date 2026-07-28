@@ -83,7 +83,21 @@ function PaginaPresente() {
   const gsapRef = useRef<Gsap | null>(null);
   const [tocando, setTocando] = useState(false);
   const [t, setT] = useState(0);
+  const [durAudio, setDurAudio] = useState(0);
   const [comecou, setComecou] = useState(false);
+
+  // Duração vem do PRÓPRIO áudio, não do banco. O banco guarda a duração da
+  // v1; na v2 (outra gravação) ela seria nula e o player mostrava 0:00 com a
+  // barra parada. O elemento de áudio sabe a duração real da faixa que
+  // estiver tocando, seja v1 ou v2.
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    const medir = () => setDurAudio(Number.isFinite(a.duration) ? a.duration : 0);
+    a.addEventListener("loadedmetadata", medir);
+    if (a.readyState >= 1) medir(); // metadados já disponíveis
+    return () => a.removeEventListener("loadedmetadata", medir);
+  }, [p.audioUrl]);
 
   // Relógio da letra: rAF mantém o acendimento colado no vocal (timeupdate
   // dispara ~4x/s e atrasa visivelmente). `timeupdate` fica junto como rede
@@ -228,7 +242,9 @@ function PaginaPresente() {
     }
   }
 
-  const dur = p.duracaoS ?? 0;
+  // Áudio manda; o valor do banco é só um palpite inicial pra v1 não piscar
+  // 0:00 antes dos metadados chegarem.
+  const dur = durAudio || p.duracaoS || 0;
   const prog = dur ? Math.min(100, (t / dur) * 100) : 0;
   const mmss = (s: number) =>
     `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
