@@ -224,8 +224,11 @@ export const gerarMusica = inngest.createFunction(
       return salvos;
     });
 
-    // ─── 5. Timestamps (karaokê real) da faixa PRINCIPAL ───────────
-    // Tolerante a falha: sem timestamps a música ainda toca, só sem destaque.
+    // ─── 5. Timestamps (karaokê real) das DUAS gravações ───────────
+    // Cada gravação tem timing próprio, então precisa dos seus timestamps:
+    // usar os da v1 na v2 acenderia a letra fora do que se ouve. ~0,5 crédito
+    // (R$ 0,013) cada. Tolerante a falha: sem timestamps a faixa ainda toca,
+    // só sem destaque.
     const timestamps = await step.run("timestamps", async () => {
       try {
         const t = await obterTimestamps(taskId, principal.id);
@@ -237,10 +240,29 @@ export const gerarMusica = inngest.createFunction(
         });
         return t;
       } catch (err) {
-        console.error("[musica] timestamps falharam:", err);
+        console.error("[musica] timestamps v1 falharam:", err);
         return null;
       }
     });
+
+    // Timestamps da alternativa (v2). Só se ela existir.
+    const timestampsV2 = alternativa
+      ? await step.run("timestamps-v2", async () => {
+          try {
+            const t = await obterTimestamps(taskId, alternativa.id);
+            await registrarCusto({
+              quizResponseId: musica.quiz_response_id,
+              musicaId,
+              tipo: "timestamps",
+              creditos: CREDITOS.timestamps,
+            });
+            return t;
+          } catch (err) {
+            console.error("[musica] timestamps v2 falharam:", err);
+            return null;
+          }
+        })
+      : null;
 
     // ─── 6. Fecha ──────────────────────────────────────────────────
     await step.run("marcar-pronta", async () => {
@@ -254,6 +276,7 @@ export const gerarMusica = inngest.createFunction(
           audio_path: caminhos[0] ?? null,
           audio_path_v2: caminhos[1] ?? null,
           timestamps,
+          timestamps_v2: timestampsV2,
           duracao_s: principal.duration ?? null,
           provider: "kie.ai",
           provider_job_id: taskId,

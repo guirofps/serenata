@@ -450,9 +450,12 @@ function PaginaPresente() {
               </Link>
             ))}
           </div>
-          {p.versao === 2 && (
+          {/* Só quando a v2 não tem os próprios timestamps (música antiga
+              antes do backfill, ou falha ao buscar). Com eles, ela acende
+              igual à v1. */}
+          {p.versao === 2 && (!p.timestamps || p.timestamps.length === 0) && (
             <p className="mt-4 text-xs text-white/35">
-              Nesta a letra não acende: a sincronia é da gravação 1.
+              Nesta gravação a letra não acende, é só ouvir.
             </p>
           )}
         </section>

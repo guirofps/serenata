@@ -57,7 +57,7 @@ export const carregarPresente = createServerFn({ method: "GET" })
     const { data: m } = await db
       .from("musicas")
       .select(
-        "titulo, letra, status, audio_path, audio_path_v2, timestamps, duracao_s, quiz_response_id, foto_path, dedicatoria, galeria",
+        "titulo, letra, status, audio_path, audio_path_v2, timestamps, timestamps_v2, duracao_s, quiz_response_id, foto_path, dedicatoria, galeria",
       )
       .eq("token", data.token)
       .maybeSingle();
@@ -96,13 +96,15 @@ export const carregarPresente = createServerFn({ method: "GET" })
       // A história vira o "encarte" do disco.
       historia: [r.historia1, r.historia2].filter(Boolean).join("\n\n") || null,
       audioUrl,
-      // Os timestamps são de UMA gravação específica (a principal). Usá-los
-      // na alternativa acenderia a letra fora do que se ouve — pior que não
-      // acender. Na v2 mostramos a letra estática.
+      // Cada gravação tem seus timestamps: os da v1 em `timestamps`, os da v2
+      // em `timestamps_v2`. Usar os de uma na outra acenderia a letra fora do
+      // que se ouve. Quando a v2 não tiver os seus (músicas antigas, antes do
+      // backfill), cai em null e mostra a letra estática.
       timestamps:
-        versao === 1
-          ? ((m.timestamps as Array<{ word: string; start: number; end: number }>) ?? null)
-          : null,
+        (versao === 1
+          ? (m.timestamps as Array<{ word: string; start: number; end: number }> | null)
+          : (m.timestamps_v2 as Array<{ word: string; start: number; end: number }> | null)) ??
+        null,
       duracaoS: versao === 1 && m.duracao_s ? Number(m.duracao_s) : null,
       temAlternativa,
       versao,
