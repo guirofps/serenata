@@ -17,8 +17,13 @@ export type PresenteEditavel = {
   fotoUrl: string | null;
   /** Galeria que passa atrás da letra. Caminho + URL assinada, na ordem. */
   galeria: Array<{ caminho: string; url: string }>;
-  /** Áudio da música (principal), pro comprador guardar/enviar. */
-  audioUrl: string | null;
+  /** As duas gravações, pra ouvir e comparar. `audioUrlV2` pode não existir. */
+  audioUrlV1: string | null;
+  audioUrlV2: string | null;
+  /** Qual gravação o comprador prefere (1 ou 2). */
+  versaoPreferida: 1 | 2;
+  /** Cor de destaque escolhida (oklch), ou null pro padrão. */
+  corDestaque: string | null;
   tokenPublico: string;
   publicada: boolean;
 };
@@ -36,7 +41,7 @@ async function buscarPorTokenEdicao(tokenEdicao: string) {
   const { data } = await db
     .from("musicas")
     .select(
-      "id, token, titulo, foto_path, galeria, dedicatoria, personalizada_em, quiz_response_id, audio_path",
+      "id, token, titulo, foto_path, galeria, dedicatoria, personalizada_em, quiz_response_id, audio_path, audio_path_v2, versao_preferida, cor_destaque",
     )
     .eq("token_edicao", tokenEdicao)
     .maybeSingle();
@@ -66,6 +71,14 @@ async function urlDaFoto(caminho: string | null): Promise<string | null> {
   return data?.signedUrl ?? null;
 }
 
+async function urlDoAudio(caminho: string | null): Promise<string | null> {
+  if (!caminho) return null;
+  const { data } = await supabaseAdmin()
+    .storage.from("musicas")
+    .createSignedUrl(caminho, 60 * 60 * 24 * 7);
+  return data?.signedUrl ?? null;
+}
+
 /** Carrega o presente para a tela de edição. */
 export const carregarParaEditar = createServerFn({ method: "GET" })
   .validator((data: { tokenEdicao: string }) => data)
@@ -86,16 +99,38 @@ export const carregarParaEditar = createServerFn({ method: "GET" })
       dedicatoria: m.dedicatoria,
       fotoUrl: await urlDaFoto(m.foto_path),
       galeria: await assinarGaleria(m.galeria),
-      audioUrl: m.audio_path
-        ? ((
-            await supabaseAdmin()
-              .storage.from("musicas")
-              .createSignedUrl(m.audio_path, 60 * 60 * 24 * 7)
-          ).data?.signedUrl ?? null)
-        : null,
+      audioUrlV1: await urlDoAudio(m.audio_path),
+      audioUrlV2: await urlDoAudio(m.audio_path_v2),
+      versaoPreferida: (m.versao_preferida === 2 ? 2 : 1) as 1 | 2,
+      corDestaque: m.cor_destaque ?? null,
       tokenPublico: m.token,
       publicada: Boolean(m.personalizada_em),
     };
+  });
+
+/** Salva a versão preferida (1 ou 2) — a que abre por padrão no presente. */
+export const definirVersaoPreferida = createServerFn({ method: "POST" })
+  .validator((data: { tokenEdicao: string; versao: number }) => data)
+  .handler(async ({ data }): Promise<{ ok: boolean }> => {
+    const m = await buscarPorTokenEdicao(data.tokenEdicao);
+    if (!m) return { ok: false };
+    const versao = data.versao === 2 ? 2 : 1;
+    await supabaseAdmin().from("musicas").update({ versao_preferida: versao }).eq("id", m.id);
+    return { ok: true };
+  });
+
+/** Salva a cor de destaque. Valida contra os presets pra não aceitar
+ *  qualquer string (quem chama a API direto não passa pela interface). */
+export const definirCor = createServerFn({ method: "POST" })
+  .validator((data: { tokenEdicao: string; oklch: string }) => data)
+  .handler(async ({ data }): Promise<{ ok: boolean }> => {
+    const { CORES_PRESENTE } = await import("@/lib/marca");
+    const valida = CORES_PRESENTE.some((c) => c.oklch === data.oklch);
+    if (!valida) return { ok: false };
+    const m = await buscarPorTokenEdicao(data.tokenEdicao);
+    if (!m) return { ok: false };
+    await supabaseAdmin().from("musicas").update({ cor_destaque: data.oklch }).eq("id", m.id);
+    return { ok: true };
   });
 
 /** Acrescenta fotos à galeria (as que passam atrás da letra). */

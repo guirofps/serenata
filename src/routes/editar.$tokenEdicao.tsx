@@ -6,15 +6,17 @@ import {
   removerFoto,
   adicionarNaGaleria,
   removerDaGaleria,
+  definirVersaoPreferida,
+  definirCor,
   MAX_GALERIA,
 } from "@/lib/personalizar";
 import { prepararFoto } from "@/lib/imagem";
 import { QrCode } from "@/components/presente/QrCode";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
-import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
+import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
-import { ImagePlus, Trash2, Check, Copy, ExternalLink, Loader2, X } from "lucide-react";
+import { ImagePlus, Trash2, Check, Copy, ExternalLink, Loader2, X, Play, Pause } from "lucide-react";
 
 // A ÁREA DO COMPRADOR — onde o presente deixa de ser um render e vira o
 // documento dela.
@@ -66,8 +68,47 @@ function Editor() {
   const [erro, setErro] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
   const [copiado, setCopiado] = useState(false);
+  // Enriquecimentos: a versão que ela prefere (a que abre por padrão no
+  // presente) e a cor dos elementos da página.
+  const [versaoPref, setVersaoPref] = useState<1 | 2>(p.versaoPreferida);
+  const [cor, setCor] = useState(p.corDestaque ?? CORES_PRESENTE[0].oklch);
+  const [tocando, setTocando] = useState<1 | 2 | null>(null);
   const inputFoto = useRef<HTMLInputElement>(null);
   const inputGaleria = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const audioPreferido = versaoPref === 2 ? p.audioUrlV2 : p.audioUrlV1;
+
+  // Um <audio> só, compartilhado pelos dois botões de prévia. Trocar de versão
+  // no meio para a atual e começa a outra do zero.
+  function ouvir(v: 1 | 2) {
+    const el = audioRef.current;
+    const src = v === 2 ? p.audioUrlV2 : p.audioUrlV1;
+    if (!el || !src) return;
+    if (tocando === v) {
+      el.pause();
+      setTocando(null);
+      return;
+    }
+    el.src = src;
+    el.play().catch(() => setTocando(null));
+    setTocando(v);
+  }
+
+  async function escolherVersao(v: 1 | 2) {
+    setVersaoPref(v);
+    const r = await definirVersaoPreferida({ data: { tokenEdicao, versao: v } });
+    if (r.ok) setSalvo(true);
+    else setVersaoPref(p.versaoPreferida);
+  }
+
+  async function escolherCor(oklch: string) {
+    const anterior = cor;
+    setCor(oklch);
+    const r = await definirCor({ data: { tokenEdicao, oklch } });
+    if (r.ok) setSalvo(true);
+    else setCor(anterior);
+  }
 
   const linkPublico =
     typeof window !== "undefined"
@@ -216,6 +257,123 @@ function Editor() {
         <div className="mt-12 grid gap-10 lg:grid-cols-[1fr_380px]">
           {/* ── COLUNA DE EDIÇÃO ──────────────────────────────── */}
           <div className="space-y-10">
+            {/* <audio> compartilhado das prévias de versão */}
+            <audio
+              ref={audioRef}
+              onEnded={() => setTocando(null)}
+              className="hidden"
+            />
+
+            {/* versão preferida — qual das duas gravações abre por padrão */}
+            {p.audioUrlV2 && (
+              <section>
+                <h2 className="font-medium" style={{ fontSize: "var(--t-lg)" }}>
+                  Qual gravação você prefere?
+                </h2>
+                <p
+                  className="mt-1 text-[var(--tinta-suave)]"
+                  style={{ fontSize: "var(--t-sm)" }}
+                >
+                  Fizemos duas. Ouça as duas e escolha a que emociona mais. É a
+                  que vai abrir quando ela receber.
+                </p>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {([1, 2] as const).map((v) => {
+                    const escolhida = versaoPref === v;
+                    return (
+                      <div
+                        key={v}
+                        className={cn(
+                          "flex items-center gap-3 rounded-[var(--raio)] border p-3 transition-colors duration-150",
+                          escolhida
+                            ? "border-[var(--acento)] bg-[var(--acento)]/5"
+                            : "border-[var(--tinta-fraca)] bg-[var(--papel-fundo)]",
+                        )}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => ouvir(v)}
+                          aria-label={tocando === v ? "Pausar" : "Ouvir"}
+                          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--tinta)] text-[var(--papel)] transition-transform active:scale-95"
+                        >
+                          {tocando === v ? (
+                            <Pause className="h-4 w-4" />
+                          ) : (
+                            <Play className="ml-0.5 h-4 w-4" />
+                          )}
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium" style={{ fontSize: "var(--t-sm)" }}>
+                            Versão {v}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => escolherVersao(v)}
+                            className={cn(
+                              "mt-0.5 inline-flex items-center gap-1 transition-colors",
+                              escolhida
+                                ? "text-[var(--acento)]"
+                                : "text-[var(--tinta-suave)] hover:text-[var(--tinta)]",
+                            )}
+                            style={{ fontSize: "var(--t-xs)" }}
+                          >
+                            {escolhida ? (
+                              <>
+                                <Check className="h-3.5 w-3.5" /> é essa
+                              </>
+                            ) : (
+                              "escolher esta"
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* cor de destaque — o play, a letra que acende, a barra */}
+            <section>
+              <h2 className="font-medium" style={{ fontSize: "var(--t-lg)" }}>
+                A cor da página
+              </h2>
+              <p
+                className="mt-1 text-[var(--tinta-suave)]"
+                style={{ fontSize: "var(--t-sm)" }}
+              >
+                É a cor do play, da letra que acende e da barra. Veja na prévia
+                ao lado.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                {CORES_PRESENTE.map((c) => {
+                  const escolhida = cor === c.oklch;
+                  return (
+                    <button
+                      key={c.chave}
+                      type="button"
+                      onClick={() => escolherCor(c.oklch)}
+                      aria-label={c.nome}
+                      aria-pressed={escolhida}
+                      title={c.nome}
+                      className={cn(
+                        "grid h-10 w-10 place-items-center rounded-full transition-transform active:scale-90",
+                        escolhida
+                          ? "ring-2 ring-[var(--tinta)] ring-offset-2 ring-offset-[var(--papel)]"
+                          : "hover:scale-110",
+                      )}
+                      style={{ backgroundColor: c.oklch }}
+                    >
+                      {escolhida && (
+                        <Check className="h-4 w-4 text-[#0d0a08]" strokeWidth={3} />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
             {/* foto */}
             <section>
               <h2 className="font-medium" style={{ fontSize: "var(--t-lg)" }}>
@@ -445,8 +603,8 @@ function Editor() {
                 {/* Guardar/enviar o MP3 é ação de QUEM MONTA o presente (aqui),
                     não de quem recebe. No celular abre a folha de
                     compartilhamento nativa (WhatsApp, Arquivos). */}
-                {p.audioUrl && (
-                  <BotaoGuardar audioUrl={p.audioUrl} titulo={p.titulo} nome={p.nome} />
+                {audioPreferido && (
+                  <BotaoGuardar audioUrl={audioPreferido} titulo={p.titulo} nome={p.nome} />
                 )}
               </div>
             </section>
@@ -496,7 +654,10 @@ function Editor() {
                   >
                     {p.titulo}
                   </p>
-                  <div className="mx-auto mt-5 h-11 w-11 rounded-full bg-[oklch(0.84_0.13_78)]" />
+                  <div
+                    className="mx-auto mt-5 h-11 w-11 rounded-full"
+                    style={{ backgroundColor: cor }}
+                  />
                   {dedicatoria && (
                     <p
                       className="mt-5 text-[11px] leading-relaxed text-white/70"

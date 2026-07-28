@@ -28,6 +28,8 @@ export type Presente = {
   galeria: string[];
   /** Segundo em que cada seção da música entra (intro, verso, refrão…). */
   secoes: number[];
+  /** Cor de destaque escolhida pelo comprador (oklch), ou null pro padrão. */
+  corDestaque: string | null;
 };
 
 // O Suno devolve os marcadores de seção DENTRO das palavras com timestamp:
@@ -57,7 +59,7 @@ export const carregarPresente = createServerFn({ method: "GET" })
     const { data: m } = await db
       .from("musicas")
       .select(
-        "titulo, letra, status, audio_path, audio_path_v2, timestamps, timestamps_v2, duracao_s, quiz_response_id, foto_path, dedicatoria, galeria",
+        "titulo, letra, status, audio_path, audio_path_v2, timestamps, timestamps_v2, duracao_s, quiz_response_id, foto_path, dedicatoria, galeria, versao_preferida, cor_destaque",
       )
       .eq("token", data.token)
       .maybeSingle();
@@ -73,9 +75,12 @@ export const carregarPresente = createServerFn({ method: "GET" })
     const r = (q?.respostas ?? {}) as Record<string, string>;
 
     const temAlternativa = Boolean(m.audio_path_v2);
-    // Só cai na alternativa se ela existir de verdade — link com ?v=2 numa
-    // música de uma versão só toca a principal em vez de dar tela muda.
-    const versao: 1 | 2 = data.versao === 2 && temAlternativa ? 2 : 1;
+    // Sem ?v= no link, abre na versão que o COMPRADOR marcou como preferida
+    // (a que ele gostou mais). Com ?v= explícito, respeita o que foi pedido.
+    // Só cai na v2 se ela existir de verdade — link com ?v=2 numa música de
+    // uma versão só toca a principal em vez de dar tela muda.
+    const desejada = data.versao ?? m.versao_preferida ?? 1;
+    const versao: 1 | 2 = desejada === 2 && temAlternativa ? 2 : 1;
     const caminho = versao === 2 ? m.audio_path_v2 : m.audio_path;
 
     let audioUrl: string | null = null;
@@ -135,5 +140,6 @@ export const carregarPresente = createServerFn({ method: "GET" })
           | Array<{ word: string; start: number }>
           | null,
       ),
+      corDestaque: m.cor_destaque ?? null,
     };
   });

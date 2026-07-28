@@ -254,9 +254,10 @@ function PaginaPresente() {
       className="relative min-h-screen bg-[#0d0a08] text-white"
       style={
         {
-          // Paleta do presente: preto quente + âmbar. Escuro faz a letra
-          // brilhar e deixa a foto (quando houver) dominar a capa.
-          "--presente-destaque": "oklch(0.84 0.13 78)",
+          // Paleta do presente: preto quente + a cor que o comprador
+          // escolheu (âmbar por padrão). Escuro faz a letra brilhar e deixa a
+          // foto (quando houver) dominar a capa.
+          "--presente-destaque": p.corDestaque ?? "oklch(0.84 0.13 78)",
           "--presente-vinho": "oklch(0.55 0.16 18)",
           fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
         } as React.CSSProperties

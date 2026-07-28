@@ -51,6 +51,22 @@ export const CORES = {
   ouro: "oklch(0.78 0.10 82)", // fio dourado: detalhe, nunca superfície
 } as const;
 
+// ── Cores de destaque da página-presente ──────────────────────────
+// O comprador escolhe a cor dos elementos (play, letra que acende, barra).
+// Presets, não seletor livre: todas afinadas pra BRILHAR sobre a noite
+// (#0d0a08) e manter contraste com o texto escuro que fica em cima do botão
+// de play. Luminância alta (0.78–0.86) de propósito.
+export const CORES_PRESENTE = [
+  { chave: "ambar", nome: "Âmbar", oklch: "oklch(0.84 0.13 78)" }, // padrão
+  { chave: "rose", nome: "Rosé", oklch: "oklch(0.80 0.12 8)" },
+  { chave: "coral", nome: "Coral", oklch: "oklch(0.78 0.16 40)" },
+  { chave: "lavanda", nome: "Lavanda", oklch: "oklch(0.80 0.10 300)" },
+  { chave: "ceu", nome: "Céu", oklch: "oklch(0.80 0.11 235)" },
+  { chave: "menta", nome: "Menta", oklch: "oklch(0.84 0.12 165)" },
+] as const;
+
+export const COR_PRESENTE_PADRAO = CORES_PRESENTE[0].oklch;
+
 // ── Tipografia ────────────────────────────────────────────────────
 // Fraunces: serifada com "wonk", tem calor e imperfeição — parece escrita
 // por gente, não gerada. Inter para interface, que some e deixa ler.
