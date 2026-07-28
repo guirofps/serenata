@@ -1,32 +1,43 @@
 import { useEffect, useRef, useState } from "react";
-import { obterOuGerarLetra } from "@/lib/gerar-letra";
+import { gerarRefroes, montarLetra, finalizarLetra, type RefroesGerados } from "@/lib/coautoria";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import type { LetraGerada } from "@/lib/letra-prompt";
 import { useQuizStore } from "@/lib/quiz-store";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { Button } from "@/components/ui/button";
 import { MusicaDaSessao } from "@/components/quiz/MusicaDaSessao";
-import { Music, RefreshCw, QrCode } from "lucide-react";
+import { EscolherRefrao } from "@/components/quiz/coautoria/EscolherRefrao";
+import { EditorLetra } from "@/components/quiz/coautoria/EditorLetra";
+import { Music, QrCode } from "lucide-react";
 
-// Frases de loading HONESTAS (a letra fica pronta em ~6s de verdade). Nada de
-// barra de teatro que trava em 99% — o anti-padrão da Cantoria.
+// A REVELAÇÃO — agora é COAUTORIA, não letra pronta.
+//
+// Fluxo: escolher o refrão (2 opções) → editar a letra montada em cima dele
+// → confirmar. Só no confirmar a música dispara, porque a letra não é final
+// antes disso. Continua ANTES do pagamento (regra do CLAUDE.md).
+//
+// É a mecânica do LoveTune, enxugada pra 2 etapas: quando a pessoa escolhe e
+// edita, a letra vira dela, e pagar é quase consequência.
+
+// Frases de loading HONESTAS. Nada de barra que trava em 99% (anti-padrão da
+// Cantoria).
 const LOADING = [
   "Lendo a sua história…",
   "Procurando os detalhes que só vocês têm…",
-  "Escolhendo as palavras certas…",
-  "Escrevendo o refrão…",
+  "Escrevendo dois caminhos pro refrão…",
 ];
 
-type Estado =
-  | { fase: "gerando" }
-  | { fase: "pronta"; letra: LetraGerada }
-  | { fase: "erro"; msg: string }
-  | { fase: "sem-dados" };
+type Fase =
+  | { t: "carregando"; msg: string }
+  | { t: "refroes"; dados: RefroesGerados }
+  | { t: "editando"; letra: LetraGerada }
+  | { t: "revelando"; letra: LetraGerada }
+  | { t: "erro"; msg: string; tentar: () => void }
+  | { t: "sem-dados" };
 
-// Com SSR, a store persistida começa VAZIA e só hidrata do localStorage depois
-// do mount. Sem esperar por isso, a geração dispara sem a história e a letra
-// sai genérica (bug real: reload na tela de reveal produzia letra vazia de
-// detalhes). Este hook segura a geração até os dados existirem de verdade.
+// Com SSR a store persistida começa VAZIA e só hidrata depois do mount. Sem
+// esperar, a geração dispara sem a história e a letra sai genérica. Este hook
+// segura tudo até os dados existirem.
 function useStoreHidratada() {
   const [hidratada, setHidratada] = useState(() =>
     typeof window === "undefined" ? false : useQuizStore.persist.hasHydrated(),
@@ -34,7 +45,6 @@ function useStoreHidratada() {
   useEffect(() => {
     if (hidratada) return;
     const unsub = useQuizStore.persist.onFinishHydration(() => setHidratada(true));
-    // Se já hidratou entre o render e o efeito, não fica esperando pra sempre.
     if (useQuizStore.persist.hasHydrated()) setHidratada(true);
     return unsub;
   }, [hidratada]);
@@ -44,84 +54,112 @@ function useStoreHidratada() {
 export function RevealStep() {
   const respostas = useQuizStore((s) => s.respostas);
   const hidratada = useStoreHidratada();
-  const [estado, setEstado] = useState<Estado>({ fase: "gerando" });
+  const [fase, setFase] = useState<Fase>({ t: "carregando", msg: LOADING[0] });
   const [loadingIdx, setLoadingIdx] = useState(0);
-  const [refez, setRefez] = useState(false);
-  const jaGerou = useRef(false);
+  const [regerando, setRegerando] = useState(false);
+  const [finalizando, setFinalizando] = useState(false);
+  const jaComecou = useRef(false);
 
-  // `refazer` só quando a pessoa pede explicitamente: sem isso a letra salva
-  // é reaproveitada, e o que ela leu é o que vira música.
-  async function gerar(refazer = false) {
-    setEstado({ fase: "gerando" });
-    setLoadingIdx(0);
+  // respostas VIVAS (pós-hidratação), nunca o snapshot do render.
+  const vivas = () => useQuizStore.getState().respostas;
+  const temHistoria = (r: Record<string, unknown>) =>
+    Boolean(String(r.historia1 ?? "").trim() || String(r.historia2 ?? "").trim());
+
+  async function carregarRefroes(regen = false) {
+    if (regen) setRegerando(true);
+    else setFase({ t: "carregando", msg: LOADING[0] });
     try {
-      // getState() = estado VIVO da store (pós-hidratação). Não usar o snapshot
-      // do render: com SSR ele ainda pode estar vazio e a letra sairia genérica.
-      const respostasVivas = useQuizStore.getState().respostas;
-      const letra = await obterOuGerarLetra({
-        data: { sessionId: getOrCreateSessionId(), respostas: respostasVivas, refazer },
+      const dados = await gerarRefroes({
+        data: { sessionId: getOrCreateSessionId(), respostas: vivas() },
       });
-      setEstado({ fase: "pronta", letra });
-      trackEventOnce("letra_gerada", "v1", { titulo: letra.titulo });
+      setFase({ t: "refroes", dados });
+      trackEventOnce("coautoria_refroes", "v1");
     } catch (err) {
-      console.error("[reveal] falha ao gerar letra:", err);
-      setEstado({ fase: "erro", msg: "Não consegui escrever agora. Tente de novo." });
+      console.error("[coautoria] refrões falharam:", err);
+      setFase({ t: "erro", msg: "Não consegui escrever agora. Tente de novo.", tentar: () => carregarRefroes() });
+    } finally {
+      setRegerando(false);
     }
   }
 
-  // Gera UMA vez, e só depois que a store hidratou e a história existe.
-  // Falhe alto, não adivinhe: sem história, não gera letra genérica.
-  const temHistoriaRender = Boolean(
-    String(respostas.historia1 ?? "").trim() || String(respostas.historia2 ?? "").trim(),
-  );
-  useEffect(() => {
-    if (!hidratada || jaGerou.current) return;
-    // Confere no estado VIVO, não no snapshot do render (que pode estar
-    // atrasado logo após a hidratação e faria a letra sair sem história).
-    const r = useQuizStore.getState().respostas;
-    const temHistoria = Boolean(
-      String(r.historia1 ?? "").trim() || String(r.historia2 ?? "").trim(),
-    );
-    if (!temHistoria) {
-      setEstado({ fase: "sem-dados" });
-      return; // sem marcar jaGerou: se a história chegar depois, gera.
+  async function escolherRefrao(refrao: string) {
+    setFase({ t: "carregando", msg: "Escrevendo a letra em volta do seu refrão…" });
+    trackEvent("coautoria_refrao_escolhido", {});
+    try {
+      const letra = await montarLetra({
+        data: { sessionId: getOrCreateSessionId(), respostas: vivas(), refrao },
+      });
+      setFase({ t: "editando", letra });
+    } catch (err) {
+      console.error("[coautoria] montar letra falhou:", err);
+      setFase({ t: "erro", msg: "Não consegui montar a letra. Tente de novo.", tentar: () => escolherRefrao(refrao) });
     }
-    jaGerou.current = true;
-    gerar();
-  }, [hidratada, temHistoriaRender]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
-  // Roda as frases de loading enquanto gera.
+  async function finalizar(letraEditada: string) {
+    if (fase.t !== "editando") return;
+    setFinalizando(true);
+    const base = fase.letra;
+    try {
+      await finalizarLetra({
+        data: {
+          sessionId: getOrCreateSessionId(),
+          respostas: vivas(),
+          letra: letraEditada,
+          titulo: base.titulo,
+          estiloSuno: base.estilo_suno,
+          versoDestaque: base.verso_destaque,
+        },
+      });
+      trackEventOnce("letra_finalizada", "v1", { titulo: base.titulo });
+      setFase({ t: "revelando", letra: { ...base, letra: letraEditada } });
+    } catch (err) {
+      console.error("[coautoria] finalizar falhou:", err);
+      setFase({ t: "erro", msg: "Não consegui preparar a música. Tente de novo.", tentar: () => finalizar(letraEditada) });
+    } finally {
+      setFinalizando(false);
+    }
+  }
+
+  // Começa UMA vez, depois de hidratar e com história.
   useEffect(() => {
-    if (estado.fase !== "gerando") return;
-    const t = setInterval(() => setLoadingIdx((i) => Math.min(i + 1, LOADING.length - 1)), 1600);
-    return () => clearInterval(t);
-  }, [estado.fase]);
+    if (!hidratada || jaComecou.current) return;
+    if (!temHistoria(vivas())) {
+      setFase({ t: "sem-dados" });
+      return; // sem marcar jaComecou: se a história chegar, começa.
+    }
+    jaComecou.current = true;
+    carregarRefroes();
+  }, [hidratada]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (estado.fase === "gerando") {
+  // Frases de loading só na carga inicial dos refrões.
+  useEffect(() => {
+    if (fase.t !== "carregando" || fase.msg !== LOADING[0]) return;
+    const id = setInterval(() => setLoadingIdx((i) => Math.min(i + 1, LOADING.length - 1)), 1600);
+    return () => clearInterval(id);
+  }, [fase]);
+
+  // ── telas ──────────────────────────────────────────────────────
+  if (fase.t === "carregando") {
+    const msg = fase.msg === LOADING[0] ? LOADING[loadingIdx] : fase.msg;
     return (
       <div className="flex flex-col items-center gap-6 py-16 text-center">
-        <div className="animate-pulse">
-          <Music className="h-10 w-10 text-primary" />
-        </div>
-        <p className="text-lg text-muted-foreground">{LOADING[loadingIdx]}</p>
+        <Music className="h-10 w-10 animate-pulse text-primary" />
+        <p className="text-lg text-muted-foreground">{msg}</p>
       </div>
     );
   }
 
-  if (estado.fase === "erro") {
+  if (fase.t === "erro") {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
-        <p className="text-muted-foreground">{estado.msg}</p>
-        {/* () => gerar() e não `gerar`: passar a referência faria o MouseEvent
-            virar o argumento `refazer` (truthy) e regerar sem necessidade. */}
-        <Button onClick={() => gerar()}>Tentar de novo</Button>
+        <p className="text-muted-foreground">{fase.msg}</p>
+        <Button onClick={fase.tentar}>Tentar de novo</Button>
       </div>
     );
   }
 
-  // Sem história (link direto / storage limpo): manda de volta pro quiz em vez
-  // de escrever uma letra que serviria pra qualquer pessoa.
-  if (estado.fase === "sem-dados") {
+  if (fase.t === "sem-dados") {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
         <p className="text-lg font-semibold">Faltou a parte mais importante</p>
@@ -136,15 +174,36 @@ export function RevealStep() {
     );
   }
 
-  const { letra } = estado;
+  if (fase.t === "refroes") {
+    return (
+      <EscolherRefrao
+        dados={fase.dados}
+        aoEscolher={escolherRefrao}
+        aoRegerar={() => carregarRefroes(true)}
+        regerando={regerando}
+      />
+    );
+  }
+
+  if (fase.t === "editando") {
+    return (
+      <EditorLetra
+        letraInicial={fase.letra.letra}
+        aoFinalizar={finalizar}
+        finalizando={finalizando}
+      />
+    );
+  }
+
+  // fase "revelando" — a música já está sendo gerada; mostra o presente.
+  const letra = fase.letra;
   const nome = (respostas.nome as string) || "você";
 
   return (
     <div className="space-y-6">
       {/* Mockup da PÁGINA PRESENTE: a letra aparece DENTRO do presente,
-          faltando só a música (que é o que o fake door desbloqueia). */}
+          faltando só a música (que o fake door desbloqueia). */}
       <div className="overflow-hidden rounded-3xl border bg-card shadow-lg">
-        {/* Capa */}
         <div className="bg-gradient-to-b from-primary/10 to-transparent px-6 pb-4 pt-8 text-center">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
             uma música pra {nome}
@@ -152,37 +211,16 @@ export function RevealStep() {
           <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight">{letra.titulo}</h1>
         </div>
 
-        {/* A música está sendo gerada em background desde que a letra foi
-            salva. Enquanto não fica pronta, mostra a letra + aviso honesto;
-            quando fica, vira karaokê real com preview de 40s. */}
         <div className="px-6 pb-6">
           <MusicaDaSessao letra={letra.letra} />
         </div>
 
-        {/* Rodapé do presente */}
         <div className="flex items-center justify-center gap-2 border-t bg-secondary/30 py-3 text-xs text-muted-foreground">
           <QrCode className="h-4 w-4" /> link + QR Code pra compartilhar
         </div>
       </div>
 
-      {/* 1 refação grátis (vira coautoria) — botão de comprar visível ao lado */}
-      <div className="flex flex-col gap-3">
-        {!refez && (
-          <button
-            onClick={() => {
-              setRefez(true);
-              trackEvent("letra_refacao", {});
-              gerar(true); // explícito: sobrescreve a letra salva
-            }}
-            className="mx-auto inline-flex items-center gap-2 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-          >
-            <RefreshCw className="h-4 w-4" /> Não ficou a sua cara? Escrever de novo (grátis)
-          </button>
-        )}
-
-        {/* FAKE DOOR (Fase 1): mede intenção sem gerar música nenhuma. */}
-        <FakeDoor nome={nome} />
-      </div>
+      <FakeDoor nome={nome} />
     </div>
   );
 }
@@ -210,7 +248,6 @@ function FakeDoor({ nome }: { nome: string }) {
       className="w-full"
       onClick={() => {
         setClicou(true);
-        // A métrica que decide a Fase 1: intenção de compra real.
         trackEvent("fake_door_click", {});
       }}
     >
