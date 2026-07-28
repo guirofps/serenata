@@ -10,6 +10,7 @@ import {
 } from "@/lib/personalizar";
 import { prepararFoto } from "@/lib/imagem";
 import { QrCode } from "@/components/presente/QrCode";
+import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
@@ -441,6 +442,12 @@ function Editor() {
                 >
                   <ExternalLink className="h-4 w-4" /> Ver como ela vai ver
                 </a>
+                {/* Guardar/enviar o MP3 é ação de QUEM MONTA o presente (aqui),
+                    não de quem recebe. No celular abre a folha de
+                    compartilhamento nativa (WhatsApp, Arquivos). */}
+                {p.audioUrl && (
+                  <BotaoGuardar audioUrl={p.audioUrl} titulo={p.titulo} nome={p.nome} />
+                )}
               </div>
             </section>
           </div>

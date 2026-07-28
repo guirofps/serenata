@@ -17,6 +17,8 @@ export type PresenteEditavel = {
   fotoUrl: string | null;
   /** Galeria que passa atrás da letra. Caminho + URL assinada, na ordem. */
   galeria: Array<{ caminho: string; url: string }>;
+  /** Áudio da música (principal), pro comprador guardar/enviar. */
+  audioUrl: string | null;
   tokenPublico: string;
   publicada: boolean;
 };
@@ -34,7 +36,7 @@ async function buscarPorTokenEdicao(tokenEdicao: string) {
   const { data } = await db
     .from("musicas")
     .select(
-      "id, token, titulo, foto_path, galeria, dedicatoria, personalizada_em, quiz_response_id",
+      "id, token, titulo, foto_path, galeria, dedicatoria, personalizada_em, quiz_response_id, audio_path",
     )
     .eq("token_edicao", tokenEdicao)
     .maybeSingle();
@@ -84,6 +86,13 @@ export const carregarParaEditar = createServerFn({ method: "GET" })
       dedicatoria: m.dedicatoria,
       fotoUrl: await urlDaFoto(m.foto_path),
       galeria: await assinarGaleria(m.galeria),
+      audioUrl: m.audio_path
+        ? ((
+            await supabaseAdmin()
+              .storage.from("musicas")
+              .createSignedUrl(m.audio_path, 60 * 60 * 24 * 7)
+          ).data?.signedUrl ?? null)
+        : null,
       tokenPublico: m.token,
       publicada: Boolean(m.personalizada_em),
     };

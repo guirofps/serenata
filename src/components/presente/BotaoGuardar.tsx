@@ -86,9 +86,12 @@ export function BotaoGuardar({
       onClick={guardar}
       disabled={estado === "preparando"}
       className={cn(
-        "inline-flex h-12 items-center gap-2 rounded-full border border-white/15 px-6 text-sm text-white/75",
-        "transition-colors duration-150 hover:border-white/35 hover:text-white disabled:opacity-60",
+        // Tema claro (papel e vinho): este botão vive no EDITOR do comprador,
+        // não na página escura do presenteado.
+        "inline-flex h-12 items-center gap-2 rounded-full border border-[var(--tinta-fraca)] px-6 text-[var(--tinta)]",
+        "transition-colors duration-150 hover:border-[var(--acento)] hover:text-[var(--acento)] disabled:opacity-60",
       )}
+      style={{ fontSize: "var(--t-sm)" }}
     >
       {estado === "preparando" ? (
         <>

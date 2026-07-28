@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { carregarPresente } from "@/lib/presente";
 import { LetraSincronizada } from "@/components/presente/LetraSincronizada";
 import { Ambiente } from "@/components/presente/Ambiente";
-import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { FotosSincronizadas } from "@/components/presente/FotosSincronizadas";
 import { Logo } from "@/components/marca/Logo";
 import { Play, Pause } from "lucide-react";
@@ -469,18 +468,18 @@ function PaginaPresente() {
           O que vale é o entregável, não a matéria-prima. A voz do comprador
           na página é a DEDICATÓRIA, que ele escolhe e escreve com calma. */}
 
-      {/* ── RODAPÉ: guardar / enviar ─────────────────────────── */}
-      <footer data-revela className="relative mx-auto max-w-2xl px-6 pb-32 text-center">
-        {p.audioUrl && (
-          <BotaoGuardar audioUrl={p.audioUrl} titulo={p.titulo} nome={p.nome} />
-        )}
-        {/* A marca assinando o presente. Logo em vez da palavra escrita: a
-            página vai circular no WhatsApp da família inteira, e é o único
-            lugar onde a Serenata aparece. `escuro` clareia o vinho pra ela
-            existir sobre a noite. */}
+      {/* ── RODAPÉ: só a assinatura da marca ─────────────────────
+          O botão de guardar/enviar NÃO fica aqui: esta página é do
+          PRESENTEADO (quem recebe), e baixar/distribuir é ação do comprador.
+          Esse botão vive no editor (a área de quem monta o presente).
+
+          Logo em vez da palavra escrita: a página circula no WhatsApp da
+          família, e é o único lugar onde a Serenata aparece. `flex-col` empilha
+          "feito com" em cima da logo, centrado. */}
+      <footer data-revela className="relative flex flex-col items-center px-6 pb-32">
         <a
           href="/"
-          className="mt-12 inline-flex flex-col items-center gap-2 opacity-45 transition-opacity duration-150 hover:opacity-80"
+          className="flex flex-col items-center gap-2 opacity-45 transition-opacity duration-150 hover:opacity-80"
         >
           <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">
             feito com
