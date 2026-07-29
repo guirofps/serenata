@@ -72,18 +72,32 @@ export function FotosSincronizadas({
       {fotos.map((src, i) => {
         const naTela = ativo && i === atual;
         const acabouDeSair = ativo && i === anteriorRef.current && i !== atual;
-        // Trilho horizontal: fora da tela à esquerda (já passou) ou à direita
-        // (esperando a vez). Sem rotação: desliza reto.
-        const x = naTela ? "0vw" : acabouDeSair ? "-85vw" : "85vw";
+        // Trilho horizontal em OPACIDADE CHEIA: a foto atravessa a tela e você
+        // VÊ o movimento. A que entra vem da direita (115vw) até o centro (0);
+        // a que sai vai pra esquerda (-115vw). As demais ficam paradas fora da
+        // tela, à direita, esperando a vez.
+        //
+        // Truque do carrossel infinito: a que já saiu (à esquerda) precisa
+        // "voltar" pra fila da direita pra entrar de novo quando reciclar. Esse
+        // salto de -115vw pra 115vw é feito SEM transição (parada = 0ms), senão
+        // ela atravessaria a tela ao contrário. Só os dois estados em cena (a
+        // que entra e a que sai) animam.
+        const parada = !naTela && !acabouDeSair;
+        const x = naTela ? "0vw" : acabouDeSair ? "-115vw" : "115vw";
         return (
           <figure
             key={src}
-            className="absolute left-1/2 top-1/2 m-0 will-change-[transform,opacity] transition-all duration-[1100ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+            className="absolute left-1/2 top-1/2 m-0 will-change-transform ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:!transition-none"
             style={{
               // No celular quase toma a largura; no desktop não vira outdoor.
               width: "min(80vw, 360px)",
-              opacity: naTela ? 1 : 0,
-              transform: `translate(calc(-50% + ${x}), -50%) scale(${naTela ? 1 : 0.96})`,
+              // Opacidade cheia sempre: quem não está em cena está FORA da tela
+              // (115vw), invisível pela posição, não pelo fade. É isso que faz
+              // o deslize aparecer em vez de virar um crossfade.
+              opacity: 1,
+              transitionProperty: "transform",
+              transitionDuration: parada ? "0ms" : "1000ms",
+              transform: `translate(calc(-50% + ${x}), -50%)`,
               // Moldura de papel, simétrica (sem barra grossa embaixo que
               // deixava a foto retangular e cortada).
               padding: "10px",
