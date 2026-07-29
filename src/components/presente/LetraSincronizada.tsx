@@ -29,13 +29,24 @@ export function LetraSincronizada({
   const linhas = useMemo(() => montarLinhas(words), [words]);
   const janelaRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const retomarRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const atual = linhas.findIndex((l) => tempo >= l.inicio && tempo <= l.fim);
   const idxAtual = atual >= 0 ? atual : -1;
 
-  // Acompanha a linha cantada rolando SÓ a janela da letra. Se a pessoa
-  // rolar na mão, para de puxar — nada mais irritante que a página brigar
-  // com o dedo.
+  // Se a pessoa rola na mão (pra ler adiante), o acompanhamento para PRA NÃO
+  // brigar com o dedo — mas VOLTA sozinho alguns segundos depois. Antes ele
+  // desligava pra sempre no primeiro toque, e no celular qualquer encostão
+  // matava o auto-scroll: a letra parava de seguir e você tinha que rolar o
+  // resto da música na mão.
+  function pausarAuto() {
+    setAutoScroll(false);
+    if (retomarRef.current) clearTimeout(retomarRef.current);
+    retomarRef.current = setTimeout(() => setAutoScroll(true), 3500);
+  }
+  useEffect(() => () => { if (retomarRef.current) clearTimeout(retomarRef.current); }, []);
+
+  // Acompanha a linha cantada rolando SÓ a janela da letra.
   useEffect(() => {
     if (!autoScroll || !tocando || idxAtual < 0) return;
     const janela = janelaRef.current;
@@ -52,8 +63,8 @@ export function LetraSincronizada({
   return (
     <div
       ref={janelaRef}
-      onWheel={() => setAutoScroll(false)}
-      onTouchMove={() => setAutoScroll(false)}
+      onWheel={pausarAuto}
+      onTouchMove={pausarAuto}
       className="h-[58svh] overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       style={{
         // Esmaece nas bordas: a linha entra e sai da janela em vez de ser

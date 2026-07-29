@@ -662,9 +662,11 @@ function Editor() {
                     {p.titulo}
                   </p>
                   <div
-                    className="mx-auto mt-5 h-11 w-11 rounded-full"
+                    className="mx-auto mt-5 grid h-11 w-11 place-items-center rounded-full"
                     style={{ backgroundColor: cor }}
-                  />
+                  >
+                    <Play className="ml-0.5 h-4 w-4 text-[#0d0a08]" fill="#0d0a08" />
+                  </div>
                   {dedicatoria && (
                     <p
                       className="mt-5 text-[11px] leading-relaxed text-white/70"
