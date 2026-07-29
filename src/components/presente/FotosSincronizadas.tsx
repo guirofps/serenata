@@ -1,17 +1,15 @@
 import { useMemo, useRef } from "react";
 
-// As fotos passando durante a música — como FOTOS REVELADAS, não como papel
-// de parede.
+// As fotos passando durante a música — um carrossel calmo atrás da letra.
 //
-// Por que objeto e não fundo: foto sangrando na tela cria uma briga
-// insolúvel. Pra letra ficar legível é preciso escurecer a imagem, e
-// escurecendo o bastante a foto some (aconteceu: ficou em 72% de preto e
-// não se via nada). Como objeto, o texto corre no escuro AO REDOR dela e a
-// foto pode aparecer clara.
+// Movimento: a que sai DESLIZA pra esquerda e some; a próxima entra pela
+// direita. Um trilho horizontal, como quem vira as páginas de um álbum. Nada
+// de rotação (ficava torta e cortada nas bordas) nem de troca seca.
 //
-// O movimento: a que sai SOBE e some, a próxima chega POR BAIXO — na mesma
-// direção em que a letra corre. E nada disso existe antes do play: a página
-// parada é só o convite.
+// Por que objeto e não papel de parede: foto sangrando na tela cria uma briga
+// insolúvel com a legibilidade da letra. Como objeto emoldurado, o texto corre
+// no escuro AO REDOR dela e a foto pode aparecer clara. E nada disso existe
+// antes do play: a página parada é só o convite.
 
 export function FotosSincronizadas({
   fotos,
@@ -45,10 +43,10 @@ export function FotosSincronizadas({
     return i % fotos.length;
   }, [marcos, tempo, fotos.length]);
 
-  // Guarda qual foto acabou de sair, pra ela subir em vez de sumir no lugar.
-  // Refs atualizados no render: só trocam quando o valor MUDA, então isto é
-  // idempotente para re-renders com o mesmo `atual` (o que acontece o tempo
-  // todo, já que `tempo` muda a cada frame).
+  // Guarda qual foto acabou de sair, pra ela deslizar pra esquerda em vez de
+  // sumir no lugar. Refs atualizados no render: só trocam quando o valor MUDA,
+  // então isto é idempotente para re-renders com o mesmo `atual` (o que
+  // acontece o tempo todo, já que `tempo` muda a cada frame).
   const atualRef = useRef(atual);
   const anteriorRef = useRef(-1);
   if (atualRef.current !== atual) {
@@ -74,26 +72,23 @@ export function FotosSincronizadas({
       {fotos.map((src, i) => {
         const naTela = ativo && i === atual;
         const acabouDeSair = ativo && i === anteriorRef.current && i !== atual;
-        // Torta fixa por foto: a pilha parece jogada na mesa, não gerada
-        // por script.
-        const giro = i % 2 === 0 ? -2.6 : 2.4;
-        // Quem saiu vai pra cima; quem ainda não entrou espera embaixo.
-        const y = naTela ? "0px" : acabouDeSair ? "-14vh" : "16vh";
+        // Trilho horizontal: fora da tela à esquerda (já passou) ou à direita
+        // (esperando a vez). Sem rotação: desliza reto.
+        const x = naTela ? "0vw" : acabouDeSair ? "-85vw" : "85vw";
         return (
           <figure
             key={src}
-            className="absolute left-1/2 top-1/2 m-0 will-change-[transform,opacity] transition-all duration-[1600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+            className="absolute left-1/2 top-1/2 m-0 will-change-[transform,opacity] transition-all duration-[1100ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
             style={{
-              // No celular quase toma a tela; no desktop não vira outdoor.
-              width: "min(78vw, 380px)",
+              // No celular quase toma a largura; no desktop não vira outdoor.
+              width: "min(80vw, 360px)",
               opacity: naTela ? 1 : 0,
-              transform: `translate(-50%, calc(-50% + ${y})) rotate(${
-                naTela ? giro : giro * 1.8
-              }deg) scale(${naTela ? 1 : 0.92})`,
-              // Papel: borda grossa embaixo, como revelada de verdade.
-              padding: "12px 12px 46px",
+              transform: `translate(calc(-50% + ${x}), -50%) scale(${naTela ? 1 : 0.96})`,
+              // Moldura de papel, simétrica (sem barra grossa embaixo que
+              // deixava a foto retangular e cortada).
+              padding: "10px",
               background: "#f4ece0",
-              borderRadius: "3px",
+              borderRadius: "6px",
               boxShadow: naTela
                 ? "0 30px 60px -20px rgba(0,0,0,0.75), 0 2px 6px rgba(0,0,0,0.4)"
                 : "0 10px 30px -20px rgba(0,0,0,0.5)",
@@ -105,7 +100,7 @@ export function FotosSincronizadas({
               loading={i === 0 ? "eager" : "lazy"}
               decoding="async"
               className="block aspect-square w-full object-cover"
-              style={{ filter: "saturate(0.96) contrast(1.02)" }}
+              style={{ filter: "saturate(0.96) contrast(1.02)", borderRadius: "2px" }}
             />
           </figure>
         );

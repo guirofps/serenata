@@ -1,0 +1,11 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Serenata">
+  <!-- A noite da serenata: preto avinhado, o mundo escuro da marca. -->
+  <rect width="64" height="64" rx="14" fill="#1a0f12"/>
+  <!-- O coração é a luz da janela (ouro) — a única cor que atravessa a marca. -->
+  <path d="M32 53 C11 37 9 21.5 21 15.5 C27.6 12.2 32 17 32 22 C32 17 36.4 12.2 43 15.5 C55 21.5 53 37 32 53 Z"
+        fill="#d9b23a"/>
+  <!-- A onda sonora (vinho) cortando o coração: a música que sai dele. -->
+  <polyline points="17,31 21,31 24,24 27,39 30,18 33,42 36,25 39,31 47,31"
+            fill="none" stroke="#7d2b3a" stroke-width="3"
+            stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
