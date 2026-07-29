@@ -16,6 +16,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DemoMusicaRouteImport } from './routes/demo-musica'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MarcaRouteImport } from './routes/marca'
+import { Route as ObrigadoRouteImport } from './routes/obrigado'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as EditarTokenEdicaoRouteImport } from './routes/editar.$tokenEdicao'
 import { Route as PTokenRouteImport } from './routes/p.$token'
@@ -55,6 +56,11 @@ const MarcaRoute = MarcaRouteImport.update({
   path: '/marca',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ObrigadoRoute = ObrigadoRouteImport.update({
+  id: '/obrigado',
+  path: '/obrigado',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/demo-musica': typeof DemoMusicaRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
+  '/obrigado': typeof ObrigadoRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/p/$token': typeof PTokenRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/demo-musica': typeof DemoMusicaRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
+  '/obrigado': typeof ObrigadoRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/p/$token': typeof PTokenRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/demo-musica': typeof DemoMusicaRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
+  '/obrigado': typeof ObrigadoRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/p/$token': typeof PTokenRoute
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/demo-musica'
     | '/login'
     | '/marca'
+    | '/obrigado'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/p/$token'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/demo-musica'
     | '/login'
     | '/marca'
+    | '/obrigado'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/p/$token'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/demo-musica'
     | '/login'
     | '/marca'
+    | '/obrigado'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/p/$token'
@@ -155,6 +167,7 @@ export interface RootRouteChildren {
   DemoMusicaRoute: typeof DemoMusicaRoute
   LoginRoute: typeof LoginRoute
   MarcaRoute: typeof MarcaRoute
+  ObrigadoRoute: typeof ObrigadoRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   EditarTokenEdicaoRoute: typeof EditarTokenEdicaoRoute
   PTokenRoute: typeof PTokenRoute
@@ -211,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarcaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/obrigado': {
+      id: '/obrigado'
+      path: '/obrigado'
+      fullPath: '/obrigado'
+      preLoaderRoute: typeof ObrigadoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/auth/callback'
@@ -243,6 +263,7 @@ const rootRouteChildren: RootRouteChildren = {
   DemoMusicaRoute: DemoMusicaRoute,
   LoginRoute: LoginRoute,
   MarcaRoute: MarcaRoute,
+  ObrigadoRoute: ObrigadoRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   EditarTokenEdicaoRoute: EditarTokenEdicaoRoute,
   PTokenRoute: PTokenRoute,
