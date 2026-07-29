@@ -17,8 +17,8 @@ export function emailAcesso(args: { link: string; expiraMin?: number }): string 
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#faf5ee;border:1px solid rgba(42,21,24,0.14);border-radius:16px;overflow:hidden;">
         <tr><td height="4" style="background:linear-gradient(90deg,#7d2b3a,#c9a227);"></td></tr>
 
-        <tr><td style="padding:38px 34px 6px;text-align:center;">
-          <p style="margin:0 0 10px;color:rgba(42,21,24,0.55);font-size:11px;letter-spacing:4px;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">Serenata</p>
+        <tr><td style="padding:34px 34px 6px;text-align:center;">
+          <img src="https://www.serenatagift.com/img/logo-serenata.png" alt="Serenata" width="168" height="35" style="display:block;margin:0 auto 16px;border:0;width:168px;height:35px;" />
           <h1 style="margin:0;color:#2a1518;font-size:25px;font-weight:normal;line-height:1.32;">
             Entrar na sua conta
           </h1>
