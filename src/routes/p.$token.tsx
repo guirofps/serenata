@@ -235,6 +235,16 @@ function PaginaPresente() {
           { filter: "brightness(1)" },
           { filter: "brightness(1.25)", duration: 0.5, yoyo: true, repeat: 1 },
         );
+        // A DESCIDA: ao apertar play, a página desce sozinha da capa pra
+        // letra. É o gesto que revela a cena — a foto entrando por baixo da
+        // letra e o karaokê começando a correr. Sem isso, a pessoa aperta play
+        // e continua olhando a capa, sem ver nada acontecer. O atraso deixa a
+        // capa encolher (transição de 700ms) antes de rolar.
+        window.setTimeout(() => {
+          if (typeof document === "undefined") return;
+          const alvo = document.querySelector("[data-revela]");
+          alvo?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 700);
       }
     } catch (err) {
       console.error("[presente] play falhou:", err);
