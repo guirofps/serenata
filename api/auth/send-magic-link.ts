@@ -135,6 +135,9 @@ export default async function handler(req: Req, res: Res) {
       to: [email],
       subject: "Seu acesso à Serenata",
       html: emailAcesso({ link: actionLink }),
+      // Versão em texto puro: e-mail só-HTML tem mais cara de spam. O
+      // multipart/alternative melhora a entrega, ainda mais em domínio novo.
+      text: `Entrar na sua conta Serenata, sem senha:\n${actionLink}\n\nEste link é de uso único e expira em 60 minutos. Se não foi você que pediu, pode ignorar este e-mail.`,
     });
     if (erroEmail) {
       console.error("[magic-link] envio falhou:", erroEmail.message);

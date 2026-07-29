@@ -206,16 +206,22 @@ export default async function handler(req: Req, res: Res) {
           .maybeSingle();
         const nome = ((q?.respostas ?? {}) as Record<string, string>).nome ?? "quem você ama";
 
+        const linkEditor = `${SITE}/editar/${musica.token_edicao}`;
+        const linkPresente = `${SITE}/p/${musica.token}`;
         const { error } = await new Resend(chave).emails.send({
           from: "Serenata <contato@serenatagift.com>",
           to: [email],
-          subject: `A música de ${nome} está pronta 🎁`,
+          // Sem emoji no assunto: emoji tende a mandar pra aba Promoções,
+          // ainda mais em remetente novo.
+          subject: `A música de ${nome} está pronta`,
           html: emailPresentePronto({
             nome,
             titulo: musica.titulo ?? "Sua música",
-            linkEditor: `${SITE}/editar/${musica.token_edicao}`,
-            linkPresente: `${SITE}/p/${musica.token}`,
+            linkEditor,
+            linkPresente,
           }),
+          // Versão texto: melhora a entrega (multipart/alternative).
+          text: `A música de ${nome} está pronta.\n\nMonte o presente (coloque uma foto e uma frase):\n${linkEditor}\n\nO presente já funciona do jeito que está:\n${linkPresente}\n\nGuarde este e-mail: o link do editor é seu e só ele deixa editar a página.`,
         });
         if (error) throw new Error(error.message);
         await auditar("cakto_email_enviado", { paymentId, email });
