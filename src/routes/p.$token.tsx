@@ -84,6 +84,9 @@ function PaginaPresente() {
   const [t, setT] = useState(0);
   const [durAudio, setDurAudio] = useState(0);
   const [comecou, setComecou] = useState(false);
+  // As fotos entram DEPOIS do play e da descida, já com a letra rolando — não
+  // no mesmo instante do toque. Dá tempo da cena se montar antes.
+  const [fotosAtivas, setFotosAtivas] = useState(false);
 
   // Duração vem do PRÓPRIO áudio, não do banco. O banco guarda a duração da
   // v1; na v2 (outra gravação) ela seria nula e o player mostrava 0:00 com a
@@ -245,6 +248,8 @@ function PaginaPresente() {
           const alvo = document.querySelector("[data-revela]");
           alvo?.scrollIntoView({ behavior: "smooth", block: "start" });
         }, 700);
+        // A primeira foto entra depois da descida, com a letra já correndo.
+        window.setTimeout(() => setFotosAtivas(true), 1600);
       }
     } catch (err) {
       console.error("[presente] play falhou:", err);
@@ -282,8 +287,8 @@ function PaginaPresente() {
           tempo={t}
           duracao={p.duracaoS ?? 0}
           // Antes do play a página é só o convite: a capa cheia e o botão.
-          // As fotos entram junto com a música.
-          ativo={comecou}
+          // As fotos entram um tempo depois do play (após a descida).
+          ativo={fotosAtivas}
         />
       ) : (
         <Ambiente intenso={tocando} />

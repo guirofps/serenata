@@ -2,14 +2,18 @@ import { useMemo, useRef } from "react";
 
 // As fotos passando durante a música — um carrossel calmo atrás da letra.
 //
-// Movimento: a que sai DESLIZA pra esquerda e some; a próxima entra pela
-// direita. Um trilho horizontal, como quem vira as páginas de um álbum. Nada
-// de rotação (ficava torta e cortada nas bordas) nem de troca seca.
+// O DESLIZE é calculado a cada frame a partir do TEMPO da música (o mesmo `t`
+// que faz o karaokê acender). Nada de `transition` nem `@keyframes` do CSS:
+// essas dependem do relógio de animação do navegador, que em certos casos não
+// dispara (estado inicial e final no mesmo instante) e deixava a foto "parada
+// no meio", virando só um fade. Aqui a posição é função direta do tempo, então
+// ela se MOVE de verdade, igual à letra correndo.
 //
-// Por que objeto e não papel de parede: foto sangrando na tela cria uma briga
-// insolúvel com a legibilidade da letra. Como objeto emoldurado, o texto corre
-// no escuro AO REDOR dela e a foto pode aparecer clara. E nada disso existe
-// antes do play: a página parada é só o convite.
+// A que entra vem da direita (100vw) até o centro; a anterior sai pela
+// esquerda (-100vw). Opacidade cheia sempre: o que aparece é o movimento da
+// posição, não fade. E nada disso existe antes do play.
+
+const SLIDE = 0.9; // segundos que o deslize leva pra atravessar
 
 export function FotosSincronizadas({
   fotos,
@@ -22,7 +26,7 @@ export function FotosSincronizadas({
   secoes: number[];
   tempo: number;
   duracao: number;
-  /** Só entra em cena depois que a música começa. */
+  /** Só entra em cena depois que a música começa (e a letra já rola). */
   ativo: boolean;
 }) {
   // Momentos de troca: as viradas reais da música. Sem marcador, divide o
@@ -38,23 +42,44 @@ export function FotosSincronizadas({
     if (!fotos.length || !marcos.length) return 0;
     let i = 0;
     for (let k = 0; k < marcos.length; k++) if (tempo >= marcos[k]) i = k;
-    // Mais seções que fotos: a sequência dá a volta. Repetir é melhor que
-    // deixar a tela vazia no fim da música.
-    return i % fotos.length;
+    return i % fotos.length; // mais seções que fotos: a sequência dá a volta
   }, [marcos, tempo, fotos.length]);
 
-  // Guarda qual foto acabou de sair, pra ela deslizar pra esquerda em vez de
-  // sumir no lugar. Refs atualizados no render: só trocam quando o valor MUDA,
-  // então isto é idempotente para re-renders com o mesmo `atual` (o que
-  // acontece o tempo todo, já que `tempo` muda a cada frame).
+  // Refs atualizados no render (idempotente por frame): guardam a foto que
+  // saiu e o INSTANTE em que a troca aconteceu, pra medir o progresso do
+  // deslize a partir do tempo da música.
   const atualRef = useRef(atual);
   const anteriorRef = useRef(-1);
+  const mudouEmRef = useRef(-999);
+  const ativoRef = useRef(false);
+
+  // No primeiro frame ativo, marca o tempo pra PRIMEIRA foto deslizar pra
+  // dentro (senão ela apareceria já no centro).
+  if (ativo && !ativoRef.current) {
+    ativoRef.current = true;
+    mudouEmRef.current = tempo;
+  }
+  if (!ativo) ativoRef.current = false;
+
   if (atualRef.current !== atual) {
     anteriorRef.current = atualRef.current;
     atualRef.current = atual;
+    mudouEmRef.current = tempo;
   }
 
+  // Progresso do deslize (0 → 1) com desaceleração no fim (easeOutCubic).
+  const p = Math.min(1, Math.max(0, (tempo - mudouEmRef.current) / SLIDE));
+  const e = 1 - Math.pow(1 - p, 3);
+
   if (!fotos.length) return null;
+
+  const moldura: React.CSSProperties = {
+    width: "min(80vw, 360px)",
+    padding: "10px",
+    background: "#f4ece0",
+    borderRadius: "6px",
+    boxShadow: "0 30px 60px -20px rgba(0,0,0,0.75), 0 2px 6px rgba(0,0,0,0.4)",
+  };
 
   return (
     <div
@@ -65,47 +90,25 @@ export function FotosSincronizadas({
       data-tempo={Math.round(tempo)}
       data-ativo={ativo ? "1" : "0"}
     >
-      {/* Escuro por baixo de tudo: é o fundo real da página, e é ele que
-          garante a leitura da letra — não um filtro sobre a foto. */}
+      {/* Escuro por baixo de tudo: garante a leitura da letra. */}
       <div className="absolute inset-0 bg-[#0d0a08]" />
 
       {fotos.map((src, i) => {
-        const naTela = ativo && i === atual;
-        const acabouDeSair = ativo && i === anteriorRef.current && i !== atual;
-        // Trilho horizontal em OPACIDADE CHEIA: a foto atravessa a tela e você
-        // VÊ o movimento. A que entra vem da direita (115vw) até o centro (0);
-        // a que sai vai pra esquerda (-115vw). As demais ficam paradas fora da
-        // tela, à direita, esperando a vez.
-        //
-        // Truque do carrossel infinito: a que já saiu (à esquerda) precisa
-        // "voltar" pra fila da direita pra entrar de novo quando reciclar. Esse
-        // salto de -115vw pra 115vw é feito SEM transição (parada = 0ms), senão
-        // ela atravessaria a tela ao contrário. Só os dois estados em cena (a
-        // que entra e a que sai) animam.
-        const parada = !naTela && !acabouDeSair;
-        const x = naTela ? "0vw" : acabouDeSair ? "-115vw" : "115vw";
+        // Posição em vw: a atual desliza da direita ao centro; a anterior sai
+        // pra esquerda; o resto fica parado fora da tela, à direita.
+        let xvw: number;
+        if (!ativo) xvw = 100;
+        else if (i === atual) xvw = (1 - e) * 100;
+        else if (i === anteriorRef.current && p < 1) xvw = -e * 100;
+        else xvw = 100;
         return (
           <figure
             key={src}
-            className="absolute left-1/2 top-1/2 m-0 will-change-transform ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:!transition-none"
+            className="absolute left-1/2 top-1/2 m-0 will-change-transform"
             style={{
-              // No celular quase toma a largura; no desktop não vira outdoor.
-              width: "min(80vw, 360px)",
-              // Opacidade cheia sempre: quem não está em cena está FORA da tela
-              // (115vw), invisível pela posição, não pelo fade. É isso que faz
-              // o deslize aparecer em vez de virar um crossfade.
+              ...moldura,
               opacity: 1,
-              transitionProperty: "transform",
-              transitionDuration: parada ? "0ms" : "1000ms",
-              transform: `translate(calc(-50% + ${x}), -50%)`,
-              // Moldura de papel, simétrica (sem barra grossa embaixo que
-              // deixava a foto retangular e cortada).
-              padding: "10px",
-              background: "#f4ece0",
-              borderRadius: "6px",
-              boxShadow: naTela
-                ? "0 30px 60px -20px rgba(0,0,0,0.75), 0 2px 6px rgba(0,0,0,0.4)"
-                : "0 10px 30px -20px rgba(0,0,0,0.5)",
+              transform: `translate(calc(-50% + ${xvw.toFixed(2)}vw), -50%)`,
             }}
           >
             <img
@@ -120,9 +123,8 @@ export function FotosSincronizadas({
         );
       })}
 
-      {/* Véu leve: aqui ele só assenta a imagem no fundo e devolve contraste
-          onde a letra passa por cima. Não precisa mais salvar a leitura —
-          disso cuida o preto atrás. */}
+      {/* Véu leve: assenta a imagem no fundo e devolve contraste onde a letra
+          passa por cima. */}
       <div
         className="absolute inset-0 transition-opacity duration-1000"
         style={{
