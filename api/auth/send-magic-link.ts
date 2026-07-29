@@ -60,7 +60,20 @@ export default async function handler(req: Req, res: Res) {
 
     const sb = db();
 
-    // ── 2. Esse e-mail tem música? ───────────────────────────────
+    // ── 2. Esse e-mail merece um link? ───────────────────────────
+    // Duas portas de entrada, e QUALQUER uma serve:
+    //   (a) já tem CONTA (comprou antes, ou foi vinculado por user_id); ou
+    //   (b) tem MÚSICA gerada pelo e-mail do quiz (terminou o funil).
+    // Só checar (b) deixava de fora quem já tem conta mas cujo e-mail não bate
+    // com um quiz_response — o comprador ficava travado na tela de "confira
+    // seu e-mail" sem nunca receber nada.
+    const { data: conta } = await sb
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+    const temConta = Boolean(conta);
+
     // As músicas não guardam e-mail direto: o e-mail vive em quiz_responses,
     // e a música referencia quiz_response_id.
     const { data: quizzes } = await sb
@@ -79,8 +92,8 @@ export default async function handler(req: Req, res: Res) {
       temMusica = (musicas ?? []).length > 0;
     }
 
-    // Anti-enumeração: mesma resposta com ou sem música.
-    if (!temMusica) return res.status(200).json({ ok: true });
+    // Anti-enumeração: mesma resposta pra quem não tem conta nem música.
+    if (!temConta && !temMusica) return res.status(200).json({ ok: true });
 
     // ── 3. Garante a conta ───────────────────────────────────────
     // createUser é idempotente na prática: se já existe, dá erro "already
