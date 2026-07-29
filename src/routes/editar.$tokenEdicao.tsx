@@ -279,9 +279,12 @@ function Editor() {
           </p>
         </div>
 
-        <div className="mt-12 grid gap-10 lg:grid-cols-[1fr_380px]">
+        <div className="mt-8 grid gap-8 lg:mt-12 lg:grid-cols-[1fr_380px] lg:gap-10">
           {/* ── COLUNA DE EDIÇÃO ──────────────────────────────── */}
-          <div className="space-y-10">
+          {/* No mobile a prévia vem PRIMEIRO (order-1) e gruda no topo; a
+              edição fica embaixo. No desktop, edição à esquerda, prévia à
+              direita. */}
+          <div className="order-2 min-w-0 space-y-10 lg:order-1">
             {/* <audio> compartilhado das prévias de versão */}
             <audio
               ref={audioRef}
@@ -593,7 +596,7 @@ function Editor() {
               </p>
 
               <pre
-                className="mt-4 whitespace-pre-wrap rounded-xl bg-[var(--papel)] p-4 text-[var(--tinta-suave)]"
+                className="mt-4 whitespace-pre-wrap break-words rounded-xl bg-[var(--papel)] p-4 text-[var(--tinta-suave)]"
                 style={{ fontSize: "var(--t-sm)", fontFamily: "inherit" }}
               >
                 {mensagemPronta}
@@ -647,75 +650,80 @@ function Editor() {
           </div>
 
           {/* ── PRÉVIA AO VIVO ────────────────────────────────── */}
-          <aside className="lg:sticky lg:top-8 lg:self-start">
-            <p
-              className="mb-3 text-center text-[var(--tinta-suave)]"
-              style={{ fontSize: "var(--t-xs)" }}
-            >
-              prévia
-            </p>
-            {/* Moldura de celular: é assim que o presente é aberto */}
-            <div className="mx-auto max-w-[300px] overflow-hidden rounded-[2.2rem] border-[9px] border-[#1a1512] bg-[#0d0a08]">
-              <div className="relative flex aspect-[9/16] flex-col items-center justify-center px-5 text-center">
-                {fotoUrl && (
-                  <>
-                    <img
-                      src={fotoUrl}
-                      alt=""
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                    <div
-                      className="absolute inset-0"
-                      style={{
-                        background:
-                          "linear-gradient(to bottom, rgba(13,10,8,0.62) 0%, rgba(13,10,8,0.78) 55%, #0d0a08 100%)",
-                      }}
-                    />
-                  </>
-                )}
-                <div className="relative z-10">
-                  <p className="text-[8px] uppercase tracking-[0.3em] text-white/45">
-                    uma música para
-                  </p>
-                  <p
-                    className="mt-2 text-3xl text-white"
-                    style={{ fontFamily: FONTES.display, fontWeight: 600 }}
-                  >
-                    {p.nome}
-                  </p>
-                  <div className="mx-auto mt-5 h-px w-10 bg-white/20" />
-                  <p
-                    className="mt-4 text-sm text-white/80"
-                    style={{ fontFamily: FONTES.display }}
-                  >
-                    {p.titulo}
-                  </p>
-                  <div
-                    className="mx-auto mt-5 grid h-11 w-11 place-items-center rounded-full"
-                    style={{ backgroundColor: cor }}
-                  >
-                    <Play className="ml-0.5 h-4 w-4 text-[#0d0a08]" fill="#0d0a08" />
-                  </div>
-                  {dedicatoria && (
-                    <p
-                      className="mt-5 text-[11px] leading-relaxed text-white/70"
-                      style={{ fontFamily: FONTES.display }}
-                    >
-                      {dedicatoria}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {salvo && (
+          {/* Mobile: barra grudada no topo (sempre visível enquanto edita).
+              Desktop: coluna à direita, também sticky. */}
+          <aside className="order-1 min-w-0 lg:order-2 lg:self-start">
+            <div className="sticky top-0 z-20 -mx-6 border-b border-[var(--tinta-fraca)]/20 bg-[var(--papel)] px-6 pb-3 pt-1 lg:static lg:mx-0 lg:top-8 lg:border-0 lg:bg-transparent lg:p-0">
               <p
-                className="mt-4 flex items-center justify-center gap-1.5 text-[var(--tinta-suave)]"
+                className="mb-1.5 text-center text-[var(--tinta-suave)] lg:mb-3"
                 style={{ fontSize: "var(--t-xs)" }}
               >
-                <Check className="h-3.5 w-3.5" /> alterações salvas
+                prévia
               </p>
-            )}
+              {/* Moldura de celular: é assim que o presente é aberto. Pequena
+                  no mobile (cabe grudada no topo), inteira no desktop. */}
+              <div className="mx-auto w-[132px] overflow-hidden rounded-[1.5rem] border-[6px] border-[#1a1512] bg-[#0d0a08] lg:w-auto lg:max-w-[300px] lg:rounded-[2.2rem] lg:border-[9px]">
+                <div className="relative flex aspect-[9/16] flex-col items-center justify-center px-3 text-center lg:px-5">
+                  {fotoUrl && (
+                    <>
+                      <img
+                        src={fotoUrl}
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          background:
+                            "linear-gradient(to bottom, rgba(13,10,8,0.62) 0%, rgba(13,10,8,0.78) 55%, #0d0a08 100%)",
+                        }}
+                      />
+                    </>
+                  )}
+                  <div className="relative z-10">
+                    <p className="text-[6px] uppercase tracking-[0.25em] text-white/45 lg:text-[8px] lg:tracking-[0.3em]">
+                      uma música para
+                    </p>
+                    <p
+                      className="mt-1 text-base leading-tight text-white lg:mt-2 lg:text-3xl"
+                      style={{ fontFamily: FONTES.display, fontWeight: 600 }}
+                    >
+                      {p.nome}
+                    </p>
+                    <div className="mx-auto mt-2 h-px w-6 bg-white/20 lg:mt-5 lg:w-10" />
+                    <p
+                      className="mt-1.5 text-[9px] text-white/80 lg:mt-4 lg:text-sm"
+                      style={{ fontFamily: FONTES.display }}
+                    >
+                      {p.titulo}
+                    </p>
+                    <div
+                      className="mx-auto mt-2 grid h-7 w-7 place-items-center rounded-full lg:mt-5 lg:h-11 lg:w-11"
+                      style={{ backgroundColor: cor }}
+                    >
+                      <Play className="ml-0.5 h-3 w-3 text-[#0d0a08] lg:h-4 lg:w-4" fill="#0d0a08" />
+                    </div>
+                    {dedicatoria && (
+                      <p
+                        className="mt-2 text-[7px] leading-relaxed text-white/70 lg:mt-5 lg:text-[11px]"
+                        style={{ fontFamily: FONTES.display }}
+                      >
+                        {dedicatoria}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {salvo && (
+                <p
+                  className="mt-3 hidden items-center justify-center gap-1.5 text-[var(--tinta-suave)] lg:flex"
+                  style={{ fontSize: "var(--t-xs)" }}
+                >
+                  <Check className="h-3.5 w-3.5" /> alterações salvas
+                </p>
+              )}
+            </div>
           </aside>
         </div>
       </main>
