@@ -1,5 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   carregarParaEditar,
   salvarPersonalizacao,
@@ -64,6 +64,11 @@ function Editor() {
   const [galeria, setGaleria] = useState(p.galeria);
   const [subindoGaleria, setSubindoGaleria] = useState(false);
   const [dedicatoria, setDedicatoria] = useState(p.dedicatoria ?? "");
+  const [fraseStatus, setFraseStatus] = useState<"idle" | "salvando" | "salvo">(
+    p.dedicatoria ? "salvo" : "idle",
+  );
+  const timerFrase = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => { if (timerFrase.current) clearTimeout(timerFrase.current); }, []);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
@@ -197,13 +202,26 @@ function Editor() {
     setSalvando(false);
   }
 
-  async function salvarTexto() {
-    setSalvando(true);
+  async function salvarFrase(texto: string) {
+    setFraseStatus("salvando");
     setErro(null);
-    const r = await salvarPersonalizacao({ data: { tokenEdicao, dedicatoria } });
-    if (!r.ok) setErro(r.erro ?? "Não consegui salvar.");
-    else setSalvo(true);
-    setSalvando(false);
+    const r = await salvarPersonalizacao({ data: { tokenEdicao, dedicatoria: texto } });
+    if (!r.ok) {
+      setErro(r.erro ?? "Não consegui salvar a frase.");
+      setFraseStatus("idle");
+    } else {
+      setFraseStatus("salvo");
+    }
+  }
+
+  // A frase salva SOZINHA enquanto se digita (espera 900ms parado), igual aos
+  // outros campos que gravam na hora. Sem botão escondido; o status mostra.
+  function aoDigitarFrase(v: string) {
+    const texto = v.slice(0, MAX_DEDICATORIA);
+    setDedicatoria(texto);
+    setFraseStatus("idle");
+    if (timerFrase.current) clearTimeout(timerFrase.current);
+    timerFrase.current = setTimeout(() => salvarFrase(texto), 900);
   }
 
   async function copiar() {
@@ -514,8 +532,12 @@ function Editor() {
               </p>
               <textarea
                 value={dedicatoria}
-                onChange={(e) => setDedicatoria(e.target.value.slice(0, MAX_DEDICATORIA))}
-                onBlur={salvarTexto}
+                onChange={(e) => aoDigitarFrase(e.target.value)}
+                onBlur={() => {
+                  // Ao sair do campo, grava na hora (não espera o debounce).
+                  if (timerFrase.current) clearTimeout(timerFrase.current);
+                  if (fraseStatus !== "salvo") salvarFrase(dedicatoria);
+                }}
                 placeholder={`Pra você, ${p.nome}. Com todo o meu amor.`}
                 rows={3}
                 className="mt-4 w-full rounded-2xl border border-[var(--tinta-fraca)] bg-[var(--papel-fundo)] p-4 outline-none transition-colors focus:border-[var(--acento)]"
@@ -531,14 +553,21 @@ function Editor() {
                 >
                   {restam} caracteres
                 </span>
-                <button
-                  onClick={salvarTexto}
-                  disabled={salvando}
-                  className="text-[var(--acento)] underline underline-offset-4 disabled:opacity-50"
+                {/* Salva sozinha: aqui só o retorno visual, sem botão. */}
+                <span
+                  className="flex items-center gap-1 text-[var(--tinta-suave)]"
                   style={{ fontSize: "var(--t-xs)" }}
                 >
-                  salvar agora
-                </button>
+                  {fraseStatus === "salvando" ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" /> salvando…
+                    </>
+                  ) : fraseStatus === "salvo" ? (
+                    <>
+                      <Check className="h-3 w-3" /> salvo
+                    </>
+                  ) : null}
+                </span>
               </div>
             </section>
 
