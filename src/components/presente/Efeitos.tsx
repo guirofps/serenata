@@ -15,25 +15,39 @@ export const EFEITOS = [
 ] as const;
 
 // Posições/tempos fixos (nada de Math.random, que quebraria o SSR).
+//
+// Calibragem: a primeira versão era invisível na prática — partículas de
+// 12-27px (minúsculas no celular), translúcidas, com atraso de até 6,6s e
+// queda de 10s. Agora: MAIORES (22-46px), mais opacas, quedas mais curtas
+// (5-8s) e a maioria com atraso < 2s, pra a chuva já estar formada no primeiro
+// segundo. Continua sutil o bastante pra não tapar a letra.
 const PART = [
-  { left: 5, size: 16, delay: 0.0, dur: 8.0, op: 0.6 },
-  { left: 14, size: 24, delay: 1.7, dur: 9.5, op: 0.75 },
-  { left: 23, size: 13, delay: 3.3, dur: 8.2, op: 0.5 },
-  { left: 33, size: 20, delay: 0.8, dur: 10.5, op: 0.65 },
-  { left: 42, size: 15, delay: 4.1, dur: 8.8, op: 0.55 },
-  { left: 51, size: 27, delay: 2.2, dur: 9.8, op: 0.78 },
-  { left: 60, size: 14, delay: 5.0, dur: 8.0, op: 0.5 },
-  { left: 69, size: 21, delay: 1.1, dur: 10.8, op: 0.68 },
-  { left: 78, size: 17, delay: 3.0, dur: 8.5, op: 0.6 },
-  { left: 87, size: 23, delay: 4.6, dur: 9.4, op: 0.72 },
-  { left: 95, size: 13, delay: 2.0, dur: 7.8, op: 0.46 },
-  { left: 29, size: 18, delay: 6.0, dur: 10.0, op: 0.62 },
-  { left: 65, size: 15, delay: 6.6, dur: 8.3, op: 0.54 },
-  { left: 47, size: 12, delay: 5.6, dur: 8.1, op: 0.44 },
+  { left: 4, size: 30, delay: 0.0, dur: 6.4, op: 0.85 },
+  { left: 12, size: 22, delay: 0.5, dur: 5.6, op: 0.7 },
+  { left: 19, size: 40, delay: 1.4, dur: 7.2, op: 0.95 },
+  { left: 27, size: 26, delay: 0.2, dur: 6.0, op: 0.75 },
+  { left: 34, size: 34, delay: 2.1, dur: 6.8, op: 0.9 },
+  { left: 41, size: 23, delay: 1.0, dur: 5.4, op: 0.68 },
+  { left: 48, size: 46, delay: 0.7, dur: 7.8, op: 1.0 },
+  { left: 55, size: 28, delay: 2.6, dur: 6.2, op: 0.8 },
+  { left: 62, size: 24, delay: 0.35, dur: 5.8, op: 0.72 },
+  { left: 69, size: 38, delay: 1.8, dur: 7.0, op: 0.92 },
+  { left: 76, size: 25, delay: 0.9, dur: 6.6, op: 0.74 },
+  { left: 83, size: 32, delay: 2.9, dur: 6.1, op: 0.86 },
+  { left: 90, size: 27, delay: 1.2, dur: 5.9, op: 0.78 },
+  { left: 96, size: 36, delay: 0.15, dur: 7.4, op: 0.9 },
+  { left: 8, size: 24, delay: 3.2, dur: 6.3, op: 0.7 },
+  { left: 23, size: 33, delay: 3.6, dur: 7.1, op: 0.88 },
+  { left: 45, size: 26, delay: 4.0, dur: 5.7, op: 0.75 },
+  { left: 58, size: 42, delay: 3.4, dur: 7.6, op: 0.96 },
+  { left: 72, size: 23, delay: 4.4, dur: 6.0, op: 0.68 },
+  { left: 87, size: 29, delay: 3.9, dur: 6.9, op: 0.82 },
 ];
 
-const ROSE = "oklch(0.74 0.14 12)";
-const OURO = "oklch(0.84 0.12 82)";
+// Cores CLARAS de propósito: as partículas passam por cima de foto (que pode
+// ser escura ou clara), então precisam de luminância alta pra não sumir.
+const ROSE = "oklch(0.82 0.13 10)";
+const OURO = "oklch(0.90 0.13 88)";
 
 // Desenho de cada partícula por tipo.
 function Forma({ tipo, size }: { tipo: string; size: number }) {

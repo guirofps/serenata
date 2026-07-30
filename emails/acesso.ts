@@ -18,7 +18,11 @@ export function emailAcesso(args: { link: string; expiraMin?: number }): string 
         <tr><td height="4" style="background:linear-gradient(90deg,#7d2b3a,#c9a227);"></td></tr>
 
         <tr><td style="padding:34px 34px 6px;text-align:center;">
-          <img src="https://www.serenatagift.com/img/logo-serenata.png" alt="Serenata" width="168" height="35" style="display:block;margin:0 auto 16px;border:0;width:168px;height:35px;" />
+          <!-- A logo é imagem, e o Gmail BLOQUEIA imagem de remetente novo por
+               padrão (aparece ícone quebrado). Por isso o alt vem estilizado
+               com a tipografia da marca: se a imagem não carregar, o leitor vê
+               SERENATA em serifada vinho, não um quadradinho quebrado. -->
+          <img src="https://www.serenatagift.com/img/logo-serenata.png" alt="SERENATA" width="168" height="35" style="display:block;margin:0 auto 16px;border:0;max-width:168px;height:auto;font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:3px;color:#7d2b3a;text-align:center;text-decoration:none;" />
           <h1 style="margin:0;color:#2a1518;font-size:25px;font-weight:normal;line-height:1.32;">
             Entrar na sua conta
           </h1>
