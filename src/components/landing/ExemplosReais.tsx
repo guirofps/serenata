@@ -96,6 +96,12 @@ const ABAS: Array<{ chave: string; rotulo: string; emoji: string; itens: Exemplo
 const AUDIO_BASE =
   "https://ouwijepgctgtfzrrwpvt.supabase.co/storage/v1/object/public/exemplos";
 
+// As capas ficam em /public com cache de 30 dias. Quando uma é TROCADA (mesmo
+// nome, conteúdo novo), o navegador de quem já visitou continua servindo a
+// antiga — foi o que aconteceu quando `filho.webp` deixou de ser cópia da capa
+// da mãe. Subir este número invalida o cache de todas de uma vez.
+const VERSAO_CAPAS = 2;
+
 export function ExemplosReais() {
   const [aba, setAba] = useState(ABAS[0].chave);
   // UM único <audio> pra todos os cards: assim é impossível dois tocarem
@@ -217,7 +223,7 @@ export function ExemplosReais() {
                   className="relative block w-full focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--ouro)]"
                 >
                   <img
-                    src={`/img/exemplos/${ex.capa}.webp`}
+                    src={`/img/exemplos/${ex.capa}.webp?v=${VERSAO_CAPAS}`}
                     alt=""
                     width={560}
                     height={560}
