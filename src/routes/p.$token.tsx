@@ -298,7 +298,7 @@ function PaginaPresente() {
 
       {/* Efeito escolhido pelo comprador (corações, estrelas, pétalas, luzes),
           caindo NA FRENTE da foto e da letra durante a música. */}
-      <Efeitos tipo={p.efeito} ativo={fotosAtivas} />
+      <Efeitos tipo={p.efeito} ativo={fotosAtivas} tempo={t} />
 
       {p.audioUrl && <audio ref={audioRef} src={p.audioUrl} preload="auto" />}
 
