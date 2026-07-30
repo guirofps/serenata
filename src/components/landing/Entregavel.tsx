@@ -20,21 +20,73 @@ const ITENS = [
 
 export function Entregavel({ exemploToken }: { exemploToken?: string }) {
   return (
-    <section id="entregavel" className="luz-ouro" style={{ paddingBlock: "var(--secao)" }}>
-      <div className="mx-auto grid max-w-6xl items-center gap-7 px-6 sm:gap-12 lg:grid-cols-2 lg:gap-16">
+    // A NOITE no meio do papel. É a narrativa da marca acontecendo na home:
+    // você navega no claro e, quando o assunto é o PRESENTE, entra na noite —
+    // que é exatamente o mundo em que a página-presente vive. Volta pro claro
+    // logo depois.
+    <section
+      id="entregavel"
+      className="relative overflow-hidden bg-[#150c0f]"
+      style={
+        {
+          paddingBlock: "calc(var(--secao) * 1.15)",
+          // O mundo CLARO não define --creme (ele só existe no TEMA_ESCURO), e
+          // sem isto os textos caíam na tinta quase preta — invisíveis aqui.
+          // Declarar as duas variáveis na própria seção faz dela uma ilha de
+          // noite dentro do papel.
+          "--creme": "#f7f0e8",
+          "--ouro": "oklch(0.84 0.12 84)",
+          color: "#f7f0e8",
+        } as React.CSSProperties
+      }
+    >
+      {/* Luz de janela na noite: âmbar forte de um lado, vinho do outro. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(52% 42% at 80% 8%, oklch(0.82 0.11 82 / 0.20), transparent 62%), radial-gradient(48% 44% at 8% 96%, oklch(0.55 0.16 18 / 0.28), transparent 64%)",
+        }}
+      />
+      {/* Emenda com o papel: degradê nas duas bordas, pra a noite não entrar
+          como um bloco colado. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-24"
+        style={{ background: "linear-gradient(to bottom, #faf5ee, transparent)" }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
+        style={{ background: "linear-gradient(to top, #faf5ee, transparent)" }}
+      />
+
+      <div className="relative mx-auto grid max-w-6xl items-center gap-7 px-6 sm:gap-12 lg:grid-cols-2 lg:gap-16">
         {/* ── copy + itens ── */}
         <div className="order-2 lg:order-1">
-          <p className="uppercase tracking-[0.3em] text-[var(--acento)]" style={{ fontSize: "var(--t-xs)" }}>
+          <p className="uppercase tracking-[0.3em] text-[var(--ouro)]" style={{ fontSize: "var(--t-xs)" }}>
             o presente, por completo
           </p>
           <h2
-            className="mt-4 text-balance"
+            className="mt-4 text-balance text-[var(--creme)]"
             style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-3xl)", lineHeight: 1.12 }}
           >
-            Não é só uma música. É a página que você envia.
+            Não é só uma música.{" "}
+            <span
+              style={{
+                backgroundImage:
+                  "linear-gradient(100deg, oklch(0.86 0.12 84), oklch(0.74 0.13 60))",
+                WebkitBackgroundClip: "text",
+                backgroundClip: "text",
+                color: "transparent",
+              }}
+            >
+              É a página que você envia.
+            </span>
           </h2>
           <p
-            className="mt-4 text-[var(--tinta-suave)]"
+            className="mt-4 text-white/60"
             style={{ fontSize: "var(--t-base)", lineHeight: 1.65 }}
           >
             Os outros mandam um arquivo de áudio que se perde no WhatsApp. Aqui, quem
@@ -45,14 +97,20 @@ export function Entregavel({ exemploToken }: { exemploToken?: string }) {
           <ul className="mt-6 space-y-3.5 sm:mt-8 sm:space-y-5">
             {ITENS.map((i) => (
               <li key={i.titulo} className="flex gap-3 sm:gap-4">
-                <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--acento)]/10 text-[var(--acento)] sm:h-10 sm:w-10">
+                <span
+                  className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-[var(--ouro)] sm:h-10 sm:w-10"
+                  style={{
+                    background: "oklch(0.82 0.11 82 / 0.12)",
+                    boxShadow: "inset 0 0 0 1px oklch(0.82 0.11 82 / 0.28)",
+                  }}
+                >
                   <i.icone className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
                 </span>
                 <div>
-                  <h3 className="font-medium leading-snug" style={{ fontSize: "var(--t-sm)" }}>
+                  <h3 className="font-medium leading-snug text-[var(--creme)]" style={{ fontSize: "var(--t-sm)" }}>
                     {i.titulo}
                   </h3>
-                  <p className="mt-0.5 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)", lineHeight: 1.5 }}>
+                  <p className="mt-0.5 text-white/50" style={{ fontSize: "var(--t-xs)", lineHeight: 1.5 }}>
                     {i.texto}
                   </p>
                 </div>
@@ -65,8 +123,13 @@ export function Entregavel({ exemploToken }: { exemploToken?: string }) {
               href={`/p/${exemploToken}`}
               target="_blank"
               rel="noreferrer"
-              className="cta-ghost mt-8 inline-flex items-center gap-2 rounded-full px-6 py-3.5 font-medium"
-              style={{ fontSize: "var(--t-sm)" }}
+              className="mt-8 inline-flex items-center gap-2 rounded-full px-6 py-3.5 font-medium text-[#150c0f] transition-transform hover:scale-[1.03] active:scale-95"
+              style={{
+                fontSize: "var(--t-sm)",
+                backgroundImage:
+                  "linear-gradient(135deg, oklch(0.88 0.12 86), oklch(0.76 0.13 74))",
+                boxShadow: "0 14px 34px -14px oklch(0.82 0.11 82 / 0.55)",
+              }}
             >
               Abrir um presente de exemplo <ArrowUpRight className="h-4 w-4" />
             </a>
@@ -128,7 +191,7 @@ export function Entregavel({ exemploToken }: { exemploToken?: string }) {
                 </div>
               </div>
             </div>
-            <figcaption className="mt-4 text-center text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
+            <figcaption className="mt-4 text-center text-white/45" style={{ fontSize: "var(--t-xs)" }}>
               É assim que o presente abre. Toque pra ver ao vivo.
             </figcaption>
           </figure>
