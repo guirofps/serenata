@@ -80,6 +80,7 @@ function PaginaPresente() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const raizRef = useRef<HTMLDivElement>(null);
   const capaRef = useRef<HTMLElement>(null);
+  const barraRef = useRef<HTMLDivElement>(null);
   // Guarda o gsap depois do import dinâmico, pra usar fora do efeito.
   const gsapRef = useRef<Gsap | null>(null);
   const [tocando, setTocando] = useState(false);
@@ -256,6 +257,20 @@ function PaginaPresente() {
     } catch (err) {
       console.error("[presente] play falhou:", err);
     }
+  }
+
+  // Pular pra qualquer ponto da música: converte a posição do toque/mouse na
+  // barra em segundos. Serve pro clique e pro arrasto (mesma função).
+  function aoArrastar(e: React.PointerEvent<HTMLDivElement>) {
+    const barra = barraRef.current;
+    const a = audioRef.current;
+    if (!barra || !a) return;
+    const r = barra.getBoundingClientRect();
+    const fracao = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    const alvo = fracao * (durAudio || p.duracaoS || 0);
+    if (!Number.isFinite(alvo)) return;
+    a.currentTime = alvo;
+    setT(alvo); // resposta imediata, sem esperar o evento do áudio
   }
 
   // Áudio manda; o valor do banco é só um palpite inicial pra v1 não piscar
@@ -495,10 +510,40 @@ function PaginaPresente() {
             </button>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm text-white/85">{p.titulo}</p>
-              <div className="mt-1.5 h-[3px] overflow-hidden rounded-full bg-white/12">
-                <div
-                  className="h-full rounded-full bg-[color:var(--presente-destaque)]"
-                  style={{ width: `${prog}%` }}
+              {/* Barra ARRASTÁVEL: toque ou arraste pra ir a qualquer ponto da
+                  música. A faixa fina é só o visual; a área de toque é alta
+                  (py-3 + -my-3) porque dedo não acerta 3px. */}
+              <div
+                ref={barraRef}
+                role="slider"
+                tabIndex={0}
+                aria-label="Posição da música"
+                aria-valuemin={0}
+                aria-valuemax={Math.round(dur)}
+                aria-valuenow={Math.round(t)}
+                onPointerDown={aoArrastar}
+                onPointerMove={(e) => {
+                  if (e.buttons === 1) aoArrastar(e);
+                }}
+                onKeyDown={(e) => {
+                  const a = audioRef.current;
+                  if (!a) return;
+                  if (e.key === "ArrowRight") a.currentTime = Math.min(dur, a.currentTime + 5);
+                  if (e.key === "ArrowLeft") a.currentTime = Math.max(0, a.currentTime - 5);
+                }}
+                className="group relative -my-3 cursor-pointer touch-none py-3"
+              >
+                <div className="h-[3px] overflow-hidden rounded-full bg-white/12">
+                  <div
+                    className="h-full rounded-full bg-[color:var(--presente-destaque)]"
+                    style={{ width: `${prog}%` }}
+                  />
+                </div>
+                {/* Pino: some quando não está em uso, pra não poluir. */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[color:var(--presente-destaque)] opacity-0 shadow transition-opacity group-hover:opacity-100 group-active:opacity-100"
+                  style={{ left: `${prog}%` }}
                 />
               </div>
             </div>
