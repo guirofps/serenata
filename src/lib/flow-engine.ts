@@ -14,6 +14,8 @@ export type ChipOption = {
   value: string;
   label: string;
   emoji?: string;
+  /** Selo opcional no chip, ex. "em alta" (sazonalidade, Dia dos Pais). */
+  tag?: string;
 };
 
 // Pergunta de escolha única (chips com emoji) ou campo de texto/história.

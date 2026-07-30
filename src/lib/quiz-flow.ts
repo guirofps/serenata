@@ -18,7 +18,7 @@ export const QUIZ_FLOW: FlowStep[] = [
     input: "chips",
     options: [
       { value: "mae", label: "Mãe", emoji: "👩" },
-      { value: "pai", label: "Pai", emoji: "👨" },
+      { value: "pai", label: "Pai", emoji: "👨", tag: "em alta" },
       { value: "esposa", label: "Esposa", emoji: "💍" },
       { value: "marido", label: "Marido", emoji: "💍" },
       { value: "namorada", label: "Namorada", emoji: "❤️" },

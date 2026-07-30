@@ -43,6 +43,18 @@ export function ChipsStep({
           >
             {opt.emoji && <span aria-hidden>{opt.emoji}</span>}
             {opt.label}
+            {opt.tag && (
+              <span
+                className={cn(
+                  "ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                  on
+                    ? "bg-primary/20 text-primary"
+                    : "bg-primary/10 text-primary",
+                )}
+              >
+                {opt.tag}
+              </span>
+            )}
           </button>
         );
       })}
