@@ -4,6 +4,7 @@ import { Logo } from "@/components/marca/Logo";
 import { MARCA, FONTES, TEMA_CLARO } from "@/lib/marca";
 import { ProvaImediata, Dor, Beneficios, Oferta, FAQ } from "@/components/landing/Secoes";
 import { ExemplosReais } from "@/components/landing/ExemplosReais";
+import { Reacoes } from "@/components/landing/Reacoes";
 import { BarraCTA } from "@/components/landing/BarraCTA";
 import { Play, ArrowRight, Menu, X } from "lucide-react";
 
@@ -261,6 +262,9 @@ function Home() {
 
       {/* ── 06 · DEMONSTRAÇÃO (três músicas reais, tocáveis) ── */}
       <ExemplosReais />
+
+      {/* ── 07 · REAÇÕES REAIS (prova social do vídeo dos testes) ── */}
+      <Reacoes />
 
       {/* ── 08 + 09 · ANCORAGEM E OFERTA ────────────────────── */}
       <Oferta />

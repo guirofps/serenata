@@ -235,13 +235,9 @@ prioridade é vender fumaça, e no Google Ads isso derruba conta.
    Mitigação: gerar antes de cobrar (acima), dois provedores com failover
    testado de verdade, portões automáticos de qualidade (duração, silêncio,
    idioma), fallback assíncrono por e-mail e WhatsApp.
-3. **Google Ads bane alegação FALSA** (é o que derruba conta). A regra é só
-   uma: afirmar apenas o que é verdade e comprovável. **Prova social REAL é
-   bem-vinda e é diferencial** — já temos reações reais de pessoas que ouviram
-   as músicas dos testes (em `materiais/`), e elas podem/devem ir na home como
-   "reações de quem ouviu uma música feita por nós". O que não pode é o que os
-   concorrentes fazem: "visto em" sem comprovação, depoimento inventado, prazo
-   que na verdade é upsell, "equipe de músicos" que não existe.
+3. **Google Ads é rígido em alegações.** Prova social a usar na home: as
+   reações reais das pessoas que ouviram as músicas dos testes (`materiais/`),
+   como "reações de quem ouviu uma música feita por nós".
 
 ## Higiene
 
