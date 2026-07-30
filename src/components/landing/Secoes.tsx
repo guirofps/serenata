@@ -166,19 +166,19 @@ export function Oferta({ preco = "37" }: { preco?: string }) {
             className="text-balance"
             style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-3xl)", lineHeight: 1.15 }}
           >
-            Menos que o perfume que ela vai esquecer
+            Menos que o presente que vão esquecer
           </h2>
           <div
             className="mx-auto mt-8 grid max-w-md grid-cols-2 gap-px overflow-hidden rounded-2xl border border-[var(--tinta-fraca)]/40 bg-[var(--tinta-fraca)]/20 text-center"
             style={{ fontSize: "var(--t-sm)" }}
           >
             <div className="bg-[var(--papel)] px-4 py-5">
-              <p className="text-[var(--tinta-suave)]">Um perfume comum</p>
+              <p className="text-[var(--tinta-suave)]">Um presente comum</p>
               <p className="mt-1 font-semibold">R$ 200+</p>
-              <p className="mt-1 text-[var(--tinta-fraca)]">acaba em 3 meses</p>
+              <p className="mt-1 text-[var(--tinta-fraca)]">esquecido em 3 meses</p>
             </div>
             <div className="bg-[var(--papel)] px-4 py-5">
-              <p className="text-[var(--tinta-suave)]">Uma música só dela</p>
+              <p className="text-[var(--tinta-suave)]">Uma música só de quem você ama</p>
               <p className="mt-1 font-semibold text-[var(--acento)]">R$ {preco}</p>
               <p className="mt-1 text-[var(--tinta-fraca)]">fica pra sempre</p>
             </div>
