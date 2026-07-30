@@ -62,15 +62,15 @@ export function DiaDosPais({ exemploToken }: { exemploToken?: string }) {
           </span>
 
           <h2
-            className="mx-auto mt-6 max-w-2xl text-balance"
-            style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-3xl)", lineHeight: 1.12 }}
+            className="mx-auto mt-4 max-w-2xl text-balance sm:mt-6"
+            style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-2xl)", lineHeight: 1.12 }}
           >
             Gravata ele guarda na gaveta.
             <br className="hidden sm:block" /> Isso aqui ele mostra pros amigos.
           </h2>
           <p
-            className="mx-auto mt-5 max-w-xl text-[var(--tinta-suave)]"
-            style={{ fontSize: "var(--t-lg)", lineHeight: 1.6 }}
+            className="mx-auto mt-3 max-w-xl text-[var(--tinta-suave)] sm:mt-5"
+            style={{ fontSize: "var(--t-base)", lineHeight: 1.55 }}
           >
             Uma música com o nome dele, as memórias de vocês e o "obrigado" que a
             gente sempre esquece de dizer. Ele vai reouvir, mostrar pros amigos e
@@ -80,7 +80,7 @@ export function DiaDosPais({ exemploToken }: { exemploToken?: string }) {
 
         {/* Contador honesto: a data real chegando. */}
         {c && c.d >= 0 && (
-          <div className="mx-auto mt-9 flex max-w-sm items-stretch justify-center gap-3">
+          <div className="mx-auto mt-6 flex max-w-xs items-stretch justify-center gap-2 sm:mt-9 sm:max-w-sm sm:gap-3">
             {[
               { v: c.d, l: "dias" },
               { v: c.h, l: "horas" },
@@ -105,24 +105,24 @@ export function DiaDosPais({ exemploToken }: { exemploToken?: string }) {
         )}
 
         {/* Tipos de pai: cobre o mercado inteiro. */}
-        <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-9 grid grid-cols-2 gap-3 sm:mt-14 sm:gap-4 lg:grid-cols-3">
           {TIPOS.map((t) => (
             <div
               key={t.titulo}
-              className="card-lift rounded-[var(--raio-lg)] border border-[var(--tinta-fraca)]/35 bg-[var(--papel)] p-5"
+              className="card-lift rounded-[var(--raio-lg)] border border-[var(--tinta-fraca)]/35 bg-[var(--papel)] p-3.5 sm:p-5"
             >
-              <span className="text-2xl" aria-hidden>
+              <span className="text-xl sm:text-2xl" aria-hidden>
                 {t.emoji}
               </span>
               <h3
-                className="mt-2 leading-snug"
-                style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-lg)" }}
+                className="mt-1.5 leading-snug sm:mt-2"
+                style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-base)" }}
               >
                 {t.titulo}
               </h3>
               <p
-                className="mt-1.5 text-[var(--tinta-suave)]"
-                style={{ fontSize: "var(--t-sm)", lineHeight: 1.55 }}
+                className="mt-1 text-[var(--tinta-suave)]"
+                style={{ fontSize: "var(--t-xs)", lineHeight: 1.5 }}
               >
                 {t.texto}
               </p>
@@ -130,7 +130,7 @@ export function DiaDosPais({ exemploToken }: { exemploToken?: string }) {
           ))}
         </div>
 
-        <div className="mt-12 text-center">
+        <div className="mt-8 text-center sm:mt-12">
           <Link
             to="/criar"
             className="cta inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-medium"

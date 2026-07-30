@@ -91,18 +91,31 @@ export function Efeitos({
   tipo,
   ativo,
   tempo,
+  contido = false,
+  escala = 1,
 }: {
   tipo: string | null;
   ativo: boolean;
   /** Segundo atual da música — é ele que move as partículas. */
   tempo: number;
+  /** `true` prende o efeito ao elemento pai (usado na prévia do editor). */
+  contido?: boolean;
+  /** Reduz o tamanho das partículas (prévia pequena). */
+  escala?: number;
 }) {
   const ligado = ativo && Boolean(tipo) && tipo !== "nenhum";
   if (!ligado) return null;
   const brilho = tipo === "estrelas" || tipo === "luzes" ? OURO : ROSE;
 
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
+    <div
+      aria-hidden
+      className={
+        contido
+          ? "pointer-events-none absolute inset-0 z-20 overflow-hidden"
+          : "pointer-events-none fixed inset-0 z-40 overflow-hidden"
+      }
+    >
       {PART.map((c, i) => {
         // Ciclo 0→1 (topo → base), com fase pra não caírem todas juntas.
         const ciclo = (c.fase + tempo * c.vel) % 1;
@@ -115,15 +128,20 @@ export function Efeitos({
         return (
           <span
             key={i}
-            className="absolute top-0 will-change-transform"
+            className="absolute will-change-transform"
             style={{
               left: `${c.left}%`,
+              // Contido: a queda é % da altura do PAI (top). Tela cheia: vh no
+              // transform, que é mais barato de animar.
+              top: contido ? `${y}%` : 0,
               opacity: c.op * fade,
-              transform: `translate3d(${x.toFixed(1)}px, ${y.toFixed(2)}vh, 0) rotate(${(c.giro * ciclo).toFixed(1)}deg)`,
-              filter: `drop-shadow(0 0 7px color-mix(in oklch, ${brilho} 60%, transparent))`,
+              transform: contido
+                ? `translate3d(${(x * escala).toFixed(1)}px, 0, 0) rotate(${(c.giro * ciclo).toFixed(1)}deg)`
+                : `translate3d(${x.toFixed(1)}px, ${y.toFixed(2)}vh, 0) rotate(${(c.giro * ciclo).toFixed(1)}deg)`,
+              filter: `drop-shadow(0 0 ${7 * escala}px color-mix(in oklch, ${brilho} 60%, transparent))`,
             }}
           >
-            <Forma tipo={tipo as string} size={c.size} />
+            <Forma tipo={tipo as string} size={Math.max(4, Math.round(c.size * escala))} />
           </span>
         );
       })}

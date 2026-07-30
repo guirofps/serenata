@@ -92,8 +92,10 @@ export const TEXTO = {
 } as const;
 
 // ── Espaçamento entre seções ──────────────────────────────────────
-// 56–72px mobile / 96–128px desktop (§3.3). "Ar é o que faz parecer caro."
-export const SECAO = "clamp(3.5rem, 2rem + 6vw, 8rem)";
+// Ar é o que faz parecer caro, MAS no celular ar demais vira página
+// interminável (a home estava com 10.000px de rolagem). Piso baixado de 3,5
+// para 2,5rem: no mobile as seções encostam mais, no desktop nada muda.
+export const SECAO = "clamp(2.5rem, 1.2rem + 6vw, 8rem)";
 
 // ── Raio, sombra e tempo ──────────────────────────────────────────
 // Medido no Lovepanda (24/07), que é a referência de acabamento: eles NÃO

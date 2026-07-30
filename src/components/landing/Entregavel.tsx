@@ -21,7 +21,7 @@ const ITENS = [
 export function Entregavel({ exemploToken }: { exemploToken?: string }) {
   return (
     <section id="entregavel" style={{ paddingBlock: "var(--secao)" }}>
-      <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 lg:grid-cols-2 lg:gap-16">
+      <div className="mx-auto grid max-w-6xl items-center gap-7 px-6 sm:gap-12 lg:grid-cols-2 lg:gap-16">
         {/* ── copy + itens ── */}
         <div className="order-2 lg:order-1">
           <p className="uppercase tracking-[0.3em] text-[var(--acento)]" style={{ fontSize: "var(--t-xs)" }}>
@@ -42,17 +42,17 @@ export function Entregavel({ exemploToken }: { exemploToken?: string }) {
             fotos de vocês e o nome dela na capa.
           </p>
 
-          <ul className="mt-8 space-y-5">
+          <ul className="mt-6 space-y-3.5 sm:mt-8 sm:space-y-5">
             {ITENS.map((i) => (
-              <li key={i.titulo} className="flex gap-4">
-                <span className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--acento)]/10 text-[var(--acento)]">
-                  <i.icone className="h-[18px] w-[18px]" />
+              <li key={i.titulo} className="flex gap-3 sm:gap-4">
+                <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--acento)]/10 text-[var(--acento)] sm:h-10 sm:w-10">
+                  <i.icone className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
                 </span>
                 <div>
-                  <h3 className="font-medium" style={{ fontSize: "var(--t-base)" }}>
+                  <h3 className="font-medium leading-snug" style={{ fontSize: "var(--t-sm)" }}>
                     {i.titulo}
                   </h3>
-                  <p className="mt-1 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)", lineHeight: 1.55 }}>
+                  <p className="mt-0.5 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)", lineHeight: 1.5 }}>
                     {i.texto}
                   </p>
                 </div>
@@ -75,7 +75,7 @@ export function Entregavel({ exemploToken }: { exemploToken?: string }) {
 
         {/* ── mockup fiel da página-presente ── */}
         <div className="order-1 lg:order-2">
-          <figure className="relative mx-auto w-full max-w-[300px]">
+          <figure className="relative mx-auto w-full max-w-[190px] sm:max-w-[300px]">
             {/* brilho dourado por trás */}
             <div
               aria-hidden

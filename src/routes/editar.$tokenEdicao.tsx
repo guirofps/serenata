@@ -13,7 +13,7 @@ import {
 } from "@/lib/personalizar";
 import { prepararFoto } from "@/lib/imagem";
 import { QrCode } from "@/components/presente/QrCode";
-import { EFEITOS } from "@/components/presente/Efeitos";
+import { Efeitos, EFEITOS } from "@/components/presente/Efeitos";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
@@ -80,6 +80,14 @@ function Editor() {
   const [versaoPref, setVersaoPref] = useState<1 | 2>(p.versaoPreferida);
   const [cor, setCor] = useState(p.corDestaque ?? CORES_PRESENTE[0].oklch);
   const [efeito, setEfeito] = useState(p.efeito ?? "nenhum");
+  // Relógio da PRÉVIA: faz as partículas caírem ao vivo enquanto a pessoa
+  // escolhe o efeito, sem precisar abrir a página do presente.
+  const [tickPrevia, setTickPrevia] = useState(0);
+  useEffect(() => {
+    if (efeito === "nenhum") return;
+    const id = setInterval(() => setTickPrevia((t) => t + 0.1), 100);
+    return () => clearInterval(id);
+  }, [efeito]);
   const [tocando, setTocando] = useState<1 | 2 | null>(null);
   const inputFoto = useRef<HTMLInputElement>(null);
   const inputGaleria = useRef<HTMLInputElement>(null);
@@ -710,10 +718,12 @@ function Editor() {
                   no mobile (cabe grudada no topo), inteira no desktop. */}
               <div className="mx-auto w-[132px] overflow-hidden rounded-[1.5rem] border-[6px] border-[#1a1512] bg-[#0d0a08] lg:w-auto lg:max-w-[300px] lg:rounded-[2.2rem] lg:border-[9px]">
                 <div className="relative flex aspect-[9/16] flex-col items-center justify-center px-3 text-center lg:px-5">
-                  {fotoUrl && (
+                  {/* Sem foto de capa, usa a primeira da galeria: é o que a
+                      página realmente mostra, e evita a prévia ficar preta. */}
+                  {(fotoUrl ?? galeria[0]?.url) && (
                     <>
                       <img
-                        src={fotoUrl}
+                        src={fotoUrl ?? galeria[0]?.url}
                         alt=""
                         className="absolute inset-0 h-full w-full object-cover"
                       />
@@ -726,6 +736,10 @@ function Editor() {
                       />
                     </>
                   )}
+
+                  {/* Efeito ao vivo: o MESMO componente da página-presente,
+                      contido na moldura e em escala reduzida. */}
+                  <Efeitos tipo={efeito} ativo tempo={tickPrevia} contido escala={0.42} />
                   <div className="relative z-10">
                     <p className="text-[6px] uppercase tracking-[0.25em] text-white/45 lg:text-[8px] lg:tracking-[0.3em]">
                       uma música para

@@ -119,20 +119,20 @@ export function Beneficios() {
         >
           Por que uma música não se esquece
         </h2>
-        <div className="mt-12 grid gap-x-10 gap-y-9 sm:grid-cols-2">
+        <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-6 sm:mt-12 sm:gap-x-10 sm:gap-y-9">
           {itens.map((b) => (
-            <div key={b.titulo} className="flex gap-4">
-              <b.icone className="mt-0.5 h-5 w-5 shrink-0 text-[var(--acento)]" />
+            <div key={b.titulo} className="flex flex-col gap-2 sm:flex-row sm:gap-4">
+              <b.icone className="h-5 w-5 shrink-0 text-[var(--acento)] sm:mt-0.5" />
               <div>
                 <h3
                   className="leading-snug"
-                  style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-xl)" }}
+                  style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-lg)" }}
                 >
                   {b.titulo}
                 </h3>
                 <p
-                  className="mt-1.5 text-[var(--tinta-suave)]"
-                  style={{ fontSize: "var(--t-sm)", lineHeight: 1.6 }}
+                  className="mt-1 text-[var(--tinta-suave)] sm:mt-1.5"
+                  style={{ fontSize: "var(--t-xs)", lineHeight: 1.55 }}
                 >
                   {b.texto}
                 </p>
@@ -186,17 +186,17 @@ export function Oferta({ preco = "37" }: { preco?: string }) {
         </div>
 
         {/* oferta: o que inclui, sem letra miúda */}
-        <div className="mt-12 rounded-3xl border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-8">
+        <div className="mt-8 rounded-3xl border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-5 sm:mt-12 sm:p-8">
           <p
             className="text-center text-[var(--tinta-suave)]"
             style={{ fontSize: "var(--t-sm)" }}
           >
             Você paga uma vez e leva
           </p>
-          <ul className="mt-6 space-y-3">
+          <ul className="mt-5 space-y-2 sm:mt-6 sm:space-y-3">
             {inclui.map((i) => (
-              <li key={i} className="flex gap-3" style={{ fontSize: "var(--t-base)" }}>
-                <Check className="mt-1 h-4 w-4 shrink-0 text-[var(--acento)]" />
+              <li key={i} className="flex gap-2.5 sm:gap-3" style={{ fontSize: "var(--t-sm)" }}>
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--acento)] sm:mt-1" />
                 <span>{i}</span>
               </li>
             ))}
