@@ -211,7 +211,7 @@ function Criar() {
         <div className="pt-8">
           <Button
             size="lg"
-            className="w-full"
+            className="cta w-full rounded-full border-0"
             disabled={!canAdvance}
             onClick={isContact(step) ? () => navigate({ to: "/criar", search: { step: "revisao" } }) : goNext}
           >
@@ -258,7 +258,7 @@ function ReviewScreen({ onGerar }: { onGerar: () => void }) {
             </div>
           ))}
       </div>
-      <Button size="lg" className="w-full" onClick={onGerar}>
+      <Button size="lg" className="cta w-full rounded-full border-0" onClick={onGerar}>
         Escrever minha letra grátis
       </Button>
     </div>

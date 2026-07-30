@@ -65,7 +65,7 @@ export function BarraCTA({ alvoRef }: { alvoRef: React.RefObject<HTMLElement | n
           to="/criar"
           tabIndex={visivel ? 0 : -1}
           // Alvo de toque confortável (§3.6: mínimo 44px).
-          className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-[var(--acento)] px-6 font-medium text-white transition-transform hover:scale-[1.02] active:scale-95 sm:flex-none"
+          className="cta inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full px-6 font-medium sm:flex-none"
           style={{ fontSize: "var(--t-sm)" }}
         >
           Criar minha música <ArrowRight className="h-4 w-4" />

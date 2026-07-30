@@ -624,7 +624,7 @@ function Editor() {
               <div className="mt-4 flex flex-wrap gap-3">
                 <button
                   onClick={copiar}
-                  className="inline-flex h-12 items-center gap-2 rounded-full bg-[var(--acento)] px-6 font-medium text-white transition-transform hover:scale-[1.02] active:scale-95"
+                  className="inline-flex h-12 items-center gap-2 rounded-full cta px-6 font-medium"
                   style={{ fontSize: "var(--t-sm)" }}
                 >
                   {copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}

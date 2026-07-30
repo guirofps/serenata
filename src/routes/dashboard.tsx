@@ -124,7 +124,7 @@ function Dashboard() {
             <p style={{ fontSize: "var(--t-base)" }}>Você ainda não tem nenhuma música.</p>
             <Link
               to="/criar"
-              className="mt-5 inline-flex h-12 items-center gap-2 rounded-full bg-[var(--acento)] px-6 font-medium text-white transition-transform hover:scale-[1.02] active:scale-95"
+              className="mt-5 inline-flex h-12 items-center gap-2 rounded-full cta px-6 font-medium"
               style={{ fontSize: "var(--t-sm)" }}
             >
               <Plus className="h-4 w-4" /> Criar minha primeira música
@@ -162,7 +162,7 @@ function Dashboard() {
                         <Link
                           to="/editar/$tokenEdicao"
                           params={{ tokenEdicao: m.token_edicao }}
-                          className="inline-flex h-11 items-center gap-2 rounded-full bg-[var(--acento)] px-5 font-medium text-white transition-transform hover:scale-[1.02] active:scale-95"
+                          className="inline-flex h-11 items-center gap-2 rounded-full cta px-5 font-medium"
                           style={{ fontSize: "var(--t-sm)" }}
                         >
                           <Pencil className="h-4 w-4" /> Montar o presente

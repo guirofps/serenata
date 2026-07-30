@@ -163,8 +163,8 @@ function Login() {
                 type="submit"
                 disabled={estado === "enviando"}
                 className={cn(
-                  "flex w-full items-center justify-center gap-2 rounded-full font-medium text-white transition-transform",
-                  "bg-[var(--acento)] hover:scale-[1.01] active:scale-95 disabled:opacity-60 disabled:hover:scale-100",
+                  "cta flex w-full items-center justify-center gap-2 rounded-full font-medium",
+                  "disabled:opacity-60",
                 )}
                 style={{ fontSize: "var(--t-base)", height: "3.25rem" }}
               >

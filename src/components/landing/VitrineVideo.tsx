@@ -1,25 +1,11 @@
-import { useRef, useState } from "react";
-import { Volume2, VolumeX } from "lucide-react";
-
 // O vídeo de reações reais, emoldurado como peça de vitrine — pro HERO.
 // Substitui o mockup estático do "Eva" (que não fazia nada). Aqui a primeira
 // coisa que a pessoa vê é gente de verdade se emocionando.
 //
 // Moldura premium: fio dourado da marca, sombra flutuante, cantos suaves.
-// Autoplay MUDO em loop; um toque liga o som (onde a emoção mora).
+// O vídeo é MUDO (não tem trilha), então roda em loop sem controle de som.
 
 export function VitrineVideo({ caption }: { caption?: string }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [mudo, setMudo] = useState(true);
-
-  function alternarSom() {
-    const v = videoRef.current;
-    if (!v) return;
-    v.muted = !v.muted;
-    setMudo(v.muted);
-    if (!v.muted) v.play().catch(() => {});
-  }
-
   return (
     <figure className="relative mx-auto w-full max-w-[420px] lg:max-w-none">
       {/* brilho dourado por trás — dá profundidade e tira a cara de "chapado" */}
@@ -39,7 +25,6 @@ export function VitrineVideo({ caption }: { caption?: string }) {
         }}
       >
         <video
-          ref={videoRef}
           src="/video/reacoes.mp4"
           poster="/video/reacoes-poster.jpg"
           autoPlay
@@ -48,21 +33,11 @@ export function VitrineVideo({ caption }: { caption?: string }) {
           playsInline
           preload="metadata"
           className="block w-full rounded-[1.2rem]"
-          onClick={alternarSom}
         />
         {/* selo de prova real, canto superior */}
         <span className="pointer-events-none absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-[11px] font-medium text-white/90 backdrop-blur-sm">
           reações reais
         </span>
-        <button
-          type="button"
-          onClick={alternarSom}
-          aria-label={mudo ? "Ativar som" : "Desativar som"}
-          className="absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3.5 py-2 text-xs font-medium text-white backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
-        >
-          {mudo ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-          {mudo ? "Ouvir" : "Som"}
-        </button>
       </div>
       {caption && (
         <figcaption className="mt-4 text-center text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>

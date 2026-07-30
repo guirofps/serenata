@@ -5,6 +5,7 @@ import { MARCA, FONTES, TEMA_CLARO } from "@/lib/marca";
 import { ProvaImediata, Dor, Beneficios, Oferta, FAQ } from "@/components/landing/Secoes";
 import { ExemplosReais } from "@/components/landing/ExemplosReais";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
+import { Entregavel } from "@/components/landing/Entregavel";
 import { DiaDosPais } from "@/components/landing/DiaDosPais";
 import { BarraCTA } from "@/components/landing/BarraCTA";
 import { Play, ArrowRight, Menu, X } from "lucide-react";
@@ -77,11 +78,14 @@ function Home() {
               Como funciona
             </a>
             <a href="#exemplo" className="transition-colors hover:text-[var(--tinta)]">
-              Ouvir um exemplo
+              Ver um exemplo
             </a>
+            <Link to="/login" className="transition-colors hover:text-[var(--tinta)]">
+              Entrar
+            </Link>
             <Link
               to="/criar"
-              className="rounded-full bg-[var(--tinta)] px-5 py-2.5 font-medium text-[var(--papel)] transition-transform hover:scale-[1.03]"
+              className="cta rounded-full px-5 py-2.5 font-medium"
             >
               Criar minha música
             </Link>
@@ -102,11 +106,14 @@ function Home() {
               Como funciona
             </a>
             <a href="#exemplo" className="block py-2 text-sm" onClick={() => setMenuAberto(false)}>
-              Ouvir um exemplo
+              Ver um exemplo
             </a>
+            <Link to="/login" className="block py-2 text-sm" onClick={() => setMenuAberto(false)}>
+              Entrar
+            </Link>
             <Link
               to="/criar"
-              className="mt-3 block rounded-full bg-[var(--tinta)] px-5 py-3 text-center text-sm font-medium text-[var(--papel)]"
+              className="cta mt-3 block rounded-full px-5 py-3 text-center text-sm font-medium"
             >
               Criar minha música
             </Link>
@@ -231,6 +238,9 @@ function Home() {
           </div>
         </div>
       </section>
+
+      {/* ── 04.5 · O ENTREGÁVEL (o diferencial: página-presente) ── */}
+      <Entregavel exemploToken="expai51378356a9" />
 
       {/* ── 05 · BENEFÍCIOS ─────────────────────────────────── */}
       <Beneficios />
