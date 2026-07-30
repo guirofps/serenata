@@ -4,6 +4,7 @@ import { carregarPresente } from "@/lib/presente";
 import { LetraSincronizada } from "@/components/presente/LetraSincronizada";
 import { Ambiente } from "@/components/presente/Ambiente";
 import { FotosSincronizadas } from "@/components/presente/FotosSincronizadas";
+import { ChuvaDeCoracoes } from "@/components/presente/ChuvaDeCoracoes";
 import { Logo } from "@/components/marca/Logo";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -293,6 +294,10 @@ function PaginaPresente() {
       ) : (
         <Ambiente intenso={tocando} />
       )}
+
+      {/* Efeito escolhido pelo comprador (corações caindo), sobre a foto,
+          durante a música. */}
+      <ChuvaDeCoracoes ativo={fotosAtivas && p.efeito === "coracoes"} />
 
       {p.audioUrl && <audio ref={audioRef} src={p.audioUrl} preload="auto" />}
 

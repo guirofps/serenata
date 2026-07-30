@@ -24,6 +24,7 @@ export type PresenteEditavel = {
   versaoPreferida: 1 | 2;
   /** Cor de destaque escolhida (oklch), ou null pro padrão. */
   corDestaque: string | null;
+  efeito: string | null;
   tokenPublico: string;
   publicada: boolean;
 };
@@ -41,7 +42,7 @@ async function buscarPorTokenEdicao(tokenEdicao: string) {
   const { data } = await db
     .from("musicas")
     .select(
-      "id, token, titulo, foto_path, galeria, dedicatoria, personalizada_em, quiz_response_id, audio_path, audio_path_v2, versao_preferida, cor_destaque",
+      "id, token, titulo, foto_path, galeria, dedicatoria, personalizada_em, quiz_response_id, audio_path, audio_path_v2, versao_preferida, cor_destaque, efeito",
     )
     .eq("token_edicao", tokenEdicao)
     .maybeSingle();
@@ -103,6 +104,7 @@ export const carregarParaEditar = createServerFn({ method: "GET" })
       audioUrlV2: await urlDoAudio(m.audio_path_v2),
       versaoPreferida: (m.versao_preferida === 2 ? 2 : 1) as 1 | 2,
       corDestaque: m.cor_destaque ?? null,
+      efeito: m.efeito ?? null,
       tokenPublico: m.token,
       publicada: Boolean(m.personalizada_em),
     };
@@ -130,6 +132,20 @@ export const definirCor = createServerFn({ method: "POST" })
     const m = await buscarPorTokenEdicao(data.tokenEdicao);
     if (!m) return { ok: false };
     await supabaseAdmin().from("musicas").update({ cor_destaque: data.oklch }).eq("id", m.id);
+    return { ok: true };
+  });
+
+/** Salva o efeito da página (ex.: "coracoes" ou "nenhum"). */
+export const definirEfeito = createServerFn({ method: "POST" })
+  .validator((data: { tokenEdicao: string; efeito: string }) => data)
+  .handler(async ({ data }): Promise<{ ok: boolean }> => {
+    const VALIDOS = ["nenhum", "coracoes"];
+    if (!VALIDOS.includes(data.efeito)) return { ok: false };
+    const m = await buscarPorTokenEdicao(data.tokenEdicao);
+    if (!m) return { ok: false };
+    // "nenhum" grava null (sem efeito).
+    const valor = data.efeito === "nenhum" ? null : data.efeito;
+    await supabaseAdmin().from("musicas").update({ efeito: valor }).eq("id", m.id);
     return { ok: true };
   });
 

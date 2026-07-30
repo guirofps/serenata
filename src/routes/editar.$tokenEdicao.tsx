@@ -8,6 +8,7 @@ import {
   removerDaGaleria,
   definirVersaoPreferida,
   definirCor,
+  definirEfeito,
   MAX_GALERIA,
 } from "@/lib/personalizar";
 import { prepararFoto } from "@/lib/imagem";
@@ -77,6 +78,7 @@ function Editor() {
   // presente) e a cor dos elementos da página.
   const [versaoPref, setVersaoPref] = useState<1 | 2>(p.versaoPreferida);
   const [cor, setCor] = useState(p.corDestaque ?? CORES_PRESENTE[0].oklch);
+  const [efeito, setEfeito] = useState(p.efeito ?? "nenhum");
   const [tocando, setTocando] = useState<1 | 2 | null>(null);
   const inputFoto = useRef<HTMLInputElement>(null);
   const inputGaleria = useRef<HTMLInputElement>(null);
@@ -105,6 +107,14 @@ function Editor() {
     const r = await definirVersaoPreferida({ data: { tokenEdicao, versao: v } });
     if (r.ok) setSalvo(true);
     else setVersaoPref(p.versaoPreferida);
+  }
+
+  async function escolherEfeito(e: string) {
+    const anterior = efeito;
+    setEfeito(e);
+    const r = await definirEfeito({ data: { tokenEdicao, efeito: e } });
+    if (r.ok) setSalvo(true);
+    else setEfeito(anterior);
   }
 
   async function escolherCor(oklch: string) {
@@ -396,6 +406,44 @@ function Editor() {
                       {escolhida && (
                         <Check className="h-4 w-4 text-[#0d0a08]" strokeWidth={3} />
                       )}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* efeito da página — corações caindo durante a música */}
+            <section>
+              <h2 className="font-medium" style={{ fontSize: "var(--t-lg)" }}>
+                Um efeito na tela
+              </h2>
+              <p
+                className="mt-1 text-[var(--tinta-suave)]"
+                style={{ fontSize: "var(--t-sm)" }}
+              >
+                Passa sobre a foto enquanto a música toca. Sutil, pra emocionar
+                sem poluir.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2.5">
+                {[
+                  { chave: "nenhum", rotulo: "Nenhum" },
+                  { chave: "coracoes", rotulo: "Corações caindo 💗" },
+                ].map((op) => {
+                  const on = efeito === op.chave;
+                  return (
+                    <button
+                      key={op.chave}
+                      type="button"
+                      onClick={() => escolherEfeito(op.chave)}
+                      className={cn(
+                        "rounded-full border px-4 py-2 transition-colors",
+                        on
+                          ? "border-[var(--acento)] bg-[var(--acento)]/10 text-[var(--acento)]"
+                          : "border-[var(--tinta-fraca)] text-[var(--tinta-suave)] hover:border-[var(--tinta-suave)]",
+                      )}
+                      style={{ fontSize: "var(--t-sm)" }}
+                    >
+                      {op.rotulo}
                     </button>
                   );
                 })}
