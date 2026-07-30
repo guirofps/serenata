@@ -1,4 +1,4 @@
-import { createFileRoute, notFound, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { carregarPresente } from "@/lib/presente";
 import { LetraSincronizada } from "@/components/presente/LetraSincronizada";
@@ -291,7 +291,7 @@ function PaginaPresente() {
           // foto (quando houver) dominar a capa.
           "--presente-destaque": p.corDestaque ?? "oklch(0.84 0.13 78)",
           "--presente-vinho": "oklch(0.55 0.16 18)",
-          fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+          fontFamily: "Manrope, ui-sans-serif, system-ui, sans-serif",
         } as React.CSSProperties
       }
     >

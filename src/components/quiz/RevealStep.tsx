@@ -4,6 +4,7 @@ import { getOrCreateSessionId } from "@/lib/session-context";
 import type { LetraGerada } from "@/lib/letra-prompt";
 import { useQuizStore } from "@/lib/quiz-store";
 import { trackEvent, trackEventOnce } from "@/lib/track";
+import { irParaCheckout } from "@/lib/checkout";
 import { Button } from "@/components/ui/button";
 import { MusicaDaSessao } from "@/components/quiz/MusicaDaSessao";
 import { EscolherRefrao } from "@/components/quiz/coautoria/EscolherRefrao";
@@ -220,38 +221,36 @@ export function RevealStep() {
         </div>
       </div>
 
-      <FakeDoor nome={nome} />
+      <IrPagar nome={nome} />
     </div>
   );
 }
 
-function FakeDoor({ nome }: { nome: string }) {
-  const [clicou, setClicou] = useState(false);
+// O CHECKOUT de verdade (era fake door até a Perfect Pay estar configurada).
+// Leva `src` (session_id) e os UTMs, que é como o webhook casa o pagamento com
+// esta música e a Utmify atribui a venda.
+function IrPagar({ nome }: { nome: string }) {
+  const [indo, setIndo] = useState(false);
   const email = useQuizStore((s) => s.email);
 
-  if (clicou) {
-    return (
-      <div className="rounded-2xl border bg-card p-6 text-center">
-        <p className="font-semibold">Você está na fila 🎉</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Estamos abrindo aos poucos. Assim que a sua vez chegar, a gente te
-          avisa em <strong className="text-foreground">{email || "seu e-mail"}</strong> pra
-          você ouvir a música de {nome} cantada e montar o presente.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <Button
-      size="lg"
-      className="w-full"
-      onClick={() => {
-        setClicou(true);
-        trackEvent("fake_door_click", {});
-      }}
-    >
-      Quero ouvir ela cantada e montar o presente
-    </Button>
+    <div>
+      <Button
+        size="lg"
+        className="cta w-full rounded-full border-0"
+        disabled={indo}
+        onClick={() => {
+          setIndo(true);
+          trackEvent("checkout_click", { valor: 37 });
+          irParaCheckout({ nome, email: email || undefined });
+        }}
+      >
+        {indo ? "Abrindo o pagamento…" : `Quero a música de ${nome} cantada`}
+      </Button>
+      <p className="mt-3 text-center text-xs text-muted-foreground">
+        R$ 37, pagamento único. A música completa, a página presente pra enviar,
+        o MP3 e o QR Code.
+      </p>
+    </div>
   );
 }
