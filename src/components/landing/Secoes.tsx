@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { FONTES } from "@/lib/marca";
 import { cn } from "@/lib/utils";
-import { Check, ChevronDown, Gift, Clock, Sparkles, Link2 } from "lucide-react";
+import { Check, ChevronDown, Gift, Clock, Sparkles, Link2, ArrowRight } from "lucide-react";
 
 // Blocos da página de venda, na ordem do playbook Movify §2.
 // Cada bloco existe pra derrubar UMA objeção específica — não é decoração.
@@ -200,16 +201,48 @@ export function Oferta({ preco = "37" }: { preco?: string }) {
               </li>
             ))}
           </ul>
-          <p
-            className="mt-7 border-t border-[var(--tinta-fraca)]/40 pt-6 text-center text-[var(--tinta-suave)]"
-            style={{ fontSize: "var(--t-sm)", lineHeight: 1.6 }}
-          >
-            <strong className="text-[var(--tinta)]">
-              Você lê a letra inteira e ouve um trecho cantado antes de pagar.
-            </strong>{" "}
-            Se não for a cara da pessoa, você não paga nada, e ainda pode
-            pedir pra reescrever de graça.
-          </p>
+
+          {/* Preço ancorado + CTA. R$97 riscado = valor de uma música feita à
+              mão; R$37 é o lançamento. Pagamento único, sem mensalidade. */}
+          <div className="mt-8 border-t border-[var(--tinta-fraca)]/40 pt-7 text-center">
+            <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
+              uma música feita à mão custaria
+            </p>
+            <div className="mt-1 flex items-end justify-center gap-3">
+              <span
+                className="text-[var(--tinta-fraca)] line-through"
+                style={{ fontSize: "var(--t-xl)" }}
+              >
+                R$ 97
+              </span>
+              <span
+                className="leading-none text-[var(--acento)]"
+                style={{ fontFamily: FONTES.display, fontWeight: 600, fontSize: "var(--t-hero)" }}
+              >
+                R$ {preco}
+              </span>
+            </div>
+            <p className="mt-2 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
+              pagamento único · sem mensalidade · a página fica sua pra sempre
+            </p>
+
+            <Link
+              to="/criar"
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-[var(--acento)] px-8 py-4 text-base font-medium text-white transition-transform hover:scale-[1.03] active:scale-95"
+            >
+              Criar minha música <ArrowRight className="h-4 w-4" />
+            </Link>
+            <p
+              className="mx-auto mt-5 max-w-md text-[var(--tinta-suave)]"
+              style={{ fontSize: "var(--t-sm)", lineHeight: 1.6 }}
+            >
+              <strong className="text-[var(--tinta)]">
+                Você lê a letra inteira e ouve um trecho cantado antes de pagar.
+              </strong>{" "}
+              Se não for a cara da pessoa, não paga nada, e ainda pode pedir pra
+              reescrever de graça.
+            </p>
+          </div>
         </div>
       </div>
     </section>

@@ -5,6 +5,7 @@ import { MARCA, FONTES, TEMA_CLARO } from "@/lib/marca";
 import { ProvaImediata, Dor, Beneficios, Oferta, FAQ } from "@/components/landing/Secoes";
 import { ExemplosReais } from "@/components/landing/ExemplosReais";
 import { Reacoes } from "@/components/landing/Reacoes";
+import { DiaDosPais } from "@/components/landing/DiaDosPais";
 import { BarraCTA } from "@/components/landing/BarraCTA";
 import { Play, ArrowRight, Menu, X } from "lucide-react";
 
@@ -122,8 +123,15 @@ function Home() {
         className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-2 lg:gap-16 lg:py-24"
       >
         <div className="text-center lg:text-left">
+          <a
+            href="#dia-dos-pais"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--acento)]/30 bg-[var(--acento)]/10 px-3.5 py-1.5 font-medium text-[var(--acento)] transition-colors hover:bg-[var(--acento)]/15"
+            style={{ fontSize: "var(--t-xs)" }}
+          >
+            🎁 Dia dos Pais · 9 de agosto
+          </a>
           <p
-            className="uppercase tracking-[0.35em] text-[var(--acento)]"
+            className="mt-5 uppercase tracking-[0.35em] text-[var(--acento)]"
             style={{ fontSize: "var(--t-xs)" }}
           >
             presente que se ouve
@@ -221,6 +229,9 @@ function Home() {
 
       {/* ── 02 · PROVA IMEDIATA ─────────────────────────────── */}
       <ProvaImediata />
+
+      {/* ── 02.5 · DIA DOS PAIS (sazonal, posição nobre) ────── */}
+      <DiaDosPais exemploToken="expai51378356a9" />
 
       {/* ── 03 · DOR ────────────────────────────────────────── */}
       <Dor />
