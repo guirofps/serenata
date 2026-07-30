@@ -37,7 +37,7 @@ const ABAS: Array<{ chave: string; rotulo: string; emoji: string; itens: Exemplo
     emoji: "👩",
     itens: [
       { slug: "eva", titulo: "Domingo na Casa da Eva", para: "para a mãe", genero: "Sertanejo", token: "533db522753f423e8b2227", capa: "mae" },
-      { slug: "denise", titulo: "Mulher de Palavra", para: "para a mãe", genero: "Gospel", token: "2459f4b76e1b49c58be203", capa: "mae" },
+      { slug: "denise", titulo: "Mulher de Palavra", para: "para a mãe", genero: "Gospel", token: "2459f4b76e1b49c58be203", capa: "denise" },
     ],
   },
   {
@@ -63,7 +63,7 @@ const ABAS: Array<{ chave: string; rotulo: string; emoji: string; itens: Exemplo
     rotulo: "Namorados",
     emoji: "❤️",
     itens: [
-      { slug: "bianca", titulo: "Café Ruim, Amor Certo", para: "para a namorada", genero: "Sertanejo", token: "exnamorada00ec1ec6", capa: "isabela" },
+      { slug: "bianca", titulo: "Café Ruim, Amor Certo", para: "para a namorada", genero: "Sertanejo", token: "exnamorada00ec1ec6", capa: "namorada" },
     ],
   },
   {
@@ -80,7 +80,7 @@ const ABAS: Array<{ chave: string; rotulo: string; emoji: string; itens: Exemplo
     emoji: "💍",
     itens: [
       { slug: "camburi", titulo: "Camburi", para: "para o marido", genero: "MPB", token: "7b89d2ed634646c4b1ee95", capa: "camburi" },
-      { slug: "garga", titulo: "Gargamel", para: "para o marido", genero: "Pagode", token: "5c980fdd76344b0c81e4e1", capa: "isabela" },
+      { slug: "garga", titulo: "Gargamel", para: "para o marido", genero: "Pagode", token: "5c980fdd76344b0c81e4e1", capa: "garga" },
     ],
   },
   {
@@ -163,7 +163,8 @@ export function ExemplosReais() {
             className="mx-auto mt-3 max-w-md text-[var(--tinta-suave)]"
             style={{ fontSize: "var(--t-sm)", lineHeight: 1.55 }}
           >
-            Histórias reais que viraram música aqui. Escolha a relação e toque.
+            Todas foram feitas neste site, do jeito que a sua vai ser. Escolha a
+            relação e toque.
           </p>
         </div>
 
