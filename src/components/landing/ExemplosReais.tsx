@@ -36,9 +36,34 @@ const ABAS: Array<{ chave: string; rotulo: string; emoji: string; itens: Exemplo
     rotulo: "Mãe",
     emoji: "👩",
     itens: [
-      { slug: "rose", titulo: "Domingo de Rose", para: "para a mãe", genero: "MPB", token: "9296e7e9b5c2460faadd64", capa: "rose" },
       { slug: "eva", titulo: "Domingo na Casa da Eva", para: "para a mãe", genero: "Sertanejo", token: "533db522753f423e8b2227", capa: "mae" },
-      { slug: "denise", titulo: "Mulher de Palavra", para: "para a mãe", genero: "Gospel", token: "2459f4b76e1b49c58be203", capa: "rose" },
+      { slug: "denise", titulo: "Mulher de Palavra", para: "para a mãe", genero: "Gospel", token: "2459f4b76e1b49c58be203", capa: "mae" },
+    ],
+  },
+  {
+    chave: "avos",
+    rotulo: "Avós",
+    emoji: "👵",
+    itens: [
+      // "Domingo de Rose" é uma homenagem real de uma neta à avó dela.
+      { slug: "rose", titulo: "Domingo de Rose", para: "para a avó", genero: "MPB", token: "9296e7e9b5c2460faadd64", capa: "avo" },
+      { slug: "joaquim", titulo: "Meu Rei da Sanfona", para: "para o avô", genero: "Forró", token: "exavo306216da", capa: "avoo" },
+    ],
+  },
+  {
+    chave: "filhos",
+    rotulo: "Filhos",
+    emoji: "👶",
+    itens: [
+      { slug: "theo", titulo: "Cinco Anos de Espera", para: "para o filho", genero: "Pop romântico", token: "exfilho2686eb8d", capa: "filho" },
+    ],
+  },
+  {
+    chave: "namorados",
+    rotulo: "Namorados",
+    emoji: "❤️",
+    itens: [
+      { slug: "bianca", titulo: "Café Ruim, Amor Certo", para: "para a namorada", genero: "Sertanejo", token: "exnamorada00ec1ec6", capa: "isabela" },
     ],
   },
   {
