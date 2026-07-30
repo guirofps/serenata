@@ -127,8 +127,7 @@ export function ExemplosReais() {
               <article
                 key={ex.slug}
                 className={cn(
-                  "group overflow-hidden rounded-2xl bg-[var(--noite)] text-[var(--creme)]",
-                  "transition-transform duration-300 hover:-translate-y-1",
+                  "card-lift group overflow-hidden rounded-[22px] border border-transparent bg-[var(--noite)] text-[var(--creme)] sm:rounded-[28px]",
                   "shadow-[0_18px_50px_-24px_rgba(42,21,24,0.55)]",
                 )}
               >
@@ -144,7 +143,7 @@ export function ExemplosReais() {
                     width={560}
                     height={560}
                     loading="lazy"
-                    className="aspect-square w-full object-cover"
+                    className="foto-editorial aspect-square w-full object-cover"
                   />
                   {/* escurece a base pra o botão ter contraste em qualquer capa */}
                   <span
@@ -170,6 +169,20 @@ export function ExemplosReais() {
                       <Play className="h-5 w-5 translate-x-0.5" fill="currentColor" />
                     )}
                   </span>
+
+                  {/* Equalizador: só no card que toca. Barras dançando dizem
+                      "está tocando" melhor que qualquer rótulo. */}
+                  {ativo && (
+                    <span aria-hidden className="absolute bottom-6 right-4 flex items-end gap-[3px]">
+                      {[0, 1, 2, 3].map((i) => (
+                        <span
+                          key={i}
+                          className="eq-barra w-[3px] rounded-full bg-[var(--ouro)]"
+                          style={{ height: 18, animationDelay: `${i * 0.09}s` }}
+                        />
+                      ))}
+                    </span>
+                  )}
                 </button>
 
                 {/* linha de progresso — só aparece no card que toca */}

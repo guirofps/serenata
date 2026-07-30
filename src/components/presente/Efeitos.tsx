@@ -101,7 +101,17 @@ export function Efeitos({ tipo, ativo }: { tipo: string | null; ativo: boolean }
           88%  { opacity: var(--op); }
           100% { transform: translateY(114vh) rotate(12deg); opacity: 0; }
         }
-        @media (prefers-reduced-motion: reduce) { .serenata-part { display: none; } }
+        /* Quem pede menos movimento não deve perder o enfeite: as partículas
+           ficam PARADAS e espalhadas (visíveis) em vez de sumirem. Antes era
+           display:none — e num celular com "Reduzir movimento" ligado (comum
+           no iPhone) o efeito simplesmente não existia. */
+        @media (prefers-reduced-motion: reduce) {
+          .serenata-part {
+            animation: none !important;
+            opacity: var(--op);
+            top: var(--parado);
+          }
+        }
       `}</style>
       {PART.map((c, i) => (
         <span
@@ -110,6 +120,9 @@ export function Efeitos({ tipo, ativo }: { tipo: string | null; ativo: boolean }
           style={{
             left: `${c.left}%`,
             ["--op" as string]: String(c.op),
+            // Posição de repouso p/ quem usa "reduzir movimento": espalha as
+            // partículas pela altura da tela em vez de empilhá-las no topo.
+            ["--parado" as string]: `${8 + ((i * 37) % 80)}%`,
             filter: `drop-shadow(0 0 6px color-mix(in oklch, ${brilho} 55%, transparent))`,
             animation: `serenataQueda ${c.dur}s linear ${c.delay}s infinite`,
           }}

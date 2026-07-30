@@ -126,16 +126,20 @@ function Home() {
           animar a promessa principal atrasa o LCP e queima tráfego pago
           (playbook §5.5). Anima-se o que está em volta, nunca isto. */}
       <section ref={heroRef} className="relative overflow-hidden">
-        {/* Brilho quente atrás do herói: tira a cara chapada e dá profundidade
-            de marca (luz de janela âmbar + um toque de vinho). */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10"
-          style={{
-            background:
-              "radial-gradient(70% 55% at 78% 20%, oklch(0.78 0.10 82 / 0.22), transparent 60%), radial-gradient(60% 50% at 10% 90%, oklch(0.55 0.16 18 / 0.10), transparent 60%)",
-          }}
-        />
+        {/* GLOW BLOBS: duas manchas gigantes desfocadas de luz colorida atrás
+            do herói. É o truque (medido no melhor concorrente) que dá
+            profundidade e cara de caro sem imagem nenhuma — luz de janela
+            âmbar de um lado, vinho do outro. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div
+            className="absolute -right-24 -top-24 h-[26rem] w-[26rem] rounded-full opacity-60"
+            style={{ background: "oklch(0.82 0.11 82)", filter: "blur(140px)" }}
+          />
+          <div
+            className="absolute -bottom-32 -left-24 h-[22rem] w-[22rem] rounded-full opacity-40"
+            style={{ background: "oklch(0.62 0.17 18)", filter: "blur(130px)" }}
+          />
+        </div>
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-2 lg:gap-16 lg:py-24">
         <div className="text-center lg:text-left">
           <a
@@ -175,7 +179,7 @@ function Home() {
           <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row lg:items-start">
             <Link
               to="/criar"
-              className="cta inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-medium"
+              className="cta cta-pulse inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-medium"
             >
               Criar minha música <ArrowRight className="h-4 w-4" />
             </Link>
