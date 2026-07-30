@@ -441,40 +441,10 @@ function PaginaPresente() {
         )
       )}
 
-      {/* ── AS DUAS GRAVAÇÕES ────────────────────────────────── */}
-      {p.temAlternativa && (
-        <section data-revela className="relative mx-auto max-w-2xl px-6 pb-4 text-center">
-          <p className="text-[11px] uppercase tracking-[0.3em] text-white/35">
-            a mesma letra, duas gravações
-          </p>
-          <div className="mt-5 inline-flex rounded-full border border-white/15 p-1">
-            {([1, 2] as const).map((n) => (
-              <Link
-                key={n}
-                to="/p/$token"
-                params={{ token }}
-                search={{ v: n === 2 ? (2 as const) : undefined }}
-                className={cn(
-                  "rounded-full px-5 py-2 text-sm transition-colors",
-                  p.versao === n
-                    ? "bg-[color:var(--presente-destaque)] text-[#0d0a08]"
-                    : "text-white/55 hover:text-white",
-                )}
-              >
-                {n === 1 ? "Versão 1" : "Versão 2"}
-              </Link>
-            ))}
-          </div>
-          {/* Só quando a v2 não tem os próprios timestamps (música antiga
-              antes do backfill, ou falha ao buscar). Com eles, ela acende
-              igual à v1. */}
-          {p.versao === 2 && (!p.timestamps || p.timestamps.length === 0) && (
-            <p className="mt-4 text-xs text-white/35">
-              Nesta gravação a letra não acende, é só ouvir.
-            </p>
-          )}
-        </section>
-      )}
+      {/* O seletor de versões NÃO aparece aqui: o presenteado recebe só a
+          gravação que o comprador escolheu como preferida (no editor). As duas
+          versões existem, mas são decisão de quem MONTA o presente, não de quem
+          recebe — expor "troque a versão" quebraria a mágica do momento. */}
 
       {/* A "história que virou música" foi REMOVIDA daqui de propósito.
           Ela mostrava o texto cru do quiz — do jeito que o comprador digitou,
