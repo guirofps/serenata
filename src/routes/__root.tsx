@@ -118,10 +118,22 @@ function RootShell({ children }: { children: React.ReactNode }) {
       </head>
       <body className="bg-background text-foreground">
         {children}
+        {/* Google Ads: sem esta tag o algoritmo não sabe quais cliques viraram
+            venda e não consegue otimizar a campanha. A conversão em si dispara
+            na /obrigado (src/lib/google-ads.ts). */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=AW-16919557808"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','AW-16919557808');`,
+          }}
+        />
         {/* UTMify: captura os UTMs da visita e guarda em localStorage. Quem
             repassa pro checkout é src/lib/checkout.ts (a ida é por JS, então o
-            script não consegue reescrever o link sozinho). A atribuição da
-            venda é fechada pela integração nativa Utmify↔Perfect Pay. */}
+            script não consegue reescrever o link sozinho). A venda em si é
+            reportada pela API no webhook (api/lib/utmify.ts). */}
         <script
           src="https://cdn.utmify.com.br/scripts/utms/latest.js"
           data-utmify-prevent-xcod-sck=""

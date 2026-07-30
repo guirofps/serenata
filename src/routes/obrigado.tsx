@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { z } from "zod";
+import { conversaoCompra } from "@/lib/google-ads";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { Check, Mail, Inbox, Pencil } from "lucide-react";
@@ -15,7 +17,9 @@ import { Check, Mail, Inbox, Pencil } from "lucide-react";
 // no redirect, personaliza; se não mandar, funciona igual.
 
 export const Route = createFileRoute("/obrigado")({
-  validateSearch: z.object({ email: z.string().optional() }),
+  // `code`: a Perfect Pay costuma devolver o id da venda no redirect. Serve de
+  // transaction_id da conversão, o que impede um F5 aqui contar a venda 2x.
+  validateSearch: z.object({ email: z.string().optional(), code: z.string().optional() }),
   head: () => ({
     meta: [
       { title: `Compra confirmada · ${MARCA.nome}` },
@@ -27,7 +31,12 @@ export const Route = createFileRoute("/obrigado")({
 });
 
 function Obrigado() {
-  const { email } = Route.useSearch();
+  const { email, code } = Route.useSearch();
+
+  // Conversão do Google Ads: é aqui que o algoritmo aprende quem comprou.
+  useEffect(() => {
+    conversaoCompra({ valor: 37, transactionId: code });
+  }, [code]);
 
   return (
     <div
