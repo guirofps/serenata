@@ -1,4 +1,5 @@
 import { useMemo, useRef } from "react";
+import { FotoAdaptativa } from "./FotoAdaptativa";
 
 // As fotos como FUNDO CHEIO da tela (nunca cortadas num card), trocando com a
 // música — a experiência imersiva do entregável. A letra corre por cima.
@@ -71,14 +72,13 @@ export function FotosSincronizadas({
           else if (i === anteriorRef.current && p < 1) op = 1 - e;
         }
         return (
-          <img
+          <FotoAdaptativa
             key={src}
             src={src}
-            alt=""
-            loading={i === 0 ? "eager" : "lazy"}
-            decoding="async"
-            className="absolute inset-0 h-full w-full object-cover will-change-[opacity]"
-            style={{ opacity: op, filter: "saturate(1.02)" }}
+            eager={i === 0}
+            opacity={op}
+            saturate={1.02}
+            className="absolute inset-0 will-change-[opacity]"
           />
         );
       })}

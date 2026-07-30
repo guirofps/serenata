@@ -13,6 +13,7 @@ import {
 } from "@/lib/personalizar";
 import { prepararFoto } from "@/lib/imagem";
 import { QrCode } from "@/components/presente/QrCode";
+import { EFEITOS } from "@/components/presente/Efeitos";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
@@ -425,10 +426,7 @@ function Editor() {
                 sem poluir.
               </p>
               <div className="mt-4 flex flex-wrap gap-2.5">
-                {[
-                  { chave: "nenhum", rotulo: "Nenhum" },
-                  { chave: "coracoes", rotulo: "Corações caindo 💗" },
-                ].map((op) => {
+                {EFEITOS.map((op) => {
                   const on = efeito === op.chave;
                   return (
                     <button

@@ -139,7 +139,7 @@ export const definirCor = createServerFn({ method: "POST" })
 export const definirEfeito = createServerFn({ method: "POST" })
   .validator((data: { tokenEdicao: string; efeito: string }) => data)
   .handler(async ({ data }): Promise<{ ok: boolean }> => {
-    const VALIDOS = ["nenhum", "coracoes"];
+    const VALIDOS = ["nenhum", "coracoes", "estrelas", "petalas", "luzes"];
     if (!VALIDOS.includes(data.efeito)) return { ok: false };
     const m = await buscarPorTokenEdicao(data.tokenEdicao);
     if (!m) return { ok: false };

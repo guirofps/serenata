@@ -4,7 +4,8 @@ import { carregarPresente } from "@/lib/presente";
 import { LetraSincronizada } from "@/components/presente/LetraSincronizada";
 import { Ambiente } from "@/components/presente/Ambiente";
 import { FotosSincronizadas } from "@/components/presente/FotosSincronizadas";
-import { ChuvaDeCoracoes } from "@/components/presente/ChuvaDeCoracoes";
+import { Efeitos } from "@/components/presente/Efeitos";
+import { FotoAdaptativa } from "@/components/presente/FotoAdaptativa";
 import { Logo } from "@/components/marca/Logo";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -295,9 +296,9 @@ function PaginaPresente() {
         <Ambiente intenso={tocando} />
       )}
 
-      {/* Efeito escolhido pelo comprador (corações caindo), sobre a foto,
-          durante a música. */}
-      <ChuvaDeCoracoes ativo={fotosAtivas && p.efeito === "coracoes"} />
+      {/* Efeito escolhido pelo comprador (corações, estrelas, pétalas, luzes),
+          caindo NA FRENTE da foto e da letra durante a música. */}
+      <Efeitos tipo={p.efeito} ativo={fotosAtivas} />
 
       {p.audioUrl && <audio ref={audioRef} src={p.audioUrl} preload="auto" />}
 
@@ -321,12 +322,10 @@ function PaginaPresente() {
             qualquer foto — clara, escura ou estourada. */}
         {p.fotoUrl && (
           <div aria-hidden className="absolute inset-0 overflow-hidden">
-            <img
-              src={p.fotoUrl}
-              alt=""
-              className="h-full w-full object-cover"
-              style={{ filter: "saturate(0.85)" }}
-            />
+            {/* Adaptativa: o cliente manda quadrada, vertical ou horizontal, e
+                o componente decide o enquadramento pra nunca cortar rosto nem
+                deixar faixa vazia. */}
+            <FotoAdaptativa src={p.fotoUrl} eager saturate={0.85} className="absolute inset-0" />
             <div
               className="absolute inset-0"
               style={{
