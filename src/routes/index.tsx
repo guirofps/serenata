@@ -4,7 +4,7 @@ import { Logo } from "@/components/marca/Logo";
 import { MARCA, FONTES, TEMA_CLARO } from "@/lib/marca";
 import { ProvaImediata, Dor, Beneficios, Oferta, FAQ } from "@/components/landing/Secoes";
 import { ExemplosReais } from "@/components/landing/ExemplosReais";
-import { Reacoes } from "@/components/landing/Reacoes";
+import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { DiaDosPais } from "@/components/landing/DiaDosPais";
 import { BarraCTA } from "@/components/landing/BarraCTA";
 import { Play, ArrowRight, Menu, X } from "lucide-react";
@@ -118,14 +118,22 @@ function Home() {
           O H1 entra VISÍVEL no HTML, sem depender de JS pra aparecer:
           animar a promessa principal atrasa o LCP e queima tráfego pago
           (playbook §5.5). Anima-se o que está em volta, nunca isto. */}
-      <section
-        ref={heroRef}
-        className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-2 lg:gap-16 lg:py-24"
-      >
+      <section ref={heroRef} className="relative overflow-hidden">
+        {/* Brilho quente atrás do herói: tira a cara chapada e dá profundidade
+            de marca (luz de janela âmbar + um toque de vinho). */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10"
+          style={{
+            background:
+              "radial-gradient(70% 55% at 78% 20%, oklch(0.78 0.10 82 / 0.22), transparent 60%), radial-gradient(60% 50% at 10% 90%, oklch(0.55 0.16 18 / 0.10), transparent 60%)",
+          }}
+        />
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-2 lg:gap-16 lg:py-24">
         <div className="text-center lg:text-left">
           <a
             href="#dia-dos-pais"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--acento)]/30 bg-[var(--acento)]/10 px-3.5 py-1.5 font-medium text-[var(--acento)] transition-colors hover:bg-[var(--acento)]/15"
+            className="badge-marca inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 font-medium text-[var(--acento)] transition-transform hover:scale-105"
             style={{ fontSize: "var(--t-xs)" }}
           >
             🎁 Dia dos Pais · 9 de agosto
@@ -160,13 +168,13 @@ function Home() {
           <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row lg:items-start">
             <Link
               to="/criar"
-              className="inline-flex items-center gap-2 rounded-full bg-[var(--acento)] px-8 py-4 text-base font-medium text-white transition-transform hover:scale-[1.03] active:scale-95"
+              className="cta inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-medium"
             >
               Criar minha música <ArrowRight className="h-4 w-4" />
             </Link>
             <a
               href="#exemplo"
-              className="inline-flex items-center gap-2 rounded-full border border-[var(--tinta-fraca)] px-6 py-4 text-base transition-colors hover:bg-[var(--papel-fundo)]"
+              className="cta-ghost inline-flex items-center gap-2 rounded-full px-6 py-4 text-base"
             >
               <Play className="h-4 w-4" fill="currentColor" /> Ouvir um exemplo
             </a>
@@ -177,54 +185,10 @@ function Home() {
           </p>
         </div>
 
-        {/* O PRODUTO, não uma reação encenada.
-            Nada de foto de "cliente emocionada" gerada por IA: isso é prova
-            social falsa — o pecado que documentamos nos concorrentes, e o que
-            derruba conta no Google Ads. Enquanto não houver cliente real com
-            depoimento real, mostramos a coisa em si: a página-presente. */}
-        <figure className="relative mx-auto w-full max-w-[300px] lg:max-w-none">
-          {/* moldura de celular — é assim que o presente é aberto */}
-          <div className="relative rounded-[2.5rem] border-[10px] border-[#1a1512] bg-[var(--noite)] p-6 shadow-[0_28px_80px_-28px_rgba(32,24,15,0.55)]">
-            <div className="text-center">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-white/40">
-                uma música para
-              </p>
-              <p
-                className="mt-1.5 text-3xl text-[var(--creme)]"
-                style={{ fontFamily: FONTES.display, fontWeight: 500 }}
-              >
-                Eva
-              </p>
-              <p className="mt-1 text-xs text-white/45">Domingo na Casa da Eva</p>
-
-              <div className="mx-auto mt-5 flex h-14 w-14 items-center justify-center rounded-full bg-[oklch(0.78_0.10_82)]">
-                <Play className="h-6 w-6 translate-x-0.5 text-[#1a0f12]" fill="currentColor" />
-              </div>
-            </div>
-
-            {/* a letra acendendo — a assinatura do produto */}
-            <div className="mt-7 space-y-2 text-left">
-              <p className="text-[13px] leading-snug text-white/25">
-                Domingo é sagrado, Eva, é de lei
-              </p>
-              <p
-                className="text-[13px] leading-snug text-[oklch(0.78_0.10_82)]"
-                style={{ textShadow: "0 0 24px oklch(0.84 0.13 78 / 0.45)" }}
-              >
-                Sua mesa posta esperando por mim
-              </p>
-              <p className="text-[13px] leading-snug text-white/25">
-                O cheiro que vem lá da sua cozinha
-              </p>
-              <p className="text-[13px] leading-snug text-white/20">
-                Me chama de volta pro começo, pro fim
-              </p>
-            </div>
-          </div>
-          <figcaption className="mt-4 text-center text-xs text-[var(--tinta-suave)]">
-            Uma música real feita neste site. A letra acende no ritmo do vocal.
-          </figcaption>
-        </figure>
+          {/* Vídeo de reações reais no lugar de honra: a primeira coisa que a
+              pessoa vê é gente de verdade se emocionando. */}
+          <VitrineVideo caption="reações de quem ouviu uma música feita por nós" />
+        </div>
       </section>
 
       {/* ── 02 · PROVA IMEDIATA ─────────────────────────────── */}
@@ -274,9 +238,6 @@ function Home() {
       {/* ── 06 · DEMONSTRAÇÃO (três músicas reais, tocáveis) ── */}
       <ExemplosReais />
 
-      {/* ── 07 · REAÇÕES REAIS (prova social do vídeo dos testes) ── */}
-      <Reacoes />
-
       {/* ── 08 + 09 · ANCORAGEM E OFERTA ────────────────────── */}
       <Oferta />
 
@@ -304,7 +265,7 @@ function Home() {
           </p>
           <Link
             to="/criar"
-            className="mt-10 inline-flex items-center gap-2 rounded-full bg-[var(--acento)] px-8 py-4 text-base font-medium text-white transition-transform hover:scale-[1.03] active:scale-95"
+            className="cta mt-10 inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-medium"
           >
             Começar agora <ArrowRight className="h-4 w-4" />
           </Link>

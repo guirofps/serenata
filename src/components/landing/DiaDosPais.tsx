@@ -109,7 +109,7 @@ export function DiaDosPais({ exemploToken }: { exemploToken?: string }) {
           {TIPOS.map((t) => (
             <div
               key={t.titulo}
-              className="rounded-[var(--raio-lg)] border border-[var(--tinta-fraca)]/35 bg-[var(--papel)] p-5"
+              className="card-lift rounded-[var(--raio-lg)] border border-[var(--tinta-fraca)]/35 bg-[var(--papel)] p-5"
             >
               <span className="text-2xl" aria-hidden>
                 {t.emoji}
@@ -133,7 +133,7 @@ export function DiaDosPais({ exemploToken }: { exemploToken?: string }) {
         <div className="mt-12 text-center">
           <Link
             to="/criar"
-            className="inline-flex items-center gap-2 rounded-full bg-[var(--acento)] px-8 py-4 text-base font-medium text-white transition-transform hover:scale-[1.03] active:scale-95"
+            className="cta inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-medium"
           >
             Criar a música do meu pai <ArrowRight className="h-4 w-4" />
           </Link>

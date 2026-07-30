@@ -120,7 +120,7 @@ export function ExemplosReais() {
         {/* preload="none": nada de áudio baixa até alguém apertar play */}
         <audio ref={audioRef} preload="none" />
 
-        <div className="mt-12 grid gap-6 sm:grid-cols-3">
+        <div className="mt-10 grid grid-cols-2 gap-3.5 sm:mt-12 sm:grid-cols-3 sm:gap-6">
           {EXEMPLOS.map((ex) => {
             const ativo = tocando === ex.slug;
             return (
