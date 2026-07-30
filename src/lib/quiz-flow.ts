@@ -68,9 +68,13 @@ export const QUIZ_FLOW: FlowStep[] = [
   {
     id: "prova1",
     kind: "social-proof",
-    eyebrow: "Fernanda · pra mãe dela",
-    testimonial:
-      "Ela ouviu, começou a chorar e não parava de apertar o play. Ver o nome dela na página foi o que me pegou.",
+    // Prova REAL: o vídeo das pessoas que ouviram músicas feitas por nós.
+    // Antes havia aqui um depoimento fabricado ("Fernanda · pra mãe dela"),
+    // que era mentira e é o tipo de alegação que derruba conta no Google Ads.
+    // O vídeo é MUDO de propósito: emociona sem competir com o preenchimento
+    // do quiz e sem dar um player pra pessoa se distrair.
+    eyebrow: "reações reais",
+    testimonial: "A cara de quem ouve pela primeira vez.",
   },
   {
     id: "estilo",

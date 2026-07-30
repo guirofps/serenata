@@ -161,15 +161,36 @@ function Criar() {
 
         {isSocialProof(step) && (
           <div className="space-y-6 text-center">
-            <div className="mx-auto max-w-md rounded-2xl border bg-card p-6 shadow-sm">
+            <div className="mx-auto max-w-md">
               {step.eyebrow && (
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-primary">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em] text-primary">
                   {step.eyebrow}
                 </p>
               )}
               {step.testimonial && (
-                <p className="text-lg italic leading-relaxed">"{step.testimonial}"</p>
+                <p className="mb-4 text-lg leading-relaxed">{step.testimonial}</p>
               )}
+              {/* Vídeo REAL de quem ouviu uma música feita por nós. Mudo e sem
+                  controles: emociona sem competir com o quiz nem virar um
+                  player que desvia a atenção. */}
+              <div
+                className="overflow-hidden rounded-2xl"
+                style={{ boxShadow: "0 24px 50px -24px rgba(42,21,24,0.45)" }}
+              >
+                <video
+                  src="/video/reacoes.mp4"
+                  poster="/video/reacoes-poster.jpg"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  className="block w-full"
+                />
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Reações de quem ouviu uma música feita por nós.
+              </p>
             </div>
             <p className="text-sm text-muted-foreground">
               O presente de{" "}
