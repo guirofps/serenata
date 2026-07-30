@@ -48,7 +48,7 @@ export function DiaDosPais({ exemploToken }: { exemploToken?: string }) {
   return (
     <section
       id="dia-dos-pais"
-      className="bg-[var(--papel-fundo)]"
+      className="luz-vinho bg-[var(--papel-fundo)]"
       style={{ paddingBlock: "var(--secao)" }}
     >
       <div className="mx-auto max-w-5xl px-6">

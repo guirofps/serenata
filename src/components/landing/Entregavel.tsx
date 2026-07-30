@@ -20,7 +20,7 @@ const ITENS = [
 
 export function Entregavel({ exemploToken }: { exemploToken?: string }) {
   return (
-    <section id="entregavel" style={{ paddingBlock: "var(--secao)" }}>
+    <section id="entregavel" className="luz-ouro" style={{ paddingBlock: "var(--secao)" }}>
       <div className="mx-auto grid max-w-6xl items-center gap-7 px-6 sm:gap-12 lg:grid-cols-2 lg:gap-16">
         {/* ── copy + itens ── */}
         <div className="order-2 lg:order-1">

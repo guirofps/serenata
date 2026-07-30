@@ -68,6 +68,10 @@ function Home() {
 
   return (
     <div className="min-h-screen bg-[var(--papel)] text-[var(--tinta)]" style={TEMA_CLARO}>
+      {/* Fio vinho→ouro no topo da página: a mesma assinatura da capa do
+          produto e dos e-mails. É o detalhe que diz "isto tem marca". */}
+      <div className="fio-marca fixed inset-x-0 top-0 z-40" aria-hidden />
+
       {/* ── HEADER ──────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 border-b border-[var(--tinta-fraca)]/30 bg-[var(--papel)]/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
@@ -165,7 +169,8 @@ function Home() {
               letterSpacing: "-0.02em",
             }}
           >
-            Uma música feita da história de quem você ama
+            Uma música feita da <span className="texto-ouro">história</span> de
+            quem você ama
           </h1>
           <p
             className="mx-auto mt-6 max-w-lg text-[var(--tinta-suave)] lg:mx-0"
@@ -260,7 +265,7 @@ function Home() {
 
       {/* ── 11 · CTA FINAL (repete a promessa do herói) ─────── */}
       <section
-        className="bg-[var(--papel-fundo)] text-center"
+        className="luz-ouro bg-[var(--papel-fundo)] text-center"
         style={{ paddingBlock: "var(--secao)" }}
       >
         <div className="mx-auto max-w-2xl px-6">
@@ -275,7 +280,7 @@ function Home() {
           >
             Presente todo mundo esquece.
             <br />
-            Uma música feita pra você, não.
+            Uma música feita pra você, <span className="texto-ouro">não</span>.
           </p>
           <Link
             to="/criar"
@@ -287,7 +292,8 @@ function Home() {
       </section>
 
       {/* ── FOOTER ──────────────────────────────────────────── */}
-      <footer className="border-t border-[var(--tinta-fraca)]/30 py-12">
+      <div className="fio-marca opacity-70" aria-hidden />
+      <footer className="py-12">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-6 sm:flex-row sm:justify-between">
           <div className="text-center sm:text-left">
             <Logo tamanho="sm" />

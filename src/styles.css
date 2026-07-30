@@ -229,3 +229,90 @@
   from { opacity: 0; transform: translateY(22px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ── RIQUEZA VISUAL (o que faz a capa parecer cara e o site não) ──────
+   Diagnóstico honesto: os efeitos existiam, mas tímidos, e o fundo do site
+   era chapado — só o herói tinha brilho. Aqui a mesma receita da capa do
+   produto: glows âmbar/vinho fortes, fio dourado e ouro nos detalhes. */
+@layer components {
+  /* Fundo com luz ambiente. Vai na SEÇÃO, e cada uma escolhe o lado. */
+  .luz-ouro {
+    position: relative;
+    isolation: isolate;
+  }
+  .luz-ouro::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(58% 48% at 82% 12%, oklch(0.82 0.11 82 / 0.30), transparent 62%),
+      radial-gradient(52% 46% at 10% 92%, oklch(0.62 0.17 18 / 0.16), transparent 62%);
+  }
+  .luz-vinho::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(56% 46% at 14% 10%, oklch(0.62 0.17 18 / 0.20), transparent 62%),
+      radial-gradient(54% 48% at 88% 90%, oklch(0.82 0.11 82 / 0.24), transparent 62%);
+  }
+  .luz-vinho { position: relative; isolation: isolate; }
+
+  /* Fio vinho→ouro: o mesmo do topo da capa. Separa seções com classe. */
+  .fio-marca {
+    height: 3px;
+    background-image: linear-gradient(
+      90deg,
+      oklch(0.55 0.16 18 / 0) 0%,
+      oklch(0.55 0.16 18 / 0.9) 22%,
+      oklch(0.80 0.12 84 / 1) 55%,
+      oklch(0.80 0.12 84 / 0) 100%
+    );
+  }
+
+  /* CTA principal com FIO DOURADO por cima do vinho — é o detalhe que
+     separa "botão colorido" de "botão de marca". */
+  .cta {
+    position: relative;
+    border: 1px solid oklch(0.80 0.12 84 / 0.55);
+    box-shadow:
+      0 10px 30px -10px oklch(0.55 0.16 18 / 0.55),
+      inset 0 1px 0 oklch(0.95 0.08 88 / 0.45);
+  }
+  .cta::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(180deg, oklch(1 0 0 / 0.18), transparent 46%);
+  }
+  .cta:hover {
+    border-color: oklch(0.86 0.13 86 / 0.85);
+    box-shadow:
+      0 18px 44px -12px oklch(0.55 0.16 18 / 0.65),
+      0 0 0 3px oklch(0.80 0.12 84 / 0.18),
+      inset 0 1px 0 oklch(0.95 0.08 88 / 0.55);
+  }
+
+  /* Texto com gradiente vinho→ouro (só em palavra-chave, nunca no bloco). */
+  .texto-ouro {
+    background-image: linear-gradient(100deg, oklch(0.52 0.16 18), oklch(0.68 0.14 60), oklch(0.74 0.13 84));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Cartão com profundidade de verdade: leve gradiente + aro dourado. */
+  .cartao-rico {
+    background-image: linear-gradient(165deg, oklch(1 0 0 / 0.7), oklch(0.97 0.012 70 / 0.35));
+    border: 1px solid oklch(0.62 0.06 60 / 0.18);
+    box-shadow:
+      0 1px 0 oklch(1 0 0 / 0.7) inset,
+      0 18px 40px -22px oklch(0.42 0.13 18 / 0.35);
+  }
+}

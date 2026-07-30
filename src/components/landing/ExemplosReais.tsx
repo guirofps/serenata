@@ -148,7 +148,7 @@ export function ExemplosReais() {
   const atual = ABAS.find((t) => t.chave === aba) ?? ABAS[0];
 
   return (
-    <section id="exemplo" style={{ paddingBlock: "var(--secao)" }}>
+    <section id="exemplo" className="luz-vinho" style={{ paddingBlock: "var(--secao)" }}>
       <div className="mx-auto max-w-5xl px-6">
         <div className="text-center">
           <p className="text-[11px] uppercase tracking-[0.3em] text-[var(--tinta-suave)]">

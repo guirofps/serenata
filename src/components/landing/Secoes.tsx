@@ -158,7 +158,7 @@ export function Oferta({ preco = "37" }: { preco?: string }) {
     "QR Code pra imprimir e colar num presente físico",
   ];
   return (
-    <section id="preco" style={{ paddingBlock: "var(--secao)" }}>
+    <section id="preco" className="luz-ouro" style={{ paddingBlock: "var(--secao)" }}>
       <div className="mx-auto max-w-2xl px-6">
         {/* ancoragem: compara com o que ela gastaria de qualquer jeito */}
         <div className="text-center">
@@ -186,7 +186,7 @@ export function Oferta({ preco = "37" }: { preco?: string }) {
         </div>
 
         {/* oferta: o que inclui, sem letra miúda */}
-        <div className="mt-8 rounded-3xl border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-5 sm:mt-12 sm:p-8">
+        <div className="cartao-rico mt-8 rounded-3xl p-5 sm:mt-12 sm:p-8">
           <p
             className="text-center text-[var(--tinta-suave)]"
             style={{ fontSize: "var(--t-sm)" }}
@@ -216,7 +216,7 @@ export function Oferta({ preco = "37" }: { preco?: string }) {
                 R$ 97
               </span>
               <span
-                className="leading-none text-[var(--acento)]"
+                className="texto-ouro leading-none"
                 style={{ fontFamily: FONTES.display, fontWeight: 600, fontSize: "var(--t-hero)" }}
               >
                 R$ {preco}
