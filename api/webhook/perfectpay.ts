@@ -20,6 +20,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailPresentePronto } from "../../emails/presente-pronto.js";
+import { enviarVendaUtmify } from "../lib/utmify.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -39,6 +40,38 @@ function db() {
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
   : "https://www.serenatagift.com";
+
+// Os UTMs da venda saem do NOSSO banco (captura first-touch), não do que o
+// gateway ecoa: é o dado mais confiável que temos da origem do clique.
+async function buscarAttribution(
+  src: string | null,
+  email: string | null,
+): Promise<Record<string, string | undefined> | null> {
+  try {
+    const sb = db();
+    if (src) {
+      const { data } = await sb
+        .from("quiz_responses")
+        .select("attribution")
+        .eq("session_id", src)
+        .maybeSingle();
+      if (data?.attribution) return data.attribution as Record<string, string | undefined>;
+    }
+    if (email) {
+      const { data } = await sb
+        .from("quiz_responses")
+        .select("attribution")
+        .eq("email", email)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data?.attribution) return data.attribution as Record<string, string | undefined>;
+    }
+  } catch (err) {
+    console.error("[perfectpay] attribution falhou:", err);
+  }
+  return null;
+}
 
 async function auditar(nome: string, dados: unknown) {
   try {
@@ -116,6 +149,18 @@ export default async function handler(req: Req, res: Res) {
     if (/refund|reembols|estorn|charge\s*back|chargeback|dispute/.test(rawStatus)) {
       if (paymentId) {
         await db().from("pedidos").update({ status: "reembolsado" }).eq("payment_id", paymentId);
+        // A Utmify precisa saber do estorno, senão o relatório conta uma venda
+        // que não existe mais.
+        await enviarVendaUtmify({
+          orderId: paymentId,
+          status: /charge\s*back|chargeback|dispute/.test(rawStatus) ? "chargedback" : "refunded",
+          valorCentavos: Number.isFinite(reais) ? Math.round(reais * 100) : 0,
+          email,
+          nome: nomeCliente,
+          src,
+          attribution: await buscarAttribution(src, email),
+          reembolsadoEm: new Date(),
+        });
       }
       return res.status(200).json({ ok: true, reembolsado: true });
     }
@@ -240,6 +285,20 @@ export default async function handler(req: Req, res: Res) {
         console.error("[perfectpay] e-mail falhou:", msg);
       }
     }
+
+    // ── 9. REPORTA A VENDA PRA UTMIFY ────────────────────────
+    // Depois da entrega, de propósito: relatório nunca pode atrasar (nem
+    // arriscar) o que a pessoa pagou pra receber.
+    await enviarVendaUtmify({
+      orderId: paymentId,
+      status: "paid",
+      valorCentavos: Number.isFinite(reais) ? Math.round(reais * 100) : 0,
+      email,
+      nome: nomeCliente,
+      src,
+      attribution: await buscarAttribution(src, email),
+      aprovadoEm: new Date(),
+    });
 
     console.log("[perfectpay] liberado:", { paymentId, musica: musica.id });
     return res.status(200).json({ ok: true, liberado: true });
