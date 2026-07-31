@@ -32,7 +32,19 @@ type Musica = {
   token_edicao: string;
   genero: string | null;
   personalizada_em: string | null;
+  created_at: string;
 };
+
+// Duas músicas da mesma pessoa costumam ter o MESMO título (é o título da
+// canção, não do arquivo): quando ela pede um ajuste na letra, a nova nasce
+// com o nome da antiga. Sem a data no card não dá pra saber qual é qual.
+const QUANDO = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "America/Sao_Paulo",
+});
 
 const ROTULO_STATUS: Record<string, { texto: string; cor: string }> = {
   pronta: { texto: "pronta", cor: "text-[var(--acento)]" },
@@ -62,7 +74,7 @@ function Dashboard() {
       // RLS garante que só vêm as músicas DESTE usuário (auth.uid() = user_id).
       const { data } = await supabase
         .from("musicas")
-        .select("id, titulo, status, token, token_edicao, genero, personalizada_em")
+        .select("id, titulo, status, token, token_edicao, genero, personalizada_em, created_at")
         .order("created_at", { ascending: false });
       if (!vivo) return;
       setMusicas((data ?? []) as Musica[]);
@@ -153,6 +165,12 @@ function Dashboard() {
                           {st.texto}
                           {m.genero ? ` · ${m.genero}` : ""}
                           {m.personalizada_em ? " · presente montado" : ""}
+                        </p>
+                        <p
+                          className="mt-0.5 text-[var(--tinta-suave)]"
+                          style={{ fontSize: "var(--t-xs)" }}
+                        >
+                          criada em {QUANDO.format(new Date(m.created_at))}
                         </p>
                       </div>
                     </div>
