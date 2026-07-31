@@ -133,6 +133,69 @@ const ROTULOS: Record<string, string> = {
 
 const pct = (parte: number, total: number) => (total > 0 ? (parte / total) * 100 : 0);
 
+// Os dois nomes de evento que significam "quis pagar". São nomes diferentes
+// porque o botão mudou de lugar no funil ao longo do tempo; a pessoa é a
+// mesma, então a contagem é a UNIÃO das sessões, nunca a soma.
+const CLIQUE_COMPRA = new Set(["checkout_click", "desbloquear_click"]);
+
+// O PostgREST devolve no MÁXIMO 1000 linhas por requisição, em silêncio: sem
+// erro, sem aviso, e a fatia que volta nem é previsível. Uma consulta sem
+// paginação, num painel, não fica "um pouco desatualizada" — ela MENTE.
+//
+// Foi exatamente o que aconteceu: com 2.526 eventos no recorte, o painel lia
+// 1.000 e mostrava 204 visitantes onde havia 513. E o erro CRESCE com o
+// tráfego, ou seja, quanto mais a operação escala, mais errado fica o número
+// usado pra decidir.
+//
+// Toda leitura de série do painel passa por aqui.
+type Lead = {
+  id: string;
+  session_id: string | null;
+  respostas: Record<string, unknown> | null;
+  furthest_step: number | null;
+  email: string | null;
+  attribution: Record<string, unknown> | null;
+  created_at: string;
+};
+type Musica = {
+  id: string;
+  quiz_response_id: string | null;
+  titulo: string | null;
+  status: string;
+  created_at: string;
+  gerada_em: string | null;
+  personalizada_em: string | null;
+};
+type Custo = { id: string; tipo: string; custo_brl: number | null; created_at: string };
+type Evento = { id: string; event_name: string; session_id: string | null; created_at: string };
+type Pedido = {
+  id: string;
+  quiz_response_id: string | null;
+  musica_id: string | null;
+  gateway: string | null;
+  status: string;
+  valor_centavos: number | null;
+  email: string | null;
+  paid_at: string | null;
+  created_at: string;
+};
+
+const PAGINA = 1000;
+async function paginado<T>(
+  monta: (de: number, ate: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const tudo: T[] = [];
+  for (let de = 0; ; de += PAGINA) {
+    const { data, error } = await monta(de, de + PAGINA - 1);
+    if (error) throw new Error(error.message);
+    const lote = data ?? [];
+    tudo.push(...lote);
+    if (lote.length < PAGINA) return tudo;
+    // Trava de segurança: um recorte absurdo não pode derrubar o painel.
+    if (tudo.length >= 200_000) return tudo;
+  }
+}
+
 export const carregarPainel = createServerFn({ method: "POST" })
   // `de`/`ate` em "YYYY-MM-DD" (hora local BR) têm prioridade sobre `dias`.
   // Com eles dá pra olhar UM dia específico ou qualquer intervalo.
@@ -168,36 +231,33 @@ export const carregarPainel = createServerFn({ method: "POST" })
     const desde = inicio.toISOString();
     const ateISO = fim.toISOString();
 
-    const [leadsR, musicasR, custosR, eventosR, pedidosR] = await Promise.all([
-      db
-        .from("quiz_responses")
-        .select("id, session_id, respostas, furthest_step, email, attribution, created_at")
-        .gte("created_at", desde)
-        .lt("created_at", ateISO)
-        .order("created_at", { ascending: false }),
-      db
-        .from("musicas")
-        .select("id, quiz_response_id, titulo, status, created_at, gerada_em, personalizada_em")
-        .gte("created_at", desde)
-        .lt("created_at", ateISO),
-      db.from("custos").select("tipo, custo_brl, created_at").gte("created_at", desde).lt("created_at", ateISO),
-      db
-        .from("funnel_events")
-        .select("event_name, session_id, created_at")
-        .gte("created_at", desde)
-        .lt("created_at", ateISO),
-      db
-        .from("pedidos")
-        .select("id, quiz_response_id, musica_id, gateway, status, valor_centavos, email, paid_at, created_at")
-        .gte("created_at", desde)
-        .lt("created_at", ateISO),
+    // A ordenação por `id` não é enfeite: sem ORDER BY estável, duas páginas
+    // do mesmo range podem repetir e pular linhas. A ordem de exibição é
+    // reconstruída em JS depois.
+    const janela = <T>(tabela: string, colunas: string) =>
+      paginado<T>((de, ate) =>
+        db
+          .from(tabela)
+          .select(colunas)
+          .gte("created_at", desde)
+          .lt("created_at", ateISO)
+          .order("id")
+          .range(de, ate) as never,
+      );
+
+    const [leadsCru, musicas, custos, eventos, pedidos] = await Promise.all([
+      janela<Lead>("quiz_responses", "id, session_id, respostas, furthest_step, email, attribution, created_at"),
+      janela<Musica>("musicas", "id, quiz_response_id, titulo, status, created_at, gerada_em, personalizada_em"),
+      janela<Custo>("custos", "id, tipo, custo_brl, created_at"),
+      janela<Evento>("funnel_events", "id, event_name, session_id, created_at"),
+      janela<Pedido>(
+        "pedidos",
+        "id, quiz_response_id, musica_id, gateway, status, valor_centavos, email, paid_at, created_at",
+      ),
     ]);
 
-    const leads = leadsR.data ?? [];
-    const musicas = musicasR.data ?? [];
-    const custos = custosR.data ?? [];
-    const eventos = eventosR.data ?? [];
-    const pedidos = pedidosR.data ?? [];
+    // Mais recente primeiro, como a listagem do painel espera.
+    const leads = [...leadsCru].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 
     const conta = (nome: string) => eventos.filter((e) => e.event_name === nome).length;
     // Visitante único: sessões distintas com page_view. É o denominador honesto
@@ -211,11 +271,50 @@ export const carregarPainel = createServerFn({ method: "POST" })
     const receita = pagos.reduce((s, p) => s + (p.valor_centavos ?? 0) / 100, 0);
     const custoTotal = custos.reduce((s, c) => s + Number(c.custo_brl ?? 0), 0);
 
-    const quizIniciados = new Set(
-      eventos.filter((e) => e.event_name === "quiz_started" && e.session_id).map((e) => e.session_id),
-    ).size;
+    // "Começou o quiz" vem da LINHA em quiz_responses, não do evento
+    // `quiz_started`. Medido: 76 sessões tinham linha e só 52 tinham evento —
+    // 27 pessoas somem quando se confia no evento.
+    //
+    // A razão é estrutural: o evento é best-effort (bloqueador de anúncio,
+    // aba fechada antes do envio, rede caindo), enquanto a linha é escrita
+    // pela RPC no mesmo caminho que já grava as respostas. Num funil, a fonte
+    // tem que ser a mais confiável das duas, senão o primeiro degrau inventa
+    // uma desistência que não existiu.
+    const quizIniciados = new Set(leads.map((l) => l.session_id ?? l.id)).size;
     const comEmail = leads.filter((l) => l.email).length;
-    const cliquesCheckout = conta("checkout_click") + conta("desbloquear_click");
+
+    // PESSOAS que clicaram em comprar, não CLIQUES.
+    //
+    // Antes isto era `conta("checkout_click") + conta("desbloquear_click")`, e
+    // dava dois erros ao mesmo tempo:
+    //   1. Somava evento bruto: quem clicou 41 vezes (aconteceu) virava 41.
+    //   2. Somava os dois nomes: a mesma pessoa que clica em desbloquear e
+    //      depois em comprar era contada duas vezes.
+    // Resultado medido: 86 no painel para 13 pessoas reais — um degrau MAIOR
+    // que o de visitantes, num funil onde ele só pode encolher.
+    //
+    // Todo passo do funil conta gente distinta; este passou a contar também.
+    const sessoesCheckout = new Set(
+      eventos
+        .filter((e) => CLIQUE_COMPRA.has(e.event_name) && e.session_id)
+        .map((e) => e.session_id),
+    );
+    const cliquesCheckout = sessoesCheckout.size;
+
+    // Músicas que realmente vieram do funil. As de EXEMPLO (as da landing, as
+    // dos testes) nascem de um quiz_response criado por script, com
+    // furthest_step 0 — ninguém respondeu nada. Contá-las fazia "Recebeu a
+    // letra" ficar MAIOR que o passo anterior, e um funil que sobe não é
+    // funil.
+    //
+    // A regra exclui só o que é comprovadamente interno: lead conhecido E
+    // furthest_step 0. Música cujo lead está fora da janela (a pessoa
+    // respondeu ontem, a letra saiu hoje) continua contando.
+    const passoDoLead = new Map(leads.map((l) => [l.id, l.furthest_step ?? 0]));
+    const doFunil = musicas.filter((m) => {
+      const passo = m.quiz_response_id ? passoDoLead.get(m.quiz_response_id) : undefined;
+      return passo === undefined || passo > 0;
+    });
 
     // ── FUNIL COMPLETO: do clique à venda ────────────────────────
     const passosQuiz = QUIZ_FLOW.filter((s) => isQuestion(s) || s.kind === "contact");
@@ -228,11 +327,11 @@ export const carregarPainel = createServerFn({ method: "POST" })
         alcancaram: leads.filter((l) => (l.furthest_step ?? 0) >= i + 1).length,
         etapa: "quiz" as const,
       })),
-      { id: "letra", rotulo: "Recebeu a letra", alcancaram: musicas.length, etapa: "entrega" },
+      { id: "letra", rotulo: "Recebeu a letra", alcancaram: doFunil.length, etapa: "entrega" },
       {
         id: "musica",
         rotulo: "Música ficou pronta",
-        alcancaram: musicas.filter((m) => m.status === "pronta").length,
+        alcancaram: doFunil.filter((m) => m.status === "pronta").length,
         etapa: "entrega",
       },
       { id: "checkout", rotulo: "Clicou em comprar", alcancaram: cliquesCheckout, etapa: "venda" },
@@ -353,7 +452,8 @@ export const carregarPainel = createServerFn({ method: "POST" })
         visitantes,
         quizIniciados,
         leads: comEmail,
-        letrasGeradas: musicas.length,
+        // Mesma base do funil: sem as letras de exemplo/teste.
+        letrasGeradas: doFunil.length,
         cliquesCheckout,
         vendas: pagos.length,
         receitaBrl: receita,
@@ -361,8 +461,8 @@ export const carregarPainel = createServerFn({ method: "POST" })
         custoTotalBrl: custoTotal,
         margemBrl: receita - custoTotal,
         taxaVisitaQuiz: pct(quizIniciados, visitantes),
-        taxaQuizLetra: pct(musicas.length, quizIniciados),
-        taxaLetraCheckout: pct(cliquesCheckout, musicas.length),
+        taxaQuizLetra: pct(doFunil.length, quizIniciados),
+        taxaLetraCheckout: pct(cliquesCheckout, doFunil.length),
         taxaCheckoutVenda: pct(pagos.length, cliquesCheckout),
         taxaGeral: pct(pagos.length, visitantes),
         custoPorVendaBrl: pagos.length ? custoTotal / pagos.length : 0,
