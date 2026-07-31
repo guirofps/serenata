@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { carregarPainel, type Painel } from "@/lib/admin-dados";
@@ -6,18 +6,98 @@ import { entrarAdmin, sairAdmin } from "@/lib/admin-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
+import { Logo } from "@/components/marca/Logo";
+import { RefreshCw, LogOut, TrendingDown, AlertTriangle, ExternalLink } from "lucide-react";
 
-// Painel da plataforma. Todo dado vem de server function autenticada —
-// nada sensível no bundle (erro herdado: rota admin exposta no cliente).
+// PAINEL DA OPERAÇÃO.
+//
+// Responde, em ordem: está entrando dinheiro? de onde vem? onde a pessoa
+// desiste? Todo dado vem de server function autenticada — nada sensível no
+// bundle do cliente (erro herdado dos repos antigos: rota admin exposta).
 
 export const Route = createFileRoute("/admin")({
   validateSearch: z.object({ dias: z.coerce.number().optional() }),
+  head: () => ({
+    meta: [{ title: `Painel · ${MARCA.nome}` }, { name: "robots", content: "noindex, nofollow" }],
+  }),
   component: Admin,
 });
 
 const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 });
-const seg = (n: number | null) => (n == null ? "—" : `${Math.round(n)}s`);
+const pc = (n: number) => `${n.toFixed(1)}%`;
+const seg = (n: number | null) => (n == null ? "—" : n < 90 ? `${Math.round(n)}s` : `${(n / 60).toFixed(1)}min`);
+const quando = (iso: string) =>
+  new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+// ── blocos visuais ──────────────────────────────────────────────
+function Cartao({
+  rotulo,
+  valor,
+  apoio,
+  destaque,
+  alerta,
+}: {
+  rotulo: string;
+  valor: string;
+  apoio?: string;
+  destaque?: boolean;
+  alerta?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border p-4",
+        destaque
+          ? "border-[var(--acento)]/40 bg-[var(--acento)]/5"
+          : alerta
+            ? "border-amber-500/40 bg-amber-500/5"
+            : "border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)]",
+      )}
+    >
+      <p className="text-[11px] uppercase tracking-wider text-[var(--tinta-suave)]">{rotulo}</p>
+      <p
+        className={cn("mt-1 tabular-nums leading-none", destaque && "text-[var(--acento)]")}
+        style={{ fontFamily: FONTES.display, fontWeight: 600, fontSize: "var(--t-2xl)" }}
+      >
+        {valor}
+      </p>
+      {apoio && <p className="mt-1.5 text-xs text-[var(--tinta-suave)]">{apoio}</p>}
+    </div>
+  );
+}
+
+function Secao({ titulo, sub, children }: { titulo: string; sub?: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-xl)" }}>{titulo}</h2>
+        {sub && <p className="text-xs text-[var(--tinta-suave)]">{sub}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Tabela({ cabecalho, children }: { cabecalho: string[]; children: React.ReactNode }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-[var(--tinta-fraca)]/40">
+      <table className="w-full min-w-[560px] text-sm">
+        <thead className="bg-[var(--papel-fundo)] text-[var(--tinta-suave)]">
+          <tr>
+            {cabecalho.map((c, i) => (
+              <th key={c} className={cn("px-3 py-2.5 text-[11px] font-medium uppercase tracking-wider", i === 0 ? "text-left" : "text-right")}>
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[var(--tinta-fraca)]/25">{children}</tbody>
+      </table>
+    </div>
+  );
+}
 
 function Admin() {
   const { dias } = Route.useSearch();
@@ -32,8 +112,7 @@ function Admin() {
   async function carregar() {
     setCarregando(true);
     try {
-      const d = await carregarPainel({ data: { dias: periodo } });
-      setDados(d);
+      setDados(await carregarPainel({ data: { dias: periodo } }));
       setPrecisaLogin(false);
     } catch {
       setPrecisaLogin(true);
@@ -48,7 +127,7 @@ function Admin() {
 
   if (precisaLogin) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-4">
+      <div className="grid min-h-screen place-items-center bg-[var(--papel)] px-4" style={TEMA_CLARO}>
         <form
           className="w-full max-w-sm space-y-4"
           onSubmit={async (e) => {
@@ -58,293 +137,304 @@ function Admin() {
             if (r.ok) {
               setSenha("");
               carregar();
-            } else {
-              setErro("Senha inválida.");
-            }
+            } else setErro("Senha inválida.");
           }}
         >
-          <h1 className="text-xl font-bold">Painel</h1>
-          <Input
-            type="password"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            placeholder="Senha do painel"
-            autoFocus
-          />
+          <div className="flex justify-center">
+            <Logo tamanho="md" />
+          </div>
+          <p className="text-center text-sm text-[var(--tinta-suave)]">Painel da operação</p>
+          <Input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Senha" autoFocus />
           {erro && <p className="text-sm text-destructive">{erro}</p>}
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="cta w-full rounded-full border-0">
             Entrar
           </Button>
         </form>
-      </main>
+      </div>
     );
   }
 
   if (carregando || !dados) {
     return (
-      <main className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Carregando…</p>
-      </main>
+      <div className="grid min-h-screen place-items-center bg-[var(--papel)]" style={TEMA_CLARO}>
+        <p className="text-[var(--tinta-suave)]">Carregando…</p>
+      </div>
     );
   }
 
   const t = dados.topo;
-  const conclusao = t.leads ? Math.round((t.completaram / t.leads) * 100) : 0;
-  // Sobre quem VIU a letra: é aí que a decisão de compra acontece.
-  const taxaFake = t.chegaramNaLetra
-    ? Math.round((t.fakeDoorCliques / t.chegaramNaLetra) * 100)
-    : 0;
+  const maiorQueda = [...dados.funil].filter((f) => f.alcancaram > 0).sort((a, b) => b.perdidos - a.perdidos)[1];
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 px-4 py-8">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">Painel</h1>
-        <div className="flex items-center gap-2">
-          {[7, 30, 90].map((d) => (
-            <a
-              key={d}
-              href={`/admin?dias=${d}`}
-              className={cn(
-                "rounded-full border-2 px-3 py-1 text-sm",
-                d === periodo ? "border-primary bg-primary/10 font-semibold" : "border-border text-muted-foreground",
-              )}
+    <div className="min-h-screen bg-[var(--papel)] text-[var(--tinta)]" style={TEMA_CLARO}>
+      <header className="sticky top-0 z-20 border-b border-[var(--tinta-fraca)]/30 bg-[var(--papel)]/90 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Logo tamanho="sm" />
+            <span className="hidden text-xs text-[var(--tinta-suave)] sm:inline">painel</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {[7, 30, 90].map((d) => (
+              <Link
+                key={d}
+                to="/admin"
+                search={{ dias: d }}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-xs transition-colors",
+                  periodo === d
+                    ? "bg-[var(--acento)] font-medium text-white"
+                    : "border border-[var(--tinta-fraca)] text-[var(--tinta-suave)] hover:border-[var(--acento)]/50",
+                )}
+              >
+                {d}d
+              </Link>
+            ))}
+            <button onClick={carregar} className="ml-1 rounded-full border border-[var(--tinta-fraca)] p-1.5 hover:border-[var(--acento)]/50" title="Atualizar">
+              <RefreshCw className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={async () => {
+                await sairAdmin();
+                setPrecisaLogin(true);
+              }}
+              className="rounded-full border border-[var(--tinta-fraca)] p-1.5 hover:border-[var(--acento)]/50"
+              title="Sair"
             >
-              {d}d
-            </a>
-          ))}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={async () => {
-              await sairAdmin();
-              setPrecisaLogin(true);
-            }}
-          >
-            Sair
-          </Button>
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Topo */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <Card titulo="Leads" valor={String(t.leads)} />
-        <Card titulo="Completaram" valor={`${t.completaram}`} sub={`${conclusao}% do total`} />
-        <Card titulo="Letras" valor={String(t.letrasGeradas)} />
-        <Card titulo="Músicas prontas" valor={String(t.musicasProntas)} />
-        <Card
-          titulo="Fake door"
-          valor={String(t.fakeDoorCliques)}
-          sub={`${taxaFake}% de quem viu a letra`}
-          destaque
-        />
-        <Card titulo="Custo total" valor={brl(t.custoTotalBrl)} sub={`${brl(t.custoPorLeadBrl)}/lead`} />
-      </section>
-
-      {/* Funil */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Funil por passo
-        </h2>
-        <div className="space-y-1.5 rounded-2xl border bg-card p-4">
-          {dados.funil.map((f) => {
-            const pct = dados.funil[0]?.alcancaram
-              ? (f.alcancaram / dados.funil[0].alcancaram) * 100
-              : 0;
-            return (
-              <div key={f.id} className="flex items-center gap-3 text-sm">
-                <span className="w-36 shrink-0 truncate text-muted-foreground">{f.rotulo}</span>
-                <div className="h-6 flex-1 overflow-hidden rounded bg-secondary">
-                  <div
-                    className="flex h-full items-center justify-end rounded bg-primary/70 px-2 text-xs font-medium text-primary-foreground transition-all"
-                    style={{ width: `${Math.max(pct, 3)}%` }}
-                  >
-                    {f.alcancaram}
-                  </div>
-                </div>
-                <span
-                  className={cn(
-                    "w-14 shrink-0 text-right text-xs tabular-nums",
-                    f.queda >= 30 ? "font-semibold text-destructive" : "text-muted-foreground",
-                  )}
-                >
-                  {f.queda > 0 ? `-${f.queda}%` : ""}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Produção */}
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Produção de músicas
-          </h2>
-          <div className="space-y-3 rounded-2xl border bg-card p-4 text-sm">
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(dados.producao.porStatus).map(([s, n]) => (
-                <span
-                  key={s}
-                  className={cn(
-                    "rounded-full px-3 py-1 text-xs font-medium",
-                    s === "pronta"
-                      ? "bg-primary/15 text-foreground"
-                      : s === "falhou"
-                        ? "bg-destructive/15 text-destructive"
-                        : "bg-secondary text-muted-foreground",
-                  )}
-                >
-                  {s}: {n}
-                </span>
-              ))}
-              {!Object.keys(dados.producao.porStatus).length && (
-                <span className="text-muted-foreground">nenhuma no período</span>
-              )}
-            </div>
-            <div className="flex gap-6 border-t pt-3">
-              <div>
-                <p className="text-xs text-muted-foreground">Tempo médio</p>
-                <p className="font-semibold">{seg(dados.producao.tempoMedioS)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">p95</p>
-                <p className="font-semibold">{seg(dados.producao.tempoP95S)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Custo/música</p>
-                <p className="font-semibold">{brl(t.custoPorMusicaBrl)}</p>
-              </div>
-            </div>
+      <main className="mx-auto max-w-7xl space-y-10 px-4 py-8">
+        {/* ── DINHEIRO ─────────────────────────────────────────── */}
+        <Secao titulo="O dinheiro" sub={`Últimos ${dados.periodoDias} dias`}>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+            <Cartao rotulo="Vendas" valor={String(t.vendas)} destaque apoio={`${pc(t.taxaGeral)} dos visitantes`} />
+            <Cartao rotulo="Receita" valor={brl(t.receitaBrl)} destaque apoio={`ticket ${brl(t.ticketMedioBrl)}`} />
+            <Cartao rotulo="Custo de produção" valor={brl(t.custoTotalBrl)} apoio={`${brl(t.custoPorVendaBrl)} por venda`} />
+            <Cartao
+              rotulo="Margem bruta"
+              valor={brl(t.margemBrl)}
+              alerta={t.margemBrl < 0}
+              apoio={t.receitaBrl > 0 ? `${pc((t.margemBrl / t.receitaBrl) * 100)} da receita` : "sem receita ainda"}
+            />
+            <Cartao rotulo="Visitantes" valor={String(t.visitantes)} apoio={`${t.quizIniciados} começaram o quiz`} />
+            <Cartao rotulo="Letras entregues" valor={String(t.letrasGeradas)} apoio={`${t.leads} deixaram e-mail`} />
           </div>
-        </section>
+          <p className="text-xs text-[var(--tinta-suave)]">
+            Custo de produção é o que a gente gasta pra fazer (Claude + Suno). Não inclui o gasto de anúncio nem a taxa do gateway, que ficam nos painéis deles.
+          </p>
+        </Secao>
 
-        {/* Custos */}
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Custos
-          </h2>
-          <div className="space-y-3 rounded-2xl border bg-card p-4 text-sm">
-            {dados.custos.porTipo.map((c) => (
-              <div key={c.tipo} className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  {c.tipo} <span className="text-xs">({c.n}×)</span>
-                </span>
-                <span className="font-semibold tabular-nums">{brl(c.brl)}</span>
-              </div>
-            ))}
-            {!dados.custos.porTipo.length && (
-              <p className="text-muted-foreground">nenhum custo registrado no período</p>
-            )}
-            {dados.custos.porDia.length > 1 && (
-              <div className="border-t pt-3">
-                <p className="mb-2 text-xs text-muted-foreground">Por dia</p>
-                <div className="flex h-16 items-end gap-1">
-                  {dados.custos.porDia.map((d) => {
-                    const max = Math.max(...dados.custos.porDia.map((x) => x.brl), 0.01);
-                    return (
-                      <div
-                        key={d.dia}
-                        title={`${d.dia}: ${brl(d.brl)}`}
-                        className="flex-1 rounded-t bg-primary/60"
-                        style={{ height: `${Math.max((d.brl / max) * 100, 4)}%` }}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+        {/* ── TAXAS DE PASSAGEM ────────────────────────────────── */}
+        <Secao titulo="Onde converte" sub="A passagem de cada etapa pra próxima">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <Cartao rotulo="Visita → quiz" valor={pc(t.taxaVisitaQuiz)} />
+            <Cartao rotulo="Quiz → letra" valor={pc(t.taxaQuizLetra)} />
+            <Cartao rotulo="Letra → checkout" valor={pc(t.taxaLetraCheckout)} />
+            <Cartao rotulo="Checkout → pagou" valor={pc(t.taxaCheckoutVenda)} destaque />
+            <Cartao rotulo="Visita → venda" valor={pc(t.taxaGeral)} apoio="conversão geral" />
           </div>
-        </section>
-      </div>
+        </Secao>
 
-      {/* Qualidade */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Comportamento
-        </h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Card titulo="Refações" valor={String(dados.qualidade.refacoes)} />
-          <Card titulo="Usou ditado" valor={String(dados.qualidade.usouAudio)} />
-          <Card titulo="Deu play" valor={String(dados.qualidade.karaokePlay)} />
-          <Card titulo="Ouviu até o fim do preview" valor={String(dados.qualidade.previewFim)} />
-        </div>
-      </section>
-
-      {/* Recentes */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Sessões recentes
-        </h2>
-        <div className="overflow-x-auto rounded-2xl border bg-card">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2">Homenageado</th>
-                <th className="px-4 py-2">Relação</th>
-                <th className="px-4 py-2">Estilo</th>
-                <th className="px-4 py-2">Passo</th>
-                <th className="px-4 py-2">Música</th>
-                <th className="px-4 py-2">Quando</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dados.recentes.map((r, i) => (
-                <tr key={i} className="border-b last:border-0">
-                  <td className="px-4 py-2 font-medium">{r.nome ?? "—"}</td>
-                  <td className="px-4 py-2 text-muted-foreground">{r.relacao ?? "—"}</td>
-                  <td className="px-4 py-2 text-muted-foreground">{r.estilo ?? "—"}</td>
-                  <td className="px-4 py-2 tabular-nums">{r.passo ?? 0}</td>
-                  <td className="px-4 py-2">
-                    {r.musica ? (
-                      <span className="text-xs">
-                        {r.musica}{" "}
-                        <span
-                          className={cn(
-                            r.status === "pronta" ? "text-primary" : "text-muted-foreground",
-                          )}
-                        >
-                          ({r.status})
-                        </span>
+        {/* ── FUNIL COMPLETO ───────────────────────────────────── */}
+        <Secao titulo="O funil, passo a passo" sub="Onde as pessoas desistem. A barra é sobre o total de visitantes.">
+          {maiorQueda && maiorQueda.perdidos > 0 && (
+            <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+              <TrendingDown className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <span>
+                Maior perda em <strong>{maiorQueda.rotulo}</strong>: {maiorQueda.perdidos} pessoas ({pc(maiorQueda.quedaPct)} de quem chegou lá).
+              </span>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            {dados.funil.map((f) => {
+              const largura = t.visitantes > 0 ? Math.max(1.5, (f.alcancaram / t.visitantes) * 100) : 0;
+              const cor =
+                f.etapa === "venda"
+                  ? "bg-[var(--acento)]"
+                  : f.etapa === "entrega"
+                    ? "bg-[oklch(0.72_0.12_82)]"
+                    : f.etapa === "quiz"
+                      ? "bg-[oklch(0.62_0.06_60)]"
+                      : "bg-[var(--tinta-fraca)]";
+              return (
+                <div key={f.id} className="flex items-center gap-3">
+                  <span className="w-36 shrink-0 truncate text-xs text-[var(--tinta-suave)] sm:w-44">{f.rotulo}</span>
+                  <div className="h-7 flex-1 overflow-hidden rounded-md bg-[var(--tinta-fraca)]/15">
+                    <div
+                      className={cn("flex h-full items-center rounded-md px-2 transition-all", cor)}
+                      style={{ width: `${largura}%` }}
+                    >
+                      <span className="whitespace-nowrap text-[11px] font-medium tabular-nums text-white/95">
+                        {f.alcancaram}
                       </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2 text-xs text-muted-foreground">
-                    {new Date(r.quando).toLocaleString("pt-BR")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
-  );
-}
+                    </div>
+                  </div>
+                  <span className="w-24 shrink-0 text-right text-[11px] tabular-nums text-[var(--tinta-suave)]">
+                    {f.conversao < 100 && <>{pc(f.conversao)}</>}
+                    {f.perdidos > 0 && <span className="ml-1 text-red-600/70">-{f.perdidos}</span>}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </Secao>
 
-function Card({
-  titulo,
-  valor,
-  sub,
-  destaque,
-}: {
-  titulo: string;
-  valor: string;
-  sub?: string;
-  destaque?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border bg-card p-4",
-        destaque && "border-primary/40 bg-primary/5",
-      )}
-    >
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{titulo}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums">{valor}</p>
-      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+        {/* ── ATRIBUIÇÃO ───────────────────────────────────────── */}
+        <Secao titulo="De onde vêm as vendas" sub="Atribuição pela captura first-touch (utm, gclid, fbclid ou referência)">
+          <Tabela cabecalho={["Origem", "Campanha", "Leads", "Letras", "Vendas", "Receita", "Conv."]}>
+            {dados.porOrigem.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-3 py-6 text-center text-[var(--tinta-suave)]">
+                  Nenhum lead no período.
+                </td>
+              </tr>
+            ) : (
+              dados.porOrigem.map((o) => (
+                <tr key={`${o.origem}|${o.campanha}`} className={cn(o.vendas > 0 && "bg-[var(--acento)]/5")}>
+                  <td className="px-3 py-2.5 font-medium">{o.origem}</td>
+                  <td className="px-3 py-2.5 text-right text-[var(--tinta-suave)]">{o.campanha ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{o.leads}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{o.letras}</td>
+                  <td className="px-3 py-2.5 text-right font-medium tabular-nums">{o.vendas}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{o.receitaBrl > 0 ? brl(o.receitaBrl) : "—"}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-[var(--tinta-suave)]">{pc(o.conversaoPct)}</td>
+                </tr>
+              ))
+            )}
+          </Tabela>
+        </Secao>
+
+        {/* ── VENDAS ───────────────────────────────────────────── */}
+        <Secao titulo="Vendas" sub="As mais recentes">
+          <Tabela cabecalho={["Quando", "E-mail", "Música", "Origem", "Valor"]}>
+            {dados.vendas.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-3 py-6 text-center text-[var(--tinta-suave)]">
+                  Nenhuma venda ainda no período.
+                </td>
+              </tr>
+            ) : (
+              dados.vendas.map((v, i) => (
+                <tr key={i}>
+                  <td className="whitespace-nowrap px-3 py-2.5 text-[var(--tinta-suave)]">{quando(v.quando)}</td>
+                  <td className="max-w-[200px] truncate px-3 py-2.5 text-right">{v.email ?? "—"}</td>
+                  <td className="max-w-[180px] truncate px-3 py-2.5 text-right">{v.musica ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-right text-[var(--tinta-suave)]">{v.origem ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-right font-medium tabular-nums text-[var(--acento)]">{brl(v.valorBrl)}</td>
+                </tr>
+              ))
+            )}
+          </Tabela>
+        </Secao>
+
+        {/* ── PRODUÇÃO ─────────────────────────────────────────── */}
+        <Secao titulo="A máquina" sub="Se isto quebrar, a venda vira reembolso">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+            <Cartao rotulo="Tempo médio" valor={seg(dados.producao.tempoMedioS)} apoio="da letra à música" />
+            <Cartao rotulo="Pior caso (p95)" valor={seg(dados.producao.tempoP95S)} />
+            <Cartao rotulo="Prontas" valor={String(dados.producao.porStatus["pronta"] ?? 0)} />
+            <Cartao rotulo="Falharam" valor={String(dados.producao.falhas)} alerta={dados.producao.falhas > 0} />
+            <Cartao rotulo="Travadas" valor={String(dados.producao.travadas)} alerta={dados.producao.travadas > 0} apoio="gerando há +15min" />
+            <Cartao rotulo="Presentes montados" valor={String(dados.qualidade.presentesMontados)} apoio="usaram o editor" />
+          </div>
+          {(dados.producao.falhas > 0 || dados.producao.travadas > 0) && (
+            <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <span>Tem música que não chegou ao cliente. Verifique antes que vire pedido de reembolso.</span>
+            </div>
+          )}
+        </Secao>
+
+        {/* ── PREFERÊNCIAS ─────────────────────────────────────── */}
+        <Secao titulo="O que o público escolhe" sub="Serve pra mirar anúncio e criar exemplo novo">
+          <div className="grid gap-3 md:grid-cols-3">
+            {[
+              { titulo: "Pra quem", itens: dados.preferencias.porRelacao },
+              { titulo: "Estilo", itens: dados.preferencias.porEstilo },
+              { titulo: "Ocasião", itens: dados.preferencias.porOcasiao },
+            ].map((g) => {
+              const total = g.itens.reduce((s, i) => s + i.n, 0);
+              return (
+                <div key={g.titulo} className="rounded-2xl border border-[var(--tinta-fraca)]/40 p-4">
+                  <p className="text-[11px] uppercase tracking-wider text-[var(--tinta-suave)]">{g.titulo}</p>
+                  <ul className="mt-3 space-y-1.5">
+                    {g.itens.slice(0, 6).map((i) => (
+                      <li key={i.valor} className="flex items-center gap-2 text-sm">
+                        <span className="w-24 shrink-0 truncate">{i.valor}</span>
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--tinta-fraca)]/20">
+                          <div className="h-full rounded-full bg-[var(--acento)]/60" style={{ width: `${pct(i.n, total)}%` }} />
+                        </div>
+                        <span className="w-8 text-right text-xs tabular-nums text-[var(--tinta-suave)]">{i.n}</span>
+                      </li>
+                    ))}
+                    {g.itens.length === 0 && <li className="text-sm text-[var(--tinta-suave)]">sem dados</li>}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        </Secao>
+
+        {/* ── CUSTOS ───────────────────────────────────────────── */}
+        <Secao titulo="Custo x receita por dia">
+          <Tabela cabecalho={["Dia", "Custo", "Vendas", "Receita", "Margem"]}>
+            {dados.custos.porDia.slice(-14).reverse().map((d) => (
+              <tr key={d.dia}>
+                <td className="px-3 py-2 text-[var(--tinta-suave)]">{d.dia.slice(5)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{brl(d.brl)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{d.vendas || "—"}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{d.receitaBrl ? brl(d.receitaBrl) : "—"}</td>
+                <td className={cn("px-3 py-2 text-right font-medium tabular-nums", d.receitaBrl - d.brl < 0 ? "text-red-600" : "text-[var(--acento)]")}>
+                  {brl(d.receitaBrl - d.brl)}
+                </td>
+              </tr>
+            ))}
+            {dados.custos.porDia.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-3 py-6 text-center text-[var(--tinta-suave)]">
+                  Sem movimento no período.
+                </td>
+              </tr>
+            )}
+          </Tabela>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {dados.custos.porTipo.map((c) => (
+              <Cartao key={c.tipo} rotulo={c.tipo} valor={brl(c.brl)} apoio={`${c.n} chamadas`} />
+            ))}
+          </div>
+        </Secao>
+
+        {/* ── QUEM PASSOU ──────────────────────────────────────── */}
+        <Secao titulo="Quem passou por aqui" sub="Os últimos, e até onde cada um foi">
+          <Tabela cabecalho={["Quando", "Pra quem", "Parou em", "Origem", "Música", "Comprou"]}>
+            {dados.recentes.map((r, i) => (
+              <tr key={i} className={cn(r.comprou && "bg-[var(--acento)]/5")}>
+                <td className="whitespace-nowrap px-3 py-2 text-[var(--tinta-suave)]">{quando(r.quando)}</td>
+                <td className="px-3 py-2 text-right">
+                  {r.nome ?? "—"}
+                  {r.relacao && <span className="ml-1 text-xs text-[var(--tinta-suave)]">({r.relacao})</span>}
+                </td>
+                <td className="px-3 py-2 text-right text-[var(--tinta-suave)]">{r.passoRotulo}</td>
+                <td className="px-3 py-2 text-right text-xs text-[var(--tinta-suave)]">{r.origem}</td>
+                <td className="max-w-[160px] truncate px-3 py-2 text-right">{r.musica ?? "—"}</td>
+                <td className="px-3 py-2 text-right">{r.comprou ? "✅" : ""}</td>
+              </tr>
+            ))}
+          </Tabela>
+        </Secao>
+
+        <footer className="flex items-center justify-between border-t border-[var(--tinta-fraca)]/30 pt-4 text-xs text-[var(--tinta-suave)]">
+          <span>Atualizado {quando(dados.geradoEm)}</span>
+          <a href="/" className="inline-flex items-center gap-1 hover:text-[var(--tinta)]">
+            ver o site <ExternalLink className="h-3 w-3" />
+          </a>
+        </footer>
+      </main>
     </div>
   );
 }
+
+const pct = (parte: number, total: number) => (total > 0 ? (parte / total) * 100 : 0);
