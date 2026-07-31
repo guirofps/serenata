@@ -40,15 +40,18 @@ function leJson(chave: string): Record<string, unknown> | null {
   }
 }
 
-/** Monta a URL do checkout com sessão, nome e UTMs. */
-export function urlCheckout(extra?: { nome?: string; email?: string }): string {
+/** Monta a URL do checkout com sessão e UTMs. */
+export function urlCheckout(extra?: { email?: string }): string {
   const p = new URLSearchParams();
 
   // A ponte com o webhook.
   p.set("src", getOrCreateSessionId());
 
-  // Preenche o checkout pra pessoa não digitar de novo (menos atrito).
-  if (extra?.nome) p.set("name", extra.nome);
+  // Só o e-mail é pré-preenchido. O NOME não: o único nome que temos é o do
+  // HOMENAGEADO (quem vai receber a música), e mandá-lo aqui fazia o gateway
+  // registrar "Cliente: Zé" quando quem comprava era a esposa dele. Nome
+  // errado no pedido atrapalha suporte, nota e conciliação — melhor a pessoa
+  // digitar o dela.
   if (extra?.email) p.set("email", extra.email);
 
   if (typeof window !== "undefined") {
@@ -74,6 +77,6 @@ export function urlCheckout(extra?: { nome?: string; email?: string }): string {
 }
 
 /** Leva pro checkout. */
-export function irParaCheckout(extra?: { nome?: string; email?: string }) {
+export function irParaCheckout(extra?: { email?: string }) {
   window.location.href = urlCheckout(extra);
 }

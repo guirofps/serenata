@@ -242,7 +242,7 @@ function IrPagar({ nome }: { nome: string }) {
         onClick={() => {
           setIndo(true);
           trackEvent("checkout_click", { valor: 37 });
-          irParaCheckout({ nome, email: email || undefined });
+          irParaCheckout({ email: email || undefined });
         }}
       >
         {indo ? "Abrindo o pagamento…" : `Quero a música de ${nome} cantada`}

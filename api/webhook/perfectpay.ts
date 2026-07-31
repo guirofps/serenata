@@ -92,7 +92,17 @@ type Corpo = {
   order_status?: string;
   sale_amount?: number | string;
   currency_enum_key?: string;
-  customer?: { email?: string; full_name?: string; name?: string };
+  customer?: {
+    email?: string;
+    full_name?: string;
+    name?: string;
+    // O checkout coleta telefone; guardar é o que permite falar com quem
+    // comprou quando o e-mail cai no spam ou a entrega falha.
+    phone_formated_ddi?: string;
+    phone_formated?: string;
+    phone?: string;
+    identification_number?: string;
+  };
   customer_email?: string;
   customer_name?: string;
   metadata?: { src?: string; ref?: string };
@@ -130,6 +140,11 @@ export default async function handler(req: Req, res: Res) {
     const paymentId = body.code ?? null;
     const email = (body.customer?.email ?? body.customer_email ?? "").trim().toLowerCase() || null;
     const nomeCliente = body.customer?.full_name ?? body.customer?.name ?? body.customer_name ?? null;
+    const telefone =
+      body.customer?.phone_formated_ddi ??
+      body.customer?.phone_formated ??
+      body.customer?.phone ??
+      null;
     // `src` = session_id do nosso funil, mandado no checkout como ?src=.
     const src = body.metadata?.src ?? body.metadata?.ref ?? body.src ?? null;
     const rawStatus = String(
@@ -141,6 +156,8 @@ export default async function handler(req: Req, res: Res) {
     await auditar(`perfectpay_${rawStatus || "sem_status"}`, {
       code: paymentId,
       email,
+      nome: nomeCliente,
+      telefone,
       src,
       sale_amount: body.sale_amount ?? null,
     });
@@ -236,6 +253,16 @@ export default async function handler(req: Req, res: Res) {
       await auditar("perfectpay_pedido_falhou", { paymentId, erro: erroPedido.message });
       console.error("[perfectpay] gravar pedido falhou:", erroPedido.message);
       return res.status(500).json({ error: "falha ao gravar pedido" });
+    }
+
+    // Telefone de quem comprou fica no lead: é o único canal alternativo
+    // quando o e-mail cai no spam. Nunca derruba o webhook.
+    if (telefone && quiz?.id) {
+      try {
+        await sb.from("quiz_responses").update({ whatsapp: telefone }).eq("id", quiz.id);
+      } catch (err) {
+        console.error("[perfectpay] telefone não gravado:", err);
+      }
     }
 
     // Pago sem música casada: dinheiro entrou e pedido registrado, mas não há o

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { carregarPainel, type Painel } from "@/lib/admin-dados";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
-import { RefreshCw, LogOut, TrendingDown, AlertTriangle, ExternalLink } from "lucide-react";
+import { RefreshCw, LogOut, TrendingDown, AlertTriangle, ExternalLink, Calendar } from "lucide-react";
 
 // PAINEL DA OPERAÇÃO.
 //
@@ -17,7 +17,11 @@ import { RefreshCw, LogOut, TrendingDown, AlertTriangle, ExternalLink } from "lu
 // bundle do cliente (erro herdado dos repos antigos: rota admin exposta).
 
 export const Route = createFileRoute("/admin")({
-  validateSearch: z.object({ dias: z.coerce.number().optional() }),
+  validateSearch: z.object({
+    dias: z.coerce.number().optional(),
+    de: z.string().optional(),
+    ate: z.string().optional(),
+  }),
   head: () => ({
     meta: [{ title: `Painel · ${MARCA.nome}` }, { name: "robots", content: "noindex, nofollow" }],
   }),
@@ -99,20 +103,33 @@ function Tabela({ cabecalho, children }: { cabecalho: string[]; children: React.
   );
 }
 
+// Data de hoje em "YYYY-MM-DD" no fuso do Brasil (não em UTC, senão de
+// madrugada o painel abriria no dia errado).
+function hojeBr(deslocaDias = 0): string {
+  const d = new Date(Date.now() - 3 * 3600000 + deslocaDias * 86400000);
+  return d.toISOString().slice(0, 10);
+}
+
 function Admin() {
-  const { dias } = Route.useSearch();
+  const { dias, de, ate } = Route.useSearch();
+  const navigate = useNavigate();
   const [dados, setDados] = useState<Painel | null>(null);
   const [precisaLogin, setPrecisaLogin] = useState(false);
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
+  // Rascunho do seletor de datas (só aplica quando clica em "ver").
+  const [rDe, setRDe] = useState(de ?? hojeBr(-6));
+  const [rAte, setRAte] = useState(ate ?? hojeBr());
 
   const periodo = dias ?? 30;
+  const usandoDatas = Boolean(de);
 
   async function carregar() {
     setCarregando(true);
     try {
-      setDados(await carregarPainel({ data: { dias: periodo } }));
+      const args = usandoDatas ? { de, ate } : { dias: periodo };
+      setDados(await carregarPainel({ data: args }));
       setPrecisaLogin(false);
     } catch {
       setPrecisaLogin(true);
@@ -123,7 +140,7 @@ function Admin() {
 
   useEffect(() => {
     carregar();
-  }, [periodo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [periodo, de, ate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (precisaLogin) {
     return (
@@ -173,7 +190,26 @@ function Admin() {
             <Logo tamanho="sm" />
             <span className="hidden text-xs text-[var(--tinta-suave)] sm:inline">painel</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            {/* Atalhos. "Hoje" e "Ontem" usam data exata, o resto é janela. */}
+            {[
+              { r: "Hoje", de: hojeBr(), ate: hojeBr() },
+              { r: "Ontem", de: hojeBr(-1), ate: hojeBr(-1) },
+            ].map((a) => (
+              <Link
+                key={a.r}
+                to="/admin"
+                search={{ de: a.de, ate: a.ate }}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-xs transition-colors",
+                  de === a.de && ate === a.ate
+                    ? "bg-[var(--acento)] font-medium text-white"
+                    : "border border-[var(--tinta-fraca)] text-[var(--tinta-suave)] hover:border-[var(--acento)]/50",
+                )}
+              >
+                {a.r}
+              </Link>
+            ))}
             {[7, 30, 90].map((d) => (
               <Link
                 key={d}
@@ -181,7 +217,7 @@ function Admin() {
                 search={{ dias: d }}
                 className={cn(
                   "rounded-full px-3 py-1.5 text-xs transition-colors",
-                  periodo === d
+                  !usandoDatas && periodo === d
                     ? "bg-[var(--acento)] font-medium text-white"
                     : "border border-[var(--tinta-fraca)] text-[var(--tinta-suave)] hover:border-[var(--acento)]/50",
                 )}
@@ -189,7 +225,35 @@ function Admin() {
                 {d}d
               </Link>
             ))}
-            <button onClick={carregar} className="ml-1 rounded-full border border-[var(--tinta-fraca)] p-1.5 hover:border-[var(--acento)]/50" title="Atualizar">
+
+            {/* Período livre: qualquer intervalo. */}
+            <div className="flex items-center gap-1 rounded-full border border-[var(--tinta-fraca)] px-2 py-1">
+              <Calendar className="h-3.5 w-3.5 text-[var(--tinta-suave)]" />
+              <input
+                type="date"
+                value={rDe}
+                max={rAte}
+                onChange={(e) => setRDe(e.target.value)}
+                className="w-[110px] bg-transparent text-xs outline-none"
+              />
+              <span className="text-xs text-[var(--tinta-suave)]">até</span>
+              <input
+                type="date"
+                value={rAte}
+                min={rDe}
+                max={hojeBr()}
+                onChange={(e) => setRAte(e.target.value)}
+                className="w-[110px] bg-transparent text-xs outline-none"
+              />
+              <button
+                onClick={() => navigate({ to: "/admin", search: { de: rDe, ate: rAte } })}
+                className="rounded-full bg-[var(--acento)] px-2.5 py-0.5 text-[11px] font-medium text-white"
+              >
+                ver
+              </button>
+            </div>
+
+            <button onClick={carregar} className="rounded-full border border-[var(--tinta-fraca)] p-1.5 hover:border-[var(--acento)]/50" title="Atualizar">
               <RefreshCw className="h-3.5 w-3.5" />
             </button>
             <button

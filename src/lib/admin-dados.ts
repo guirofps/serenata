@@ -13,6 +13,9 @@ import { isQuestion } from "@/lib/flow-engine";
 
 export type Painel = {
   periodoDias: number;
+  /** Início e fim reais do recorte (ISO), pra o painel exibir. */
+  de: string;
+  ate: string;
   geradoEm: string;
 
   topo: {
@@ -131,31 +134,63 @@ const ROTULOS: Record<string, string> = {
 const pct = (parte: number, total: number) => (total > 0 ? (parte / total) * 100 : 0);
 
 export const carregarPainel = createServerFn({ method: "POST" })
-  .validator((data: { dias?: number }) => data)
+  // `de`/`ate` em "YYYY-MM-DD" (hora local BR) têm prioridade sobre `dias`.
+  // Com eles dá pra olhar UM dia específico ou qualquer intervalo.
+  .validator((data: { dias?: number; de?: string; ate?: string }) => data)
   .handler(async ({ data }): Promise<Painel> => {
     // Import dinâmico: mantém node:crypto fora do bundle do cliente.
     const { exigirAdmin } = await import("@/lib/admin-auth.server");
     exigirAdmin();
     const db = supabaseAdmin();
-    const dias = data.dias && data.dias > 0 ? data.dias : 30;
-    const desde = new Date(Date.now() - dias * 86400000).toISOString();
+
+    // O Brasil é UTC-3: um dia "31/07" local vai de 03:00Z de 31/07 até
+    // 03:00Z de 01/08. Sem esse deslocamento, o filtro de um dia pegaria as
+    // horas erradas e o número não bateria com o que se vê no gateway.
+    const OFFSET_BR = 3 * 3600000;
+    const inicioDoDiaBr = (yyyymmdd: string) =>
+      new Date(new Date(`${yyyymmdd}T00:00:00.000Z`).getTime() + OFFSET_BR);
+
+    let inicio: Date;
+    let fim: Date;
+    let dias: number;
+
+    if (data.de) {
+      inicio = inicioDoDiaBr(data.de);
+      // `ate` é inclusivo: somamos 1 dia pra pegar o dia inteiro.
+      fim = data.ate ? new Date(inicioDoDiaBr(data.ate).getTime() + 86400000) : new Date();
+      dias = Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / 86400000));
+    } else {
+      dias = data.dias && data.dias > 0 ? data.dias : 30;
+      inicio = new Date(Date.now() - dias * 86400000);
+      fim = new Date();
+    }
+
+    const desde = inicio.toISOString();
+    const ateISO = fim.toISOString();
 
     const [leadsR, musicasR, custosR, eventosR, pedidosR] = await Promise.all([
       db
         .from("quiz_responses")
         .select("id, session_id, respostas, furthest_step, email, attribution, created_at")
         .gte("created_at", desde)
+        .lt("created_at", ateISO)
         .order("created_at", { ascending: false }),
       db
         .from("musicas")
         .select("id, quiz_response_id, titulo, status, created_at, gerada_em, personalizada_em")
-        .gte("created_at", desde),
-      db.from("custos").select("tipo, custo_brl, created_at").gte("created_at", desde),
-      db.from("funnel_events").select("event_name, session_id, created_at").gte("created_at", desde),
+        .gte("created_at", desde)
+        .lt("created_at", ateISO),
+      db.from("custos").select("tipo, custo_brl, created_at").gte("created_at", desde).lt("created_at", ateISO),
+      db
+        .from("funnel_events")
+        .select("event_name, session_id, created_at")
+        .gte("created_at", desde)
+        .lt("created_at", ateISO),
       db
         .from("pedidos")
         .select("id, quiz_response_id, musica_id, gateway, status, valor_centavos, email, paid_at, created_at")
-        .gte("created_at", desde),
+        .gte("created_at", desde)
+        .lt("created_at", ateISO),
     ]);
 
     const leads = leadsR.data ?? [];
@@ -310,6 +345,8 @@ export const carregarPainel = createServerFn({ method: "POST" })
 
     return {
       periodoDias: dias,
+      de: inicio.toISOString(),
+      ate: fim.toISOString(),
       geradoEm: new Date().toISOString(),
 
       topo: {
