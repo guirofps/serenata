@@ -265,6 +265,31 @@ export default async function handler(req: Req, res: Res) {
       }
     }
 
+    // ── CONTA DO COMPRADOR ───────────────────────────────────
+    // Criada com o e-mail da COMPRA, não com o do quiz. São frequentemente
+    // diferentes (a pessoa digita um no funil e paga com outro), e é o e-mail
+    // da compra que ela vai usar pra entrar. Sem isto, quem paga com e-mail
+    // diferente pede o link de acesso e não recebe nada.
+    if (email && musica) {
+      try {
+        await sb.auth.admin.createUser({
+          email,
+          email_confirm: true,
+          user_metadata: nomeCliente ? { nome: nomeCliente } : {},
+        });
+      } catch {
+        // Já existe: seguimos e apenas amarramos a música.
+      }
+      try {
+        const { data: conta } = await sb.from("users").select("id").eq("email", email).maybeSingle();
+        if (conta?.id) {
+          await sb.from("musicas").update({ user_id: conta.id }).eq("id", musica.id);
+        }
+      } catch (err) {
+        console.error("[perfectpay] conta não vinculada:", err);
+      }
+    }
+
     // Pago sem música casada: dinheiro entrou e pedido registrado, mas não há o
     // que entregar automático. Falha alto na auditoria pra tratativa humana.
     if (!musica) {
