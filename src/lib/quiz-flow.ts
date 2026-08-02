@@ -29,6 +29,13 @@ export const QUIZ_FLOW: FlowStep[] = [
       { value: "avo_m", label: "Avô", emoji: "👴" },
       { value: "irma", label: "Irmã", emoji: "🤝" },
       { value: "irmao", label: "Irmão", emoji: "🤝" },
+      // Netos e família entraram porque os DADOS pediram: as 3 pessoas que
+      // marcaram "Outro" escreveram "Familia", "Fami lia" e "Amanda minha
+      // neta". Sem o chip certo, a pessoa enfia a relação dentro do campo do
+      // nome, e é esse campo que vai ser cantado.
+      { value: "neta", label: "Neta", emoji: "🧒" },
+      { value: "neto", label: "Neto", emoji: "🧒" },
+      { value: "familia", label: "Família", emoji: "🏡" },
       { value: "amiga", label: "Amiga", emoji: "🫂" },
       { value: "amigo", label: "Amigo", emoji: "🫂" },
       { value: "pet", label: "Pet", emoji: "🐾" },
@@ -39,13 +46,15 @@ export const QUIZ_FLOW: FlowStep[] = [
     id: "nome",
     kind: "question",
     block: "Pra quem",
-    text: "Me conta o nome dela ou dele",
+    text: "Como você chama essa pessoa?",
     subtext:
-      "É esse nome que vai ser cantado. Se a pronúncia não for óbvia, escreva como se fala (ex.: Thaís → ta-ís).",
+      "Escreva do jeito que você chama no dia a dia, apelido vale. Se a pronúncia não for óbvia, escreva como se fala (ex.: Thaís → ta-ís).",
     field: "nome",
     input: "text",
-    placeholder: "O primeiro nome já basta",
+    placeholder: "Zé, mãe, vó Rosa...",
     maxLength: 40,
+    eco: "É assim que vai ser cantado",
+    cortarComposto: true,
   },
   {
     id: "ocasiao",

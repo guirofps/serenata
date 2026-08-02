@@ -28,7 +28,20 @@ export type QuestionStep = {
   field: string; // chave em que a resposta é gravada (respostas[field])
 } & (
   | { input: "chips"; options: ChipOption[]; multi?: boolean }
-  | { input: "text"; placeholder?: string; maxLength?: number }
+  | {
+      input: "text";
+      placeholder?: string;
+      maxLength?: number;
+      /**
+       * Mostra AO VIVO como o valor vai ser usado no produto final.
+       * No campo do nome isso não é enfeite: 14% escrevem nome e sobrenome
+       * (medido em 73 respostas) e o Suno canta exatamente o que recebe —
+       * saiu "Carlos Henrique, meu presente de Deus" numa música entregue.
+       */
+      eco?: string;
+      /** Oferece cortar pro primeiro nome quando a pessoa escreve mais de um. */
+      cortarComposto?: boolean;
+    }
   | {
       // Campo de história: textarea com validação anti-lixo + opção de áudio.
       input: "story";

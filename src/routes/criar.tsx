@@ -20,6 +20,7 @@ import { trackEvent, trackEventOnce } from "@/lib/track";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { ChipsStep } from "@/components/quiz/ChipsStep";
 import { FaixaPresente } from "@/components/quiz/FaixaPresente";
+import { CampoNome } from "@/components/quiz/CampoNome";
 import { StoryStep, storyIsValid } from "@/components/quiz/StoryStep";
 import { RevealStep } from "@/components/quiz/RevealStep";
 import { Button } from "@/components/ui/button";
@@ -144,16 +145,25 @@ function Criar() {
                 onChange={(v) => setResposta(step.field, v)}
               />
             )}
-            {step.input === "text" && (
-              <Input
-                value={(respostas[step.field] as string) ?? ""}
-                onChange={(e) => setResposta(step.field, e.target.value)}
-                placeholder={step.placeholder}
-                maxLength={step.maxLength}
-                className="mx-auto max-w-md text-center"
-                autoFocus
-              />
-            )}
+            {step.input === "text" &&
+              (step.eco || step.cortarComposto ? (
+                // Campos que precisam mostrar como o valor sai no produto
+                // (hoje só o nome, que é cantado literalmente).
+                <CampoNome
+                  step={step}
+                  value={respostas[step.field] as string}
+                  onChange={(v) => setResposta(step.field, v)}
+                />
+              ) : (
+                <Input
+                  value={(respostas[step.field] as string) ?? ""}
+                  onChange={(e) => setResposta(step.field, e.target.value)}
+                  placeholder={step.placeholder}
+                  maxLength={step.maxLength}
+                  className="mx-auto max-w-md text-center"
+                  autoFocus
+                />
+              ))}
             {step.input === "story" && (
               <StoryStep
                 step={step}
