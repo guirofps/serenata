@@ -34,7 +34,15 @@ export type QuestionStep = {
       input: "story";
       placeholder?: string;
       minChars: number; // mínimo real (LoveTune usa 150)
-      triggers?: string[]; // chips-gatilho de detalhe concreto
+      /**
+       * Chips-gatilho de detalhe concreto. Cada um DESTRAVA o campo: tocar
+       * insere o começo da frase no textarea, e a pessoa só completa.
+       *
+       * Eram `string[]` e viravam <span> decorativo: dava pra tocar e nada
+       * acontecia. Num passo onde 14 de 49 pessoas desistem (medido 01/08),
+       * enfeite que parece botão é pior que nada.
+       */
+      triggers?: Array<{ rotulo: string; inicio: string }>;
       allowAudio?: boolean;
     }
 );

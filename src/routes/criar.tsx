@@ -19,6 +19,7 @@ import { captureLeadProgress } from "@/lib/lead-capture";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { ChipsStep } from "@/components/quiz/ChipsStep";
+import { FaixaPresente } from "@/components/quiz/FaixaPresente";
 import { StoryStep, storyIsValid } from "@/components/quiz/StoryStep";
 import { RevealStep } from "@/components/quiz/RevealStep";
 import { Button } from "@/components/ui/button";
@@ -104,7 +105,7 @@ function Criar() {
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col px-4 py-6">
       {/* Header: voltar + progresso */}
-      <div className="mb-8 flex items-center gap-3">
+      <div className="mb-4 flex items-center gap-3">
         {idx > 0 && (
           <button onClick={goPrev} className="text-muted-foreground hover:text-foreground">
             <ChevronLeft className="h-5 w-5" />
@@ -117,6 +118,10 @@ function Criar() {
           </span>
         )}
       </div>
+
+      {/* O entregável, visível o quiz inteiro. Some na revelação, que já
+          mostra o presente de verdade e tem argumento próprio. */}
+      {!isReveal(step) && <FaixaPresente nome={respostas.nome as string | undefined} />}
 
       {/* Corpo do passo */}
       <div className="flex flex-1 flex-col justify-center">
@@ -154,6 +159,7 @@ function Criar() {
                 step={step}
                 value={respostas[step.field] as string}
                 onChange={(v) => setResposta(step.field, v)}
+                preencher={(s) => preencher(s) ?? s}
               />
             )}
           </div>

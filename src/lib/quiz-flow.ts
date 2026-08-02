@@ -141,13 +141,19 @@ export const QUIZ_FLOW: FlowStep[] = [
     placeholder: "Aquele momento, lugar ou mania que é a cara de vocês...",
     minChars: 120,
     allowAudio: true,
+    // Cada gatilho começa a frase pela pessoa. O campo em branco é o que
+    // trava: com o começo escrito, sobra completar, que é fácil.
+    // `{nome}` é trocado pelo nome real. Todas as frases foram escritas SEM
+    // pronome de propósito: "dela(e)" fica feio e o gênero da relação nem
+    // sempre resolve (pet, outro). Com o nome no lugar, some o problema e a
+    // frase fica mais pessoal ainda.
     triggers: [
-      "um apelido",
-      "uma comida",
-      "um lugar",
-      "uma mania",
-      "uma frase que ela vive falando",
-      "uma música",
+      { rotulo: "um apelido", inicio: "O apelido que eu dou pra {nome} é " },
+      { rotulo: "uma comida", inicio: "A comida que me lembra {nome} é " },
+      { rotulo: "um lugar", inicio: "Tem um lugar que é a cara da gente: " },
+      { rotulo: "uma mania", inicio: "Uma mania que só {nome} tem: " },
+      { rotulo: "uma frase", inicio: "Uma frase que {nome} vive falando é " },
+      { rotulo: "uma música", inicio: "Tem uma música que me lembra {nome}: " },
     ],
   },
   {

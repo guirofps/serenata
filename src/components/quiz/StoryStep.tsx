@@ -17,7 +17,10 @@ export function validateStory(
 ): { ok: boolean; message: string } {
   const t = (value ?? "").trim();
 
-  if (t.length === 0) return { ok: false, message: `Escreva pelo menos ${step.minChars} caracteres` };
+  // Campo vazio NÃO leva cobrança. "Escreva pelo menos 120 caracteres" antes
+  // de a pessoa digitar a primeira letra lê como tarefa de casa, e este é o
+  // passo onde 14 de 49 desistem. Vira cota só depois que ela começou.
+  if (t.length === 0) return { ok: false, message: "Duas ou três linhas já bastam" };
 
   const faltam = step.minChars - t.length;
   if (faltam > 0)
@@ -46,10 +49,13 @@ export function StoryStep({
   step,
   value,
   onChange,
+  preencher = (s) => s,
 }: {
   step: StoryQuestion;
   value: string | undefined;
   onChange: (v: string) => void;
+  /** Troca {nome} pelo nome do homenageado (vem da rota). */
+  preencher?: (s: string) => string;
 }) {
   const [touched, setTouched] = useState(false);
   const text = value ?? "";
@@ -77,26 +83,60 @@ export function StoryStep({
     onChange(novo);
   });
 
+  // Gatilho tocado: escreve o COMEÇO da frase e devolve o cursor pro fim,
+  // com o teclado já aberto. É a diferença entre "escreva sobre a memória de
+  // vocês" (página em branco, trava) e "O apelido que eu dou pra ela é ___"
+  // (só completar).
+  const areaRef = useRef<HTMLTextAreaElement>(null);
+  function usarGatilho(inicio: string) {
+    const base = vivoRef.current.trimEnd();
+    // Tocar duas vezes no mesmo gatilho não repete a frase: se ela já é a
+    // última linha e ainda está vazia, só devolve o cursor pra lá.
+    if (base.endsWith(inicio.trimEnd())) {
+      areaRef.current?.focus();
+      return;
+    }
+    const novo = base ? `${base}\n${inicio}` : inicio;
+    vivoRef.current = novo;
+    onChange(novo);
+    trackEventOnce("gatilho_usado", step.id);
+    requestAnimationFrame(() => {
+      const el = areaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(novo.length, novo.length);
+      el.scrollTop = el.scrollHeight;
+    });
+  }
+
   return (
     <div className="space-y-3">
       {step.triggers && step.triggers.length > 0 && (
-        <div className="flex flex-wrap justify-center gap-2">
-          {step.triggers.map((tr) => (
-            <span
-              key={tr}
-              className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground"
-            >
-              {tr}
-            </span>
-          ))}
-        </div>
+        <>
+          <p className="text-center text-xs text-muted-foreground">
+            Sem ideia? Toque num pra começar a frase.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {step.triggers.map((tr) => (
+              <button
+                key={tr.rotulo}
+                type="button"
+                onClick={() => usarGatilho(preencher(tr.inicio))}
+                className="rounded-full border border-primary/25 bg-secondary px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground active:scale-95"
+              >
+                {tr.rotulo}
+              </button>
+            ))}
+          </div>
+        </>
       )}
       <div className="relative">
         <Textarea
+          ref={areaRef}
           value={text}
           onChange={(e) => onChange(e.target.value)}
           onBlur={() => setTouched(true)}
-          placeholder={step.placeholder}
+          placeholder={step.placeholder ? preencher(step.placeholder) : undefined}
           className={cn("min-h-40", ditado.gravando && "ring-2 ring-primary")}
         />
         {/* Preview do que está sendo falado (ainda não confirmado) */}
