@@ -101,35 +101,47 @@ Pronta em até 30 minutos. Pagamento único de R$ 37, não é assinatura.
 
 ## 4b. As imagens
 
-A Perfect Pay pede dois formatos, cada um com um papel diferente:
+São três slots, cada um com um papel:
 
-| Onde | Tamanho | Fonte | PNG gerado |
-|---|---|---|---|
-| Abaixo do resumo | 460 x 630 | `docs/checkout/resumo-460x630.html` | `materiais/checkout-resumo-460x630.png` |
-| Banner do topo | 1200 x 300 | `docs/checkout/banner-1200x300.html` | `materiais/checkout-banner-1200x300.png` |
+| Onde | Tamanho | Arquivo |
+|---|---|---|
+| Capa do produto | 1080 x 1080 | `materiais/pp-capa-1080x1080.png` |
+| Abaixo do resumo | 460 x 630 | `materiais/pp-resumo-460x630.png` |
+| Banner do topo | 1200 x 300 | `materiais/pp-banner-1200x300.png` |
 
-Teto de 2 MB nos dois; os nossos ficam abaixo de 250 KB.
+Teto de 2 MB em todos.
 
-**Por que HTML e não gerador de imagem.** Modelo de imagem erra acento e til em
-português ("karaokê", "versões", "não é assinatura" saem quebrados), e não tem
-como usar a Fraunces e a Manrope de verdade nem os valores exatos de
-`src/lib/marca.ts`. Em HTML o texto sai correto por construção e a paleta é a
-mesma do site.
+**Geradas no Higgsfield** (`nano_banana_pro`, o modelo de renderização de
+texto), com DUAS referências anexadas: `docs/marca/logo-serenata-sobre-noite.png`
+e a capa antiga, pra logo e paleta virem da marca e não de invenção do modelo.
+Os prompts completos estão no histórico de gerações da conta.
 
-**Como regerar** depois de mexer no preço ou no texto (o Chrome já está na
-máquina, não precisa instalar nada):
+Duas notas de operação que custaram tentativa:
+
+1. **Anexar as referências de verdade.** Citar "reference image 1" no prompt
+   não faz nada sozinho: sem o array `medias` com os `media_id`, o modelo
+   inventa uma logo parecida mas errada.
+2. **Nunca pedir pra recolorir a logo.** Na primeira capa 1:1 eu pedi "render
+   the logo in warm gold and cream" achando que ia destacar sobre o fundo
+   escuro. Ao recolorir, o modelo REDESENHA: saiu só o letreiro SERENATA numa
+   serifa diferente, sem a linha de batimento e sem o coração. A instrução que
+   funciona é "reproduce it EXACTLY as given, do NOT redesign or recolor",
+   descrevendo as duas partes da marca (a linha de ECG que vira coração e o
+   letreiro) pra ele não esquecer nenhuma.
+3. **O modelo só gera em proporções fixas** (1:1, 3:4, 21:9), e os slots pedem
+   0,730 e 4,0. O corte é obrigatório e está em
+   `scratch/cortar-para-checkout.ps1`. No banner o prompt pede pra deixar o
+   topo e o rodapé vazios justamente pra o corte de 21:9 para 4:1 não comer
+   texto.
+
+**Alternativa em HTML**, mantida em `docs/checkout/` (`resumo-460x630.html`,
+`banner-1200x300.html`, `quadrado-1080.html`): rende texto exato e usa a
+Fraunces/Manrope de verdade, mas o acabamento fica mais chapado que o do
+Higgsfield. Serve pra quando o texto precisar mudar rápido sem gerar de novo:
 
 ```bash
 chrome --headless --disable-gpu --hide-scrollbars --screenshot=saida.png --window-size=460,630 --virtual-time-budget=8000 file:///caminho/docs/checkout/resumo-460x630.html
 ```
-
-Trocar `--window-size` e o arquivo para o banner (1200,300). O tamanho da
-janela É o tamanho do PNG, e o HTML trava `html, body` nessas medidas, então
-não tem corte nem sobra.
-
-**Nota de layout do banner:** com 300px de altura, lista em duas colunas
-quebrava frase no meio. Ficou em coluna única com 4 itens, cada um numa linha
-só (`white-space: nowrap`). Se acrescentar item, conferir que ainda cabe.
 
 ---
 
