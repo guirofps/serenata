@@ -43,9 +43,14 @@ export default async function handler(req: Req, res: Res) {
   const host = (req.headers["x-forwarded-host"] as string) ?? (req.headers.host as string);
   const origem = process.env.VITE_APP_URL?.replace(/\/$/, "") ?? `${proto}://${host}`;
 
-  // Token tem formato conhecido (22 hex). Recusar o resto evita virar proxy
-  // de arquivo arbitrário do bucket.
-  if (!/^[a-f0-9]{16,40}$/i.test(token)) return semFoto(res, origem);
+  // Sanidade de formato, não defesa: o caminho do arquivo no bucket vem da
+  // LINHA DO BANCO, nunca da URL, então não existe travessia de caminho a
+  // impedir aqui. A checagem só evita ir ao banco com lixo.
+  //
+  // Charset amplo de propósito: a primeira versão exigia hexadecimal e
+  // rejeitava os tokens dos presentes de exemplo (`expai51378356a9`), que
+  // foram criados à mão e têm letras fora do hex.
+  if (!/^[A-Za-z0-9_-]{8,64}$/.test(token)) return semFoto(res, origem);
 
   try {
     const sb = db();
