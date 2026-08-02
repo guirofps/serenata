@@ -99,6 +99,40 @@ Pronta em até 30 minutos. Pagamento único de R$ 37, não é assinatura.
 
 ---
 
+## 4b. As imagens
+
+A Perfect Pay pede dois formatos, cada um com um papel diferente:
+
+| Onde | Tamanho | Fonte | PNG gerado |
+|---|---|---|---|
+| Abaixo do resumo | 460 x 630 | `docs/checkout/resumo-460x630.html` | `materiais/checkout-resumo-460x630.png` |
+| Banner do topo | 1200 x 300 | `docs/checkout/banner-1200x300.html` | `materiais/checkout-banner-1200x300.png` |
+
+Teto de 2 MB nos dois; os nossos ficam abaixo de 250 KB.
+
+**Por que HTML e não gerador de imagem.** Modelo de imagem erra acento e til em
+português ("karaokê", "versões", "não é assinatura" saem quebrados), e não tem
+como usar a Fraunces e a Manrope de verdade nem os valores exatos de
+`src/lib/marca.ts`. Em HTML o texto sai correto por construção e a paleta é a
+mesma do site.
+
+**Como regerar** depois de mexer no preço ou no texto (o Chrome já está na
+máquina, não precisa instalar nada):
+
+```bash
+chrome --headless --disable-gpu --hide-scrollbars --screenshot=saida.png --window-size=460,630 --virtual-time-budget=8000 file:///caminho/docs/checkout/resumo-460x630.html
+```
+
+Trocar `--window-size` e o arquivo para o banner (1200,300). O tamanho da
+janela É o tamanho do PNG, e o HTML trava `html, body` nessas medidas, então
+não tem corte nem sobra.
+
+**Nota de layout do banner:** com 300px de altura, lista em duas colunas
+quebrava frase no meio. Ficou em coluna única com 4 itens, cada um numa linha
+só (`white-space: nowrap`). Se acrescentar item, conferir que ainda cabe.
+
+---
+
 ## 5. O que NÃO escrever
 
 O Google Ads derruba conta por alegação que não se sustenta, e a Perfect Pay

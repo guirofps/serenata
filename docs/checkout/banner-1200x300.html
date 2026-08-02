@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Checkout · banner 1200x300</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* BANNER do topo do checkout: 1200x300, proporção 4:1.
+     Com 300px de altura não cabe lista empilhada nem título de três linhas.
+     O layout vira horizontal: marca e promessa à esquerda, entregáveis em
+     duas colunas no meio, preço à direita. */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 300px; overflow: hidden; }
+
+  .banner {
+    width: 1200px; height: 300px; position: relative; overflow: hidden;
+    background:
+      radial-gradient(70% 160% at 92% 0%, oklch(0.58 0.14 40 / 0.5) 0%, transparent 58%),
+      radial-gradient(55% 150% at 4% 100%, oklch(0.45 0.15 18 / 0.72) 0%, transparent 62%),
+      linear-gradient(100deg, #2a1216 0%, #1a0f12 52%, #140b0e 100%);
+    color: #f7f0e8; font-family: Manrope, system-ui, sans-serif;
+    display: flex; align-items: center; gap: 40px; padding: 0 54px;
+  }
+  .brilho { position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; }
+  .b1 { width: 300px; height: 300px; top: -120px; right: 120px; background: oklch(0.78 0.10 82); opacity: 0.38; }
+  .b2 { width: 260px; height: 260px; bottom: -130px; left: -60px; background: oklch(0.55 0.16 18); opacity: 0.5; }
+  .fio { position: absolute; inset: 0 0 auto 0; height: 5px;
+         background: linear-gradient(90deg, oklch(0.55 0.16 18), oklch(0.78 0.10 82)); }
+
+  .esq { position: relative; z-index: 2; flex: 0 0 auto; }
+  .marca { font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 30px; line-height: 1;
+           background: linear-gradient(100deg, oklch(0.88 0.09 84), oklch(0.72 0.11 60));
+           -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sobre { font-size: 9.5px; letter-spacing: 0.3em; text-transform: uppercase; font-weight: 700;
+           color: oklch(0.82 0.09 78); margin-top: 7px; }
+  h1 { font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 36px;
+       line-height: 1.14; letter-spacing: -0.015em; margin-top: 14px; white-space: nowrap; }
+  h1 .ouro { background: linear-gradient(100deg, oklch(0.89 0.10 84), oklch(0.75 0.12 58));
+             -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  .risco { position: relative; z-index: 2; width: 1px; height: 172px; flex: 0 0 auto;
+           background: linear-gradient(180deg, transparent, rgba(247,240,232,0.28), transparent); }
+
+  /* Coluna ÚNICA, não duas: com 300px de altura e 466px de largura útil, duas
+     colunas obrigavam a quebrar linha no meio da frase e o bloco ficava
+     desalinhado. Quatro itens de uma linha cada lêem melhor que seis picados. */
+  ul { position: relative; z-index: 2; list-style: none; flex: 1;
+       display: flex; flex-direction: column; gap: 14px; justify-content: center; }
+  li { display: flex; align-items: center; gap: 11px; font-size: 16px; line-height: 1.2;
+       white-space: nowrap; color: rgba(247,240,232,0.95); }
+  .ponto { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto;
+           background: oklch(0.82 0.11 80); box-shadow: 0 0 9px oklch(0.82 0.11 80 / 0.9); }
+
+  .dir { position: relative; z-index: 2; flex: 0 0 auto; text-align: center; }
+  .preco { display: inline-flex; align-items: baseline; gap: 7px;
+           padding: 14px 30px; border-radius: 999px; color: #22120f; font-weight: 700;
+           background: linear-gradient(100deg, oklch(0.89 0.11 84), oklch(0.77 0.13 62));
+           box-shadow: 0 12px 30px oklch(0.55 0.16 18 / 0.5); }
+  .preco b { font-size: 30px; letter-spacing: -0.01em; }
+  .preco span { font-size: 12px; font-weight: 600; opacity: 0.78; }
+  /* Folga maior: com 11px o texto entrava na sombra do botão e sumia. */
+  .rodape { margin-top: 18px; font-size: 11.5px; color: rgba(247,240,232,0.6); }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <div class="fio"></div>
+    <div class="brilho b1"></div>
+    <div class="brilho b2"></div>
+
+    <div class="esq">
+      <div class="marca">Serenata</div>
+      <p class="sobre">presente que se ouve</p>
+      <h1>Música personalizada<br><span class="ouro">+ página presente</span></h1>
+    </div>
+
+    <div class="risco"></div>
+
+    <ul>
+      <li><i class="ponto"></i>A música completa cantada, em 2 versões</li>
+      <li><i class="ponto"></i>A página presente com as fotos de vocês</li>
+      <li><i class="ponto"></i>O karaokê, com a letra acendendo no ritmo</li>
+      <li><i class="ponto"></i>Link, QR Code e o MP3 pra baixar</li>
+    </ul>
+
+    <div class="dir">
+      <div class="preco"><b>R$ 37</b><span>único</span></div>
+      <p class="rodape">Pronta em até 30 min</p>
+    </div>
+  </div>
+</body>
+</html>

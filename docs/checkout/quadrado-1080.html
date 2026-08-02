@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Card do checkout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Card 1080x1080 pro checkout da Perfect Pay. HTML em vez de gerador de
+     imagem porque o texto precisa sair EXATO em português, e porque assim
+     usa a fonte e a paleta reais da marca (marca.ts). */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #444; display: grid; place-items: center; min-height: 100vh; }
+
+  .card {
+    width: 1080px; height: 1080px;
+    position: relative; overflow: hidden;
+    background:
+      radial-gradient(120% 90% at 85% 8%, oklch(0.58 0.14 40 / 0.55) 0%, transparent 55%),
+      radial-gradient(100% 80% at 10% 100%, oklch(0.45 0.15 18 / 0.65) 0%, transparent 60%),
+      linear-gradient(160deg, #2a1216 0%, #1a0f12 55%, #140b0e 100%);
+    color: #f7f0e8;
+    font-family: Manrope, system-ui, sans-serif;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 92px 96px;
+  }
+
+  /* Bokeh dourado: a "luz de janela" da marca. */
+  .brilho { position: absolute; border-radius: 50%; filter: blur(120px); pointer-events: none; }
+  .b1 { width: 460px; height: 460px; top: -140px; right: -120px; background: oklch(0.78 0.10 82); opacity: 0.42; }
+  .b2 { width: 380px; height: 380px; bottom: -150px; left: -110px; background: oklch(0.55 0.16 18); opacity: 0.5; }
+
+  /* Fio vinho→ouro: a mesma assinatura do site e dos e-mails. */
+  .fio { position: absolute; inset: 0 0 auto 0; height: 8px;
+         background: linear-gradient(90deg, oklch(0.55 0.16 18), oklch(0.78 0.10 82)); }
+  .moldura { position: absolute; inset: 30px; border: 1px solid rgba(247,240,232,0.16); border-radius: 22px; pointer-events: none; }
+
+  .conteudo { position: relative; z-index: 2; width: 100%; text-align: center; }
+
+  .marca { font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 62px;
+           letter-spacing: 0.01em; background: linear-gradient(100deg, oklch(0.86 0.09 84), oklch(0.72 0.11 60));
+           -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sobre { font-size: 21px; letter-spacing: 0.34em; text-transform: uppercase;
+           color: oklch(0.82 0.09 78); margin-top: 20px; font-weight: 600; }
+
+  h1 { font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 78px;
+       line-height: 1.08; letter-spacing: -0.02em; margin-top: 26px; }
+  h1 .ouro { background: linear-gradient(100deg, oklch(0.88 0.10 84), oklch(0.74 0.12 58));
+             -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  ul { list-style: none; margin: 52px auto 0; width: 660px; text-align: left; }
+  li { display: flex; align-items: center; gap: 20px; font-size: 30px; line-height: 1.35;
+       padding: 15px 0; border-bottom: 1px solid rgba(247,240,232,0.12); color: rgba(247,240,232,0.94); }
+  li:last-child { border-bottom: 0; }
+  .ponto { width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto;
+           background: oklch(0.82 0.11 80); box-shadow: 0 0 18px oklch(0.82 0.11 80 / 0.85); }
+
+  .preco { margin-top: 52px; display: inline-flex; align-items: baseline; gap: 14px;
+           padding: 22px 58px; border-radius: 999px; color: #22120f; font-weight: 700;
+           background: linear-gradient(100deg, oklch(0.88 0.11 84), oklch(0.76 0.13 62));
+           box-shadow: 0 18px 48px oklch(0.55 0.16 18 / 0.45); }
+  .preco b { font-size: 46px; letter-spacing: -0.01em; }
+  .preco span { font-size: 22px; font-weight: 600; opacity: 0.78; }
+
+  .rodape { margin-top: 26px; font-size: 21px; color: rgba(247,240,232,0.56); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="fio"></div>
+    <div class="brilho b1"></div>
+    <div class="brilho b2"></div>
+    <div class="moldura"></div>
+
+    <div class="conteudo">
+      <div class="marca">Serenata</div>
+      <p class="sobre">presente que se ouve</p>
+
+      <h1>Música personalizada<br><span class="ouro">+ página presente</span></h1>
+
+      <ul>
+        <li><i class="ponto"></i>A música completa cantada, em 2 versões</li>
+        <li><i class="ponto"></i>A página presente com as fotos de vocês</li>
+        <li><i class="ponto"></i>O karaokê, com a letra acendendo no ritmo</li>
+        <li><i class="ponto"></i>Link e QR Code pra presentear</li>
+        <li><i class="ponto"></i>O MP3 pra baixar e guardar</li>
+      </ul>
+
+      <div class="preco"><b>R$ 37</b><span>pagamento único</span></div>
+      <p class="rodape">Pronta em até 30 minutos. Não é assinatura.</p>
+    </div>
+  </div>
+</body>
+</html>

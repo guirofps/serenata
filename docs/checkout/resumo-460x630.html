@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Checkout · imagem do resumo 460x630</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Imagem que fica ABAIXO DO RESUMO no checkout da Perfect Pay.
+     Tamanho exigido: 460x630. Tudo dimensionado em px absoluto porque a tela
+     é fixa: não existe responsivo aqui, existe encaixe. */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 460px; height: 630px; overflow: hidden; }
+
+  .card {
+    width: 460px; height: 630px; position: relative; overflow: hidden;
+    background:
+      radial-gradient(120% 80% at 88% 4%, oklch(0.58 0.14 40 / 0.55) 0%, transparent 55%),
+      radial-gradient(95% 70% at 6% 100%, oklch(0.45 0.15 18 / 0.7) 0%, transparent 62%),
+      linear-gradient(160deg, #2a1216 0%, #1a0f12 55%, #140b0e 100%);
+    color: #f7f0e8; font-family: Manrope, system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 34px 30px 30px;
+  }
+  .brilho { position: absolute; border-radius: 50%; filter: blur(70px); pointer-events: none; }
+  .b1 { width: 230px; height: 230px; top: -80px; right: -70px; background: oklch(0.78 0.10 82); opacity: 0.4; }
+  .b2 { width: 200px; height: 200px; bottom: -85px; left: -60px; background: oklch(0.55 0.16 18); opacity: 0.5; }
+  .fio { position: absolute; inset: 0 0 auto 0; height: 5px;
+         background: linear-gradient(90deg, oklch(0.55 0.16 18), oklch(0.78 0.10 82)); }
+  .moldura { position: absolute; inset: 14px; border: 1px solid rgba(247,240,232,0.15); border-radius: 14px; }
+
+  .conteudo { position: relative; z-index: 2; width: 100%; text-align: center;
+              display: flex; flex-direction: column; height: 100%; }
+
+  .marca { font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 33px; line-height: 1;
+           background: linear-gradient(100deg, oklch(0.88 0.09 84), oklch(0.72 0.11 60));
+           -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sobre { font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; font-weight: 700;
+           color: oklch(0.82 0.09 78); margin-top: 9px; }
+
+  h1 { font-family: Fraunces, Georgia, serif; font-weight: 500; font-size: 35px;
+       line-height: 1.12; letter-spacing: -0.015em; margin-top: 16px; }
+  h1 .ouro { background: linear-gradient(100deg, oklch(0.89 0.10 84), oklch(0.75 0.12 58));
+             -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  ul { list-style: none; margin: 24px 0 0; text-align: left; flex: 1; }
+  li { display: flex; align-items: center; gap: 11px; font-size: 15.5px; line-height: 1.3;
+       padding: 11px 2px; border-bottom: 1px solid rgba(247,240,232,0.13);
+       color: rgba(247,240,232,0.95); }
+  li:last-child { border-bottom: 0; }
+  .ponto { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto;
+           background: oklch(0.82 0.11 80); box-shadow: 0 0 10px oklch(0.82 0.11 80 / 0.9); }
+
+  .preco { display: inline-flex; align-items: baseline; gap: 8px; align-self: center;
+           padding: 13px 32px; border-radius: 999px; color: #22120f; font-weight: 700;
+           background: linear-gradient(100deg, oklch(0.89 0.11 84), oklch(0.77 0.13 62));
+           box-shadow: 0 10px 26px oklch(0.55 0.16 18 / 0.5); }
+  .preco b { font-size: 27px; letter-spacing: -0.01em; }
+  .preco span { font-size: 12.5px; font-weight: 600; opacity: 0.78; }
+  .rodape { margin-top: 13px; font-size: 12px; color: rgba(247,240,232,0.55); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="fio"></div>
+    <div class="brilho b1"></div>
+    <div class="brilho b2"></div>
+    <div class="moldura"></div>
+    <div class="conteudo">
+      <div class="marca">Serenata</div>
+      <p class="sobre">presente que se ouve</p>
+      <h1>Música<br>personalizada<br><span class="ouro">+ página presente</span></h1>
+      <ul>
+        <li><i class="ponto"></i>A música completa cantada</li>
+        <li><i class="ponto"></i>A página com as fotos de vocês</li>
+        <li><i class="ponto"></i>Karaokê no ritmo da música</li>
+        <li><i class="ponto"></i>Link e QR Code pra presentear</li>
+        <li><i class="ponto"></i>O MP3 pra baixar e guardar</li>
+      </ul>
+      <div class="preco"><b>R$ 37</b><span>pagamento único</span></div>
+      <p class="rodape">Pronta em até 30 minutos</p>
+    </div>
+  </div>
+</body>
+</html>
