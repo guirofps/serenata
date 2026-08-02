@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>og fallback</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Prévia do link quando o presente ainda NÃO tem foto. Sem isto o WhatsApp
+     cai no ícone do site, que não diz nada.
+     QUADRADO 1200x1200 de propósito: as fotos dos presentes são quadradas
+     (o editor corta assim) e o og:image:width/height é declarado uma vez só
+     na meta tag. Fallback de proporção diferente faria o robô receber uma
+     imagem que não bate com o que foi anunciado. */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 1200px; overflow: hidden; }
+  .card {
+    width: 1200px; height: 1200px; position: relative; overflow: hidden;
+    background:
+      radial-gradient(70% 140% at 88% 6%, oklch(0.58 0.14 40 / 0.5) 0%, transparent 58%),
+      radial-gradient(60% 130% at 6% 100%, oklch(0.45 0.15 18 / 0.7) 0%, transparent 62%),
+      linear-gradient(150deg, #2a1216 0%, #1a0f12 55%, #140b0e 100%);
+    color: #f7f0e8; font-family: Manrope, system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 0 90px;
+  }
+  .brilho { position: absolute; border-radius: 50%; filter: blur(90px); pointer-events: none; }
+  .b1 { width: 340px; height: 340px; top: -130px; right: -80px; background: oklch(0.78 0.10 82); opacity: 0.4; }
+  .fio { position: absolute; inset: 0 0 auto 0; height: 6px;
+         background: linear-gradient(90deg, oklch(0.55 0.16 18), oklch(0.78 0.10 82)); }
+  .marca { position: relative; z-index: 2; font-family: Fraunces, Georgia, serif; font-weight: 500;
+           font-size: 40px; line-height: 1;
+           background: linear-gradient(100deg, oklch(0.88 0.09 84), oklch(0.72 0.11 60));
+           -webkit-background-clip: text; background-clip: text; color: transparent; }
+  h1 { position: relative; z-index: 2; font-family: Fraunces, Georgia, serif; font-weight: 500;
+       font-size: 74px; line-height: 1.1; letter-spacing: -0.02em; margin-top: 26px; }
+  h1 .ouro { background: linear-gradient(100deg, oklch(0.89 0.10 84), oklch(0.75 0.12 58));
+             -webkit-background-clip: text; background-clip: text; color: transparent; }
+  p { position: relative; z-index: 2; margin-top: 22px; font-size: 24px; color: rgba(247,240,232,0.66); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="fio"></div>
+    <div class="brilho b1"></div>
+    <div class="marca">Serenata</div>
+    <h1>Alguém fez uma<br><span class="ouro">música pra você</span></h1>
+    <p>Toque para ouvir</p>
+  </div>
+</body>
+</html>

@@ -7,6 +7,7 @@ import { FotosSincronizadas } from "@/components/presente/FotosSincronizadas";
 import { Efeitos } from "@/components/presente/Efeitos";
 import { FotoAdaptativa } from "@/components/presente/FotoAdaptativa";
 import { Logo } from "@/components/marca/Logo";
+import { MARCA } from "@/lib/marca";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -45,24 +46,44 @@ export const Route = createFileRoute("/p/$token")({
     if (!presente) throw notFound();
     return presente;
   },
-  head: ({ loaderData }) => ({
-    meta: [
-      { title: loaderData ? `${loaderData.titulo} · para ${loaderData.nome}` : "Um presente" },
-      {
-        name: "description",
-        content: loaderData
-          ? `Uma música feita só para ${loaderData.nome}.`
-          : "Uma música feita só para você.",
-      },
-      // O link vai ser colado no WhatsApp: a prévia precisa ser bonita.
-      { property: "og:title", content: loaderData?.titulo ?? "Um presente" },
-      {
-        property: "og:description",
-        content: loaderData ? `Uma música feita só para ${loaderData.nome}.` : "",
-      },
-      { property: "og:type", content: "music.song" },
-    ],
-  }),
+  head: ({ loaderData, params }) => {
+    // A PRÉVIA DO LINK é a primeira coisa que a pessoa homenageada vê: o
+    // link chega no WhatsApp antes da música, da letra, de tudo. Até 01/08
+    // faltava `og:image` aqui, então o WhatsApp caía no ícone do site — na
+    // entrega real gravada naquele dia, a mãe recebeu um coração genérico no
+    // lugar do próprio rosto.
+    //
+    // A imagem é servida por `/api/og/<token>`, que devolve a foto de capa
+    // do presente (ou a primeira da galeria). O `?v=` carrega a data da
+    // última edição: sem ele, trocar a foto depois de mandar o link não
+    // mudaria nada, porque o WhatsApp guarda a prévia por URL.
+    const nome = loaderData?.nome;
+    const titulo = loaderData?.titulo ?? "Um presente";
+    const descricao = nome ? `Uma música feita só para ${nome}.` : "Uma música feita só para você.";
+    const v = loaderData?.personalizadaEm
+      ? `?v=${Date.parse(loaderData.personalizadaEm) || ""}`
+      : "";
+    const imagem = `${MARCA.url}/api/og/${params.token}${v}`;
+
+    return {
+      meta: [
+        { title: nome ? `${titulo} · para ${nome}` : titulo },
+        { name: "description", content: descricao },
+        { property: "og:title", content: nome ? `Uma música para ${nome}` : titulo },
+        { property: "og:description", content: descricao },
+        { property: "og:type", content: "music.song" },
+        { property: "og:image", content: imagem },
+        // O WhatsApp só mostra o cartão GRANDE quando sabe as dimensões e
+        // elas são grandes o bastante. Sem isto vira miniatura ao lado do
+        // texto, que é quase o mesmo que não ter imagem.
+        { property: "og:image:width", content: "1200" },
+        { property: "og:image:height", content: "1200" },
+        { property: "og:image:alt", content: descricao },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:image", content: imagem },
+      ],
+    };
+  },
   component: PaginaPresente,
   notFoundComponent: () => (
     <main className="grid min-h-screen place-items-center bg-[#0d0a08] px-6 text-center">

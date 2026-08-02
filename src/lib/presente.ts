@@ -32,6 +32,12 @@ export type Presente = {
   corDestaque: string | null;
   /** Efeito escolhido pelo comprador (ex.: "coracoes"), ou null. */
   efeito: string | null;
+  /**
+   * Quando o comprador mexeu no presente pela última vez. Serve só de
+   * `?v=` no og:image: sem isso, trocar a foto depois de mandar o link não
+   * adiantaria nada, porque o WhatsApp guarda a prévia por URL.
+   */
+  personalizadaEm: string | null;
 };
 
 // O Suno devolve os marcadores de seção DENTRO das palavras com timestamp:
@@ -61,7 +67,7 @@ export const carregarPresente = createServerFn({ method: "GET" })
     const { data: m } = await db
       .from("musicas")
       .select(
-        "titulo, letra, status, audio_path, audio_path_v2, timestamps, timestamps_v2, duracao_s, quiz_response_id, foto_path, dedicatoria, galeria, versao_preferida, cor_destaque, efeito",
+        "titulo, letra, status, audio_path, audio_path_v2, timestamps, timestamps_v2, duracao_s, quiz_response_id, foto_path, dedicatoria, galeria, versao_preferida, cor_destaque, efeito, personalizada_em",
       )
       .eq("token", data.token)
       .maybeSingle();
@@ -144,5 +150,6 @@ export const carregarPresente = createServerFn({ method: "GET" })
       ),
       corDestaque: m.cor_destaque ?? null,
       efeito: m.efeito ?? null,
+      personalizadaEm: (m.personalizada_em as string | null) ?? null,
     };
   });
