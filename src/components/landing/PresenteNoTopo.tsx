@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Efeitos } from "@/components/presente/Efeitos";
 import { CORES, FONTES } from "@/lib/marca";
-import { Play, ArrowUpRight } from "lucide-react";
+import { Play } from "lucide-react";
 
 // O PRESENTE, ACIMA DA DOBRA.
 //
@@ -11,9 +11,15 @@ import { Play, ArrowUpRight } from "lucide-react";
 // de quem não abre. Ou seja: a coisa que mais faz entrar no funil estava
 // escondida lá embaixo.
 //
-// Este cartão é a MESMA ação, no lugar onde todo mundo olha. Não é print nem
-// mockup: usa o componente Efeitos da página-presente de verdade, e o cartão
-// inteiro é um link que abre um presente real.
+// Este cartão traz o entregável pra onde todo mundo olha. Não é print nem
+// mockup: usa o componente Efeitos da página-presente de verdade.
+//
+// NÃO É CLICÁVEL, de propósito (decisão do dono, 02/08). A versão anterior
+// abria um presente real em outra aba, e a lógica de tirar isso é boa: o
+// herói tem UM trabalho, que é o clique no "Criar minha música". Mandar a
+// pessoa pra outra aba na primeira tela dispersa o tráfego, e quem quiser
+// abrir exemplo encontra a seção de exemplos logo abaixo, com abas por
+// relação. Aqui o cartão só MOSTRA.
 //
 // Movimento por TEMPO e não por @keyframes: keyframes dentro de @layer não
 // pegam no Tailwind v4 e prefers-reduced-motion mata animação CSS inteira.
@@ -28,11 +34,9 @@ const VERSOS = [
 ];
 
 export function PresenteNoTopo({
-  token,
   foto = "/img/exemplos/pai.webp",
   nome = "Antônio",
 }: {
-  token: string;
   foto?: string;
   nome?: string;
 }) {
@@ -44,12 +48,7 @@ export function PresenteNoTopo({
   const ativa = Math.floor((t / 1.4) % VERSOS.length);
 
   return (
-    <a
-      href={`/p/${token}`}
-      target="_blank"
-      rel="noreferrer"
-      className="group mx-auto block w-full max-w-[310px] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.99]"
-    >
+    <div className="mx-auto w-full max-w-[310px]" aria-hidden>
       <div
         className="relative aspect-[4/5] overflow-hidden rounded-[24px] border"
         style={{
@@ -120,10 +119,10 @@ export function PresenteNoTopo({
         </div>
       </div>
 
-      <p className="mt-3 flex items-center justify-center gap-1.5 text-sm font-medium text-[var(--acento)]">
-        Abrir um presente de verdade
-        <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+      {/* Legenda que DESCREVE, não convida a clicar: o convite é o CTA. */}
+      <p className="mt-3 text-center text-sm text-[var(--tinta-suave)]">
+        É isso que a pessoa recebe, no celular dela.
       </p>
-    </a>
+    </div>
   );
 }

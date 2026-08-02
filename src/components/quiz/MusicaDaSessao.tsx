@@ -5,6 +5,7 @@ import { MusicaKaraoke, type PalavraAlinhada } from "@/components/quiz/MusicaKar
 import { KaraokePlayer } from "@/components/quiz/KaraokePlayer";
 import { ProgressoGeracao } from "@/components/quiz/ProgressoGeracao";
 import { OuvirEnquantoEspera } from "@/components/quiz/OuvirEnquantoEspera";
+import { VideoEntrega } from "@/components/quiz/VideoEntrega";
 import { trackEventOnce } from "@/lib/track";
 import { Music } from "lucide-react";
 
@@ -119,6 +120,10 @@ export function MusicaDaSessao({ letra }: { letra: string }) {
   return (
     <div className="space-y-5">
       <ProgressoGeracao pronta={pronta} />
+      {/* Entre a barra e as músicas de propósito: enquanto espera, a pessoa
+          vê o ENTREGÁVEL (o que ela vai enviar) antes de se distrair ouvindo
+          exemplo dos outros. */}
+      <VideoEntrega />
       <OuvirEnquantoEspera />
     </div>
   );

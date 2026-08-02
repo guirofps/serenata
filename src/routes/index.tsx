@@ -185,27 +185,28 @@ function Home() {
             vira uma página que você envia.
           </p>
 
-          {/* O PRESENTE acima da dobra. Quem abre um exemplo entra no quiz
-              2,5x mais (31,4% x 12,7%, medido em 01/08), e essa ação estava
-              enterrada no meio da página. Substitui o antigo botão "Ouvir um
-              exemplo", que só rolava a tela. */}
-          <div className="mt-8 lg:hidden">
-            <PresenteNoTopo token="expai51378356a9" />
+          {/* No CELULAR os dois blocos entram ANTES do botão, nesta ordem:
+              primeiro a emoção (gente real reagindo), depois a explicação (o
+              que você recebe). Estavam depois do CTA, e o vídeo é bom demais
+              pra correr o risco de a pessoa clicar sem ver.
+              A altura extra não custa o CTA: a BarraCTA flutuante aparece
+              assim que o herói sai da tela. */}
+          <div className="mt-8 space-y-8 lg:hidden">
+            <VitrineVideo caption="reações de quem ouviu uma música feita por nós" />
+            <PresenteNoTopo />
           </div>
 
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:mt-9 lg:items-start">
+          {/* UM botão só. O "Ouvir exemplos" saiu: rolava a tela pra longe do
+              CTA, e tudo que ele prometia a pessoa encontra no caminho
+              natural (a seção de exemplos, e o próprio quiz). Menos saída,
+              menos dispersão. */}
+          <div className="mt-8 flex flex-col items-center gap-3 lg:mt-9 lg:items-start">
             <Link
               to="/criar"
               className="cta cta-pulse inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-medium"
             >
               Criar minha música <ArrowRight className="h-4 w-4" />
             </Link>
-            <a
-              href="#exemplo"
-              className="cta-ghost inline-flex items-center gap-2 rounded-full px-6 py-4 text-base"
-            >
-              <Play className="h-4 w-4" fill="currentColor" /> Ouvir exemplos
-            </a>
           </div>
           <p className="mt-4 text-sm text-[var(--tinta-suave)]">
             A letra e um trecho da música são grátis. Você paga só pra ter a
@@ -213,15 +214,11 @@ function Home() {
           </p>
         </div>
 
-          {/* No desktop os dois cabem lado a lado do texto: o presente em
-              cima (é o que faz entrar no funil) e as reações embaixo. No
-              celular o cartão já apareceu junto do título, então aqui só
-              sobra o vídeo. */}
-          <div className="space-y-8">
-            <div className="hidden lg:block">
-              <PresenteNoTopo token="expai51378356a9" />
-            </div>
+          {/* No DESKTOP os dois ficam na coluna da direita, na mesma ordem.
+              No celular já apareceram junto do título, então aqui some. */}
+          <div className="hidden space-y-8 lg:block">
             <VitrineVideo caption="reações de quem ouviu uma música feita por nós" />
+            <PresenteNoTopo />
           </div>
         </div>
       </section>
