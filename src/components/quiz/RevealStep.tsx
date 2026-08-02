@@ -7,6 +7,7 @@ import { trackEvent, trackEventOnce } from "@/lib/track";
 import { irParaCheckout } from "@/lib/checkout";
 import { Button } from "@/components/ui/button";
 import { MusicaDaSessao } from "@/components/quiz/MusicaDaSessao";
+import { PreviaPresente } from "@/components/quiz/PreviaPresente";
 import { EscolherRefrao } from "@/components/quiz/coautoria/EscolherRefrao";
 import { EditorLetra } from "@/components/quiz/coautoria/EditorLetra";
 import { Music, QrCode } from "lucide-react";
@@ -144,8 +145,11 @@ export function RevealStep() {
   if (fase.t === "carregando") {
     const msg = fase.msg === LOADING[0] ? LOADING[loadingIdx] : fase.msg;
     return (
-      <div className="flex flex-col items-center gap-6 py-16 text-center">
-        <Music className="h-10 w-10 animate-pulse text-primary" />
+      <div className="flex flex-col items-center gap-6 py-8 text-center">
+        {/* A espera mostra o PRESENTE, não uma bolinha girando: é o único
+            momento em que a pessoa para e olha, e vem logo antes da tela em
+            que a gente pede dinheiro. */}
+        <PreviaPresente nome={respostas.nome as string | undefined} />
         <p className="text-lg text-muted-foreground">{msg}</p>
       </div>
     );
