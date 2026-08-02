@@ -301,6 +301,13 @@ export const carregarPainel = createServerFn({ method: "POST" })
     );
     const cliquesCheckout = sessoesCheckout.size;
 
+    // Quem chegou na TELA DE OFERTA (existe desde 02/08). Antes dela, o
+    // clique em comprar levava direto pro gateway; por isso o degrau fica
+    // vazio em qualquer recorte anterior, e não é bug.
+    const sessoesOferta = new Set(
+      eventos.filter((e) => e.event_name === "oferta_vista" && e.session_id).map((e) => e.session_id),
+    ).size;
+
     // Músicas que realmente vieram do funil. As de EXEMPLO (as da landing, as
     // dos testes) nascem de um quiz_response criado por script, com
     // furthest_step 0 — ninguém respondeu nada. Contá-las fazia "Recebeu a
@@ -334,7 +341,12 @@ export const carregarPainel = createServerFn({ method: "POST" })
         alcancaram: doFunil.filter((m) => m.status === "pronta").length,
         etapa: "entrega",
       },
-      { id: "checkout", rotulo: "Clicou em comprar", alcancaram: cliquesCheckout, etapa: "venda" },
+      // Dois degraus onde antes havia um. "Viu a oferta" x "foi pro
+      // checkout" separa quem desiste ao ver o preço de quem desiste no
+      // formulário de cartão da Perfect Pay — problemas diferentes, e a
+      // solução de um não serve pro outro.
+      { id: "oferta", rotulo: "Viu a oferta", alcancaram: sessoesOferta, etapa: "venda" },
+      { id: "checkout", rotulo: "Foi pro checkout", alcancaram: cliquesCheckout, etapa: "venda" },
       { id: "venda", rotulo: "PAGOU", alcancaram: pagos.length, etapa: "venda" },
     ];
 

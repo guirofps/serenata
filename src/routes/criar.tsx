@@ -6,6 +6,7 @@ import {
   isContact,
   isReview,
   isReveal,
+  isOferta,
   isSocialProof,
   nextVisibleIndex,
   prevVisibleIndex,
@@ -21,6 +22,7 @@ import { getOrCreateSessionId } from "@/lib/session-context";
 import { ChipsStep } from "@/components/quiz/ChipsStep";
 import { FaixaPresente } from "@/components/quiz/FaixaPresente";
 import { CampoNome } from "@/components/quiz/CampoNome";
+import { TelaOferta } from "@/components/quiz/TelaOferta";
 import { StoryStep, storyIsValid } from "@/components/quiz/StoryStep";
 import { RevealStep } from "@/components/quiz/RevealStep";
 import { Button } from "@/components/ui/button";
@@ -120,9 +122,12 @@ function Criar() {
         )}
       </div>
 
-      {/* O entregável, visível o quiz inteiro. Some na revelação, que já
-          mostra o presente de verdade e tem argumento próprio. */}
-      {!isReveal(step) && <FaixaPresente nome={respostas.nome as string | undefined} />}
+      {/* O entregável, visível o quiz inteiro. Some na revelação (que já
+          mostra o presente de verdade) e na oferta (que lista tudo item por
+          item logo abaixo: repetir ali era só ruído). */}
+      {!isReveal(step) && !isOferta(step) && (
+        <FaixaPresente nome={respostas.nome as string | undefined} />
+      )}
 
       {/* Corpo do passo */}
       <div className="flex flex-1 flex-col justify-center">
@@ -241,10 +246,16 @@ function Criar() {
         )}
 
         {isReveal(step) && <RevealStep />}
+
+        {isOferta(step) && (
+          <TelaOferta
+            aoVoltar={() => navigate({ to: "/criar", search: { step: "reveal" } })}
+          />
+        )}
       </div>
 
-      {/* Rodapé: continuar (some na revisão e no reveal, que têm CTA próprio) */}
-      {!isReview(step) && !isReveal(step) && (
+      {/* Rodapé: continuar (some nos passos que têm CTA próprio) */}
+      {!isReview(step) && !isReveal(step) && !isOferta(step) && (
         <div className="pt-8">
           <Button
             size="lg"

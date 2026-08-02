@@ -190,6 +190,10 @@ export const QUIZ_FLOW: FlowStep[] = [
     id: "reveal",
     kind: "reveal",
   },
+  {
+    id: "oferta",
+    kind: "oferta",
+  },
 ];
 
 // Skip por ID (nunca por offset). Vazio por ora; exemplo de uso quando precisar:

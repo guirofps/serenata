@@ -90,7 +90,32 @@ export type RevealStep = {
   kind: "reveal";
 };
 
-export type FlowStep = QuestionStep | SocialProofStep | ContactStep | ReviewStep | RevealStep;
+// A OFERTA, entre o reveal e o checkout.
+//
+// Existe por dois motivos, e o segundo é o que decide:
+//
+// 1. É a última superfície NOSSA. Depois dela a pessoa cai numa página da
+//    Perfect Pay que é um formulário, e todo o argumento construído no funil
+//    fica pra trás. Aqui ele sobrevive ao pulo.
+// 2. SEPARA dois degraus que hoje estão colados. Com "clicou em comprar" indo
+//    direto pro gateway, não dá pra saber se a pessoa desiste ao ver o preço
+//    ou ao encarar o formulário de cartão — problemas diferentes, soluções
+//    diferentes. Com este passo no meio, o painel passa a distinguir.
+//
+// É passo de FLOW (com URL) e não modal: passo fora da URL é erro herdado dos
+// repos antigos, reload volta pro começo e o "voltar" do celular quebra.
+export type OfertaStep = {
+  id: string;
+  kind: "oferta";
+};
+
+export type FlowStep =
+  | QuestionStep
+  | SocialProofStep
+  | ContactStep
+  | ReviewStep
+  | RevealStep
+  | OfertaStep;
 
 // ─── Type guards ─────────────────────────────────────────────────
 export const isQuestion = (s: FlowStep): s is QuestionStep => s.kind === "question";
@@ -98,6 +123,7 @@ export const isSocialProof = (s: FlowStep): s is SocialProofStep => s.kind === "
 export const isContact = (s: FlowStep): s is ContactStep => s.kind === "contact";
 export const isReview = (s: FlowStep): s is ReviewStep => s.kind === "review";
 export const isReveal = (s: FlowStep): s is RevealStep => s.kind === "reveal";
+export const isOferta = (s: FlowStep): s is OfertaStep => s.kind === "oferta";
 
 // ─── Predicado de skip por ID ────────────────────────────────────
 // Um passo pode ser pulado com base nas respostas até aqui. A chave é o ID do

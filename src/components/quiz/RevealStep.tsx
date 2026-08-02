@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { gerarRefroes, montarLetra, finalizarLetra, type RefroesGerados } from "@/lib/coautoria";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import type { LetraGerada } from "@/lib/letra-prompt";
@@ -230,30 +231,29 @@ export function RevealStep() {
   );
 }
 
-// O CHECKOUT de verdade (era fake door até a Perfect Pay estar configurada).
-// Leva `src` (session_id) e os UTMs, que é como o webhook casa o pagamento com
-// esta música e a Utmify atribui a venda.
+// Daqui NÃO se vai mais direto pro gateway: vai pra tela de oferta
+// (`?step=oferta`), que é a última superfície nossa antes do formulário da
+// Perfect Pay. O `checkout_click` mudou de lugar junto — ele agora marca o
+// clique em PAGAR, não o clique em "quero saber". Assim o funil separa quem
+// desiste ao ver o preço de quem desiste no formulário de cartão.
 function IrPagar({ nome }: { nome: string }) {
-  const [indo, setIndo] = useState(false);
-  const email = useQuizStore((s) => s.email);
+  const navigate = useNavigate();
 
   return (
     <div>
       <Button
         size="lg"
         className="cta w-full rounded-full border-0"
-        disabled={indo}
         onClick={() => {
-          setIndo(true);
-          trackEvent("checkout_click", { valor: 37 });
-          irParaCheckout({ email: email || undefined });
+          trackEvent("ver_oferta_click", {});
+          navigate({ to: "/criar", search: { step: "oferta" } });
         }}
       >
-        {indo ? "Abrindo o pagamento…" : `Quero a música de ${nome} cantada`}
+        Quero a música de {nome} cantada
       </Button>
       <p className="mt-3 text-center text-xs text-muted-foreground">
-        R$ 37, pagamento único. A música completa, a página presente pra enviar,
-        o MP3 e o QR Code.
+        A partir de R$ 37, pagamento único. A letra continua sua de qualquer
+        jeito.
       </p>
     </div>
   );
