@@ -7,7 +7,7 @@ import { FotosSincronizadas } from "@/components/presente/FotosSincronizadas";
 import { Efeitos } from "@/components/presente/Efeitos";
 import { FotoAdaptativa } from "@/components/presente/FotoAdaptativa";
 import { Logo } from "@/components/marca/Logo";
-import { MARCA } from "@/lib/marca";
+import { MARCA, FONTES } from "@/lib/marca";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -312,7 +312,7 @@ function PaginaPresente() {
           // foto (quando houver) dominar a capa.
           "--presente-destaque": p.corDestaque ?? "oklch(0.84 0.13 78)",
           "--presente-vinho": "oklch(0.55 0.16 18)",
-          fontFamily: "Manrope, ui-sans-serif, system-ui, sans-serif",
+          fontFamily: FONTES.texto,
         } as React.CSSProperties
       }
     >

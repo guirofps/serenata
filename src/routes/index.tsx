@@ -8,6 +8,7 @@ import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { Entregavel } from "@/components/landing/Entregavel";
 import { DiaDosPais } from "@/components/landing/DiaDosPais";
 import { BarraCTA } from "@/components/landing/BarraCTA";
+import { PresenteNoTopo } from "@/components/landing/PresenteNoTopo";
 import { Play, ArrowRight, Menu, X } from "lucide-react";
 
 // Landing da Serenata — mundo CLARO.
@@ -172,16 +173,27 @@ function Home() {
             Uma música feita da <span className="texto-ouro">história</span> de
             quem você ama
           </h1>
+          {/* Parágrafo ENXUTO: eram seis linhas de texto denso na primeira
+              tela do celular, e ninguém lê seis linhas antes de saber o que
+              é. O que ele explicava (página, karaokê, envio) o cartão abaixo
+              MOSTRA, que funciona melhor que descrever. */}
           <p
             className="mx-auto mt-6 max-w-lg text-[var(--tinta-suave)] lg:mx-0"
             style={{ fontSize: "var(--t-lg)", lineHeight: 1.6 }}
           >
-            Conte a história. A letra fica pronta na hora, de graça, e você já
-            ouve um trecho cantado. A música completa vira uma página que você
-            envia, com a letra acendendo no ritmo, no nome de quem vai receber.
+            Conte a história e a letra fica pronta na hora, de graça. A música
+            vira uma página que você envia.
           </p>
 
-          <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row lg:items-start">
+          {/* O PRESENTE acima da dobra. Quem abre um exemplo entra no quiz
+              2,5x mais (31,4% x 12,7%, medido em 01/08), e essa ação estava
+              enterrada no meio da página. Substitui o antigo botão "Ouvir um
+              exemplo", que só rolava a tela. */}
+          <div className="mt-8 lg:hidden">
+            <PresenteNoTopo token="expai51378356a9" />
+          </div>
+
+          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:mt-9 lg:items-start">
             <Link
               to="/criar"
               className="cta cta-pulse inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-medium"
@@ -192,7 +204,7 @@ function Home() {
               href="#exemplo"
               className="cta-ghost inline-flex items-center gap-2 rounded-full px-6 py-4 text-base"
             >
-              <Play className="h-4 w-4" fill="currentColor" /> Ouvir um exemplo
+              <Play className="h-4 w-4" fill="currentColor" /> Ouvir exemplos
             </a>
           </div>
           <p className="mt-4 text-sm text-[var(--tinta-suave)]">
@@ -201,9 +213,16 @@ function Home() {
           </p>
         </div>
 
-          {/* Vídeo de reações reais no lugar de honra: a primeira coisa que a
-              pessoa vê é gente de verdade se emocionando. */}
-          <VitrineVideo caption="reações de quem ouviu uma música feita por nós" />
+          {/* No desktop os dois cabem lado a lado do texto: o presente em
+              cima (é o que faz entrar no funil) e as reações embaixo. No
+              celular o cartão já apareceu junto do título, então aqui só
+              sobra o vídeo. */}
+          <div className="space-y-8">
+            <div className="hidden lg:block">
+              <PresenteNoTopo token="expai51378356a9" />
+            </div>
+            <VitrineVideo caption="reações de quem ouviu uma música feita por nós" />
+          </div>
         </div>
       </section>
 

@@ -72,17 +72,18 @@ export const CORES_PRESENTE = [
 export const COR_PRESENTE_PADRAO = CORES_PRESENTE[0].oklch;
 
 // ── Tipografia ────────────────────────────────────────────────────
-// Fraunces: serifada com "wonk", tem calor e imperfeição — parece escrita
-// por gente, não gerada. Inter para interface, que some e deixa ler.
-// Manrope no corpo (não Inter): a Inter é a fonte padrão de todo dashboard e
-// carrega cara de "app genérico". A Manrope é geométrica, com terminações mais
-// suaves e um toque editorial que combina com a Fraunces — é a mesma dupla que
-// o concorrente mais bem acabado usa.
+// Fraunces no DISPLAY: serifada com "wonk", tem calor e imperfeição, parece
+// escrita por gente e não gerada. É ela que dá o ar de presente, não de app.
+//
+// Poppins no CORPO (decisão do dono, 02/08, trocando a Manrope): geométrica,
+// redonda e muito legível em tela pequena, que é onde 99% do tráfego está. A
+// dupla serifada+geométrica é clássica e as duas se distinguem bem, o que
+// evita o texto corrido competir com o título.
 export const FONTES = {
   display: "'Fraunces', ui-serif, Georgia, serif",
-  texto: "'Manrope', ui-sans-serif, system-ui, sans-serif",
+  texto: "'Poppins', ui-sans-serif, system-ui, sans-serif",
   googleFonts:
-    "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Poppins:wght@400;500;600;700&display=swap",
 } as const;
 
 // ── Escala tipográfica fluida ─────────────────────────────────────
