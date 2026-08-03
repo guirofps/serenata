@@ -310,9 +310,11 @@ export default async function handler(req: Req, res: Res) {
           .select("respostas")
           .eq("id", musica.quiz_response_id)
           .maybeSingle();
+        // `.trim()`: o nome digitado no quiz costuma vir com espaço sobrando
+        // ("Cardoso "), e o assunto saía com espaço duplo.
         const nome =
-          ((q?.respostas ?? {}) as Record<string, string>).nome ??
-          nomeCliente ??
+          ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
+          nomeCliente?.trim() ||
           "quem você ama";
 
         const linkEditor = `${SITE}/editar/${musica.token_edicao}`;
