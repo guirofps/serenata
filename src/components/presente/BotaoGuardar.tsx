@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Share2, Download, Loader2, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // "Baixar a música" no celular NÃO baixa: abre o arquivo numa aba e a pessoa
@@ -14,16 +14,36 @@ import { cn } from "@/lib/utils";
 // Onde não existir, cai no download clássico — que no desktop é o certo de
 // qualquer jeito.
 
+// `canShare` com um File de mentira é a ÚNICA checagem confiável: há navegador
+// com navigator.share que recusa arquivo. Testar só `share` levaria a um erro
+// depois de baixar 5 MB à toa.
+function suportaCompartilharArquivo(): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    typeof navigator.canShare === "function" &&
+    navigator.canShare({ files: [new File([""], "t.mp3", { type: "audio/mpeg" })] })
+  );
+}
+
 export function BotaoGuardar({
   audioUrl,
   titulo,
   nome,
+  comDica = false,
+  escuro = false,
 }: {
   audioUrl: string;
   titulo: string;
   nome: string;
+  /** Mostra embaixo a explicação do que acontece no celular. */
+  comDica?: boolean;
+  /** Variante pra página-presente, que é o mundo escuro da marca. */
+  escuro?: boolean;
 }) {
   const [estado, setEstado] = useState<"parado" | "preparando" | "ok">("parado");
+  // Só no cliente: no SSR não existe navigator, e o texto mudaria na hidratação.
+  const [folha, setFolha] = useState(false);
+  useEffect(() => setFolha(suportaCompartilharArquivo()), []);
 
   // Nome de arquivo limpo: acento e barra quebram em parte dos aparelhos.
   const arquivo = `${titulo}`
@@ -35,13 +55,7 @@ export function BotaoGuardar({
     .toLowerCase();
 
   async function guardar() {
-    // `canShare` com um File de mentira é a ÚNICA checagem confiável: há
-    // navegador com navigator.share que recusa arquivo. Testar só `share`
-    // levaria a um erro depois de baixar 5 MB à toa.
-    const suporta =
-      typeof navigator !== "undefined" &&
-      typeof navigator.canShare === "function" &&
-      navigator.canShare({ files: [new File([""], "t.mp3", { type: "audio/mpeg" })] });
+    const suporta = suportaCompartilharArquivo();
 
     if (!suporta) {
       // Desktop e navegador antigo: download normal.
@@ -82,31 +96,48 @@ export function BotaoGuardar({
   }
 
   return (
-    <button
-      onClick={guardar}
-      disabled={estado === "preparando"}
-      className={cn(
-        // Tema claro (papel e vinho): este botão vive no EDITOR do comprador,
-        // não na página escura do presenteado.
-        "inline-flex h-12 items-center gap-2 rounded-full border border-[var(--tinta-fraca)] px-6 text-[var(--tinta)]",
-        "transition-colors duration-150 hover:border-[var(--acento)] hover:text-[var(--acento)] disabled:opacity-60",
+    <div className={comDica ? "w-full" : undefined}>
+      <button
+        onClick={guardar}
+        disabled={estado === "preparando"}
+        className={cn(
+          "inline-flex h-12 items-center gap-2 rounded-full border px-6",
+          "transition-colors duration-150 disabled:opacity-60",
+          escuro
+            ? "border-white/25 text-white/80 hover:border-white/50 hover:text-white"
+            : "border-[var(--tinta-fraca)] text-[var(--tinta)] hover:border-[var(--acento)] hover:text-[var(--acento)]",
+        )}
+        style={{ fontSize: "var(--t-sm)" }}
+      >
+        {estado === "preparando" ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" /> preparando o áudio…
+          </>
+        ) : estado === "ok" ? (
+          <>
+            <Check className="h-4 w-4" /> pronto
+          </>
+        ) : (
+          <>
+            {/* "BAIXAR" no rótulo, e o ícone em opacidade cheia. O texto era
+                "Guardar ou enviar" com o ícone a 40%: virou ticket de suporte
+                em 03/08 ("como baixa a música?"), porque ninguém procura a
+                palavra "guardar" quando quer o arquivo. */}
+            <Download className="h-4 w-4" /> Baixar ou enviar a música
+          </>
+        )}
+      </button>
+
+      {comDica && (
+        <p
+          className={cn("mt-2", escuro ? "text-white/45" : "text-[var(--tinta-suave)]")}
+          style={{ fontSize: "var(--t-xs)", lineHeight: 1.55 }}
+        >
+          {folha
+            ? "No celular abre as opções do aparelho: escolha “Salvar em Arquivos” pra guardar, ou o WhatsApp pra mandar direto."
+            : "Baixa o MP3 no seu computador."}
+        </p>
       )}
-      style={{ fontSize: "var(--t-sm)" }}
-    >
-      {estado === "preparando" ? (
-        <>
-          <Loader2 className="h-4 w-4 animate-spin" /> preparando o áudio…
-        </>
-      ) : estado === "ok" ? (
-        <>
-          <Check className="h-4 w-4" /> pronto
-        </>
-      ) : (
-        <>
-          <Share2 className="h-4 w-4" /> Guardar ou enviar a música
-          <Download className="h-3.5 w-3.5 opacity-40" />
-        </>
-      )}
-    </button>
+    </div>
   );
 }

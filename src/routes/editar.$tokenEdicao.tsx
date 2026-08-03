@@ -15,6 +15,7 @@ import { prepararFoto } from "@/lib/imagem";
 import { QrCode } from "@/components/presente/QrCode";
 import { Efeitos, EFEITOS } from "@/components/presente/Efeitos";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
+import { marcarDono } from "@/lib/dono-presente";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
@@ -61,6 +62,13 @@ export const Route = createFileRoute("/editar/$tokenEdicao")({
 function Editor() {
   const p = Route.useLoaderData();
   const { tokenEdicao } = Route.useParams();
+
+  // Marca este navegador como dono do presente. É o que faz o botão de baixar
+  // a música aparecer também na página pública, pra quem volta atrás do MP3
+  // depois de já ter enviado o link.
+  useEffect(() => {
+    marcarDono(p.tokenPublico);
+  }, [p.tokenPublico]);
 
   const [fotoUrl, setFotoUrl] = useState(p.fotoUrl);
   const [galeria, setGaleria] = useState(p.galeria);
@@ -693,11 +701,16 @@ function Editor() {
                 >
                   <ExternalLink className="h-4 w-4" /> Ver como ela vai ver
                 </a>
-                {/* Guardar/enviar o MP3 é ação de QUEM MONTA o presente (aqui),
+                {/* Baixar/enviar o MP3 é ação de QUEM MONTA o presente (aqui),
                     não de quem recebe. No celular abre a folha de
                     compartilhamento nativa (WhatsApp, Arquivos). */}
                 {audioPreferido && (
-                  <BotaoGuardar audioUrl={audioPreferido} titulo={p.titulo} nome={p.nome} />
+                  <BotaoGuardar
+                    audioUrl={audioPreferido}
+                    titulo={p.titulo}
+                    nome={p.nome}
+                    comDica
+                  />
                 )}
               </div>
             </section>

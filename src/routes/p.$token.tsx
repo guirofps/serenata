@@ -8,6 +8,8 @@ import { Efeitos } from "@/components/presente/Efeitos";
 import { FotoAdaptativa } from "@/components/presente/FotoAdaptativa";
 import { Logo } from "@/components/marca/Logo";
 import { MARCA, FONTES } from "@/lib/marca";
+import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
+import { ehDono } from "@/lib/dono-presente";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -111,6 +113,12 @@ function PaginaPresente() {
   // As fotos entram DEPOIS do play e da descida, já com a letra rolando — não
   // no mesmo instante do toque. Dá tempo da cena se montar antes.
   const [fotosAtivas, setFotosAtivas] = useState(false);
+
+  // Este navegador montou este presente? Decide o botão de baixar o MP3.
+  // Só no efeito: o SSR não tem localStorage, e ler no render faria a
+  // hidratação divergir.
+  const [dono, setDono] = useState(false);
+  useEffect(() => setDono(ehDono(token)), [token]);
 
   // Duração vem do PRÓPRIO áudio, não do banco. O banco guarda a duração da
   // v1; na v2 (outra gravação) ela seria nula e o player mostrava 0:00 com a
@@ -494,11 +502,33 @@ function PaginaPresente() {
           O que vale é o entregável, não a matéria-prima. A voz do comprador
           na página é a DEDICATÓRIA, que ele escolhe e escreve com calma. */}
 
-      {/* ── RODAPÉ: só a assinatura da marca ─────────────────────
-          O botão de guardar/enviar NÃO fica aqui: esta página é do
-          PRESENTEADO (quem recebe), e baixar/distribuir é ação do comprador.
-          Esse botão vive no editor (a área de quem monta o presente).
+      {/* ── SÓ PRO DONO: baixar a música ─────────────────────────
+          Quem RECEBE não vê nada disso — a página continua sendo a
+          experiência dela, sem botão de arquivo.
+          Mas quem MONTOU o presente volta aqui atrás do MP3 depois de já ter
+          mandado o link, e não lembra do endereço do editor. Virou ticket de
+          suporte em 03/08 ("como baixa a música?"). A marca de dono é gravada
+          no editor, no localStorage do navegador dele. */}
+      {dono && p.audioUrl && (
+        <div data-revela className="relative mx-auto max-w-2xl px-6 pb-10 text-center">
+          <div className="mx-auto inline-flex flex-col items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-5">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-white/40">
+              só você vê isto
+            </p>
+            <div className="mt-2">
+              <BotaoGuardar
+                audioUrl={p.audioUrl}
+                titulo={p.titulo}
+                nome={p.nome}
+                comDica
+                escuro
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
+      {/* ── RODAPÉ: só a assinatura da marca ─────────────────────
           Logo em vez da palavra escrita: a página circula no WhatsApp da
           família, e é o único lugar onde a Serenata aparece. `flex-col` empilha
           "feito com" em cima da logo, centrado. */}
