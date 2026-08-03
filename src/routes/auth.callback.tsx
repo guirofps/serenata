@@ -65,12 +65,25 @@ function Callback() {
       className="grid min-h-screen place-items-center bg-[var(--papel)] px-6 text-center text-[var(--tinta)]"
       style={TEMA_CLARO}
     >
+      {/* A mensagem de erro antiga era só "expirou ou já foi usado", e mandava
+          pedir outro link. Quem tinha pedido dois clicava no e-mail antigo,
+          caía aqui, pedia outro, e repetia — 11 vezes no caso medido em
+          02/08. Agora a tela diz a CAUSA provável antes de oferecer o botão
+          que reinicia o ciclo. */}
       {erro ? (
-        <div>
-          <p style={{ fontSize: "var(--t-lg)" }}>Esse link expirou ou já foi usado.</p>
+        <div className="mx-auto max-w-xs">
+          <p style={{ fontSize: "var(--t-lg)" }}>Esse link não vale mais.</p>
+          <p
+            className="mt-3 text-[var(--tinta-suave)]"
+            style={{ fontSize: "var(--t-sm)", lineHeight: 1.6 }}
+          >
+            Cada link é de uso único, e pedir um novo desliga o anterior. Se
+            você recebeu mais de um e-mail, <strong className="text-[var(--tinta)]">abra o mais
+            recente</strong> antes de pedir outro.
+          </p>
           <button
             onClick={() => navigate({ to: "/login" })}
-            className="mt-4 text-[var(--acento)] underline underline-offset-4"
+            className="mt-5 text-[var(--acento)] underline underline-offset-4"
             style={{ fontSize: "var(--t-sm)" }}
           >
             pedir um novo link

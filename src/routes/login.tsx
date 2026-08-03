@@ -26,11 +26,27 @@ export const Route = createFileRoute("/login")({
 // de digitação no campo que decide se o link chega).
 const DOMINIOS = ["gmail.com", "hotmail.com", "outlook.com", "icloud.com", "yahoo.com.br"];
 
+// Espera antes de deixar pedir outro link.
+//
+// Não é anti-abuso, é anti-tiro-no-pé: o Supabase guarda UM token por usuário,
+// então pedir um link novo MATA o anterior. Quem pede duas vezes e clica no
+// e-mail mais antigo recebe "link expirado", a tela manda pedir outro, e o
+// ciclo se repete. Aconteceu de verdade em 02/08: uma compradora pediu 11
+// links em 5 horas, todos entregues, e não conseguiu entrar uma vez sequer.
+const ESPERA_S = 60;
+
 function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [estado, setEstado] = useState<"parado" | "enviando" | "enviado">("parado");
   const [erro, setErro] = useState<string | null>(null);
+  const [espera, setEspera] = useState(0);
+
+  useEffect(() => {
+    if (espera <= 0) return;
+    const id = setTimeout(() => setEspera((s) => s - 1), 1000);
+    return () => clearTimeout(id);
+  }, [espera]);
 
   // Já logado? Vai direto pro painel.
   useEffect(() => {
@@ -64,6 +80,7 @@ function Login() {
         throw new Error(j.error ?? "Não consegui enviar agora.");
       }
       setEstado("enviado");
+      setEspera(ESPERA_S);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Não consegui enviar agora.");
       setEstado("parado");
@@ -98,16 +115,34 @@ function Login() {
               Se este e-mail tem uma música sua, o link de acesso está a caminho.
               Ele entra direto, sem senha.
             </p>
-            <button
-              onClick={() => {
-                setEstado("parado");
-                setErro(null);
-              }}
-              className="mt-6 text-[var(--acento)] underline underline-offset-4"
-              style={{ fontSize: "var(--t-sm)" }}
+
+            {/* O aviso que faltava. Sem ele a pessoa pede outro link achando
+                que ajuda, e na verdade desliga o que já chegou. */}
+            <p
+              className="mx-auto mt-5 max-w-xs rounded-xl bg-[var(--papel-fundo)] px-4 py-3 text-[var(--tinta-suave)]"
+              style={{ fontSize: "var(--t-sm)", lineHeight: 1.55 }}
             >
-              usar outro e-mail
-            </button>
+              <strong className="text-[var(--tinta)]">Abra o e-mail mais recente.</strong>{" "}
+              Se você pedir outro link, o anterior para de funcionar. Pode
+              demorar até 2 minutos, e às vezes cai no spam.
+            </p>
+
+            {espera > 0 ? (
+              <p className="mt-6 text-[var(--tinta-fraca)]" style={{ fontSize: "var(--t-sm)" }}>
+                Pode pedir outro em {espera}s
+              </p>
+            ) : (
+              <button
+                onClick={() => {
+                  setEstado("parado");
+                  setErro(null);
+                }}
+                className="mt-6 text-[var(--acento)] underline underline-offset-4"
+                style={{ fontSize: "var(--t-sm)" }}
+              >
+                pedir de novo ou usar outro e-mail
+              </button>
+            )}
           </div>
         ) : (
           <>
