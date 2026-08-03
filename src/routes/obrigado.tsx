@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { conversaoCompra } from "@/lib/google-ads";
+import { buscarPresenteDaCompra, type PresenteDaCompra } from "@/lib/pos-compra";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
-import { Check, Mail, Inbox, Pencil } from "lucide-react";
+import { Check, Mail, Inbox, Pencil, Loader2 } from "lucide-react";
 
 // Página de PÓS-COMPRA — o destino do redirect do checkout (Cakto/Perfect Pay).
 //
@@ -32,10 +33,49 @@ export const Route = createFileRoute("/obrigado")({
 
 function Obrigado() {
   const { email, code } = Route.useSearch();
+  const [presente, setPresente] = useState<PresenteDaCompra | null>(null);
+  const [procurando, setProcurando] = useState(Boolean(code));
 
   // Conversão do Google Ads: é aqui que o algoritmo aprende quem comprou.
   useEffect(() => {
     conversaoCompra({ valor: 37, transactionId: code });
+  }, [code]);
+
+  // Busca o presente pelo código da transação, pra dar o botão AQUI em vez de
+  // mandar a pessoa caçar e-mail. Faz polling porque o redirect pode chegar
+  // antes do webhook: a pessoa é devolvida pelo gateway em milissegundos e o
+  // pedido pode levar alguns segundos pra existir.
+  useEffect(() => {
+    if (!code) return;
+    let vivo = true;
+    let tentativas = 0;
+
+    async function procurar() {
+      if (!vivo) return;
+      try {
+        const p = await buscarPresenteDaCompra({ data: { code: code! } });
+        if (!vivo) return;
+        if (p) {
+          setPresente(p);
+          setProcurando(false);
+          return;
+        }
+      } catch (err) {
+        console.error("[obrigado] busca falhou:", err);
+      }
+      tentativas += 1;
+      // ~90s. Passou disso, o e-mail assume (e ele já foi enviado).
+      if (tentativas >= 30) {
+        setProcurando(false);
+        return;
+      }
+      setTimeout(procurar, 3000);
+    }
+
+    procurar();
+    return () => {
+      vivo = false;
+    };
   }, [code]);
 
   return (
@@ -65,11 +105,77 @@ function Obrigado() {
             className="mx-auto mt-4 max-w-sm text-[var(--tinta-suave)]"
             style={{ fontSize: "var(--t-base)", lineHeight: 1.6 }}
           >
-            Enviamos {email ? <>para <strong className="text-[var(--tinta)]">{email}</strong></> : "para o seu e-mail"}{" "}
-            o link pra montar o presente. Ele chega em instantes.
+            {presente ? (
+              <>Falta um passo, e ele é aqui embaixo mesmo.</>
+            ) : (
+              <>
+                Enviamos{" "}
+                {email ? <>para <strong className="text-[var(--tinta)]">{email}</strong></> : "para o seu e-mail"}{" "}
+                o link pra montar o presente. Ele chega em instantes.
+              </>
+            )}
           </p>
         </div>
 
+        {/* O CAMINHO CURTO: o botão que leva direto ao editor, sem passar por
+            e-mail nenhum. É o momento de maior intenção que existe, e até
+            03/08 a gente o gastava mandando a pessoa procurar na caixa de
+            entrada — com 3 de 6 compradores nunca montando o presente. */}
+        {procurando && (
+          <div className="mt-8 flex items-center justify-center gap-3 rounded-[var(--raio-lg)] border border-[var(--tinta-fraca)]/50 bg-[var(--papel-fundo)] px-5 py-6 text-[var(--tinta-suave)]">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span style={{ fontSize: "var(--t-sm)" }}>Preparando o seu presente…</span>
+          </div>
+        )}
+
+        {presente && (
+          <div className="mt-8 rounded-[var(--raio-lg)] border-2 border-[var(--acento)]/30 bg-[var(--acento)]/5 p-6 text-center">
+            <p className="text-[11px] uppercase tracking-[0.25em] text-[var(--acento)]">
+              o próximo passo
+            </p>
+            <p
+              className="mt-2"
+              style={{ fontFamily: FONTES.display, fontSize: "var(--t-xl)", lineHeight: 1.25 }}
+            >
+              Monte o presente {presente.nome ? `de ${presente.nome}` : ""}
+            </p>
+            <p
+              className="mx-auto mt-2 max-w-xs text-[var(--tinta-suave)]"
+              style={{ fontSize: "var(--t-sm)", lineHeight: 1.6 }}
+            >
+              Escolha a gravação, ponha as fotos de vocês e uma frase sua. Leva
+              dois minutos.
+            </p>
+            <a
+              href={`/editar/${presente.tokenEdicao}`}
+              className="cta mt-5 inline-flex items-center gap-2 rounded-full px-8 py-4 font-medium"
+              style={{ fontSize: "var(--t-base)" }}
+            >
+              <Pencil className="h-4 w-4" /> Montar o presente
+            </a>
+            {presente.gerando && (
+              <p className="mt-3 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
+                A gravação ainda está saindo do forno. Pode ir montando: ela
+                aparece sozinha quando ficar pronta.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Com o botão na tela, o caça-ao-e-mail vira ruído: os três passos
+            começavam com "abra o e-mail", que passa a contradizer o caminho
+            curto. Vira uma linha de rodapé. */}
+        {presente ? (
+          <p
+            className="mt-6 text-center text-[var(--tinta-suave)]"
+            style={{ fontSize: "var(--t-sm)", lineHeight: 1.6 }}
+          >
+            Também mandamos esse link{" "}
+            {email ? <>para <strong className="text-[var(--tinta)]">{email}</strong></> : "pro seu e-mail"},
+            pra você não perder. Se não achar, olhe em Promoções e no Spam.
+          </p>
+        ) : (
+        <>
         {/* O AVISO que justifica a página: olhar o spam. Em destaque, porque é
             o ponto onde a pessoa mais se perde num remetente novo. */}
         <div className="mt-8 rounded-[var(--raio-lg)] border border-[var(--acento)]/25 bg-[var(--acento)]/5 p-5">
@@ -106,13 +212,17 @@ function Obrigado() {
             </li>
           ))}
         </ol>
+        </>
+        )}
 
         <p
           className="mt-8 text-center text-[var(--tinta-suave)]"
           style={{ fontSize: "var(--t-xs)", lineHeight: 1.6 }}
         >
-          Pode fechar esta página, o e-mail chega sozinho. Qualquer coisa, é só
-          responder o e-mail ou falar com a gente em{" "}
+          {presente
+            ? "Sem pressa: o link acima também está no seu e-mail e não expira. "
+            : "Pode fechar esta página, o e-mail chega sozinho. "}
+          Qualquer coisa, é só responder o e-mail ou falar com a gente em{" "}
           <a href="mailto:contato@serenatagift.com" className="text-[var(--acento)] underline underline-offset-2">
             contato@serenatagift.com
           </a>
