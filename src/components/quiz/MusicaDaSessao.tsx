@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { statusMusica } from "@/lib/gerar-letra";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { MusicaKaraoke, type PalavraAlinhada } from "@/components/quiz/MusicaKaraoke";
@@ -27,6 +28,7 @@ const TENTATIVAS_MAX = 90; // ~6 minutos
 const COMPLETAR_MS = 1000;
 
 export function MusicaDaSessao({ letra }: { letra: string }) {
+  const navigate = useNavigate();
   const [status, setStatus] = useState<string>("aguardando");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [words, setWords] = useState<PalavraAlinhada[] | null>(null);
@@ -86,7 +88,20 @@ export function MusicaDaSessao({ letra }: { letra: string }) {
     // Com timestamps: karaokê real, destaque palavra a palavra + trava no
     // preview. Sem (falha tolerada no job): toca do mesmo jeito.
     return words ? (
-      <MusicaKaraoke audioUrl={audioUrl} words={words} />
+      // `onDesbloquear` é OBRIGATÓRIO aqui, mesmo sendo opcional no tipo.
+      // Sem ele o botão do paywall — o que aparece quando a prévia corta aos
+      // 40s, no pico emocional do funil — chamava `onDesbloquear?.()` e o
+      // `?.` engolia em silêncio: o botão não fazia nada.
+      //
+      // Medido em 04/08: 242 cliques em 28 sessões, 8,6 por pessoa, uma
+      // delas clicou 40 vezes. Botão que funciona leva ~1,2 clique (é o que
+      // os outros do funil marcam). Era gente ouvindo a música cortar e
+      // socando um botão morto.
+      <MusicaKaraoke
+        audioUrl={audioUrl}
+        words={words}
+        onDesbloquear={() => navigate({ to: "/criar", search: { step: "oferta" } })}
+      />
     ) : (
       <div className="space-y-4">
         <audio controls src={audioUrl} className="w-full" />

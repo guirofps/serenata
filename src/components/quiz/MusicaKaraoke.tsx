@@ -63,8 +63,19 @@ export function MusicaKaraoke({
 }: {
   audioUrl: string;
   words: PalavraAlinhada[];
-  onDesbloquear?: () => void;
   completo?: boolean;
+  /**
+   * O que fazer quando a prévia corta e a pessoa toca em "Desbloquear".
+   *
+   * OBRIGATÓRIO de propósito. Era opcional, e o `onDesbloquear?.()` engolia
+   * a ausência em silêncio: o `MusicaDaSessao` não passava nada, e o botão
+   * do pico emocional do funil não fazia coisa alguma. Medido antes do
+   * conserto: 242 cliques em 28 sessões (8,6 por pessoa, uma com 40),
+   * contra ~1,2 dos botões que funcionam.
+   *
+   * Com a prop obrigatória, o compilador não deixa isso acontecer de novo.
+   */
+  onDesbloquear: () => void;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [tocando, setTocando] = useState(false);
@@ -230,7 +241,7 @@ export function MusicaKaraoke({
             className="w-full"
             onClick={() => {
               trackEvent("desbloquear_click", {});
-              onDesbloquear?.();
+              onDesbloquear();
             }}
           >
             Desbloquear minha música
