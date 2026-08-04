@@ -57,6 +57,16 @@ export type QuestionStep = {
        */
       triggers?: Array<{ rotulo: string; inicio: string }>;
       allowAudio?: boolean;
+      /**
+       * Oferece uma saída pra quem trava. O link só aparece depois de a
+       * pessoa ficar um tempo na tela sem escrever quase nada — quem já está
+       * digitando nunca o vê, então não é atalho, é rede.
+       *
+       * Existe porque este passo perde 11 de 40 pessoas: quem dá branco hoje
+       * some pra sempre, e uma letra feita só com a primeira história é
+       * infinitamente melhor que nenhuma letra.
+       */
+      permitePular?: boolean;
     }
 );
 

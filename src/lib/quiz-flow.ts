@@ -143,13 +143,24 @@ export const QUIZ_FLOW: FlowStep[] = [
     id: "historia2",
     kind: "question",
     block: "A história",
-    text: "Uma memória que só vocês têm",
-    subtext: "Um detalhe pequeno vale mais que um sentimento grande.",
+    // Enunciado REESCRITO (04/08). "Uma memória que só vocês têm" pede
+    // RECALL de um episódio específico, e recall sob pressão dá branco. É o
+    // passo que mais perde gente no quiz inteiro: 11 de 40, enquanto todos
+    // os outros perdem 4 ou 5 — e o `historia1`, que pede sentimento em vez
+    // de lembrança, não perde ninguém.
+    text: "Me conta uma coisa boba sobre {nome}",
+    subtext:
+      "Uma mania, um apelido, uma comida. Não precisa ser história bonita, precisa ser verdade.",
     field: "historia2",
     input: "story",
-    placeholder: "Aquele momento, lugar ou mania que é a cara de vocês...",
-    minChars: 120,
+    placeholder: "Ela faz um bolo de fubá que...",
+    // 60 e não 120. O subtexto dizia "um detalhe pequeno vale mais que um
+    // sentimento grande" e logo abaixo o botão exigia um parágrafo: a gente
+    // pedia o detalhe e cobrava a redação. "Ela fazia bolo de fubá todo
+    // domingo" tem 38 caracteres e vira letra melhor que 120 de encheção.
+    minChars: 60,
     allowAudio: true,
+    permitePular: true,
     // Cada gatilho começa a frase pela pessoa. O campo em branco é o que
     // trava: com o começo escrito, sobra completar, que é fácil.
     // `{nome}` é trocado pelo nome real. Todas as frases foram escritas SEM

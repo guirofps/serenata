@@ -175,6 +175,7 @@ function Criar() {
                 value={respostas[step.field] as string}
                 onChange={(v) => setResposta(step.field, v)}
                 preencher={(s) => preencher(s) ?? s}
+                aoPular={goNext}
               />
             )}
           </div>

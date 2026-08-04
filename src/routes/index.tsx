@@ -9,6 +9,7 @@ import { Entregavel } from "@/components/landing/Entregavel";
 import { DiaDosPais } from "@/components/landing/DiaDosPais";
 import { BarraCTA } from "@/components/landing/BarraCTA";
 import { PresenteNoTopo } from "@/components/landing/PresenteNoTopo";
+import { useProfundidadeRolagem } from "@/lib/rolagem";
 import { Play, ArrowRight, Menu, X } from "lucide-react";
 
 // Landing da Serenata — mundo CLARO.
@@ -63,6 +64,10 @@ const PASSOS = [
 ];
 
 function Home() {
+  // Mede até onde a pessoa rola. É o que separa "saiu sem ver nada" de
+  // "viu tudo e não quis" — a maior perda do funil está aqui e a gente
+  // nunca soube qual dos dois é.
+  useProfundidadeRolagem("home");
   const [menuAberto, setMenuAberto] = useState(false);
   // Referência do herói: a barra de CTA só aparece quando ele sai da tela.
   const heroRef = useRef<HTMLElement>(null);

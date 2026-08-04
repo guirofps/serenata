@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { QuestionStep } from "@/lib/flow-engine";
 import { Textarea } from "@/components/ui/textarea";
 import { useDictation } from "@/lib/use-dictation";
@@ -45,21 +45,43 @@ export function validateStory(
 
 // Campo de história com validação anti-lixo + chips-gatilho de detalhe concreto.
 // Gravação de áudio real entra na task de MediaRecorder; aqui fica o gancho.
+// Quanto tempo travado antes de oferecer a saída. Curto demais vira atalho
+// pra todo mundo; longo demais chega depois de a pessoa já ter fechado a aba.
+const SEGUNDOS_ATE_OFERECER_SAIDA = 25;
+const CHARS_QUE_CONTAM_COMO_TRAVADO = 20;
+
 export function StoryStep({
   step,
   value,
   onChange,
   preencher = (s) => s,
+  aoPular,
 }: {
   step: StoryQuestion;
   value: string | undefined;
   onChange: (v: string) => void;
   /** Troca {nome} pelo nome do homenageado (vem da rota). */
   preencher?: (s: string) => string;
+  /** Avança sem responder. Só usado quando o passo permite pular. */
+  aoPular?: () => void;
 }) {
   const [touched, setTouched] = useState(false);
   const text = value ?? "";
   const { ok, message } = validateStory(step, text);
+
+  // A saída aparece só pra quem TRAVOU: passou o tempo e quase não escreveu.
+  // Quem está digitando nunca vê o link, então não perde ninguém que ia
+  // responder.
+  const [tempoEsgotado, setTempoEsgotado] = useState(false);
+  useEffect(() => {
+    if (!step.permitePular) return;
+    const id = setTimeout(() => setTempoEsgotado(true), SEGUNDOS_ATE_OFERECER_SAIDA * 1000);
+    return () => clearTimeout(id);
+  }, [step.permitePular, step.id]);
+  const mostrarSaida =
+    Boolean(step.permitePular && aoPular) &&
+    tempoEsgotado &&
+    text.trim().length < CHARS_QUE_CONTAM_COMO_TRAVADO;
 
   // O valor VIVO do campo, num ref.
   //
@@ -185,6 +207,21 @@ export function StoryStep({
           {message}
         </span>
       </div>
+
+      {mostrarSaida && (
+        <p className="text-center">
+          <button
+            type="button"
+            onClick={() => {
+              trackEventOnce("pulou_memoria", step.id);
+              aoPular?.();
+            }}
+            className="text-xs text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+          >
+            Não lembro de nada agora, seguir sem isso
+          </button>
+        </p>
+      )}
     </div>
   );
 }
