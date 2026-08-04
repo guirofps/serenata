@@ -101,13 +101,22 @@ function Home() {
             </Link>
           </nav>
 
-          <button
-            onClick={() => setMenuAberto((v) => !v)}
-            className="sm:hidden"
-            aria-label="Menu"
-          >
-            {menuAberto ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+          {/* No CELULAR o cabeçalho tinha só o hambúrguer: o CTA de cima era
+              `hidden sm:flex`, ou seja, desktop. Com 34 de 36 visitantes não
+              passando de 25% da página, quem não rolava não via botão nenhum.
+              Este é pequeno e fica grudado no topo o tempo todo. */}
+          <div className="flex items-center gap-3 sm:hidden">
+            <Link
+              to="/criar"
+              className="cta rounded-full px-4 py-2 font-medium"
+              style={{ fontSize: "var(--t-sm)" }}
+            >
+              Criar
+            </Link>
+            <button onClick={() => setMenuAberto((v) => !v)} aria-label="Menu">
+              {menuAberto ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
 
         {menuAberto && (
@@ -178,34 +187,30 @@ function Home() {
             Uma música feita da <span className="texto-ouro">história</span> de
             quem você ama
           </h1>
-          {/* Parágrafo ENXUTO: eram seis linhas de texto denso na primeira
-              tela do celular, e ninguém lê seis linhas antes de saber o que
-              é. O que ele explicava (página, karaokê, envio) o cartão abaixo
-              MOSTRA, que funciona melhor que descrever. */}
+          {/* Uma linha, não três. Medido em 04/08: 34 de 36 visitantes não
+              passam de 25% da página, então cada pixel antes do botão é
+              pixel que a maioria nunca vai ultrapassar. */}
           <p
-            className="mx-auto mt-6 max-w-lg text-[var(--tinta-suave)] lg:mx-0"
-            style={{ fontSize: "var(--t-lg)", lineHeight: 1.6 }}
+            className="mx-auto mt-5 max-w-lg text-[var(--tinta-suave)] lg:mx-0"
+            style={{ fontSize: "var(--t-lg)", lineHeight: 1.55 }}
           >
-            Conte a história e a letra fica pronta na hora, de graça. A música
-            vira uma página que você envia.
+            A letra fica pronta na hora, de graça.
           </p>
 
-          {/* No CELULAR os dois blocos entram ANTES do botão, nesta ordem:
-              primeiro a emoção (gente real reagindo), depois a explicação (o
-              que você recebe). Estavam depois do CTA, e o vídeo é bom demais
-              pra correr o risco de a pessoa clicar sem ver.
-              A altura extra não custa o CTA: a BarraCTA flutuante aparece
-              assim que o herói sai da tela. */}
-          <div className="mt-8 space-y-8 lg:hidden">
+          {/* O VÍDEO fica antes do botão: é a emoção, e é bom demais pra
+              arriscar a pessoa clicar sem ver. */}
+          <div className="mt-6 lg:hidden">
             <VitrineVideo caption="reações de quem ouviu uma música feita por nós" />
-            <PresenteNoTopo />
           </div>
 
-          {/* UM botão só. O "Ouvir exemplos" saiu: rolava a tela pra longe do
-              CTA, e tudo que ele prometia a pessoa encontra no caminho
-              natural (a seção de exemplos, e o próprio quiz). Menos saída,
-              menos dispersão. */}
-          <div className="mt-8 flex flex-col items-center gap-3 lg:mt-9 lg:items-start">
+          {/* O BOTÃO sobe pra dentro da primeira tela.
+              Ele estava a 1.199px num aparelho de 812px de altura: fora da
+              dobra, e como quase ninguém rola, para a maioria das visitas não
+              existia botão nenhum (o do cabeçalho é `hidden sm:flex`, só
+              desktop, e a barra flutuante só aparece quando o herói sai da
+              tela). O cartão do presente desceu pra depois: ele EXPLICA o
+              entregável, e explicação vem atrás do convite, não na frente. */}
+          <div className="mt-7 flex flex-col items-center gap-3 lg:mt-9 lg:items-start">
             <Link
               to="/criar"
               className="cta cta-pulse inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-medium"
@@ -213,10 +218,14 @@ function Home() {
               Criar minha música <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <p className="mt-4 text-sm text-[var(--tinta-suave)]">
+          <p className="mt-3 text-sm text-[var(--tinta-suave)]">
             A letra e um trecho da música são grátis. Você paga só pra ter a
             música inteira e a página pronta pra enviar.
           </p>
+
+          <div className="mt-8 lg:hidden">
+            <PresenteNoTopo />
+          </div>
         </div>
 
           {/* No DESKTOP os dois ficam na coluna da direita, na mesma ordem.
