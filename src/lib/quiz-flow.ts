@@ -55,29 +55,35 @@ export const QUIZ_FLOW: FlowStep[] = [
     maxLength: 40,
     eco: "É assim que vai ser cantado",
     cortarComposto: true,
-  },
-  {
-    // Os filhos são o detalhe que mais aparece nas letras que emocionam, e
-    // hoje só entram se a pessoa lembrar de escrever na história — quem
-    // escreve "minha mãe criou eu e meus irmãos" nunca dá os nomes, e a letra
-    // sai falando de "os filhos" no genérico.
+    // Os filhos são o detalhe que mais emociona numa letra, e hoje só entram
+    // se a pessoa lembrar de escrever na história: quem escreve "minha mãe
+    // criou eu e meus irmãos" nunca dá os nomes, e a letra sai falando de "os
+    // filhos" no genérico.
     //
-    // Um passo só, e opcional: preencher JÁ É o consentimento pra citar. Uma
-    // pergunta "tem filhos?" seguida de outra "quer citar?" seriam dois
-    // degraus a mais num quiz que perde gente a cada um.
-    id: "filhos",
-    kind: "question",
-    block: "Pra quem",
-    text: "Quer que a música cite os filhos?",
-    subtext:
-      "Escreva os nomes do jeito que são chamados em casa, é assim que vão ser cantados. Se preferir não citar ninguém, é só continuar.",
-    field: "filhos",
-    input: "text",
-    placeholder: "Ex.: Pedro, Aninha e o Caçula",
-    maxLength: 80,
-    eco: "Vão ser cantados assim",
-    ecoModelo: "“…e {v}, o amor que ficou”",
-    opcional: true,
+    // Mora AQUI e não num passo próprio. Já foi um passo, e não valia: uma
+    // pergunta opcional, que só faz sentido em parte das relações, não paga um
+    // degrau num quiz que perde gente em cada um. Junto do nome é ainda melhor
+    // que neutro, porque a regra ("escreva como você chama no dia a dia") já
+    // está na cabeça da pessoa quando ela chega nos filhos.
+    //
+    // Preencher JÁ É o consentimento pra citar: não precisa de um "quer citar?"
+    // antes do "quais nomes?".
+    extra: {
+      field: "filhos",
+      rotulo: "citar os filhos na música",
+      subtexto:
+        "Escreva os nomes do jeito que são chamados em casa, é assim que vão ser cantados.",
+      placeholder: "Ex.: Pedro, Aninha e o Caçula",
+      maxLength: 80,
+      eco: "Vão ser cantados assim",
+      ecoModelo: "“…e {v}, o amor que ficou”",
+      // Não oferece onde a pergunta é estranha: pro próprio filho, pro neto,
+      // pro pet e pro amigo, "os filhos" não é o que a música vai falar.
+      mostrarSe: (r) =>
+        !["filha", "filho", "neta", "neto", "pet", "amiga", "amigo"].includes(
+          String(r.relacao),
+        ),
+    },
   },
   {
     id: "ocasiao",
@@ -243,11 +249,6 @@ export const QUIZ_FLOW: FlowStep[] = [
   },
 ];
 
-// Skip por ID (nunca por offset). Inserir uma pergunta no meio não quebra nada.
-export const QUIZ_SKIP: SkipMap = {
-  // Perguntar dos filhos só faz sentido pra quem PODE tê-los. Pra um filho,
-  // um neto ou um pet a pergunta é estranha e custa um passo — e passo
-  // estranho é passo onde a pessoa fecha a aba.
-  filhos: (r) =>
-    ["filha", "filho", "neta", "neto", "pet"].includes(String(r.relacao)),
-};
+// Skip por ID (nunca por offset). Vazio por ora; exemplo de uso quando precisar:
+// { recado: (r) => r.ocasiao === "memorial" }  // pula o recado em memorial
+export const QUIZ_SKIP: SkipMap = {};

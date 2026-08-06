@@ -48,6 +48,29 @@ export type QuestionStep = {
       /** Oferece cortar pro primeiro nome quando a pessoa escreve mais de um. */
       cortarComposto?: boolean;
       /**
+       * Um SEGUNDO campo, recolhido atrás de um toque, gravado em outro
+       * `field`.
+       *
+       * Existe pros filhos. Eles já foram um passo próprio e não valiam um:
+       * pergunta opcional que só faz sentido em parte das relações não
+       * justifica um degrau num quiz que perde gente em cada um. Recolhida
+       * aqui, ela custa uma linha de texto pra quem não quer, e quem quer
+       * ganha o mesmo eco do nome — que é o ponto, porque os nomes dos
+       * filhos também vão ser cantados literalmente.
+       */
+      extra?: {
+        field: string;
+        /** O texto do toque que revela o campo. */
+        rotulo: string;
+        subtexto?: string;
+        placeholder?: string;
+        maxLength?: number;
+        eco?: string;
+        ecoModelo?: string;
+        /** Sem isto, aparece sempre. */
+        mostrarSe?: (respostas: Record<string, unknown>) => boolean;
+      };
+      /**
        * Deixa avançar com o campo vazio.
        *
        * Era um `if (step.id === "recado")` cravado na rota: cada campo novo
