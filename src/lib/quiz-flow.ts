@@ -57,6 +57,29 @@ export const QUIZ_FLOW: FlowStep[] = [
     cortarComposto: true,
   },
   {
+    // Os filhos são o detalhe que mais aparece nas letras que emocionam, e
+    // hoje só entram se a pessoa lembrar de escrever na história — quem
+    // escreve "minha mãe criou eu e meus irmãos" nunca dá os nomes, e a letra
+    // sai falando de "os filhos" no genérico.
+    //
+    // Um passo só, e opcional: preencher JÁ É o consentimento pra citar. Uma
+    // pergunta "tem filhos?" seguida de outra "quer citar?" seriam dois
+    // degraus a mais num quiz que perde gente a cada um.
+    id: "filhos",
+    kind: "question",
+    block: "Pra quem",
+    text: "Quer que a música cite os filhos?",
+    subtext:
+      "Escreva os nomes do jeito que são chamados em casa, é assim que vão ser cantados. Se preferir não citar ninguém, é só continuar.",
+    field: "filhos",
+    input: "text",
+    placeholder: "Ex.: Pedro, Aninha e o Caçula",
+    maxLength: 80,
+    eco: "Vão ser cantados assim",
+    ecoModelo: "“…e {v}, o amor que ficou”",
+    opcional: true,
+  },
+  {
     id: "ocasiao",
     kind: "question",
     block: "A ocasião",
@@ -138,6 +161,18 @@ export const QUIZ_FLOW: FlowStep[] = [
       "Ex: minha mãe criou eu e meus irmãos sozinha, sempre com um sorriso...",
     minChars: 120,
     allowAudio: true,
+    // Os mesmos gatilhos que destravaram o `historia2`. Aqui o campo é maior
+    // (120 chars) e vem antes: se a pessoa trava logo neste, os dois passos de
+    // história vão junto. As frases pedem SENTIMENTO e HISTÓRIA DOS DOIS, não
+    // recall de episódio — é a diferença que faz este passo perder pouca gente.
+    triggers: [
+      { rotulo: "como se conheceram", inicio: "A gente se conheceu " },
+      { rotulo: "o que admiro", inicio: "O que eu mais admiro em {nome} é " },
+      { rotulo: "o que faz por mim", inicio: "O que {nome} faz por mim e quase ninguém vê é " },
+      { rotulo: "o que aprendi", inicio: "O que eu aprendi com {nome} foi " },
+      { rotulo: "nunca falei isso", inicio: "Uma coisa que eu nunca falei pra {nome} é que " },
+      { rotulo: "o que sinto perto", inicio: "Do lado de {nome} eu me sinto " },
+    ],
   },
   {
     id: "historia2",
@@ -186,6 +221,7 @@ export const QUIZ_FLOW: FlowStep[] = [
     input: "text",
     placeholder: "A frase que você queria que ficasse pra sempre",
     maxLength: 120,
+    opcional: true,
   },
   {
     id: "contato",
@@ -207,6 +243,11 @@ export const QUIZ_FLOW: FlowStep[] = [
   },
 ];
 
-// Skip por ID (nunca por offset). Vazio por ora; exemplo de uso quando precisar:
-// { recado: (r) => r.ocasiao === "memorial" }  // pula o recado em memorial
-export const QUIZ_SKIP: SkipMap = {};
+// Skip por ID (nunca por offset). Inserir uma pergunta no meio não quebra nada.
+export const QUIZ_SKIP: SkipMap = {
+  // Perguntar dos filhos só faz sentido pra quem PODE tê-los. Pra um filho,
+  // um neto ou um pet a pergunta é estranha e custa um passo — e passo
+  // estranho é passo onde a pessoa fecha a aba.
+  filhos: (r) =>
+    ["filha", "filho", "neta", "neto", "pet"].includes(String(r.relacao)),
+};

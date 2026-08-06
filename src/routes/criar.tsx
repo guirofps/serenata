@@ -98,7 +98,7 @@ function Criar() {
       if (step.input === "chips")
         return Array.isArray(v) ? v.length > 0 : Boolean(v);
       if (step.input === "text")
-        return step.id === "recado" || Boolean((v as string)?.trim()); // recado é opcional
+        return Boolean(step.opcional) || Boolean((v as string)?.trim());
       if (step.input === "story") return storyIsValid(step, v as string);
     }
     if (isContact(step)) return /.+@.+\..+/.test(email ?? "");
@@ -276,6 +276,7 @@ function Criar() {
 const ROTULO: Record<string, string> = {
   relacao: "Pra quem",
   nome: "Nome",
+  filhos: "Filhos citados",
   ocasiao: "Ocasião",
   estilo: "Estilo",
   voz: "Voz",
@@ -286,7 +287,7 @@ const ROTULO: Record<string, string> = {
 
 function ReviewScreen({ onGerar }: { onGerar: () => void }) {
   const respostas = useQuizStore((s) => s.respostas);
-  const ordem = ["relacao", "nome", "ocasiao", "estilo", "voz", "historia1", "historia2", "recado"];
+  const ordem = ["relacao", "nome", "filhos", "ocasiao", "estilo", "voz", "historia1", "historia2", "recado"];
   return (
     <div className="space-y-6 text-center">
       <div className="space-y-2">

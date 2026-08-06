@@ -51,9 +51,14 @@ export function CampoNome({
             className="mt-1 text-lg leading-snug"
             style={{ fontFamily: FONTES.display }}
           >
-            “{texto},{" "}
-            <span className="text-muted-foreground">essa música é pra você…</span>
-            ”
+            {(step.ecoModelo ?? "“{v}, essa música é pra você…”")
+              .split("{v}")
+              .map((pedaco, i) => (
+                <span key={i}>
+                  {i > 0 && <span className="font-medium">{texto}</span>}
+                  <span className="text-muted-foreground">{pedaco}</span>
+                </span>
+              ))}
           </p>
         </div>
       )}

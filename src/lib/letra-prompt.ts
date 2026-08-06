@@ -154,12 +154,21 @@ export function buildUserMessage(respostas: Record<string, unknown>): string {
     .filter(Boolean)
     .join("\n\n");
   const recado = String(respostas.recado ?? "").trim();
+  // Os filhos vêm de um campo próprio, com os nomes escritos do jeito que são
+  // chamados em casa. Se o campo veio vazio, a pessoa escolheu não citar
+  // ninguém — e a instrução tem que dizer isso, senão o modelo inventa filhos
+  // a partir de "criou eu e meus irmãos".
+  const filhos = String(respostas.filhos ?? "").trim();
+  const linhaFilhos = filhos
+    ? `Filhos a citar pelo nome, exatamente como escrito: ${filhos}`
+    : "Filhos: não citar nenhum filho pelo nome.";
 
   return `Homenageado: ${nome}
 Relação com quem encomendou: ${relacao}
 Ocasião: ${ocasiao}
 Gênero musical: ${genero}
 Voz: ${voz}
+${linhaFilhos}
 
 História contada:
 ${historia}

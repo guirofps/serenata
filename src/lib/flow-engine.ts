@@ -39,8 +39,21 @@ export type QuestionStep = {
        * saiu "Carlos Henrique, meu presente de Deus" numa música entregue.
        */
       eco?: string;
+      /**
+       * A frase do eco, com `{v}` no lugar do que a pessoa digitou. O trecho
+       * fora do `{v}` sai apagado, então o olho cai no valor.
+       * Padrão: `“{v}, essa música é pra você…”`.
+       */
+      ecoModelo?: string;
       /** Oferece cortar pro primeiro nome quando a pessoa escreve mais de um. */
       cortarComposto?: boolean;
+      /**
+       * Deixa avançar com o campo vazio.
+       *
+       * Era um `if (step.id === "recado")` cravado na rota: cada campo novo
+       * opcional exigia mexer no motor. Agora quem decide é o passo.
+       */
+      opcional?: boolean;
     }
   | {
       // Campo de história: textarea com validação anti-lixo + opção de áudio.
