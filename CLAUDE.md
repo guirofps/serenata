@@ -235,9 +235,12 @@ prioridade é vender fumaça, e no Google Ads isso derruba conta.
    Mitigação: gerar antes de cobrar (acima), dois provedores com failover
    testado de verdade, portões automáticos de qualidade (duração, silêncio,
    idioma), fallback assíncrono por e-mail e WhatsApp.
-3. **Google Ads é rígido em alegações.** Prova social a usar na home: as
-   reações reais das pessoas que ouviram as músicas dos testes (`materiais/`),
-   como "reações de quem ouviu uma música feita por nós".
+3. **Google Ads é rígido em alegações.** Isso vale pra número inventado
+   ("3.000 clientes") e depoimento fabricado, não é desculpa pra funil tímido:
+   o vídeo de reações reais (`materiais/`) é prova forte e deve ser usado
+   sem medo, na home e na oferta. Copy de conversão (ancoragem de preço,
+   lista longa de entregável, FAQ que mata objeção, garantia) é trabalho
+   normal, não risco.
 
 ## Higiene
 
