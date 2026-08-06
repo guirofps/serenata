@@ -7,7 +7,7 @@ import { useQuizStore } from "@/lib/quiz-store";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { irParaCheckout } from "@/lib/checkout";
 import { Button } from "@/components/ui/button";
-import { MusicaDaSessao } from "@/components/quiz/MusicaDaSessao";
+import { MusicaDaSessao, type EstadoMusica } from "@/components/quiz/MusicaDaSessao";
 import { PreviaPresente } from "@/components/quiz/PreviaPresente";
 import { EscolherRefrao } from "@/components/quiz/coautoria/EscolherRefrao";
 import { EditorLetra } from "@/components/quiz/coautoria/EditorLetra";
@@ -61,6 +61,7 @@ export function RevealStep() {
   const [loadingIdx, setLoadingIdx] = useState(0);
   const [regerando, setRegerando] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
+  const [estadoMusica, setEstadoMusica] = useState<EstadoMusica>("gerando");
   const jaComecou = useRef(false);
 
   // respostas VIVAS (pós-hidratação), nunca o snapshot do render.
@@ -115,6 +116,14 @@ export function RevealStep() {
         },
       });
       trackEventOnce("letra_finalizada", "v1", { titulo: base.titulo });
+      // Guarda a letra final ANTES de revelar: é o que permite voltar pra
+      // esta tela depois sem recomeçar a coautoria.
+      useQuizStore.getState().setLetraFinal({
+        titulo: base.titulo,
+        letra: letraEditada,
+        estiloSuno: base.estilo_suno,
+        versoDestaque: base.verso_destaque,
+      });
       setFase({ t: "revelando", letra: { ...base, letra: letraEditada } });
     } catch (err) {
       console.error("[coautoria] finalizar falhou:", err);
@@ -127,6 +136,27 @@ export function RevealStep() {
   // Começa UMA vez, depois de hidratar e com história.
   useEffect(() => {
     if (!hidratada || jaComecou.current) return;
+
+    // JÁ TEM LETRA? Volta direto pra revelação, sem refazer a coautoria.
+    //
+    // É o conserto de quem sai desta tela (pra ver a oferta, ou tocando em
+    // voltar sem querer) e tenta retornar: antes caía em "Qual refrão fica
+    // melhor?", perdia a letra escolhida e queimava outra chamada de IA.
+    const jaEscrita = useQuizStore.getState().letraFinal;
+    if (jaEscrita) {
+      jaComecou.current = true;
+      setFase({
+        t: "revelando",
+        letra: {
+          titulo: jaEscrita.titulo,
+          letra: jaEscrita.letra,
+          estilo_suno: jaEscrita.estiloSuno,
+          verso_destaque: jaEscrita.versoDestaque,
+        },
+      });
+      return;
+    }
+
     if (!temHistoria(vivas())) {
       setFase({ t: "sem-dados" });
       return; // sem marcar jaComecou: se a história chegar, começa.
@@ -218,7 +248,7 @@ export function RevealStep() {
         </div>
 
         <div className="px-6 pb-6">
-          <MusicaDaSessao letra={letra.letra} />
+          <MusicaDaSessao letra={letra.letra} aoMudarEstado={setEstadoMusica} />
         </div>
 
         <div className="flex items-center justify-center gap-2 border-t bg-secondary/30 py-3 text-xs text-muted-foreground">
@@ -226,7 +256,18 @@ export function RevealStep() {
         </div>
       </div>
 
-      <IrPagar nome={nome} />
+      {/* O CTA só existe DEPOIS que a prévia toca (ou falha).
+          Antes ele ficava na tela durante os ~2min de geração: quem tocava
+          nele ia pro paywall sem nunca ter ouvido a própria música, e voltar
+          recomeçava a coautoria inteira. Além do desperdício, é a ordem
+          errada — não se pede dinheiro antes de mostrar o produto. */}
+      {estadoMusica === "gerando" ? (
+        <p className="text-center text-sm text-muted-foreground">
+          Assim que a gravação ficar pronta, você ouve um trecho aqui.
+        </p>
+      ) : (
+        <IrPagar nome={nome} />
+      )}
     </div>
   );
 }

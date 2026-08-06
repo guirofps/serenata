@@ -27,7 +27,23 @@ const TENTATIVAS_MAX = 90; // ~6 minutos
 // barra completar em vez de a peça sumir no meio.
 const COMPLETAR_MS = 1000;
 
-export function MusicaDaSessao({ letra }: { letra: string }) {
+/** Em que pé está a música desta sessão, pro pai decidir o que mostrar. */
+export type EstadoMusica = "gerando" | "pronta" | "falhou";
+
+export function MusicaDaSessao({
+  letra,
+  aoMudarEstado,
+}: {
+  letra: string;
+  /**
+   * Avisa o pai quando a prévia fica pronta (ou falha).
+   *
+   * Existe porque o CTA de compra não pode aparecer antes de a pessoa ouvir
+   * a própria música: quem tocava nele durante o carregamento ia pro paywall
+   * sem nunca ter ouvido nada, e voltar recomeçava o quiz.
+   */
+  aoMudarEstado?: (e: EstadoMusica) => void;
+}) {
   const navigate = useNavigate();
   const [status, setStatus] = useState<string>("aguardando");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -83,6 +99,15 @@ export function MusicaDaSessao({ letra }: { letra: string }) {
     return () => clearTimeout(t);
   }, [pronta]);
 
+  // Avisa o pai em que pé está. ANTES de qualquer return antecipado: hook
+  // depois de `return` é hook condicional, e o React quebra.
+  const falhouAgora = status === "falhou" || desistiu;
+  useEffect(() => {
+    aoMudarEstado?.(
+      revelar && audioUrl ? "pronta" : falhouAgora ? "falhou" : "gerando",
+    );
+  }, [revelar, audioUrl, falhouAgora, aoMudarEstado]);
+
   // Já revelou: mostra o player.
   if (revelar && audioUrl) {
     // Com timestamps: karaokê real, destaque palavra a palavra + trava no
@@ -110,7 +135,7 @@ export function MusicaDaSessao({ letra }: { letra: string }) {
     );
   }
 
-  const falhou = status === "falhou" || desistiu;
+  const falhou = falhouAgora;
 
   // Demorou demais: aviso honesto (avisamos por e-mail) + a letra pra reler.
   if (falhou) {
