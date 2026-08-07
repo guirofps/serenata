@@ -74,7 +74,10 @@ export function Login({ locale = "pt" }: { locale?: Locale }) {
   // Já logado? Vai direto pro painel.
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: caminho("/dashboard", locale) } as never);
+      // SEMPRE `/dashboard`, sem prefixo. Não existe `/es/dashboard`, e não
+      // deve existir: o painel do comprador tira o idioma da música que ele
+      // lista, não da rota. Prefixar aqui mandava o espanhol pra um 404.
+      if (data.session) navigate({ to: "/dashboard" });
     });
   }, [navigate]);
 

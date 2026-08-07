@@ -113,7 +113,10 @@ export default async function handler(req: Req, res: Res) {
     const { data: linkData, error: erroLink } = await sb.auth.admin.generateLink({
       type: "magiclink",
       email,
-      options: { redirectTo: `${origem(req)}/auth/callback` },
+      // O `lang` viaja no retorno porque a tela de callback é o ÚNICO lugar
+      // sem sessão e sem prefixo de rota: quando o link expira, ela não teria
+      // como saber em que língua falar, nem pra qual login mandar de volta.
+      options: { redirectTo: `${origem(req)}/auth/callback?lang=${locale}` },
     });
     const actionLink = linkData?.properties?.action_link;
     const uid = linkData?.user?.id;
