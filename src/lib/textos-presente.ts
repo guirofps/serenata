@@ -63,6 +63,21 @@ ${link}`,
   erroSalvarFotos: "Não consegui salvar as fotos.",
   erroFrase: "Não consegui salvar a frase.",
   erroCopiar: "Não consegui copiar. Selecione o texto e copie na mão.",
+  // ── painel do comprador ────────────────────────────────────
+  ola: (n: string) => `Olá, ${n}`,
+  suasMusicas: "Suas músicas",
+  painelSub: "Aqui ficam as músicas que você criou. Toque em uma pra montar o presente ou ver a página.",
+  carregando: "carregando…",
+  semMusicas: "Você ainda não tem nenhuma música.",
+  criarPrimeira: "Criar minha primeira música",
+  suaMusica: "Sua música",
+  presenteMontado: " · presente montado",
+  criadaEm: "criada em",
+  verPagina: "Ver página",
+  montarBotao: "Montar o presente",
+  sair: "Sair",
+  status: { pronta: "pronta", gerando: "gerando…", aguardando: "na fila", falhou: "falhou" } as Record<string, string>,
+
 };
 
 type TextosPresente = typeof PT;
@@ -122,6 +137,20 @@ ${link}`,
   erroSalvarFotos: "No pude guardar las fotos.",
   erroFrase: "No pude guardar la frase.",
   erroCopiar: "No pude copiar. Selecciona el texto y cópialo a mano.",
+  ola: (n: string) => `Hola, ${n}`,
+  suasMusicas: "Tus canciones",
+  painelSub: "Aquí están las canciones que creaste. Toca una para armar el regalo o ver la página.",
+  carregando: "cargando…",
+  semMusicas: "Todavía no tienes ninguna canción.",
+  criarPrimeira: "Crear mi primera canción",
+  suaMusica: "Tu canción",
+  presenteMontado: " · regalo armado",
+  criadaEm: "creada el",
+  verPagina: "Ver página",
+  montarBotao: "Armar el regalo",
+  sair: "Salir",
+  status: { pronta: "lista", gerando: "grabando…", aguardando: "en la fila", falhou: "falló" } as Record<string, string>,
+
 };
 
 const POR_IDIOMA: Record<Locale, TextosPresente> = { pt: PT, es: ES };

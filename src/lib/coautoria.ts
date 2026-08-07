@@ -247,6 +247,8 @@ export const finalizarLetra = createServerFn({ method: "POST" })
         estilo_suno: data.estiloSuno,
         verso_destaque: data.versoDestaque,
         genero: String(data.respostas.estilo ?? ""),
+        // Cópia do idioma pro painel do comprador, que não lê o lead (RLS).
+        locale,
       })
       .select("id")
       .single();

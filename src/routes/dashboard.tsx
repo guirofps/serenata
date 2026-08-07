@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-client";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
+import { tp } from "@/lib/textos-presente";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
 import { Loader2, Pencil, ExternalLink, Plus, LogOut, Music } from "lucide-react";
@@ -32,6 +33,7 @@ type Musica = {
   token_edicao: string;
   genero: string | null;
   personalizada_em: string | null;
+  locale: string | null;
   created_at: string;
 };
 
@@ -46,17 +48,22 @@ const QUANDO = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
 });
 
-const ROTULO_STATUS: Record<string, { texto: string; cor: string }> = {
-  pronta: { texto: "pronta", cor: "text-[var(--acento)]" },
-  gerando: { texto: "gerando…", cor: "text-[var(--tinta-suave)]" },
-  aguardando: { texto: "na fila", cor: "text-[var(--tinta-suave)]" },
-  falhou: { texto: "falhou", cor: "text-[var(--acento)]" },
+// A COR do status é do idioma nenhum; o texto vem do dicionário.
+const COR_STATUS: Record<string, string> = {
+  pronta: "text-[var(--acento)]",
+  gerando: "text-[var(--tinta-suave)]",
+  aguardando: "text-[var(--tinta-suave)]",
+  falhou: "text-[var(--acento)]",
 };
 
 function Dashboard() {
   const navigate = useNavigate();
   const [carregando, setCarregando] = useState(true);
   const [musicas, setMusicas] = useState<Musica[]>([]);
+  // O idioma da CONTA é o da música mais recente. É a única pista disponível
+  // aqui: `/dashboard` não tem prefixo de rota, e quem compra nos dois funis
+  // vê o painel na língua da última compra.
+  const T = tp(musicas[0]?.locale === "es" ? "es" : "pt");
   const [nome, setNome] = useState<string>("");
 
   useEffect(() => {
@@ -74,7 +81,7 @@ function Dashboard() {
       // RLS garante que só vêm as músicas DESTE usuário (auth.uid() = user_id).
       const { data } = await supabase
         .from("musicas")
-        .select("id, titulo, status, token, token_edicao, genero, personalizada_em, created_at")
+        .select("id, titulo, status, token, token_edicao, genero, personalizada_em, locale, created_at")
         .order("created_at", { ascending: false });
       if (!vivo) return;
       setMusicas((data ?? []) as Musica[]);
@@ -114,39 +121,41 @@ function Dashboard() {
           className="text-balance"
           style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-2xl)" }}
         >
-          {nome ? `Olá, ${nome}` : "Suas músicas"}
+          {nome ? T.ola(nome) : T.suasMusicas}
         </h1>
         <p
           className="mt-2 text-[var(--tinta-suave)]"
           style={{ fontSize: "var(--t-base)", lineHeight: 1.6 }}
         >
-          Aqui ficam as músicas que você criou. Toque em uma pra montar o
-          presente ou ver a página.
+          {T.painelSub}
         </p>
 
         {carregando ? (
           <div className="mt-10 flex items-center gap-3 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
-            <Loader2 className="h-4 w-4 animate-spin" /> carregando…
+            <Loader2 className="h-4 w-4 animate-spin" /> {T.carregando}
           </div>
         ) : musicas.length === 0 ? (
           <div className="mt-10 rounded-[var(--raio-lg)] border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-8 text-center">
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-[var(--acento)]/10 text-[var(--acento)]">
               <Music className="h-5 w-5" />
             </div>
-            <p style={{ fontSize: "var(--t-base)" }}>Você ainda não tem nenhuma música.</p>
+            <p style={{ fontSize: "var(--t-base)" }}>{T.semMusicas}</p>
             <Link
               to="/criar"
               className="mt-5 inline-flex h-12 items-center gap-2 rounded-full cta px-6 font-medium"
               style={{ fontSize: "var(--t-sm)" }}
             >
-              <Plus className="h-4 w-4" /> Criar minha primeira música
+              <Plus className="h-4 w-4" /> {T.criarPrimeira}
             </Link>
           </div>
         ) : (
           <>
             <ul className="mt-8 space-y-3">
               {musicas.map((m) => {
-                const st = ROTULO_STATUS[m.status] ?? { texto: m.status, cor: "text-[var(--tinta-suave)]" };
+                const st = {
+                  texto: T.status[m.status] ?? m.status,
+                  cor: COR_STATUS[m.status] ?? "text-[var(--tinta-suave)]",
+                };
                 const pronta = m.status === "pronta";
                 return (
                   <li
@@ -159,18 +168,18 @@ function Dashboard() {
                           className="truncate font-medium"
                           style={{ fontFamily: FONTES.display, fontSize: "var(--t-lg)" }}
                         >
-                          {m.titulo ?? "Sua música"}
+                          {m.titulo ?? T.suaMusica}
                         </p>
                         <p className={cn("mt-0.5", st.cor)} style={{ fontSize: "var(--t-xs)" }}>
                           {st.texto}
                           {m.genero ? ` · ${m.genero}` : ""}
-                          {m.personalizada_em ? " · presente montado" : ""}
+                          {m.personalizada_em ? T.presenteMontado : ""}
                         </p>
                         <p
                           className="mt-0.5 text-[var(--tinta-suave)]"
                           style={{ fontSize: "var(--t-xs)" }}
                         >
-                          criada em {QUANDO.format(new Date(m.created_at))}
+                          {T.criadaEm} {QUANDO.format(new Date(m.created_at))}
                         </p>
                       </div>
                     </div>
@@ -183,7 +192,7 @@ function Dashboard() {
                           className="inline-flex h-11 items-center gap-2 rounded-full cta px-5 font-medium"
                           style={{ fontSize: "var(--t-sm)" }}
                         >
-                          <Pencil className="h-4 w-4" /> Montar o presente
+                          <Pencil className="h-4 w-4" /> {T.montarBotao}
                         </Link>
                         <a
                           href={`/p/${m.token}`}
@@ -192,7 +201,7 @@ function Dashboard() {
                           className="inline-flex h-11 items-center gap-2 rounded-full border border-[var(--tinta-fraca)] px-5 transition-colors hover:border-[var(--tinta-suave)]"
                           style={{ fontSize: "var(--t-sm)" }}
                         >
-                          <ExternalLink className="h-4 w-4" /> Ver página
+                          <ExternalLink className="h-4 w-4" /> {T.verPagina}
                         </a>
                       </div>
                     )}
