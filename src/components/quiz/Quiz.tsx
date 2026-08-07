@@ -264,7 +264,33 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
             size="lg"
             className="cta w-full rounded-full border-0"
             disabled={!canAdvance}
-            onClick={isContact(step) ? () => navigate({ to: rota, search: { step: "revisao" } } as never) : goNext}
+            onClick={
+              isContact(step)
+                ? () => {
+                    // O E-MAIL SÓ EXISTE AQUI.
+                    //
+                    // A captura de lead roda no useEffect da TROCA de passo,
+                    // ou seja, quando a pessoa CHEGA no contato — com o campo
+                    // ainda vazio. Ela digita, clica, e vai pra revisão, que
+                    // não é question nem contact e não dispara captura
+                    // nenhuma. O e-mail digitado nunca era gravado.
+                    //
+                    // Medido em 07/08: de 150 pessoas que chegaram neste
+                    // passo, só 65 (43%) tinham e-mail no banco. Os 43% eram
+                    // quem voltava pro passo e refazia o efeito. As outras 85
+                    // digitaram e a gente perdeu — e é exatamente a lista de
+                    // quem abandona o checkout.
+                    captureLeadProgress({
+                      currentStep: passoFunil,
+                      furthestStep: passoFunil,
+                      respostas,
+                      email,
+                      locale,
+                    });
+                    navigate({ to: rota, search: { step: "revisao" } } as never);
+                  }
+                : goNext
+            }
           >
             {isContact(step) ? T.verMinhaLetra : T.continuar}
           </Button>
