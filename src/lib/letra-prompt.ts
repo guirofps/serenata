@@ -124,6 +124,29 @@ const OCASIAO: Record<string, string> = {
   soporque: "só porque sim",
   outro: "momento especial",
 };
+// O TOM, opcional. Vazio = o modelo decide pela ocasião e pela história, que
+// é o que já acontecia antes deste campo existir. Por isso a linha SÓ entra no
+// prompt quando há escolha: mandar "tom: à escolha do compositor" gastaria
+// atenção do modelo repetindo o que o silêncio já diz.
+const TOM: Record<string, { pt: string; es: string }> = {
+  romantica: {
+    pt: "romântica — declaração aberta, sem medo de ser piegas",
+    es: "romántica — declaración abierta, sin miedo a ser cursi",
+  },
+  divertida: {
+    pt: "divertida — bem-humorada, pode brincar com as manias da pessoa",
+    es: "divertida — con humor, puede jugar con las manías de la persona",
+  },
+  emocionante: {
+    pt: "emocionante — para arrepiar e fazer chorar, intensidade contida",
+    es: "emotiva — para poner la piel chinita, intensidad contenida",
+  },
+  animada: {
+    pt: "animada — alegre e para cantar junto, ritmo pra cima",
+    es: "alegre — festiva y para cantar juntos, ritmo hacia arriba",
+  },
+};
+
 const VOZ: Record<string, string> = {
   feminina: "feminina",
   masculina: "masculina",
@@ -141,6 +164,7 @@ const ROTULOS = {
     homenageado: "Homenageado", relacao: "Relação com quem encomendou",
     ocasiao: "Ocasião", genero: "Gênero musical", voz: "Voz",
     historia: "História contada", recado: "Recado especial (pode estar vazio)",
+    tom: "Tom pedido",
     filhosCitar: "Filhos a citar pelo nome, exatamente como escrito",
     filhosNao: "Filhos: não citar nenhum filho pelo nome.",
     fallbackNome: "essa pessoa", fallbackRelacao: "pessoa querida",
@@ -150,6 +174,7 @@ const ROTULOS = {
     homenageado: "Homenajeado", relacao: "Relación con quien la encargó",
     ocasiao: "Ocasión", genero: "Género musical", voz: "Voz",
     historia: "Historia contada", recado: "Mensaje especial (puede estar vacío)",
+    tom: "Tono pedido",
     filhosCitar: "Hijos a citar por su nombre, exactamente como está escrito",
     filhosNao: "Hijos: no citar a ningún hijo por su nombre.",
     fallbackNome: "esa persona", fallbackRelacao: "persona querida",
@@ -187,12 +212,15 @@ export function buildUserMessage(
   // a partir de "criou eu e meus irmãos".
   const filhos = String(respostas.filhos ?? "").trim();
   const linhaFilhos = filhos ? `${L.filhosCitar}: ${filhos}` : L.filhosNao;
+  const tom = TOM[String(respostas.tom ?? "")];
+  const linhaTom = tom ? `
+${L.tom}: ${tom[locale] ?? tom.pt}` : "";
 
   return `${L.homenageado}: ${nome}
 ${L.relacao}: ${relacao}
 ${L.ocasiao}: ${ocasiao}
 ${L.genero}: ${genero}
-${L.voz}: ${voz}
+${L.voz}: ${voz}${linhaTom}
 ${linhaFilhos}
 
 ${L.historia}:

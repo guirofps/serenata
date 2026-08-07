@@ -96,6 +96,16 @@ export const QUIZ_FLOW_ES: FlowStep[] = [
     // Do catálogo, não copiado: mariachi, banda e corrido tumbado não têm
     // equivalente brasileiro, e sertanejo e forró não existem no México.
     options: generos("es").map((g) => ({ value: g.value, label: g.label, emoji: g.emoji })),
+    extraChips: {
+      field: "tom",
+      pergunta: "¿Y el tono? (opcional)",
+      options: [
+        { value: "romantica", label: "Romántica", emoji: "💗" },
+        { value: "divertida", label: "Divertida", emoji: "😄" },
+        { value: "emocionante", label: "Emotiva", emoji: "🥹" },
+        { value: "animada", label: "Alegre", emoji: "🎉" },
+      ],
+    },
   },
   {
     id: "voz",

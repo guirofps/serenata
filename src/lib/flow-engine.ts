@@ -27,7 +27,27 @@ export type QuestionStep = {
   subtext?: string;
   field: string; // chave em que a resposta é gravada (respostas[field])
 } & (
-  | { input: "chips"; options: ChipOption[]; multi?: boolean }
+  | {
+      input: "chips";
+      options: ChipOption[];
+      multi?: boolean;
+      /**
+       * Uma SEGUNDA fileira de chips na mesma tela, gravada em outro `field`.
+       *
+       * Existe pro TOM da música. Ele é uma dimensão real — pra a mesma
+       * ocasião e o mesmo gênero, "meu amigo que é ridículo" e "meu amigo que
+       * me salvou" pedem letras diferentes —, mas não vale um passo próprio.
+       *
+       * Medido em 3 dias: o quiz quase não perde ninguém DEPOIS da primeira
+       * pergunta (11%, 0%, 3%, 0%, 17%, 6%). Está apertado o suficiente pra
+       * não se acrescentar degrau sem motivo forte, e o tom não é um.
+       */
+      extraChips?: {
+        field: string;
+        pergunta: string;
+        options: ChipOption[];
+      };
+    }
   | {
       input: "text";
       placeholder?: string;

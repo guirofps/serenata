@@ -6,10 +6,14 @@ export function ChipsStep({
   step,
   value,
   onChange,
+  respostas,
+  onChangeExtra,
 }: {
   step: Extract<QuestionStep, { input: "chips" }>;
   value: string | string[] | undefined;
   onChange: (v: string | string[]) => void;
+  respostas?: Record<string, unknown>;
+  onChangeExtra?: (field: string, v: string) => void;
 }) {
   const selected = new Set(
     Array.isArray(value) ? value : value ? [value] : [],
@@ -25,7 +29,11 @@ export function ChipsStep({
     }
   }
 
+  const extra = step.extraChips;
+  const valorExtra = extra ? String(respostas?.[extra.field] ?? "") : "";
+
   return (
+    <div className="space-y-6">
     <div className="flex flex-wrap justify-center gap-2.5">
       {step.options.map((opt) => {
         const on = selected.has(opt.value);
@@ -58,6 +66,39 @@ export function ChipsStep({
           </button>
         );
       })}
+    </div>
+
+      {/* A SEGUNDA fileira (hoje: o tom). Opcional de propósito: quem não
+          escolher deixa o modelo decidir pela ocasião e pela história, que é
+          o que já acontecia antes deste campo existir. */}
+      {extra && onChangeExtra && (
+        <div className="border-t pt-5">
+          <p className="mb-3 text-sm text-muted-foreground">{extra.pergunta}</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {extra.options.map((opt) => {
+              const on = valorExtra === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  // Tocar de novo no mesmo chip LIMPA: é como se desfaz uma
+                  // escolha opcional sem um botão de "nenhum" ocupando espaço.
+                  onClick={() => onChangeExtra(extra.field, on ? "" : opt.value)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm transition-all",
+                    on
+                      ? "border-primary bg-primary/10 font-medium text-foreground"
+                      : "border-border bg-background text-muted-foreground hover:border-primary/40",
+                  )}
+                >
+                  {opt.emoji && <span aria-hidden>{opt.emoji}</span>}
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

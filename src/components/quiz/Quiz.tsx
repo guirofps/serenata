@@ -148,6 +148,8 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
                 step={step}
                 value={respostas[step.field]}
                 onChange={(v) => setResposta(step.field, v)}
+                respostas={respostas}
+                onChangeExtra={setResposta}
               />
             )}
             {step.input === "text" &&

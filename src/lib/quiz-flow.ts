@@ -101,6 +101,19 @@ const QUIZ_FLOW_PT: FlowStep[] = [
     // rótulo do prompt vivem juntos no catálogo (`generos.ts`) — eram três
     // listas que precisavam concordar entre si.
     options: generos("pt").map((g) => ({ value: g.value, label: g.label, emoji: g.emoji })),
+    // O TOM, segunda fileira. Opcional: sem escolha, o modelo decide pela
+    // ocasião e pela história, que é o que já fazia antes deste campo existir.
+    // Os `value` são idênticos nos dois idiomas (é o que vai pro banco).
+    extraChips: {
+      field: "tom",
+      pergunta: "E o tom? (opcional)",
+      options: [
+        { value: "romantica", label: "Romântica", emoji: "💗" },
+        { value: "divertida", label: "Divertida", emoji: "😄" },
+        { value: "emocionante", label: "Emocionante", emoji: "🥹" },
+        { value: "animada", label: "Animada", emoji: "🎉" },
+      ],
+    },
   },
   {
     id: "voz",

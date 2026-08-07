@@ -110,7 +110,7 @@ const PT = {
   // ── rótulos da revisão ───────────────────────────────────────
   rotulos: {
     relacao: "Pra quem", nome: "Nome", ocasiao: "Ocasião", estilo: "Estilo",
-    voz: "Voz", historia1: "Sobre ela(e)", historia2: "Uma memória",
+    voz: "Voz", tom: "Tom", historia1: "Sobre ela(e)", historia2: "Uma memória",
     recado: "Sua frase", filhos: "Filhos citados",
   } as Record<string, string>,
 };
@@ -208,7 +208,7 @@ const ES: Textos = {
 
   rotulos: {
     relacao: "Para quién", nome: "Nombre", ocasiao: "Ocasión", estilo: "Estilo",
-    voz: "Voz", historia1: "Sobre ella(él)", historia2: "Un recuerdo",
+    voz: "Voz", tom: "Tono", historia1: "Sobre ella(él)", historia2: "Un recuerdo",
     recado: "Tu frase", filhos: "Hijos mencionados",
   },
 };
