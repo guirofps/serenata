@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { carregarPainel, type Painel } from "@/lib/admin-dados";
+import { carregarPainel, type Painel, type FunilFiltro } from "@/lib/admin-dados";
+import { PRECOS } from "@/lib/custos";
 import { entrarAdmin, sairAdmin } from "@/lib/admin-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/admin")({
     dias: z.coerce.number().optional(),
     de: z.string().optional(),
     ate: z.string().optional(),
+    funil: z.enum(["todos", "pt", "es"]).optional(),
   }),
   head: () => ({
     meta: [{ title: `Painel · ${MARCA.nome}` }, { name: "robots", content: "noindex, nofollow" }],
@@ -30,6 +32,10 @@ export const Route = createFileRoute("/admin")({
 
 const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 });
+// O dólar do funil espanhol. Formatado com o símbolo à vista, pra ninguém
+// ler 9 como nove reais.
+const usd = (n: number) =>
+  n.toLocaleString("pt-BR", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 const pc = (n: number) => `${n.toFixed(1)}%`;
 const seg = (n: number | null) => (n == null ? "—" : n < 90 ? `${Math.round(n)}s` : `${(n / 60).toFixed(1)}min`);
 const quando = (iso: string) =>
@@ -111,7 +117,7 @@ function hojeBr(deslocaDias = 0): string {
 }
 
 function Admin() {
-  const { dias, de, ate } = Route.useSearch();
+  const { dias, de, ate, funil } = Route.useSearch();
   const navigate = useNavigate();
   const [dados, setDados] = useState<Painel | null>(null);
   const [precisaLogin, setPrecisaLogin] = useState(false);
@@ -123,12 +129,13 @@ function Admin() {
   const [rAte, setRAte] = useState(ate ?? hojeBr());
 
   const periodo = dias ?? 30;
+  const filtro: FunilFiltro = funil ?? "todos";
   const usandoDatas = Boolean(de);
 
   async function carregar() {
     setCarregando(true);
     try {
-      const args = usandoDatas ? { de, ate } : { dias: periodo };
+      const args = usandoDatas ? { de, ate, funil: filtro } : { dias: periodo, funil: filtro };
       setDados(await carregarPainel({ data: args }));
       setPrecisaLogin(false);
     } catch {
@@ -140,7 +147,7 @@ function Admin() {
 
   useEffect(() => {
     carregar();
-  }, [periodo, de, ate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [periodo, de, ate, filtro]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (precisaLogin) {
     return (
@@ -210,11 +217,35 @@ function Admin() {
                 {a.r}
               </Link>
             ))}
+            {/* QUAL FUNIL. Sem isto o painel soma R$ com US$ e mostra um
+                faturamento que não existe em lugar nenhum. */}
+            <div className="mr-1 flex items-center gap-1 rounded-full border border-[var(--tinta-fraca)] p-0.5">
+              {([
+                { v: "todos", r: "os dois" },
+                { v: "pt", r: "🇧🇷 BR" },
+                { v: "es", r: "🇲🇽 MX" },
+              ] as const).map((f) => (
+                <Link
+                  key={f.v}
+                  to="/admin"
+                  search={(s) => ({ ...s, funil: f.v })}
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-xs transition-colors",
+                    filtro === f.v
+                      ? "bg-[var(--acento)] font-medium text-white"
+                      : "text-[var(--tinta-suave)] hover:text-[var(--tinta)]",
+                  )}
+                >
+                  {f.r}
+                </Link>
+              ))}
+            </div>
+
             {[7, 30, 90].map((d) => (
               <Link
                 key={d}
                 to="/admin"
-                search={{ dias: d }}
+                search={(s) => ({ ...s, dias: d, de: undefined, ate: undefined })}
                 className={cn(
                   "rounded-full px-3 py-1.5 text-xs transition-colors",
                   !usandoDatas && periodo === d
@@ -272,22 +303,57 @@ function Admin() {
 
       <main className="mx-auto max-w-7xl space-y-10 px-4 py-8">
         {/* ── DINHEIRO ─────────────────────────────────────────── */}
-        <Secao titulo="O dinheiro" sub={`Últimos ${dados.periodoDias} dias`}>
+        <Secao
+          titulo="O dinheiro"
+          sub={`Últimos ${dados.periodoDias} dias · ${
+            dados.filtro === "es" ? "funil espanhol" : dados.filtro === "pt" ? "funil português" : "os dois funis"
+          }`}
+        >
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
             <Cartao rotulo="Vendas" valor={String(t.vendas)} destaque apoio={`${pc(t.taxaGeral)} dos visitantes`} />
-            <Cartao rotulo="Receita" valor={brl(t.receitaBrl)} destaque apoio={`ticket ${brl(t.ticketMedioBrl)}`} />
+            {/* RECEITA: nunca um número só quando há duas moedas.
+                O funil brasileiro cobra em real, o espanhol cobra em dólar na
+                Perfect Pay. Somar os dois produz um total que não existe no
+                extrato de lugar nenhum. */}
+            {t.receitaUsd > 0 && t.receitaBrl > 0 ? (
+              <Cartao
+                rotulo="Receita"
+                valor={`${brl(t.receitaBrl)} + ${usd(t.receitaUsd)}`}
+                destaque
+                apoio="duas moedas, não somadas"
+              />
+            ) : t.receitaUsd > 0 ? (
+              <Cartao
+                rotulo="Receita"
+                valor={usd(t.receitaUsd)}
+                destaque
+                apoio={`ticket ${usd(t.receitaUsd / Math.max(1, t.vendas))}`}
+              />
+            ) : (
+              <Cartao rotulo="Receita" valor={brl(t.receitaBrl)} destaque apoio={`ticket ${brl(t.ticketMedioBrl)}`} />
+            )}
             <Cartao rotulo="Custo de produção" valor={brl(t.custoTotalBrl)} apoio={`${brl(t.custoPorVendaBrl)} por venda`} />
             <Cartao
               rotulo="Margem bruta"
               valor={brl(t.margemBrl)}
               alerta={t.margemBrl < 0}
-              apoio={t.receitaBrl > 0 ? `${pc((t.margemBrl / t.receitaBrl) * 100)} da receita` : "sem receita ainda"}
+              apoio={
+                t.receitaConvertidaBrl > 0
+                  ? `${pc((t.margemBrl / t.receitaConvertidaBrl) * 100)} da receita`
+                  : "sem receita ainda"
+              }
             />
             <Cartao rotulo="Visitantes" valor={String(t.visitantes)} apoio={`${t.quizIniciados} começaram o quiz`} />
             <Cartao rotulo="Letras entregues" valor={String(t.letrasGeradas)} apoio={`${t.leads} deixaram e-mail`} />
           </div>
           <p className="text-xs text-[var(--tinta-suave)]">
             Custo de produção é o que a gente gasta pra fazer (Claude + Suno). Não inclui o gasto de anúncio nem a taxa do gateway, que ficam nos painéis deles.
+            {t.receitaUsd > 0 && (
+              <>
+                {" "}A margem converte o dólar a R$ {PRECOS.cambioUsdBrl.toFixed(2)} (o mesmo câmbio dos custos).
+                A receita acima não é convertida.
+              </>
+            )}
           </p>
         </Secao>
 

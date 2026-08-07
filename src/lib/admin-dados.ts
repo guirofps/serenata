@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { QUIZ_FLOW } from "@/lib/quiz-flow";
 import { isQuestion } from "@/lib/flow-engine";
+import { PRECOS } from "@/lib/custos";
 
 // Agregações do painel. TODAS exigem admin antes de tocar no banco — nenhuma
 // consulta roda para quem não está autenticado.
@@ -11,7 +12,12 @@ import { isQuestion } from "@/lib/flow-engine";
 //   2. De ONDE vem? (atribuição por campanha/origem)
 //   3. Onde a pessoa DESISTE? (o funil passo a passo, do clique à venda)
 
+/** Qual funil o painel está olhando. */
+export type FunilFiltro = "todos" | "pt" | "es";
+
 export type Painel = {
+  /** Qual funil este recorte está olhando. */
+  filtro: FunilFiltro;
   periodoDias: number;
   /** Início e fim reais do recorte (ISO), pra o painel exibir. */
   de: string;
@@ -25,7 +31,13 @@ export type Painel = {
     letrasGeradas: number;
     cliquesCheckout: number;
     vendas: number;
+    // As duas receitas NUNCA são somadas. O funil brasileiro cobra em real,
+    // o espanhol cobra em dólar na Perfect Pay, e juntar os dois num total
+    // só produz um número que não existe em lugar nenhum.
     receitaBrl: number;
+    receitaUsd: number;
+    /** Receita convertida pra real ao câmbio de `cambioUsdBrl`, pra margem. */
+    receitaConvertidaBrl: number;
     ticketMedioBrl: number;
     custoTotalBrl: number;
     margemBrl: number;
@@ -156,6 +168,7 @@ type Lead = {
   email: string | null;
   attribution: Record<string, unknown> | null;
   created_at: string;
+  locale: string | null;
 };
 type Musica = {
   id: string;
@@ -166,8 +179,14 @@ type Musica = {
   gerada_em: string | null;
   personalizada_em: string | null;
 };
-type Custo = { id: string; tipo: string; custo_brl: number | null; created_at: string };
-type Evento = { id: string; event_name: string; session_id: string | null; created_at: string };
+type Custo = { id: string; tipo: string; custo_brl: number | null; quiz_response_id: string | null; created_at: string };
+type Evento = {
+  id: string;
+  event_name: string;
+  session_id: string | null;
+  event_data: Record<string, unknown> | null;
+  created_at: string;
+};
 type Pedido = {
   id: string;
   quiz_response_id: string | null;
@@ -199,7 +218,7 @@ async function paginado<T>(
 export const carregarPainel = createServerFn({ method: "POST" })
   // `de`/`ate` em "YYYY-MM-DD" (hora local BR) têm prioridade sobre `dias`.
   // Com eles dá pra olhar UM dia específico ou qualquer intervalo.
-  .validator((data: { dias?: number; de?: string; ate?: string }) => data)
+  .validator((data: { dias?: number; de?: string; ate?: string; funil?: FunilFiltro }) => data)
   .handler(async ({ data }): Promise<Painel> => {
     // Import dinâmico: mantém node:crypto fora do bundle do cliente.
     const { exigirAdmin } = await import("@/lib/admin-auth.server");
@@ -246,30 +265,88 @@ export const carregarPainel = createServerFn({ method: "POST" })
       );
 
     const [leadsCru, musicas, custos, eventos, pedidos] = await Promise.all([
-      janela<Lead>("quiz_responses", "id, session_id, respostas, furthest_step, email, attribution, created_at"),
+      janela<Lead>("quiz_responses", "id, session_id, respostas, furthest_step, email, attribution, locale, created_at"),
       janela<Musica>("musicas", "id, quiz_response_id, titulo, status, created_at, gerada_em, personalizada_em"),
-      janela<Custo>("custos", "id, tipo, custo_brl, created_at"),
-      janela<Evento>("funnel_events", "id, event_name, session_id, created_at"),
+      janela<Custo>("custos", "id, tipo, custo_brl, quiz_response_id, created_at"),
+      janela<Evento>("funnel_events", "id, event_name, session_id, event_data, created_at"),
       janela<Pedido>(
         "pedidos",
         "id, quiz_response_id, musica_id, gateway, status, valor_centavos, email, paid_at, created_at",
       ),
     ]);
 
-    // Mais recente primeiro, como a listagem do painel espera.
-    const leads = [...leadsCru].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 
-    const conta = (nome: string) => eventos.filter((e) => e.event_name === nome).length;
+    // ── SEPARAÇÃO DOS DOIS FUNIS ──────────────────────────────────
+    //
+    // Sem isto o painel soma R$ com US$ e produz um faturamento que não
+    // existe em lugar nenhum.
+    //
+    // De onde sai o idioma de cada linha, em ordem de confiança:
+    //
+    //   1. `quiz_responses.locale` — gravado no passo 1 do quiz. É a
+    //      verdade pra lead, música, custo e pedido (todos referenciam o
+    //      quiz_response).
+    //   2. O CAMINHO do page_view, pra quem visitou e nunca começou o quiz.
+    //      Essa gente não tem linha em quiz_responses, e é justamente o topo
+    //      do funil — sem isto, "visitantes" seria sempre o total dos dois.
+    //
+    // Sessão sem nenhum dos dois (evento antigo, sem path gravado) cai em
+    // "pt": todo o histórico é brasileiro, então errar pro lado do português
+    // é errar pro lado certo.
+    const filtro: FunilFiltro = data.funil ?? "todos";
+
+    const localeDoQuiz = new Map<string, string>();
+    for (const l of leadsCru) localeDoQuiz.set(l.id, l.locale === "es" ? "es" : "pt");
+
+    const localeDaSessao = new Map<string, string>();
+    for (const l of leadsCru) {
+      if (l.session_id) localeDaSessao.set(l.session_id, l.locale === "es" ? "es" : "pt");
+    }
+    for (const e of eventos) {
+      if (!e.session_id || localeDaSessao.has(e.session_id)) continue;
+      if (e.event_name !== "page_view") continue;
+      const caminho = String((e.event_data ?? {}).path ?? "");
+      localeDaSessao.set(e.session_id, /^\/es(\/|$)/.test(caminho) ? "es" : "pt");
+    }
+
+    const bate = (locale: string | undefined) =>
+      filtro === "todos" || (locale ?? "pt") === filtro;
+    const porSessao = (sid: string | null) => bate(sid ? localeDaSessao.get(sid) : undefined);
+    const quizBate = (qid: string | null) => bate(qid ? localeDoQuiz.get(qid) : undefined);
+
+    // Mais recente primeiro, como a listagem do painel espera.
+    const leads = leadsCru
+      .filter((l) => bate(l.locale === "es" ? "es" : "pt"))
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+
+    const eventosF = eventos.filter((e) => porSessao(e.session_id));
+    const musicasF = musicas.filter((m) => quizBate(m.quiz_response_id));
+    const custosF = custos.filter((c) => quizBate(c.quiz_response_id));
+    const pedidosF = pedidos.filter((p) => quizBate(p.quiz_response_id));
+
+    const conta = (nome: string) => eventosF.filter((e) => e.event_name === nome).length;
     // Visitante único: sessões distintas com page_view. É o denominador honesto
     // do funil (o total de page_view contaria a mesma pessoa várias vezes).
     const sessoesComView = new Set(
-      eventos.filter((e) => e.event_name === "page_view" && e.session_id).map((e) => e.session_id),
+      eventosF.filter((e) => e.event_name === "page_view" && e.session_id).map((e) => e.session_id),
     );
     const visitantes = sessoesComView.size;
 
-    const pagos = pedidos.filter((p) => p.status === "pago");
-    const receita = pagos.reduce((s, p) => s + (p.valor_centavos ?? 0) / 100, 0);
-    const custoTotal = custos.reduce((s, c) => s + Number(c.custo_brl ?? 0), 0);
+    const pagos = pedidosF.filter((p) => p.status === "pago");
+
+    // A MOEDA de cada pedido vem do idioma da venda: o produto brasileiro da
+    // Perfect Pay cobra em real, o internacional em dólar. Não há coluna de
+    // moeda em `pedidos`, e não precisa haver — o vínculo já existe.
+    const valorDe = (p: Pedido) => (p.valor_centavos ?? 0) / 100;
+    const ehEs = (p: Pedido) => localeDoQuiz.get(p.quiz_response_id ?? "") === "es";
+    /** O valor em real, convertendo dólar ao câmbio dos custos. */
+    const valorEmBrl = (p: Pedido) => valorDe(p) * (ehEs(p) ? PRECOS.cambioUsdBrl : 1);
+    const receitaBrl = pagos.filter((p) => !ehEs(p)).reduce((s, p) => s + valorDe(p), 0);
+    const receitaUsd = pagos.filter(ehEs).reduce((s, p) => s + valorDe(p), 0);
+    // Só pra margem, e com o câmbio na tela: os nossos custos são todos em
+    // real (Claude e kie.ai cobram em dólar mas já entram convertidos).
+    const receita = receitaBrl + receitaUsd * PRECOS.cambioUsdBrl;
+    const custoTotal = custosF.reduce((s, c) => s + Number(c.custo_brl ?? 0), 0);
 
     // "Começou o quiz" vem da LINHA em quiz_responses, não do evento
     // `quiz_started`. Medido: 76 sessões tinham linha e só 52 tinham evento —
@@ -305,7 +382,7 @@ export const carregarPainel = createServerFn({ method: "POST" })
     // clique em comprar levava direto pro gateway; por isso o degrau fica
     // vazio em qualquer recorte anterior, e não é bug.
     const sessoesOferta = new Set(
-      eventos.filter((e) => e.event_name === "oferta_vista" && e.session_id).map((e) => e.session_id),
+      eventosF.filter((e) => e.event_name === "oferta_vista" && e.session_id).map((e) => e.session_id),
     ).size;
 
     // Músicas que realmente vieram do funil. As de EXEMPLO (as da landing, as
@@ -318,7 +395,7 @@ export const carregarPainel = createServerFn({ method: "POST" })
     // furthest_step 0. Música cujo lead está fora da janela (a pessoa
     // respondeu ontem, a letra saiu hoje) continua contando.
     const passoDoLead = new Map(leads.map((l) => [l.id, l.furthest_step ?? 0]));
-    const doFunil = musicas.filter((m) => {
+    const doFunil = musicasF.filter((m) => {
       const passo = m.quiz_response_id ? passoDoLead.get(m.quiz_response_id) : undefined;
       return passo === undefined || passo > 0;
     });
@@ -362,7 +439,6 @@ export const carregarPainel = createServerFn({ method: "POST" })
     });
 
     // ── ATRIBUIÇÃO: de onde vem lead e venda ─────────────────────
-    const porQuiz = new Map(leads.map((l) => [l.id, l]));
     const chaveOrigem = (attr: unknown): { origem: string; campanha: string | null } => {
       const a = (attr ?? {}) as Record<string, string | undefined>;
       if (a.utm_source) return { origem: a.utm_source, campanha: a.utm_campaign ?? null };
@@ -390,13 +466,18 @@ export const carregarPainel = createServerFn({ method: "POST" })
       if (musicas.some((m) => m.quiz_response_id === l.id)) v.letras++;
       origemMap.set(k, v);
     }
+    const porQuiz = new Map(leads.map((l) => [l.id, l]));
     for (const p of pagos) {
       const l = p.quiz_response_id ? porQuiz.get(p.quiz_response_id) : null;
       const { origem, campanha } = chaveOrigem(l?.attribution);
       const k = `${origem}|${campanha ?? ""}`;
       const v = origemMap.get(k) ?? { origem, campanha, leads: 0, letras: 0, vendas: 0, receitaBrl: 0 };
       v.vendas++;
-      v.receitaBrl += (p.valor_centavos ?? 0) / 100;
+      // CONVERTIDO, ao contrário do cartão de receita: aqui o número serve
+      // pra COMPARAR campanhas entre si, e comparar exige unidade única. Uma
+      // venda em dólar contada como real faria a campanha mexicana parecer
+      // 5x pior do que é.
+      v.receitaBrl += valorEmBrl(p);
       origemMap.set(k, v);
     }
     const porOrigem = [...origemMap.values()]
@@ -408,7 +489,7 @@ export const carregarPainel = createServerFn({ method: "POST" })
     const tempos: number[] = [];
     const agora = Date.now();
     let travadas = 0;
-    for (const m of musicas) {
+    for (const m of musicasF) {
       porStatus[m.status] = (porStatus[m.status] ?? 0) + 1;
       if (m.gerada_em && m.created_at) {
         const s = (new Date(m.gerada_em).getTime() - new Date(m.created_at).getTime()) / 1000;
@@ -424,7 +505,7 @@ export const carregarPainel = createServerFn({ method: "POST" })
     // ── CUSTOS x RECEITA por dia ─────────────────────────────────
     const porTipoMap = new Map<string, { brl: number; n: number }>();
     const porDiaMap = new Map<string, { brl: number; receitaBrl: number; vendas: number }>();
-    for (const c of custos) {
+    for (const c of custosF) {
       const brl = Number(c.custo_brl ?? 0);
       const t = porTipoMap.get(c.tipo) ?? { brl: 0, n: 0 };
       porTipoMap.set(c.tipo, { brl: t.brl + brl, n: t.n + 1 });
@@ -436,7 +517,9 @@ export const carregarPainel = createServerFn({ method: "POST" })
     for (const p of pagos) {
       const dia = String(p.paid_at ?? p.created_at).slice(0, 10);
       const d = porDiaMap.get(dia) ?? { brl: 0, receitaBrl: 0, vendas: 0 };
-      d.receitaBrl += (p.valor_centavos ?? 0) / 100;
+      // Convertido: esta linha é comparada com o CUSTO do dia (que é sempre
+      // em real) pra pintar a margem de vermelho ou verde.
+      d.receitaBrl += valorEmBrl(p);
       d.vendas++;
       porDiaMap.set(dia, d);
     }
@@ -451,10 +534,11 @@ export const carregarPainel = createServerFn({ method: "POST" })
       return [...m.entries()].map(([valor, n]) => ({ valor, n })).sort((a, b) => b.n - a.n);
     };
 
-    const musicaPorId = new Map(musicas.map((m) => [m.id, m]));
+    const musicaPorId = new Map(musicasF.map((m) => [m.id, m]));
     const quizComprou = new Set(pagos.map((p) => p.quiz_response_id).filter(Boolean));
 
     return {
+      filtro,
       periodoDias: dias,
       de: inicio.toISOString(),
       ate: fim.toISOString(),
@@ -468,7 +552,9 @@ export const carregarPainel = createServerFn({ method: "POST" })
         letrasGeradas: doFunil.length,
         cliquesCheckout,
         vendas: pagos.length,
-        receitaBrl: receita,
+        receitaBrl,
+        receitaUsd,
+        receitaConvertidaBrl: receita,
         ticketMedioBrl: pagos.length ? receita / pagos.length : 0,
         custoTotalBrl: custoTotal,
         margemBrl: receita - custoTotal,
@@ -506,7 +592,7 @@ export const carregarPainel = createServerFn({ method: "POST" })
         usouAudio: conta("audio_usado"),
         karaokePlay: conta("karaoke_play") + conta("musica_play"),
         previewFim: conta("preview_limite"),
-        presentesMontados: musicas.filter((m) => m.personalizada_em).length,
+        presentesMontados: musicasF.filter((m) => m.personalizada_em).length,
       },
 
       preferencias: {
