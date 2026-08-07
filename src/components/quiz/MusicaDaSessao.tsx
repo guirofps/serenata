@@ -169,7 +169,7 @@ export function MusicaDaSessao({
       {/* Entre a barra e as músicas de propósito: enquanto espera, a pessoa
           vê o ENTREGÁVEL (o que ela vai enviar) antes de se distrair ouvindo
           exemplo dos outros. */}
-      <VideoEntrega />
+      <VideoEntrega locale={locale} />
       <OuvirEnquantoEspera locale={locale} />
     </div>
   );

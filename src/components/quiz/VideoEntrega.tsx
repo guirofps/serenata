@@ -1,3 +1,5 @@
+import { type Locale } from "@/lib/i18n";
+import { t } from "@/lib/textos";
 // COMO O PRESENTE CHEGA, enquanto a música grava.
 //
 // Gravação real de uma entrega: a conversa no WhatsApp com o link, o toque, a
@@ -14,11 +16,13 @@
 // 52 MB: num 4G do interior isso nunca carregaria, e a tela ficaria com um
 // buraco justamente na hora mais delicada.
 
-export function VideoEntrega() {
+
+export function VideoEntrega({ locale = "pt" }: { locale?: Locale }) {
+  const T = t(locale);
   return (
     <div className="rounded-2xl border bg-secondary/30 px-4 py-4">
       <p className="text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
-        é isso que você vai enviar
+        {T.isSoQueVaiEnviar}
       </p>
 
       <div
@@ -38,8 +42,7 @@ export function VideoEntrega() {
       </div>
 
       <p className="mx-auto mt-3 max-w-xs text-center text-xs leading-relaxed text-muted-foreground">
-        Você manda o link no WhatsApp. A pessoa toca, e a letra acende no ritmo
-        da música, com as fotos de vocês.
+        {T.comoVaiChegar}
       </p>
     </div>
   );

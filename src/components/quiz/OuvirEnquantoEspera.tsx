@@ -67,7 +67,7 @@ export function OuvirEnquantoEspera({ locale = "pt" }: { locale?: Locale }) {
   return (
     <div>
       <p className="mb-3 text-center text-xs uppercase tracking-wide text-muted-foreground">
-        enquanto isso, ouça outras
+        {T.esperaOuvirOutras}
       </p>
 
       {/* preload none: nada baixa até tocar */}

@@ -80,8 +80,7 @@ export function ProgressoGeracao({ pronta = false, locale = "pt" }: { pronta?: b
 
       {!pronta && (
         <p className="mt-2.5 text-xs text-muted-foreground">
-          Leva cerca de 2 minutos. Pode ir ouvindo outras aqui embaixo enquanto
-          a sua fica pronta.
+          {T.levaDoisMinutos}
         </p>
       )}
     </div>
