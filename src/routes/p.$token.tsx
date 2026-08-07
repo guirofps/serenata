@@ -1,6 +1,7 @@
 ﻿import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { carregarPresente } from "@/lib/presente";
+import { tp } from "@/lib/textos-presente";
 import { LetraSincronizada } from "@/components/presente/LetraSincronizada";
 import { Ambiente } from "@/components/presente/Ambiente";
 import { FotosSincronizadas } from "@/components/presente/FotosSincronizadas";
@@ -60,8 +61,9 @@ export const Route = createFileRoute("/p/$token")({
     // última edição: sem ele, trocar a foto depois de mandar o link não
     // mudaria nada, porque o WhatsApp guarda a prévia por URL.
     const nome = loaderData?.nome;
-    const titulo = loaderData?.titulo ?? "Um presente";
-    const descricao = nome ? `Uma música feita só para ${nome}.` : "Uma música feita só para você.";
+    const T = tp(loaderData?.locale ?? "pt");
+    const titulo = loaderData?.titulo ?? T.umPresente;
+    const descricao = T.descricao(nome);
     const v = loaderData?.personalizadaEm
       ? `?v=${Date.parse(loaderData.personalizadaEm) || ""}`
       : "";
@@ -71,7 +73,7 @@ export const Route = createFileRoute("/p/$token")({
       meta: [
         { title: nome ? `${titulo} · para ${nome}` : titulo },
         { name: "description", content: descricao },
-        { property: "og:title", content: nome ? `Uma música para ${nome}` : titulo },
+        { property: "og:title", content: nome ? T.ogTitulo(nome) : titulo },
         { property: "og:description", content: descricao },
         { property: "og:type", content: "music.song" },
         { property: "og:image", content: imagem },
@@ -99,6 +101,7 @@ export const Route = createFileRoute("/p/$token")({
 
 function PaginaPresente() {
   const p = Route.useLoaderData();
+  const T = tp(p?.locale ?? "pt");
   const { token } = Route.useParams();
   const audioRef = useRef<HTMLAudioElement>(null);
   const raizRef = useRef<HTMLDivElement>(null);
@@ -385,7 +388,7 @@ function PaginaPresente() {
             data-abre
             className="text-[11px] uppercase tracking-[0.35em] text-white/45"
           >
-            uma música para
+            {T.umaMusicaPara}
           </p>
           <h1
             data-abre
@@ -513,7 +516,7 @@ function PaginaPresente() {
         <div data-revela className="relative mx-auto max-w-2xl px-6 pb-10 text-center">
           <div className="mx-auto inline-flex flex-col items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-5">
             <p className="text-[10px] uppercase tracking-[0.25em] text-white/40">
-              só você vê isto
+              {T.soVoceVe}
             </p>
             <div className="mt-2">
               <BotaoGuardar
@@ -522,6 +525,7 @@ function PaginaPresente() {
                 nome={p.nome}
                 comDica
                 escuro
+                locale={p?.locale ?? "pt"}
               />
             </div>
           </div>
@@ -568,7 +572,7 @@ function PaginaPresente() {
                 ref={barraRef}
                 role="slider"
                 tabIndex={0}
-                aria-label="Posição da música"
+                aria-label={T.posicaoMusica}
                 aria-valuemin={0}
                 aria-valuemax={Math.round(dur)}
                 aria-valuenow={Math.round(t)}

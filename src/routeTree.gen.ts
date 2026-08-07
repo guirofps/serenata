@@ -19,7 +19,10 @@ import { Route as MarcaRouteImport } from './routes/marca'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as EditarTokenEdicaoRouteImport } from './routes/editar.$tokenEdicao'
+import { Route as EsIndexRouteImport } from './routes/es.index'
 import { Route as EsCriarRouteImport } from './routes/es.criar'
+import { Route as EsGraciasRouteImport } from './routes/es.gracias'
+import { Route as EsLoginRouteImport } from './routes/es.login'
 import { Route as PTokenRouteImport } from './routes/p.$token'
 
 const IndexRoute = IndexRouteImport.update({
@@ -72,9 +75,24 @@ const EditarTokenEdicaoRoute = EditarTokenEdicaoRouteImport.update({
   path: '/editar/$tokenEdicao',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EsIndexRoute = EsIndexRouteImport.update({
+  id: '/es/',
+  path: '/es/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EsCriarRoute = EsCriarRouteImport.update({
   id: '/es/criar',
   path: '/es/criar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EsGraciasRoute = EsGraciasRouteImport.update({
+  id: '/es/gracias',
+  path: '/es/gracias',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EsLoginRoute = EsLoginRouteImport.update({
+  id: '/es/login',
+  path: '/es/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PTokenRoute = PTokenRouteImport.update({
@@ -95,7 +113,10 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
+  '/es/gracias': typeof EsGraciasRoute
+  '/es/login': typeof EsLoginRoute
   '/p/$token': typeof PTokenRoute
+  '/es/': typeof EsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -109,7 +130,10 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
+  '/es/gracias': typeof EsGraciasRoute
+  '/es/login': typeof EsLoginRoute
   '/p/$token': typeof PTokenRoute
+  '/es': typeof EsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -124,7 +148,10 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
+  '/es/gracias': typeof EsGraciasRoute
+  '/es/login': typeof EsLoginRoute
   '/p/$token': typeof PTokenRoute
+  '/es/': typeof EsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -140,7 +167,10 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/es/criar'
+    | '/es/gracias'
+    | '/es/login'
     | '/p/$token'
+    | '/es/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -154,7 +184,10 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/es/criar'
+    | '/es/gracias'
+    | '/es/login'
     | '/p/$token'
+    | '/es'
   id:
     | '__root__'
     | '/'
@@ -168,7 +201,10 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/es/criar'
+    | '/es/gracias'
+    | '/es/login'
     | '/p/$token'
+    | '/es/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -183,7 +219,10 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   EditarTokenEdicaoRoute: typeof EditarTokenEdicaoRoute
   EsCriarRoute: typeof EsCriarRoute
+  EsGraciasRoute: typeof EsGraciasRoute
+  EsLoginRoute: typeof EsLoginRoute
   PTokenRoute: typeof PTokenRoute
+  EsIndexRoute: typeof EsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -258,11 +297,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EditarTokenEdicaoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/es/': {
+      id: '/es/'
+      path: '/es'
+      fullPath: '/es/'
+      preLoaderRoute: typeof EsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/es/criar': {
       id: '/es/criar'
       path: '/es/criar'
       fullPath: '/es/criar'
       preLoaderRoute: typeof EsCriarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/es/gracias': {
+      id: '/es/gracias'
+      path: '/es/gracias'
+      fullPath: '/es/gracias'
+      preLoaderRoute: typeof EsGraciasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/es/login': {
+      id: '/es/login'
+      path: '/es/login'
+      fullPath: '/es/login'
+      preLoaderRoute: typeof EsLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/p/$token': {
@@ -287,7 +347,10 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   EditarTokenEdicaoRoute: EditarTokenEdicaoRoute,
   EsCriarRoute: EsCriarRoute,
+  EsGraciasRoute: EsGraciasRoute,
+  EsLoginRoute: EsLoginRoute,
   PTokenRoute: PTokenRoute,
+  EsIndexRoute: EsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

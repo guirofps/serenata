@@ -3,13 +3,11 @@ import { z } from "zod";
 import { MARCA } from "@/lib/marca";
 import { Obrigado } from "@/components/conta/Obrigado";
 
-// Página de conversão. O corpo vive em `components/conta/Obrigado.tsx`, que
-// recebe o idioma — a rota espanhola (`es.gracias.tsx`) usa o mesmo.
+// A página de obrigado em espanhol. `/es/gracias`, não `/es/obrigado`: a URL
+// de conversão é vista pelo comprador e vai colada no painel da Perfect Pay.
 const busca = z.object({ email: z.string().optional(), code: z.string().optional() });
 
-export const Route = createFileRoute("/obrigado")({
-  // `code`: a Perfect Pay costuma devolver o id da venda no redirect. Serve de
-  // transaction_id da conversão, o que impede um F5 aqui contar a venda 2x.
+export const Route = createFileRoute("/es/gracias")({
   validateSearch: busca,
   head: () => ({
     meta: [
@@ -17,8 +15,8 @@ export const Route = createFileRoute("/obrigado")({
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
-  component: function ObrigadoPt() {
+  component: function GraciasEs() {
     const { email, code } = Route.useSearch();
-    return <Obrigado locale="pt" email={email} code={code} />;
+    return <Obrigado locale="es" email={email} code={code} />;
   },
 });

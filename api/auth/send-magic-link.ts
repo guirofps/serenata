@@ -20,7 +20,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
-import { emailAcesso } from "../../emails/acesso.js";
+import { emailAcesso, assuntoAcesso } from "../../emails/acesso.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -78,9 +78,16 @@ export default async function handler(req: Req, res: Res) {
     // e a música referencia quiz_response_id.
     const { data: quizzes } = await sb
       .from("quiz_responses")
-      .select("id")
-      .eq("email", email);
+      .select("id, locale")
+      .eq("email", email)
+      .order("created_at", { ascending: false });
     const quizIds = (quizzes ?? []).map((q) => q.id);
+
+    // O idioma da conta é o do lead MAIS RECENTE com este e-mail. Não existe
+    // outra fonte: o pedido de link chega de um formulário que só tem e-mail,
+    // e alguém pode ter comprado nos dois funis.
+    const locale =
+      (quizzes ?? [])[0]?.locale === "es" ? ("es" as const) : ("pt" as const);
 
     let temMusica = false;
     if (quizIds.length > 0) {
@@ -133,8 +140,8 @@ export default async function handler(req: Req, res: Res) {
     const { error: erroEmail } = await new Resend(chave).emails.send({
       from: "Serenata <contato@serenatagift.com>",
       to: [email],
-      subject: "Seu acesso à Serenata",
-      html: emailAcesso({ link: actionLink }),
+      subject: assuntoAcesso(locale),
+      html: emailAcesso({ link: actionLink, locale }),
       // Versão em texto puro: e-mail só-HTML tem mais cara de spam. O
       // multipart/alternative melhora a entrega, ainda mais em domínio novo.
       text: `Entrar na sua conta Serenata, sem senha:\n${actionLink}\n\nEste link é de uso único e expira em 60 minutos. Se não foi você que pediu, pode ignorar este e-mail.`,

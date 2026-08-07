@@ -15,7 +15,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
-import { emailPresentePronto } from "../../emails/presente-pronto.js";
+import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto.js";
 
 type Req = IncomingMessage & { method?: string; body?: unknown; headers: Record<string, string | string[] | undefined> };
 type Res = ServerResponse & { status: (c: number) => Res; json: (b: unknown) => void };
@@ -201,10 +201,15 @@ export default async function handler(req: Req, res: Res) {
         if (!chave) throw new Error("RESEND_API_KEY ausente");
         const { data: q } = await sb
           .from("quiz_responses")
-          .select("respostas")
+          .select("respostas, locale")
           .eq("id", musica.quiz_response_id)
           .maybeSingle();
-        const nome = ((q?.respostas ?? {}) as Record<string, string>).nome ?? "quem você ama";
+        // O IDIOMA DA VENDA vem do registro: webhook não tem navegador nem
+        // rota de onde deduzir. Ver a migration 20260807000000_locale.
+        const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
+        const nome =
+          ((q?.respostas ?? {}) as Record<string, string>).nome ??
+          (locale === "es" ? "quien tú quieres" : "quem você ama");
 
         const linkEditor = `${SITE}/editar/${musica.token_edicao}`;
         const linkPresente = `${SITE}/p/${musica.token}`;
@@ -213,12 +218,13 @@ export default async function handler(req: Req, res: Res) {
           to: [email],
           // Sem emoji no assunto: emoji tende a mandar pra aba Promoções,
           // ainda mais em remetente novo.
-          subject: `A música de ${nome} está pronta`,
+          subject: assuntoPresentePronto(nome, locale),
           html: emailPresentePronto({
             nome,
             titulo: musica.titulo ?? "Sua música",
             linkEditor,
             linkPresente,
+            locale,
           }),
           // Versão texto: melhora a entrega (multipart/alternative).
           text: `A música de ${nome} está pronta.\n\nMonte o presente (coloque uma foto e uma frase):\n${linkEditor}\n\nO presente já funciona do jeito que está:\n${linkPresente}\n\nGuarde este e-mail: o link do editor é seu e só ele deixa editar a página.`,

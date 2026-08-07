@@ -8,6 +8,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 // enumeração possível, e não expõe id de sessão nem e-mail de ninguém.
 
 export type Presente = {
+  /** Idioma da venda. Decide a moldura da página e do editor. */
+  locale: "pt" | "es";
   titulo: string;
   letra: string;
   nome: string;
@@ -76,7 +78,7 @@ export const carregarPresente = createServerFn({ method: "GET" })
 
     const { data: q } = await db
       .from("quiz_responses")
-      .select("respostas")
+      .select("respostas, locale")
       .eq("id", m.quiz_response_id)
       .maybeSingle();
 
@@ -100,10 +102,16 @@ export const carregarPresente = createServerFn({ method: "GET" })
       audioUrl = assinada?.signedUrl ?? null;
     }
 
+    // O IDIOMA vem do registro. É a única fonte possível: esta página é
+    // aberta pelo PRESENTEADO, que nunca passou pelo funil e recebeu um link
+    // sem prefixo nenhum. Ver a migration 20260807000000_locale.
+    const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
+
     return {
-      titulo: m.titulo ?? "Sua música",
+      locale,
+      titulo: m.titulo ?? (locale === "es" ? "Tu canción" : "Sua música"),
       letra: m.letra ?? "",
-      nome: r.nome ?? "você",
+      nome: r.nome ?? (locale === "es" ? "ti" : "você"),
       relacao: r.relacao ?? null,
       ocasiao: r.ocasiao ?? null,
       // A história vira o "encarte" do disco.

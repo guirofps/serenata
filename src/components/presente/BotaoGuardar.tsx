@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Download, Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { type Locale } from "@/lib/i18n";
+import { tp } from "@/lib/textos-presente";
 
 // "Baixar a música" no celular NÃO baixa: abre o arquivo numa aba e a pessoa
 // fica sem saber o que fazer. E 99% abre isso no celular.
@@ -31,6 +33,7 @@ export function BotaoGuardar({
   nome,
   comDica = false,
   escuro = false,
+  locale = "pt",
 }: {
   audioUrl: string;
   titulo: string;
@@ -39,7 +42,9 @@ export function BotaoGuardar({
   comDica?: boolean;
   /** Variante pra página-presente, que é o mundo escuro da marca. */
   escuro?: boolean;
+  locale?: Locale;
 }) {
+  const T = tp(locale);
   const [estado, setEstado] = useState<"parado" | "preparando" | "ok">("parado");
   // Só no cliente: no SSR não existe navigator, e o texto mudaria na hidratação.
   const [folha, setFolha] = useState(false);
@@ -111,11 +116,11 @@ export function BotaoGuardar({
       >
         {estado === "preparando" ? (
           <>
-            <Loader2 className="h-4 w-4 animate-spin" /> preparando o áudio…
+            <Loader2 className="h-4 w-4 animate-spin" /> {T.preparandoAudio}
           </>
         ) : estado === "ok" ? (
           <>
-            <Check className="h-4 w-4" /> pronto
+            <Check className="h-4 w-4" /> {T.pronto}
           </>
         ) : (
           <>
@@ -123,7 +128,7 @@ export function BotaoGuardar({
                 "Guardar ou enviar" com o ícone a 40%: virou ticket de suporte
                 em 03/08 ("como baixa a música?"), porque ninguém procura a
                 palavra "guardar" quando quer o arquivo. */}
-            <Download className="h-4 w-4" /> Baixar ou enviar a música
+            <Download className="h-4 w-4" /> {T.baixarOuEnviar}
           </>
         )}
       </button>
@@ -134,8 +139,8 @@ export function BotaoGuardar({
           style={{ fontSize: "var(--t-xs)", lineHeight: 1.55 }}
         >
           {folha
-            ? "No celular abre as opções do aparelho: escolha “Salvar em Arquivos” pra guardar, ou o WhatsApp pra mandar direto."
-            : "Baixa o MP3 no seu computador."}
+            ? T.ajudaCelular
+            : T.ajudaDesktop}
         </p>
       )}
     </div>

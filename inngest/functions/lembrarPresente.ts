@@ -1,7 +1,7 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
-import { emailLembretePresente } from "../../emails/lembrete-presente.js";
+import { emailLembretePresente, assuntoLembrete } from "../../emails/lembrete-presente.js";
 
 // LEMBRETE de quem pagou e não montou o presente.
 //
@@ -65,7 +65,10 @@ export const lembrarPresente = inngest.createFunction(
         .gte("paid_at", new Date(agora - MAX_H * 3600000).toISOString())
         .lte("paid_at", new Date(agora - MIN_H * 3600000).toISOString());
 
-      const out: Array<{ email: string; nome: string; titulo: string; linkEditor: string; musicaId: string }> = [];
+      const out: Array<{
+        email: string; nome: string; titulo: string; linkEditor: string;
+        musicaId: string; locale: "pt" | "es";
+      }> = [];
 
       for (const p of pedidos ?? []) {
         if (!p.email || !p.musica_id) continue;
@@ -90,16 +93,21 @@ export const lembrarPresente = inngest.createFunction(
         if (await jaLembrado(sb, m.id)) continue;
 
         const { data: q } = p.quiz_response_id
-          ? await sb.from("quiz_responses").select("respostas").eq("id", p.quiz_response_id).maybeSingle()
+          ? await sb.from("quiz_responses").select("respostas, locale").eq("id", p.quiz_response_id).maybeSingle()
           : { data: null };
+
+        // O idioma vem do registro: um cron não tem requisição de onde
+        // deduzir. Ver a migration 20260807000000_locale.
+        const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
 
         out.push({
           email: p.email,
+          locale: locale as "pt" | "es",
           // `.trim()`: nome digitado no quiz vem com espaço sobrando ("Cardoso ")
           // e o assunto sairia com espaço duplo.
           nome:
             ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-            "quem você ama",
+            (locale === "es" ? "quien tú quieres" : "quem você ama"),
           titulo: m.titulo ?? "Sua música",
           linkEditor: `${SITE}/editar/${m.token_edicao}`,
           musicaId: m.id,
@@ -126,8 +134,8 @@ export const lembrarPresente = inngest.createFunction(
         const { error } = await new Resend(chave).emails.send({
           from: "Serenata <contato@serenatagift.com>",
           to: [c.email],
-          subject: `A música de ${c.nome} está esperando você`,
-          html: emailLembretePresente({ nome: c.nome, titulo: c.titulo, linkEditor: c.linkEditor }),
+          subject: assuntoLembrete(c.nome, c.locale),
+          html: emailLembretePresente({ nome: c.nome, titulo: c.titulo, linkEditor: c.linkEditor, locale: c.locale }),
           text:
             `A música de ${c.nome} está pronta, mas a página ainda não foi montada.\n\n` +
             `Escolha a gravação, ponha as fotos e escreva uma frase sua:\n${c.linkEditor}\n\n` +

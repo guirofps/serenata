@@ -15,7 +15,20 @@ import { cn } from "@/lib/utils";
 // número — barata o suficiente pra rodar em scroll sem travar celular
 // fraco (§4.1).
 
-export function BarraCTA({ alvoRef }: { alvoRef: React.RefObject<HTMLElement | null> }) {
+export function BarraCTA({
+  alvoRef,
+  destino = "/criar",
+  rotulo = "Criar minha música",
+  titulo = "A letra e um trecho da música, grátis",
+  sub = "Você paga só pela música inteira e a página",
+}: {
+  alvoRef: React.RefObject<HTMLElement | null>;
+  /** Pra onde a barra leva. A home espanhola aponta pro quiz espanhol. */
+  destino?: string;
+  rotulo?: string;
+  titulo?: string;
+  sub?: string;
+}) {
   const [visivel, setVisivel] = useState(false);
 
   useEffect(() => {
@@ -55,20 +68,20 @@ export function BarraCTA({ alvoRef }: { alvoRef: React.RefObject<HTMLElement | n
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="hidden sm:block">
           <p className="font-medium" style={{ fontSize: "var(--t-sm)" }}>
-            A letra e um trecho da música, grátis
+            {titulo}
           </p>
           <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
-            Você paga só pela música inteira e a página
+            {sub}
           </p>
         </div>
         <Link
-          to="/criar"
+          to={destino}
           tabIndex={visivel ? 0 : -1}
           // Alvo de toque confortável (§3.6: mínimo 44px).
           className="cta inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full px-6 font-medium sm:flex-none"
           style={{ fontSize: "var(--t-sm)" }}
         >
-          Criar minha música <ArrowRight className="h-4 w-4" />
+          {rotulo} <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
     </div>
