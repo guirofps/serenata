@@ -10,6 +10,7 @@ import { DiaDosPais } from "@/components/landing/DiaDosPais";
 import { BarraCTA } from "@/components/landing/BarraCTA";
 import { PresenteNoTopo } from "@/components/landing/PresenteNoTopo";
 import { useProfundidadeRolagem } from "@/lib/rolagem";
+import { OfereceIdioma } from "@/components/OfereceIdioma";
 import { Play, ArrowRight, Menu, X } from "lucide-react";
 
 // Landing da Serenata — mundo CLARO.
@@ -77,6 +78,7 @@ function Home() {
       {/* Fio vinho→ouro no topo da página: a mesma assinatura da capa do
           produto e dos e-mails. É o detalhe que diz "isto tem marca". */}
       <div className="fio-marca fixed inset-x-0 top-0 z-40" aria-hidden />
+      <OfereceIdioma />
 
       {/* ── HEADER ──────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 border-b border-[var(--tinta-fraca)]/30 bg-[var(--papel)]/85 backdrop-blur-md">

@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { BarraCTA } from "@/components/landing/BarraCTA";
 import { ExemplosEs } from "@/components/landing/ExemplosEs";
 import { useProfundidadeRolagem } from "@/lib/rolagem";
+import { OfereceIdioma, lembrarIdioma } from "@/components/OfereceIdioma";
 import { MOEDA } from "@/lib/i18n";
 import {
   ArrowRight, Menu, X, Check, ChevronDown, Sparkles, Gift, Clock, Link2,
@@ -132,6 +133,7 @@ const PREGUNTAS = [
 
 function HomeEs() {
   useProfundidadeRolagem("home-es");
+  useEffect(() => lembrarIdioma("es"), []);
   const [menuAberto, setMenuAberto] = useState(false);
   const [faqAberta, setFaqAberta] = useState<number | null>(0);
   const heroRef = useRef<HTMLElement>(null);
@@ -140,6 +142,7 @@ function HomeEs() {
   return (
     <div className="min-h-screen bg-[var(--papel)] text-[var(--tinta)]" style={TEMA_CLARO}>
       <div className="fio-marca fixed inset-x-0 top-0 z-40" aria-hidden />
+      <OfereceIdioma />
 
       {/* ── HEADER ──────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 border-b border-[var(--tinta-fraca)]/30 bg-[var(--papel)]/85 backdrop-blur-md">

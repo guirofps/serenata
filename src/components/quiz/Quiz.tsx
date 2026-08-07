@@ -16,6 +16,7 @@ import {
 import { quizFlow, QUIZ_SKIP } from "@/lib/quiz-flow";
 import { type Locale, TAG_IDIOMA } from "@/lib/i18n";
 import { t } from "@/lib/textos";
+import { lembrarIdioma } from "@/components/OfereceIdioma";
 import { useQuizStore } from "@/lib/quiz-store";
 import { captureLeadProgress } from "@/lib/lead-capture";
 import { trackEvent, trackEventOnce } from "@/lib/track";
@@ -60,7 +61,10 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
   useEffect(() => {
     getOrCreateSessionId();
     trackEventOnce("quiz_started", "v1");
-  }, []);
+    // Guarda em que idioma esta pessoa entrou no funil. É o que permite
+    // oferecer o caminho certo quando ela voltar pelo domínio raiz.
+    lembrarIdioma(locale);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Captura parcial de lead a cada passo alcançado (vantagem competitiva).
   useEffect(() => {

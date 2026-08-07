@@ -6,6 +6,7 @@ import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
 import { Loader2, Mail, Check } from "lucide-react";
 import { type Locale, caminho } from "@/lib/i18n";
+import { OfereceIdioma } from "@/components/OfereceIdioma";
 
 // Entrada na conta do comprador. Sem senha: só o e-mail que ele usou no
 // funil. O link mágico chega por e-mail e entra logado.
@@ -118,6 +119,12 @@ export function Login({ locale = "pt" }: { locale?: Locale }) {
       className="grid min-h-screen place-items-center bg-[var(--papel)] px-6 text-[var(--tinta)]"
       style={TEMA_CLARO}
     >
+      {/* Quem já passou pelo outro funil neste navegador ganha o caminho de
+          volta. Não redireciona: oferece. */}
+      <div className="fixed inset-x-0 top-0">
+        <OfereceIdioma />
+      </div>
+
       <main className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
           <Logo tamanho="md" />
