@@ -15,9 +15,18 @@ import { ArrowRight } from "lucide-react";
 // impede indexar as duas versões, e um brasileiro com VPN cairia no espanhol.
 // Isto é uma OFERTA: uma linha discreta, que a pessoa toca se quiser.
 //
-// E não adivinha nada. Só aparece pra quem JÁ passou pelo funil do outro
-// idioma neste navegador — o que cobre exatamente o caso que existe (voltar
-// pra buscar o próprio presente), sem inventar sobre visitante novo.
+// Dois motivos fazem a oferta aparecer, e nenhum é IP:
+//
+//   1. A pessoa JÁ passou pelo funil do outro idioma neste navegador. Cobre
+//      quem volta pra buscar o próprio presente.
+//   2. O IDIOMA DO NAVEGADOR dela é o outro. Cobre quem chega pela primeira
+//      vez digitando o domínio raiz — que é exatamente o que acontece quando
+//      um criativo mostra "serenatagift.com/es" e a pessoa digita só
+//      "serenatagift.com".
+//
+// O idioma do navegador é escolha explícita do dono do aparelho, não palpite
+// sobre onde ele está: um brasileiro morando no México continua com o celular
+// em português e não vê nada. É o oposto de detectar IP.
 
 const CHAVE = "mp_idioma_visto";
 
@@ -41,16 +50,27 @@ export function OfereceIdioma() {
   const [outro, setOutro] = useState<Locale | null>(null);
 
   useEffect(() => {
+    const atual = localeDaRota(window.location.pathname);
+
+    // A lembrança tem prioridade: quem já usou um funil sabe o que quer,
+    // e isso vale mais que a configuração do aparelho.
     let visto: string | null = null;
     try {
       visto = localStorage.getItem(CHAVE);
     } catch {
+      visto = null;
+    }
+    if (visto && LOCALES.includes(visto as Locale)) {
+      if (visto !== atual) setOutro(visto as Locale);
       return;
     }
-    if (!visto || !LOCALES.includes(visto as Locale)) return;
-    const atual = localeDaRota(window.location.pathname);
-    // Só oferece se o idioma lembrado for DIFERENTE do que está na tela.
-    if (visto !== atual) setOutro(visto as Locale);
+
+    // Sem lembrança: o idioma do navegador. `navigator.language` vem como
+    // "es-MX", "pt-BR", "en-US" — interessa só o prefixo.
+    const doNavegador = (navigator.language || "").slice(0, 2).toLowerCase();
+    if (LOCALES.includes(doNavegador as Locale) && doNavegador !== atual) {
+      setOutro(doNavegador as Locale);
+    }
   }, []);
 
   if (!outro) return null;
