@@ -11,13 +11,19 @@
 // Bônus: as partículas ficam sincronizadas com a música e param quando ela
 // pausa, o que é o comportamento certo.
 
+// A `chave` é o que fica no banco e NUNCA muda de idioma; só o rótulo muda.
 export const EFEITOS = [
-  { chave: "nenhum", rotulo: "Nenhum" },
-  { chave: "coracoes", rotulo: "Corações 💗" },
-  { chave: "estrelas", rotulo: "Estrelas ✨" },
-  { chave: "petalas", rotulo: "Pétalas 🌸" },
-  { chave: "luzes", rotulo: "Luzes 🕯️" },
+  { chave: "nenhum", rotulo: "Nenhum", rotuloEs: "Ninguno" },
+  { chave: "coracoes", rotulo: "Corações 💗", rotuloEs: "Corazones 💗" },
+  { chave: "estrelas", rotulo: "Estrelas ✨", rotuloEs: "Estrellas ✨" },
+  { chave: "petalas", rotulo: "Pétalas 🌸", rotuloEs: "Pétalos 🌸" },
+  { chave: "luzes", rotulo: "Luzes 🕯️", rotuloEs: "Luces 🕯️" },
 ] as const;
+
+/** O rótulo do efeito no idioma da venda. */
+export function rotuloEfeito(e: (typeof EFEITOS)[number], locale: "pt" | "es") {
+  return locale === "es" ? e.rotuloEs : e.rotulo;
+}
 
 // Partículas fixas (nada de Math.random, que quebraria o SSR).
 // `vel` = fração da tela por segundo; `fase` espalha o início.

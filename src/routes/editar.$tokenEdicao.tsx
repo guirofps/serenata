@@ -13,7 +13,7 @@ import {
 } from "@/lib/personalizar";
 import { prepararFoto } from "@/lib/imagem";
 import { QrCode } from "@/components/presente/QrCode";
-import { Efeitos, EFEITOS } from "@/components/presente/Efeitos";
+import { Efeitos, EFEITOS, rotuloEfeito } from "@/components/presente/Efeitos";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { marcarDono } from "@/lib/dono-presente";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE } from "@/lib/marca";
@@ -43,7 +43,9 @@ export const Route = createFileRoute("/editar/$tokenEdicao")({
   head: () => ({
     // Área privada: fora do índice dos buscadores.
     meta: [
-      { title: `Monte o presente · ${MARCA.nome}` },
+      // Sem idioma aqui: o head roda antes do loader, então o título fica
+      // neutro em vez de errado. É a aba do navegador, não a página.
+      { title: MARCA.nome },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
@@ -149,7 +151,10 @@ function Editor() {
       ? `${window.location.origin}/p/${p.tokenPublico}`
       : `/p/${p.tokenPublico}`;
 
-  const mensagemPronta = `Fiz uma música pra você. É sua, só sua, a letra é sobre a gente.\n\n${linkPublico}`;
+  // A mensagem que o comprador COPIA e manda pro presenteado. É a única frase
+  // da operação inteira escrita em nome dele — sair em português numa venda
+  // mexicana seria o vazamento mais visível que existe.
+  const mensagemPronta = T.mensagemPronta(linkPublico);
 
   async function aoEscolherFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const arquivo = e.target.files?.[0];
@@ -189,7 +194,7 @@ function Editor() {
     try {
       const cabem = MAX_GALERIA - galeria.length;
       if (cabem <= 0) {
-        setErro(`A galeria já está cheia (${MAX_GALERIA} fotos).`);
+        setErro(T.galeriaCheia(MAX_GALERIA));
         return;
       }
       // Corta e comprime cada uma no navegador ANTES de subir — o mesmo
@@ -455,7 +460,7 @@ function Editor() {
                       )}
                       style={{ fontSize: "var(--t-sm)" }}
                     >
-                      {op.rotulo}
+                      {rotuloEfeito(op, p?.locale === "es" ? "es" : "pt")}
                     </button>
                   );
                 })}
