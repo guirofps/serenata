@@ -11,6 +11,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 // para anon, então não há caminho que escreva sem passar por esta validação.
 
 export type PresenteEditavel = {
+  /** Idioma da venda. Decide a moldura do editor. */
+  locale: "pt" | "es";
   titulo: string;
   nome: string;
   dedicatoria: string | null;
@@ -89,12 +91,17 @@ export const carregarParaEditar = createServerFn({ method: "GET" })
 
     const { data: q } = await supabaseAdmin()
       .from("quiz_responses")
-      .select("respostas")
+      .select("respostas, locale")
       .eq("id", m.quiz_response_id)
       .maybeSingle();
     const r = (q?.respostas ?? {}) as Record<string, string>;
 
+    // O idioma da venda: o editor abre por link de e-mail, sem prefixo de
+    // rota de onde deduzir. Ver a migration 20260807000000_locale.
+    const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
+
     return {
+      locale: locale as "pt" | "es",
       titulo: m.titulo ?? "Sua música",
       nome: r.nome ?? "você",
       dedicatoria: m.dedicatoria,

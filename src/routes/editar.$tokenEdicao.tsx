@@ -17,6 +17,7 @@ import { Efeitos, EFEITOS } from "@/components/presente/Efeitos";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { marcarDono } from "@/lib/dono-presente";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE } from "@/lib/marca";
+import { tp } from "@/lib/textos-presente";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
 import { ImagePlus, Trash2, Check, Copy, ExternalLink, Loader2, X, Play, Pause } from "lucide-react";
@@ -61,6 +62,7 @@ export const Route = createFileRoute("/editar/$tokenEdicao")({
 
 function Editor() {
   const p = Route.useLoaderData();
+  const T = tp(p?.locale ?? "pt");
   const { tokenEdicao } = Route.useParams();
 
   // Marca este navegador como dono do presente. É o que faz o botão de baixar
@@ -161,7 +163,7 @@ function Editor() {
       setFotoUrl(base64);
       const r = await salvarPersonalizacao({ data: { tokenEdicao, fotoBase64: base64 } });
       if (!r.ok) {
-        setErro(r.erro ?? "Não consegui salvar a foto.");
+        setErro(r.erro ?? T.erroFoto);
         setFotoUrl(p.fotoUrl); // desfaz o otimismo
         return;
       }
@@ -169,7 +171,7 @@ function Editor() {
       setSalvo(true);
     } catch (err) {
       console.error("[editar] foto falhou:", err);
-      setErro(err instanceof Error ? err.message : "Não consegui usar essa foto.");
+      setErro(err instanceof Error ? err.message : T.erroUsarFoto);
       setFotoUrl(p.fotoUrl);
     } finally {
       setSalvando(false);
@@ -201,12 +203,12 @@ function Editor() {
         }
       }
       if (!prontas.length) {
-        setErro("Não consegui usar essas fotos.");
+        setErro(T.erroFotos);
         return;
       }
       const r = await adicionarNaGaleria({ data: { tokenEdicao, fotosBase64: prontas } });
       if (!r.ok) {
-        setErro(r.erro ?? "Não consegui salvar as fotos.");
+        setErro(r.erro ?? T.erroSalvarFotos);
         return;
       }
       setGaleria(r.galeria ?? []);
@@ -234,7 +236,7 @@ function Editor() {
     setErro(null);
     const r = await salvarPersonalizacao({ data: { tokenEdicao, dedicatoria: texto } });
     if (!r.ok) {
-      setErro(r.erro ?? "Não consegui salvar a frase.");
+      setErro(r.erro ?? T.erroFrase);
       setFraseStatus("idle");
     } else {
       setFraseStatus("salvo");
@@ -257,7 +259,7 @@ function Editor() {
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2200);
     } catch {
-      setErro("Não consegui copiar. Selecione o texto e copie na mão.");
+      setErro(T.erroCopiar);
     }
   }
 
@@ -276,7 +278,7 @@ function Editor() {
             className="text-[var(--tinta-suave)] transition-colors hover:text-[var(--tinta)]"
             style={{ fontSize: "var(--t-sm)" }}
           >
-            sua conta
+            {T.suaConta}
           </a>
         </div>
       </header>
@@ -284,7 +286,7 @@ function Editor() {
       <main className="mx-auto max-w-5xl px-6 py-12">
         <div className="text-center">
           <p className="text-[11px] uppercase tracking-[0.3em] text-[var(--tinta-suave)]">
-            sua música está pronta
+            {T.suaMusicaPronta}
           </p>
           <h1
             className="mt-4 text-balance"
@@ -295,14 +297,13 @@ function Editor() {
               lineHeight: 1.15,
             }}
           >
-            Agora monte o presente de {p.nome}
+            {T.agoraMonte(p.nome)}
           </h1>
           <p
             className="mx-auto mt-4 max-w-md text-[var(--tinta-suave)]"
             style={{ fontSize: "var(--t-base)", lineHeight: 1.6 }}
           >
-            Uma foto e uma frase sua. É o que transforma a página em algo que
-            só vocês dois entendem.
+            {T.umaFotoUmaFrase}
           </p>
         </div>
 
@@ -323,14 +324,13 @@ function Editor() {
             {p.audioUrlV2 && (
               <section>
                 <h2 className="font-medium" style={{ fontSize: "var(--t-lg)" }}>
-                  Qual gravação você prefere?
+                  {T.qualGravacao}
                 </h2>
                 <p
                   className="mt-1 text-[var(--tinta-suave)]"
                   style={{ fontSize: "var(--t-sm)" }}
                 >
-                  Fizemos duas. Ouça as duas e escolha a que emociona mais. É a
-                  que vai abrir quando ela receber.
+                  {T.fizemosDuas}
                 </p>
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -392,14 +392,13 @@ function Editor() {
             {/* cor de destaque — o play, a letra que acende, a barra */}
             <section>
               <h2 className="font-medium" style={{ fontSize: "var(--t-lg)" }}>
-                A cor da página
+                {T.aCorDaPagina}
               </h2>
               <p
                 className="mt-1 text-[var(--tinta-suave)]"
                 style={{ fontSize: "var(--t-sm)" }}
               >
-                É a cor do play, da letra que acende e da barra. Veja na prévia
-                ao lado.
+                {T.aCorTexto}
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 {CORES_PRESENTE.map((c) => {
@@ -432,14 +431,13 @@ function Editor() {
             {/* efeito da página — corações caindo durante a música */}
             <section>
               <h2 className="font-medium" style={{ fontSize: "var(--t-lg)" }}>
-                Um efeito na tela
+                {T.umEfeito}
               </h2>
               <p
                 className="mt-1 text-[var(--tinta-suave)]"
                 style={{ fontSize: "var(--t-sm)" }}
               >
-                Passa sobre a foto enquanto a música toca. Sutil, pra emocionar
-                sem poluir.
+                {T.umEfeitoTexto}
               </p>
               <div className="mt-4 flex flex-wrap gap-2.5">
                 {EFEITOS.map((op) => {
@@ -467,13 +465,13 @@ function Editor() {
             {/* foto */}
             <section>
               <h2 className="font-medium" style={{ fontSize: "var(--t-lg)" }}>
-                A foto da capa
+                {T.aFotoDaCapa}
               </h2>
               <p
                 className="mt-1 text-[var(--tinta-suave)]"
                 style={{ fontSize: "var(--t-sm)" }}
               >
-                Ela aparece atrás do nome. Fotos de rosto funcionam melhor.
+                {T.aFotoTexto}
               </p>
 
               <input
@@ -500,7 +498,7 @@ function Editor() {
                   ) : (
                     <ImagePlus className="h-4 w-4" />
                   )}
-                  {fotoUrl ? "Trocar a foto" : "Escolher uma foto"}
+                  {fotoUrl ? T.trocarFoto : T.escolherFoto}
                 </label>
 
                 {fotoUrl && (
@@ -510,7 +508,7 @@ function Editor() {
                     className="inline-flex h-12 items-center gap-2 rounded-full border border-[var(--tinta-fraca)] px-5 text-[var(--tinta-suave)] transition-colors hover:text-[var(--tinta)] disabled:opacity-50"
                     style={{ fontSize: "var(--t-sm)" }}
                   >
-                    <Trash2 className="h-4 w-4" /> Remover
+                    <Trash2 className="h-4 w-4" /> {T.remover}
                   </button>
                 )}
               </div>
@@ -519,14 +517,13 @@ function Editor() {
             {/* galeria — as fotos que passam durante a música */}
             <section>
               <h2 className="font-medium" style={{ fontSize: "var(--t-lg)" }}>
-                As fotos que passam com a música
+                {T.asFotosQuePassam}
               </h2>
               <p
                 className="mt-1 text-[var(--tinta-suave)]"
                 style={{ fontSize: "var(--t-sm)" }}
               >
-                Elas ficam atrás da letra e trocam nas viradas da canção. A
-                foto muda bem quando o refrão entra. Até {MAX_GALERIA}.
+                {T.asFotosTexto(MAX_GALERIA)}
               </p>
 
               <input
@@ -578,7 +575,7 @@ function Editor() {
                   ) : (
                     <ImagePlus className="h-4 w-4" />
                   )}
-                  {galeria.length ? "Adicionar mais fotos" : "Escolher as fotos"}
+                  {galeria.length ? T.adicionarMais : T.escolherFotos}
                 </label>
               )}
             </section>
@@ -586,14 +583,13 @@ function Editor() {
             {/* dedicatória */}
             <section>
               <h2 className="font-medium" style={{ fontSize: "var(--t-lg)" }}>
-                Uma frase sua
+                {T.umaFraseSua}
               </h2>
               <p
                 className="mt-1 text-[var(--tinta-suave)]"
                 style={{ fontSize: "var(--t-sm)" }}
               >
-                Aparece embaixo do play. É a única coisa da página escrita por
-                você.
+                {T.umaFraseTexto}
               </p>
               <textarea
                 value={dedicatoria}
@@ -648,13 +644,13 @@ function Editor() {
             {/* entrega */}
             <section className="rounded-3xl border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-6">
               <h2 className="font-medium" style={{ fontSize: "var(--t-lg)" }}>
-                Agora é só entregar
+                {T.agoraEntregar}
               </h2>
               <p
                 className="mt-1 text-[var(--tinta-suave)]"
                 style={{ fontSize: "var(--t-sm)" }}
               >
-                Copie e mande no WhatsApp. Quem entrega o presente é você.
+                {T.copieEMande}
               </p>
 
               <pre
@@ -671,14 +667,13 @@ function Editor() {
                 <QrCode url={linkPublico} nome={p.nome} />
                 <div>
                   <p className="font-medium" style={{ fontSize: "var(--t-sm)" }}>
-                    Prefere entregar na mão?
+                    {T.prefereMao}
                   </p>
                   <p
                     className="mt-1 text-[var(--tinta-suave)]"
                     style={{ fontSize: "var(--t-xs)", lineHeight: 1.6 }}
                   >
-                    Imprima este código e cole num cartão, numa caixa de bombom
-                    ou no embrulho. Ela aponta a câmera e a música abre.
+                    {T.qrTexto}
                   </p>
                 </div>
               </div>
@@ -690,7 +685,7 @@ function Editor() {
                   style={{ fontSize: "var(--t-sm)" }}
                 >
                   {copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  {copiado ? "Copiado!" : "Copiar mensagem"}
+                  {copiado ? T.copiado : T.copiarMensagem}
                 </button>
                 <a
                   href={`/p/${p.tokenPublico}`}
@@ -710,6 +705,7 @@ function Editor() {
                     titulo={p.titulo}
                     nome={p.nome}
                     comDica
+                    locale={p?.locale ?? "pt"}
                   />
                 )}
               </div>
@@ -755,7 +751,7 @@ function Editor() {
                   <Efeitos tipo={efeito} ativo tempo={tickPrevia} contido escala={0.42} />
                   <div className="relative z-10">
                     <p className="text-[6px] uppercase tracking-[0.25em] text-white/45 lg:text-[8px] lg:tracking-[0.3em]">
-                      uma música para
+                      {T.umaMusicaPara}
                     </p>
                     <p
                       className="mt-1 text-base leading-tight text-white lg:mt-2 lg:text-3xl"
