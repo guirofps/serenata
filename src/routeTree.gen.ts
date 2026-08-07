@@ -19,6 +19,7 @@ import { Route as MarcaRouteImport } from './routes/marca'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as EditarTokenEdicaoRouteImport } from './routes/editar.$tokenEdicao'
+import { Route as EsCriarRouteImport } from './routes/es.criar'
 import { Route as PTokenRouteImport } from './routes/p.$token'
 
 const IndexRoute = IndexRouteImport.update({
@@ -71,6 +72,11 @@ const EditarTokenEdicaoRoute = EditarTokenEdicaoRouteImport.update({
   path: '/editar/$tokenEdicao',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EsCriarRoute = EsCriarRouteImport.update({
+  id: '/es/criar',
+  path: '/es/criar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PTokenRoute = PTokenRouteImport.update({
   id: '/p/$token',
   path: '/p/$token',
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/obrigado': typeof ObrigadoRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
+  '/es/criar': typeof EsCriarRoute
   '/p/$token': typeof PTokenRoute
 }
 export interface FileRoutesByTo {
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/obrigado': typeof ObrigadoRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
+  '/es/criar': typeof EsCriarRoute
   '/p/$token': typeof PTokenRoute
 }
 export interface FileRoutesById {
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/obrigado': typeof ObrigadoRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
+  '/es/criar': typeof EsCriarRoute
   '/p/$token': typeof PTokenRoute
 }
 export interface FileRouteTypes {
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/obrigado'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
+    | '/es/criar'
     | '/p/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/obrigado'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
+    | '/es/criar'
     | '/p/$token'
   id:
     | '__root__'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/obrigado'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
+    | '/es/criar'
     | '/p/$token'
   fileRoutesById: FileRoutesById
 }
@@ -170,6 +182,7 @@ export interface RootRouteChildren {
   ObrigadoRoute: typeof ObrigadoRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   EditarTokenEdicaoRoute: typeof EditarTokenEdicaoRoute
+  EsCriarRoute: typeof EsCriarRoute
   PTokenRoute: typeof PTokenRoute
 }
 
@@ -245,6 +258,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EditarTokenEdicaoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/es/criar': {
+      id: '/es/criar'
+      path: '/es/criar'
+      fullPath: '/es/criar'
+      preLoaderRoute: typeof EsCriarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p/$token': {
       id: '/p/$token'
       path: '/p/$token'
@@ -266,6 +286,7 @@ const rootRouteChildren: RootRouteChildren = {
   ObrigadoRoute: ObrigadoRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   EditarTokenEdicaoRoute: EditarTokenEdicaoRoute,
+  EsCriarRoute: EsCriarRoute,
   PTokenRoute: PTokenRoute,
 }
 export const routeTree = rootRouteImport

@@ -45,7 +45,10 @@ export type DictationState = {
   alternar: () => void;
 };
 
-export function useDictation(onTexto: (trecho: string) => void): DictationState {
+export function useDictation(
+  onTexto: (trecho: string) => void,
+  lang: string = "pt-BR",
+): DictationState {
   const [suportado, setSuportado] = useState(false);
   const [gravando, setGravando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -83,7 +86,9 @@ export function useDictation(onTexto: (trecho: string) => void): DictationState 
     }
     setErro(null);
     const rec = new Ctor();
-    rec.lang = "pt-BR";
+    // O idioma do FUNIL, não do navegador: um mexicano com o Chrome em
+    // inglês ditando em espanhol tem que ser reconhecido em espanhol.
+    rec.lang = lang;
     rec.continuous = true;
     rec.interimResults = true;
 

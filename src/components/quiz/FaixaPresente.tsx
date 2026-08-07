@@ -1,4 +1,6 @@
 import { Music, Images, Sparkles, QrCode } from "lucide-react";
+import { type Locale } from "@/lib/i18n";
+import { t } from "@/lib/textos";
 
 // O QUE A PESSOA ESTÁ MONTANDO, visível o quiz inteiro.
 //
@@ -13,20 +15,29 @@ import { Music, Images, Sparkles, QrCode } from "lucide-react";
 // Deliberadamente SEM preço: a letra é grátis, e falar de dinheiro antes da
 // pessoa ler a letra troca a ordem do funil.
 
-const ITENS = [
-  { Icone: Music, texto: "música cantada" },
-  { Icone: Images, texto: "página com fotos" },
-  { Icone: Sparkles, texto: "karaokê" },
-  { Icone: QrCode, texto: "QR Code" },
-];
-
-export function FaixaPresente({ nome }: { nome?: string }) {
+export function FaixaPresente({
+  nome,
+  locale = "pt",
+}: {
+  nome?: string;
+  locale?: Locale;
+}) {
+  const T = t(locale);
   const limpo = nome?.trim();
+
+  // Dentro do componente porque cada texto depende do idioma. Fora dele o
+  // array seria montado uma vez, no primeiro idioma que carregasse.
+  const ITENS = [
+    { Icone: Music, texto: T.musicaCantada },
+    { Icone: Images, texto: T.paginaComFotos },
+    { Icone: Sparkles, texto: T.karaoke },
+    { Icone: QrCode, texto: T.qrCode },
+  ];
 
   return (
     <div className="mb-6 rounded-2xl border border-primary/15 bg-secondary/40 px-3 py-2.5">
       <p className="text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
-        {limpo ? `o presente de ${limpo}` : "o que você vai montar"}
+        {limpo ? `${T.oPresenteDe.toLowerCase()} ${limpo}` : T.oQueVaiMontar}
       </p>
       {/* 2x2 no celular: com flex-wrap os quatro itens quebravam 3+1 e o
           último ficava sozinho no meio, torto. Vira linha única no desktop. */}

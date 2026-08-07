@@ -3,6 +3,8 @@ import type { QuestionStep } from "@/lib/flow-engine";
 import { Textarea } from "@/components/ui/textarea";
 import { useDictation } from "@/lib/use-dictation";
 import { trackEventOnce } from "@/lib/track";
+import { type Locale, TAG_IDIOMA } from "@/lib/i18n";
+import { t as textos } from "@/lib/textos";
 import { cn } from "@/lib/utils";
 import { Mic, Square } from "lucide-react";
 
@@ -14,33 +16,35 @@ type StoryQuestion = Extract<QuestionStep, { input: "story" }>;
 export function validateStory(
   step: StoryQuestion,
   value?: string,
+  locale: Locale = "pt",
 ): { ok: boolean; message: string } {
+  const T = textos(locale);
   const t = (value ?? "").trim();
 
   // Campo vazio NÃO leva cobrança. "Escreva pelo menos 120 caracteres" antes
   // de a pessoa digitar a primeira letra lê como tarefa de casa, e este é o
   // passo onde 14 de 49 desistem. Vira cota só depois que ela começou.
-  if (t.length === 0) return { ok: false, message: "Duas ou três linhas já bastam" };
+  if (t.length === 0) return { ok: false, message: T.duasLinhas };
 
   const faltam = step.minChars - t.length;
   if (faltam > 0)
-    return { ok: false, message: `Escreva um pouco mais, faltam ${faltam} caracteres` };
+    return { ok: false, message: T.faltamChars(faltam) };
 
   // Palavras de verdade = sequências de 2+ letras (não dígitos/símbolos).
   const palavrasReais = t.match(/[\p{L}]{2,}/gu) ?? [];
   if (palavrasReais.length < 3)
-    return { ok: false, message: "Escreva com frases de verdade, pelo menos 3 palavras." };
+    return { ok: false, message: T.frasesDeVerdade };
 
   // Conteúdo majoritariamente não-alfabético (parede de dígitos/símbolos).
   const letras = (t.match(/\p{L}/gu) ?? []).length;
   if (letras / t.length < 0.5)
-    return { ok: false, message: "Use palavras reais, evite números e símbolos soltos." };
+    return { ok: false, message: T.palavrasReais };
 
   // Repetição excessiva do mesmo caractere (ex: "aaaaaa", "333333").
   if (/(.)\1{5,}/.test(t))
-    return { ok: false, message: "Evite repetir o mesmo caractere várias vezes seguidas." };
+    return { ok: false, message: T.naoRepita };
 
-  return { ok: true, message: "Perfeito ✓" };
+  return { ok: true, message: T.perfeito };
 }
 
 // Campo de história com validação anti-lixo + chips-gatilho de detalhe concreto.
@@ -56,6 +60,7 @@ export function StoryStep({
   onChange,
   preencher = (s) => s,
   aoPular,
+  locale = "pt",
 }: {
   step: StoryQuestion;
   value: string | undefined;
@@ -64,10 +69,12 @@ export function StoryStep({
   preencher?: (s: string) => string;
   /** Avança sem responder. Só usado quando o passo permite pular. */
   aoPular?: () => void;
+  locale?: Locale;
 }) {
+  const T = textos(locale);
   const [touched, setTouched] = useState(false);
   const text = value ?? "";
-  const { ok, message } = validateStory(step, text);
+  const { ok, message } = validateStory(step, text, locale);
 
   // A saída aparece só pra quem TRAVOU: passou o tempo e quase não escreveu.
   // Quem está digitando nunca vê o link, então não perde ninguém que ia
@@ -103,7 +110,7 @@ export function StoryStep({
     const novo = base ? `${base} ${t}` : t;
     vivoRef.current = novo;
     onChange(novo);
-  });
+  }, TAG_IDIOMA[locale]);
 
   // Gatilho tocado: escreve o COMEÇO da frase e devolve o cursor pro fim,
   // com o teclado já aberto. É a diferença entre "escreva sobre a memória de
@@ -136,7 +143,7 @@ export function StoryStep({
       {step.triggers && step.triggers.length > 0 && (
         <>
           <p className="text-center text-xs text-muted-foreground">
-            Sem ideia? Toque num pra começar a frase.
+            {T.semIdeia}
           </p>
           <div className="flex flex-wrap justify-center gap-2">
             {step.triggers.map((tr) => (
@@ -185,11 +192,11 @@ export function StoryStep({
         >
           {ditado.gravando ? (
             <>
-              <Square className="h-4 w-4 fill-current" /> Parar de gravar
+              <Square className="h-4 w-4 fill-current" /> {T.pararGravar}
             </>
           ) : (
             <>
-              <Mic className="h-4 w-4" /> Prefiro contar falando
+              <Mic className="h-4 w-4" /> {T.preferoFalar}
             </>
           )}
         </button>
@@ -218,7 +225,7 @@ export function StoryStep({
             }}
             className="text-xs text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
           >
-            Não lembro de nada agora, seguir sem isso
+            {T.naoLembro}
           </button>
         </p>
       )}
@@ -227,6 +234,6 @@ export function StoryStep({
 }
 
 // Compat: booleano pro motor (usa a validação unificada).
-export function storyIsValid(step: StoryQuestion, value?: string) {
-  return validateStory(step, value).ok;
+export function storyIsValid(step: StoryQuestion, value?: string, locale: Locale = "pt") {
+  return validateStory(step, value, locale).ok;
 }

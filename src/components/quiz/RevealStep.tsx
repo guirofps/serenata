@@ -11,7 +11,9 @@ import { MusicaDaSessao, type EstadoMusica } from "@/components/quiz/MusicaDaSes
 import { PreviaPresente } from "@/components/quiz/PreviaPresente";
 import { EscolherRefrao } from "@/components/quiz/coautoria/EscolherRefrao";
 import { EditorLetra } from "@/components/quiz/coautoria/EditorLetra";
-import { Music, QrCode } from "lucide-react";
+import { QrCode } from "lucide-react";
+import { type Locale, caminho } from "@/lib/i18n";
+import { t } from "@/lib/textos";
 
 // A REVELAÇÃO — agora é COAUTORIA, não letra pronta.
 //
@@ -24,11 +26,7 @@ import { Music, QrCode } from "lucide-react";
 
 // Frases de loading HONESTAS. Nada de barra que trava em 99% (anti-padrão da
 // Cantoria).
-const LOADING = [
-  "Lendo a sua história…",
-  "Procurando os detalhes que só vocês têm…",
-  "Escrevendo dois caminhos pro refrão…",
-];
+
 
 type Fase =
   | { t: "carregando"; msg: string }
@@ -54,10 +52,11 @@ function useStoreHidratada() {
   return hidratada;
 }
 
-export function RevealStep() {
+export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
+  const T = t(locale);
   const respostas = useQuizStore((s) => s.respostas);
   const hidratada = useStoreHidratada();
-  const [fase, setFase] = useState<Fase>({ t: "carregando", msg: LOADING[0] });
+  const [fase, setFase] = useState<Fase>({ t: "carregando", msg: "" });
   const [loadingIdx, setLoadingIdx] = useState(0);
   const [regerando, setRegerando] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
@@ -71,32 +70,32 @@ export function RevealStep() {
 
   async function carregarRefroes(regen = false) {
     if (regen) setRegerando(true);
-    else setFase({ t: "carregando", msg: LOADING[0] });
+    else setFase({ t: "carregando", msg: T.loadingLetra[0] });
     try {
       const dados = await gerarRefroes({
-        data: { sessionId: getOrCreateSessionId(), respostas: vivas() },
+        data: { sessionId: getOrCreateSessionId(), respostas: vivas(), locale },
       });
       setFase({ t: "refroes", dados });
       trackEventOnce("coautoria_refroes", "v1");
     } catch (err) {
       console.error("[coautoria] refrões falharam:", err);
-      setFase({ t: "erro", msg: "Não consegui escrever agora. Tente de novo.", tentar: () => carregarRefroes() });
+      setFase({ t: "erro", msg: T.naoConsegui, tentar: () => carregarRefroes() });
     } finally {
       setRegerando(false);
     }
   }
 
   async function escolherRefrao(refrao: string) {
-    setFase({ t: "carregando", msg: "Escrevendo a letra em volta do seu refrão…" });
+    setFase({ t: "carregando", msg: T.loadingRefrao });
     trackEvent("coautoria_refrao_escolhido", {});
     try {
       const letra = await montarLetra({
-        data: { sessionId: getOrCreateSessionId(), respostas: vivas(), refrao },
+        data: { sessionId: getOrCreateSessionId(), respostas: vivas(), refrao, locale },
       });
       setFase({ t: "editando", letra });
     } catch (err) {
       console.error("[coautoria] montar letra falhou:", err);
-      setFase({ t: "erro", msg: "Não consegui montar a letra. Tente de novo.", tentar: () => escolherRefrao(refrao) });
+      setFase({ t: "erro", msg: T.naoMontei, tentar: () => escolherRefrao(refrao) });
     }
   }
 
@@ -113,6 +112,7 @@ export function RevealStep() {
           titulo: base.titulo,
           estiloSuno: base.estilo_suno,
           versoDestaque: base.verso_destaque,
+          locale,
         },
       });
       trackEventOnce("letra_finalizada", "v1", { titulo: base.titulo });
@@ -127,7 +127,7 @@ export function RevealStep() {
       setFase({ t: "revelando", letra: { ...base, letra: letraEditada } });
     } catch (err) {
       console.error("[coautoria] finalizar falhou:", err);
-      setFase({ t: "erro", msg: "Não consegui preparar a música. Tente de novo.", tentar: () => finalizar(letraEditada) });
+      setFase({ t: "erro", msg: T.naoPreparei, tentar: () => finalizar(letraEditada) });
     } finally {
       setFinalizando(false);
     }
@@ -167,20 +167,20 @@ export function RevealStep() {
 
   // Frases de loading só na carga inicial dos refrões.
   useEffect(() => {
-    if (fase.t !== "carregando" || fase.msg !== LOADING[0]) return;
-    const id = setInterval(() => setLoadingIdx((i) => Math.min(i + 1, LOADING.length - 1)), 1600);
+    if (fase.t !== "carregando" || fase.msg !== "") return;
+    const id = setInterval(() => setLoadingIdx((i) => Math.min(i + 1, T.loadingLetra.length - 1)), 1600);
     return () => clearInterval(id);
   }, [fase]);
 
   // ── telas ──────────────────────────────────────────────────────
   if (fase.t === "carregando") {
-    const msg = fase.msg === LOADING[0] ? LOADING[loadingIdx] : fase.msg;
+    const msg = fase.msg === "" ? T.loadingLetra[loadingIdx] : fase.msg;
     return (
       <div className="flex flex-col items-center gap-6 py-8 text-center">
         {/* A espera mostra o PRESENTE, não uma bolinha girando: é o único
             momento em que a pessoa para e olha, e vem logo antes da tela em
             que a gente pede dinheiro. */}
-        <PreviaPresente nome={respostas.nome as string | undefined} />
+        <PreviaPresente nome={respostas.nome as string | undefined} locale={locale} />
         <p className="text-lg text-muted-foreground">{msg}</p>
       </div>
     );
@@ -190,7 +190,7 @@ export function RevealStep() {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
         <p className="text-muted-foreground">{fase.msg}</p>
-        <Button onClick={fase.tentar}>Tentar de novo</Button>
+        <Button onClick={fase.tentar}>{T.tentarDeNovo}</Button>
       </div>
     );
   }
@@ -198,13 +198,12 @@ export function RevealStep() {
   if (fase.t === "sem-dados") {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
-        <p className="text-lg font-semibold">Faltou a parte mais importante</p>
+        <p className="text-lg font-semibold">{T.faltouImportante}</p>
         <p className="max-w-sm text-muted-foreground">
-          Preciso da história pra escrever uma letra que seja só dela. Vamos
-          voltar e me contar?
+          {T.precisoDaHistoria}
         </p>
-        <a href="/criar?step=historia1" className="underline underline-offset-4">
-          Contar a história
+        <a href={`${caminho("/criar", locale)}?step=historia1`} className="underline underline-offset-4">
+          {T.contarAHistoria}
         </a>
       </div>
     );
@@ -217,6 +216,7 @@ export function RevealStep() {
         aoEscolher={escolherRefrao}
         aoRegerar={() => carregarRefroes(true)}
         regerando={regerando}
+        locale={locale}
       />
     );
   }
@@ -227,6 +227,7 @@ export function RevealStep() {
         letraInicial={fase.letra.letra}
         aoFinalizar={finalizar}
         finalizando={finalizando}
+        locale={locale}
       />
     );
   }
@@ -242,17 +243,17 @@ export function RevealStep() {
       <div className="overflow-hidden rounded-3xl border bg-card shadow-lg">
         <div className="bg-gradient-to-b from-primary/10 to-transparent px-6 pb-4 pt-8 text-center">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
-            uma música pra {nome}
+            {T.umaMusicaPra} {nome}
           </p>
           <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight">{letra.titulo}</h1>
         </div>
 
         <div className="px-6 pb-6">
-          <MusicaDaSessao letra={letra.letra} aoMudarEstado={setEstadoMusica} />
+          <MusicaDaSessao letra={letra.letra} aoMudarEstado={setEstadoMusica} locale={locale} />
         </div>
 
         <div className="flex items-center justify-center gap-2 border-t bg-secondary/30 py-3 text-xs text-muted-foreground">
-          <QrCode className="h-4 w-4" /> link + QR Code pra compartilhar
+          <QrCode className="h-4 w-4" /> {T.linkEQr}
         </div>
       </div>
 
@@ -263,10 +264,10 @@ export function RevealStep() {
           errada — não se pede dinheiro antes de mostrar o produto. */}
       {estadoMusica === "gerando" ? (
         <p className="text-center text-sm text-muted-foreground">
-          Assim que a gravação ficar pronta, você ouve um trecho aqui.
+          {T.prontaEmBreve}
         </p>
       ) : (
-        <IrPagar nome={nome} />
+        <IrPagar nome={nome} locale={locale} />
       )}
     </div>
   );
@@ -277,8 +278,9 @@ export function RevealStep() {
 // Perfect Pay. O `checkout_click` mudou de lugar junto — ele agora marca o
 // clique em PAGAR, não o clique em "quero saber". Assim o funil separa quem
 // desiste ao ver o preço de quem desiste no formulário de cartão.
-function IrPagar({ nome }: { nome: string }) {
+function IrPagar({ nome, locale }: { nome: string; locale: Locale }) {
   const navigate = useNavigate();
+  const T = t(locale);
 
   return (
     <div>
@@ -287,7 +289,7 @@ function IrPagar({ nome }: { nome: string }) {
         className="cta w-full rounded-full border-0"
         onClick={() => {
           trackEvent("ver_oferta_click", {});
-          navigate({ to: "/criar", search: { step: "oferta" } });
+          navigate({ to: caminho("/criar", locale), search: { step: "oferta" } } as never);
         }}
       >
         Quero a música de {nome} cantada

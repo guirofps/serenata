@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { type Locale } from "@/lib/i18n";
+import { t } from "@/lib/textos";
 
 // Barra de progresso da geração da música — pra a espera "passar mais
 // rápido" (a pessoa vê andar em vez de uma bolinha girando pra sempre).
@@ -16,20 +18,25 @@ import { cn } from "@/lib/utils";
 // ~13min). A barra mira nos 135s; se passar, segura no topo com um texto
 // honesto em vez de fingir 100%.
 const ESTIMATIVA_S = 135;
-const TETO = 93; // nunca "completa" sozinha: só a música pronta leva a 100%
+const TETO = 93; // nunca T.completa sozinha: só a música pronta leva a 100%
 
 // Mensagens amarradas ao PROGRESSO, não a um timer separado: assim a frase
-// reflete o quanto a barra andou e nunca fica "ajustando os detalhes" com a
+// reflete o quanto a barra andou e nunca fica T.ajustandoDetalhes com a
 // barra no começo. Mapeiam de leve as etapas reais (o Suno grava o áudio,
 // depois vêm os timestamps), sem prometer precisão falsa.
-const MENSAGENS: Array<{ ate: number; texto: string }> = [
-  { ate: 28, texto: "Encontrando o tom da sua história…" },
-  { ate: 58, texto: "Gravando a voz…" },
-  { ate: 84, texto: "Dando ritmo às palavras…" },
-  { ate: TETO, texto: "Ajustando os últimos detalhes…" },
-];
+function mensagens(locale: Locale): Array<{ ate: number; texto: string }> {
+  const T = t(locale);
+  return [
+    { ate: 28, texto: T.loadingMusica[0] },
+    { ate: 58, texto: T.gravandoVoz },
+    { ate: 84, texto: T.loadingMusica[1] },
+    { ate: TETO, texto: T.loadingMusica[2] },
+  ];
+}
 
-export function ProgressoGeracao({ pronta = false }: { pronta?: boolean }) {
+export function ProgressoGeracao({ pronta = false, locale = "pt" }: { pronta?: boolean; locale?: Locale }) {
+  const T = t(locale);
+  const MENSAGENS = mensagens(locale);
   const [inicio] = useState(() => Date.now());
   const [pct, setPct] = useState(4);
 
@@ -50,14 +57,14 @@ export function ProgressoGeracao({ pronta = false }: { pronta?: boolean }) {
   const pctFinal = pronta ? 100 : pct;
   const quaseLa = !pronta && pct >= TETO;
   const mensagem = pronta
-    ? "Pronta!"
+    ? T.prontaBang
     : MENSAGENS.find((m) => pct <= m.ate)?.texto ?? MENSAGENS[0].texto;
 
   return (
     <div className="rounded-2xl border bg-secondary/30 px-4 py-4">
       <div className="flex items-baseline justify-between gap-3">
         <p className={cn("text-sm font-medium", pronta && "text-primary")}>
-          {quaseLa ? "Quase pronta…" : mensagem}
+          {quaseLa ? T.quasePronta : mensagem}
         </p>
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
           {Math.round(pctFinal)}%

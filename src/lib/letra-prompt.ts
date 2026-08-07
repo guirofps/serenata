@@ -1,6 +1,14 @@
+import { type Locale, LOCALE_PADRAO } from "@/lib/i18n";
+import { acharGenero } from "@/lib/generos";
+import { LETRA_SYSTEM_ES, RELACAO_ES, OCASIAO_ES, VOZ_ES } from "@/lib/letra-prompt-es";
+
 // Prompt de geração de letra (de prompts/letra.md). System estável e cacheável;
 // respostas do quiz vão por último (cache é casamento de prefixo — nada de
 // nome/data/id no system).
+//
+// Dois idiomas, dois system prompts. O espanhol NÃO é este traduzido: a seção
+// de clichês a evitar é o que separa letra boa de genérica, e clichê brasileiro
+// não é clichê mexicano. Ver `letra-prompt-es.ts`.
 
 export const LETRA_SYSTEM = `Você escreve letras de música personalizadas em português brasileiro.
 Cada letra é feita a partir da história real que alguém contou sobre
@@ -116,26 +124,38 @@ const OCASIAO: Record<string, string> = {
   soporque: "só porque sim",
   outro: "momento especial",
 };
-const ESTILO: Record<string, string> = {
-  sertanejo: "sertanejo",
-  sertanejo_univ: "sertanejo universitário",
-  piseiro: "piseiro/arrocha romântico",
-  pagode: "pagode/samba",
-  forro: "forró",
-  pop_romantico: "pop romântico",
-  mpb: "MPB (voz e violão)",
-  bossa: "bossa nova",
-  rock: "rock nacional romântico",
-  reggae: "reggae romântico brasileiro",
-  gospel: "gospel",
-  rap: "rap/hip-hop melódico",
-  infantil: "infantil",
-};
 const VOZ: Record<string, string> = {
   feminina: "feminina",
   masculina: "masculina",
   surpresa: "à escolha do compositor",
 };
+
+// O rótulo do gênero saiu daqui e virou uma face do catálogo (`generos.ts`),
+// junto com o chip do quiz e o estilo do Suno. Eram três listas que precisavam
+// concordar, e a primeira a sair de sincronia entrega música do gênero errado
+// sem erro nenhum no log.
+
+/** Textos fixos do user message, por idioma. */
+const ROTULOS = {
+  pt: {
+    homenageado: "Homenageado", relacao: "Relação com quem encomendou",
+    ocasiao: "Ocasião", genero: "Gênero musical", voz: "Voz",
+    historia: "História contada", recado: "Recado especial (pode estar vazio)",
+    filhosCitar: "Filhos a citar pelo nome, exatamente como escrito",
+    filhosNao: "Filhos: não citar nenhum filho pelo nome.",
+    fallbackNome: "essa pessoa", fallbackRelacao: "pessoa querida",
+    fallbackOcasiao: "momento especial", fallbackLivre: "à escolha do compositor",
+  },
+  es: {
+    homenageado: "Homenajeado", relacao: "Relación con quien la encargó",
+    ocasiao: "Ocasión", genero: "Género musical", voz: "Voz",
+    historia: "Historia contada", recado: "Mensaje especial (puede estar vacío)",
+    filhosCitar: "Hijos a citar por su nombre, exactamente como está escrito",
+    filhosNao: "Hijos: no citar a ningún hijo por su nombre.",
+    fallbackNome: "esa persona", fallbackRelacao: "persona querida",
+    fallbackOcasiao: "momento especial", fallbackLivre: "a elección del compositor",
+  },
+} as const;
 
 // Sanitiza o nome do homenageado (bug da Cantoria: injetar nome sem checar).
 export function sanitizeNome(raw: unknown): string {
@@ -144,12 +164,19 @@ export function sanitizeNome(raw: unknown): string {
   return n;
 }
 
-export function buildUserMessage(respostas: Record<string, unknown>): string {
-  const nome = sanitizeNome(respostas.nome) || "essa pessoa";
-  const relacao = RELACAO[String(respostas.relacao)] ?? "pessoa querida";
-  const ocasiao = OCASIAO[String(respostas.ocasiao)] ?? "momento especial";
-  const genero = ESTILO[String(respostas.estilo)] ?? "à escolha do compositor";
-  const voz = VOZ[String(respostas.voz)] ?? "à escolha do compositor";
+export function buildUserMessage(
+  respostas: Record<string, unknown>,
+  locale: Locale = LOCALE_PADRAO,
+): string {
+  const L = ROTULOS[locale] ?? ROTULOS.pt;
+  const es = locale === "es";
+  const nome = sanitizeNome(respostas.nome) || L.fallbackNome;
+  const relacao =
+    (es ? RELACAO_ES : RELACAO)[String(respostas.relacao)] ?? L.fallbackRelacao;
+  const ocasiao =
+    (es ? OCASIAO_ES : OCASIAO)[String(respostas.ocasiao)] ?? L.fallbackOcasiao;
+  const genero = acharGenero(String(respostas.estilo))?.rotuloPrompt ?? L.fallbackLivre;
+  const voz = (es ? VOZ_ES : VOZ)[String(respostas.voz)] ?? L.fallbackLivre;
   const historia = [respostas.historia1, respostas.historia2]
     .filter(Boolean)
     .join("\n\n");
@@ -159,22 +186,25 @@ export function buildUserMessage(respostas: Record<string, unknown>): string {
   // ninguém — e a instrução tem que dizer isso, senão o modelo inventa filhos
   // a partir de "criou eu e meus irmãos".
   const filhos = String(respostas.filhos ?? "").trim();
-  const linhaFilhos = filhos
-    ? `Filhos a citar pelo nome, exatamente como escrito: ${filhos}`
-    : "Filhos: não citar nenhum filho pelo nome.";
+  const linhaFilhos = filhos ? `${L.filhosCitar}: ${filhos}` : L.filhosNao;
 
-  return `Homenageado: ${nome}
-Relação com quem encomendou: ${relacao}
-Ocasião: ${ocasiao}
-Gênero musical: ${genero}
-Voz: ${voz}
+  return `${L.homenageado}: ${nome}
+${L.relacao}: ${relacao}
+${L.ocasiao}: ${ocasiao}
+${L.genero}: ${genero}
+${L.voz}: ${voz}
 ${linhaFilhos}
 
-História contada:
+${L.historia}:
 ${historia}
 
-Recado especial (pode estar vazio):
+${L.recado}:
 ${recado}`;
+}
+
+/** O system prompt do idioma. Cacheável: nada de nome ou id aqui dentro. */
+export function systemDaLetra(locale: Locale): string {
+  return locale === "es" ? LETRA_SYSTEM_ES : LETRA_SYSTEM;
 }
 
 // Schema de saída (structured output).

@@ -61,11 +61,16 @@ export const TAG_IDIOMA: Record<Locale, string> = {
 };
 
 /** Moeda e formato do preço. */
-export const MOEDA: Record<Locale, { simbolo: string; valor: number; texto: string }> = {
-  pt: { simbolo: "R$", valor: 37, texto: "R$ 37" },
-  // US$ e não MXN: a Perfect Pay cobra o internacional em dólar. Ver
-  // docs/espanhol.md pra por que 9 e não 12,99.
-  es: { simbolo: "US$", valor: 9, texto: "US$ 9" },
+export const MOEDA: Record<
+  Locale,
+  { simbolo: string; valor: number; texto: string; ancora: string }
+> = {
+  pt: { simbolo: "R$", valor: 37, texto: "R$ 37", ancora: "R$ 97" },
+  // US$ e não MXN: a Perfect Pay cobra o internacional em dólar. E 9 e não
+  // 12,99 porque a Cántale (o concorrente escalado no México, com página
+  // compartilhável inclusa) cobra 12,99 — entrar 30% abaixo do líder é a
+  // mesma jogada que a gente fez contra a LoveTune no Brasil.
+  es: { simbolo: "US$", valor: 9, texto: "US$ 9", ancora: "US$ 24" },
 };
 
 /**

@@ -8,6 +8,9 @@ import { getOrCreateSessionId, getStoredAttribution } from "@/lib/session-contex
 //
 // GREATEST no furthest_step é feito no servidor: back-nav nunca regride o lead.
 export async function captureLeadProgress(args: {
+  /** O funil em que a pessoa entrou. Grava desde o passo 1: quem abandona
+   *  no meio ainda precisa ser alcançável no idioma certo. */
+  locale?: string;
   currentStep: number;
   furthestStep: number;
   respostas: Record<string, unknown>;
@@ -24,6 +27,7 @@ export async function captureLeadProgress(args: {
       p_email: args.email ?? null,
       p_whatsapp: null, // decisão: só e-mail no lançamento
       p_attribution: getStoredAttribution(),
+      p_locale: args.locale ?? "pt",
     });
     // Falha NÃO é silenciosa (erro herdado a não repetir: catch {} vazio):
     if (error) console.error("[lead] upsert_quiz_response falhou:", error);

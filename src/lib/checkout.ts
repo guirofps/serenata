@@ -1,4 +1,5 @@
 import { getOrCreateSessionId } from "@/lib/session-context";
+import { type Locale, LOCALE_PADRAO } from "@/lib/i18n";
 
 // Ida pro CHECKOUT (Perfect Pay).
 //
@@ -16,7 +17,17 @@ import { getOrCreateSessionId } from "@/lib/session-context";
 //    fontes, em ordem de confiança: store da Utmify, a URL atual, e a nossa
 //    captura first-touch.
 
-export const CHECKOUT_URL = "https://go.perfectpay.com.br/PPU38CQER4D";
+// Um produto por idioma na Perfect Pay: o brasileiro cobra R$ 37 no PIX ou
+// cartão, o internacional cobra em dólar. Mesmo gateway, mesmo webhook, IDs
+// diferentes — e é o `src` (nosso session_id) que casa o pagamento com a
+// música, não o produto.
+const CHECKOUT: Record<Locale, string> = {
+  pt: "https://go.perfectpay.com.br/PPU38CQER4D",
+  es: "https://go.centerpag.com/PPU38CQF4HJ",
+};
+
+/** Compat: código que não conhece idioma continua indo pro produto BR. */
+export const CHECKOUT_URL = CHECKOUT.pt;
 
 const PARAMS_RASTREIO = [
   "utm_source",
@@ -41,7 +52,7 @@ function leJson(chave: string): Record<string, unknown> | null {
 }
 
 /** Monta a URL do checkout com sessão e UTMs. */
-export function urlCheckout(extra?: { email?: string }): string {
+export function urlCheckout(extra?: { email?: string; locale?: Locale }): string {
   const p = new URLSearchParams();
 
   // A ponte com o webhook.
@@ -73,10 +84,10 @@ export function urlCheckout(extra?: { email?: string }): string {
     }
   }
 
-  return `${CHECKOUT_URL}?${p.toString()}`;
+  return `${CHECKOUT[extra?.locale ?? LOCALE_PADRAO] ?? CHECKOUT.pt}?${p.toString()}`;
 }
 
 /** Leva pro checkout. */
-export function irParaCheckout(extra?: { email?: string }) {
+export function irParaCheckout(extra?: { email?: string; locale?: Locale }) {
   window.location.href = urlCheckout(extra);
 }

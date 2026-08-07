@@ -9,6 +9,8 @@ import { OuvirEnquantoEspera } from "@/components/quiz/OuvirEnquantoEspera";
 import { VideoEntrega } from "@/components/quiz/VideoEntrega";
 import { trackEventOnce } from "@/lib/track";
 import { Music } from "lucide-react";
+import { type Locale, caminho } from "@/lib/i18n";
+import { t } from "@/lib/textos";
 
 // Acompanha a música da sessão: enquanto grava, mostra uma barra de progresso
 // honesta + outras músicas pra ouvir; quando fica pronta, troca pelo karaokê
@@ -33,6 +35,7 @@ export type EstadoMusica = "gerando" | "pronta" | "falhou";
 export function MusicaDaSessao({
   letra,
   aoMudarEstado,
+  locale = "pt",
 }: {
   letra: string;
   /**
@@ -43,7 +46,9 @@ export function MusicaDaSessao({
    * sem nunca ter ouvido nada, e voltar recomeçava o quiz.
    */
   aoMudarEstado?: (e: EstadoMusica) => void;
+  locale?: Locale;
 }) {
+  const T = t(locale);
   const navigate = useNavigate();
   const [status, setStatus] = useState<string>("aguardando");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -125,7 +130,8 @@ export function MusicaDaSessao({
       <MusicaKaraoke
         audioUrl={audioUrl}
         words={words}
-        onDesbloquear={() => navigate({ to: "/criar", search: { step: "oferta" } })}
+        onDesbloquear={() => navigate({ to: caminho("/criar", locale), search: { step: "oferta" } } as never)}
+        locale={locale}
       />
     ) : (
       <div className="space-y-4">
@@ -144,9 +150,9 @@ export function MusicaDaSessao({
         <div className="flex items-center gap-3 rounded-2xl border border-dashed bg-secondary/30 px-4 py-3">
           <Music className="h-5 w-5 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
-            <p className="text-sm font-medium">A gravação demorou mais que o esperado</p>
+            <p className="text-sm font-medium">{T.demorouMais}</p>
             <p className="text-xs text-muted-foreground">
-              Assim que ficar pronta, avisamos no seu e-mail.
+              {T.avisamosPorEmail}
             </p>
           </div>
         </div>
@@ -159,12 +165,12 @@ export function MusicaDaSessao({
   // músicas pra ouvir. Quando `pronta`, a barra salta pra 100%.
   return (
     <div className="space-y-5">
-      <ProgressoGeracao pronta={pronta} />
+      <ProgressoGeracao pronta={pronta} locale={locale} />
       {/* Entre a barra e as músicas de propósito: enquanto espera, a pessoa
           vê o ENTREGÁVEL (o que ela vai enviar) antes de se distrair ouvindo
           exemplo dos outros. */}
       <VideoEntrega />
-      <OuvirEnquantoEspera />
+      <OuvirEnquantoEspera locale={locale} />
     </div>
   );
 }

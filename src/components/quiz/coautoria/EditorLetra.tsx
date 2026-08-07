@@ -6,12 +6,14 @@ import { trackEventOnce } from "@/lib/track";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { type Locale } from "@/lib/i18n";
+import { t } from "@/lib/textos";
 
 // Editor da letra — a segunda etapa da coautoria.
 //
 // A pessoa vê a letra inteira montada em cima do refrão que escolheu, e pode:
 //   - editar livremente (é o texto que vira música)
-//   - "melhorar com IA" uma vez (deixa mais concreta, corta clichê)
+//   - "{T.melhorarComIA}" uma vez (deixa mais concreta, corta clichê)
 //   - confirmar
 //
 // Mobile-first: textarea de altura generosa, botões empilhados, o "está
@@ -21,11 +23,14 @@ export function EditorLetra({
   letraInicial,
   aoFinalizar,
   finalizando,
+  locale = "pt",
 }: {
   letraInicial: string;
   aoFinalizar: (letra: string) => void;
   finalizando: boolean;
+  locale?: Locale;
 }) {
+  const T = t(locale);
   const [letra, setLetra] = useState(letraInicial);
   const [aprimorando, setAprimorando] = useState(false);
   const [jaAprimorou, setJaAprimorou] = useState(false);
@@ -41,7 +46,7 @@ export function EditorLetra({
       trackEventOnce("letra_aprimorada", "v1");
     } catch (err) {
       console.error("[coautoria] aprimorar falhou:", err);
-      setErro("Não consegui melhorar agora. A letra continua como está.");
+      setErro(T.falhouMelhorar);
     } finally {
       setAprimorando(false);
     }
@@ -119,7 +124,7 @@ export function EditorLetra({
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Preparando sua música…
             </>
           ) : (
-            "Está pronta"
+            "{T.estaPronta}"
           )}
         </Button>
       </div>

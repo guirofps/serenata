@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
+import { type Locale, normalizarLocale } from "@/lib/i18n";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { registrarCustoLetra, type UsoClaude } from "@/lib/custos";
 import { dispararGeracaoMusica } from "@/lib/gerar-letra";
 import {
-  LETRA_SYSTEM,
+  systemDaLetra,
   buildUserMessage,
   sanitizeNome,
   type LetraGerada,
@@ -33,7 +34,7 @@ type RespClaude = { texto: string; uso: UsoClaude; stopReason: string | null };
 // Uma chamada ao Claude, no formato já validado (medir-custo-letra.mjs):
 // system cacheável + pedido de JSON no fim. Devolve o texto cru; cada
 // chamador parseia o que precisa.
-async function chamarClaude(userMsg: string, maxTokens: number): Promise<RespClaude> {
+async function chamarClaude(userMsg: string, maxTokens: number, locale: Locale = "pt"): Promise<RespClaude> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error("ANTHROPIC_API_KEY ausente no servidor");
 
@@ -48,7 +49,7 @@ async function chamarClaude(userMsg: string, maxTokens: number): Promise<RespCla
       model: MODEL,
       max_tokens: maxTokens,
       output_config: { effort: "medium" },
-      system: [{ type: "text", text: LETRA_SYSTEM, cache_control: { type: "ephemeral" } }],
+      system: [{ type: "text", text: systemDaLetra(locale), cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: userMsg }],
     }),
   });
@@ -83,16 +84,53 @@ function respostasSanitizadas(respostas: Record<string, unknown>) {
 }
 
 // ── ETAPA 1: dois refrões ────────────────────────────────────────
+// As INSTRUÇÕES de cada etapa, por idioma.
+//
+// Não é preciosismo: o system prompt manda escrever em espanhol, mas uma
+// instrução em português na última mensagem puxa o modelo de volta — ele
+// responde no idioma do que acabou de ler. Medido nos testes.
+const INSTRUCOES: Record<Locale, {
+  refroes: string;
+  montar: (refrao: string) => string;
+  aprimorar: string;
+}> = {
+  pt: {
+    refroes:
+      'Gere DUAS opções de refrão bem diferentes entre si para esta música — uma mais direta e uma mais lírica, cada uma ancorada num detalhe concreto DIFERENTE da história. Cada refrão tem 4 linhas. Dê também um título e o estilo_suno (prompt de estilo pro gerador de música). Responda APENAS com JSON válido: {"titulo","estilo_suno","refroes":["refrão 1","refrão 2"]}',
+    montar: (refrao) =>
+      `O REFRÃO já foi escolhido. Use EXATAMENTE este refrão, sem alterar nenhuma palavra, em todas as ocorrências de [Chorus]:
+
+${refrao}
+
+Escreva a letra completa ao redor dele (intro curta, versos, ponte, outro) usando as marcações [Short Intro - máx 8s] [Verse 1] [Chorus] [Verse 2] [Chorus] [Bridge] [Chorus] [Outro]. Responda APENAS com JSON válido: {"titulo","letra","estilo_suno","verso_destaque"}`,
+    aprimorar:
+      'Aqui está uma letra de música. Melhore-a: deixe as imagens mais concretas, corte qualquer clichê, ajuste o ritmo das linhas. MANTENHA a estrutura (as marcações [Verse], [Chorus] etc) e o refrão exatamente como estão. Responda APENAS com JSON válido: {"letra"}',
+  },
+  es: {
+    refroes:
+      'Genera DOS opciones de coro bien distintas entre sí para esta canción — una más directa y una más lírica, cada una anclada en un detalle concreto DIFERENTE de la historia. Cada coro tiene 4 líneas. Da también un título y el estilo_suno (prompt de estilo para el generador de música). Responde SOLO con JSON válido: {"titulo","estilo_suno","refroes":["coro 1","coro 2"]}',
+    montar: (refrao) =>
+      `El CORO ya fue elegido. Usa EXACTAMENTE este coro, sin cambiar ni una palabra, en todas las apariciones de [Chorus]:
+
+${refrao}
+
+Escribe la letra completa alrededor de él (intro corta, versos, puente, outro) usando las marcas [Short Intro - máx 8s] [Verse 1] [Chorus] [Verse 2] [Chorus] [Bridge] [Chorus] [Outro]. Responde SOLO con JSON válido: {"titulo","letra","estilo_suno","verso_destaque"}`,
+    aprimorar:
+      'Aquí está una letra de canción. Mejórala: haz las imágenes más concretas, corta cualquier cliché, ajusta el ritmo de las líneas. MANTÉN la estructura (las marcas [Verse], [Chorus], etc.) y el coro exactamente como están. Responde SOLO con JSON válido: {"letra"}',
+  },
+};
+
 export type RefroesGerados = { titulo: string; estiloSuno: string; refroes: [string, string] };
 
 export const gerarRefroes = createServerFn({ method: "POST" })
-  .validator((data: { sessionId: string; respostas: Record<string, unknown> }) => data)
+  .validator((data: { sessionId: string; respostas: Record<string, unknown>; locale?: string }) => data)
   .handler(async ({ data }): Promise<RefroesGerados> => {
-    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas))}
+    const locale = normalizarLocale(data.locale);
+    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas), locale)}
 
-Gere DUAS opções de refrão bem diferentes entre si para esta música — uma mais direta e uma mais lírica, cada uma ancorada num detalhe concreto DIFERENTE da história. Cada refrão tem 4 linhas. Dê também um título e o estilo_suno (prompt de estilo pro gerador de música). Responda APENAS com JSON válido: {"titulo","estilo_suno","refroes":["refrão 1","refrão 2"]}`;
+${INSTRUCOES[locale].refroes}`;
 
-    const { texto, uso } = await chamarClaude(userMsg, 1500);
+    const { texto, uso } = await chamarClaude(userMsg, 1500, locale);
     const p = extrairJson<{ titulo: string; estilo_suno: string; refroes: string[] }>(texto);
 
     // Custo atribuído à sessão (musicaId ainda não existe).
@@ -110,18 +148,15 @@ Gere DUAS opções de refrão bem diferentes entre si para esta música — uma 
 // ── ETAPA 2: letra inteira a partir do refrão escolhido ──────────
 export const montarLetra = createServerFn({ method: "POST" })
   .validator(
-    (data: { sessionId: string; respostas: Record<string, unknown>; refrao: string }) => data,
+    (data: { sessionId: string; respostas: Record<string, unknown>; refrao: string; locale?: string }) => data,
   )
   .handler(async ({ data }): Promise<LetraGerada> => {
-    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas))}
+    const locale = normalizarLocale(data.locale);
+    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas), locale)}
 
-O REFRÃO já foi escolhido. Use EXATAMENTE este refrão, sem alterar nenhuma palavra, em todas as ocorrências de [Chorus]:
+${INSTRUCOES[locale].montar(data.refrao)}`;
 
-${data.refrao}
-
-Escreva a letra completa ao redor dele (intro curta, versos, ponte, outro) usando as marcações [Short Intro - máx 8s] [Verse 1] [Chorus] [Verse 2] [Chorus] [Bridge] [Chorus] [Outro]. Responda APENAS com JSON válido: {"titulo","letra","estilo_suno","verso_destaque"}`;
-
-    const { texto, uso, stopReason } = await chamarClaude(userMsg, 4000);
+    const { texto, uso, stopReason } = await chamarClaude(userMsg, 4000, locale);
     if (stopReason === "max_tokens") throw new Error("Letra truncada pelo limite de tokens");
     const p = extrairJson<LetraGerada>(texto);
 
@@ -137,13 +172,14 @@ Escreva a letra completa ao redor dele (intro curta, versos, ponte, outro) usand
 
 // ── ETAPA 2b (opcional): aprimorar a letra editada ───────────────
 export const aprimorarLetra = createServerFn({ method: "POST" })
-  .validator((data: { sessionId: string; letra: string }) => data)
+  .validator((data: { sessionId: string; letra: string; locale?: string }) => data)
   .handler(async ({ data }): Promise<{ letra: string }> => {
-    const userMsg = `Aqui está uma letra de música. Melhore-a: deixe as imagens mais concretas, corte qualquer clichê, ajuste o ritmo das linhas. MANTENHA a estrutura (as marcações [Verse], [Chorus] etc) e o refrão exatamente como estão. Responda APENAS com JSON válido: {"letra"}
+    const locale = normalizarLocale(data.locale);
+    const userMsg = `${INSTRUCOES[locale].aprimorar}
 
 ${data.letra}`;
 
-    const { texto, uso, stopReason } = await chamarClaude(userMsg, 4000);
+    const { texto, uso, stopReason } = await chamarClaude(userMsg, 4000, locale);
     if (stopReason === "max_tokens") throw new Error("Letra truncada pelo limite de tokens");
     const p = extrairJson<{ letra: string }>(texto);
 
@@ -166,10 +202,12 @@ export const finalizarLetra = createServerFn({ method: "POST" })
       titulo: string;
       estiloSuno: string;
       versoDestaque: string;
+      locale?: string;
     }) => data,
   )
   .handler(async ({ data }): Promise<{ musicaId: string | null; statusMusica: string }> => {
     const db = supabaseAdmin();
+    const locale = normalizarLocale(data.locale);
     const quizId = await quizIdDaSessao(data.sessionId);
     if (!quizId) {
       console.error("[coautoria] sessão sem quiz_response; letra não persistida", data.sessionId);
@@ -188,6 +226,15 @@ export const finalizarLetra = createServerFn({ method: "POST" })
     if (existente) {
       return { musicaId: existente.id, statusMusica: existente.status ?? "aguardando" };
     }
+
+    // O IDIOMA fica gravado no lead ANTES de a música existir.
+    //
+    // É o que faz a página presente, o editor e os 4 e-mails saírem na língua
+    // certa: nenhum dos três tem URL de onde deduzir (ver a migration
+    // 20260807000000_locale). Gravado aqui, e não no primeiro passo do quiz,
+    // porque é aqui que a sessão vira compra em potencial — e a RPC de
+    // progresso parcial nunca sobrescreve o campo.
+    await db.from("quiz_responses").update({ locale }).eq("id", quizId);
 
     const { data: inserida, error } = await db
       .from("musicas")

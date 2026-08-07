@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { RefreshCw, Check } from "lucide-react";
 import type { RefroesGerados } from "@/lib/coautoria";
+import { type Locale } from "@/lib/i18n";
+import { t } from "@/lib/textos";
 
 // Escolha do refrão — a primeira etapa da coautoria.
 //
@@ -19,25 +21,28 @@ export function EscolherRefrao({
   aoEscolher,
   aoRegerar,
   regerando,
+  locale = "pt",
 }: {
   dados: RefroesGerados;
   aoEscolher: (refrao: string) => void;
   aoRegerar: () => void;
   regerando: boolean;
+  locale?: Locale;
 }) {
+  const T = t(locale);
   const [sel, setSel] = useState<number | null>(null);
 
   return (
     <div className="flex flex-col gap-6">
       <div className="text-center">
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-          Sua letra, do seu jeito
+          {T.suaLetraSeuJeito}
         </p>
         <h1
           className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl"
           style={{ fontFamily: FONTES.display }}
         >
-          Qual refrão fica melhor?
+          {T.qualRefrao}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           É a parte que mais se canta. Escolha a que te tocar, dá pra ajustar
@@ -63,7 +68,7 @@ export function EscolherRefrao({
             >
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  {i === 0 ? "Opção 1" : "Opção 2"}
+                  {i === 0 ? T.opcao(1) : T.opcao(2)}
                 </span>
                 <span
                   className={cn(
@@ -92,7 +97,7 @@ export function EscolherRefrao({
         className="mx-auto inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground disabled:opacity-50"
       >
         <RefreshCw className={cn("h-4 w-4", regerando && "animate-spin")} />
-        {regerando ? "Gerando outras…" : "Ver outras opções"}
+        {regerando ? "{T.gerandoOutras}" : "{T.outraOpcao}"}
       </button>
 
       {/* Rodapé fixo no polegar: só habilita com um refrão escolhido. */}

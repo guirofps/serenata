@@ -3,6 +3,8 @@ import type { QuestionStep } from "@/lib/flow-engine";
 import { Input } from "@/components/ui/input";
 import { FONTES } from "@/lib/marca";
 import { trackEventOnce } from "@/lib/track";
+import { type Locale } from "@/lib/i18n";
+import { t } from "@/lib/textos";
 
 // Campo de texto que MOSTRA como o valor vai sair no produto.
 //
@@ -45,6 +47,7 @@ export function CampoNome({
   respostas,
   onChangeExtra,
   preencher,
+  locale = "pt",
 }: {
   step: TextQuestion;
   value: string | undefined;
@@ -53,7 +56,9 @@ export function CampoNome({
   onChangeExtra: (field: string, v: string) => void;
   /** Troca {nome} pelo nome real nos gatilhos. */
   preencher: (s: string) => string;
+  locale?: Locale;
 }) {
+  const T = t(locale);
   const campoRef = useRef<HTMLInputElement>(null);
 
   // Gatilho tocado: escreve o COMEÇO da frase e devolve o cursor pro fim.
@@ -84,7 +89,7 @@ export function CampoNome({
       {step.triggers && step.triggers.length > 0 && (
         <>
           <p className="text-center text-xs text-muted-foreground">
-            Sem ideia? Toque num pra começar a frase.
+            {T.semIdeia}
           </p>
           <div className="flex flex-wrap justify-center gap-2">
             {step.triggers.map((tr) => (
@@ -117,16 +122,13 @@ export function CampoNome({
 
       {composto && (
         <div className="rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-left">
-          <p className="text-sm">
-            Nome e sobrenome vão ser cantados inteiros. Se você chama de{" "}
-            <strong>{primeiro}</strong>, fica melhor na música.
-          </p>
+          <p className="text-sm">{T.avisoComposto(primeiro)}</p>
           <button
             type="button"
             onClick={() => onChange(primeiro)}
             className="mt-2 rounded-full border-2 border-primary/40 px-4 py-1.5 text-sm font-medium transition-colors hover:bg-primary/10"
           >
-            Usar só “{primeiro}”
+            {T.usarSo(primeiro)}
           </button>
         </div>
       )}

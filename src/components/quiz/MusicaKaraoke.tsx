@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Pause, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { type Locale } from "@/lib/i18n";
+import { t as textos } from "@/lib/textos";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 
 // Karaokê REAL: a música cantada + cada palavra acendendo no instante em que
@@ -60,6 +62,7 @@ export function MusicaKaraoke({
   // `completo` libera a música inteira (sem a trava do preview). Usado nas
   // demos que mandamos pra alguém ouvir; o funil real nunca passa isso.
   completo = false,
+  locale = "pt",
 }: {
   audioUrl: string;
   words: PalavraAlinhada[];
@@ -76,7 +79,9 @@ export function MusicaKaraoke({
    * Com a prop obrigatória, o compilador não deixa isso acontecer de novo.
    */
   onDesbloquear: () => void;
+  locale?: Locale;
 }) {
+  const T = textos(locale);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [tocando, setTocando] = useState(false);
   const [t, setT] = useState(0);
@@ -173,10 +178,10 @@ export function MusicaKaraoke({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">
             {travou
-              ? "Você ouviu um pedacinho…"
+              ? "{T.ouviuPedacinho}"
               : tocando
-                ? "Cante junto, é a sua música"
-                : "Ouvir a música"}
+                ? "{T.canteJunto}"
+                : "{T.ouvirAMusica}"}
           </p>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border">
             <div
@@ -231,7 +236,7 @@ export function MusicaKaraoke({
       {travou && (
         <div className="space-y-3 rounded-2xl border bg-card p-5 text-center">
           <Lock className="mx-auto h-5 w-5 text-muted-foreground" />
-          <p className="font-semibold">A música continua…</p>
+          <p className="font-semibold">{T.musicaContinua}</p>
           <p className="text-sm text-muted-foreground">
             Desbloqueie a música completa + a página presente pra enviar + o MP3
             pra guardar.

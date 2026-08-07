@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Efeitos } from "@/components/presente/Efeitos";
 import { CORES, FONTES } from "@/lib/marca";
 import { Play, QrCode } from "lucide-react";
+import { type Locale } from "@/lib/i18n";
+import { t as textos } from "@/lib/textos";
 
 // A ESPERA VIRA VITRINE.
 //
@@ -25,7 +27,8 @@ import { Play, QrCode } from "lucide-react";
 // Larguras das barras: irregulares de propósito, senão parece tabela.
 const LINHAS = [78, 92, 64, 88, 71, 84];
 
-export function PreviaPresente({ nome }: { nome?: string }) {
+export function PreviaPresente({ nome, locale = "pt" }: { nome?: string; locale?: Locale }) {
+  const T = textos(locale);
   const [t, setT] = useState(0);
 
   useEffect(() => {
@@ -33,9 +36,9 @@ export function PreviaPresente({ nome }: { nome?: string }) {
     return () => clearInterval(id);
   }, []);
 
-  // Qual linha está "sendo cantada": desce uma a cada 0,9s e recomeça.
+  // Qual linha está sendo cantada: desce uma a cada 0,9s e recomeça.
   const ativa = Math.floor((t / 0.9) % LINHAS.length);
-  const quem = nome?.trim() || "quem você ama";
+  const quem = nome?.trim() || T.quemVoceAma;
 
   return (
     <div className="mx-auto w-full max-w-[248px]">
@@ -60,7 +63,7 @@ export function PreviaPresente({ nome }: { nome?: string }) {
             className="text-center text-[8px] uppercase tracking-[0.3em]"
             style={{ color: CORES.bruma }}
           >
-            uma música para
+            {T.umaMusicaPra}
           </p>
           <p
             className="mt-1 truncate text-center text-xl"

@@ -1,4 +1,7 @@
 import type { FlowStep, SkipMap } from "@/lib/flow-engine";
+import type { Locale } from "@/lib/i18n";
+import { generos } from "@/lib/generos";
+import { QUIZ_FLOW_ES } from "@/lib/quiz-flow-es";
 
 // Conteúdo do nosso quiz (Fase 1), conforme docs/quiz-fase1.md.
 // Enquadramento: é um PRESENTE/homenagem, não "uma música".
@@ -8,7 +11,7 @@ import type { FlowStep, SkipMap } from "@/lib/flow-engine";
 //   - validação anti-lixo dura, mín. 150 chars (LoveTune)
 //   - lead parcial desde o passo 1 (nenhum concorrente tem)
 
-export const QUIZ_FLOW: FlowStep[] = [
+const QUIZ_FLOW_PT: FlowStep[] = [
   {
     id: "relacao",
     kind: "question",
@@ -94,24 +97,10 @@ export const QUIZ_FLOW: FlowStep[] = [
     field: "estilo",
     input: "chips",
     // Sem "Outro": num seletor de GÊNERO, "outro" virava "à escolha do
-    // compositor" e saía qualquer coisa — a IA escolhia sem direção, e o
-    // Suno precisa de um estilo concreto. A saída é cobrir bem os gêneros
-    // reais do presente brasileiro. Ordenados por quanto se pede.
-    options: [
-      { value: "sertanejo", label: "Sertanejo", emoji: "🤠" },
-      { value: "sertanejo_univ", label: "Sertanejo universitário", emoji: "🎸" },
-      { value: "piseiro", label: "Piseiro / arrocha", emoji: "🎹" },
-      { value: "pagode", label: "Pagode / samba", emoji: "🥁" },
-      { value: "forro", label: "Forró", emoji: "🪗" },
-      { value: "pop_romantico", label: "Pop romântico", emoji: "💕" },
-      { value: "mpb", label: "MPB / voz e violão", emoji: "🎙️" },
-      { value: "bossa", label: "Bossa nova", emoji: "🌙" },
-      { value: "rock", label: "Rock", emoji: "🤘" },
-      { value: "reggae", label: "Reggae", emoji: "🌴" },
-      { value: "gospel", label: "Gospel", emoji: "📖" },
-      { value: "rap", label: "Rap / hip-hop", emoji: "🎤" },
-      { value: "infantil", label: "Infantil", emoji: "⭐" },
-    ],
+    // compositor" e saía qualquer coisa. Os rótulos, o estilo do Suno e o
+    // rótulo do prompt vivem juntos no catálogo (`generos.ts`) — eram três
+    // listas que precisavam concordar entre si.
+    options: generos("pt").map((g) => ({ value: g.value, label: g.label, emoji: g.emoji })),
   },
   {
     id: "voz",
@@ -263,3 +252,15 @@ export const QUIZ_FLOW: FlowStep[] = [
 // Skip por ID (nunca por offset). Vazio por ora; exemplo de uso quando precisar:
 // { recado: (r) => r.ocasiao === "memorial" }  // pula o recado em memorial
 export const QUIZ_SKIP: SkipMap = {};
+
+// ── Despacho por idioma ───────────────────────────────────────────
+// O português é o default em todo caminho: idioma desconhecido cai em PT.
+export function quizFlow(locale: Locale): FlowStep[] {
+  return locale === "es" ? QUIZ_FLOW_ES : QUIZ_FLOW_PT;
+}
+
+/**
+ * Compatibilidade: código que ainda não conhece idioma continua vendo o funil
+ * português, exatamente como antes.
+ */
+export const QUIZ_FLOW = QUIZ_FLOW_PT;

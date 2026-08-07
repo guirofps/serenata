@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { iniciarGeracao, consultarGeracao, obterTimestamps } from "../lib/kie.js";
+import { acharGenero } from "../../src/lib/generos.js";
 
 // Job de geração da música. Portado de scratch/pipeline-completo.mjs, que já
 // rodou de ponta a ponta na mão (3 músicas aprovadas).
@@ -20,28 +21,13 @@ const bucket = "musicas";
 // real — e a história do usuário naturalmente cita banda favorita. O prompt
 // já proíbe, mas se escapar a música morreria em silêncio. Este fallback
 // troca o estilo por um genérico do gênero e tenta de novo.
-const ESTILO_GENERICO: Record<string, string> = {
-  sertanejo: "sertanejo romântico brasileiro, viola e violão, batida moderada, clima emotivo",
-  sertanejo_univ: "sertanejo universitário, violão e viola, produção pop, romântico",
-  piseiro: "piseiro romântico brasileiro, teclado marcante, batida eletrônica dançante, vocal melódico, clima apaixonado",
-  pagode: "pagode romântico, cavaquinho, pandeiro, banjo, clima alegre e caloroso",
-  forro: "forró brasileiro, sanfona, zabumba e triângulo, clima nordestino",
-  pop_romantico: "balada pop romântica, piano, cordas suaves, emocional e cinematográfica",
-  mpb: "MPB intimista, violão acústico dedilhado, andamento lento, arranjo minimalista",
-  bossa: "bossa nova, violão de nylon dedilhado, batida suave, vocal intimista e sussurrado, clima sofisticado",
-  rock: "rock nacional romântico, guitarra com distorção suave, bateria marcada, vocal emotivo, clima de balada rock",
-  reggae: "reggae romântico brasileiro, guitarra no contratempo, baixo marcante, batida cadenciada, vocal suave, clima praiano e apaixonado",
-  gospel: "gospel brasileiro, piano e órgão, cordas, clima reverente e inspirador",
-  rap: "rap/hip-hop melódico brasileiro, batida boom-bap suave, piano, vocal falado e cantado, clima intimista",
-  infantil: "canção infantil suave, caixinha de música, ukulele, clima doce",
-};
 
 function estiloSemReferencias(estilo: string | null, genero: string | null): string {
   const limpo = String(estilo ?? "").replace(
     /,?\s*(refer[êe]ncias?|inspirad[oa]s?|no estilo)\s+(a|de|em|por)?[^,.]*/gi,
     "",
   ).trim();
-  return limpo || ESTILO_GENERICO[genero ?? ""] || "música brasileira emotiva, arranjo acústico";
+  return limpo || acharGenero(genero)?.estiloSuno || "música emotiva, arranjo acústico";
 }
 
 const USD_POR_CREDITO = 0.005;
