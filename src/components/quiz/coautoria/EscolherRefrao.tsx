@@ -45,8 +45,7 @@ export function EscolherRefrao({
           {T.qualRefrao}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          É a parte que mais se canta. Escolha a que te tocar, dá pra ajustar
-          tudo depois.
+          {T.refraoSub}
         </p>
       </div>
 
@@ -97,7 +96,7 @@ export function EscolherRefrao({
         className="mx-auto inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground disabled:opacity-50"
       >
         <RefreshCw className={cn("h-4 w-4", regerando && "animate-spin")} />
-        {regerando ? "{T.gerandoOutras}" : "{T.outraOpcao}"}
+        {regerando ? T.gerandoOutras : T.outraOpcao}
       </button>
 
       {/* Rodapé fixo no polegar: só habilita com um refrão escolhido. */}
@@ -108,7 +107,7 @@ export function EscolherRefrao({
           disabled={sel === null}
           onClick={() => sel !== null && aoEscolher(dados.refroes[sel])}
         >
-          Usar este refrão
+          {T.usarEsteRefrao}
         </Button>
       </div>
     </div>

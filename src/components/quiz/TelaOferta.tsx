@@ -124,6 +124,7 @@ const COPY = {
     daLetra: (n: string) => `da letra que você escreveu pra ${n}`,
     oQueLeva: "O que você leva",
     provaLegenda: "reações de quem ouviu uma música feita por nós",
+    provaSelo: "reações reais",
     ancora: "Encomendar uma música original a um compositor custa a partir de R$ 300, e leva semanas.",
     hojePor: "hoje por", pagamentoUnico: "Pagamento único. Não é assinatura.",
     cta: (n: string) => `Quero a música de ${n}`, ctaCurto: "Quero a música",
@@ -143,6 +144,7 @@ const COPY = {
     daLetra: (n: string) => `de la letra que escribiste para ${n}`,
     oQueLeva: "Lo que te llevas",
     provaLegenda: "reacciones de quien escuchó una canción hecha por nosotros",
+    provaSelo: "reacciones reales",
     // Ancoragem MEXICANA: mariachi a domicílio é o presente com que a nossa
     // oferta compete de verdade lá, e o preço dele é público e verificável.
     ancora: "Contratar mariachi para una serenata cuesta desde $1,500 MXN, y solo se escucha una noche.",
@@ -241,7 +243,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           da marca (--noite, --tinta-suave) e a rota /criar não as declara —
           sem isto a moldura e a legenda saem sem cor. */}
       <div style={TEMA_CLARO}>
-        <VitrineVideo caption={C.provaLegenda} />
+        <VitrineVideo caption={C.provaLegenda} selo={C.provaSelo} />
       </div>
 
       {/* ── PREÇO, ancorado no que a alternativa custa de verdade ── */}

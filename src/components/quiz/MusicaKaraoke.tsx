@@ -178,10 +178,10 @@ export function MusicaKaraoke({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">
             {travou
-              ? "{T.ouviuPedacinho}"
+              ? T.ouviuPedacinho
               : tocando
-                ? "{T.canteJunto}"
-                : "{T.ouvirAMusica}"}
+                ? T.canteJunto
+                : T.ouvirAMusica}
           </p>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border">
             <div

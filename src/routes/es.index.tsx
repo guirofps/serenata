@@ -241,7 +241,7 @@ function HomeEs() {
             </p>
 
             <div className="mt-6 lg:hidden">
-              <VitrineVideo caption="reacciones de quien escuchó una canción hecha por nosotros" />
+              <VitrineVideo caption="reacciones de quien escuchó una canción hecha por nosotros" selo="reacciones reales" />
             </div>
 
             <div className="mt-7 flex flex-col items-center gap-3 lg:mt-9 lg:items-start">
@@ -259,7 +259,7 @@ function HomeEs() {
           </div>
 
           <div className="hidden lg:block">
-            <VitrineVideo caption="reacciones de quien escuchó una canción hecha por nosotros" />
+            <VitrineVideo caption="reacciones de quien escuchó una canción hecha por nosotros" selo="reacciones reales" />
           </div>
         </div>
       </section>

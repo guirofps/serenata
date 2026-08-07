@@ -5,7 +5,7 @@
 // Moldura premium: fio dourado da marca, sombra flutuante, cantos suaves.
 // O vídeo é MUDO (não tem trilha), então roda em loop sem controle de som.
 
-export function VitrineVideo({ caption }: { caption?: string }) {
+export function VitrineVideo({ caption, selo = "reações reais" }: { caption?: string; selo?: string }) {
   return (
     <figure className="relative mx-auto w-full max-w-[420px] lg:max-w-none">
       {/* brilho dourado por trás — dá profundidade e tira a cara de "chapado" */}
@@ -36,7 +36,7 @@ export function VitrineVideo({ caption }: { caption?: string }) {
         />
         {/* selo de prova real, canto superior */}
         <span className="pointer-events-none absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-[11px] font-medium text-white/90 backdrop-blur-sm">
-          reações reais
+          {selo}
         </span>
       </div>
       {caption && (

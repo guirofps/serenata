@@ -344,6 +344,67 @@ Geração de ponta a ponta pelo kie.ai, com a letra do nosso próprio funil:
   respostas da sessão → letra (Claude) → música (Suno) → metadados limpos →
   timestamps. É o job da Fase 2, faltando só rodar no Inngest.
 
+
+## Espanhol (México) — 07/08/2026
+
+Segundo funil, no MESMO site e no mesmo banco: `/es`, `/es/criar`,
+`/es/login`, `/es/gracias`. O funil português não mudou de URL nem de
+comportamento.
+
+**Nada de detectar IP.** Redirecionar por IP quebra o Google Ads (anuncia-se
+uma URL e a pessoa cai em outra), impede indexar as duas versões, e um
+brasileiro com VPN cai no espanhol.
+
+**O idioma é COLUNA no banco** (`quiz_responses.locale`), não só rota. Em
+três lugares não existe URL de onde deduzir: a página presente é aberta pelo
+presenteado (que nunca passou pelo funil), o editor chega por e-mail, e os 4
+e-mails saem de webhook e cron sem navegador. Gravado no passo 1, e a RPC de
+progresso parcial nunca sobrescreve.
+
+### O que é redação, não tradução
+
+- **Prompt da letra ES** (`letra-prompt-es.ts`): outro texto. A lista de
+  clichês a evitar é o que separa letra boa de genérica, e "porto seguro" não
+  é o clichê que um mexicano ouve ("media naranja", "mi cielo", "eres mi
+  todo"). `tú`, nunca `vos`; `ustedes`, nunca `vosotros`.
+- **Gêneros** (`generos.ts`, catálogo único pros dois idiomas): mariachi,
+  banda, norteño, cumbia, bolero, corrido tumbado, bachata, salsa. Sertanejo
+  e forró não existem lá. Ordem tirada do que a Cántale destaca.
+- **Ancoragem de preço**: no Brasil é o compositor a R$ 300; no México é o
+  **mariachi a domicílio, a partir de $1.500 MXN, que se ouve uma noite só**.
+- **Exemplos da espera**: mariachi/banda/balada, não sertanejo.
+
+### Preço: US$ 9
+
+A Perfect Pay cobra o internacional em **dólar** (não MXN, sem OXXO/SPEI),
+recebimento em 15 dias. US$ 9 ≈ $170 MXN, ~30% abaixo do líder — mesma
+jogada do R$ 37 contra a LoveTune.
+
+### Concorrência ES (verificada)
+
+- **cantale.mx** — o nosso funil já rodando no México: escutar antes de
+  pagar, ancoragem, e **página compartilhável inclusa**. $99 MXN avulso,
+  $169 MXN o pacote (ancorado em $249); o dono apurou US$ 12,99 real.
+  Gêneros: bolero, balada, mariachi, cumbia, reggaetón, bachata, banda,
+  corrido tumbado, norteño, salsa. **México não é terreno vazio.**
+- **haztucancion.com** — $99 MXN, só MP3 por WhatsApp, 24-48h.
+
+### Validado com geração real (07/08)
+
+3 letras + 3 músicas pelo pipeline de verdade (mariachi, banda, balada),
+74s a 96s, 2 versões cada, 3min20 a 4min. Detalhe concreto em toda linha
+("el mandil azul ya despintado", "el frasco de Nescafé"), sem clichê da
+lista proibida, e o memorial fala do que ficou, não da perda. Arquivos em
+`scratch/teste-es/`. **Falta escutar**: se o mariachi soa de plástico,
+nenhuma tradução salva.
+
+### Dívida conhecida
+
+A home ES (`routes/es.index.tsx`) é IRMÃ da portuguesa, não a mesma
+parametrizada: melhoria numa não aparece na outra. Foi escolha (parametrizar
+1.700 linhas em 8 componentes de madrugada, sem revisão, numa página que
+está vendendo). Fundir quando o teste provar que vale.
+
 ## Em aberto
 
 - Nome e marca

@@ -103,13 +103,18 @@ export function PreviaPresente({ nome, locale = "pt" }: { nome?: string; locale?
             className="mt-2.5 flex items-center justify-center gap-1 text-[8px]"
             style={{ color: CORES.bruma }}
           >
-            <QrCode className="h-2.5 w-2.5" /> link + QR Code pra enviar
+            <QrCode className="h-2.5 w-2.5" /> {T.linkEQrEnviar}
           </p>
         </div>
       </div>
 
       <p className="mt-3 text-center text-xs text-muted-foreground">
-        É assim que <strong className="text-foreground">{quem}</strong> vai receber
+        {T.assimVaiReceber.split("{n}").map((pedaco, i) => (
+          <span key={i}>
+            {i > 0 && <strong className="text-foreground">{quem}</strong>}
+            {pedaco}
+          </span>
+        ))}
       </p>
     </div>
   );

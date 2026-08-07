@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { type Locale } from "@/lib/i18n";
 import { t } from "@/lib/textos";
 
-// "{T.esperaOuvirOutras}" — a jogada da tela de espera do
+// "Enquanto a sua fica pronta, ouça outras" — a jogada da tela de espera do
 // LoveTune, e a mais honesta dela: enquanto o Suno grava (~2min), a pessoa
 // escuta músicas reais nossas. A espera passa mais rápido porque ela está
 // fazendo algo, e ainda vê a qualidade do que vai receber.

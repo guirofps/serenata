@@ -13,7 +13,7 @@ import { t } from "@/lib/textos";
 //
 // A pessoa vê a letra inteira montada em cima do refrão que escolheu, e pode:
 //   - editar livremente (é o texto que vira música)
-//   - "{T.melhorarComIA}" uma vez (deixa mais concreta, corta clichê)
+//   - "melhorar com IA" uma vez (deixa mais concreta, corta clichê)
 //   - confirmar
 //
 // Mobile-first: textarea de altura generosa, botões empilhados, o "está
@@ -121,10 +121,10 @@ export function EditorLetra({
         >
           {finalizando ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Preparando sua música…
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {T.preparandoSua}
             </>
           ) : (
-            "{T.estaPronta}"
+            T.estaPronta
           )}
         </Button>
       </div>
