@@ -48,20 +48,31 @@ export type QuestionStep = {
       /** Oferece cortar pro primeiro nome quando a pessoa escreve mais de um. */
       cortarComposto?: boolean;
       /**
-       * Um SEGUNDO campo, recolhido atrás de um toque, gravado em outro
-       * `field`.
+       * Chips-gatilho, iguais aos do campo de história: tocar escreve o começo
+       * da frase e a pessoa só completa.
        *
-       * Existe pros filhos. Eles já foram um passo próprio e não valiam um:
-       * pergunta opcional que só faz sentido em parte das relações não
-       * justifica um degrau num quiz que perde gente em cada um. Recolhida
-       * aqui, ela custa uma linha de texto pra quem não quer, e quem quer
-       * ganha o mesmo eco do nome — que é o ponto, porque os nomes dos
-       * filhos também vão ser cantados literalmente.
+       * No recado isso não é conforto, é qualidade do produto. "Uma frase sua
+       * no refrão" com o campo em branco produz "meu amor pra toda a vida" —
+       * genérico, e o refrão é a parte que a pessoa vai reler.
+       */
+      triggers?: Array<{ rotulo: string; inicio: string }>;
+      /**
+       * Um SEGUNDO campo na mesma tela, gravado em outro `field`.
+       *
+       * Existe pros filhos, e já mudou de lugar duas vezes. Primeiro foi um
+       * passo próprio: caro demais, porque pergunta opcional que só serve em
+       * parte das relações não paga um degrau. Depois foi pro passo do nome,
+       * recolhida atrás de um "+": aí sumiu, virou um link cinza disputando a
+       * tela com o campo do nome, que é o principal.
+       *
+       * Agora mora no passo do recado, que faz a mesma pergunta de fundo (o
+       * que mais entra na música) e é uma tela quase vazia — e aparece SEMPRE,
+       * como cartão, sem toque pra revelar.
        */
       extra?: {
         field: string;
-        /** O texto do toque que revela o campo. */
-        rotulo: string;
+        /** A pergunta, em tamanho de pergunta. */
+        pergunta: string;
         subtexto?: string;
         placeholder?: string;
         maxLength?: number;

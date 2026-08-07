@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useRef } from "react";
 import type { QuestionStep } from "@/lib/flow-engine";
 import { Input } from "@/components/ui/input";
 import { FONTES } from "@/lib/marca";
-import { Plus } from "lucide-react";
+import { trackEventOnce } from "@/lib/track";
 
 // Campo de texto que MOSTRA como o valor vai sair no produto.
 //
@@ -44,13 +44,32 @@ export function CampoNome({
   onChange,
   respostas,
   onChangeExtra,
+  preencher,
 }: {
   step: TextQuestion;
   value: string | undefined;
   onChange: (v: string) => void;
   respostas: Record<string, unknown>;
   onChangeExtra: (field: string, v: string) => void;
+  /** Troca {nome} pelo nome real nos gatilhos. */
+  preencher: (s: string) => string;
 }) {
+  const campoRef = useRef<HTMLInputElement>(null);
+
+  // Gatilho tocado: escreve o COMEÇO da frase e devolve o cursor pro fim.
+  // Diferente do campo de história, aqui SUBSTITUI em vez de somar: o recado
+  // é UMA frase, e concatenar dois gatilhos daria uma linha sem sentido.
+  function usarGatilho(inicio: string) {
+    onChange(inicio);
+    trackEventOnce("gatilho_usado", step.id);
+    requestAnimationFrame(() => {
+      const el = campoRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(inicio.length, inicio.length);
+    });
+  }
+
   const texto = (value ?? "").trim();
   const palavras = texto.split(/\s+/).filter(Boolean);
   const primeiro = palavras[0] ?? "";
@@ -58,19 +77,32 @@ export function CampoNome({
 
   const extra = step.extra;
   const valorExtra = extra ? String(respostas[extra.field] ?? "") : "";
-  const [abriuExtra, setAbriuExtra] = useState(false);
-  // Já preenchido (voltou pra editar) entra ABERTO: campo escondido com
-  // resposta dentro é resposta que a pessoa não sabe que deu.
-  //
-  // Derivado, não inicializador de useState: a store é persistida e hidrata
-  // DEPOIS do mount, então no primeiro render `respostas` está vazio e um
-  // `useState(() => ...)` congelaria o valor errado pra sempre.
-  const extraAberto = abriuExtra || Boolean(valorExtra.trim());
   const mostraExtra = extra && (!extra.mostrarSe || extra.mostrarSe(respostas));
 
   return (
     <div className="mx-auto w-full max-w-md space-y-3">
+      {step.triggers && step.triggers.length > 0 && (
+        <>
+          <p className="text-center text-xs text-muted-foreground">
+            Sem ideia? Toque num pra começar a frase.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {step.triggers.map((tr) => (
+              <button
+                key={tr.rotulo}
+                type="button"
+                onClick={() => usarGatilho(preencher(tr.inicio))}
+                className="rounded-full border border-primary/25 bg-secondary px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground active:scale-95"
+              >
+                {tr.rotulo}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       <Input
+        ref={campoRef}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         placeholder={step.placeholder}
@@ -99,42 +131,31 @@ export function CampoNome({
         </div>
       )}
 
-      {/* O campo extra (hoje: os filhos). Só depois de o nome existir, senão
-          são dois campos vazios competindo pela atenção no passo em que a
-          pessoa só quer digitar um nome. */}
-      {mostraExtra && extra && texto && (
-        <div className="pt-1">
-          {!extraAberto ? (
-            <button
-              type="button"
-              onClick={() => setAbriuExtra(true)}
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-            >
-              <Plus className="h-3.5 w-3.5" /> {extra.rotulo}
-            </button>
-          ) : (
-            <div className="space-y-3 rounded-xl border border-dashed p-3">
-              {extra.subtexto && (
-                <p className="text-left text-xs leading-relaxed text-muted-foreground">
-                  {extra.subtexto}
-                </p>
-              )}
-              <Input
-                value={valorExtra}
-                onChange={(e) => onChangeExtra(extra.field, e.target.value)}
-                placeholder={extra.placeholder}
-                maxLength={extra.maxLength}
-                className="text-center"
-                autoFocus
-              />
-              {extra.eco && valorExtra.trim() && (
-                <Eco
-                  rotulo={extra.eco}
-                  modelo={extra.ecoModelo}
-                  valor={valorExtra.trim()}
-                />
-              )}
-            </div>
+      {/* O campo extra (hoje: os filhos), como CARTÃO e sempre visível.
+          Já foi um link recolhido atrás de um "+" e desapareceu: 13px cinza
+          embaixo do campo principal não é uma pergunta, é uma nota de rodapé.
+          Pergunta em tamanho de pergunta, ou não vale a pena existir. */}
+      {mostraExtra && extra && (
+        <div className="space-y-3 rounded-2xl border border-primary/20 bg-secondary/30 p-4">
+          <div>
+            <p className="font-display text-lg font-semibold leading-snug">
+              {extra.pergunta}
+            </p>
+            {extra.subtexto && (
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {extra.subtexto}
+              </p>
+            )}
+          </div>
+          <Input
+            value={valorExtra}
+            onChange={(e) => onChangeExtra(extra.field, e.target.value)}
+            placeholder={extra.placeholder}
+            maxLength={extra.maxLength}
+            className="text-center"
+          />
+          {extra.eco && valorExtra.trim() && (
+            <Eco rotulo={extra.eco} modelo={extra.ecoModelo} valor={valorExtra.trim()} />
           )}
         </div>
       )}

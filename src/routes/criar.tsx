@@ -151,7 +151,7 @@ function Criar() {
               />
             )}
             {step.input === "text" &&
-              (step.eco || step.cortarComposto || step.extra ? (
+              (step.eco || step.cortarComposto || step.extra || step.triggers ? (
                 // Campos que precisam mostrar como o valor sai no produto
                 // (hoje só o nome, que é cantado literalmente).
                 <CampoNome
@@ -160,6 +160,7 @@ function Criar() {
                   onChange={(v) => setResposta(step.field, v)}
                   respostas={respostas}
                   onChangeExtra={setResposta}
+                  preencher={(s) => preencher(s) ?? s}
                 />
               ) : (
                 <Input

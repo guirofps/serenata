@@ -55,35 +55,6 @@ export const QUIZ_FLOW: FlowStep[] = [
     maxLength: 40,
     eco: "É assim que vai ser cantado",
     cortarComposto: true,
-    // Os filhos são o detalhe que mais emociona numa letra, e hoje só entram
-    // se a pessoa lembrar de escrever na história: quem escreve "minha mãe
-    // criou eu e meus irmãos" nunca dá os nomes, e a letra sai falando de "os
-    // filhos" no genérico.
-    //
-    // Mora AQUI e não num passo próprio. Já foi um passo, e não valia: uma
-    // pergunta opcional, que só faz sentido em parte das relações, não paga um
-    // degrau num quiz que perde gente em cada um. Junto do nome é ainda melhor
-    // que neutro, porque a regra ("escreva como você chama no dia a dia") já
-    // está na cabeça da pessoa quando ela chega nos filhos.
-    //
-    // Preencher JÁ É o consentimento pra citar: não precisa de um "quer citar?"
-    // antes do "quais nomes?".
-    extra: {
-      field: "filhos",
-      rotulo: "citar os filhos na música",
-      subtexto:
-        "Escreva os nomes do jeito que são chamados em casa, é assim que vão ser cantados.",
-      placeholder: "Ex.: Pedro, Aninha e o Caçula",
-      maxLength: 80,
-      eco: "Vão ser cantados assim",
-      ecoModelo: "“…e {v}, o amor que ficou”",
-      // Não oferece onde a pergunta é estranha: pro próprio filho, pro neto,
-      // pro pet e pro amigo, "os filhos" não é o que a música vai falar.
-      mostrarSe: (r) =>
-        !["filha", "filho", "neta", "neto", "pet", "amiga", "amigo"].includes(
-          String(r.relacao),
-        ),
-    },
   },
   {
     id: "ocasiao",
@@ -165,7 +136,11 @@ export const QUIZ_FLOW: FlowStep[] = [
     input: "story",
     placeholder:
       "Ex: minha mãe criou eu e meus irmãos sozinha, sempre com um sorriso...",
-    minChars: 120,
+    // 60, igual ao historia2. Era 120: a gente oferecia gatilhos que escrevem
+    // meia frase pra pessoa e, logo abaixo, exigia o dobro de texto pra
+    // liberar o botão. Pedir o detalhe e cobrar a redação é o jeito mais
+    // rápido de fazer alguém fechar a aba.
+    minChars: 60,
     allowAudio: true,
     // Os mesmos gatilhos que destravaram o `historia2`. Aqui o campo é maior
     // (120 chars) e vem antes: se a pessoa trava logo neste, os dois passos de
@@ -228,6 +203,42 @@ export const QUIZ_FLOW: FlowStep[] = [
     placeholder: "A frase que você queria que ficasse pra sempre",
     maxLength: 120,
     opcional: true,
+    // Campo em branco aqui produz "meu amor pra toda a vida", e isso vai pro
+    // REFRÃO, que é a parte que a pessoa relê. Cada gatilho empurra pra uma
+    // frase que só serve pra essa pessoa: gratidão por algo, uma coisa nunca
+    // dita, o que ela ensinou. Substituem em vez de somar (é UMA frase).
+    triggers: [
+      { rotulo: "obrigado por…", inicio: "Obrigado por " },
+      { rotulo: "nunca te disse", inicio: "Eu nunca te disse, mas " },
+      { rotulo: "você me ensinou", inicio: "Você me ensinou a " },
+      { rotulo: "enquanto eu viver", inicio: "Enquanto eu viver, " },
+      { rotulo: "ninguém sabe", inicio: "Ninguém sabe, mas você " },
+      { rotulo: "se eu pudesse", inicio: "Se eu pudesse, eu " },
+    ],
+    // Os filhos moram AQUI, e não no passo do nome (onde viraram um link
+    // cinza que sumiu) nem num passo próprio (que não se paga).
+    //
+    // Este passo faz a mesma pergunta de fundo — o que mais entra na música —
+    // e é a tela mais vazia do quiz: um campo curto e nada mais. Cabe.
+    //
+    // Preencher JÁ É o consentimento pra citar: não precisa de um "quer
+    // citar?" antes do "quais nomes?".
+    extra: {
+      field: "filhos",
+      pergunta: "Quer que a música cite os filhos?",
+      subtexto:
+        "Escreva os nomes do jeito que são chamados em casa, é assim que vão ser cantados. Se preferir não citar ninguém, é só continuar.",
+      placeholder: "Ex.: Pedro, Aninha e o Caçula",
+      maxLength: 80,
+      eco: "Vão ser cantados assim",
+      ecoModelo: "“…e {v}, o amor que ficou”",
+      // Não aparece onde a pergunta é estranha: pro próprio filho, pro neto,
+      // pro pet e pro amigo, "os filhos" não é o que a música vai falar.
+      mostrarSe: (r) =>
+        !["filha", "filho", "neta", "neto", "pet", "amiga", "amigo"].includes(
+          String(r.relacao),
+        ),
+    },
   },
   {
     id: "contato",
