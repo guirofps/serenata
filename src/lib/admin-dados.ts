@@ -41,6 +41,15 @@ export type Painel = {
     ticketMedioBrl: number;
     custoTotalBrl: number;
     margemBrl: number;
+    // ── mídia (digitada em `gastos_ads`) ──
+    /** Gasto de anúncio no período. 0 quando não foi lançado. */
+    gastoAdsBrl: number;
+    /** Quanto custa trazer UMA venda. É a conta que decide se a operação vive. */
+    cpaBrl: number;
+    /** Receita dividida pelo gasto. Abaixo de 1 é prejuízo. */
+    roas: number;
+    /** Receita menos produção menos mídia. O que sobra de verdade. */
+    lucroBrl: number;
     // conversões-chave
     taxaVisitaQuiz: number; // visitante -> começou o quiz
     taxaQuizLetra: number; // começou -> recebeu a letra
@@ -73,6 +82,26 @@ export type Painel = {
     receitaBrl: number;
     conversaoPct: number;
   }>;
+
+  /**
+   * POR PÁGINA DE ENTRADA. Qual porta converte melhor.
+   *
+   * Agrupa pela primeira página da sessão (`is_landing`), não por qualquer
+   * page_view: quem entra pela home e depois abre o quiz tem que contar UMA
+   * vez, na home. Sem isso toda sessão apareceria em todas as páginas que
+   * visitou e a comparação não significaria nada.
+   */
+  porEntrada: Array<{
+    caminho: string;
+    visitantes: number;
+    quiz: number;
+    letras: number;
+    vendas: number;
+    conversaoPct: number;
+  }>;
+
+  /** O que já foi lançado de gasto, pro painel listar e deixar editar. */
+  gastos: Array<{ dia: string; origem: string; brl: number }>;
 
   producao: {
     porStatus: Record<string, number>;
@@ -324,6 +353,24 @@ export const carregarPainel = createServerFn({ method: "POST" })
     const custosF = custos.filter((c) => quizBate(c.quiz_response_id));
     const pedidosF = pedidos.filter((p) => quizBate(p.quiz_response_id));
 
+    // GASTO DE MÍDIA do período, digitado no painel. O recorte é por DIA
+    // (a tabela guarda data, não timestamp), então usa o intervalo em datas.
+    const { data: gastosCru } = await db
+      .from("gastos_ads")
+      .select("dia, origem, valor_brl")
+      .gte("dia", desde.slice(0, 10))
+      .lte("dia", ateISO.slice(0, 10))
+      .order("dia", { ascending: false });
+    const gastos = (gastosCru ?? []).map((g) => ({
+      dia: String(g.dia),
+      origem: String(g.origem),
+      brl: Number(g.valor_brl ?? 0),
+    }));
+    // O gasto NÃO é filtrado por funil: o painel do Google não separa por
+    // idioma, e inventar um rateio daria um CPA que parece preciso e não é.
+    // Com o filtro em BR ou MX o número fica igual, e isso é honesto.
+    const gastoAds = gastos.reduce((s, g) => s + g.brl, 0);
+
     const conta = (nome: string) => eventosF.filter((e) => e.event_name === nome).length;
     // Visitante único: sessões distintas com page_view. É o denominador honesto
     // do funil (o total de page_view contaria a mesma pessoa várias vezes).
@@ -480,6 +527,48 @@ export const carregarPainel = createServerFn({ method: "POST" })
       v.receitaBrl += valorEmBrl(p);
       origemMap.set(k, v);
     }
+    // ── POR PÁGINA DE ENTRADA ────────────────────────────────────
+    // A sessão conta UMA vez, na primeira página que ela abriu. Agrupar por
+    // qualquer page_view faria toda sessão aparecer em toda página visitada,
+    // e a comparação não significaria nada.
+    const entradaDaSessao = new Map<string, string>();
+    for (const e of [...eventosF].sort((a, b) => (a.created_at < b.created_at ? -1 : 1))) {
+      if (e.event_name !== "page_view" || !e.session_id) continue;
+      if (!(e.event_data ?? {}).is_landing) continue;
+      if (entradaDaSessao.has(e.session_id)) continue;
+      let caminho = String((e.event_data ?? {}).path ?? "/");
+      // Páginas de token viram um grupo só: `/p/abc123` e `/p/xyz789` são a
+      // mesma PORTA (alguém abriu um presente compartilhado), e listadas uma a
+      // uma virariam trinta linhas de uma visita cada.
+      caminho = caminho
+        .replace(/^\/p\/.+/, "/p/… (presente compartilhado)")
+        .replace(/^\/editar\/.+/, "/editar/… (editor)");
+      entradaDaSessao.set(e.session_id, caminho);
+    }
+
+    const sessoesQuiz = new Set(
+      eventosF.filter((e) => e.event_name === "quiz_started" && e.session_id).map((e) => e.session_id),
+    );
+    const sessoesLetra = new Set(
+      eventosF.filter((e) => e.event_name === "letra_finalizada" && e.session_id).map((e) => e.session_id),
+    );
+    const sessoesVenda = new Set(
+      pagos.map((p) => leads.find((l) => l.id === p.quiz_response_id)?.session_id).filter(Boolean),
+    );
+
+    const entradaMap = new Map<string, { caminho: string; visitantes: number; quiz: number; letras: number; vendas: number }>();
+    for (const [sid, caminho] of entradaDaSessao) {
+      const v = entradaMap.get(caminho) ?? { caminho, visitantes: 0, quiz: 0, letras: 0, vendas: 0 };
+      v.visitantes += 1;
+      if (sessoesQuiz.has(sid)) v.quiz += 1;
+      if (sessoesLetra.has(sid)) v.letras += 1;
+      if (sessoesVenda.has(sid)) v.vendas += 1;
+      entradaMap.set(caminho, v);
+    }
+    const porEntrada = [...entradaMap.values()]
+      .map((e) => ({ ...e, conversaoPct: pct(e.vendas, e.visitantes) }))
+      .sort((a, b) => b.visitantes - a.visitantes);
+
     const porOrigem = [...origemMap.values()]
       .map((v) => ({ ...v, conversaoPct: pct(v.vendas, v.leads) }))
       .sort((a, b) => b.receitaBrl - a.receitaBrl || b.leads - a.leads);
@@ -564,10 +653,16 @@ export const carregarPainel = createServerFn({ method: "POST" })
         taxaCheckoutVenda: pct(pagos.length, cliquesCheckout),
         taxaGeral: pct(pagos.length, visitantes),
         custoPorVendaBrl: pagos.length ? custoTotal / pagos.length : 0,
+        gastoAdsBrl: gastoAds,
+        cpaBrl: pagos.length ? gastoAds / pagos.length : 0,
+        roas: gastoAds > 0 ? receita / gastoAds : 0,
+        lucroBrl: receita - custoTotal - gastoAds,
       },
 
       funil,
       porOrigem,
+      porEntrada,
+      gastos,
 
       producao: {
         porStatus,
@@ -637,4 +732,39 @@ export const carregarPainel = createServerFn({ method: "POST" })
         };
       }),
     };
+  });
+
+/**
+ * Lança (ou corrige) o gasto de mídia de um dia.
+ *
+ * Sobrescreve por (dia, origem) de propósito: o Google ajusta o gasto
+ * retroativamente, e o número certo é sempre o último. Valor 0 apaga a linha,
+ * que é como se desfaz um lançamento errado sem precisar de outra tela.
+ */
+export const lancarGasto = createServerFn({ method: "POST" })
+  .validator((data: { dia: string; origem: string; brl: number }) => data)
+  .handler(async ({ data }): Promise<{ ok: boolean }> => {
+    const { exigirAdmin } = await import("@/lib/admin-auth.server");
+    exigirAdmin();
+    const db = supabaseAdmin();
+
+    const dia = String(data.dia).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) return { ok: false };
+    const origem = String(data.origem).trim().toLowerCase() || "google";
+    const brl = Number(data.brl);
+    if (!Number.isFinite(brl) || brl < 0) return { ok: false };
+
+    if (brl === 0) {
+      await db.from("gastos_ads").delete().eq("dia", dia).eq("origem", origem);
+      return { ok: true };
+    }
+
+    const { error } = await db
+      .from("gastos_ads")
+      .upsert({ dia, origem, valor_brl: brl, updated_at: new Date().toISOString() }, { onConflict: "dia,origem" });
+    if (error) {
+      console.error("[admin] lancarGasto falhou:", error);
+      return { ok: false };
+    }
+    return { ok: true };
   });

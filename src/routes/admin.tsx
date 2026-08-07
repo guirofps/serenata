@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { carregarPainel, type Painel, type FunilFiltro } from "@/lib/admin-dados";
+import { carregarPainel, lancarGasto, type Painel, type FunilFiltro } from "@/lib/admin-dados";
 import { PRECOS } from "@/lib/custos";
 import { entrarAdmin, sairAdmin } from "@/lib/admin-auth";
 import { Button } from "@/components/ui/button";
@@ -346,8 +346,40 @@ function Admin() {
             <Cartao rotulo="Visitantes" valor={String(t.visitantes)} apoio={`${t.quizIniciados} começaram o quiz`} />
             <Cartao rotulo="Letras entregues" valor={String(t.letrasGeradas)} apoio={`${t.leads} deixaram e-mail`} />
           </div>
+          {/* ── MÍDIA: a conta que decide se a operação vive ──────
+              Margem bruta sem CPA não diz nada: R$ 209 pode ser lucro ou
+              prejuízo, depende do que se gastou pra trazer as vendas. */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Cartao
+              rotulo="Gasto em anúncio"
+              valor={t.gastoAdsBrl > 0 ? brl(t.gastoAdsBrl) : "—"}
+              apoio={t.gastoAdsBrl > 0 ? "lançado à mão" : "lance abaixo pra ver o CPA"}
+            />
+            <Cartao
+              rotulo="CPA"
+              valor={t.cpaBrl > 0 ? brl(t.cpaBrl) : "—"}
+              destaque={t.cpaBrl > 0}
+              alerta={t.cpaBrl > 0 && t.cpaBrl > t.ticketMedioBrl}
+              apoio={t.cpaBrl > 0 ? `ticket ${brl(t.ticketMedioBrl)}` : "precisa do gasto"}
+            />
+            <Cartao
+              rotulo="ROAS"
+              valor={t.roas > 0 ? `${t.roas.toFixed(2)}x` : "—"}
+              alerta={t.roas > 0 && t.roas < 1}
+              apoio={t.roas > 0 ? (t.roas < 1 ? "abaixo de 1 é prejuízo" : "receita ÷ gasto") : "precisa do gasto"}
+            />
+            <Cartao
+              rotulo="Lucro"
+              valor={t.gastoAdsBrl > 0 ? brl(t.lucroBrl) : "—"}
+              alerta={t.gastoAdsBrl > 0 && t.lucroBrl < 0}
+              apoio="receita − produção − mídia"
+            />
+          </div>
+
+          <LancarGasto aoSalvar={carregar} gastos={dados.gastos} />
+
           <p className="text-xs text-[var(--tinta-suave)]">
-            Custo de produção é o que a gente gasta pra fazer (Claude + Suno). Não inclui o gasto de anúncio nem a taxa do gateway, que ficam nos painéis deles.
+            Custo de produção é o que a gente gasta pra fazer (Claude + Suno). O gasto de anúncio é digitado por você (o Google Ads exige OAuth aprovado, que leva dias). A taxa do gateway continua fora, no painel deles.
             {t.receitaUsd > 0 && (
               <>
                 {" "}A margem converte o dólar a R$ {PRECOS.cambioUsdBrl.toFixed(2)} (o mesmo câmbio dos custos).
@@ -413,6 +445,43 @@ function Admin() {
         </Secao>
 
         {/* ── ATRIBUIÇÃO ───────────────────────────────────────── */}
+        {/* ── QUAL PORTA CONVERTE ──────────────────────────────
+            Agrupa pela PRIMEIRA página da sessão. Hoje o tráfego entra por
+            duas portas diferentes (a home e o quiz direto), e sem isto não dá
+            pra saber qual das duas paga melhor. */}
+        <Secao
+          titulo="Qual página converte"
+          sub="Pela primeira página que a sessão abriu. Cada visitante conta uma vez só."
+        >
+          <Tabela cabecalho={["Página de entrada", "Visitantes", "Quiz", "Letras", "Vendas", "Conv."]}>
+            {dados.porEntrada.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-3 py-6 text-center text-[var(--tinta-suave)]">
+                  Nenhuma visita no período.
+                </td>
+              </tr>
+            ) : (
+              dados.porEntrada.map((e) => (
+                <tr key={e.caminho} className="border-t border-[var(--tinta-fraca)]/25">
+                  <td className="px-3 py-2.5 font-medium">{e.caminho}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{e.visitantes}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{e.quiz}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{e.letras}</td>
+                  <td className="px-3 py-2.5 text-right font-medium tabular-nums">{e.vendas}</td>
+                  <td
+                    className={cn(
+                      "px-3 py-2.5 text-right tabular-nums",
+                      e.vendas > 0 ? "text-[var(--acento)]" : "text-[var(--tinta-suave)]",
+                    )}
+                  >
+                    {pc(e.conversaoPct)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </Tabela>
+        </Secao>
+
         <Secao titulo="De onde vêm as vendas" sub="Atribuição pela captura first-touch (utm, gclid, fbclid ou referência)">
           <Tabela cabecalho={["Origem", "Campanha", "Leads", "Letras", "Vendas", "Receita", "Conv."]}>
             {dados.porOrigem.length === 0 ? (
@@ -568,3 +637,84 @@ function Admin() {
 }
 
 const pct = (parte: number, total: number) => (total > 0 ? (parte / total) * 100 : 0);
+
+// Lançamento do gasto de mídia. Um campo por dia e canal, sobrescrevendo o
+// que já existe — o Google ajusta o gasto retroativamente, e o certo é sempre
+// o último número.
+function LancarGasto({
+  aoSalvar,
+  gastos,
+}: {
+  aoSalvar: () => void;
+  gastos: Painel["gastos"];
+}) {
+  const hoje = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+  const [dia, setDia] = useState(hoje);
+  const [origem, setOrigem] = useState("google");
+  const [valor, setValor] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  async function salvar() {
+    const brl = Number(valor.replace(",", "."));
+    if (!Number.isFinite(brl)) return;
+    setSalvando(true);
+    await lancarGasto({ data: { dia, origem, brl } });
+    setValor("");
+    setSalvando(false);
+    aoSalvar();
+  }
+
+  return (
+    <div className="rounded-[var(--raio)] border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-4">
+      <p className="text-xs font-medium">Lançar gasto de anúncio</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <input
+          type="date"
+          value={dia}
+          onChange={(e) => setDia(e.target.value)}
+          className="rounded-full border border-[var(--tinta-fraca)] bg-[var(--papel)] px-3 py-1.5 text-xs"
+        />
+        <select
+          value={origem}
+          onChange={(e) => setOrigem(e.target.value)}
+          className="rounded-full border border-[var(--tinta-fraca)] bg-[var(--papel)] px-3 py-1.5 text-xs"
+        >
+          <option value="google">google</option>
+          <option value="meta">meta</option>
+          <option value="outro">outro</option>
+        </select>
+        <input
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && salvar()}
+          placeholder="R$ do dia"
+          inputMode="decimal"
+          className="w-28 rounded-full border border-[var(--tinta-fraca)] bg-[var(--papel)] px-3 py-1.5 text-xs"
+        />
+        <button
+          onClick={salvar}
+          disabled={salvando || !valor}
+          className="rounded-full bg-[var(--acento)] px-4 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+        >
+          {salvando ? "salvando…" : "salvar"}
+        </button>
+        <span className="text-[10px] text-[var(--tinta-suave)]">
+          zero apaga o lançamento
+        </span>
+      </div>
+
+      {gastos.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {gastos.map((g) => (
+            <span
+              key={`${g.dia}-${g.origem}`}
+              className="rounded-full border border-[var(--tinta-fraca)]/60 px-2.5 py-1 text-[10px] text-[var(--tinta-suave)]"
+            >
+              {g.dia.slice(8, 10)}/{g.dia.slice(5, 7)} · {g.origem} · {brl(g.brl)}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
