@@ -4,6 +4,9 @@ import { QUIZ_FLOW } from "@/lib/quiz-flow";
 import { isQuestion } from "@/lib/flow-engine";
 import { PRECOS } from "@/lib/custos";
 
+// 12 créditos por geração (2 versões). Da tabela pública do kie.ai.
+const CREDITO_POR_MUSICA = 12;
+
 // Agregações do painel. TODAS exigem admin antes de tocar no banco — nenhuma
 // consulta roda para quem não está autenticado.
 //
@@ -109,6 +112,16 @@ export type Painel = {
     tempoP95S: number | null;
     falhas: number;
     travadas: number; // gerando há mais de 15 min
+    /**
+     * Crédito restante no kie.ai, e quantas músicas ainda cabem.
+     *
+     * Em 08/08 o saldo zerou e o pipeline parou por 13 HORAS em silêncio: 38
+     * músicas presas em "gerando", 7 delas já pagas, a mais antiga esperando
+     * 4h20. Nada falhou de forma visível — o job simplesmente não produzia, e
+     * o painel mostrava "gerando" como se fosse normal.
+     */
+    creditoKie: number | null;
+    musicasQueCabem: number | null;
   };
 
   custos: {
@@ -577,6 +590,20 @@ export const carregarPainel = createServerFn({ method: "POST" })
     const porStatus: Record<string, number> = {};
     const tempos: number[] = [];
     const agora = Date.now();
+    // O SALDO DO PROVEDOR. Falha aqui não derruba o painel: provedor fora do
+    // ar não pode impedir de ver o resto da operação.
+    let creditoKie: number | null = null;
+    try {
+      const rs = await fetch("https://api.kie.ai/api/v1/chat/credit", {
+        headers: { Authorization: `Bearer ${process.env.KIE_API_KEY ?? ""}` },
+        signal: AbortSignal.timeout(5000),
+      });
+      const j = await rs.json();
+      if (typeof j?.data === "number") creditoKie = j.data;
+    } catch (err) {
+      console.error("[admin] saldo kie.ai não lido:", err);
+    }
+
     let travadas = 0;
     for (const m of musicasF) {
       porStatus[m.status] = (porStatus[m.status] ?? 0) + 1;
@@ -665,6 +692,8 @@ export const carregarPainel = createServerFn({ method: "POST" })
       gastos,
 
       producao: {
+        creditoKie,
+        musicasQueCabem: creditoKie === null ? null : Math.floor(creditoKie / CREDITO_POR_MUSICA),
         porStatus,
         tempoMedioS: medio,
         tempoP95S: p95,

@@ -536,6 +536,24 @@ function Admin() {
             <Cartao rotulo="Pior caso (p95)" valor={seg(dados.producao.tempoP95S)} />
             <Cartao rotulo="Prontas" valor={String(dados.producao.porStatus["pronta"] ?? 0)} />
             <Cartao rotulo="Falharam" valor={String(dados.producao.falhas)} alerta={dados.producao.falhas > 0} />
+            {/* O SALDO DO PROVEDOR. Em 08/08 ele zerou e o pipeline parou 13h em
+                silêncio — 38 músicas presas, 7 já pagas. O painel mostrava
+                "gerando" como se fosse normal. Agora o número que causa isso
+                fica na mesma tela do sintoma. */}
+            <Cartao
+              rotulo="Crédito kie.ai"
+              valor={
+                dados.producao.creditoKie === null
+                  ? "não li"
+                  : `${dados.producao.musicasQueCabem} músicas`
+              }
+              alerta={(dados.producao.musicasQueCabem ?? 99) < 20}
+              apoio={
+                dados.producao.creditoKie === null
+                  ? "provedor não respondeu"
+                  : `${dados.producao.creditoKie} créditos · recarregue abaixo de 20 músicas`
+              }
+            />
             <Cartao rotulo="Travadas" valor={String(dados.producao.travadas)} alerta={dados.producao.travadas > 0} apoio="gerando há +15min" />
             <Cartao rotulo="Presentes montados" valor={String(dados.qualidade.presentesMontados)} apoio="usaram o editor" />
           </div>
