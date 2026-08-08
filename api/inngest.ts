@@ -7,6 +7,7 @@ import { healthcheck } from "../inngest/functions/healthcheck.js";
 import { gerarMusica } from "../inngest/functions/gerarMusica.js";
 import { lembrarPresente } from "../inngest/functions/lembrarPresente.js";
 import { vigiarSaldo } from "../inngest/functions/vigiarSaldo.js";
+import { mandarLetra } from "../inngest/functions/mandarLetra.js";
 
 // Adapter "inngest/node" (req/res nativo), não "inngest/next": no Inngest v4 o
 // adapter next virou web-style (Request -> Response) e nunca escreve no res de
@@ -14,5 +15,5 @@ import { vigiarSaldo } from "../inngest/functions/vigiarSaldo.js";
 // modo de falha silenciosa dos repos anteriores.
 export default serve({
   client: inngest,
-  functions: [healthcheck, gerarMusica, lembrarPresente, vigiarSaldo],
+  functions: [healthcheck, gerarMusica, lembrarPresente, vigiarSaldo, mandarLetra],
 });

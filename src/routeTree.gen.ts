@@ -14,9 +14,11 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CriarRouteImport } from './routes/criar'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DemoMusicaRouteImport } from './routes/demo-musica'
+import { Route as DescadastrarRouteImport } from './routes/descadastrar'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MarcaRouteImport } from './routes/marca'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
+import { Route as RetomarRouteImport } from './routes/retomar'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as EditarTokenEdicaoRouteImport } from './routes/editar.$tokenEdicao'
 import { Route as EsIndexRouteImport } from './routes/es.index'
@@ -50,6 +52,11 @@ const DemoMusicaRoute = DemoMusicaRouteImport.update({
   path: '/demo-musica',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DescadastrarRoute = DescadastrarRouteImport.update({
+  id: '/descadastrar',
+  path: '/descadastrar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -63,6 +70,11 @@ const MarcaRoute = MarcaRouteImport.update({
 const ObrigadoRoute = ObrigadoRouteImport.update({
   id: '/obrigado',
   path: '/obrigado',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RetomarRoute = RetomarRouteImport.update({
+  id: '/retomar',
+  path: '/retomar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -107,9 +119,11 @@ export interface FileRoutesByFullPath {
   '/criar': typeof CriarRoute
   '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
+  '/descadastrar': typeof DescadastrarRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
   '/obrigado': typeof ObrigadoRoute
+  '/retomar': typeof RetomarRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
@@ -124,9 +138,11 @@ export interface FileRoutesByTo {
   '/criar': typeof CriarRoute
   '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
+  '/descadastrar': typeof DescadastrarRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
   '/obrigado': typeof ObrigadoRoute
+  '/retomar': typeof RetomarRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
@@ -142,9 +158,11 @@ export interface FileRoutesById {
   '/criar': typeof CriarRoute
   '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
+  '/descadastrar': typeof DescadastrarRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
   '/obrigado': typeof ObrigadoRoute
+  '/retomar': typeof RetomarRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
@@ -161,9 +179,11 @@ export interface FileRouteTypes {
     | '/criar'
     | '/dashboard'
     | '/demo-musica'
+    | '/descadastrar'
     | '/login'
     | '/marca'
     | '/obrigado'
+    | '/retomar'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/es/criar'
@@ -178,9 +198,11 @@ export interface FileRouteTypes {
     | '/criar'
     | '/dashboard'
     | '/demo-musica'
+    | '/descadastrar'
     | '/login'
     | '/marca'
     | '/obrigado'
+    | '/retomar'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/es/criar'
@@ -195,9 +217,11 @@ export interface FileRouteTypes {
     | '/criar'
     | '/dashboard'
     | '/demo-musica'
+    | '/descadastrar'
     | '/login'
     | '/marca'
     | '/obrigado'
+    | '/retomar'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/es/criar'
@@ -213,9 +237,11 @@ export interface RootRouteChildren {
   CriarRoute: typeof CriarRoute
   DashboardRoute: typeof DashboardRoute
   DemoMusicaRoute: typeof DemoMusicaRoute
+  DescadastrarRoute: typeof DescadastrarRoute
   LoginRoute: typeof LoginRoute
   MarcaRoute: typeof MarcaRoute
   ObrigadoRoute: typeof ObrigadoRoute
+  RetomarRoute: typeof RetomarRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   EditarTokenEdicaoRoute: typeof EditarTokenEdicaoRoute
   EsCriarRoute: typeof EsCriarRoute
@@ -262,6 +288,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoMusicaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/descadastrar': {
+      id: '/descadastrar'
+      path: '/descadastrar'
+      fullPath: '/descadastrar'
+      preLoaderRoute: typeof DescadastrarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -281,6 +314,13 @@ declare module '@tanstack/react-router' {
       path: '/obrigado'
       fullPath: '/obrigado'
       preLoaderRoute: typeof ObrigadoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/retomar': {
+      id: '/retomar'
+      path: '/retomar'
+      fullPath: '/retomar'
+      preLoaderRoute: typeof RetomarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -341,9 +381,11 @@ const rootRouteChildren: RootRouteChildren = {
   CriarRoute: CriarRoute,
   DashboardRoute: DashboardRoute,
   DemoMusicaRoute: DemoMusicaRoute,
+  DescadastrarRoute: DescadastrarRoute,
   LoginRoute: LoginRoute,
   MarcaRoute: MarcaRoute,
   ObrigadoRoute: ObrigadoRoute,
+  RetomarRoute: RetomarRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   EditarTokenEdicaoRoute: EditarTokenEdicaoRoute,
   EsCriarRoute: EsCriarRoute,
