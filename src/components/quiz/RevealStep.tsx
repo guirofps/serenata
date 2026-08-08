@@ -12,7 +12,7 @@ import { PreviaPresente } from "@/components/quiz/PreviaPresente";
 import { EscolherRefrao } from "@/components/quiz/coautoria/EscolherRefrao";
 import { EditorLetra } from "@/components/quiz/coautoria/EditorLetra";
 import { QrCode } from "lucide-react";
-import { type Locale, caminho } from "@/lib/i18n";
+import { type Locale, caminho, MOEDA } from "@/lib/i18n";
 import { t } from "@/lib/textos";
 
 // A REVELAÇÃO — agora é COAUTORIA, não letra pronta.
@@ -292,11 +292,13 @@ function IrPagar({ nome, locale }: { nome: string; locale: Locale }) {
           navigate({ to: caminho("/criar", locale), search: { step: "oferta" } } as never);
         }}
       >
-        Quero a música de {nome} cantada
+        {T.queroCantada(nome)}
       </Button>
+      {/* O preço vinha CRAVADO aqui, em português e em real: o funil
+          espanhol mostrava "A partir de R$ 37" no pico emocional, logo depois
+          da pessoa ouvir a própria música. Agora sai do catálogo de moeda. */}
       <p className="mt-3 text-center text-xs text-muted-foreground">
-        A partir de R$ 37, pagamento único. A letra continua sua de qualquer
-        jeito.
+        {T.aPartirDe((MOEDA[locale] ?? MOEDA.pt).texto)}
       </p>
     </div>
   );

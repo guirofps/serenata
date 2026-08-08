@@ -96,6 +96,9 @@ const PT = {
   ouvirAMusica: "Ouvir a música",
   umaMusicaPra: "uma música pra",
   linkEQr: "link + QR Code pra compartilhar",
+  queroCantada: (n: string) => `Quero a música de ${n} cantada`,
+  aPartirDe: (preco: string) =>
+    `A partir de ${preco}, pagamento único. A letra continua sua de qualquer jeito.`,
 
   // ── erros ────────────────────────────────────────────────────
   naoConsegui: "Não consegui escrever agora. Tente de novo.",
@@ -196,6 +199,9 @@ const ES: Textos = {
   ouvirAMusica: "Escuchar la canción",
   umaMusicaPra: "una canción para",
   linkEQr: "link + código QR para compartir",
+  queroCantada: (n: string) => `Quiero la canción de ${n} cantada`,
+  aPartirDe: (preco: string) =>
+    `Desde ${preco}, pago único. La letra es tuya de todos modos.`,
 
   naoConsegui: "No pude escribirla ahora. Inténtalo de nuevo.",
   naoMontei: "No pude armar la letra. Inténtalo de nuevo.",
