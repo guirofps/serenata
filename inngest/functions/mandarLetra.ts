@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailLetraPronta, assuntoLetraPronta } from "../../emails/letra-pronta.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
+import { pareceTypo } from "../../src/lib/email-typo.js";
 
 // MANDA A LETRA por e-mail — a promessa que o quiz faz e que nunca foi
 // cumprida ("o e-mail é só pra você não perder").
@@ -88,6 +89,19 @@ export const mandarLetra = inngest.createFunction(
         if (out.length >= MAX_POR_RODADA) break;
         if (!l.email || bloqueado.has(l.email.toLowerCase())) continue;
         if (quizComprou.has(l.id)) continue;
+
+        // E-MAIL DIGITADO ERRADO. `gmail.comm` bateu de volta no primeiro
+        // disparo pelo subdomínio, e bounce é o dano mais caro que existe num
+        // domínio sem histórico: o provedor não sabe se você é remetente novo
+        // ou lista comprada, e endereço inexistente é a assinatura da lista
+        // comprada. 9,2% da base tem endereço assim.
+        //
+        // SKIP e não conserto automático, mesmo tendo o palpite certo em mãos.
+        // Corrigir `gmail.comm` pra `gmail.com` é mandar a história pessoal de
+        // alguém pra um endereço que essa pessoa nunca nos deu. Se o palpite
+        // errar uma vez, vazou a letra de um desconhecido pra outro. Sugerir na
+        // tela, onde ela confirma, é diferente de decidir por ela no servidor.
+        if (pareceTypo(l.email)) continue;
 
         // A letra tem que existir: sem ela o e-mail não tem conteúdo.
         const { data: m } = await sb

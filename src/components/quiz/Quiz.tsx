@@ -16,6 +16,7 @@ import {
 import { quizFlow, QUIZ_SKIP } from "@/lib/quiz-flow";
 import { type Locale, TAG_IDIOMA } from "@/lib/i18n";
 import { t } from "@/lib/textos";
+import { sugerirEmail } from "@/lib/email-typo";
 import { lembrarIdioma } from "@/components/OfereceIdioma";
 import { useQuizStore } from "@/lib/quiz-store";
 import { captureLeadProgress } from "@/lib/lead-capture";
@@ -246,6 +247,45 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
               className="mx-auto max-w-md text-center"
               autoFocus
             />
+
+            {/*
+              E-MAIL DIGITADO ERRADO, corrigido a um toque.
+
+              9,2% da base tem endereço que não existe: `gmail.comm`,
+              `gmail.co`, `gmail.com.br`, um caso com o telefone colado no
+              fim. A validação daqui era `/.+@.+\..+/`, que aprova tudo isso.
+
+              O custo não é o e-mail de recuperação que não chega — é que o
+              e-mail é o ÚNICO canal do produto. Quem digita errado e compra
+              paga, não recebe a música, não recebe o link de acesso, e não
+              tem como reclamar. Até agora nenhum comprador caiu nisso, o que
+              é sorte e não desenho.
+
+              SUGERE, não bloqueia. O palpite acerta em tudo que testamos, mas
+              domínio de empresa é imprevisível, e travar o botão de quem
+              digitou certo custa a venda inteira. Aqui a pessoa lê, decide, e
+              corrige com um toque.
+            */}
+            {(() => {
+              const sugestao = sugerirEmail(email ?? "");
+              if (!sugestao || sugestao === (email ?? "").trim().toLowerCase()) return null;
+              return (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail(sugestao);
+                    trackEvent("email_typo_corrigido", { de: email, para: sugestao });
+                  }}
+                  className="mx-auto block rounded-full bg-muted px-4 py-2 text-sm text-muted-foreground transition hover:bg-muted/70"
+                >
+                  {T.emailQuisDizer}{" "}
+                  <strong className="font-semibold text-foreground underline underline-offset-4">
+                    {sugestao}
+                  </strong>
+                  ?
+                </button>
+              );
+            })()}
           </div>
         )}
 
