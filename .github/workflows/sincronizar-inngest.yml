@@ -1,0 +1,55 @@
+# SINCRONIZA O INNGEST DEPOIS DE CADA DEPLOY.
+#
+# Por que isto existe: em 08/08 descobrimos que o Inngest servia uma lista de
+# FUNÇÕES VELHA. O `lembrarPresente` rodava normalmente, então tudo parecia
+# saudável — mas o `mandarLetra` e o `vigiarSaldo`, criados depois, nunca
+# tinham sido registrados. Ficaram no ar sem nunca rodar, sem nenhum erro em
+# lugar nenhum. O alerta de saldo que devia avisar antes de acabar o crédito
+# estava, ele próprio, desligado.
+#
+# Esse é o pior tipo de falha do projeto: a que não aparece. Não tem log
+# vermelho, não tem exceção, não tem e-mail que volta. A função simplesmente
+# não existe pro agendador, e você só descobre quando vai procurar o resultado
+# de um disparo que nunca aconteceu.
+#
+# O deploy da Vercel NÃO re-sincroniza sozinho. A integração oficial
+# Vercel↔Inngest faria isso; enquanto ela não estiver instalada, este workflow
+# faz o mesmo por HTTP. Se a integração for instalada depois, isto vira
+# redundância barata e pode ficar: sincronizar duas vezes não faz mal.
+#
+# O PUT é idempotente e não precisa de segredo: quem se registra é o servidor,
+# usando a INNGEST_SIGNING_KEY que só ele tem. A resposta traz
+# `"modified": true` quando a lista mudou de verdade.
+
+name: Sincronizar Inngest
+
+on:
+  push:
+    branches: [master]
+  # Permite rodar na mão pelo painel do GitHub, que é o que a gente quer ter
+  # à mão quando algo parecer parado.
+  workflow_dispatch:
+
+jobs:
+  sincronizar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Esperar o deploy e registrar
+        run: |
+          URL="https://www.serenatagift.com/api/inngest"
+
+          # Por que um LOOP e não um único PUT: o push chega aqui antes de a
+          # Vercel terminar de publicar. Um PUT cedo demais registra a lista
+          # ANTIGA — exatamente o bug que este arquivo existe pra evitar.
+          # Tentando ao longo de ~6 min, a última tentativa pega o deploy novo.
+          for espera in 60 60 90 90 120; do
+            sleep $espera
+            resposta=$(curl -sS -X PUT --max-time 60 "$URL" || echo '{"erro":"curl falhou"}')
+            echo "$(date -u +%H:%M:%S)  $resposta"
+            echo "$resposta" | grep -q '"modified":true' && echo "  ^ lista mudou aqui"
+          done
+
+          # Não falha o job se o último PUT der ruim: um sync perdido é ruim,
+          # mas um workflow vermelho a cada push vira ruído que se ignora, e
+          # aí ninguém olha quando importa.
+          echo "fim"
