@@ -2,6 +2,7 @@ import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailLetraPronta, assuntoLetraPronta } from "../../emails/letra-pronta.js";
+import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 
 // MANDA A LETRA por e-mail — a promessa que o quiz faz e que nunca foi
 // cumprida ("o e-mail é só pra você não perder").
@@ -17,11 +18,12 @@ import { emailLetraPronta, assuntoLetraPronta } from "../../emails/letra-pronta.
 const SITE = "https://www.serenatagift.com";
 const ESPERAR_MIN = 20;
 const OLHAR_ATE_DIAS = 30;
-// Teto por rodada. Não é sobre custo: subir volume de repente num domínio
-// novo dispara filtro de spam — e este domínio também carrega a ENTREGA de
-// quem pagou. Reputação queimada aqui faz a música parar de chegar lá.
-// A 10 por rodada, 108 pendentes drenam em ~3,5h. Dá pra subir depois de ver
-// a taxa de entrega.
+// Teto por rodada. Não é sobre custo: `envio.serenatagift.com` é um domínio
+// RECÉM-CRIADO, com zero histórico. Provedor não distingue "remetente novo"
+// de "remetente comprometido" — os dois aparecem do nada mandando volume. A
+// única forma de construir reputação é subir devagar.
+// A 10 por rodada (de 20 em 20 min), 100 pendentes drenam em ~3,5h. Dá pra
+// subir depois de ver a taxa de entrega estabilizar.
 const MAX_POR_RODADA = 10;
 
 function db() {
@@ -135,7 +137,15 @@ export const mandarLetra = inngest.createFunction(
         const linkDescadastro = `${SITE}/descadastrar?s=${encodeURIComponent(p.sessao)}&lang=${p.locale}`;
 
         const { error } = await resend.emails.send({
-          from: "Serenata <contato@serenatagift.com>",
+          // Subdomínio, não o domínio raiz. Este e-mail vai pra quem NÃO
+          // comprou, e é o tipo que junta reclamação de spam por natureza.
+          // Se ele queimar reputação, queima a do `envio.` — a ENTREGA de
+          // quem pagou continua saindo de `contato@serenatagift.com`, limpa.
+          from: REMETENTE_RECUPERACAO,
+          // O subdomínio só manda, não tem caixa. Sem isto, quem responde
+          // escreve pro vazio — e resposta de cliente é o retorno mais
+          // valioso que um disparo produz.
+          replyTo: RESPONDER_PARA,
           to: [p.email],
           subject: assuntoLetraPronta(p.nome, p.locale),
           html: emailLetraPronta({ ...p, linkPrevia, linkDescadastro }),
