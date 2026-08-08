@@ -151,10 +151,10 @@ const COPY = {
     // oferta compete de verdade lá, e o preço dele é público e verificável.
     ancora: "Contratar mariachi para una serenata cuesta desde $1,500 MXN, y solo se escucha una noche.",
     hojePor: "hoy por", pagamentoUnico: "Pago único. No es suscripción.",
-    // O que é CERTAMENTE verdade em qualquer cobrança em dólar, e não depende
-    // de o gateway mostrar moeda local: o banco de quem compra converte.
-    // Vale pros quatro países de uma vez, sem prometer recurso não conferido.
-    conversao: "El cobro es en dólares. Tu banco lo convierte a tu moneda al tipo de cambio del día.",
+    // O checkout da Perfect Pay converte pra moeda local — confirmado pelo
+    // dono. Dizer isso ANTES do pulo importa: o preço em dólar numa tela em
+    // espanhol levanta a dúvida "vou pagar câmbio?" bem no clique.
+    conversao: "Verás el precio en la moneda de tu país al pagar.",
     cta: (n: string) => `Quiero la canción de ${n}`, ctaCurto: "Quiero la canción",
     abrindo: "Abriendo el pago…", abrindoCurto: "Abriendo…",
     gateway: "Tarjeta, procesado por Perfect Pay",
