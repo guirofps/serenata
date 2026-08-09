@@ -58,6 +58,21 @@ export function urlCheckout(extra?: { email?: string; locale?: Locale }): string
   // A ponte com o webhook.
   p.set("src", getOrCreateSessionId());
 
+  // IDIOMA DO CHECKOUT.
+  //
+  // O produto internacional abre em INGLÊS por padrão. A pessoa fazia o funil
+  // inteiro em espanhol, clicava em comprar, e caía numa tela pedindo "Your
+  // full name" e "Email address". Em 09/08 foram 9 cliques em comprar no funil
+  // espanhol e zero vendas; em três dias, 507 leads espanhóis e UMA venda.
+  //
+  // `?lang=es` vira "DATOS PERSONALES / Nombre completo / Correo electrónico".
+  // Conferido abrindo o checkout de verdade, não pela documentação.
+  //
+  // Só no espanhol: o produto BR já abre em português, e mandar `lang` pra ele
+  // é parâmetro a mais sem efeito conhecido — não se mexe no que está vendendo.
+  const locale = extra?.locale ?? LOCALE_PADRAO;
+  if (locale === "es") p.set("lang", "es");
+
   // Só o e-mail é pré-preenchido. O NOME não: o único nome que temos é o do
   // HOMENAGEADO (quem vai receber a música), e mandá-lo aqui fazia o gateway
   // registrar "Cliente: Zé" quando quem comprava era a esposa dele. Nome
@@ -84,7 +99,7 @@ export function urlCheckout(extra?: { email?: string; locale?: Locale }): string
     }
   }
 
-  return `${CHECKOUT[extra?.locale ?? LOCALE_PADRAO] ?? CHECKOUT.pt}?${p.toString()}`;
+  return `${CHECKOUT[locale] ?? CHECKOUT.pt}?${p.toString()}`;
 }
 
 /** Leva pro checkout. */
