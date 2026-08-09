@@ -44,7 +44,7 @@ export function emailAcesso(args: { link: string; expiraMin?: number; locale?: I
   const { link, expiraMin = 60 } = args;
   const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
   return `<!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Seu acesso à Serenata</title></head>
+<html lang="${args.locale === "es" ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto}</title></head>
 <body style="margin:0;padding:0;background-color:#f2e9dc;font-family:Georgia,'Times New Roman',serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2e9dc;padding:40px 16px;">
     <tr><td align="center">

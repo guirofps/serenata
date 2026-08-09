@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { Download, Loader2 } from "lucide-react";
 import { CORES } from "@/lib/marca";
+import { type Locale } from "@/lib/i18n";
+import { tp } from "@/lib/textos-presente";
 
 // QR Code do link do presente — prometido na oferta desde sempre e até
 // agora inexistente.
@@ -13,7 +15,16 @@ import { CORES } from "@/lib/marca";
 // Gerado NO CLIENTE: não vale a pena uma rota de servidor pra desenhar um
 // quadrado, e assim funciona mesmo se a rede cair depois da página abrir.
 
-export function QrCode({ url, nome }: { url: string; nome: string }) {
+export function QrCode({
+  url,
+  nome,
+  locale = "pt",
+}: {
+  url: string;
+  nome: string;
+  locale?: Locale;
+}) {
+  const T = tp(locale);
   const [png, setPng] = useState<string | null>(null);
   const [erro, setErro] = useState(false);
 
@@ -46,7 +57,7 @@ export function QrCode({ url, nome }: { url: string; nome: string }) {
         style={{ boxShadow: "var(--sombra)" }}
       >
         {png ? (
-          <img src={png} alt={`QR Code do presente de ${nome}`} className="h-40 w-40" />
+          <img src={png} alt={T.qrAlt(nome)} className="h-40 w-40" />
         ) : (
           <div className="grid h-40 w-40 place-items-center">
             <Loader2 className="h-5 w-5 animate-spin text-[var(--tinta-fraca)]" />
@@ -61,7 +72,7 @@ export function QrCode({ url, nome }: { url: string; nome: string }) {
           className="mt-3 inline-flex items-center gap-1.5 text-[var(--tinta-suave)] underline-offset-4 transition-colors duration-150 hover:text-[var(--acento)] hover:underline"
           style={{ fontSize: "var(--t-xs)" }}
         >
-          <Download className="h-3.5 w-3.5" /> baixar o QR Code
+          <Download className="h-3.5 w-3.5" /> {T.baixarQr}
         </a>
       )}
     </div>

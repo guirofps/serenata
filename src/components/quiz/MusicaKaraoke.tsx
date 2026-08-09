@@ -167,7 +167,7 @@ export function MusicaKaraoke({
           type="button"
           onClick={alternar}
           disabled={travou}
-          aria-label={tocando ? "Pausar" : "Ouvir"}
+          aria-label={tocando ? T.ariaPausar : T.ariaOuvir}
           className={cn(
             "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105",
             travou && "opacity-50",

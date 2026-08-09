@@ -427,7 +427,7 @@ function PaginaPresente() {
           <button
             data-abre-play
             onClick={alternar}
-            aria-label={tocando ? "Pausar" : "Tocar"}
+            aria-label={tocando ? T.ariaPausar : T.ariaTocar}
             className={cn(
               "group flex h-20 w-20 items-center justify-center rounded-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)]",
               comecou ? "mt-6" : "mt-10",
@@ -448,7 +448,7 @@ function PaginaPresente() {
             )}
           </button>
 
-          {!comecou && <p data-abre className="mt-5 text-sm text-white/40">toque para ouvir</p>}
+          {!comecou && <p data-abre className="mt-5 text-sm text-white/40">{T.toqueParaOuvir}</p>}
 
           {/* Dedicatória: a voz do comprador, com as palavras dele. É a única
               coisa nesta página que não foi gerada. */}
@@ -542,7 +542,7 @@ function PaginaPresente() {
           className="flex flex-col items-center gap-2 opacity-45 transition-opacity duration-150 hover:opacity-80"
         >
           <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">
-            feito com
+            {T.feitoCom}
           </span>
           <Logo tamanho="sm" escuro />
         </a>
@@ -554,7 +554,7 @@ function PaginaPresente() {
           <div className="mx-auto flex max-w-2xl items-center gap-4 px-6 py-3">
             <button
               onClick={alternar}
-              aria-label={tocando ? "Pausar" : "Tocar"}
+              aria-label={tocando ? T.ariaPausar : T.ariaTocar}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[color:var(--presente-destaque)] text-[#0d0a08]"
             >
               {tocando ? (

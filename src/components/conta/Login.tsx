@@ -29,8 +29,14 @@ const COPY = {
     pedirEm: (s: number) => `Pode pedir outro em ${s}s`,
     pedirDeNovo: "pedir de novo ou usar outro e-mail",
     entrar: "Entrar na sua conta",
+    // Estava escrito direto no JSX, fora deste dicionário, e por isso saía em
+    // português na tela de login espanhola.
+    entrarSub:
+      "Use o e-mail que você deu ao criar a música. Mandamos um link que entra sem senha.",
     falhou: "Não consegui enviar agora.",
     placeholder: "seu@email.com",
+    enviarLink: "Enviar link de acesso",
+    enviando: "enviando…",
   },
   es: {
     confira: "Revisa tu correo",
@@ -42,8 +48,12 @@ const COPY = {
     pedirEm: (s: number) => `Puedes pedir otro en ${s}s`,
     pedirDeNovo: "pedir de nuevo o usar otro correo",
     entrar: "Entra a tu cuenta",
+    entrarSub:
+      "Usa el correo que diste al crear la canción. Te mandamos un link que entra sin contraseña.",
     falhou: "No pude enviarlo ahora.",
     placeholder: "tu@correo.com",
+    enviarLink: "Enviar link de acceso",
+    enviando: "enviando…",
   },
 } as const;
 
@@ -187,8 +197,7 @@ export function Login({ locale = "pt" }: { locale?: Locale }) {
               className="mx-auto mt-3 max-w-xs text-center text-[var(--tinta-suave)]"
               style={{ fontSize: "var(--t-base)", lineHeight: 1.6 }}
             >
-              Use o e-mail que você deu ao criar a música. Mandamos um link que
-              entra sem senha.
+              {C.entrarSub}
             </p>
 
             <form onSubmit={enviar} className="mt-8 space-y-3">
@@ -236,11 +245,11 @@ export function Login({ locale = "pt" }: { locale?: Locale }) {
               >
                 {estado === "enviando" ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> enviando…
+                    <Loader2 className="h-4 w-4 animate-spin" /> {C.enviando}
                   </>
                 ) : (
                   <>
-                    <Mail className="h-4 w-4" /> Enviar link de acesso
+                    <Mail className="h-4 w-4" /> {C.enviarLink}
                   </>
                 )}
               </button>

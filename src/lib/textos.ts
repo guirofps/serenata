@@ -20,6 +20,10 @@ const PT = {
   escreverLetra: "Escrever minha letra grátis",
   emailPlaceholder: "seu@email.com",
   emailQuisDizer: "Você quis dizer",
+  // Barra flutuante de CTA das duas homes.
+  barraRotulo: "Criar minha música",
+  barraTitulo: "A letra e um trecho da música, grátis",
+  barraSub: "Você paga só pela música inteira e a página",
   oPresenteDe: "O presente de",
   quemVoceAma: "quem você ama",
   estaNascendo: "está começando a nascer.",
@@ -95,6 +99,10 @@ const PT = {
   musicaContinua: "A música continua…",
   canteJunto: "Cante junto, é a sua música",
   ouvirAMusica: "Ouvir a música",
+  // Rótulos do botão de play. Só leitor de tela vê, e por isso passaram
+  // despercebidos em português no funil espanhol.
+  ariaOuvir: "Ouvir",
+  ariaPausar: "Pausar",
   umaMusicaPra: "uma música pra",
   linkEQr: "link + QR Code pra compartilhar",
   queroCantada: (n: string) => `Quero a música de ${n} cantada`,
@@ -130,6 +138,11 @@ const ES: Textos = {
   escreverLetra: "Escribir mi letra gratis",
   emailPlaceholder: "tu@correo.com",
   emailQuisDizer: "¿Quisiste decir",
+  // Mesma promessa da home ES, na mesma voz: a letra e um pedaço são
+  // grátis, e o pago é a canção inteira mais a página.
+  barraRotulo: "Crear mi canción",
+  barraTitulo: "La letra y un pedazo de la canción, gratis",
+  barraSub: "Pagas solo por la canción completa y la página",
   oPresenteDe: "El regalo de",
   quemVoceAma: "quien tú quieres",
   estaNascendo: "ya está naciendo.",
@@ -199,6 +212,8 @@ const ES: Textos = {
   musicaContinua: "La canción sigue…",
   canteJunto: "Canta con ella, es tu canción",
   ouvirAMusica: "Escuchar la canción",
+  ariaOuvir: "Escuchar",
+  ariaPausar: "Pausar",
   umaMusicaPra: "una canción para",
   linkEQr: "link + código QR para compartir",
   queroCantada: (n: string) => `Quiero la canción de ${n} cantada`,

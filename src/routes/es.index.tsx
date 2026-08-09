@@ -533,7 +533,7 @@ function HomeEs() {
         </p>
       </footer>
 
-      <BarraCTA alvoRef={heroRef} destino="/es/criar" rotulo="Crear mi canción" />
+      <BarraCTA alvoRef={heroRef} locale="es" />
     </div>
   );
 }

@@ -16,7 +16,7 @@ import { QrCode } from "@/components/presente/QrCode";
 import { Efeitos, EFEITOS, rotuloEfeito } from "@/components/presente/Efeitos";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { marcarDono } from "@/lib/dono-presente";
-import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE } from "@/lib/marca";
+import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE, nomeCor } from "@/lib/marca";
 import { tp } from "@/lib/textos-presente";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
@@ -354,7 +354,7 @@ function Editor() {
                         <button
                           type="button"
                           onClick={() => ouvir(v)}
-                          aria-label={tocando === v ? "Pausar" : "Ouvir"}
+                          aria-label={tocando === v ? T.pausar : T.ouvir}
                           className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--tinta)] text-[var(--papel)] transition-transform active:scale-95"
                         >
                           {tocando === v ? (
@@ -365,7 +365,7 @@ function Editor() {
                         </button>
                         <div className="min-w-0 flex-1">
                           <p className="font-medium" style={{ fontSize: "var(--t-sm)" }}>
-                            Versão {v}
+                            {T.versaoN(v)}
                           </p>
                           <button
                             type="button"
@@ -380,10 +380,10 @@ function Editor() {
                           >
                             {escolhida ? (
                               <>
-                                <Check className="h-3.5 w-3.5" /> é essa
+                                <Check className="h-3.5 w-3.5" /> {T.eEssa}
                               </>
                             ) : (
-                              "escolher esta"
+                              T.escolherEsta
                             )}
                           </button>
                         </div>
@@ -413,9 +413,9 @@ function Editor() {
                       key={c.chave}
                       type="button"
                       onClick={() => escolherCor(c.oklch)}
-                      aria-label={c.nome}
+                      aria-label={nomeCor(c, p?.locale ?? "pt")}
                       aria-pressed={escolhida}
-                      title={c.nome}
+                      title={nomeCor(c, p?.locale ?? "pt")}
                       className={cn(
                         "grid h-10 w-10 place-items-center rounded-full transition-transform active:scale-90",
                         escolhida
@@ -604,7 +604,7 @@ function Editor() {
                   if (timerFrase.current) clearTimeout(timerFrase.current);
                   if (fraseStatus !== "salvo") salvarFrase(dedicatoria);
                 }}
-                placeholder={`Pra você, ${p.nome}. Com todo o meu amor.`}
+                placeholder={T.dedicatoriaPlaceholder(p.nome)}
                 rows={3}
                 className="mt-4 w-full rounded-2xl border border-[var(--tinta-fraca)] bg-[var(--papel-fundo)] p-4 outline-none transition-colors focus:border-[var(--acento)]"
                 style={{ fontSize: "var(--t-base)", fontFamily: FONTES.display }}
@@ -669,7 +669,7 @@ function Editor() {
                   numa caixa de bombom, e o digital ganha corpo sem logística
                   nenhuma da nossa parte. */}
               <div className="mt-6 flex flex-col items-center gap-4 rounded-[var(--raio-lg)] border border-[var(--tinta-fraca)]/30 bg-[var(--papel)] p-5 sm:flex-row sm:items-center sm:text-left">
-                <QrCode url={linkPublico} nome={p.nome} />
+                <QrCode url={linkPublico} nome={p.nome} locale={p?.locale ?? "pt"} />
                 <div>
                   <p className="font-medium" style={{ fontSize: "var(--t-sm)" }}>
                     {T.prefereMao}
@@ -699,7 +699,7 @@ function Editor() {
                   className="inline-flex h-12 items-center gap-2 rounded-full border border-[var(--tinta-fraca)] px-6 transition-colors hover:border-[var(--tinta-suave)]"
                   style={{ fontSize: "var(--t-sm)" }}
                 >
-                  <ExternalLink className="h-4 w-4" /> Ver como ela vai ver
+                  <ExternalLink className="h-4 w-4" /> {T.verComoVaiVer}
                 </a>
                 {/* Baixar/enviar o MP3 é ação de QUEM MONTA o presente (aqui),
                     não de quem recebe. No celular abre a folha de
@@ -726,7 +726,7 @@ function Editor() {
                 className="mb-1.5 text-center text-[var(--tinta-suave)] lg:mb-3"
                 style={{ fontSize: "var(--t-xs)" }}
               >
-                prévia
+                {T.previa}
               </p>
               {/* Moldura de celular: é assim que o presente é aberto. Pequena
                   no mobile (cabe grudada no topo), inteira no desktop. */}
