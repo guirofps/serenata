@@ -21,7 +21,7 @@ import { lembrarIdioma } from "@/components/OfereceIdioma";
 import { useQuizStore } from "@/lib/quiz-store";
 import { captureLeadProgress } from "@/lib/lead-capture";
 import { trackEvent, trackEventOnce } from "@/lib/track";
-import { getOrCreateSessionId } from "@/lib/session-context";
+import { getOrCreateSessionId, getOrAssignVariant } from "@/lib/session-context";
 import { ChipsStep } from "@/components/quiz/ChipsStep";
 import { FaixaPresente } from "@/components/quiz/FaixaPresente";
 import { CampoNome } from "@/components/quiz/CampoNome";
@@ -148,7 +148,50 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
               <ChipsStep
                 step={step}
                 value={respostas[step.field]}
-                onChange={(v) => setResposta(step.field, v)}
+                onChange={(v) => {
+                  setResposta(step.field, v);
+                  // O TOQUE NO CHIP, que até agora não era medido.
+                  //
+                  // 65% dos leads PT e 88% dos ES param no passo 1. Os
+                  // números existentes não distinguem os dois casos, que
+                  // pedem soluções opostas:
+                  //
+                  //   escolheu e não tocou em "Continuar"  -> é atrito, e
+                  //     sai tirando o segundo toque da frente da pessoa;
+                  //   não tocou em nada                    -> é o anúncio ou
+                  //     a pergunta, e mexer no botão não muda nada.
+                  //
+                  // A resposta não estava no banco porque a gravação do lead
+                  // só acontece ao ENTRAR num passo: quem escolhe e desiste
+                  // nunca chega a persistir a escolha. Uma vez por passo, por
+                  // navegador, senão trocar de ideia entre chips vira volume.
+                  trackEventOnce("quiz_respondeu", step.id, {
+                    step_id: step.id,
+                    q: qNum,
+                  });
+
+                  // VARIANTE B: escolher JÁ avança, sem o segundo toque.
+                  //
+                  // Hoje a pessoa toca no chip e depois tem que achar e tocar
+                  // em "Continuar". Numa lista de 19 opções que ocupa a tela
+                  // até 691px, o botão fica a 740px — abaixo de tudo que ela
+                  // acabou de ler, e longe do dedo que acabou de escolher.
+                  //
+                  // Fica em B e não no controle porque esta tela recebe 100%
+                  // do tráfego: se eu estiver errado, quero errar em uma
+                  // campanha e não no funil inteiro. Liga duplicando uma
+                  // campanha com `?f=b` na URL.
+                  //
+                  // Só em escolha ÚNICA e sem a segunda fileira: em `multi` o
+                  // primeiro toque não é a resposta final, e onde existe
+                  // `extraChips` (o tom) avançar sozinho pularia um campo que
+                  // a pessoa nem viu.
+                  const podeAvancar =
+                    !step.multi && !step.extraChips && getOrAssignVariant() === "B";
+                  // 220ms: tempo de a borda do chip acender. Sem isso a tela
+                  // troca no meio do toque e parece falha, não resposta.
+                  if (podeAvancar) setTimeout(goNext, 220);
+                }}
                 respostas={respostas}
                 onChangeExtra={setResposta}
               />
