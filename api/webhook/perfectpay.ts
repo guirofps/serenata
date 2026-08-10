@@ -184,7 +184,77 @@ export default async function handler(req: Req, res: Res) {
 
     // ── 4. É PAGAMENTO APROVADO? ─────────────────────────────
     const pago = ["approved", "paid", "a", "aprovado"].includes(rawStatus);
-    if (!pago) return res.status(200).json({ ok: true, nota: `status não aprovado (${rawStatus})` });
+
+    // ── 4b. COBRANÇA GERADA E AINDA NÃO PAGA ─────────────────
+    //
+    // Antes isto respondia 200 e ia embora. O resultado é que a gente não
+    // enxergava uma etapa inteira: em 10/08 o dono viu 2 Pix pendentes no
+    // painel da Perfect Pay que não existiam em lugar nenhum aqui.
+    //
+    // Muda a leitura do funil. "6 cliques em comprar e 1 venda" parece atrito
+    // no checkout; "6 cliques, 3 cobranças geradas e 1 paga" é abandono de Pix,
+    // que é o problema mais recuperável que existe — a pessoa já decidiu.
+    //
+    // NÃO filtra por 'pix' no texto do status de propósito: cada gateway
+    // escreve de um jeito e adivinhar vocabulário por documentação é como a
+    // gente já errou antes. Grava tudo que não é aprovado nem estorno, com o
+    // texto CRU junto, e o vocabulário real a gente aprende do dado.
+    if (!pago) {
+      if (paymentId) {
+        const sbP = db();
+        const { data: jaExiste } = await sbP
+          .from("pedidos")
+          .select("id, status")
+          .eq("payment_id", paymentId)
+          .maybeSingle();
+
+        // NUNCA rebaixa um pedido que já avançou. A Perfect Pay reenvia, e
+        // reenvio fora de ordem ("pendente" chegando depois do "aprovado")
+        // transformaria uma venda paga em pendente — some do faturamento e
+        // some da entrega. Só escreve em linha nova ou em linha pendente.
+        if (!jaExiste || jaExiste.status === "pendente") {
+          // Casa com a sessão pelo mesmo caminho do pagamento aprovado: `src`
+          // primeiro, e-mail como reserva. Sem isso o pendente vira uma linha
+          // órfã, e é justamente o vínculo que permite lembrar a pessoa depois.
+          let quizP: { id: string } | null = null;
+          if (src) {
+            const { data } = await sbP.from("quiz_responses").select("id").eq("session_id", src).maybeSingle();
+            quizP = data;
+          }
+          if (!quizP && email) {
+            const { data } = await sbP
+              .from("quiz_responses")
+              .select("id")
+              .eq("email", email)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            quizP = data;
+          }
+
+          const { error } = await sbP.from("pedidos").upsert(
+            {
+              payment_id: paymentId,
+              gateway: "perfectpay",
+              status: "pendente",
+              status_gateway: rawStatus || null,
+              email,
+              valor_centavos: Number.isFinite(reais) ? Math.round(reais * 100) : null,
+              quiz_response_id: quizP?.id ?? null,
+            },
+            { onConflict: "payment_id" },
+          );
+          if (error) {
+            // Não derruba o webhook: pendente é informação, não entrega. Se
+            // falhar, o pior caso é continuar cego como antes — devolver erro
+            // faria a Perfect Pay reenviar em loop por causa de um registro
+            // que não libera nada pra ninguém.
+            console.error("[perfectpay] pendente não gravado:", error.message);
+          }
+        }
+      }
+      return res.status(200).json({ ok: true, nota: `status não aprovado (${rawStatus})` });
+    }
     if (!paymentId) {
       await auditar("perfectpay_sem_code", { body });
       return res.status(400).json({ error: "evento sem code" });
@@ -241,6 +311,10 @@ export default async function handler(req: Req, res: Res) {
         payment_id: paymentId,
         gateway: "perfectpay",
         status: "pago",
+        // Sobrescreve o status cru do pendente: a linha é a mesma (upsert por
+        // payment_id), e deixar o texto antigo faria o painel mostrar "pix
+        // aguardando" numa venda já paga.
+        status_gateway: rawStatus || null,
         email,
         valor_centavos: Number.isFinite(reais) ? Math.round(reais * 100) : null,
         quiz_response_id: quiz?.id ?? null,

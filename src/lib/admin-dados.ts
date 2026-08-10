@@ -393,6 +393,12 @@ export const carregarPainel = createServerFn({ method: "POST" })
     const visitantes = sessoesComView.size;
 
     const pagos = pedidosF.filter((p) => p.status === "pago");
+    // Cobrança gerada e não paga: o Pix que a pessoa mandou criar e abandonou.
+    // Passou a existir em 10/08, quando o webhook parou de descartar o aviso de
+    // "aguardando pagamento" — antes disso esta lista é vazia por falta de
+    // registro, não por não ter acontecido.
+    const pendentes = pedidosF.filter((p) => p.status === "pendente");
+    const gerouCobranca = pagos.length + pendentes.length;
 
     // A MOEDA de cada pedido vem do idioma da venda: o produto brasileiro da
     // Perfect Pay cobra em real, o internacional em dólar. Não há coluna de
@@ -484,6 +490,17 @@ export const carregarPainel = createServerFn({ method: "POST" })
       // solução de um não serve pro outro.
       { id: "oferta", rotulo: "Viu a oferta", alcancaram: sessoesOferta, etapa: "venda" },
       { id: "checkout", rotulo: "Foi pro checkout", alcancaram: cliquesCheckout, etapa: "venda" },
+      // O degrau que faltava, e que mudava o diagnóstico inteiro. "6 cliques e
+      // 1 venda" parece atrito no formulário; "6 cliques, 3 cobranças geradas
+      // e 1 paga" é abandono de Pix — a pessoa decidiu comprar, gerou o QR e
+      // não terminou. São problemas diferentes com soluções diferentes, e a
+      // gente ficou cego pra este até 10/08 porque o webhook descartava o
+      // aviso de "aguardando pagamento".
+      //
+      // `gerouCobranca` conta pendentes MAIS pagos: quem pagou também gerou.
+      // Sem somar, o degrau ficaria menor que o de baixo e o funil pareceria
+      // crescer no fim.
+      { id: "cobranca", rotulo: "Gerou cobrança", alcancaram: gerouCobranca, etapa: "venda" },
       { id: "venda", rotulo: "PAGOU", alcancaram: pagos.length, etapa: "venda" },
     ];
 
