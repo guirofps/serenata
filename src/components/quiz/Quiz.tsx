@@ -107,7 +107,17 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
   })();
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col px-4 py-6">
+    // `100dvh` e não `min-h-screen` (=100vh).
+    //
+    // No celular, `100vh` é a altura da tela SEM a barra do navegador — a
+    // maior das duas. O layout era montado nessa altura e a área realmente
+    // visível é menor, então tudo nascia com sobra pra baixo. Medido em
+    // 375x667, que é o que sobra num celular comum: 7 dos 11 passos tinham o
+    // botão de avançar FORA da tela, inclusive a pergunta 1.
+    //
+    // `dvh` acompanha a barra do navegador aparecendo e sumindo, e encolhe
+    // junto com o teclado na maioria dos navegadores de celular.
+    <main className="mx-auto flex min-h-[100dvh] max-w-xl flex-col px-4 py-4">
       {/* Header: voltar + progresso */}
       <div className="mb-4 flex items-center gap-3">
         {idx > 0 && (
@@ -139,7 +149,14 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
                 {step.block}
               </p>
             )}
-            <div className="space-y-2">
+            {/* A PERGUNTA FICA PRESA NO TOPO.
+                Quando o teclado sobe, a área visível cai pra ~340px e o
+                navegador rola até o campo. Medido: em `historia1` e `recado`
+                a pergunta saía da tela, e a pessoa ficava escrevendo sem ver
+                o que foi perguntado. Presa aqui, ela acompanha a rolagem —
+                e nos passos de chip longos (o estilo rola 390px) também
+                resolve, porque a pergunta some junto com as opções. */}
+            <div className="sticky top-0 z-10 -mx-4 space-y-2 bg-background/95 px-4 py-2 backdrop-blur-sm">
               <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{preencher(step.text)}</h1>
               {step.subtext && <p className="text-muted-foreground">{preencher(step.subtext)}</p>}
             </div>
@@ -346,9 +363,21 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
         )}
       </div>
 
-      {/* Rodapé: continuar (some nos passos que têm CTA próprio) */}
+      {/* Rodapé: continuar (some nos passos que têm CTA próprio)
+
+          STICKY, e isso não é enfeite. Antes o botão era o último elemento do
+          fluxo: numa lista de 21 chips (o passo do estilo) ele nascia 393px
+          abaixo da dobra. A pessoa escolhia e não via nada acontecer, porque
+          a coisa que faz acontecer estava fora da tela.
+
+          Preso na base, a regra do funil passa a valer sempre: a pergunta em
+          cima, o botão embaixo, e só a lista de opções rola no meio.
+
+          `-mx-4 px-4` estende o fundo até as bordas pra o conteúdo não
+          aparecer por baixo ao rolar; `env(safe-area-inset-bottom)` respeita
+          a faixa do iPhone. */}
       {!isReview(step) && !isReveal(step) && !isOferta(step) && (
-        <div className="pt-8">
+        <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-border/40 bg-background/95 px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-sm">
           <Button
             size="lg"
             className="cta w-full rounded-full border-0"
@@ -415,9 +444,18 @@ function ReviewScreen({ locale, onGerar }: { locale: Locale; onGerar: () => void
             </div>
           ))}
       </div>
-      <Button size="lg" className="cta w-full rounded-full border-0" onClick={onGerar}>
-        Escrever minha letra grátis
-      </Button>
+      {/* Sticky pelo mesmo motivo do rodapé do quiz: a lista de respostas
+          empurrava este botão 221px abaixo da dobra num celular de 667px, e
+          ele é o último clique antes da letra.
+
+          O rótulo vinha escrito em português direto aqui, fora do dicionário,
+          então a revisão espanhola exibia "Escrever minha letra grátis" na
+          última tela antes de gerar. */}
+      <div className="sticky bottom-0 z-10 -mx-4 border-t border-border/40 bg-background/95 px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-sm">
+        <Button size="lg" className="cta w-full rounded-full border-0" onClick={onGerar}>
+          {T.escreverLetra}
+        </Button>
+      </div>
     </div>
   );
 }
