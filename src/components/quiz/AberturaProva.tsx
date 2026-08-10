@@ -25,14 +25,25 @@ import { type Locale } from "@/lib/i18n";
 // Curto de propósito: a tela do celular já foi ajustada pra caber pergunta,
 // opções e botão, e um bloco alto aqui joga tudo isso pra baixo de novo.
 
+// A promessa é A LETRA **E UM TRECHO CANTADO**, não só a letra.
+//
+// A primeira versão desta frase dizia só "a letra fica pronta". Estava
+// vendendo menos do que o funil entrega: a pessoa lê a letra na hora e ouve
+// um pedaço da música cantada logo depois, tudo antes de pagar. Numa tela
+// cuja função é dar motivo pra responder a primeira pergunta, prometer menos
+// que a verdade é o pior erro possível.
+//
+// A redação segue a que já roda na barra das duas homes ("A letra e um trecho
+// da música, grátis"), de propósito: a pessoa que veio da home encontra a
+// mesma frase, e a que veio direto do anúncio recebe a promessa completa.
 const COPY: Record<Locale, { olho: string; frase: string }> = {
   pt: {
     olho: "reações reais de quem ouviu",
-    frase: "A letra fica pronta aqui na tela, de graça. Você lê antes de decidir qualquer coisa.",
+    frase: "A letra e um trecho da música, de graça. Você lê e ouve antes de decidir qualquer coisa.",
   },
   es: {
     olho: "reacciones reales de quien la escuchó",
-    frase: "La letra queda lista aquí en la pantalla, gratis. La lees antes de decidir nada.",
+    frase: "La letra y un pedazo de la canción, gratis. Los lees y escuchas antes de decidir nada.",
   },
 };
 
