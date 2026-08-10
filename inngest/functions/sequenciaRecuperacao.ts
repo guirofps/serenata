@@ -51,17 +51,25 @@ function db() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-/** Lê tudo, paginado. `funnel_events` passa de 1000 linhas e o PostgREST corta
- *  em silêncio — bug que já custou uma leitura errada neste projeto. */
+/**
+ * Lê tudo, paginado. `funnel_events` passa de 1000 linhas e o PostgREST corta
+ * em silêncio — bug que já custou uma leitura errada neste projeto.
+ *
+ * `chave` existe porque paginar EXIGE uma ordenação estável, e nem toda tabela
+ * daqui tem `id`: `excluidos_email` e `descadastros` são chaveadas por e-mail.
+ * Fixar "id" derrubava a função inteira com "column does not exist" — e como
+ * ela roda em cron, o erro não aparecia em lugar nenhum: só não saía e-mail.
+ */
 async function paginado<T>(
   sb: ReturnType<typeof db>,
   tabela: string,
   colunas: string,
   montar?: (q: any) => any,
+  chave = "id",
 ): Promise<T[]> {
   const out: T[] = [];
   for (let de = 0; ; de += 1000) {
-    let q = sb.from(tabela).select(colunas).order("id", { ascending: true }).range(de, de + 999);
+    let q = sb.from(tabela).select(colunas).order(chave, { ascending: true }).range(de, de + 999);
     if (montar) q = montar(q);
     const { data, error } = await q;
     if (error) throw new Error(`${tabela}: ${error.message}`);
@@ -99,8 +107,9 @@ export const sequenciaRecuperacao = inngest.createFunction(
       if (!ultimo.size) return [];
 
       const [fora, excl, pagos, leads] = await Promise.all([
-        paginado<{ email: string }>(sb, "descadastros", "email", (q) => q.order("email")),
-        paginado<{ email: string }>(sb, "excluidos_email", "email", (q) => q.order("email")),
+        // Chaveadas por e-mail: não têm coluna `id`.
+        paginado<{ email: string }>(sb, "descadastros", "email", undefined, "email"),
+        paginado<{ email: string }>(sb, "excluidos_email", "email", undefined, "email"),
         paginado<{ quiz_response_id: string | null; email: string | null }>(
           sb,
           "pedidos",
