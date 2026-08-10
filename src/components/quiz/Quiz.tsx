@@ -382,19 +382,24 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
 
       {/* Rodapé: continuar (some nos passos que têm CTA próprio)
 
-          STICKY, e isso não é enfeite. Antes o botão era o último elemento do
-          fluxo: numa lista de 21 chips (o passo do estilo) ele nascia 393px
-          abaixo da dobra. A pessoa escolhia e não via nada acontecer, porque
-          a coisa que faz acontecer estava fora da tela.
+          JÁ FOI STICKY, POR UM DIA, E CUSTOU CARO.
+          A ideia era boa no papel: o botão nascia fora da tela em 7 dos 11
+          passos, e prendê-lo na base resolvia isso. Só que a barra fica
+          desenhada por cima do conteúdo, e com `bg-background/95` a pessoa
+          VÊ o que está embaixo dela. Medido no ar, com a tela no topo,
+          quatro chips da primeira pergunta (Amiga, Amigo, Pet, Outro)
+          ficavam sob a barra: visíveis, e mortos ao toque.
 
-          Preso na base, a regra do funil passa a valer sempre: a pergunta em
-          cima, o botão embaixo, e só a lista de opções rola no meio.
+          O número: a passagem da pergunta 1 pra 2 caiu de 43% (08/08, antes)
+          pra 33% e depois 14%. O pior defeito de interface é o que parece
+          funcionar — a pessoa toca, nada acontece, e ela conclui que o site
+          está quebrado.
 
-          `-mx-4 px-4` estende o fundo até as bordas pra o conteúdo não
-          aparecer por baixo ao rolar; `env(safe-area-inset-bottom)` respeita
-          a faixa do iPhone. */}
+          Voltou pro fluxo normal. O problema que a sticky tentava resolver é
+          real e continua aberto, mas se resolve encurtando a tela, não
+          desenhando algo por cima dela. */}
       {!isReview(step) && !isReveal(step) && !isOferta(step) && (
-        <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-border/40 bg-background/95 px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-sm">
+        <div className="pt-6">
           <Button
             size="lg"
             className="cta w-full rounded-full border-0"
