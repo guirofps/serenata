@@ -5,6 +5,7 @@ import { trackEvent, trackEventOnce } from "@/lib/track";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { TEMA_CLARO } from "@/lib/marca";
 import { type Locale, MOEDA } from "@/lib/i18n";
+import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
 import {
   Music, Images, Sparkles, QrCode, Download, Infinity as InfinityIcon,
@@ -167,6 +168,7 @@ const COPY = {
 
 export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; locale?: Locale }) {
   const C = COPY[locale] ?? COPY.pt;
+  const G = GARANTIA[locale] ?? GARANTIA.pt;
   const preco = MOEDA[locale] ?? MOEDA.pt;
   const respostas = useQuizStore((s) => s.respostas);
   const email = useQuizStore((s) => s.email);
@@ -272,9 +274,23 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           )}
         </div>
 
+        {/* GARANTIA logo ACIMA do botão, não abaixo.
+            É a última objeção que passa pela cabeça de quem já quer comprar
+            ("e se não ficar bom?"), e ela precisa estar resolvida no instante
+            em que o dedo vai no botão — não depois, quando a pessoa já
+            desistiu. Verde, e não cor da marca, porque aqui o trabalho é
+            parecer seguro, não parecer nosso. */}
+        <div className="mt-5 flex items-start gap-2.5 rounded-2xl border border-emerald-600/25 bg-emerald-50/60 px-4 py-3 text-left">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+          <div>
+            <p className="text-sm font-semibold text-emerald-900">{G.titulo}</p>
+            <p className="text-xs leading-snug text-emerald-800/80">{G.texto}</p>
+          </div>
+        </div>
+
         <Button
           size="lg"
-          className="cta mt-5 w-full rounded-full border-0"
+          className="cta mt-4 w-full rounded-full border-0"
           disabled={indo}
           onClick={pagar}
         >
