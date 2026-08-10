@@ -8,6 +8,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { scriptExperimentos, cssExperimentos } from "@/lib/experimentos";
 
 import appCss from "../styles.css?url";
 import {
@@ -115,6 +116,14 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="pt-BR">
       <head>
         <HeadContent />
+        {/* TESTE A/B — precisa ser a PRIMEIRA coisa do <head>.
+            O script sorteia a variante e carimba no <html>; o CSS esconde a
+            que não saiu. Síncrono e antes de tudo porque, se rodasse depois do
+            primeiro pixel, a pessoa veria a tela trocar na frente dela. É por
+            isso que ele está escrito à mão e não importado: um <script src>
+            seria uma ida à rede antes de qualquer pintura. */}
+        <script dangerouslySetInnerHTML={{ __html: scriptExperimentos() }} />
+        <style dangerouslySetInnerHTML={{ __html: cssExperimentos() }} />
       </head>
       <body className="bg-background text-foreground">
         {children}

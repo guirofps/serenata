@@ -17,6 +17,9 @@ import { quizFlow, QUIZ_SKIP } from "@/lib/quiz-flow";
 import { type Locale, TAG_IDIOMA } from "@/lib/i18n";
 import { t } from "@/lib/textos";
 import { sugerirEmail } from "@/lib/email-typo";
+import { carimbarExperimentos } from "@/lib/experimentos";
+import { Variante } from "@/components/Variante";
+import { AberturaProva } from "@/components/quiz/AberturaProva";
 import { lembrarIdioma } from "@/components/OfereceIdioma";
 import { useQuizStore } from "@/lib/quiz-store";
 import { captureLeadProgress } from "@/lib/lead-capture";
@@ -61,6 +64,10 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
 
   useEffect(() => {
     getOrCreateSessionId();
+    // ANTES do quiz_started: a atribuição é lida no momento do evento, então
+    // carimbar depois deixaria o primeiro evento da sessão — justamente o que
+    // marca a entrada no funil — sem a variante.
+    carimbarExperimentos();
     trackEventOnce("quiz_started", "v1");
     // Guarda em que idioma esta pessoa entrou no funil. É o que permite
     // oferecer o caminho certo quando ela voltar pelo domínio raiz.
@@ -149,6 +156,16 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
                 {step.block}
               </p>
             )}
+            {/* EXPERIMENTO `abertura`, só no primeiro passo: é lá que 79% vão
+                embora sem tocar em nada. Nos outros passos a pessoa já
+                respondeu alguma coisa e a prova não tem o mesmo trabalho a
+                fazer. Nada é renderizado na variante A. */}
+            {idx === 0 && (
+              <Variante exp="abertura" v="B">
+                <AberturaProva locale={locale} />
+              </Variante>
+            )}
+
             {/* A PERGUNTA FICA PRESA NO TOPO.
                 Quando o teclado sobe, a área visível cai pra ~340px e o
                 navegador rola até o campo. Medido: em `historia1` e `recado`
