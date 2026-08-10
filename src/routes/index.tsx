@@ -6,7 +6,7 @@ import { ProvaImediata, Dor, Beneficios, Oferta, FAQ } from "@/components/landin
 import { ExemplosReais } from "@/components/landing/ExemplosReais";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { Entregavel } from "@/components/landing/Entregavel";
-import { DiaDosPais } from "@/components/landing/DiaDosPais";
+import { ProQuemE } from "@/components/landing/ProQuemE";
 import { BarraCTA } from "@/components/landing/BarraCTA";
 import { PresenteNoTopo } from "@/components/landing/PresenteNoTopo";
 import { useProfundidadeRolagem } from "@/lib/rolagem";
@@ -163,12 +163,15 @@ function Home() {
         </div>
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-2 lg:gap-16 lg:py-24">
         <div className="text-center lg:text-left">
+          {/* Este selo dizia "🎁 Dia dos Pais · 9 de agosto" e continuou dizendo
+              no dia 10. Agora aponta pra uma seção que não expira. Se voltar a
+              carregar data, tem que nascer com prazo de validade. */}
           <a
-            href="#dia-dos-pais"
+            href="#pra-quem-e"
             className="badge-marca inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 font-medium text-[var(--acento)] transition-transform hover:scale-105"
             style={{ fontSize: "var(--t-xs)" }}
           >
-            🎁 Dia dos Pais · 9 de agosto
+            🎁 pra mãe, pai, esposa, avó ou em memória
           </a>
           <p
             className="mt-5 uppercase tracking-[0.35em] text-[var(--acento)]"
@@ -242,8 +245,10 @@ function Home() {
       {/* ── 02 · PROVA IMEDIATA ─────────────────────────────── */}
       <ProvaImediata />
 
-      {/* ── 02.5 · DIA DOS PAIS (sazonal, posição nobre) ────── */}
-      <DiaDosPais exemploToken="expai51378356a9" />
+      {/* ── 02.5 · PRA QUEM É (perene, posição nobre) ─────────
+          Era a seção de Dia dos Pais. Virou perene em 10/08, um dia depois da
+          data, quando a home ainda mostrava um contador travado em zero. */}
+      <ProQuemE exemploToken="expai51378356a9" />
 
       {/* ── 03 · DOR ────────────────────────────────────────── */}
       <Dor />
