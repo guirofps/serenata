@@ -7,6 +7,7 @@ import { ExemplosReais } from "@/components/landing/ExemplosReais";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { Entregavel } from "@/components/landing/Entregavel";
 import { ProQuemE } from "@/components/landing/ProQuemE";
+import { ProvaSocial } from "@/components/landing/ProvaSocial";
 import { BarraCTA } from "@/components/landing/BarraCTA";
 import { PresenteNoTopo } from "@/components/landing/PresenteNoTopo";
 import { useProfundidadeRolagem } from "@/lib/rolagem";
@@ -227,6 +228,11 @@ function Home() {
             A letra e um trecho da música são grátis. Você paga só pra ter a
             música inteira e a página pronta pra enviar.
           </p>
+
+          {/* Prova social logo abaixo do CTA, no mesmo lugar em que o
+              NossaCanção põe a dele: é onde a pessoa olha depois de ler o
+              botão e antes de decidir se rola ou fecha. */}
+          <ProvaSocial />
 
           <div className="mt-8 lg:hidden">
             <PresenteNoTopo />
