@@ -46,7 +46,17 @@ export const EXPERIMENTOS: Experimento[] = [
   {
     id: "abertura",
     variantes: ["A", "B"],
-    ativo: true,
+    // DESLIGADO em 10/08, sem ter chegado a medir nada.
+    //
+    // Não porque a variante perdeu: porque a BASE quebrou embaixo dela. O
+    // deploy que trouxe este teste trouxe junto as barras fixas do quiz, e a
+    // passagem da pergunta 1 pra 2 caiu de 43% pra 14% nas mesmas campanhas.
+    // Comparar A com B em cima de uma tela quebrada não mede a ideia, mede o
+    // defeito — e as duas variantes carregavam o mesmo defeito.
+    //
+    // A máquina de A/B continua inteira e testada. É só religar isto (e
+    // conferir a taxa base antes) quando o funil voltar ao normal.
+    ativo: false,
     nota:
       "A primeira tela do quiz. Medido em 09/08: de 195 que viram a pergunta 1, só 41 (21%) tocaram em algum chip, e 63% não produziram mais nenhum evento. Não é atrito de botão (só 6 escolheram sem avançar), é o primeiro instante. B mostra a prova e a promessa ANTES de pedir a primeira resposta.",
   },
@@ -104,9 +114,22 @@ D.setAttribute("data-exp-"+e.id,v);}
  */
 export function cssExperimentos(): string {
   const linhas: string[] = [];
-  for (const e of experimentosAtivos()) {
+  // TODOS os experimentos, não só os ativos. Descoberto do jeito ruim em
+  // 10/08: ao desligar um experimento, as regras dele sumiam do CSS, e o
+  // bloco da variante B ficava SEM nenhuma regra de `display:none` — ou seja,
+  // desligar o teste publicava a variante pra 100% do tráfego, exatamente o
+  // contrário do pretendido. Desligar tem que ser a coisa mais segura de
+  // fazer com um experimento, não a mais perigosa.
+  for (const e of EXPERIMENTOS) {
     const seletores = e.variantes.map((v) => `[data-v="${e.id}:${v}"]`).join(",");
     linhas.push(`${seletores}{display:none}`);
+
+    if (!e.ativo) {
+      // Desligado: só o controle aparece, pra quem tiver escrito conteúdo de
+      // controle dentro de um <Variante> não ficar com a tela vazia.
+      linhas.push(`[data-v="${e.id}:${e.variantes[0]}"]{display:contents}`);
+      continue;
+    }
     for (const v of e.variantes) {
       linhas.push(
         `html[${atributoDe(e.id)}="${v}"] [data-v="${e.id}:${v}"]{display:contents}`,
