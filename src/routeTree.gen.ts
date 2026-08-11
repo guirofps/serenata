@@ -18,6 +18,7 @@ import { Route as DescadastrarRouteImport } from './routes/descadastrar'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MarcaRouteImport } from './routes/marca'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
+import { Route as RecuperarRouteImport } from './routes/recuperar'
 import { Route as RetomarRouteImport } from './routes/retomar'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as EditarTokenEdicaoRouteImport } from './routes/editar.$tokenEdicao'
@@ -72,6 +73,11 @@ const ObrigadoRoute = ObrigadoRouteImport.update({
   path: '/obrigado',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecuperarRoute = RecuperarRouteImport.update({
+  id: '/recuperar',
+  path: '/recuperar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RetomarRoute = RetomarRouteImport.update({
   id: '/retomar',
   path: '/retomar',
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
   '/obrigado': typeof ObrigadoRoute
+  '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
   '/obrigado': typeof ObrigadoRoute
+  '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
   '/obrigado': typeof ObrigadoRoute
+  '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
@@ -183,6 +192,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/marca'
     | '/obrigado'
+    | '/recuperar'
     | '/retomar'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/marca'
     | '/obrigado'
+    | '/recuperar'
     | '/retomar'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/marca'
     | '/obrigado'
+    | '/recuperar'
     | '/retomar'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
@@ -241,6 +253,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MarcaRoute: typeof MarcaRoute
   ObrigadoRoute: typeof ObrigadoRoute
+  RecuperarRoute: typeof RecuperarRoute
   RetomarRoute: typeof RetomarRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   EditarTokenEdicaoRoute: typeof EditarTokenEdicaoRoute
@@ -316,6 +329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ObrigadoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recuperar': {
+      id: '/recuperar'
+      path: '/recuperar'
+      fullPath: '/recuperar'
+      preLoaderRoute: typeof RecuperarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/retomar': {
       id: '/retomar'
       path: '/retomar'
@@ -385,6 +405,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MarcaRoute: MarcaRoute,
   ObrigadoRoute: ObrigadoRoute,
+  RecuperarRoute: RecuperarRoute,
   RetomarRoute: RetomarRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   EditarTokenEdicaoRoute: EditarTokenEdicaoRoute,

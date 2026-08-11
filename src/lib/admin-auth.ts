@@ -6,9 +6,10 @@ import { createServerFn } from "@tanstack/react-start";
 
 export const entrarAdmin = createServerFn({ method: "POST" })
   .validator((data: { senha: string }) => data)
-  .handler(async ({ data }): Promise<{ ok: boolean }> => {
+  .handler(async ({ data }): Promise<{ ok: boolean; papel: string | null }> => {
     const { autenticar } = await import("@/lib/admin-auth.server");
-    return { ok: await autenticar(data.senha) };
+    const papel = await autenticar(data.senha);
+    return { ok: papel !== null, papel };
   });
 
 export const sairAdmin = createServerFn({ method: "POST" }).handler(async () => {

@@ -16,12 +16,28 @@ import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
 const COOKIE = "mp_admin";
 const DURACAO_S = 60 * 60 * 12; // 12h
 
+// DOIS PAPÉIS, e a diferença não é conforto: é o que a pessoa consegue ver.
+//
+// `admin`        — o dono. Painel inteiro, incluindo faturamento e custo.
+// `recuperacao`  — quem trabalha o carrinho abandonado. Vê nome, telefone e a
+//                  música de quem travou no Pix, e nada de dinheiro.
+//
+// Senhas separadas porque a rotatividade é diferente: se o operador sair,
+// troca-se UMA variável e o acesso dele morre, sem mexer no do dono.
+export type Papel = "admin" | "recuperacao";
+
 function segredo(): string {
   const s = process.env.ADMIN_SECRET;
   if (!s || s.length < 16) {
     throw new Error("ADMIN_SECRET ausente ou curto demais (mín. 16 caracteres)");
   }
   return s;
+}
+
+/** Senha do operador de recuperação. Ausente = ninguém entra por esse papel. */
+function segredoRecuperacao(): string | null {
+  const s = process.env.RECUPERACAO_SECRET;
+  return s && s.length >= 16 ? s : null;
 }
 
 function assinar(payload: string): string {
@@ -35,29 +51,46 @@ function iguaisSeguro(a: string, b: string): boolean {
   return timingSafeEqual(ba, bb);
 }
 
-function tokenValido(token: string | undefined): boolean {
-  if (!token) return false;
+/**
+ * Devolve o PAPEL do token, ou null.
+ *
+ * O papel entra DENTRO da assinatura, junto da expiração. Guardá-lo fora (num
+ * segundo cookie, por exemplo) deixaria qualquer um se promover a admin
+ * editando um valor no navegador — que é a versão moderna do
+ * `admin_session=true` forjável que este arquivo existe pra não repetir.
+ */
+function papelDoToken(token: string | undefined): Papel | null {
+  if (!token) return null;
   const partes = token.split(".");
-  if (partes.length !== 3) return false;
-  const [expira, nonce, assinatura] = partes;
-  if (!iguaisSeguro(assinatura, assinar(`${expira}.${nonce}`))) return false;
+  if (partes.length !== 4) return null;
+  const [expira, nonce, papel, assinatura] = partes;
+  if (!iguaisSeguro(assinatura, assinar(`${expira}.${nonce}.${papel}`))) return null;
   const exp = Number(expira);
-  return Number.isFinite(exp) && exp > Date.now();
+  if (!Number.isFinite(exp) || exp <= Date.now()) return null;
+  return papel === "admin" || papel === "recuperacao" ? papel : null;
 }
 
-/** Valida a senha e, se bater, grava o cookie assinado. */
-export async function autenticar(senha: string): Promise<boolean> {
-  let esperado: string;
+/** Valida a senha e, se bater, grava o cookie assinado com o papel. */
+export async function autenticar(senha: string): Promise<Papel | null> {
+  if (!senha) return null;
+
+  let papel: Papel | null = null;
   try {
-    esperado = segredo();
+    if (iguaisSeguro(senha, segredo())) papel = "admin";
   } catch {
-    return false; // sem segredo configurado: painel fechado
+    // sem ADMIN_SECRET: o papel de dono fica fechado, mas o de recuperação
+    // ainda pode funcionar. Fail-closed é por papel, não global.
   }
-  if (!senha || !iguaisSeguro(senha, esperado)) {
+  if (!papel) {
+    const rec = segredoRecuperacao();
+    if (rec && iguaisSeguro(senha, rec)) papel = "recuperacao";
+  }
+  if (!papel) {
     await new Promise((r) => setTimeout(r, 400)); // desencoraja força bruta
-    return false;
+    return null;
   }
-  const payload = `${Date.now() + DURACAO_S * 1000}.${randomBytes(8).toString("hex")}`;
+
+  const payload = `${Date.now() + DURACAO_S * 1000}.${randomBytes(8).toString("hex")}.${papel}`;
   setCookie(COOKIE, `${payload}.${assinar(payload)}`, {
     httpOnly: true, // o JS da página não lê
     sameSite: "lax",
@@ -65,14 +98,30 @@ export async function autenticar(senha: string): Promise<boolean> {
     path: "/",
     maxAge: DURACAO_S,
   });
-  return true;
+  return papel;
 }
 
 export function encerrarSessao(): void {
   setCookie(COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
 }
 
-/** Chamada no topo de TODA consulta do painel. Lança se não autenticado. */
+/** Chamada no topo de TODA consulta do painel. Lança se não for o dono. */
 export function exigirAdmin(): void {
-  if (!tokenValido(getCookie(COOKIE))) throw new Error("nao-autorizado");
+  if (papelDoToken(getCookie(COOKIE)) !== "admin") throw new Error("nao-autorizado");
+}
+
+/**
+ * Tela de recuperação: aceita o operador E o dono.
+ *
+ * O dono entra em tudo de propósito — ter que sair e logar de novo com outra
+ * senha pra ver a própria fila é o tipo de atrito que faz ninguém usar.
+ */
+export function exigirRecuperacao(): void {
+  const p = papelDoToken(getCookie(COOKIE));
+  if (p !== "recuperacao" && p !== "admin") throw new Error("nao-autorizado");
+}
+
+/** Quem está logado agora. Serve pra tela decidir o que mostrar. */
+export function papelAtual(): Papel | null {
+  return papelDoToken(getCookie(COOKIE));
 }

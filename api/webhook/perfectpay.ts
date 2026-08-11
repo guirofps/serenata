@@ -262,6 +262,10 @@ export default async function handler(req: Req, res: Res) {
               status: "pendente",
               status_gateway: rawStatus || null,
               email,
+              // O telefone é o ativo mais valioso de um Pix abandonado: é por
+              // ele que a recuperação acontece. Fica no PEDIDO e não no lead
+              // porque quem paga nem sempre é quem fez o quiz.
+              telefone,
               valor_centavos: Number.isFinite(reais) ? Math.round(reais * 100) : null,
               quiz_response_id: quizP?.id ?? null,
             },
