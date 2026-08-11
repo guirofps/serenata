@@ -40,8 +40,35 @@ export const useQuizStore = create<QuizState>()(
       respostas: {},
       email: null,
       letraFinal: null,
+      // RESPONDER UMA PERGUNTA INVALIDA A LETRA ANTERIOR.
+      //
+      // `letraFinal` fica em localStorage e não expira. Quem já comprou e
+      // clica em "Criar outra música" no painel volta pro /criar carregando a
+      // letra da compra passada. Respondia o quiz novo inteiro, chegava na
+      // revelação, e a tela via que JÁ EXISTIA uma letra — não gerava nada,
+      // mostrava a antiga, e seguia pra oferta.
+      //
+      // Aconteceu em 11/08: um comprador respondeu um quiz pra filha, viu a
+      // letra que ele tinha feito pra esposa três dias antes, pagou R$ 37, e
+      // não existia nenhuma música pra entregar. Abriu ticket. Ele tinha
+      // tentado duas vezes, o que sugere que a primeira falhou igual.
+      //
+      // Quebra a regra mais importante do projeto: nunca cobrar por algo que
+      // ainda não foi produzido.
+      //
+      // Limpar aqui, e não no botão do painel, cobre TODOS os caminhos de
+      // volta ao funil — painel, link salvo, histórico do navegador. E é o que
+      // a semântica pede: se as respostas mudaram, a letra gerada com as
+      // antigas não vale mais.
+      //
+      // Não atrapalha a coautoria: lá a pessoa mexe na LETRA (setLetraFinal),
+      // não nas respostas. E o `/retomar` grava as respostas ANTES da letra,
+      // então a ordem já está certa.
       setResposta: (field, value) =>
-        set((s) => ({ respostas: { ...s.respostas, [field]: value } })),
+        set((s) => ({
+          respostas: { ...s.respostas, [field]: value },
+          letraFinal: null,
+        })),
       setEmail: (email) => set({ email }),
       setLetraFinal: (letraFinal) => set({ letraFinal }),
       reset: () => set({ respostas: {}, email: null, letraFinal: null }),
