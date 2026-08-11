@@ -186,7 +186,32 @@ export const sequenciaRecuperacao = inngest.createFunction(
       const resend = new Resend(chave);
       let n = 0;
 
+      // RECHECA QUEM COMPROU, agora, no instante do envio.
+      //
+      // A trava da fila já existia, mas era avaliada na MONTAGEM. Entre montar
+      // e enviar passam segundos ou minutos, e nessa fresta cabe uma compra.
+      // Aconteceu em 11/08 com uma compradora mexicana: comprou às 22:05,
+      // recebeu a música inteira, e logo depois recebeu "você foi embora antes
+      // da gravação terminar, vem ouvir um trecho". Ela abriu ticket.
+      //
+      // Uma consulta a mais por rodada é barata; tratar comprador como
+      // abandonador é o tipo de erro que a pessoa conta pros outros.
+      const { data: comprasAgora } = await sb
+        .from("pedidos")
+        .select("quiz_response_id, email")
+        .eq("status", "pago");
+      const jaComprou = new Set(
+        (comprasAgora ?? []).map((x) => x.quiz_response_id).filter(Boolean),
+      );
+      const emailComprou = new Set(
+        (comprasAgora ?? []).map((x) => (x.email ?? "").toLowerCase()).filter(Boolean),
+      );
+
       for (const p of fila) {
+        if (jaComprou.has(p.quizId) || emailComprou.has(p.email.toLowerCase())) {
+          console.log("[sequencia] comprou entre a fila e o envio, pulando:", p.email);
+          continue;
+        }
         // `/retomar` e não o funil cru: aquela rota busca a letra no servidor
         // pelo session_id, reidrata o navegador e ADOTA a sessão — o que faz
         // uma compra vinda deste e-mail casar com o quiz pelo mesmo `src`.

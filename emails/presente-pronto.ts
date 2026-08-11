@@ -1,4 +1,4 @@
-// E-mail que o comprador recebe quando o pagamento é confirmado.
+﻿// E-mail que o comprador recebe quando o pagamento é confirmado.
 //
 // É o ÚNICO caminho até o editor: o `token_edicao` não aparece em lugar
 // nenhum do site, e é ele que autoriza personalizar a página. Sem este
@@ -15,7 +15,7 @@ const COPY: Record<IdiomaEmail, {
   assunto: (n: string) => string;
   titulo: (n: string) => string;
   faltaSo: string; montar: string; coloque: string;
-  botao: string; guarde: string; comPressa: string; rodape: string;
+  botao: string; guarde: string; comPressa: string; verPresente: string; rodape: string;
 }> = {
   pt: {
     assunto: (n) => `A música de ${n} está pronta`,
@@ -26,6 +26,7 @@ const COPY: Record<IdiomaEmail, {
     botao: "MONTAR O PRESENTE →",
     guarde: "Guarde este e-mail: este link é seu e só ele deixa editar a página.",
     comPressa: "Com pressa? O presente já funciona do jeito que está:",
+    verPresente: "VER A PÁGINA DO PRESENTE",
     rodape: "Serenata · uma música feita da história de quem você ama",
   },
   es: {
@@ -37,6 +38,7 @@ const COPY: Record<IdiomaEmail, {
     botao: "ARMAR EL REGALO →",
     guarde: "Guarda este correo: este link es tuyo y solo él permite editar la página.",
     comPressa: "¿Con prisa? El regalo ya funciona tal como está:",
+    verPresente: "VER LA PÁGINA DEL REGALO",
     rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
   },
 };
@@ -93,7 +95,18 @@ export function emailPresentePronto(args: {
 
         <tr><td style="padding:22px 36px 34px;color:rgba(42,21,24,0.6);font-size:13px;line-height:1.7;font-family:Helvetica,Arial,sans-serif;">
           ${C.comPressa}<br>
-          <a href="${linkPresente}" style="color:#7d2b3a;">${linkPresente}</a>
+          <!-- O LINK VIRA BOTÃO, e não texto solto.
+               Em 11/08 uma compradora mexicana abriu um ticket dizendo
+               "página no encontrada 404". Os links dela estavam todos certos e
+               respondendo 200 — o que quebrou foi a URL escrita AQUI como
+               texto visível: cliente de e-mail corta URL longa no fim da
+               linha, ou cola a pontuação da frase nela. E token errado por um
+               caractere dá 404 seco, sem pista nenhuma:
+                   /p/783ef70709164f46b9fd1   (faltando 1 char)  -> 404
+                   /p/783ef70709164f46b9fd1e. (com ponto)        -> 404
+               Como botão, o destino vive só no href e nunca é lido, cortado
+               ou reescrito por quem renderiza o e-mail. -->
+          <a href="${linkPresente}" style="display:inline-block;margin-top:8px;padding:10px 20px;border-radius:999px;border:1px solid rgba(125,43,58,0.35);color:#7d2b3a;text-decoration:none;font-weight:600;">${C.verPresente}</a>
         </td></tr>
       </table>
 

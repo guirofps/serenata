@@ -89,11 +89,43 @@ export const Route = createFileRoute("/p/$token")({
     };
   },
   component: PaginaPresente,
+  // TOKEN QUE NÃO RESOLVE — e a causa quase sempre é a mesma.
+  //
+  // Em 11/08 uma compradora mexicana abriu ticket dizendo "página no
+  // encontrada 404". Os links dela estavam certos e respondendo 200: o que
+  // chegou nela foi uma URL cortada pelo cliente de e-mail. Um caractere a
+  // menos no token e a página some, sem pista nenhuma.
+  //
+  // Esta tela mudou em duas frentes:
+  //
+  // 1. Diz a causa PROVÁVEL ("o link pode ter vindo cortado") em vez de
+  //    "não existe ou expirou", que soa a produto perdido e assusta quem
+  //    acabou de pagar.
+  // 2. Fala nos DOIS idiomas. Aqui não dá pra saber o locale — o token não
+  //    resolveu, então não há registro de onde tirar idioma —, e metade das
+  //    vendas internacionais é de quem não lê português.
   notFoundComponent: () => (
     <main className="grid min-h-screen place-items-center bg-[#0d0a08] px-6 text-center">
-      <div>
-        <p className="text-2xl text-white/80">Esse presente não existe (ou expirou).</p>
-        <p className="mt-2 text-sm text-white/40">Confira o link com quem te enviou.</p>
+      <div className="max-w-sm">
+        <p className="text-2xl text-white/80">Esse link parece incompleto.</p>
+        <p className="mt-2 text-sm text-white/45">
+          Links longos às vezes chegam cortados pelo e-mail ou pelo WhatsApp.
+          Tente abrir de novo direto pelo botão da mensagem original.
+        </p>
+        <div className="mx-auto my-6 h-px w-10 bg-white/15" />
+        <p className="text-xl text-white/70">Este link parece incompleto.</p>
+        <p className="mt-2 text-sm text-white/45">
+          Los links largos a veces llegan cortados por el correo o WhatsApp.
+          Intenta abrirlo de nuevo desde el botón del mensaje original.
+        </p>
+        <p className="mt-7 text-xs text-white/35">
+          <a
+            href="mailto:contato@serenatagift.com"
+            className="underline underline-offset-4 hover:text-white/60"
+          >
+            contato@serenatagift.com
+          </a>
+        </p>
       </div>
     </main>
   ),

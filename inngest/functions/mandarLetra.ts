@@ -140,7 +140,25 @@ export const mandarLetra = inngest.createFunction(
       const resend = new Resend(chave);
       let n = 0;
 
+      // Mesma recheca do `sequenciaRecuperacao`: a trava da fila é avaliada na
+      // MONTAGEM, e entre montar e enviar cabe uma compra. Quem comprou nessa
+      // fresta receberia "ouça um trecho" tendo a música inteira.
+      const { data: comprasAgora } = await sb
+        .from("pedidos")
+        .select("quiz_response_id, email")
+        .eq("status", "pago");
+      const jaComprou = new Set(
+        (comprasAgora ?? []).map((x) => x.quiz_response_id).filter(Boolean),
+      );
+      const emailComprou = new Set(
+        (comprasAgora ?? []).map((x) => (x.email ?? "").toLowerCase()).filter(Boolean),
+      );
+
       for (const p of fila) {
+        if (jaComprou.has(p.quizId) || emailComprou.has(p.email.toLowerCase())) {
+          console.log("[letra] comprou entre a fila e o envio, pulando:", p.email);
+          continue;
+        }
         // O `src` é o que faz a compra vinda deste e-mail casar com o quiz —
         // mesmo mecanismo do funil, sem adivinhar por e-mail.
         // `/retomar` e não `/criar?step=reveal`: aquela tela lê a letra do
