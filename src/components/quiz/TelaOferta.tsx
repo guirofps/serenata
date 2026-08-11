@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useQuizStore } from "@/lib/quiz-store";
 import { irParaCheckout } from "@/lib/checkout";
+import { temMusicaDaSessao } from "@/lib/coautoria";
+import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { TEMA_CLARO } from "@/lib/marca";
@@ -170,6 +172,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   const C = COPY[locale] ?? COPY.pt;
   const G = GARANTIA[locale] ?? GARANTIA.pt;
   const preco = MOEDA[locale] ?? MOEDA.pt;
+  const [semMusica, setSemMusica] = useState(false);
   const respostas = useQuizStore((s) => s.respostas);
   const email = useQuizStore((s) => s.email);
   const letraFinal = useQuizStore((s) => s.letraFinal);
@@ -183,8 +186,37 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     trackEventOnce("oferta_vista", "v1");
   }, []);
 
-  function pagar() {
+  // A TRAVA FINAL: não vai pro gateway sem música gravada no servidor.
+  //
+  // "Nunca cobrar por algo que ainda não foi produzido" é a regra que o
+  // projeto trata como inegociável, e até 11/08 ela era só uma consequência do
+  // fluxo — nada a verificava. Um comprador pagou R$ 37 e não havia nada pra
+  // entregar: ele voltou ao funil com a letra da compra anterior guardada no
+  // navegador, o quiz não gerou nada de novo, e o caminho até o checkout
+  // confiou no que o navegador dizia.
+  //
+  // A causa daquele caso já foi consertada no `quiz-store`. Isto aqui é a
+  // segunda camada, e é a que vale pra QUALQUER causa futura: pergunta ao
+  // servidor, que é o único que sabe o que existe de verdade.
+  //
+  // Falha do servidor não trava a venda (`catch` deixa passar): indisponível
+  // não é o mesmo que inexistente, e barrar comprador por causa de uma
+  // consulta que caiu seria trocar um problema raro por um pior.
+  async function pagar() {
     setIndo(true);
+    try {
+      const { existe } = await temMusicaDaSessao({
+        data: { sessionId: getOrCreateSessionId() },
+      });
+      if (!existe) {
+        trackEvent("checkout_barrado_sem_musica", { locale });
+        setSemMusica(true);
+        setIndo(false);
+        return;
+      }
+    } catch {
+      // Consulta indisponível: segue. Ver comentário acima.
+    }
     trackEvent("checkout_click", { valor: preco.valor, locale });
     irParaCheckout({ email: email || undefined, locale });
   }
@@ -287,6 +319,30 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
             <p className="text-xs leading-snug text-emerald-800/80">{G.texto}</p>
           </div>
         </div>
+
+        {/* Só aparece se a trava barrar. Manda de volta pra revelação, que é
+            onde a letra e a música nascem — e não deixa a pessoa presa numa
+            tela que não explica nada. */}
+        {semMusica && (
+          <div className="mt-5 rounded-2xl border border-amber-500/30 bg-amber-50 px-4 py-3 text-left">
+            <p className="text-sm font-semibold text-amber-900">
+              {locale === "es"
+                ? "Tu canción todavía no está lista"
+                : "A sua música ainda não está pronta"}
+            </p>
+            <p className="mt-1 text-xs leading-snug text-amber-800/80">
+              {locale === "es"
+                ? "No te vamos a cobrar por algo que aún no existe. Vuelve un momento a tu letra: la grabación empieza ahí."
+                : "A gente não cobra por algo que ainda não existe. Volte um instante pra sua letra: a gravação começa por lá."}
+            </p>
+            <button
+              onClick={aoVoltar}
+              className="mt-2 text-xs font-semibold text-amber-900 underline underline-offset-4"
+            >
+              {locale === "es" ? "Volver a mi letra" : "Voltar pra minha letra"}
+            </button>
+          </div>
+        )}
 
         <Button
           size="lg"

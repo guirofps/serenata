@@ -193,6 +193,36 @@ ${data.letra}`;
 // ── ETAPA 3: finalizar — persiste a letra FINAL e dispara a música ─
 // A `letra` aqui é a versão definitiva (escolhida + editada). É a única que
 // vira música, então é a fonte de verdade daqui pra frente.
+/**
+ * EXISTE MÚSICA PRA ESTA SESSÃO?
+ *
+ * A trava final da regra que o projeto tem como inegociável: nunca cobrar por
+ * algo que ainda não foi produzido.
+ *
+ * Em 11/08 um comprador pagou R$ 37 e não havia nada pra entregar. A causa
+ * imediata foi a letra velha em localStorage (consertada no `quiz-store`), mas
+ * a lição maior é que o caminho até o checkout confiava só no navegador. Isso
+ * pergunta ao SERVIDOR, que é o único que sabe o que realmente existe.
+ *
+ * Consulta barata e por sessão: roda uma vez, no clique de pagar.
+ */
+export const temMusicaDaSessao = createServerFn({ method: "POST" })
+  .validator((data: { sessionId: string }) => data)
+  .handler(async ({ data }): Promise<{ existe: boolean; status: string | null }> => {
+    const db = supabaseAdmin();
+    const quizId = await quizIdDaSessao(data.sessionId);
+    if (!quizId) return { existe: false, status: null };
+    const { data: m } = await db
+      .from("musicas")
+      .select("id, status")
+      .eq("quiz_response_id", quizId)
+      .not("letra", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return { existe: Boolean(m), status: m?.status ?? null };
+  });
+
 export const finalizarLetra = createServerFn({ method: "POST" })
   .validator(
     (data: {
