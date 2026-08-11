@@ -200,6 +200,29 @@ export default async function handler(req: Req, res: Res) {
     // gente já errou antes. Grava tudo que não é aprovado nem estorno, com o
     // texto CRU junto, e o vocabulário real a gente aprende do dado.
     if (!pago) {
+      // O PAYLOAD INTEIRO do pendente, uma vez só.
+      //
+      // A auditoria normal guarda seis campos escolhidos a dedo, e o resto do
+      // corpo some. Isso deixou uma pergunta sem resposta que vale dinheiro:
+      // a Perfect Pay manda o CÓDIGO COPIA-E-COLA do Pix junto?
+      //
+      // Se manda, o e-mail de Pix abandonado leva o código dentro e a pessoa
+      // paga em 15 segundos sem voltar ao site. Se não manda, só dá pra
+      // devolver ela ao checkout pra refazer tudo — funciona muito menos.
+      // 43% de quem gera Pix não paga, então a diferença entre os dois
+      // cenários é grande.
+      //
+      // SEM O TOKEN: ele é o nosso segredo e o resto do arquivo já toma esse
+      // cuidado. Guardar credencial em claro numa tabela de eventos seria
+      // trocar uma dúvida barata por um problema caro.
+      try {
+        const corpo = { ...(body as Record<string, unknown>) };
+        delete corpo.token;
+        await auditar("perfectpay_pending_payload", { corpo });
+      } catch (err) {
+        console.error("[perfectpay] payload não auditado:", err);
+      }
+
       if (paymentId) {
         const sbP = db();
         const { data: jaExiste } = await sbP
