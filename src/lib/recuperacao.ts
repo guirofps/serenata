@@ -48,6 +48,12 @@ export type Abandonado = {
    * ia acontecer de qualquer jeito, e misturar as duas mentiria o placar dele.
    */
   recuperado: { tipo: "liberado" | "pagou"; quando: string; por: string | null } | null;
+  /**
+   * Quando o operador pode falar com esta pessoa. Até lá o cartão aparece com
+   * o cronômetro correndo e os botões travados: ele vê a fila em tempo real
+   * sem poder ligar pra quem está com o app do banco aberto neste segundo.
+   */
+  podeFalarEm: string;
   contatos: { quando: string; canal: string; nota: string | null }[];
   // O copia-e-cola e a página do QR, direto do gateway.
   pixCodigo: string | null;
@@ -74,16 +80,25 @@ function paraWhatsapp(tel: string | null, locale: "pt" | "es"): string | null {
 }
 
 /**
- * CARÊNCIA antes de alguém aparecer na fila.
+ * CARÊNCIA antes de o operador poder falar com a pessoa.
  *
- * Sem isso a pessoa entra no instante em que gera o Pix — e o operador liga
- * cobrando quem está com o aplicativo do banco aberto naquele segundo. É a
- * forma mais rápida de transformar uma venda em reclamação.
+ * Sem carência nenhuma ele liga cobrando quem está com o aplicativo do banco
+ * aberto naquele segundo — a forma mais rápida de transformar uma venda em
+ * reclamação.
  *
- * 30 minutos: tempo de sobra pra quem ia pagar já ter pago, e curto o
- * bastante pra o Pix ainda estar quente.
+ * Mas ela era um FILTRO: o pedido só nascia na tela 30 minutos depois, e até
+ * lá não existia pra ninguém. Isso escondia a fila justamente no momento em
+ * que ela está mais quente, e obrigava o operador a ficar apertando Atualizar
+ * pra descobrir se apareceu alguém.
+ *
+ * Agora é um CRONÔMETRO: o pedido aparece no instante em que o Pix é gerado,
+ * com o tempo correndo na tela e os botões de contato travados até zerar. Ele
+ * vê a fila enchendo e sabe exatamente quando pode falar.
+ *
+ * 10 minutos: Pix cai em segundos. Quem não pagou em dez não está pagando
+ * agora, e o código ainda está quente na conversa.
  */
-const CARENCIA_MIN = 30;
+const CARENCIA_MIN = 10;
 
 export const listarAbandonados = createServerFn({ method: "POST" })
   .validator((data: { horas?: number }) => data)
@@ -94,7 +109,6 @@ export const listarAbandonados = createServerFn({ method: "POST" })
     const db = supabaseAdmin();
     const janelaH = data.horas ?? 72;
     const desde = new Date(Date.now() - janelaH * 3600000).toISOString();
-    const ate = new Date(Date.now() - CARENCIA_MIN * 60000).toISOString();
 
     const { data: pend } = await db
       .from("pedidos")
@@ -103,8 +117,6 @@ export const listarAbandonados = createServerFn({ method: "POST" })
       )
       // Pagos entram junto: são os RECUPERADOS, que precisam continuar
       // visíveis numa aba própria em vez de sumir da tela ao serem liberados.
-      // A carência (`ate`) só vale pra quem ainda está aberto — recuperado
-      // recente é justamente o que ele quer ver.
       .in("status", ["pendente", "pago"])
       .gte("created_at", desde)
       .order("created_at", { ascending: false });
@@ -170,7 +182,8 @@ export const listarAbandonados = createServerFn({ method: "POST" })
       //               registrado. Venda normal do dia não é assunto dele, e
       //               inflaria o placar com 16 linhas que ele não trabalhou.
       const ehRecuperado = p.status === "pago" && (Boolean(liberado) || contatos.length > 0);
-      if (p.status === "pendente" && p.created_at > ate) continue;
+      // O pendente NÃO é mais escondido pela carência: ele entra na hora e a
+      // trava vira cronômetro no cartão (`podeFalarEm`).
       if (p.status === "pago" && !ehRecuperado) continue;
 
       const recuperado: Abandonado["recuperado"] = liberado
@@ -253,6 +266,7 @@ export const listarAbandonados = createServerFn({ method: "POST" })
           emailPagou.has((p.email ?? "").toLowerCase()) ||
           (p.quiz_response_id ? quizPagou.has(p.quiz_response_id) : false),
         recuperado,
+        podeFalarEm: new Date(new Date(p.created_at).getTime() + CARENCIA_MIN * 60000).toISOString(),
         contatos,
         pixCodigo: (p as { pix_codigo?: string | null }).pix_codigo ?? null,
         pixUrl: (p as { pix_url?: string | null }).pix_url ?? null,
@@ -294,6 +308,92 @@ export const marcarContato = createServerFn({ method: "POST" })
         por: papelAtual(),
       },
     });
+    return { ok: true };
+  });
+
+/**
+ * DESFAZ uma liberação feita à mão.
+ *
+ * Existe porque o botão de liberar é de um clique e o operador é humano: em
+ * 12/08 ele liberou o Edivan sem querer. Sem desfazer, o único caminho era
+ * mexer no banco.
+ *
+ * O que ele consegue desfazer de verdade:
+ *   - o pedido volta pra `pendente` (sai do faturamento e volta pra fila);
+ *   - a música se desprende da conta do comprador (some do painel dele);
+ *   - a pessoa volta a receber a sequência de recuperação por e-mail;
+ *   - os TOKENS são trocados, então o link que foi por e-mail para de abrir.
+ *
+ * O que ele NÃO consegue: o e-mail de entrega já saiu da nossa mão. Trocar o
+ * token é o que existe de mais próximo de "chamar de volta", e por isso é
+ * feito aqui e não é opcional.
+ *
+ * SÓ MEXE em liberação manual. Reverter uma compra aprovada pelo gateway
+ * tiraria o produto de quem pagou de verdade — é o tipo de botão que, se
+ * aceitar tudo, uma hora tira.
+ */
+export const reverterAcesso = createServerFn({ method: "POST" })
+  .validator((data: { pedidoId: string }) => data)
+  .handler(async ({ data }): Promise<{ ok: boolean; erro?: string }> => {
+    const { exigirRecuperacao, papelAtual } = await import("@/lib/admin-auth.server");
+    exigirRecuperacao();
+    const quem = papelAtual();
+    const db = supabaseAdmin();
+
+    const { data: p } = await db
+      .from("pedidos")
+      .select("id, email, quiz_response_id, status, gateway")
+      .eq("id", data.pedidoId)
+      .maybeSingle();
+    if (!p) return { ok: false, erro: "pedido não encontrado" };
+    if (p.status !== "pago") return { ok: false, erro: "esse pedido não está liberado" };
+    if (p.gateway !== "manual") {
+      return { ok: false, erro: "essa compra foi paga no gateway — não dá pra reverter por aqui" };
+    }
+
+    const { error } = await db
+      .from("pedidos")
+      .update({
+        status: "pendente",
+        dinheiro_entrou: null,
+        paid_at: null,
+        status_gateway: `liberação revertida por ${quem}`,
+      })
+      .eq("id", p.id);
+    if (error) return { ok: false, erro: error.message };
+
+    if (p.quiz_response_id) {
+      const { data: m } = await db
+        .from("musicas")
+        .select("id")
+        .eq("quiz_response_id", p.quiz_response_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (m?.id) {
+        const novo = () =>
+          Array.from(crypto.getRandomValues(new Uint8Array(11)))
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join("");
+        await db
+          .from("musicas")
+          .update({ user_id: null, token: novo(), token_edicao: novo() + novo().slice(0, 10) })
+          .eq("id", m.id);
+      }
+    }
+
+    // Volta pra sequência: quem foi liberado sai da perseguição por e-mail, e
+    // desfazer sem devolver deixaria a pessoa num limbo, sem acesso e sem
+    // ninguém falando com ela.
+    if (p.email) {
+      await db.from("excluidos_email").delete().eq("email", p.email);
+    }
+
+    await db.from("funnel_events").insert({
+      event_name: "acesso_revertido",
+      event_data: { pedido: p.id, email: p.email, por: quem },
+    });
+
     return { ok: true };
   });
 

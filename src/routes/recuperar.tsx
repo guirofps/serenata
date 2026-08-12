@@ -1,6 +1,6 @@
 ﻿import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { listarAbandonados, liberarAcesso, marcarContato, type Abandonado } from "@/lib/recuperacao";
+import { listarAbandonados, liberarAcesso, reverterAcesso, marcarContato, type Abandonado } from "@/lib/recuperacao";
 import { entrarAdmin } from "@/lib/admin-auth";
 import { TEMA_CLARO, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
@@ -107,6 +107,12 @@ function Recuperar() {
   const [horas, setHoras] = useState(72);
   const [soNaoContatados, setSoNaoContatados] = useState(false);
   const [aba, setAba] = useState<"abertos" | "recuperados" | "sozinhos">("abertos");
+  // Relógio de 1s: é o que faz o cronômetro da carência andar na tela.
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   async function carregar(h = horas) {
     setCarregando(true);
@@ -125,6 +131,19 @@ function Recuperar() {
       .then((l) => { setLista(l); setPapel("ok"); })
       .catch(() => {});
   }, []);
+
+  // A fila se atualiza sozinha a cada 45s. Antes só mexia quando ele apertava
+  // "Atualizar" — ou seja, um Pix gerado agora só existia pra ele quando
+  // lembrasse de clicar, e quem pagava continuava na tela como se devesse.
+  useEffect(() => {
+    if (!papel) return;
+    const id = setInterval(() => {
+      listarAbandonados({ data: { horas } })
+        .then(setLista)
+        .catch(() => {});
+    }, 45000);
+    return () => clearInterval(id);
+  }, [papel, horas]);
 
   function copiar(texto: string, id: string) {
     navigator.clipboard.writeText(texto);
@@ -263,6 +282,13 @@ function Recuperar() {
         <div className="space-y-4">
           {visiveis.map((a) => {
             const msgs = mensagens(a);
+            // Cronômetro da carência. Enquanto corre, o cartão já está na tela
+            // (ele vê a fila enchendo) mas os botões de falar ficam travados.
+            const faltaMs = new Date(a.podeFalarEm).getTime() - agora;
+            const esperando = !a.recuperado && !a.jaComprouDepois && faltaMs > 0;
+            const relogio = esperando
+              ? `${Math.floor(faltaMs / 60000)}:${String(Math.floor((faltaMs % 60000) / 1000)).padStart(2, "0")}`
+              : null;
             return (
               <div
                 key={a.pedidoId}
@@ -308,6 +334,16 @@ function Recuperar() {
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
                       <Check className="h-3 w-3" /> já pagou
                     </span>
+                  ) : esperando ? (
+                    /* Pix acabou de nascer. O cartão já aparece — ele precisa
+                       ver a fila em tempo real — mas falar agora é ligar pra
+                       quem está com o app do banco aberto neste segundo. */
+                    <span className="inline-flex flex-col items-end gap-0.5">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold tabular-nums text-amber-800">
+                        <Clock className="h-3 w-3" /> {relogio}
+                      </span>
+                      <span className="text-[11px] text-[var(--tinta-suave)]">dando tempo de pagar</span>
+                    </span>
                   ) : (
                     a.whatsapp && (
                       <a
@@ -322,7 +358,40 @@ function Recuperar() {
                   )}
                 </div>
 
-                {!a.jaComprouDepois && (
+                {/* DESFAZER, e só pra quem ele mesmo liberou. O botão de
+                    liberar é de um clique e o operador é humano: em 12/08 ele
+                    liberou o Edivan sem querer e não tinha como voltar. */}
+                {a.recuperado?.tipo === "liberado" && (
+                  <div className="mt-3 border-t border-[var(--tinta-fraca)]/30 pt-3">
+                    <button
+                      disabled={liberando === a.pedidoId}
+                      onClick={async () => {
+                        if (
+                          !confirm(
+                            `Desfazer a liberação de ${a.email}?\n\n` +
+                              `O pedido volta pra fila, a música sai do painel dela e o link que foi por e-mail para de abrir.\n\n` +
+                              `O e-mail em si já foi enviado e não dá pra chamar de volta.`,
+                          )
+                        )
+                          return;
+                        setLiberando(a.pedidoId);
+                        const r = await reverterAcesso({ data: { pedidoId: a.pedidoId } });
+                        setLiberando(null);
+                        if (r.ok) { alert("Desfeito. O pedido voltou pra aba 'A trabalhar'."); carregar(); }
+                        else alert(`Não deu: ${r.erro}`);
+                      }}
+                      className="rounded-full border border-red-300 px-3 py-1.5 text-xs text-red-700 disabled:opacity-40"
+                    >
+                      {liberando === a.pedidoId ? "desfazendo…" : "liberei sem querer, desfazer"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Enquanto o cronômetro corre, nada de roteiro nem de botão
+                    de liberar: o cartão existe só pra ele VER que a fila
+                    encheu. Ouvir a música continua permitido, que é trabalho
+                    de preparo e não incomoda ninguém. */}
+                {!a.jaComprouDepois && !esperando && (
                   <>
                     {/* O operador OUVE aqui. Nunca manda o arquivo. */}
                     {a.temAudio && (
