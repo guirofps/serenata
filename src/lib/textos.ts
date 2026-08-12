@@ -103,6 +103,22 @@ const PT = {
   // despercebidos em português no funil espanhol.
   ariaOuvir: "Ouvir",
   ariaPausar: "Pausar",
+  // O que a prévia entrega quando corta. Estava CRAVADO em português dentro
+  // do componente, e aparecia assim no funil espanhol.
+  desbloqueieCompleta:
+    "Desbloqueie a música completa + a página presente pra enviar + o MP3 pra guardar.",
+  desbloquearBotao: "Desbloquear minha música",
+  // ── popup do fim da prévia ───────────────────────────────────
+  popupTitulo: "Gostou? Essa música é sua.",
+  popupTexto:
+    "Ela já está gravada inteira, com a letra que você escreveu. Aqui você ouviu só o começo.",
+  popupItens: [
+    "A música completa, nas duas versões",
+    "A página presente com as fotos e o QR Code",
+    "O MP3 pra guardar pra sempre",
+  ],
+  popupCta: "Quero a música completa",
+  popupDepois: "Agora não",
   umaMusicaPra: "uma música pra",
   linkEQr: "link + QR Code pra compartilhar",
   queroCantada: (n: string) => `Quero a música de ${n} cantada`,
@@ -214,6 +230,19 @@ const ES: Textos = {
   ouvirAMusica: "Escuchar la canción",
   ariaOuvir: "Escuchar",
   ariaPausar: "Pausar",
+  desbloqueieCompleta:
+    "Desbloquea la canción completa + la página regalo para enviar + el MP3 para guardar.",
+  desbloquearBotao: "Desbloquear mi canción",
+  popupTitulo: "¿Te gustó? Esta canción es tuya.",
+  popupTexto:
+    "Ya está grabada entera, con la letra que tú escribiste. Aquí escuchaste solo el comienzo.",
+  popupItens: [
+    "La canción completa, en las dos versiones",
+    "La página regalo con las fotos y el código QR",
+    "El MP3 para guardarlo para siempre",
+  ],
+  popupCta: "Quiero la canción completa",
+  popupDepois: "Ahora no",
   umaMusicaPra: "una canción para",
   linkEQr: "link + código QR para compartir",
   queroCantada: (n: string) => `Quiero la canción de ${n} cantada`,

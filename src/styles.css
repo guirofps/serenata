@@ -230,6 +230,13 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* O popup do fim da prévia sobe de baixo no celular (é onde ele ancora) e
+   ganha um leve zoom, pra não parecer um alerta de sistema. */
+@keyframes serenata-sobe {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* ── RIQUEZA VISUAL (o que faz a capa parecer cara e o site não) ──────
    Diagnóstico honesto: os efeitos existiam, mas tímidos, e o fundo do site
    era chapado — só o herói tinha brilho. Aqui a mesma receita da capa do

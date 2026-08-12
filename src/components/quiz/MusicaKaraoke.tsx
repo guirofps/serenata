@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Play, Pause, Lock } from "lucide-react";
+import { Play, Pause, Lock, Music, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { type Locale } from "@/lib/i18n";
@@ -88,6 +88,24 @@ export function MusicaKaraoke({
   const [travou, setTravou] = useState(false);
   const [dur, setDur] = useState(0);
 
+  // POPUP DO FIM DA PRÉVIA.
+  //
+  // O convite de comprar já existia, mas EMBAIXO da letra inteira: no celular
+  // a pessoa ouvia a música cortar e o botão ficava a três telas de rolagem de
+  // distância. Ela some, e o pico emocional some junto.
+  //
+  // O popup sobe sozinho no instante em que a música corta, sem preço (o preço
+  // é a conversa da tela seguinte; aqui a pergunta é só "você quer?").
+  //
+  // Aparece UMA vez por sessão: quem fechou disse não, e insistir a cada play
+  // vira armadilha. O bloco de baixo continua ali pra quem mudar de ideia.
+  const [popup, setPopup] = useState(false);
+  const jaMostrou = useRef(false);
+  function fecharPopup() {
+    trackEvent("popup_previa_fecha", {});
+    setPopup(false);
+  }
+
   const linhas = useMemo(() => montarLinhas(words), [words]);
 
   // Destaque visual: rAF (~60fps; timeupdate dispara ~4x/s e atrasaria o
@@ -133,6 +151,26 @@ export function MusicaKaraoke({
       a.removeEventListener("pause", onPause);
     };
   }, []);
+
+  // Meio segundo depois da música cortar: dá tempo da última palavra assentar
+  // e do "…" aparecer no player. Sem a pausa, o popup pisa no fim da frase.
+  useEffect(() => {
+    if (!travou || jaMostrou.current) return;
+    jaMostrou.current = true;
+    const id = setTimeout(() => {
+      setPopup(true);
+      trackEvent("popup_previa_abre", {});
+    }, 500);
+    return () => clearTimeout(id);
+  }, [travou]);
+
+  // Voltar/ESC fecham o popup em vez de sair da página.
+  useEffect(() => {
+    if (!popup) return;
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && fecharPopup();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [popup]);
 
   // O clique é o gesto que libera o áudio (iOS bloqueia autoplay).
   async function alternar() {
@@ -237,20 +275,67 @@ export function MusicaKaraoke({
         <div className="space-y-3 rounded-2xl border bg-card p-5 text-center">
           <Lock className="mx-auto h-5 w-5 text-muted-foreground" />
           <p className="font-semibold">{T.musicaContinua}</p>
-          <p className="text-sm text-muted-foreground">
-            Desbloqueie a música completa + a página presente pra enviar + o MP3
-            pra guardar.
-          </p>
+          <p className="text-sm text-muted-foreground">{T.desbloqueieCompleta}</p>
           <Button
             size="lg"
             className="w-full"
             onClick={() => {
-              trackEvent("desbloquear_click", {});
+              trackEvent("desbloquear_click", { origem: "inline" });
               onDesbloquear();
             }}
           >
-            Desbloquear minha música
+            {T.desbloquearBotao}
           </Button>
+        </div>
+      )}
+
+      {popup && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-[2px] sm:items-center"
+          onClick={fecharPopup}
+          role="dialog"
+          aria-modal="true"
+          aria-label={T.popupTitulo}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl border bg-card p-6 text-center shadow-2xl"
+            style={{ animation: "serenata-sobe .28s ease-out" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <Music className="h-6 w-6 text-primary" />
+            </div>
+            <p className="font-display text-xl font-semibold">{T.popupTitulo}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{T.popupTexto}</p>
+
+            <ul className="mx-auto mt-4 space-y-2 text-left text-sm">
+              {T.popupItens.map((item) => (
+                <li key={item} className="flex items-start gap-2">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+
+            <Button
+              size="lg"
+              className="mt-5 w-full"
+              onClick={() => {
+                trackEvent("popup_previa_cta", {});
+                setPopup(false);
+                onDesbloquear();
+              }}
+            >
+              {T.popupCta}
+            </Button>
+            <button
+              type="button"
+              onClick={fecharPopup}
+              className="mt-3 w-full text-sm text-muted-foreground underline-offset-4 hover:underline"
+            >
+              {T.popupDepois}
+            </button>
+          </div>
         </div>
       )}
     </div>
