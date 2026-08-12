@@ -1,12 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { listarAbandonados, liberarAcesso, type Abandonado } from "@/lib/recuperacao";
+import { listarAbandonados, liberarAcesso, marcarContato, type Abandonado } from "@/lib/recuperacao";
 import { entrarAdmin } from "@/lib/admin-auth";
 import { TEMA_CLARO, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Play, Pause, Check, Loader2, Copy, Clock } from "lucide-react";
+import { MessageCircle, Play, Pause, Check, Loader2, Copy, Clock, Download } from "lucide-react";
 
 // TELA DE RECUPERAÇÃO DE CARRINHO ABANDONADO.
 //
@@ -88,11 +88,13 @@ function Recuperar() {
   const [tocando, setTocando] = useState<string | null>(null);
   const [copiado, setCopiado] = useState<string | null>(null);
   const [liberando, setLiberando] = useState<string | null>(null);
+  const [horas, setHoras] = useState(72);
+  const [soNaoContatados, setSoNaoContatados] = useState(false);
 
-  async function carregar() {
+  async function carregar(h = horas) {
     setCarregando(true);
     try {
-      setLista(await listarAbandonados({ data: { horas: 72 } }));
+      setLista(await listarAbandonados({ data: { horas: h } }));
     } catch {
       setErro("Sessão expirada. Entre de novo.");
       setPapel(null);
@@ -135,22 +137,60 @@ function Recuperar() {
     );
   }
 
-  const abertos = (lista ?? []).filter((a) => !a.jaComprouDepois);
+  const todosAbertos = (lista ?? []).filter((a) => !a.jaComprouDepois);
+  const abertos = soNaoContatados ? todosAbertos.filter((a) => a.contatos.length === 0) : todosAbertos;
   const resolvidos = (lista ?? []).filter((a) => a.jaComprouDepois);
+  const semContato = todosAbertos.filter((a) => a.contatos.length === 0).length;
 
   return (
     <div className="min-h-screen bg-[var(--papel)] px-4 py-6 text-[var(--tinta)]" style={TEMA_CLARO}>
       <div className="mx-auto max-w-3xl">
-        <header className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-2xl font-semibold">Carrinhos abandonados</h1>
-            <p className="text-sm text-[var(--tinta-suave)]">
-              {abertos.length} pra trabalhar · {resolvidos.length} já pagaram sozinhos · últimas 72h
-            </p>
+        <header className="mb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="font-display text-2xl font-semibold">Carrinhos abandonados</h1>
+              <p className="text-sm text-[var(--tinta-suave)]">
+                {abertos.length} na tela · {semContato} sem contato · {resolvidos.length} já pagaram
+              </p>
+            </div>
+            <Button onClick={() => carregar()} disabled={carregando} className="rounded-full" variant="outline">
+              {carregando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Atualizar"}
+            </Button>
           </div>
-          <Button onClick={carregar} disabled={carregando} className="rounded-full" variant="outline">
-            {carregando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Atualizar"}
-          </Button>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {[
+              [24, "24h"], [72, "3 dias"], [168, "7 dias"], [720, "30 dias"],
+            ].map(([h, rot]) => (
+              <button
+                key={h as number}
+                onClick={() => { setHoras(h as number); carregar(h as number); }}
+                className={
+                  "rounded-full px-3 py-1.5 text-xs transition-colors " +
+                  (horas === h
+                    ? "bg-[var(--acento)] font-semibold text-white"
+                    : "border border-[var(--tinta-fraca)] text-[var(--tinta-suave)]")
+                }
+              >
+                {rot as string}
+              </button>
+            ))}
+            <label className="ml-2 inline-flex cursor-pointer items-center gap-1.5 text-xs text-[var(--tinta-suave)]">
+              <input
+                type="checkbox"
+                checked={soNaoContatados}
+                onChange={(e) => setSoNaoContatados(e.target.checked)}
+                className="h-3.5 w-3.5"
+              />
+              só quem ainda não foi contatado
+            </label>
+          </div>
+
+          {/* A carência não é detalhe: sem ela o operador liga em quem está com
+              o app do banco aberto naquele segundo. */}
+          <p className="mt-2 text-[11px] text-[var(--tinta-suave)]">
+            Só aparece quem gerou o Pix há mais de 30 minutos. Quem pagar depois some da fila sozinho.
+          </p>
         </header>
 
         {lista === null && <p className="text-sm text-[var(--tinta-suave)]">carregando…</p>}
@@ -237,14 +277,67 @@ function Recuperar() {
                         {a.linkPreviaCliente && (
                           <button
                             onClick={() => copiar(a.linkPreviaCliente!, `${a.pedidoId}-link`)}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--acento)]/40 px-3 py-1.5 text-xs text-[var(--acento)]"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--acento)]/40 px-3 py-1.5 text-xs font-semibold text-[var(--acento)]"
                           >
                             <Copy className="h-3 w-3" />
-                            {copiado === `${a.pedidoId}-link` ? "copiado!" : "copiar link da prévia"}
+                            {copiado === `${a.pedidoId}-link` ? "copiado!" : "copiar link da prévia ← use este"}
                           </button>
+                        )}
+                        {/* DOWNLOAD do arquivo inteiro. Existe porque às vezes é
+                            preciso, mas fica de propósito atrás de um aviso: o
+                            MP3 É o produto, e quem recebe não tem mais motivo
+                            pra pagar. O link da prévia acima faz o mesmo
+                            trabalho de convencer sem entregar. */}
+                        {[["1", a.audioV1], ["2", a.audioV2]].map(([rot, url]) =>
+                          url ? (
+                            <a
+                              key={`dl${rot}`}
+                              href={url as string}
+                              download={`${a.titulo ?? "musica"} - v${rot}.mp3`}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--tinta-fraca)] px-3 py-1.5 text-xs text-[var(--tinta-suave)]"
+                              title="Cuidado: o arquivo é o produto. Prefira o link da prévia."
+                            >
+                              <Download className="h-3 w-3" /> baixar v{rot as string}
+                            </a>
+                          ) : null,
                         )}
                       </div>
                     )}
+
+                    {/* MINI CRM: o histórico e o carimbo de contato. */}
+                    <div className="mt-3 rounded-xl bg-[var(--papel-fundo)] p-3">
+                      {a.contatos.length > 0 ? (
+                        <div className="mb-2 space-y-1">
+                          {a.contatos.map((c, i) => (
+                            <p key={i} className="text-[11px] text-[var(--tinta-suave)]">
+                              ✓ {new Date(c.quando).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                              {" · "}{c.canal}
+                              {c.nota && <span className="text-[var(--tinta)]"> — {c.nota}</span>}
+                            </p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mb-2 text-[11px] font-semibold text-amber-700">ainda não foi contatado</p>
+                      )}
+                      <div className="flex gap-2">
+                        <input
+                          id={`nota-${a.pedidoId}`}
+                          placeholder="o que ela respondeu? (ex: paga sexta)"
+                          className="flex-1 rounded-lg border border-[var(--tinta-fraca)] bg-white px-2.5 py-1.5 text-xs outline-none"
+                        />
+                        <button
+                          onClick={async () => {
+                            const el = document.getElementById(`nota-${a.pedidoId}`) as HTMLInputElement | null;
+                            await marcarContato({ data: { pedidoId: a.pedidoId, nota: el?.value || undefined } });
+                            if (el) el.value = "";
+                            carregar();
+                          }}
+                          className="rounded-lg bg-[var(--tinta)] px-3 py-1.5 text-xs font-semibold text-[var(--papel)]"
+                        >
+                          registrar contato
+                        </button>
+                      </div>
+                    </div>
 
                     <details className="mt-3">
                       <summary className="cursor-pointer text-xs text-[var(--tinta-suave)]">

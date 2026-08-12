@@ -37,6 +37,7 @@ export type Abandonado = {
   audioV1: string | null;
   audioV2: string | null;
   jaComprouDepois: boolean;
+  contatos: { quando: string; canal: string; nota: string | null }[];
 };
 
 /** Só dígitos, com 55 na frente: é o formato que o wa.me exige. */
@@ -47,6 +48,18 @@ function paraWhatsapp(tel: string | null): string | null {
   return so.startsWith("55") ? so : `55${so}`;
 }
 
+/**
+ * CARÊNCIA antes de alguém aparecer na fila.
+ *
+ * Sem isso a pessoa entra no instante em que gera o Pix — e o operador liga
+ * cobrando quem está com o aplicativo do banco aberto naquele segundo. É a
+ * forma mais rápida de transformar uma venda em reclamação.
+ *
+ * 30 minutos: tempo de sobra pra quem ia pagar já ter pago, e curto o
+ * bastante pra o Pix ainda estar quente.
+ */
+const CARENCIA_MIN = 30;
+
 export const listarAbandonados = createServerFn({ method: "POST" })
   .validator((data: { horas?: number }) => data)
   .handler(async ({ data }): Promise<Abandonado[]> => {
@@ -56,14 +69,37 @@ export const listarAbandonados = createServerFn({ method: "POST" })
     const db = supabaseAdmin();
     const janelaH = data.horas ?? 72;
     const desde = new Date(Date.now() - janelaH * 3600000).toISOString();
+    const ate = new Date(Date.now() - CARENCIA_MIN * 60000).toISOString();
 
     const { data: pend } = await db
       .from("pedidos")
       .select("id, payment_id, email, telefone, valor_centavos, created_at, quiz_response_id, musica_id")
       .eq("status", "pendente")
       .gte("created_at", desde)
+      .lte("created_at", ate)
       .order("created_at", { ascending: false });
     if (!pend?.length) return [];
+
+    // Histórico de contato — o "mini CRM". Vive em `funnel_events` pela mesma
+    // razão dos outros marcos: evita migration só pra guardar um carimbo, e
+    // deixa o histórico visível junto do resto da jornada da pessoa.
+    const { data: toques } = await db
+      .from("funnel_events")
+      .select("event_data, created_at")
+      .eq("event_name", "recuperacao_contato")
+      .order("created_at", { ascending: true });
+    const porPedido = new Map<string, { quando: string; canal: string; nota: string | null }[]>();
+    for (const t of toques ?? []) {
+      const id = String((t.event_data as Record<string, unknown>)?.pedido ?? "");
+      if (!id) continue;
+      const lista = porPedido.get(id) ?? [];
+      lista.push({
+        quando: t.created_at,
+        canal: String((t.event_data as Record<string, unknown>)?.canal ?? "whatsapp"),
+        nota: ((t.event_data as Record<string, unknown>)?.nota as string) ?? null,
+      });
+      porPedido.set(id, lista);
+    }
 
     // Quem pagou depois continua na lista, mas MARCADO — o operador precisa
     // saber que já resolveu sozinho pra não ligar cobrando quem já pagou.
@@ -139,9 +175,39 @@ export const listarAbandonados = createServerFn({ method: "POST" })
         jaComprouDepois:
           emailPagou.has((p.email ?? "").toLowerCase()) ||
           (p.quiz_response_id ? quizPagou.has(p.quiz_response_id) : false),
+        contatos: porPedido.get(p.id) ?? [],
       });
     }
     return out;
+  });
+
+/**
+ * MARCA QUE FALOU COM A PESSOA.
+ *
+ * O operador vai trabalhar dezenas por dia, em turnos, e talvez não seja o
+ * único. Sem registro, a mesma pessoa recebe a mesma mensagem duas vezes — e
+ * cobrança repetida é o que faz alguém bloquear o número. Bloqueado o número,
+ * acabou a recuperação inteira.
+ *
+ * Guarda QUEM falou, por onde e a nota. A nota é o que transforma a lista em
+ * ferramenta: "disse que paga sexta" vale mais que qualquer automação.
+ */
+export const marcarContato = createServerFn({ method: "POST" })
+  .validator((data: { pedidoId: string; canal?: string; nota?: string }) => data)
+  .handler(async ({ data }): Promise<{ ok: boolean }> => {
+    const { exigirRecuperacao, papelAtual } = await import("@/lib/admin-auth.server");
+    exigirRecuperacao();
+    const db = supabaseAdmin();
+    await db.from("funnel_events").insert({
+      event_name: "recuperacao_contato",
+      event_data: {
+        pedido: data.pedidoId,
+        canal: data.canal ?? "whatsapp",
+        nota: data.nota ?? null,
+        por: papelAtual(),
+      },
+    });
+    return { ok: true };
   });
 
 /**
