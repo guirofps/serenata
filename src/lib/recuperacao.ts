@@ -38,6 +38,10 @@ export type Abandonado = {
   audioV2: string | null;
   jaComprouDepois: boolean;
   contatos: { quando: string; canal: string; nota: string | null }[];
+  // O copia-e-cola e a página do QR, direto do gateway.
+  pixCodigo: string | null;
+  pixUrl: string | null;
+  pixExpirou: boolean;
 };
 
 /** Só dígitos, com 55 na frente: é o formato que o wa.me exige. */
@@ -73,7 +77,9 @@ export const listarAbandonados = createServerFn({ method: "POST" })
 
     const { data: pend } = await db
       .from("pedidos")
-      .select("id, payment_id, email, telefone, valor_centavos, created_at, quiz_response_id, musica_id")
+      .select(
+        "id, payment_id, email, telefone, valor_centavos, created_at, quiz_response_id, musica_id, pix_codigo, pix_url, pix_expira",
+      )
       .eq("status", "pendente")
       .gte("created_at", desde)
       .lte("created_at", ate)
@@ -176,6 +182,15 @@ export const listarAbandonados = createServerFn({ method: "POST" })
           emailPagou.has((p.email ?? "").toLowerCase()) ||
           (p.quiz_response_id ? quizPagou.has(p.quiz_response_id) : false),
         contatos: porPedido.get(p.id) ?? [],
+        pixCodigo: (p as { pix_codigo?: string | null }).pix_codigo ?? null,
+        pixUrl: (p as { pix_url?: string | null }).pix_url ?? null,
+        // Código vencido não adianta mandar: a pessoa cola no banco e recebe
+        // erro, o que é pior que não mandar nada. A tela avisa e cai pro link
+        // da prévia, que gera cobrança nova.
+        pixExpirou: (() => {
+          const e = (p as { pix_expira?: string | null }).pix_expira;
+          return e ? new Date(e).getTime() < Date.now() : false;
+        })(),
       });
     }
     return out;

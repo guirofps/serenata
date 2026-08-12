@@ -266,6 +266,15 @@ export default async function handler(req: Req, res: Res) {
               // ele que a recuperação acontece. Fica no PEDIDO e não no lead
               // porque quem paga nem sempre é quem fez o quiz.
               telefone,
+              // O COPIA-E-COLA. Vem como `billet_number` — nome de boleto, e
+              // foi por isso que eu não o encontrei procurando por "pix".
+              // Com ele o operador manda o código no WhatsApp e a pessoa paga
+              // em 15 segundos; sem ele, só dá pra devolvê-la ao checkout pra
+              // refazer tudo. `billet_expiration` mostra até quando vale — na
+              // prática 3 dias, não os minutos que eu supunha.
+              pix_codigo: (body as Record<string, unknown>).billet_number ?? null,
+              pix_url: (body as Record<string, unknown>).billet_url ?? null,
+              pix_expira: (body as Record<string, unknown>).billet_expiration ?? null,
               valor_centavos: Number.isFinite(reais) ? Math.round(reais * 100) : null,
               quiz_response_id: quizP?.id ?? null,
             },

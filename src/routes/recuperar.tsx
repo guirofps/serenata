@@ -46,6 +46,7 @@ function mensagens(a: Abandonado): { rotulo: string; texto: string }[] {
   const rel = a.relacao ? RELACAO[a.relacao] ?? "" : "";
   const de = rel ? ` pra ${rel}` : "";
   const link = a.linkPreviaCliente ?? "";
+  const pix = !a.pixExpirou && a.pixCodigo ? a.pixCodigo : null;
   return [
     {
       rotulo: "1 · primeiro contato (até 2h)",
@@ -55,6 +56,21 @@ function mensagens(a: Abandonado): { rotulo: string; texto: string }[] {
         `Só pra você saber: a música JÁ ESTÁ GRAVADA, com a letra que você mesmo escreveu. Está aqui esperando.\n\n` +
         `Quer ouvir um pedaço antes de decidir? ${link}`,
     },
+    // Só existe quando o código ainda vale. Mandar copia-e-cola vencido é pior
+    // que não mandar: a pessoa cola no banco, dá erro, e a conversa morre ali.
+    ...(pix
+      ? [
+          {
+            rotulo: "★ com o código Pix (o que mais converte)",
+            texto:
+              `Oi! Aqui é da Serenata 🎵\n\n` +
+              `A música de ${quem} já está gravada e é sua — só o Pix que não caiu.\n\n` +
+              `Pra facilitar, aqui está o código copia e cola (é só colar no seu banco):\n\n` +
+              `${pix}\n\n` +
+              `Assim que cair, mando tudo na hora. Qualquer dúvida é só chamar!`,
+          },
+        ]
+      : []),
     {
       rotulo: "2 · se não respondeu (12 a 24h)",
       texto:
@@ -302,6 +318,36 @@ function Recuperar() {
                           ) : null,
                         )}
                       </div>
+                    )}
+
+                    {/* O CÓDIGO PIX. É o botão mais valioso da tela: com ele a
+                        pessoa paga no banco em 15 segundos, sem voltar ao
+                        site. Vem do gateway e vale 3 dias. */}
+                    {a.pixCodigo && !a.pixExpirou && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          onClick={() => copiar(a.pixCodigo!, `${a.pedidoId}-pix`)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-[var(--tinta)] px-4 py-2 text-xs font-semibold text-[var(--papel)]"
+                        >
+                          <Copy className="h-3 w-3" />
+                          {copiado === `${a.pedidoId}-pix` ? "código copiado!" : "copiar código Pix"}
+                        </button>
+                        {a.pixUrl && (
+                          <a
+                            href={a.pixUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--tinta-fraca)] px-3 py-2 text-xs text-[var(--tinta-suave)]"
+                          >
+                            ver QR Code
+                          </a>
+                        )}
+                      </div>
+                    )}
+                    {a.pixCodigo && a.pixExpirou && (
+                      <p className="mt-3 text-[11px] text-amber-700">
+                        O código Pix venceu. Mande o link da prévia — ela gera uma cobrança nova.
+                      </p>
                     )}
 
                     {/* MINI CRM: o histórico e o carimbo de contato. */}
