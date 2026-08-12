@@ -37,6 +37,7 @@ import { mascaraTelefone, telefoneValido, paraE164, exemploTelefone } from "@/li
 export function AvisarWhatsApp({ locale = "pt" }: { locale?: Locale }) {
   const T = t(locale);
   const respostas = useQuizStore((s) => s.respostas);
+  const guardarWhatsapp = useQuizStore((s) => s.setWhatsapp);
   const [valor, setValor] = useState("");
   const [estado, setEstado] = useState<"aberto" | "salvo" | "dispensado">("aberto");
   const [erro, setErro] = useState(false);
@@ -69,6 +70,8 @@ export function AvisarWhatsApp({ locale = "pt" }: { locale?: Locale }) {
       whatsapp: paraE164(valor, locale),
       whatsappOrigem: "espera",
     });
+    // Guarda também na store: é o que pré-preenche o telefone no checkout.
+    guardarWhatsapp(paraE164(valor, locale));
     trackEvent("whatsapp_deixado", { origem: "espera" });
     setSalvando(false);
     setEstado("salvo");

@@ -175,6 +175,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   const [semMusica, setSemMusica] = useState(false);
   const respostas = useQuizStore((s) => s.respostas);
   const email = useQuizStore((s) => s.email);
+  const whatsapp = useQuizStore((s) => s.whatsapp);
   const letraFinal = useQuizStore((s) => s.letraFinal);
   const [indo, setIndo] = useState(false);
   const [aberta, setAberta] = useState<number | null>(null);
@@ -218,7 +219,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       // Consulta indisponível: segue. Ver comentário acima.
     }
     trackEvent("checkout_click", { valor: preco.valor, locale });
-    irParaCheckout({ email: email || undefined, locale });
+    irParaCheckout({ email: email || undefined, telefone: whatsapp || undefined, locale });
   }
 
   return (

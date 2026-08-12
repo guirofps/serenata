@@ -1,4 +1,4 @@
-import { create } from "zustand";
+﻿import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 // Store das respostas do quiz, persistida em localStorage. Sobrevive a reload
@@ -27,9 +27,18 @@ export type LetraFinal = {
 type QuizState = {
   respostas: Record<string, string | string[]>;
   email: string | null;
+  /**
+   * O WhatsApp DO COMPRADOR, quando ela deixa na tela de espera. Fica aqui
+   * (e não só no banco) por um motivo de conversão: o checkout da Perfect Pay
+   * aceita `phone` na URL e pré-preenche o campo. Medido em 7 dias: 223
+   * sessões clicaram em comprar e só 86 chegaram a gerar pedido — 137 se
+   * perderam DENTRO do formulário do gateway. Cada campo a menos conta.
+   */
+  whatsapp: string | null;
   letraFinal: LetraFinal | null;
   setResposta: (field: string, value: string | string[]) => void;
   setEmail: (email: string) => void;
+  setWhatsapp: (w: string) => void;
   setLetraFinal: (l: LetraFinal) => void;
   reset: () => void;
 };
@@ -39,6 +48,7 @@ export const useQuizStore = create<QuizState>()(
     (set) => ({
       respostas: {},
       email: null,
+      whatsapp: null,
       letraFinal: null,
       // RESPONDER UMA PERGUNTA INVALIDA A LETRA ANTERIOR.
       //
@@ -70,8 +80,9 @@ export const useQuizStore = create<QuizState>()(
           letraFinal: null,
         })),
       setEmail: (email) => set({ email }),
+      setWhatsapp: (whatsapp) => set({ whatsapp }),
       setLetraFinal: (letraFinal) => set({ letraFinal }),
-      reset: () => set({ respostas: {}, email: null, letraFinal: null }),
+      reset: () => set({ respostas: {}, email: null, whatsapp: null, letraFinal: null }),
     }),
     { name: "mp_quiz" },
   ),

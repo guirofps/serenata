@@ -1,4 +1,4 @@
-import { getOrCreateSessionId } from "@/lib/session-context";
+﻿import { getOrCreateSessionId } from "@/lib/session-context";
 import { type Locale, LOCALE_PADRAO } from "@/lib/i18n";
 
 // Ida pro CHECKOUT (Perfect Pay).
@@ -52,7 +52,7 @@ function leJson(chave: string): Record<string, unknown> | null {
 }
 
 /** Monta a URL do checkout com sessão e UTMs. */
-export function urlCheckout(extra?: { email?: string; locale?: Locale }): string {
+export function urlCheckout(extra?: { email?: string; telefone?: string; locale?: Locale }): string {
   const p = new URLSearchParams();
 
   // A ponte com o webhook.
@@ -80,6 +80,13 @@ export function urlCheckout(extra?: { email?: string; locale?: Locale }): string
   // digitar o dela.
   if (extra?.email) p.set("email", extra.email);
 
+  // O TELEFONE, quando ela deixou na tela de espera, é DELA (não do
+  // homenageado) — foi digitado pra receber o aviso da música. Conferido
+  // abrindo o checkout de verdade: `?phone=` cai no campo Telefone já
+  // formatado. É um campo a menos num formulário onde a gente perde muita
+  // gente: em 7 dias, 223 sessões clicaram em comprar e só 86 geraram pedido.
+  if (extra?.telefone) p.set("phone", extra.telefone);
+
   if (typeof window !== "undefined") {
     const daUrl: Record<string, string> = {};
     new URLSearchParams(window.location.search).forEach((v, k) => (daUrl[k] = v));
@@ -103,6 +110,6 @@ export function urlCheckout(extra?: { email?: string; locale?: Locale }): string
 }
 
 /** Leva pro checkout. */
-export function irParaCheckout(extra?: { email?: string; locale?: Locale }) {
+export function irParaCheckout(extra?: { email?: string; telefone?: string; locale?: Locale }) {
   window.location.href = urlCheckout(extra);
 }
