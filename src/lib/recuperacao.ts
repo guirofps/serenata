@@ -160,6 +160,15 @@ export const listarAbandonados = createServerFn({ method: "POST" })
       .select("event_data, created_at")
       .eq("event_name", "acesso_liberado_na_mao")
       .order("created_at", { ascending: true });
+    // O DESFAZER também é um evento, e ele tem que apagar o anterior do placar.
+    // Sem isto o pedido revertido continuava contando como recuperado (e como
+    // R$ 37 no cabeçalho), porque a liberação original nunca sai do histórico.
+    const { data: revertidos } = await db
+      .from("funnel_events")
+      .select("event_data, created_at")
+      .eq("event_name", "acesso_revertido")
+      .order("created_at", { ascending: true });
+
     const liberadoPor = new Map<string, { quando: string; por: string | null }>();
     for (const l of liberacoes ?? []) {
       const id = String((l.event_data as Record<string, unknown>)?.pedido ?? "");
@@ -167,6 +176,13 @@ export const listarAbandonados = createServerFn({ method: "POST" })
         quando: l.created_at,
         por: ((l.event_data as Record<string, unknown>)?.por as string) ?? null,
       });
+    }
+    // Ordem importa: liberar → desfazer → liberar de novo tem que terminar
+    // valendo. Por isso a comparação é por DATA, não um simples delete.
+    for (const r of revertidos ?? []) {
+      const id = String((r.event_data as Record<string, unknown>)?.pedido ?? "");
+      const lib = id ? liberadoPor.get(id) : null;
+      if (lib && r.created_at > lib.quando) liberadoPor.delete(id);
     }
 
     const out: Abandonado[] = [];
