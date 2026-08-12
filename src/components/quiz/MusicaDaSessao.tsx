@@ -7,6 +7,7 @@ import { KaraokePlayer } from "@/components/quiz/KaraokePlayer";
 import { ProgressoGeracao } from "@/components/quiz/ProgressoGeracao";
 import { OuvirEnquantoEspera } from "@/components/quiz/OuvirEnquantoEspera";
 import { VideoEntrega } from "@/components/quiz/VideoEntrega";
+import { AvisarWhatsApp } from "@/components/quiz/AvisarWhatsApp";
 import { trackEventOnce } from "@/lib/track";
 import { Music } from "lucide-react";
 import { type Locale, caminho } from "@/lib/i18n";
@@ -166,6 +167,10 @@ export function MusicaDaSessao({
   return (
     <div className="space-y-5">
       <ProgressoGeracao pronta={pronta} locale={locale} />
+      {/* Logo abaixo da barra, e só ENQUANTO grava: é o único momento do
+          funil em que deixar o telefone é vantagem pra ela (não ficar
+          olhando a barra) em vez de pedágio. Some quando a música chega. */}
+      {!pronta && <AvisarWhatsApp locale={locale} />}
       {/* Entre a barra e as músicas de propósito: enquanto espera, a pessoa
           vê o ENTREGÁVEL (o que ela vai enviar) antes de se distrair ouvindo
           exemplo dos outros. */}

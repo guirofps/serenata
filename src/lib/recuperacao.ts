@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+﻿import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 // A FILA DE CARRINHO ABANDONADO, e o botão que libera o acesso.
@@ -44,12 +44,22 @@ export type Abandonado = {
   pixExpirou: boolean;
 };
 
-/** Só dígitos, com 55 na frente: é o formato que o wa.me exige. */
-function paraWhatsapp(tel: string | null): string | null {
+/**
+ * Só dígitos, com o DDI na frente: é o formato que o wa.me exige.
+ *
+ * O DDI sai do IDIOMA do funil. Estava cravado em 55, o que transformava todo
+ * telefone mexicano num número brasileiro inexistente — o funil espanhol está
+ * no ar desde 07/08 e a lista de recuperação dele nunca funcionou por isso.
+ */
+function paraWhatsapp(tel: string | null, locale: "pt" | "es"): string | null {
   if (!tel) return null;
   const so = tel.replace(/\D/g, "");
   if (so.length < 10) return null;
-  return so.startsWith("55") ? so : `55${so}`;
+  const ddi = locale === "es" ? "52" : "55";
+  if (so.startsWith(ddi)) return so;
+  // "521..." é a discagem internacional antiga do México; o WhatsApp usa 52.
+  if (locale === "es" && so.startsWith("521")) return "52" + so.slice(3);
+  return ddi + so;
 }
 
 /**
@@ -167,7 +177,7 @@ export const listarAbandonados = createServerFn({ method: "POST" })
           : null,
         email: p.email,
         telefone: p.telefone,
-        whatsapp: paraWhatsapp(p.telefone),
+        whatsapp: paraWhatsapp(p.telefone, quiz?.locale === "es" ? "es" : "pt"),
         horasAtras: Math.round(((Date.now() - new Date(p.created_at).getTime()) / 3600000) * 10) / 10,
         criadoEm: p.created_at,
         valorCentavos: p.valor_centavos,

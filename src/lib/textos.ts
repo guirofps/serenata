@@ -119,6 +119,19 @@ const PT = {
   ],
   popupCta: "Quero a música completa",
   popupDepois: "Agora não",
+  // ── aviso no WhatsApp (na espera, enquanto a música grava) ───
+  // A promessa é AVISAR, nada além disso. Nada de "receba o presente pelo
+  // WhatsApp": quem monta a página com as fotos é o comprador, dentro da
+  // plataforma, e prometer entrega pronta aqui criaria um trabalho que a
+  // gente não faz.
+  zapTitulo: "Quer que eu te avise quando ficar pronta?",
+  zapTexto:
+    "A gravação leva uns 2 minutos. Se você sair da página, eu te mando um toque no WhatsApp assim que ela estiver aqui.",
+  zapCampo: "Seu WhatsApp (opcional)",
+  zapBotao: "Pode me avisar",
+  zapDispensar: "Não precisa, eu espero aqui",
+  zapInvalido: "Confere o número, parece faltar um dígito.",
+  zapPronto: "Combinado! Te aviso assim que ficar pronta.",
   umaMusicaPra: "uma música pra",
   linkEQr: "link + QR Code pra compartilhar",
   queroCantada: (n: string) => `Quero a música de ${n} cantada`,
@@ -243,6 +256,14 @@ const ES: Textos = {
   ],
   popupCta: "Quiero la canción completa",
   popupDepois: "Ahora no",
+  zapTitulo: "¿Quieres que te avise cuando esté lista?",
+  zapTexto:
+    "La grabación tarda unos 2 minutos. Si sales de la página, te mando un mensaje por WhatsApp en cuanto esté aquí.",
+  zapCampo: "Tu WhatsApp (opcional)",
+  zapBotao: "Sí, avísame",
+  zapDispensar: "No hace falta, aquí espero",
+  zapInvalido: "Revisa el número, parece que falta un dígito.",
+  zapPronto: "¡Listo! Te aviso en cuanto esté.",
   umaMusicaPra: "una canción para",
   linkEQr: "link + código QR para compartir",
   queroCantada: (n: string) => `Quiero la canción de ${n} cantada`,
