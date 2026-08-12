@@ -241,7 +241,11 @@ function Recuperar() {
           {/* A carência não é detalhe: sem ela o operador liga em quem está com
               o app do banco aberto naquele segundo. */}
           <p className="mt-2 text-[11px] text-[var(--tinta-suave)]">
-            Só aparece quem gerou o Pix há mais de 30 minutos. Quem pagar depois some da fila sozinho.
+            {aba === "abertos"
+              ? "Só aparece quem gerou o Pix há mais de 30 minutos. Quem pagar depois muda de aba sozinho."
+              : aba === "recuperados"
+                ? "Quem você liberou no botão, ou pagou depois de um contato seu. É o seu placar."
+                : "Pagaram sozinhos, sem contato registrado. Não conta como recuperação."}
           </p>
         </header>
 
