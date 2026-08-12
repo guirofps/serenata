@@ -111,8 +111,23 @@ export const gerarMusica = inngest.createFunction(
     });
 
     // ─── 2 e 3. Dispara e acompanha, com fallback de estilo ────────
-    // Duas tentativas: a segunda com o estilo limpo de referências a
-    // artista, que é a causa conhecida de recusa do provedor.
+    //
+    // TRÊS tentativas, e a terceira nasceu de um incidente medido em 12/08:
+    // entre 21:37 e 22:21, 5 músicas morreram com "provedor recusou" enquanto
+    // 8 outras passavam no mesmo intervalo, com estilos igualmente banais
+    // ("MPB intimista, voz feminina suave, violão fingerpicking"). Ou seja: a
+    // recusa do provedor NÃO é sempre sobre o conteúdo, às vezes é soluço dele.
+    //
+    // E o fallback antigo não protegia disso. Ele só trocava o estilo quando
+    // havia referência a artista pra limpar; quando não havia, o estilo limpo
+    // saía idêntico ao original e o loop dava `break` — as 5 músicas tiveram
+    // UMA tentativa só, não duas. Reenfileiradas à mão minutos depois, todas
+    // geraram normalmente.
+    //
+    // Agora: estilo original → estilo limpo (se for diferente) → respiro de
+    // 60s e o original de novo. Cada tentativa custa R$ 0,32, e o CLAUDE.md já
+    // decidiu que gerar antes de vender é o melhor dinheiro do funil; perder o
+    // cliente por um soluço de rede é o pior.
     type Faixa = { id: string; audioUrl: string; duration?: number };
     let faixas: Faixa[] = [];
     let taskId = "";
@@ -121,11 +136,17 @@ export const gerarMusica = inngest.createFunction(
     const estilos = [
       { rotulo: "original", valor: musica.estilo_suno ?? musica.genero ?? "" },
       { rotulo: "sem-referencias", valor: estiloSemReferencias(musica.estilo_suno, musica.genero) },
+      { rotulo: "segunda-chance", valor: musica.estilo_suno ?? musica.genero ?? "" },
     ];
 
     for (const [n, estilo] of estilos.entries()) {
-      // Se o primeiro estilo já era genérico, não gasta crédito repetindo.
-      if (n > 0 && (!recusou || estilo.valor === estilos[0].valor)) break;
+      // Timeout (não recusa) é outro problema: insistir só queima crédito.
+      if (n > 0 && !recusou) break;
+      // Estilo limpo idêntico ao original: pula essa tentativa, mas NÃO
+      // desiste. Era exatamente aqui que a geração morria na primeira recusa.
+      if (n === 1 && estilo.valor === estilos[0].valor) continue;
+      // Respiro antes da última: se foi soluço do provedor, um minuto resolve.
+      if (n === 2) await step.sleep("respiro-provedor", "60s");
 
       taskId = await step.run(`iniciar-${estilo.rotulo}`, async () => {
         const id = await iniciarGeracao({
@@ -174,6 +195,38 @@ export const gerarMusica = inngest.createFunction(
           })
           .eq("id", musicaId);
       });
+
+      // AVISA O DONO. Até 12/08 a falha era MUDA: a pessoa via na tela
+      // "avisamos no seu e-mail" e nenhum e-mail existia (o
+      // `emails/desculpa-atraso.ts` só é disparado por um script rodado à
+      // mão). Cinco falharam numa noite e ninguém soube até alguém ir olhar
+      // o banco. Depois de três tentativas, quem tem que ser acordado somos
+      // nós, não o cliente.
+      await step.run("avisar-dono", async () => {
+        try {
+          const chave = process.env.RESEND_API_KEY;
+          // Mesma caixa que já recebe o alerta de saldo do kie.ai: é a que
+          // chega em quem pode agir, e não se perde no meio dos tickets.
+          const dono = "guilhermerojasiqueira@gmail.com";
+          if (!chave) return;
+          const { Resend } = await import("resend");
+          const motivo = recusou ? "provedor recusou 3x" : "timeout no provedor";
+          await new Resend(chave).emails.send({
+            from: "Serenata <contato@serenatagift.com>",
+            to: [dono],
+            subject: `⚠️ música não gerou (${motivo})`,
+            html:
+              `<p>A música <strong>${musica.titulo ?? "sem título"}</strong> não ficou pronta.</p>` +
+              `<p>Motivo: ${motivo}<br>Gênero: ${musica.genero ?? "-"}<br>id: ${musicaId}</p>` +
+              `<p>A pessoa está vendo "a gravação demorou mais que o esperado" na tela. ` +
+              `Pra refazer, reenfileire o evento <code>musica/gerar</code> com esse id.</p>`,
+          });
+        } catch (err) {
+          // Aviso nunca derruba o job.
+          console.error("[musica] aviso ao dono falhou:", err);
+        }
+      });
+
       throw new Error(recusou ? "provedor recusou" : "timeout esperando a música");
     }
 
