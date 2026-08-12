@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+﻿import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { QUIZ_FLOW } from "@/lib/quiz-flow";
 import { isQuestion } from "@/lib/flow-engine";
@@ -239,6 +239,8 @@ type Pedido = {
   email: string | null;
   paid_at: string | null;
   created_at: string;
+  /** Só em liberação manual: se entrou grana mesmo. null na venda do gateway. */
+  dinheiro_entrou?: boolean | null;
 };
 
 const PAGINA = 1000;
@@ -313,7 +315,7 @@ export const carregarPainel = createServerFn({ method: "POST" })
       janela<Evento>("funnel_events", "id, event_name, session_id, event_data, created_at"),
       janela<Pedido>(
         "pedidos",
-        "id, quiz_response_id, musica_id, gateway, status, valor_centavos, email, paid_at, created_at",
+        "id, quiz_response_id, musica_id, gateway, status, valor_centavos, email, paid_at, created_at, dinheiro_entrou",
       ),
     ]);
 
@@ -392,7 +394,15 @@ export const carregarPainel = createServerFn({ method: "POST" })
     );
     const visitantes = sessoesComView.size;
 
-    const pagos = pedidosF.filter((p) => p.status === "pago");
+    // Liberação manual sem dinheiro (cortesia, acesso interno, teste) NÃO é
+    // venda. O pedido precisa ficar `pago` pra música chegar no cliente, mas
+    // contar isso como faturamento infla o painel: em 12/08 foram R$ 111 de
+    // receita que nunca entraram em conta nenhuma. `dinheiro_entrou` é null
+    // na venda normal do gateway, e só é `false` quando alguém disse que foi
+    // cortesia — por isso a comparação é explícita contra `false`.
+    const pagos = pedidosF.filter(
+      (p) => p.status === "pago" && p.dinheiro_entrou !== false,
+    );
     // Cobrança gerada e não paga: o Pix que a pessoa mandou criar e abandonou.
     // Passou a existir em 10/08, quando o webhook parou de descartar o aviso de
     // "aguardando pagamento" — antes disso esta lista é vazia por falta de

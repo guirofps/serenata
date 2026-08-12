@@ -37,6 +37,17 @@ export type Abandonado = {
   audioV1: string | null;
   audioV2: string | null;
   jaComprouDepois: boolean;
+  /**
+   * O que aconteceu com este pedido depois. Existe porque, até 12/08, o
+   * pedido SUMIA da tela no instante em que o operador liberava o acesso: ele
+   * clicava, a linha desaparecia, e no dia seguinte não sabia dizer quem tinha
+   * conseguido recuperar. Liberou dois e perguntou se tinha liberado.
+   *
+   * `liberado` = ele apertou o botão. `pagou` = a pessoa pagou depois de um
+   * contato registrado. Sem contato registrado não é recuperação, é venda que
+   * ia acontecer de qualquer jeito, e misturar as duas mentiria o placar dele.
+   */
+  recuperado: { tipo: "liberado" | "pagou"; quando: string; por: string | null } | null;
   contatos: { quando: string; canal: string; nota: string | null }[];
   // O copia-e-cola e a página do QR, direto do gateway.
   pixCodigo: string | null;
@@ -88,11 +99,14 @@ export const listarAbandonados = createServerFn({ method: "POST" })
     const { data: pend } = await db
       .from("pedidos")
       .select(
-        "id, payment_id, email, telefone, nome_pagador, valor_centavos, created_at, quiz_response_id, musica_id, pix_codigo, pix_url, pix_expira",
+        "id, payment_id, email, telefone, nome_pagador, valor_centavos, created_at, quiz_response_id, musica_id, pix_codigo, pix_url, pix_expira, status, gateway, paid_at",
       )
-      .eq("status", "pendente")
+      // Pagos entram junto: são os RECUPERADOS, que precisam continuar
+      // visíveis numa aba própria em vez de sumir da tela ao serem liberados.
+      // A carência (`ate`) só vale pra quem ainda está aberto — recuperado
+      // recente é justamente o que ele quer ver.
+      .in("status", ["pendente", "pago"])
       .gte("created_at", desde)
-      .lte("created_at", ate)
       .order("created_at", { ascending: false });
     if (!pend?.length) return [];
 
@@ -126,8 +140,45 @@ export const listarAbandonados = createServerFn({ method: "POST" })
     const emailPagou = new Set((pagos ?? []).map((p) => (p.email ?? "").toLowerCase()).filter(Boolean));
     const quizPagou = new Set((pagos ?? []).map((p) => p.quiz_response_id).filter(Boolean));
 
+    // Quem liberou o quê, pelo botão do painel. É o que devolve o placar ao
+    // operador: sem isto ele aperta o botão, a linha some, e no dia seguinte
+    // ele não sabe dizer se liberou ou não (aconteceu em 12/08, duas vezes).
+    const { data: liberacoes } = await db
+      .from("funnel_events")
+      .select("event_data, created_at")
+      .eq("event_name", "acesso_liberado_na_mao")
+      .order("created_at", { ascending: true });
+    const liberadoPor = new Map<string, { quando: string; por: string | null }>();
+    for (const l of liberacoes ?? []) {
+      const id = String((l.event_data as Record<string, unknown>)?.pedido ?? "");
+      if (id) liberadoPor.set(id, {
+        quando: l.created_at,
+        por: ((l.event_data as Record<string, unknown>)?.por as string) ?? null,
+      });
+    }
+
     const out: Abandonado[] = [];
     for (const p of pend) {
+      const contatos = porPedido.get(p.id) ?? [];
+      const liberado = liberadoPor.get(p.id) ?? null;
+
+      // O QUE ENTRA NA TELA:
+      //   pendente  → só depois da carência (não ligar pra quem está com o
+      //               aplicativo do banco aberto neste segundo);
+      //   pago      → só se foi recuperação de verdade, ou seja, o operador
+      //               liberou no botão OU a pessoa pagou depois de um contato
+      //               registrado. Venda normal do dia não é assunto dele, e
+      //               inflaria o placar com 16 linhas que ele não trabalhou.
+      const ehRecuperado = p.status === "pago" && (Boolean(liberado) || contatos.length > 0);
+      if (p.status === "pendente" && p.created_at > ate) continue;
+      if (p.status === "pago" && !ehRecuperado) continue;
+
+      const recuperado: Abandonado["recuperado"] = liberado
+        ? { tipo: "liberado", quando: liberado.quando, por: liberado.por }
+        : ehRecuperado
+          ? { tipo: "pagou", quando: p.paid_at ?? p.created_at, por: null }
+          : null;
+
       type QuizLinha = {
         respostas: Record<string, string> | null;
         locale: string | null;
@@ -198,9 +249,11 @@ export const listarAbandonados = createServerFn({ method: "POST" })
         audioV1: await assinar(m?.audio_path ?? null),
         audioV2: await assinar(m?.audio_path_v2 ?? null),
         jaComprouDepois:
+          p.status === "pago" ||
           emailPagou.has((p.email ?? "").toLowerCase()) ||
           (p.quiz_response_id ? quizPagou.has(p.quiz_response_id) : false),
-        contatos: porPedido.get(p.id) ?? [],
+        recuperado,
+        contatos,
         pixCodigo: (p as { pix_codigo?: string | null }).pix_codigo ?? null,
         pixUrl: (p as { pix_url?: string | null }).pix_url ?? null,
         // Código vencido não adianta mandar: a pessoa cola no banco e recebe
@@ -256,7 +309,10 @@ export const marcarContato = createServerFn({ method: "POST" })
  * bater com o extrato deles, e conciliação quebrada é dívida que só cresce.
  */
 export const liberarAcesso = createServerFn({ method: "POST" })
-  .validator((data: { pedidoId: string; motivo?: string }) => data)
+  // `pagou` NÃO tem default de propósito. Liberar acesso e registrar venda
+  // são decisões diferentes, e deixar uma delas implícita foi o que fez o
+  // painel contar R$ 111 que nunca entraram (medido em 12/08).
+  .validator((data: { pedidoId: string; motivo?: string; pagou: boolean }) => data)
   .handler(async ({ data }): Promise<{ ok: boolean; erro?: string; links?: { editor: string; presente: string } }> => {
     const { exigirRecuperacao, papelAtual } = await import("@/lib/admin-auth.server");
     exigirRecuperacao();
@@ -300,7 +356,10 @@ export const liberarAcesso = createServerFn({ method: "POST" })
       .update({
         status: "pago",
         gateway: "manual",
-        status_gateway: `liberado na mão por ${quem}${data.motivo ? ` — ${data.motivo}` : ""}`,
+        dinheiro_entrou: data.pagou,
+        status_gateway:
+          `liberado na mão por ${quem} — ${data.pagou ? "PAGOU por fora" : "CORTESIA, sem pagamento"}` +
+          (data.motivo ? ` — ${data.motivo}` : ""),
         musica_id: m.id,
         paid_at: new Date().toISOString(),
       })

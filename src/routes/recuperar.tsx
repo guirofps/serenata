@@ -106,6 +106,7 @@ function Recuperar() {
   const [liberando, setLiberando] = useState<string | null>(null);
   const [horas, setHoras] = useState(72);
   const [soNaoContatados, setSoNaoContatados] = useState(false);
+  const [aba, setAba] = useState<"abertos" | "recuperados" | "sozinhos">("abertos");
 
   async function carregar(h = horas) {
     setCarregando(true);
@@ -153,10 +154,16 @@ function Recuperar() {
     );
   }
 
+  // TRÊS ABAS, e a do meio nasceu de uma queixa concreta: ao liberar o acesso,
+  // a linha sumia da tela. O operador liberou dois pedidos em 12/08 e no dia
+  // seguinte não sabia dizer se tinha liberado. Placar que some não é placar.
   const todosAbertos = (lista ?? []).filter((a) => !a.jaComprouDepois);
   const abertos = soNaoContatados ? todosAbertos.filter((a) => a.contatos.length === 0) : todosAbertos;
-  const resolvidos = (lista ?? []).filter((a) => a.jaComprouDepois);
+  const recuperados = (lista ?? []).filter((a) => a.recuperado);
+  const resolvidos = (lista ?? []).filter((a) => a.jaComprouDepois && !a.recuperado);
   const semContato = todosAbertos.filter((a) => a.contatos.length === 0).length;
+  const visiveis = aba === "abertos" ? abertos : aba === "recuperados" ? recuperados : resolvidos;
+  const ganhoCentavos = recuperados.reduce((s, a) => s + (a.valorCentavos ?? 0), 0);
 
   return (
     <div className="min-h-screen bg-[var(--papel)] px-4 py-6 text-[var(--tinta)]" style={TEMA_CLARO}>
@@ -164,14 +171,41 @@ function Recuperar() {
         <header className="mb-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="font-display text-2xl font-semibold">Carrinhos abandonados</h1>
+              <h1 className="font-display text-2xl font-semibold">Recuperação</h1>
               <p className="text-sm text-[var(--tinta-suave)]">
-                {abertos.length} na tela · {semContato} sem contato · {resolvidos.length} já pagaram
+                {semContato} ainda sem contato
+                {recuperados.length > 0 && (
+                  <>
+                    {" · "}
+                    <strong className="text-emerald-700">
+                      R$ {(ganhoCentavos / 100).toFixed(2).replace(".", ",")} recuperados
+                    </strong>
+                  </>
+                )}
               </p>
             </div>
             <Button onClick={() => carregar()} disabled={carregando} className="rounded-full" variant="outline">
               {carregando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Atualizar"}
             </Button>
+          </div>
+
+          <div className="mt-3 grid grid-cols-3 gap-1 rounded-full bg-[var(--tinta-fraca)]/20 p-1">
+            {([
+              ["abertos", "A trabalhar", abertos.length],
+              ["recuperados", "Recuperados", recuperados.length],
+              ["sozinhos", "Pagaram sós", resolvidos.length],
+            ] as const).map(([id, rotulo, n]) => (
+              <button
+                key={id}
+                onClick={() => setAba(id)}
+                className={
+                  "rounded-full px-2 py-2 text-xs font-medium transition-colors " +
+                  (aba === id ? "bg-white shadow-sm" : "text-[var(--tinta-suave)]")
+                }
+              >
+                {rotulo} <span className="tabular-nums opacity-70">({n})</span>
+              </button>
+            ))}
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -191,6 +225,7 @@ function Recuperar() {
                 {rot as string}
               </button>
             ))}
+            {aba === "abertos" && (
             <label className="ml-2 inline-flex cursor-pointer items-center gap-1.5 text-xs text-[var(--tinta-suave)]">
               <input
                 type="checkbox"
@@ -200,6 +235,7 @@ function Recuperar() {
               />
               só quem ainda não foi contatado
             </label>
+            )}
           </div>
 
           {/* A carência não é detalhe: sem ela o operador liga em quem está com
@@ -210,14 +246,18 @@ function Recuperar() {
         </header>
 
         {lista === null && <p className="text-sm text-[var(--tinta-suave)]">carregando…</p>}
-        {lista?.length === 0 && (
+        {lista !== null && visiveis.length === 0 && (
           <p className="rounded-2xl border border-[var(--tinta-fraca)]/40 p-8 text-center text-[var(--tinta-suave)]">
-            Nenhum Pix abandonado nas últimas 72 horas.
+            {aba === "abertos"
+              ? "Nenhum Pix abandonado nessa janela."
+              : aba === "recuperados"
+                ? "Nada recuperado nessa janela ainda."
+                : "Ninguém pagou sozinho nessa janela."}
           </p>
         )}
 
         <div className="space-y-4">
-          {[...abertos, ...resolvidos].map((a) => {
+          {visiveis.map((a) => {
             const msgs = mensagens(a);
             return (
               <div
@@ -248,7 +288,19 @@ function Recuperar() {
                     </p>
                   </div>
 
-                  {a.jaComprouDepois ? (
+                  {a.recuperado ? (
+                    <span className="inline-flex flex-col items-end gap-0.5">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
+                        <Check className="h-3 w-3" />
+                        {a.recuperado.tipo === "liberado" ? "você liberou" : "pagou depois do contato"}
+                      </span>
+                      <span className="text-[11px] text-[var(--tinta-suave)]">
+                        {new Date(a.recuperado.quando).toLocaleString("pt-BR", {
+                          day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+                        })}
+                      </span>
+                    </span>
+                  ) : a.jaComprouDepois ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
                       <Check className="h-3 w-3" /> já pagou
                     </span>
@@ -408,20 +460,46 @@ function Recuperar() {
                     </details>
 
                     <div className="mt-3 border-t border-[var(--tinta-fraca)]/30 pt-3">
-                      <button
-                        disabled={liberando === a.pedidoId || !a.temAudio}
-                        onClick={async () => {
-                          if (!confirm(`Liberar o acesso de ${a.email} SEM pagamento pelo gateway?`)) return;
-                          setLiberando(a.pedidoId);
-                          const r = await liberarAcesso({ data: { pedidoId: a.pedidoId, motivo: "recuperação" } });
-                          setLiberando(null);
-                          if (r.ok) { alert("Liberado! O e-mail de entrega já foi enviado."); carregar(); }
-                          else alert(`Não deu: ${r.erro}`);
-                        }}
-                        className="text-xs text-[var(--tinta-suave)] underline underline-offset-4 disabled:opacity-40"
-                      >
-                        {liberando === a.pedidoId ? "liberando…" : "liberar acesso sem pagamento (pagou por fora)"}
-                      </button>
+                      {/* DUAS PERGUNTAS DIFERENTES, dois botões.
+                          Era um só, e dizia "liberar acesso sem pagamento
+                          (pagou por fora)" — as duas coisas na mesma frase. O
+                          painel conta faturamento por pedido pago, então cada
+                          clique virava R$ 37 de receita, tivesse entrado
+                          dinheiro ou não: R$ 111 de venda fantasma em 12/08. */}
+                      <p className="mb-1.5 text-[11px] text-[var(--tinta-suave)]">
+                        Liberar o acesso desta pessoa:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {([
+                          [true, "ela pagou (por fora)", "border-emerald-600/40 text-emerald-700"],
+                          [false, "cortesia, não pagou", "border-[var(--tinta-fraca)] text-[var(--tinta-suave)]"],
+                        ] as const).map(([pagou, rotulo, cor]) => (
+                          <button
+                            key={String(pagou)}
+                            disabled={liberando === a.pedidoId || !a.temAudio}
+                            onClick={async () => {
+                              if (
+                                !confirm(
+                                  pagou
+                                    ? `Confirmar que ${a.email} PAGOU e liberar o acesso?\n\nIsso entra como venda no faturamento.`
+                                    : `Liberar o acesso de ${a.email} como CORTESIA?\n\nNão entra como venda.`,
+                                )
+                              )
+                                return;
+                              setLiberando(a.pedidoId);
+                              const r = await liberarAcesso({
+                                data: { pedidoId: a.pedidoId, motivo: "recuperação", pagou },
+                              });
+                              setLiberando(null);
+                              if (r.ok) { alert("Liberado! O e-mail de entrega já foi enviado."); carregar(); }
+                              else alert(`Não deu: ${r.erro}`);
+                            }}
+                            className={`rounded-full border px-3 py-1.5 text-xs disabled:opacity-40 ${cor}`}
+                          >
+                            {liberando === a.pedidoId ? "liberando…" : rotulo}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </>
                 )}
