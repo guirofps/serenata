@@ -1,4 +1,5 @@
 import { Star } from "lucide-react";
+import { type Locale } from "@/lib/i18n";
 
 // PROVA SOCIAL DO HERÓI — o bloco que fica logo abaixo do CTA principal.
 //
@@ -22,14 +23,26 @@ const ROSTOS = [1, 2, 3, 4, 5];
 const FAMILIAS = "1000+";
 const CONTADOR = "+998";
 
-export function ProvaSocial() {
+const T: Record<Locale, { prazo: string; amado: (n: string) => string }> = {
+  pt: {
+    prazo: "Entregue com amor em minutos",
+    amado: (n) => `${n} famílias`,
+  },
+  es: {
+    prazo: "Entregado con amor en minutos",
+    amado: (n) => `${n} familias`,
+  },
+};
+
+export function ProvaSocial({ locale = "pt" }: { locale?: Locale }) {
+  const t = T[locale] ?? T.pt;
   return (
     <div className="mt-8 flex flex-col items-center gap-3 lg:items-start">
       <p
         className="italic text-[var(--tinta-suave)]"
         style={{ fontSize: "var(--t-sm)" }}
       >
-        Entregue com amor em minutos
+        {t.prazo}
       </p>
 
       <div className="flex gap-0.5" aria-label="cinco estrelas">
@@ -76,7 +89,8 @@ export function ProvaSocial() {
       </div>
 
       <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
-        Amado por <strong className="text-[var(--tinta)]">{FAMILIAS} famílias</strong>
+        {/* "Amado por" é igual nos dois idiomas; só o substantivo muda. */}
+        Amado por <strong className="text-[var(--tinta)]">{t.amado(FAMILIAS)}</strong>
       </p>
     </div>
   );

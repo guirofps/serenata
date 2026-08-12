@@ -1,4 +1,5 @@
-import { FONTES } from "@/lib/marca";
+﻿import { FONTES } from "@/lib/marca";
+import { type Locale } from "@/lib/i18n";
 import { Music, Images, QrCode, Download, Play, ArrowUpRight } from "lucide-react";
 
 // O DIFERENCIAL que a home não estava mostrando: o entregável não é um MP3, é
@@ -11,14 +12,78 @@ import { Music, Images, QrCode, Download, Play, ArrowUpRight } from "lucide-reac
 
 const OURO = "oklch(0.82 0.11 82)";
 
-const ITENS = [
-  { icone: Music, titulo: "A música tocando com a letra acendendo", texto: "Palavra por palavra, no ritmo exato do vocal. É karaokê de verdade, não legenda." },
-  { icone: Images, titulo: "As fotos de vocês deslizando", texto: "As fotos passam junto com a canção e trocam nas viradas da música." },
-  { icone: QrCode, titulo: "Link e QR Code pra entregar", texto: "Manda no WhatsApp, ou imprime o QR e cola num cartão ou numa caixa de bombom." },
-  { icone: Download, titulo: "O MP3 pra baixar e guardar", texto: "A música é sua pra sempre, e a página fica no ar pra reabrir quando quiser." },
-];
+const T: Record<
+  Locale,
+  {
+    olho: string;
+    titulo: [string, string];
+    sub: string;
+    cta: string;
+    foto: string;
+    rotulo: string;
+    nome: string;
+    versos: [string, string, string, string];
+    legenda: string;
+    itens: { icone: typeof Music; titulo: string; texto: string }[];
+  }
+> = {
+  pt: {
+    olho: "o presente, por completo",
+    titulo: ["Não é só uma música.", "É a página que você envia."],
+    sub: "Os outros mandam um arquivo de áudio que se perde no WhatsApp. Aqui, quem recebe abre um link e vive um momento: a música, a letra acendendo, as fotos de vocês e o nome dela na capa.",
+    cta: "Abrir um presente de exemplo",
+    foto: "/img/exemplo-pai.webp",
+    rotulo: "uma música para",
+    nome: "Antônio",
+    versos: [
+      "Seu Antônio, homem de fé",
+      "Acordava antes do sol nascer",
+      "Pra nunca faltar nada em casa",
+      "O senhor é meu herói, meu pai",
+    ],
+    legenda: "É assim que o presente abre. Toque pra ver ao vivo.",
+    itens: [
+      { icone: Music, titulo: "A música tocando com a letra acendendo", texto: "Palavra por palavra, no ritmo exato do vocal. É karaokê de verdade, não legenda." },
+      { icone: Images, titulo: "As fotos de vocês deslizando", texto: "As fotos passam junto com a canção e trocam nas viradas da música." },
+      { icone: QrCode, titulo: "Link e QR Code pra entregar", texto: "Manda no WhatsApp, ou imprime o QR e cola num cartão ou numa caixa de bombom." },
+      { icone: Download, titulo: "O MP3 pra baixar e guardar", texto: "A música é sua pra sempre, e a página fica no ar pra reabrir quando quiser." },
+    ],
+  },
+  es: {
+    olho: "el regalo, completo",
+    titulo: ["No es solo una canción.", "Es la página que tú envías."],
+    sub: "Los demás mandan un archivo de audio que se pierde en el WhatsApp. Aquí, quien lo recibe abre un link y vive un momento: la canción, la letra encendiéndose, las fotos de ustedes y su nombre en la portada.",
+    cta: "Abrir un regalo de ejemplo",
+    // A foto do exemplo espanhol é a mesma família de imagens da home; o que
+    // muda é o nome e os versos, que saem de "El Mandil Azul" (validação 07/08).
+    foto: "/img/exemplos/mae.webp",
+    rotulo: "una canción para",
+    nome: "Lupita",
+    versos: [
+      "Hoy le canto a mi Lupita",
+      "la que nunca se quejó",
+      "Desde las cinco en el mercado",
+      "ya se oía tu voz",
+    ],
+    legenda: "Así se abre el regalo. Tócalo para verlo en vivo.",
+    itens: [
+      { icone: Music, titulo: "La canción sonando con la letra encendiéndose", texto: "Palabra por palabra, al ritmo exacto de la voz. Es karaoke de verdad, no subtítulo." },
+      { icone: Images, titulo: "Las fotos de ustedes pasando", texto: "Las fotos pasan junto con la canción y cambian en los quiebres." },
+      { icone: QrCode, titulo: "Link y código QR para entregar", texto: "Lo mandas por WhatsApp, o imprimes el QR y lo pegas en una tarjeta o en una caja de chocolates." },
+      { icone: Download, titulo: "El MP3 para descargar y guardar", texto: "La canción es tuya para siempre, y la página queda en línea para reabrirla cuando quieras." },
+    ],
+  },
+};
 
-export function Entregavel({ exemploToken }: { exemploToken?: string }) {
+export function Entregavel({
+  exemploToken,
+  locale = "pt",
+}: {
+  exemploToken?: string;
+  locale?: Locale;
+}) {
+  const t = T[locale] ?? T.pt;
+  const ITENS = t.itens;
   return (
     // A NOITE no meio do papel. É a narrativa da marca acontecendo na home:
     // você navega no claro e, quando o assunto é o PRESENTE, entra na noite —
@@ -66,13 +131,13 @@ export function Entregavel({ exemploToken }: { exemploToken?: string }) {
         {/* ── copy + itens ── */}
         <div className="order-2 lg:order-1">
           <p className="uppercase tracking-[0.3em] text-[var(--ouro)]" style={{ fontSize: "var(--t-xs)" }}>
-            o presente, por completo
+            {t.olho}
           </p>
           <h2
             className="mt-4 text-balance text-[var(--creme)]"
             style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-3xl)", lineHeight: 1.12 }}
           >
-            Não é só uma música.{" "}
+            {t.titulo[0]}{" "}
             <span
               style={{
                 backgroundImage:
@@ -82,16 +147,14 @@ export function Entregavel({ exemploToken }: { exemploToken?: string }) {
                 color: "transparent",
               }}
             >
-              É a página que você envia.
+              {t.titulo[1]}
             </span>
           </h2>
           <p
             className="mt-4 text-white/60"
             style={{ fontSize: "var(--t-base)", lineHeight: 1.65 }}
           >
-            Os outros mandam um arquivo de áudio que se perde no WhatsApp. Aqui, quem
-            recebe abre um link e vive um momento: a música, a letra acendendo, as
-            fotos de vocês e o nome dela na capa.
+            {t.sub}
           </p>
 
           <ul className="mt-6 space-y-3.5 sm:mt-8 sm:space-y-5">
@@ -131,7 +194,7 @@ export function Entregavel({ exemploToken }: { exemploToken?: string }) {
                 boxShadow: "0 14px 34px -14px oklch(0.82 0.11 82 / 0.55)",
               }}
             >
-              Abrir um presente de exemplo <ArrowUpRight className="h-4 w-4" />
+              {t.cta} <ArrowUpRight className="h-4 w-4" />
             </a>
           )}
         </div>
@@ -151,7 +214,7 @@ export function Entregavel({ exemploToken }: { exemploToken?: string }) {
               className="absolute -right-3 -top-5 z-10 hidden rotate-[6deg] overflow-hidden rounded-xl border-4 border-[#f4ece0] shadow-xl sm:block"
               style={{ width: 96 }}
             >
-              <img src="/img/exemplo-pai.webp" alt="" className="block aspect-square w-full object-cover" />
+              <img src={t.foto} alt="" className="block aspect-square w-full object-cover" />
             </div>
 
             <div
@@ -160,15 +223,15 @@ export function Entregavel({ exemploToken }: { exemploToken?: string }) {
             >
               <div className="relative flex aspect-[9/16] flex-col items-center px-5 pt-9 text-center">
                 {/* foto de fundo + gradiente, como na página real */}
-                <img src="/img/exemplo-pai.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
+                <img src={t.foto} alt="" className="absolute inset-0 h-full w-full object-cover" />
                 <div
                   className="absolute inset-0"
                   style={{ background: "linear-gradient(to bottom, rgba(13,10,8,0.55) 0%, rgba(13,10,8,0.82) 52%, #0d0a08 100%)" }}
                 />
                 <div className="relative z-10 flex h-full flex-col items-center">
-                  <p className="text-[8px] uppercase tracking-[0.3em] text-white/50">uma música para</p>
+                  <p className="text-[8px] uppercase tracking-[0.3em] text-white/50">{t.rotulo}</p>
                   <p className="mt-1.5 text-3xl text-white" style={{ fontFamily: FONTES.display, fontWeight: 600 }}>
-                    Antônio
+                    {t.nome}
                   </p>
                   <div
                     className="mt-4 grid h-11 w-11 place-items-center rounded-full"
@@ -178,21 +241,21 @@ export function Entregavel({ exemploToken }: { exemploToken?: string }) {
                   </div>
                   {/* karaokê: a letra acendendo (uma linha acesa) */}
                   <div className="mt-auto space-y-1.5 pb-6 text-left">
-                    <p className="text-[11px] leading-snug text-white/30">Seu Antônio, homem de fé</p>
+                    <p className="text-[11px] leading-snug text-white/30">{t.versos[0]}</p>
                     <p
                       className="text-[11px] font-medium leading-snug"
                       style={{ color: OURO, textShadow: `0 0 18px ${OURO}` }}
                     >
-                      Acordava antes do sol nascer
+                      {t.versos[1]}
                     </p>
-                    <p className="text-[11px] leading-snug text-white/30">Pra nunca faltar nada em casa</p>
-                    <p className="text-[11px] leading-snug text-white/20">O senhor é meu herói, meu pai</p>
+                    <p className="text-[11px] leading-snug text-white/30">{t.versos[2]}</p>
+                    <p className="text-[11px] leading-snug text-white/20">{t.versos[3]}</p>
                   </div>
                 </div>
               </div>
             </div>
             <figcaption className="mt-4 text-center text-white/45" style={{ fontSize: "var(--t-xs)" }}>
-              É assim que o presente abre. Toque pra ver ao vivo.
+              {t.legenda}
             </figcaption>
           </figure>
         </div>

@@ -5,6 +5,10 @@ import { Logo } from "@/components/marca/Logo";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { BarraCTA } from "@/components/landing/BarraCTA";
 import { ExemplosEs } from "@/components/landing/ExemplosEs";
+import { ProvaSocial } from "@/components/landing/ProvaSocial";
+import { PresenteNoTopo } from "@/components/landing/PresenteNoTopo";
+import { ProQuemE } from "@/components/landing/ProQuemE";
+import { Entregavel } from "@/components/landing/Entregavel";
 import { useProfundidadeRolagem } from "@/lib/rolagem";
 import { OfereceIdioma, lembrarIdioma } from "@/components/OfereceIdioma";
 import { MOEDA } from "@/lib/i18n";
@@ -259,10 +263,19 @@ function HomeEs() {
               La letra y un pedazo de la canción son gratis. Pagas solo para tener
               la canción completa y la página lista para enviar.
             </p>
+
+            {/* Mesma posição da home portuguesa: logo abaixo do CTA, que é
+                onde a pessoa olha antes de decidir se rola ou fecha. */}
+            <ProvaSocial locale="es" />
+
+            <div className="mt-8 lg:hidden">
+              <PresenteNoTopo locale="es" />
+            </div>
           </div>
 
-          <div className="hidden lg:block">
+          <div className="hidden space-y-8 lg:block">
             <VitrineVideo caption="reacciones de quien escuchó una canción hecha por nosotros" selo="reacciones reales" />
+            <PresenteNoTopo locale="es" />
           </div>
         </div>
       </section>
@@ -289,6 +302,9 @@ function HomeEs() {
           ))}
         </div>
       </section>
+
+      {/* ── 02.5 · PARA QUIÉN ES (perene, posición noble) ───── */}
+      <ProQuemE exemploToken="exesmama651ba4fe" locale="es" />
 
       {/* ── 03 · DOLOR ──────────────────────────────────────── */}
       <section style={{ paddingBlock: "var(--secao)" }}>
@@ -378,6 +394,9 @@ function HomeEs() {
           </div>
         </div>
       </section>
+
+      {/* ── 05.5 · EL ENTREGABLE (la página regalo) ─────────── */}
+      <Entregavel exemploToken="exesmama651ba4fe" locale="es" />
 
       {/* ── 06 · EJEMPLOS REALES (tocables) ─────────────────── */}
       <ExemplosEs />

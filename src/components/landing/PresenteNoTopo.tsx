@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Efeitos } from "@/components/presente/Efeitos";
 import { CORES, FONTES } from "@/lib/marca";
 import { Play } from "lucide-react";
+import { type Locale } from "@/lib/i18n";
 
 // O PRESENTE, ACIMA DA DOBRA.
 //
@@ -25,21 +26,51 @@ import { Play } from "lucide-react";
 // pegam no Tailwind v4 e prefers-reduced-motion mata animação CSS inteira.
 
 // Versos REAIS do presente de exemplo que o cartão abre. Não são inventados:
-// é a letra que a pessoa vai encontrar se tocar.
-const VERSOS = [
-  "Seu Antônio, essa aqui é pra você",
-  "O senhor acorda antes do sol nascer",
-  "Café coado, o dia já quer começar",
-  "Domingo de churrasco, a família inteira",
-];
+// é a letra que a pessoa vai encontrar se tocar. O espanhol sai de "El Mandil
+// Azul" (exesmama651ba4fe), uma das três músicas geradas na validação de 07/08.
+const T: Record<
+  Locale,
+  { foto: string; nome: string; rotulo: string; legenda: string; versos: string[] }
+> = {
+  pt: {
+    foto: "/img/exemplos/pai.webp",
+    nome: "Antônio",
+    rotulo: "uma música para",
+    legenda: "É isso que a pessoa recebe, no celular dela.",
+    versos: [
+      "Seu Antônio, essa aqui é pra você",
+      "O senhor acorda antes do sol nascer",
+      "Café coado, o dia já quer começar",
+      "Domingo de churrasco, a família inteira",
+    ],
+  },
+  es: {
+    foto: "/img/exemplos/mae.webp",
+    nome: "Lupita",
+    rotulo: "una canción para",
+    legenda: "Esto es lo que recibe la persona, en su celular.",
+    versos: [
+      "Hoy le canto a mi Lupita",
+      "la que nunca se quejó",
+      "Desde las cinco en el mercado",
+      "ya se oía tu voz",
+    ],
+  },
+};
 
 export function PresenteNoTopo({
-  foto = "/img/exemplos/pai.webp",
-  nome = "Antônio",
+  locale = "pt",
+  foto,
+  nome,
 }: {
+  locale?: Locale;
   foto?: string;
   nome?: string;
 }) {
+  const t0 = T[locale] ?? T.pt;
+  const VERSOS = t0.versos;
+  foto = foto ?? t0.foto;
+  nome = nome ?? t0.nome;
   const [t, setT] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setT((v) => v + 0.1), 100);
@@ -80,7 +111,7 @@ export function PresenteNoTopo({
             className="text-center text-[9px] uppercase tracking-[0.3em]"
             style={{ color: "rgba(247,240,232,0.7)" }}
           >
-            uma música para
+            {t0.rotulo}
           </p>
           <p
             className="mt-0.5 text-center text-2xl"
@@ -121,7 +152,7 @@ export function PresenteNoTopo({
 
       {/* Legenda que DESCREVE, não convida a clicar: o convite é o CTA. */}
       <p className="mt-3 text-center text-sm text-[var(--tinta-suave)]">
-        É isso que a pessoa recebe, no celular dela.
+        {t0.legenda}
       </p>
     </div>
   );
