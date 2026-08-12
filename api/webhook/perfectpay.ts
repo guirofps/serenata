@@ -343,6 +343,12 @@ export default async function handler(req: Req, res: Res) {
         // aguardando" numa venda já paga.
         status_gateway: rawStatus || null,
         email,
+        // Também no aprovado, e não só no pendente. Quando entrou a coluna eu
+        // só cobri o caminho do Pix abandonado, e as compras pagas passaram a
+        // gravar telefone nulo — dado bom sendo jogado fora. Serve pra
+        // suporte: quando o e-mail cai no spam, o telefone é o único caminho
+        // que sobra até quem já pagou.
+        telefone,
         valor_centavos: Number.isFinite(reais) ? Math.round(reais * 100) : null,
         quiz_response_id: quiz?.id ?? null,
         musica_id: musica?.id ?? null,
