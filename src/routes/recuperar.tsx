@@ -51,7 +51,7 @@ function mensagens(a: Abandonado): { rotulo: string; texto: string }[] {
     {
       rotulo: "1 · primeiro contato (até 2h)",
       texto:
-        `Oi! Aqui é da Serenata 🎵\n\n` +
+        `Oi${a.nome ? ", " + a.nome : ""}! Aqui é da Serenata 🎵\n\n` +
         `Vi que você chegou a gerar o Pix da música${de}, pra ${quem}, mas o pagamento não caiu. Aconteceu alguma coisa?\n\n` +
         `Só pra você saber: a música JÁ ESTÁ GRAVADA, com a letra que você mesmo escreveu. Está aqui esperando.\n\n` +
         `Quer ouvir um pedaço antes de decidir? ${link}`,
@@ -63,7 +63,7 @@ function mensagens(a: Abandonado): { rotulo: string; texto: string }[] {
           {
             rotulo: "★ com o código Pix (o que mais converte)",
             texto:
-              `Oi! Aqui é da Serenata 🎵\n\n` +
+              `Oi${a.nome ? ", " + a.nome : ""}! Aqui é da Serenata 🎵\n\n` +
               `A música de ${quem} já está gravada e é sua — só o Pix que não caiu.\n\n` +
               `Pra facilitar, aqui está o código copia e cola (é só colar no seu banco):\n\n` +
               `${pix}\n\n` +
@@ -74,7 +74,7 @@ function mensagens(a: Abandonado): { rotulo: string; texto: string }[] {
     {
       rotulo: "2 · se não respondeu (12 a 24h)",
       texto:
-        `Oi de novo! Não quero incomodar 🙏\n\n` +
+        `Oi${a.nome ? ", " + a.nome : ""}! Não quero incomodar 🙏\n\n` +
         `A música de ${quem} continua aqui, gravada e pronta. Se foi alguma dúvida ou algum problema no pagamento, me fala que eu resolvo pra você.\n\n` +
         `Se preferir, é só abrir aqui e ouvir: ${link}`,
     },
@@ -238,7 +238,7 @@ function Recuperar() {
                       )}
                     </p>
                     <p className="text-sm text-[var(--tinta-suave)]">
-                      {a.titulo ? `“${a.titulo}”` : "sem título"} · {a.email}
+                      {a.nome ? <strong className="text-[var(--tinta)]">{a.nome}</strong> : "sem nome"} · {a.email}
                     </p>
                     <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--tinta-suave)]">
                       <Clock className="h-3 w-3" />

@@ -78,7 +78,7 @@ export const listarAbandonados = createServerFn({ method: "POST" })
     const { data: pend } = await db
       .from("pedidos")
       .select(
-        "id, payment_id, email, telefone, valor_centavos, created_at, quiz_response_id, musica_id, pix_codigo, pix_url, pix_expira",
+        "id, payment_id, email, telefone, nome_pagador, valor_centavos, created_at, quiz_response_id, musica_id, pix_codigo, pix_url, pix_expira",
       )
       .eq("status", "pendente")
       .gte("created_at", desde)
@@ -155,7 +155,16 @@ export const listarAbandonados = createServerFn({ method: "POST" })
       out.push({
         pedidoId: p.id,
         paymentId: p.payment_id,
-        nome: null,
+        // Só o PRIMEIRO nome. O gateway devolve o nome completo do cadastro
+        // ("MARIA DAS GRACAS DE SOUZA"), e abrir uma conversa de WhatsApp com
+        // nome completo em caixa alta soa a cobrança de banco.
+        nome: (p as { nome_pagador?: string | null }).nome_pagador
+          ? String((p as { nome_pagador?: string | null }).nome_pagador)
+              .trim()
+              .split(/\s+/)[0]
+              .toLowerCase()
+              .replace(/^./, (c) => c.toUpperCase())
+          : null,
         email: p.email,
         telefone: p.telefone,
         whatsapp: paraWhatsapp(p.telefone),

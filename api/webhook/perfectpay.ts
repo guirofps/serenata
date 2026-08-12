@@ -266,6 +266,10 @@ export default async function handler(req: Req, res: Res) {
               // ele que a recuperação acontece. Fica no PEDIDO e não no lead
               // porque quem paga nem sempre é quem fez o quiz.
               telefone,
+              // O NOME de quem paga. "Oi, Maria!" contra "Oi!" é a diferença
+              // entre conversa e cobrança numa recuperação por WhatsApp — e
+              // decide se a pessoa responde ou bloqueia.
+              nome_pagador: nomeCliente,
               // O COPIA-E-COLA. Vem como `billet_number` — nome de boleto, e
               // foi por isso que eu não o encontrei procurando por "pix".
               // Com ele o operador manda o código no WhatsApp e a pessoa paga
@@ -358,6 +362,7 @@ export default async function handler(req: Req, res: Res) {
         // suporte: quando o e-mail cai no spam, o telefone é o único caminho
         // que sobra até quem já pagou.
         telefone,
+        nome_pagador: nomeCliente,
         valor_centavos: Number.isFinite(reais) ? Math.round(reais * 100) : null,
         quiz_response_id: quiz?.id ?? null,
         musica_id: musica?.id ?? null,
