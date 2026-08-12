@@ -1,6 +1,6 @@
 ﻿import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { listarAbandonados, liberarAcesso, reverterAcesso, marcarContato, type Abandonado } from "@/lib/recuperacao";
+import { listarAbandonados, liberarAcesso, reverterAcesso, linkDeAcesso, marcarContato, type Abandonado } from "@/lib/recuperacao";
 import { entrarAdmin } from "@/lib/admin-auth";
 import { TEMA_CLARO, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
@@ -31,6 +31,8 @@ export const Route = createFileRoute("/recuperar")({
   }),
   component: Recuperar,
 });
+
+const SITE_PUBLICO = "https://www.serenatagift.com";
 
 const RELACAO: Record<string, string> = {
   mae: "mãe", pai: "pai", esposa: "esposa", marido: "marido",
@@ -104,6 +106,7 @@ function Recuperar() {
   const [tocando, setTocando] = useState<string | null>(null);
   const [copiado, setCopiado] = useState<string | null>(null);
   const [liberando, setLiberando] = useState<string | null>(null);
+  const [gerandoLink, setGerandoLink] = useState<string | null>(null);
   const [horas, setHoras] = useState(72);
   const [soNaoContatados, setSoNaoContatados] = useState(false);
   const [aba, setAba] = useState<"abertos" | "recuperados" | "sozinhos">("abertos");
@@ -357,6 +360,46 @@ function Recuperar() {
                     )
                   )}
                 </div>
+
+                {/* LINK DE ACESSO pra mandar no WhatsApp. O e-mail de entrega
+                    pode cair em spam, e quem está com a pessoa na conversa
+                    resolve isso em dez segundos. O texto pronto já ensina o
+                    caminho do SEGUNDO acesso (/login), senão a pessoa volta a
+                    depender de link toda vez. */}
+                {a.jaComprouDepois && (
+                  <div className="mt-3 border-t border-[var(--tinta-fraca)]/30 pt-3">
+                    <button
+                      disabled={gerandoLink === a.pedidoId}
+                      onClick={async () => {
+                        setGerandoLink(a.pedidoId);
+                        const r = await linkDeAcesso({ data: { pedidoId: a.pedidoId } });
+                        setGerandoLink(null);
+                        if (!r.ok || !r.link) { alert(`Não deu: ${r.erro}`); return; }
+                        const texto =
+                          `Prontinho! 🎵 Aqui está o acesso à sua música:\n\n${r.link}\n\n` +
+                          `É só tocar no link que você já entra direto, sem senha. ` +
+                          `Lá dentro você coloca as fotos, pega o link pra enviar e baixa o MP3.\n\n` +
+                          `(Da próxima vez, é só entrar em ${SITE_PUBLICO}/login com esse mesmo e-mail.)`;
+                        if (a.whatsapp) {
+                          window.open(`https://wa.me/${a.whatsapp}?text=${encodeURIComponent(texto)}`, "_blank");
+                        } else {
+                          copiar(texto, `link-${a.pedidoId}`);
+                          alert("Sem telefone aqui. Copiei a mensagem com o link pra você colar.");
+                        }
+                      }}
+                      className="rounded-full border border-[#25D366]/50 px-3 py-1.5 text-xs font-medium text-[#128C4A] disabled:opacity-40"
+                    >
+                      {gerandoLink === a.pedidoId
+                        ? "gerando…"
+                        : a.whatsapp
+                          ? "mandar o link de acesso no WhatsApp"
+                          : "copiar o link de acesso"}
+                    </button>
+                    <p className="mt-1.5 text-[11px] text-[var(--tinta-suave)]">
+                      Entra direto, sem senha. Serve quando o e-mail de entrega cai no spam.
+                    </p>
+                  </div>
+                )}
 
                 {/* DESFAZER, e só pra quem ele mesmo liberou. O botão de
                     liberar é de um clique e o operador é humano: em 12/08 ele

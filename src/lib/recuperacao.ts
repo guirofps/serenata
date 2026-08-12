@@ -328,6 +328,59 @@ export const marcarContato = createServerFn({ method: "POST" })
   });
 
 /**
+ * LINK DE ACESSO pra mandar no WhatsApp.
+ *
+ * O e-mail de entrega leva o link do painel, e e-mail cai em spam — a gente
+ * não tem como saber quanto. Quem está com a pessoa na conversa consegue
+ * resolver isso em dez segundos: cola o link, ela toca e entra.
+ *
+ * SÓ PRA QUEM JÁ TEM ACESSO. O link é uma sessão da conta dela, não um cupom:
+ * gerar pra quem não pagou entregaria o produto de graça por outro caminho, e
+ * seria justamente o buraco que o botão de liberar existe pra controlar.
+ *
+ * Fica AUDITADO com quem gerou. É o acesso mais forte que a tela concede, e
+ * acesso forte sem registro é o que vira problema quando alguém sai da equipe.
+ */
+export const linkDeAcesso = createServerFn({ method: "POST" })
+  .validator((data: { pedidoId: string }) => data)
+  .handler(async ({ data }): Promise<{ ok: boolean; erro?: string; link?: string }> => {
+    const { exigirRecuperacao, papelAtual } = await import("@/lib/admin-auth.server");
+    exigirRecuperacao();
+    const quem = papelAtual();
+    const db = supabaseAdmin();
+
+    const { data: p } = await db
+      .from("pedidos")
+      .select("id, email, status, quiz_response_id")
+      .eq("id", data.pedidoId)
+      .maybeSingle();
+    if (!p?.email) return { ok: false, erro: "pedido sem e-mail" };
+    if (p.status !== "pago") {
+      return { ok: false, erro: "essa pessoa ainda não tem acesso — libere primeiro" };
+    }
+
+    const { data: q } = p.quiz_response_id
+      ? await db.from("quiz_responses").select("locale").eq("id", p.quiz_response_id).maybeSingle()
+      : { data: null };
+    const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
+
+    const { data: linkData, error } = await db.auth.admin.generateLink({
+      type: "magiclink",
+      email: p.email,
+      options: { redirectTo: `${SITE}/auth/callback?lang=${locale}` },
+    });
+    const link = linkData?.properties?.action_link;
+    if (error || !link) return { ok: false, erro: error?.message ?? "não consegui gerar o link" };
+
+    await db.from("funnel_events").insert({
+      event_name: "link_acesso_gerado",
+      event_data: { pedido: p.id, email: p.email, por: quem },
+    });
+
+    return { ok: true, link };
+  });
+
+/**
  * DESFAZ uma liberação feita à mão.
  *
  * Existe porque o botão de liberar é de um clique e o operador é humano: em
