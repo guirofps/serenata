@@ -1,4 +1,4 @@
-// Envia a venda pra UTMIFY (atribuição de anúncio).
+﻿// Envia a venda pra UTMIFY (atribuição de anúncio).
 //
 // Por que pela API e não pela integração de painel: assim a gente controla o
 // que é enviado e não depende de o gateway ter (ou manter) uma integração
@@ -15,6 +15,26 @@ export type VendaUtmify = {
   orderId: string;
   status: "paid" | "refunded" | "waiting_payment" | "refused" | "chargedback";
   valorCentavos: number;
+  /**
+   * A MOEDA da venda. Estava cravada em BRL, e o funil espanhol cobra em
+   * dólar: toda venda mexicana entrava na Utmify como se fossem 9 reais.
+   * O relatório de lucro do funil ES estava errado desde 07/08, sempre pra
+   * baixo, o que é a pior direção possível — faz parecer que não vale a pena
+   * justamente o teste que a gente está tentando avaliar.
+   */
+  moeda?: "BRL" | "USD";
+  /**
+   * A taxa do gateway, em centavos. O webhook da Perfect Pay MANDA isso e a
+   * gente ignorava: dentro de `commission` vem a comissao de cada parte, e a
+   * linha com `affiliation_type_enum: 0` e a fatia deles (R$ 4,29 numa venda
+   * de R$ 37, ou 11,6%).
+   *
+   * Sem esse numero, a Utmify recebia taxa ZERO e o relatorio de lucro subia
+   * R$ 4,29 por venda. A 30 vendas/dia, sao R$ 128 de lucro por dia que nao
+   * existem, sempre pra cima, que e a direcao perigosa: faz campanha ruim
+   * parecer boa.
+   */
+  taxaCentavos?: number;
   email: string | null;
   nome: string | null;
   /** `metadata.src` do checkout = session_id do nosso funil. */
@@ -80,11 +100,11 @@ export async function enviarVendaUtmify(v: VendaUtmify): Promise<void> {
     },
     commission: {
       totalPriceInCents: v.valorCentavos,
-      // Taxa real do gateway não vem no webhook; deixar 0 é mais honesto que
-      // inventar um número que bagunçaria o relatório de lucro.
-      gatewayFeeInCents: 0,
-      userCommissionInCents: v.valorCentavos,
-      currency: "BRL",
+      gatewayFeeInCents: v.taxaCentavos ?? 0,
+      // O que sobra pra você. Antes era o valor cheio, como se o gateway não
+      // cobrasse nada.
+      userCommissionInCents: Math.max(0, v.valorCentavos - (v.taxaCentavos ?? 0)),
+      currency: v.moeda ?? "BRL",
     },
   };
 

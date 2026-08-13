@@ -1,4 +1,4 @@
-// Google Ads: tag e conversão de compra.
+﻿// Google Ads: tag e conversão de compra.
 //
 // A conversão dispara na /obrigado, que é o destino do redirect pós-pagamento
 // da Perfect Pay. É o caminho padrão e o único que a conta de anúncio aceita
@@ -20,13 +20,25 @@ declare global {
   }
 }
 
-/** Dispara a conversão de compra. Chamada uma vez, na página de obrigado. */
-export function conversaoCompra(args: { valor?: number; transactionId?: string }) {
+/**
+ * Dispara a conversão de compra. Chamada uma vez, na página de obrigado.
+ *
+ * A MOEDA vem junto do valor, e isso não é detalhe. Até 13/08 a conversão
+ * mandava `37 BRL` cravado, inclusive nas vendas do funil espanhol, que são
+ * em dólar. O Google recebia o valor errado justamente da campanha que a
+ * gente está tentando descobrir se vale a pena — e otimiza em cima do que
+ * recebe, não do que aconteceu.
+ */
+export function conversaoCompra(args: {
+  valor?: number;
+  moeda?: "BRL" | "USD";
+  transactionId?: string;
+}) {
   if (typeof window === "undefined" || !window.gtag) return;
   window.gtag("event", "conversion", {
     send_to: CONVERSAO,
     value: args.valor ?? 37,
-    currency: "BRL",
+    currency: args.moeda ?? "BRL",
     // Sem isto, um F5 na página de obrigado contaria a venda de novo.
     transaction_id: args.transactionId ?? "",
   });

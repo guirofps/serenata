@@ -1,4 +1,4 @@
-// Webhook da Perfect Pay: confirma o pagamento e LIBERA o presente.
+﻿// Webhook da Perfect Pay: confirma o pagamento e LIBERA o presente.
 //
 // Gêmeo do api/webhook/cakto.ts — mesma lógica de baixo (casar música,
 // idempotência, e-mail com o link), só muda o MAPEAMENTO dos campos, que na
@@ -92,6 +92,9 @@ type Corpo = {
   order_status?: string;
   sale_amount?: number | string;
   currency_enum_key?: string;
+  // Uma linha por parte que recebe. A do gateway vem com
+  // `affiliation_type_enum: 0`; a sua, com `producer`.
+  commission?: Array<{ commission_amount?: number; affiliation_type_enum?: number; affiliation_type_enum_key?: string }>;
   customer?: {
     email?: string;
     full_name?: string;
@@ -152,6 +155,17 @@ export default async function handler(req: Req, res: Res) {
     ).toLowerCase();
     const reais = typeof body.sale_amount === "number" ? body.sale_amount : Number(body.sale_amount);
 
+    // A TAXA REAL DO GATEWAY, que o webhook sempre mandou e a gente ignorava.
+    // Numa venda de R$ 37 a Perfect Pay fica com R$ 4,29 (11,6%). Mandar zero
+    // pra Utmify inflava o lucro do relatório em R$ 4,29 por venda — a 30
+    // vendas/dia, R$ 128/dia de lucro que não existe, sempre pra cima.
+    const taxaGateway = (body.commission ?? [])
+      .filter((c) => c.affiliation_type_enum === 0 || c.affiliation_type_enum_key === "gateway")
+      .reduce((s, c) => s + (Number(c.commission_amount) || 0), 0);
+    const taxaCentavos = Number.isFinite(taxaGateway) ? Math.round(taxaGateway * 100) : 0;
+    const moedaVenda =
+      String(body.currency_enum_key ?? "BRL").toUpperCase() === "USD" ? ("USD" as const) : ("BRL" as const);
+
     // Auditoria SEM o token (é o nosso segredo; não guarda em claro).
     await auditar(`perfectpay_${rawStatus || "sem_status"}`, {
       code: paymentId,
@@ -176,6 +190,8 @@ export default async function handler(req: Req, res: Res) {
           nome: nomeCliente,
           src,
           attribution: await buscarAttribution(src, email),
+          moeda: moedaVenda,
+          taxaCentavos,
           reembolsadoEm: new Date(),
         });
       }
@@ -508,6 +524,8 @@ export default async function handler(req: Req, res: Res) {
       nome: nomeCliente,
       src,
       attribution: await buscarAttribution(src, email),
+      moeda: moedaVenda,
+      taxaCentavos,
       aprovadoEm: new Date(),
     });
 

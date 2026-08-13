@@ -1,4 +1,4 @@
-// IDIOMA — a peça que separa os dois funis sem duplicar o site.
+﻿// IDIOMA — a peça que separa os dois funis sem duplicar o site.
 //
 // Regra de ouro: o funil português NÃO muda. Nem de URL, nem de comportamento,
 // nem de string. `pt` é o default em todo lugar, e todo caminho que não diz
@@ -70,7 +70,17 @@ export const MOEDA: Record<
   // 12,99 porque a Cántale (o concorrente escalado no México, com página
   // compartilhável inclusa) cobra 12,99 — entrar 30% abaixo do líder é a
   // mesma jogada que a gente fez contra a LoveTune no Brasil.
-  es: { simbolo: "US$", valor: 9, texto: "US$ 9", ancora: "US$ 24" },
+  // PREÇO ANUNCIADO = TOTAL DO CHECKOUT.
+  //
+  // O site prometia US$ 9 e a tela de pagamento cobrava US$ 9,68: o checkout
+  // internacional (Centerpag) soma 7,5% de "Impuestos Aplicables" sobre o
+  // valor do produto. Número que muda no caixa é desconfiança no momento mais
+  // caro do funil, com a pessoa já decidida a pagar.
+  //
+  // A saída foi anunciar o total. Com o produto a US$ 9,21 no painel, o
+  // imposto dá US$ 0,69 e o cliente vê exatamente US$ 9,90 — o que ele leu.
+  // A ancoragem contra a Cántale (US$ 12,99) continua de pé.
+  es: { simbolo: "US$", valor: 9.9, texto: "US$ 9,90", ancora: "US$ 24" },
 };
 
 /**

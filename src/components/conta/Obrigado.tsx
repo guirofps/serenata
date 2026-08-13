@@ -1,7 +1,8 @@
-import { type Locale } from "@/lib/i18n";
+﻿import { type Locale } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { conversaoCompra } from "@/lib/google-ads";
+import { MOEDA } from "@/lib/i18n";
 import { buscarPresenteDaCompra, type PresenteDaCompra } from "@/lib/pos-compra";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
@@ -78,7 +79,12 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
 
   // Conversão do Google Ads: é aqui que o algoritmo aprende quem comprou.
   useEffect(() => {
-    conversaoCompra({ valor: 37, transactionId: code });
+    // O valor e a moeda saem do idioma da venda, não de um número cravado.
+    conversaoCompra({
+      valor: (MOEDA[locale] ?? MOEDA.pt).valor,
+      moeda: locale === "es" ? "USD" : "BRL",
+      transactionId: code,
+    });
   }, [code]);
 
   // Busca o presente pelo código da transação, pra dar o botão AQUI em vez de
