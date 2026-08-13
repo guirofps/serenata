@@ -178,6 +178,9 @@ function Recuperar() {
   const [aba, setAba] = useState<"abertos" | "recuperados" | "sozinhos" | "pagos">("abertos");
   const [pagos, setPagos] = useState<Pago[] | null>(null);
   const [busca, setBusca] = useState("");
+  // Os três recortes que ele realmente usa na aba de pagos. Sem isso, os 5
+  // que pediram WhatsApp ficam enterrados no meio de 85 cartões.
+  const [filtroPago, setFiltroPago] = useState<"todos" | "pediram" | "sumidos">("todos");
   // Relógio de 1s: é o que faz o cronômetro da carência andar na tela.
   const [agora, setAgora] = useState(() => Date.now());
   useEffect(() => {
@@ -307,12 +310,34 @@ function Recuperar() {
           </div>
 
           {aba === "pagos" && (
-            <Input
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="buscar por e-mail (quem escreveu no suporte)"
-              className="mt-3 bg-white"
-            />
+            <>
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="buscar por e-mail (quem escreveu no suporte)"
+                className="mt-3 bg-white"
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {([
+                  ["pediram", "★ pediram no WhatsApp", (pagos ?? []).filter((p) => p.pediuWhatsapp).length],
+                  ["sumidos", "⚠️ não montaram o presente", (pagos ?? []).filter((p) => !p.montouPresente).length],
+                  ["todos", "todos", (pagos ?? []).length],
+                ] as const).map(([id, rotulo, n]) => (
+                  <button
+                    key={id}
+                    onClick={() => setFiltroPago(id)}
+                    className={
+                      "rounded-full px-3 py-1.5 text-xs transition-colors " +
+                      (filtroPago === id
+                        ? "bg-[var(--acento)] font-semibold text-white"
+                        : "border border-[var(--tinta-fraca)] text-[var(--tinta-suave)]")
+                    }
+                  >
+                    {rotulo} ({n})
+                  </button>
+                ))}
+              </div>
+            </>
           )}
 
           <div className={"mt-3 flex flex-wrap items-center gap-2 " + (aba === "pagos" ? "hidden" : "")}>
@@ -381,6 +406,11 @@ function Recuperar() {
             )}
             {(pagos ?? [])
               .filter((p) => !busca.trim() || (p.email ?? "").includes(busca.trim().toLowerCase()))
+              .filter((p) =>
+                filtroPago === "pediram" ? p.pediuWhatsapp
+                : filtroPago === "sumidos" ? !p.montouPresente
+                : true,
+              )
               .map((p) => {
                 const msgs = mensagensPago(p);
                 return (
