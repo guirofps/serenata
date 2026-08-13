@@ -1,4 +1,4 @@
-import type { Locale } from "@/lib/i18n";
+﻿import { type Locale, MOEDA } from "@/lib/i18n";
 import { MARCA } from "@/lib/marca";
 
 // O QUE FALTAVA DE SEO TÉCNICO, num lugar só.
@@ -70,7 +70,10 @@ export function dadosEstruturados(locale: Locale) {
     image: `${SITE}/og-presente.jpg`,
     offers: {
       "@type": "Offer",
-      price: es ? "9.00" : "37.00",
+      // O preço sai do catálogo de moeda, nunca cravado aqui. Já ficou pra
+      // trás uma vez: o site subiu pra US$ 9,90 e este bloco seguiu anunciando
+      // 9.00 pro Google, que é o número que aparece no resultado de busca.
+      price: MOEDA[locale].valor.toFixed(2),
       priceCurrency: es ? "USD" : "BRL",
       availability: "https://schema.org/InStock",
       url: URLS[locale].criar,
