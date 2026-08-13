@@ -384,31 +384,38 @@ export const listarPagos = createServerFn({ method: "POST" })
     const { data: pedidos } = await q;
     if (!pedidos?.length) return [];
 
+    // DUAS consultas pro lote inteiro, não duas por pedido. A primeira versão
+    // fazia N+1 em cima de 85 pedidos e a tela levava 18 segundos pra abrir —
+    // tempo demais pra quem está com um cliente esperando resposta no chat.
+    const ids = pedidos.map((p) => p.quiz_response_id).filter(Boolean) as string[];
+    const [{ data: quizzes }, { data: musicas }] = await Promise.all([
+      db.from("quiz_responses").select("id, respostas, locale, whatsapp, whatsapp_em").in("id", ids),
+      db
+        .from("musicas")
+        .select("quiz_response_id, titulo, token, token_edicao, audio_path, audio_path_v2, foto_path, dedicatoria, created_at")
+        .in("quiz_response_id", ids)
+        .order("created_at", { ascending: false }),
+    ]);
+    const porQuiz = new Map((quizzes ?? []).map((q) => [q.id, q]));
+    // A mais recente de cada quiz: como veio ordenado por data desc, o primeiro
+    // que entra no mapa é o que vale.
+    type LinhaMusica = NonNullable<typeof musicas>[number];
+    const musicaDe = new Map<string, LinhaMusica>();
+    for (const m of musicas ?? []) {
+      if (m.quiz_response_id && !musicaDe.has(m.quiz_response_id)) musicaDe.set(m.quiz_response_id, m);
+    }
+
+    const assinar = async (caminho: string | null) => {
+      if (!caminho) return null;
+      const { data: u } = await db.storage.from("musicas").createSignedUrl(caminho, 2 * 3600);
+      return u?.signedUrl ?? null;
+    };
+
     const out: Pago[] = [];
-    for (const p of pedidos) {
-      const { data: quiz } = p.quiz_response_id
-        ? await db
-            .from("quiz_responses")
-            .select("respostas, locale, whatsapp, whatsapp_em")
-            .eq("id", p.quiz_response_id)
-            .maybeSingle()
-        : { data: null };
-
-      const { data: m } = p.quiz_response_id
-        ? await db
-            .from("musicas")
-            .select("titulo, token, token_edicao, audio_path, audio_path_v2, foto_path, dedicatoria")
-            .eq("quiz_response_id", p.quiz_response_id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle()
-        : { data: null };
-
-      const assinar = async (caminho: string | null) => {
-        if (!caminho) return null;
-        const { data: u } = await db.storage.from("musicas").createSignedUrl(caminho, 2 * 3600);
-        return u?.signedUrl ?? null;
-      };
+    // As assinaturas de URL ainda são uma chamada cada, mas agora em paralelo.
+    const linhas = await Promise.all(pedidos.map(async (p) => {
+      const quiz = p.quiz_response_id ? porQuiz.get(p.quiz_response_id) ?? null : null;
+      const m = p.quiz_response_id ? musicaDe.get(p.quiz_response_id) ?? null : null;
 
       const q2 = quiz as {
         respostas?: Record<string, string> | null;
@@ -416,12 +423,17 @@ export const listarPagos = createServerFn({ method: "POST" })
         whatsapp?: string | null;
         whatsapp_em?: string | null;
       } | null;
-      const locale = q2?.locale === "es" ? "es" : "pt";
+      const locale: "pt" | "es" = q2?.locale === "es" ? "es" : "pt";
       // Prefere o número que ELA digitou pedindo contato; o do checkout é o
       // que sobra, e serve, porque quem pagou já esperava falar com a gente.
       const tel = q2?.whatsapp ?? p.telefone ?? null;
 
-      out.push({
+      const [a1, a2] = await Promise.all([
+        assinar(m?.audio_path ?? null),
+        assinar(m?.audio_path_v2 ?? null),
+      ]);
+
+      return {
         pedidoId: p.id,
         nome: p.nome_pagador
           ? String(p.nome_pagador).trim().split(/\s+/)[0].toLowerCase().replace(/^./, (c) => c.toUpperCase())
@@ -437,13 +449,14 @@ export const listarPagos = createServerFn({ method: "POST" })
         titulo: m?.titulo ?? null,
         linkPresente: m?.token ? `${SITE}/p/${m.token}` : null,
         linkEditor: m?.token_edicao ? `${SITE}/editar/${m.token_edicao}` : null,
-        audioV1: await assinar(m?.audio_path ?? null),
-        audioV2: await assinar(m?.audio_path_v2 ?? null),
+        audioV1: a1,
+        audioV2: a2,
         // Se já subiu foto ou escreveu dedicatória, ela ACHOU a plataforma.
         // Quem não montou é candidato a não ter recebido o e-mail.
         montouPresente: Boolean(m?.foto_path || m?.dedicatoria),
-      });
-    }
+      };
+    }));
+    out.push(...linhas);
     return out;
   });
 
