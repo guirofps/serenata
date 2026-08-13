@@ -147,5 +147,68 @@ export default async function handler(req: Req, res: Res) {
     console.error("[resend] gravacao falhou:", err);
   }
 
+  // E-MAIL DE ENTREGA QUE VOLTOU = COMPRADOR SEM O PRODUTO.
+  //
+  // Medido em 13/08: 9 e-mails voltaram em 48h, todos pro Gmail e todos com
+  // bounce "Transient" (o Gmail recusa temporariamente e depois desiste). DOIS
+  // deles eram entrega de quem PAGOU: música pronta, conta criada, e a pessoa
+  // sem saber onde está o presente dela.
+  //
+  // O bounce era mudo. O Resend registrava, ninguém lia, e o cliente virava
+  // ticket dias depois — ou nem isso, virava reembolso.
+  //
+  // Aqui a régua é a mesma do alerta de música: só acorda alguém se a pessoa
+  // PAGOU. Bounce de e-mail de letra é lead que não recebeu uma prévia; bounce
+  // de entrega é produto vendido e não entregue.
+  if (tipo === "email.bounced" && para) {
+    try {
+      const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const chave = process.env.RESEND_API_KEY;
+      if (url && key && chave) {
+        const sb = createClient(url, key, { auth: { persistSession: false } });
+        const { data: pedido } = await sb
+          .from("pedidos")
+          .select("id, telefone, quiz_response_id")
+          .eq("email", para.toLowerCase())
+          .eq("status", "pago")
+          .limit(1)
+          .maybeSingle();
+
+        if (pedido) {
+          const { data: m } = pedido.quiz_response_id
+            ? await sb
+                .from("musicas")
+                .select("token, titulo")
+                .eq("quiz_response_id", pedido.quiz_response_id)
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle()
+            : { data: null };
+
+          const { Resend } = await import("resend");
+          await new Resend(chave).emails.send({
+            from: "Serenata <contato@serenatagift.com>",
+            to: ["guilhermerojasiqueira@gmail.com"],
+            subject: `🔴 COMPRADOR não recebeu o e-mail: ${para}`,
+            html:
+              `<p><strong>O e-mail de entrega voltou. Essa pessoa pagou e não sabe onde está a música dela.</strong></p>` +
+              `<p>E-mail: ${para}<br>` +
+              `Telefone: ${pedido.telefone ?? "não temos"}<br>` +
+              `Assunto que voltou: ${d.subject ?? "-"}<br>` +
+              `Motivo: ${d.bounce?.type ?? "-"}</p>` +
+              (m?.token
+                ? `<p>Link do presente, pra mandar no WhatsApp:<br>` +
+                  `https://www.serenatagift.com/p/${m.token}</p>`
+                : "") +
+              `<p>O jeito mais rápido é o botão "mandar o link de acesso no WhatsApp", na aba Recuperados do /recuperar.</p>`,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[resend] aviso de bounce falhou:", err);
+    }
+  }
+
   return res.status(200).json({ ok: true });
 }
