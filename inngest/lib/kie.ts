@@ -60,12 +60,22 @@ export async function iniciarGeracao(args: {
   return data.taskId;
 }
 
-/** Consulta o estado da task. `pronta` só quando há faixa com áudio. */
+/**
+ * Consulta o estado da task. `pronta` só quando há faixa com áudio.
+ *
+ * O MOTIVO da recusa vem junto (`errorCode`/`errorMessage`) e estava sendo
+ * descartado: quando cinco músicas morreram numa noite, tudo que sobrava no
+ * banco era "provedor recusou a geração", que não diz se foi letra barrada
+ * por moderação, limite de fila ou crédito. Sem o motivo, todo diagnóstico
+ * vira chute — e foi exatamente o que aconteceu.
+ */
 export async function consultarGeracao(
   taskId: string,
-): Promise<{ status: string; faixas: FaixaGerada[] }> {
+): Promise<{ status: string; faixas: FaixaGerada[]; motivo: string | null }> {
   const data = await api<{
     status: string;
+    errorCode?: number | string | null;
+    errorMessage?: string | null;
     response?: { sunoData?: Array<{ id: string; audioUrl: string; duration?: number }> };
   }>(`/api/v1/generate/record-info?taskId=${taskId}`);
   const faixas = (data.response?.sunoData ?? []).map((f) => ({
@@ -73,7 +83,8 @@ export async function consultarGeracao(
     audioUrl: f.audioUrl,
     duration: f.duration,
   }));
-  return { status: data.status, faixas };
+  const motivo = [data.errorCode, data.errorMessage].filter(Boolean).join(" · ") || null;
+  return { status: data.status, faixas, motivo };
 }
 
 /** Letra com timestamps — é o que torna o karaokê REAL (0,5 crédito). */

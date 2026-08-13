@@ -1,4 +1,4 @@
-import { inngest } from "../client.js";
+﻿import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { iniciarGeracao, consultarGeracao, obterTimestamps } from "../lib/kie.js";
 import { acharGenero } from "../../src/lib/generos.js";
@@ -133,10 +133,22 @@ export const gerarMusica = inngest.createFunction(
     let taskId = "";
     let recusou = false;
 
+    let motivoRecusa: string | null = null;
+
     const estilos = [
-      { rotulo: "original", valor: musica.estilo_suno ?? musica.genero ?? "" },
-      { rotulo: "sem-referencias", valor: estiloSemReferencias(musica.estilo_suno, musica.genero) },
-      { rotulo: "segunda-chance", valor: musica.estilo_suno ?? musica.genero ?? "" },
+      { rotulo: "original", valor: musica.estilo_suno ?? musica.genero ?? "", esperaAntes: "" },
+      { rotulo: "sem-referencias", valor: estiloSemReferencias(musica.estilo_suno, musica.genero), esperaAntes: "" },
+      { rotulo: "segunda-chance", valor: musica.estilo_suno ?? musica.genero ?? "", esperaAntes: "60s" },
+      // QUARTA tentativa, dez minutos depois. Medido na madrugada de 13/08: as
+      // falhas se concentram na HORA DE PICO (14 prontas e 3 falhas às 23h,
+      // zero falha nas horas vazias) e a recusa volta em segundos, não depois
+      // de gerar. Isso é fila cheia do provedor, não letra barrada — e fila
+      // cheia passa. As quatro que morreram naquela noite geraram de primeira
+      // quando reenfileiradas à mão minutos depois.
+      //
+      // Dez minutos de espera não custam nada pra quem já foi embora da
+      // página (o e-mail avisa) e salvam a venda de quem voltar.
+      { rotulo: "ultima-chance", valor: musica.estilo_suno ?? musica.genero ?? "", esperaAntes: "10m" },
     ];
 
     for (const [n, estilo] of estilos.entries()) {
@@ -145,8 +157,7 @@ export const gerarMusica = inngest.createFunction(
       // Estilo limpo idêntico ao original: pula essa tentativa, mas NÃO
       // desiste. Era exatamente aqui que a geração morria na primeira recusa.
       if (n === 1 && estilo.valor === estilos[0].valor) continue;
-      // Respiro antes da última: se foi soluço do provedor, um minuto resolve.
-      if (n === 2) await step.sleep("respiro-provedor", "60s");
+      if (estilo.esperaAntes) await step.sleep(`respiro-${estilo.rotulo}`, estilo.esperaAntes);
 
       taskId = await step.run(`iniciar-${estilo.rotulo}`, async () => {
         const id = await iniciarGeracao({
@@ -178,6 +189,9 @@ export const gerarMusica = inngest.createFunction(
         }
         if (/FAIL|ERROR/i.test(r.status)) {
           recusou = true;
+          // O motivo vem do provedor. Guardar isso é o que separa diagnóstico
+          // de chute na próxima vez que uma noite inteira falhar.
+          motivoRecusa = r.motivo ?? r.status;
           break;
         }
         await step.sleep(`espera-${estilo.rotulo}-${tentativa}`, "10s");
@@ -191,41 +205,63 @@ export const gerarMusica = inngest.createFunction(
           .from("musicas")
           .update({
             status: "falhou",
-            erro: recusou ? "provedor recusou a geração" : "timeout no provedor",
+            erro: recusou
+              ? `provedor recusou 4x${motivoRecusa ? `: ${motivoRecusa}` : ""}`
+              : "timeout no provedor",
           })
           .eq("id", musicaId);
       });
 
-      // AVISA O DONO. Até 12/08 a falha era MUDA: a pessoa via na tela
-      // "avisamos no seu e-mail" e nenhum e-mail existia (o
-      // `emails/desculpa-atraso.ts` só é disparado por um script rodado à
-      // mão). Cinco falharam numa noite e ninguém soube até alguém ir olhar
-      // o banco. Depois de três tentativas, quem tem que ser acordado somos
-      // nós, não o cliente.
-      await step.run("avisar-dono", async () => {
-        try {
-          const chave = process.env.RESEND_API_KEY;
-          // Mesma caixa que já recebe o alerta de saldo do kie.ai: é a que
-          // chega em quem pode agir, e não se perde no meio dos tickets.
-          const dono = "guilhermerojasiqueira@gmail.com";
-          if (!chave) return;
-          const { Resend } = await import("resend");
-          const motivo = recusou ? "provedor recusou 3x" : "timeout no provedor";
-          await new Resend(chave).emails.send({
-            from: "Serenata <contato@serenatagift.com>",
-            to: [dono],
-            subject: `⚠️ música não gerou (${motivo})`,
-            html:
-              `<p>A música <strong>${musica.titulo ?? "sem título"}</strong> não ficou pronta.</p>` +
-              `<p>Motivo: ${motivo}<br>Gênero: ${musica.genero ?? "-"}<br>id: ${musicaId}</p>` +
-              `<p>A pessoa está vendo "a gravação demorou mais que o esperado" na tela. ` +
-              `Pra refazer, reenfileire o evento <code>musica/gerar</code> com esse id.</p>`,
-          });
-        } catch (err) {
-          // Aviso nunca derruba o job.
-          console.error("[musica] aviso ao dono falhou:", err);
-        }
+      // AVISA O DONO — mas só quando ele precisa ACORDAR.
+      //
+      // A falha era muda: a pessoa via "avisamos no seu e-mail" e nenhum
+      // e-mail existia. O alerta consertou isso, e criou o problema oposto na
+      // mesma noite: cinco e-mails idênticos em duas horas, todos de LEAD que
+      // não tinha pago nada. Alerta que chega demais vira alerta que ninguém
+      // lê, e aí a próxima falha de comprador passa batido no meio.
+      //
+      // A régua é o dinheiro: se a pessoa PAGOU, isso é incêndio e o e-mail
+      // sai na hora. Se é lead, a falha fica registrada no banco e no painel,
+      // sem acordar ninguém de madrugada — ela não perdeu nada além de uma
+      // prévia que a gente pode refazer.
+      const comprou = await step.run("essa-pessoa-pagou", async () => {
+        if (!musica.quiz_response_id) return false;
+        const { data } = await db()
+          .from("pedidos")
+          .select("id")
+          .eq("quiz_response_id", musica.quiz_response_id)
+          .eq("status", "pago")
+          .limit(1);
+        return Boolean(data?.length);
       });
+
+      if (comprou) {
+        await step.run("avisar-dono", async () => {
+          try {
+            const chave = process.env.RESEND_API_KEY;
+            // Mesma caixa que já recebe o alerta de saldo do kie.ai: é a que
+            // chega em quem pode agir, e não se perde no meio dos tickets.
+            if (!chave) return;
+            const { Resend } = await import("resend");
+            const motivo = recusou
+              ? `provedor recusou 4x${motivoRecusa ? `: ${motivoRecusa}` : ""}`
+              : "timeout no provedor";
+            await new Resend(chave).emails.send({
+              from: "Serenata <contato@serenatagift.com>",
+              to: ["guilhermerojasiqueira@gmail.com"],
+              subject: `🔴 COMPRADOR sem música: ${musica.titulo ?? "sem título"}`,
+              html:
+                `<p><strong>Alguém pagou e a música não ficou pronta.</strong></p>` +
+                `<p>Título: ${musica.titulo ?? "sem título"}<br>` +
+                `Motivo: ${motivo}<br>Gênero: ${musica.genero ?? "-"}<br>id: ${musicaId}</p>` +
+                `<p>Pra refazer, reenfileire o evento <code>musica/gerar</code> com esse id.</p>`,
+            });
+          } catch (err) {
+            // Aviso nunca derruba o job.
+            console.error("[musica] aviso ao dono falhou:", err);
+          }
+        });
+      }
 
       throw new Error(recusou ? "provedor recusou" : "timeout esperando a música");
     }

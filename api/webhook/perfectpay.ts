@@ -337,12 +337,43 @@ export default async function handler(req: Req, res: Res) {
     const { data: musica } = quiz
       ? await sb
           .from("musicas")
-          .select("id, token, token_edicao, titulo, quiz_response_id")
+          .select("id, token, token_edicao, titulo, quiz_response_id, status, audio_path")
           .eq("quiz_response_id", quiz.id)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle()
       : { data: null };
+
+    // PAGOU E A MÚSICA NÃO FICOU PRONTA: refaz AGORA.
+    //
+    // Aconteceu em 12/08 às 23:46. A música falhou às 23:39, a pessoa pagou
+    // sete minutos depois, e o webhook entregou o e-mail com os links de uma
+    // música que não existia. Ninguém refez — só foi consertado porque alguém
+    // foi olhar o banco de madrugada.
+    //
+    // É a regra mais importante do projeto invertida: a gente cobrou por algo
+    // que não foi produzido. Quando isso acontecer, produzir é a única saída
+    // aceitável, e tem que ser automático.
+    if (musica && (musica.status !== "pronta" || !musica.audio_path)) {
+      try {
+        await sb.from("musicas").update({ status: "gerando", erro: null }).eq("id", musica.id);
+        const chaveEvento = process.env.INNGEST_EVENT_KEY;
+        if (chaveEvento) {
+          await fetch(`https://inn.gs/e/${chaveEvento}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: "musica/gerar", data: { musicaId: musica.id } }),
+          });
+        }
+        await auditar("compra_sem_musica_refeita", {
+          musica: musica.id,
+          email,
+          statusAnterior: musica.status,
+        });
+      } catch (err) {
+        console.error("[perfectpay] refazer música falhou:", err);
+      }
+    }
 
     // ── 7. GRAVA O PEDIDO ────────────────────────────────────
     // sale_amount vem em REAIS; guardamos em centavos.
