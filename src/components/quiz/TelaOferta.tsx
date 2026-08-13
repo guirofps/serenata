@@ -333,8 +333,8 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
             </p>
             <p className="mt-1 text-xs leading-snug text-amber-800/80">
               {locale === "es"
-                ? "No te vamos a cobrar por algo que aún no existe. Vuelve un momento a tu letra: la grabación empieza ahí."
-                : "A gente não cobra por algo que ainda não existe. Volte um instante pra sua letra: a gravação começa por lá."}
+                ? "No te vamos a cobrar por algo que aún no existe. Ya la pusimos a grabar de nuevo: vuelve a tu letra y escúchala en un par de minutos."
+                : "A gente não cobra por algo que ainda não existe. Já colocamos pra gravar de novo: volte pra sua letra e ouça daqui a dois minutinhos."}
             </p>
             <button
               onClick={aoVoltar}

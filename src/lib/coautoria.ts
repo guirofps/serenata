@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+﻿import { createServerFn } from "@tanstack/react-start";
 import { type Locale, normalizarLocale } from "@/lib/i18n";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { registrarCustoLetra, type UsoClaude } from "@/lib/custos";
@@ -220,6 +220,23 @@ export const temMusicaDaSessao = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    // BARRAR NÃO BASTA: se a música FALHOU, mandar a pessoa "voltar pra sua
+    // letra" não refaz nada, e ela fica presa num loop.
+    //
+    // Medido em 3 dias: 2 sessões foram barradas aqui, cada uma clicou em
+    // comprar 8 vezes, e NENHUMA das duas voltou. Elas queriam pagar e a
+    // única coisa que faltava era a música existir.
+    //
+    // É o melhor R$ 0,32 do funil inteiro: alguém com o dedo no botão de
+    // comprar. Refaz na hora e devolve `gerando`, que é o que a tela sabe
+    // esperar.
+    if (m && m.status === "falhou") {
+      await db.from("musicas").update({ status: "gerando", erro: null }).eq("id", m.id);
+      await dispararGeracaoMusica(m.id);
+      return { existe: false, status: "gerando" };
+    }
+
     return { existe: Boolean(m), status: m?.status ?? null };
   });
 
