@@ -327,6 +327,200 @@ export const marcarContato = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export type FichaCliente = {
+  /** Como as linhas foram agrupadas: telefone quando existe, senão e-mail. */
+  chave: string;
+  nomes: string[];
+  emails: string[];
+  telefones: string[];
+  pedidos: {
+    id: string;
+    paymentId: string | null;
+    status: string;
+    gateway: string | null;
+    statusGateway: string | null;
+    valorCentavos: number | null;
+    criadoEm: string;
+    pagoEm: string | null;
+    email: string | null;
+    temPix: boolean;
+  }[];
+  musicas: {
+    id: string;
+    titulo: string | null;
+    paraQuem: string | null;
+    status: string | null;
+    criadoEm: string;
+    locale: "pt" | "es";
+    linkPresente: string | null;
+    linkEditor: string | null;
+    linkPrevia: string | null;
+    audioV1: string | null;
+    audioV2: string | null;
+    montouPresente: boolean;
+  }[];
+};
+
+/**
+ * A FICHA DO CLIENTE. Busca por e-mail, nome OU telefone, sem janela de data.
+ *
+ * Nasceu de um caso de 13/08 que levou meia hora e três consultas ao banco
+ * pra resolver. Um comprador escreveu dizendo que tinha feito duas compras no
+ * cartão e não recebido nada. A verdade era: uma compra no cartão no dia 9,
+ * entregue, e dois Pix gerados hoje e não pagos — com DOIS e-mails diferentes,
+ * um Gmail e um Yahoo, o que fazia a conta dele "sumir" quando ele entrava
+ * pelo segundo.
+ *
+ * Nada disso era visível pro atendente. Ele dependia do dono abrir o banco.
+ *
+ * O agrupamento é por TELEFONE quando existe, e é o que resolve o caso: e-mail
+ * a pessoa troca, telefone não. Sem isso a ficha continuaria mostrando meia
+ * história.
+ *
+ * Continua sem faturamento agregado: valor por pedido é o que responde "eu
+ * paguei?", e é disso que o suporte precisa. Total do mês não é assunto dele.
+ */
+export const buscarCliente = createServerFn({ method: "POST" })
+  .validator((data: { termo: string }) => data)
+  .handler(async ({ data }): Promise<FichaCliente[]> => {
+    const { exigirRecuperacao } = await import("@/lib/admin-auth.server");
+    exigirRecuperacao();
+
+    const termo = data.termo.trim();
+    if (termo.length < 3) return [];
+    const db = supabaseAdmin();
+    // Telefone o operador digita como quiser: com traço, com parêntese, com
+    // DDI. A busca compara só os dígitos.
+    const digitos = termo.replace(/\D/g, "");
+    const like = `%${termo.toLowerCase()}%`;
+
+    const filtros = [`email.ilike.${like}`, `nome_pagador.ilike.${like}`];
+    if (digitos.length >= 6) filtros.push(`telefone.ilike.%${digitos}%`);
+
+    const [{ data: porPedido }, { data: porQuiz }] = await Promise.all([
+      db
+        .from("pedidos")
+        .select("id, payment_id, email, telefone, nome_pagador, status, gateway, status_gateway, valor_centavos, created_at, paid_at, quiz_response_id, pix_codigo")
+        .or(filtros.join(","))
+        .order("created_at", { ascending: false })
+        .limit(60),
+      db
+        .from("quiz_responses")
+        .select("id, email, whatsapp")
+        .ilike("email", like)
+        .limit(60),
+    ]);
+
+    // Um conjunto de chaves (telefone e e-mail) que identificam essa pessoa.
+    // A partir daqui a busca EXPANDE: achou o telefone, traz tudo daquele
+    // telefone, inclusive os pedidos com outro e-mail.
+    const tels = new Set<string>();
+    const mails = new Set<string>();
+    for (const p of porPedido ?? []) {
+      if (p.telefone) tels.add(p.telefone.replace(/\D/g, ""));
+      if (p.email) mails.add(p.email.toLowerCase());
+    }
+    for (const q of porQuiz ?? []) {
+      if (q.email) mails.add(q.email.toLowerCase());
+      if (q.whatsapp) tels.add(String(q.whatsapp).replace(/\D/g, ""));
+    }
+    if (!tels.size && !mails.size) return [];
+
+    const ors: string[] = [];
+    for (const m of mails) ors.push(`email.eq.${m}`);
+    for (const t of tels) if (t.length >= 8) ors.push(`telefone.ilike.%${t.slice(-8)}%`);
+    const { data: todos } = await db
+      .from("pedidos")
+      .select("id, payment_id, email, telefone, nome_pagador, status, gateway, status_gateway, valor_centavos, created_at, paid_at, quiz_response_id, pix_codigo")
+      .or(ors.join(","))
+      .order("created_at", { ascending: false })
+      .limit(120);
+
+    // Agrupa por telefone; quem não tem telefone agrupa pelo e-mail.
+    const grupos = new Map<string, typeof todos>();
+    for (const p of todos ?? []) {
+      const chave = p.telefone ? p.telefone.replace(/\D/g, "").slice(-8) : (p.email ?? "sem").toLowerCase();
+      const g = grupos.get(chave) ?? [];
+      g.push(p);
+      grupos.set(chave, g);
+    }
+
+    const assinar = async (caminho: string | null) => {
+      if (!caminho) return null;
+      const { data: u } = await db.storage.from("musicas").createSignedUrl(caminho, 2 * 3600);
+      return u?.signedUrl ?? null;
+    };
+
+    const fichas: FichaCliente[] = [];
+    for (const [chave, pedidos] of grupos) {
+      const quizIds = [...new Set((pedidos ?? []).map((p) => p.quiz_response_id).filter(Boolean))] as string[];
+      // Também as sessões daquele e-mail que nunca viraram pedido: é onde mora
+      // a música que a pessoa fez e não comprou.
+      const emailsDoGrupo = [...new Set((pedidos ?? []).map((p) => (p.email ?? "").toLowerCase()).filter(Boolean))];
+      const { data: sessoes } = emailsDoGrupo.length
+        ? await db.from("quiz_responses").select("id").in("email", emailsDoGrupo)
+        : { data: [] };
+      for (const s of sessoes ?? []) if (!quizIds.includes(s.id)) quizIds.push(s.id);
+
+      const { data: musicas } = quizIds.length
+        ? await db
+            .from("musicas")
+            .select("id, titulo, status, token, token_edicao, audio_path, audio_path_v2, foto_path, dedicatoria, created_at, quiz_response_id")
+            .in("quiz_response_id", quizIds)
+            .order("created_at", { ascending: false })
+        : { data: [] };
+
+      const { data: quizzes } = quizIds.length
+        ? await db.from("quiz_responses").select("id, respostas, locale, session_id").in("id", quizIds)
+        : { data: [] };
+      const quizDe = new Map((quizzes ?? []).map((q) => [q.id, q]));
+
+      fichas.push({
+        chave,
+        nomes: [...new Set((pedidos ?? []).map((p) => p.nome_pagador).filter(Boolean) as string[])],
+        emails: [...new Set((pedidos ?? []).map((p) => p.email).filter(Boolean) as string[])],
+        telefones: [...new Set((pedidos ?? []).map((p) => p.telefone).filter(Boolean) as string[])],
+        pedidos: (pedidos ?? []).map((p) => ({
+          id: p.id,
+          paymentId: p.payment_id,
+          status: p.status,
+          gateway: p.gateway,
+          statusGateway: p.status_gateway,
+          valorCentavos: p.valor_centavos,
+          criadoEm: p.created_at,
+          pagoEm: p.paid_at,
+          email: p.email,
+          temPix: Boolean(p.pix_codigo),
+        })),
+        musicas: await Promise.all(
+          (musicas ?? []).map(async (m) => {
+            const q = m.quiz_response_id ? quizDe.get(m.quiz_response_id) : null;
+            const r = (q?.respostas ?? {}) as Record<string, string>;
+            const [a1, a2] = await Promise.all([
+              assinar(m.audio_path),
+              assinar(m.audio_path_v2),
+            ]);
+            return {
+              id: m.id,
+              titulo: m.titulo,
+              paraQuem: r.nome?.trim() ?? null,
+              status: m.status,
+              criadoEm: m.created_at,
+              locale: (q?.locale === "es" ? "es" : "pt") as "pt" | "es",
+              linkPresente: m.token ? `${SITE}/p/${m.token}` : null,
+              linkEditor: m.token_edicao ? `${SITE}/editar/${m.token_edicao}` : null,
+              linkPrevia: q?.session_id ? `${SITE}/retomar?s=${encodeURIComponent(q.session_id)}` : null,
+              audioV1: a1,
+              audioV2: a2,
+              montouPresente: Boolean(m.foto_path || m.dedicatoria),
+            };
+          }),
+        ),
+      });
+    }
+    return fichas;
+  });
+
 export type Pago = {
   pedidoId: string;
   nome: string | null;

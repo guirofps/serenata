@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import {
   listarAbandonados, listarPagos, liberarAcesso, reverterAcesso, linkDeAcesso,
-  marcarContato, type Abandonado, type Pago,
+  marcarContato, buscarCliente, type Abandonado, type Pago, type FichaCliente,
 } from "@/lib/recuperacao";
 import { entrarAdmin } from "@/lib/admin-auth";
 import { TEMA_CLARO, MARCA } from "@/lib/marca";
@@ -175,12 +175,17 @@ function Recuperar() {
   const [gerandoLink, setGerandoLink] = useState<string | null>(null);
   const [horas, setHoras] = useState(72);
   const [soNaoContatados, setSoNaoContatados] = useState(false);
-  const [aba, setAba] = useState<"abertos" | "recuperados" | "sozinhos" | "pagos">("abertos");
+  const [aba, setAba] = useState<"abertos" | "recuperados" | "sozinhos" | "pagos" | "ficha">("abertos");
   const [pagos, setPagos] = useState<Pago[] | null>(null);
   const [busca, setBusca] = useState("");
   // Os três recortes que ele realmente usa na aba de pagos. Sem isso, os 5
   // que pediram WhatsApp ficam enterrados no meio de 85 cartões.
   const [filtroPago, setFiltroPago] = useState<"todos" | "pediram" | "sumidos">("todos");
+  // A FICHA DO CLIENTE. Busca por e-mail, nome ou telefone, sem janela de
+  // data, e agrupa por telefone — que é o que resolve quem troca de e-mail.
+  const [termo, setTermo] = useState("");
+  const [fichas, setFichas] = useState<FichaCliente[] | null>(null);
+  const [buscando, setBuscando] = useState(false);
   // Relógio de 1s: é o que faz o cronômetro da carência andar na tela.
   const [agora, setAgora] = useState(() => Date.now());
   useEffect(() => {
@@ -289,12 +294,13 @@ function Recuperar() {
             </Button>
           </div>
 
-          <div className="mt-3 grid grid-cols-4 gap-1 rounded-full bg-[var(--tinta-fraca)]/20 p-1">
+          <div className="mt-3 grid grid-cols-5 gap-1 rounded-full bg-[var(--tinta-fraca)]/20 p-1">
             {([
               ["abertos", "A trabalhar", abertos.length],
               ["recuperados", "Recuperados", recuperados.length],
               ["sozinhos", "Pagaram sós", resolvidos.length],
             ["pagos", "Pagos · suporte", pagos?.length ?? 0],
+            ["ficha", "🔎 Buscar cliente", fichas?.length ?? 0],
             ] as const).map(([id, rotulo, n]) => (
               <button
                 key={id}
@@ -340,7 +346,7 @@ function Recuperar() {
             </>
           )}
 
-          <div className={"mt-3 flex flex-wrap items-center gap-2 " + (aba === "pagos" ? "hidden" : "")}>
+          <div className={"mt-3 flex flex-wrap items-center gap-2 " + (aba === "pagos" || aba === "ficha" ? "hidden" : "")}>
             {[
               [24, "24h"], [72, "3 dias"], [168, "7 dias"], [720, "30 dias"],
             ].map(([h, rot]) => (
@@ -390,6 +396,152 @@ function Recuperar() {
                 ? "Nada recuperado nessa janela ainda."
                 : "Ninguém pagou sozinho nessa janela."}
           </p>
+        )}
+
+        {/* ── FICHA DO CLIENTE ─────────────────────────────────
+            Um caso de 13/08 levou meia hora e três consultas ao banco: o
+            comprador dizia ter feito duas compras no cartão e não recebido,
+            e a verdade era uma compra entregue no dia 9 mais dois Pix não
+            pagos hoje, com dois e-mails diferentes. Nada disso era visível
+            aqui, e o atendente dependia do dono abrir o banco. */}
+        {aba === "ficha" && (
+          <div>
+            <form
+              className="flex gap-2"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setBuscando(true);
+                try {
+                  setFichas(await buscarCliente({ data: { termo } }));
+                } catch {
+                  setFichas([]);
+                }
+                setBuscando(false);
+              }}
+            >
+              <Input
+                value={termo}
+                onChange={(e) => setTermo(e.target.value)}
+                placeholder="e-mail, nome ou telefone"
+                className="bg-white"
+                autoFocus
+              />
+              <Button type="submit" disabled={buscando || termo.trim().length < 3} className="rounded-full">
+                {buscando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
+              </Button>
+            </form>
+            <p className="mt-2 text-[11px] text-[var(--tinta-suave)]">
+              Busca em todo o histórico, sem limite de data. Agrupa pelo telefone,
+              então acha também as compras feitas com outro e-mail.
+            </p>
+
+            {fichas?.length === 0 && (
+              <p className="mt-4 rounded-2xl border border-[var(--tinta-fraca)]/40 p-8 text-center text-[var(--tinta-suave)]">
+                Nada encontrado. Tente parte do e-mail, do nome ou do telefone.
+              </p>
+            )}
+
+            <div className="mt-4 space-y-4">
+              {(fichas ?? []).map((f) => (
+                <div key={f.chave} className="rounded-2xl border border-[var(--tinta-fraca)]/40 bg-white p-4">
+                  <p className="font-medium">{f.nomes[0] ?? "sem nome"}</p>
+                  <p className="text-sm text-[var(--tinta-suave)]">
+                    {f.emails.join(" · ")}
+                    {f.emails.length > 1 && (
+                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                        {f.emails.length} e-mails diferentes
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-[var(--tinta-suave)]">{f.telefones.join(" · ")}</p>
+
+                  <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-[var(--tinta-suave)]">
+                    pedidos ({f.pedidos.length})
+                  </p>
+                  <div className="mt-1 space-y-1">
+                    {f.pedidos.map((p) => (
+                      <div key={p.id} className="flex flex-wrap items-center gap-2 text-xs">
+                        <span
+                          className={
+                            "rounded-full px-2 py-0.5 font-semibold " +
+                            (p.status === "pago"
+                              ? "bg-emerald-600 text-white"
+                              : p.status === "pendente"
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-[var(--tinta-fraca)]/30 text-[var(--tinta-suave)]")
+                          }
+                        >
+                          {p.status}
+                        </span>
+                        <span className="tabular-nums">
+                          {new Date(p.criadoEm).toLocaleString("pt-BR", {
+                            day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+                          })}
+                        </span>
+                        <span>R$ {((p.valorCentavos ?? 0) / 100).toFixed(2)}</span>
+                        <span className="text-[var(--tinta-suave)]">
+                          {p.temPix ? "Pix" : p.gateway === "manual" ? "liberado na mão" : "cartão"}
+                        </span>
+                        <span className="text-[var(--tinta-suave)]">{p.email}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-[var(--tinta-suave)]">
+                    músicas ({f.musicas.length})
+                  </p>
+                  <div className="mt-1 space-y-2">
+                    {f.musicas.map((m) => (
+                      <div key={m.id} className="rounded-xl bg-[var(--tinta-fraca)]/10 p-3">
+                        <p className="text-sm font-medium">
+                          {m.titulo ? `“${m.titulo}”` : "sem título"}{" "}
+                          {m.paraQuem && <span className="text-[var(--tinta-suave)]">pra {m.paraQuem}</span>}
+                        </p>
+                        <p className="text-[11px] text-[var(--tinta-suave)]">
+                          {new Date(m.criadoEm).toLocaleDateString("pt-BR")} · {m.status}
+                          {m.locale === "es" && " · 🇲🇽"}
+                          {!m.montouPresente && " · ainda não montou o presente"}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {m.audioV1 && (
+                            <a href={m.audioV1} download className="rounded-full border border-[var(--tinta-fraca)] px-2.5 py-1 text-[11px]">
+                              versão 1
+                            </a>
+                          )}
+                          {m.audioV2 && (
+                            <a href={m.audioV2} download className="rounded-full border border-[var(--tinta-fraca)] px-2.5 py-1 text-[11px]">
+                              versão 2
+                            </a>
+                          )}
+                          {m.linkEditor && (
+                            <button
+                              onClick={() => copiar(m.linkEditor!, `fe-${m.id}`)}
+                              className="rounded-full border border-[var(--tinta-fraca)] px-2.5 py-1 text-[11px]"
+                            >
+                              {copiado === `fe-${m.id}` ? "copiado!" : "link do editor"}
+                            </button>
+                          )}
+                          {m.linkPrevia && (
+                            <button
+                              onClick={() => copiar(m.linkPrevia!, `fp-${m.id}`)}
+                              className="rounded-full border border-[var(--tinta-fraca)] px-2.5 py-1 text-[11px]"
+                            >
+                              {copiado === `fp-${m.id}` ? "copiado!" : "link da prévia"}
+                            </button>
+                          )}
+                          {m.linkPresente && (
+                            <a href={m.linkPresente} target="_blank" rel="noreferrer" className="rounded-full border border-[var(--tinta-fraca)] px-2.5 py-1 text-[11px]">
+                              abrir ↗
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* ── ABA DE QUEM JÁ PAGOU ─────────────────────────────
@@ -507,7 +659,7 @@ function Recuperar() {
           </div>
         )}
 
-        <div className={"space-y-4 " + (aba === "pagos" ? "hidden" : "")}>
+        <div className={"space-y-4 " + (aba === "pagos" || aba === "ficha" ? "hidden" : "")}>
           {visiveis.map((a) => {
             const msgs = mensagens(a);
             // Cronômetro da carência. Enquanto corre, o cartão já está na tela
