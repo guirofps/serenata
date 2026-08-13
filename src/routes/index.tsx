@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { Logo } from "@/components/marca/Logo";
 import { MARCA, FONTES, TEMA_CLARO } from "@/lib/marca";
@@ -12,6 +12,7 @@ import { BarraCTA } from "@/components/landing/BarraCTA";
 import { PresenteNoTopo } from "@/components/landing/PresenteNoTopo";
 import { useProfundidadeRolagem } from "@/lib/rolagem";
 import { OfereceIdioma } from "@/components/OfereceIdioma";
+import { linksDeIdioma, METATAGS_COMPARTILHAR, dadosEstruturados } from "@/lib/seo";
 import { Play, ArrowRight, Menu, X } from "lucide-react";
 
 // Landing da Serenata — mundo CLARO.
@@ -34,12 +35,15 @@ export const Route = createFileRoute("/")({
       },
       { property: "og:title", content: `${MARCA.nome} · ${MARCA.promessa}` },
       { property: "og:type", content: "website" },
+      ...METATAGS_COMPARTILHAR,
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       { rel: "stylesheet", href: FONTES.googleFonts },
+      ...linksDeIdioma("pt"),
     ],
+    scripts: [{ type: "application/ld+json", children: JSON.stringify(dadosEstruturados("pt")) }],
   }),
   component: Home,
 });

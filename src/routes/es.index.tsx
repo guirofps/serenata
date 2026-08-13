@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
@@ -9,6 +9,7 @@ import { ProvaSocial } from "@/components/landing/ProvaSocial";
 import { PresenteNoTopo } from "@/components/landing/PresenteNoTopo";
 import { ProQuemE } from "@/components/landing/ProQuemE";
 import { Entregavel } from "@/components/landing/Entregavel";
+import { linksDeIdioma, METATAGS_COMPARTILHAR, dadosEstruturados } from "@/lib/seo";
 import { useProfundidadeRolagem } from "@/lib/rolagem";
 import { OfereceIdioma, lembrarIdioma } from "@/components/OfereceIdioma";
 import { MOEDA } from "@/lib/i18n";
@@ -46,7 +47,11 @@ export const Route = createFileRoute("/es/")({
       },
       { property: "og:title", content: "Una canción hecha de su historia" },
       { property: "og:locale", content: "es_MX" },
+      { property: "og:type", content: "website" },
+      ...METATAGS_COMPARTILHAR,
     ],
+    links: linksDeIdioma("es"),
+    scripts: [{ type: "application/ld+json", children: JSON.stringify(dadosEstruturados("es")) }],
   }),
 });
 

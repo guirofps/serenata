@@ -71,6 +71,15 @@ export const Route = createFileRoute("/p/$token")({
 
     return {
       meta: [
+        // FORA DO GOOGLE. Esta página tem o nome de uma pessoa real, as fotos
+        // da família e uma declaração de amor escrita pelo comprador. É um
+        // presente, não uma peça de conteúdo: indexar isso é publicar a vida
+        // íntima de quem confiou na gente, e o token no link nunca foi feito
+        // pra ser segredo criptográfico, só pra não ser adivinhado.
+        //
+        // Não atrapalha a entrega: `noindex` fala com buscador, e o WhatsApp
+        // continua lendo as tags og logo abaixo pra montar a prévia do link.
+        { name: "robots", content: "noindex, nofollow" },
         { title: nome ? `${titulo} · para ${nome}` : titulo },
         { name: "description", content: descricao },
         { property: "og:title", content: nome ? T.ogTitulo(nome) : titulo },

@@ -1,0 +1,35 @@
+# Serenata — serenatagift.com
+#
+# A regra que decide este arquivo: só existem QUATRO páginas nossas que fazem
+# sentido no Google (as duas homes e os dois quizzes). Todo o resto é ou área
+# logada, ou painel interno, ou presente de uma pessoa real.
+#
+# As /p/ são o caso mais sensível: têm nome, foto e declaração de amor de
+# gente que confiou na gente. Elas já saem com noindex na própria página; o
+# bloqueio aqui é o cinto por cima do suspensório.
+
+User-agent: *
+Allow: /$
+Allow: /criar
+Allow: /es
+Allow: /es/criar
+
+# Presentes e edição: vida privada de cliente, nunca em buscador.
+Disallow: /p/
+Disallow: /editar/
+Disallow: /retomar
+
+# Área logada e interno.
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /recuperar
+Disallow: /login
+Disallow: /es/login
+Disallow: /auth/
+Disallow: /obrigado
+Disallow: /es/gracias
+Disallow: /descadastrar
+Disallow: /demo-musica
+Disallow: /api/
+
+Sitemap: https://www.serenatagift.com/sitemap.xml

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Quatro URLs, e é honesto que sejam quatro: é tudo que o site tem de público
+  hoje. Sitemap inflado com página de login e presente de cliente é pior que
+  sitemap pequeno.
+
+  O par hreflang aqui é o que impede o Google de tratar a home espanhola como
+  cópia da portuguesa. Sem isso as duas competem entre si.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://www.serenatagift.com/</loc>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://www.serenatagift.com/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://www.serenatagift.com/es"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.serenatagift.com/"/>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://www.serenatagift.com/es</loc>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://www.serenatagift.com/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://www.serenatagift.com/es"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.serenatagift.com/"/>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://www.serenatagift.com/criar</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.serenatagift.com/es/criar</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>

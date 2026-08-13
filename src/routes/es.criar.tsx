@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
+import { linksDeIdioma } from "@/lib/seo";
 import { z } from "zod";
 import { Quiz } from "@/components/quiz/Quiz";
 
@@ -8,6 +9,7 @@ const searchSchema = z.object({ step: z.string().optional() });
 
 export const Route = createFileRoute("/es/criar")({
   validateSearch: searchSchema,
+  head: () => ({ links: linksDeIdioma("es", "criar") }),
   component: function CriarEs() {
     const { step } = Route.useSearch();
     return <Quiz locale="es" stepId={step} />;
