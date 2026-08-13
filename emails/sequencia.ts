@@ -43,6 +43,8 @@ const COPY: Record<
     a3Botao: string;
     // 4 · encerramento
     a4Assunto: (n: string) => string;
+  a4Cupom: (texto: string, por: string) => string;
+  a4CupomBotao: string;
     a4Titulo: string;
     a4Intro: string;
     a4Corpo: string;
@@ -80,6 +82,11 @@ const COPY: Record<
     a4Corpo:
       "A letra continua sua e o link continua funcionando, sem prazo pra acabar. Se um dia der vontade, é só abrir. E se você respondeu não porque desistiu, mas porque alguma coisa não funcionou, me responde este e-mail contando o que foi. Quem lê é gente.",
     a4Botao: "ABRIR MINHA LETRA →",
+    // Só aparece enquanto o cupom estiver valendo. O texto NÃO inventa prazo:
+    // a escassez aqui é o e-mail ser o último, que é verdade e a pessoa sabe.
+    a4Cupom: (t, por) =>
+      `E vou junto com uma coisa: separei <strong>${t} de desconto</strong> pra você terminar essa música. O botão aqui embaixo já leva o desconto aplicado, sai por <strong>${por}</strong> em vez do preço cheio.`,
+    a4CupomBotao: "TERMINAR COM DESCONTO →",
 
     rodape: "Serenata · uma música feita da história de quem você ama",
     sair: "não quero mais receber",
@@ -112,6 +119,9 @@ const COPY: Record<
     a4Corpo:
       "La letra sigue siendo tuya y el link sigue funcionando, sin fecha de vencimiento. Si algún día te dan ganas, solo ábrelo. Y si no seguiste no porque cambiaste de idea, sino porque algo no funcionó, respóndeme este correo y cuéntame qué pasó. Quien lee es una persona.",
     a4Botao: "ABRIR MI LETRA →",
+    a4Cupom: (t, por) =>
+      `Y va junto con algo: te separé <strong>${t} de descuento</strong> para que termines esa canción. El botón de aquí abajo ya lleva el descuento aplicado, te queda en <strong>${por}</strong> en vez del precio completo.`,
+    a4CupomBotao: "TERMINAR CON DESCUENTO →",
 
     rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
     sair: "ya no quiero recibir",
@@ -187,6 +197,8 @@ export function emailSequencia(args: {
   link: string;
   linkDescadastro: string;
   locale?: IdiomaEmail;
+  /** Cupom da recuperação, quando ainda vale. Só entra no e-mail 4. */
+  cupom?: { codigo: string; texto: string; por: string } | null;
 }): string {
   const locale = args.locale ?? "pt";
   const C = COPY[locale] ?? COPY.pt;
@@ -223,12 +235,18 @@ export function emailSequencia(args: {
     });
   }
 
+  // O QUARTO é o último, e é onde o desconto cabe. Quem chegou aqui atravessou
+  // três e-mails sem comprar, então não há venda pra canibalizar; nos
+  // anteriores seria dar desconto pra quem ia comprar de qualquer jeito.
   return moldura({
     locale,
     preheader: C.a4Assunto(args.nome),
     titulo: C.a4Titulo,
-    miolo: p(C.a4Intro) + p(C.a4Corpo),
-    botao: C.a4Botao,
+    miolo:
+      p(C.a4Intro) +
+      (args.cupom ? p(C.a4Cupom(args.cupom.texto, args.cupom.por)) : "") +
+      p(C.a4Corpo),
+    botao: args.cupom ? C.a4CupomBotao : C.a4Botao,
     link: args.link,
     linkDescadastro: args.linkDescadastro,
   });

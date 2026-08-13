@@ -7,6 +7,7 @@ import { trackEvent, trackEventOnce } from "@/lib/track";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { TEMA_CLARO } from "@/lib/marca";
 import { type Locale, MOEDA } from "@/lib/i18n";
+import { cupomAtivo } from "@/lib/cupom";
 import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
 import {
@@ -176,10 +177,18 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   const respostas = useQuizStore((s) => s.respostas);
   const email = useQuizStore((s) => s.email);
   const whatsapp = useQuizStore((s) => s.whatsapp);
+  // Cupom vindo do e-mail de recuperação. Se existe, o preço na tela TEM que
+  // ser o com desconto: o e-mail prometeu um número, e ver outro aqui é o
+  // mesmo problema do checkout internacional que a gente acabou de consertar.
+  const cupom = useQuizStore((s) => s.cupom);
   const letraFinal = useQuizStore((s) => s.letraFinal);
   const [indo, setIndo] = useState(false);
   const [aberta, setAberta] = useState<number | null>(null);
   const nome = (respostas.nome as string)?.trim() || (locale === "es" ? "quien tú quieres" : "quem você ama");
+  // Só mostra desconto se o cupom da store for MESMO o da recuperação: um
+  // código digitado na URL por curiosidade não pode reescrever o preço da tela.
+  const doFunil = cupomAtivo(locale);
+  const descontado = cupom && doFunil && cupom.toUpperCase() === doFunil.codigo ? doFunil : null;
 
   // O degrau novo do funil: sem este evento, "viu a oferta" e "foi pro
   // checkout" ficariam colados e a tela não serviria de medida.
@@ -219,7 +228,12 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       // Consulta indisponível: segue. Ver comentário acima.
     }
     trackEvent("checkout_click", { valor: preco.valor, locale });
-    irParaCheckout({ email: email || undefined, telefone: whatsapp || undefined, locale });
+    irParaCheckout({
+      email: email || undefined,
+      telefone: whatsapp || undefined,
+      cupom: cupom || undefined,
+      locale,
+    });
   }
 
   return (
@@ -293,10 +307,21 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           {C.ancora}
         </p>
         <div className="mt-4">
+          {/* Com cupom, a âncora deixa de ser o preço inventado e passa a ser
+              o preço REAL de quem não tem cupom. É mais forte e é verdade. */}
           <p className="text-sm text-muted-foreground">
-            <span className="line-through">{preco.ancora}</span> {C.hojePor}
+            <span className="line-through">{descontado ? preco.texto : preco.ancora}</span> {C.hojePor}
           </p>
-          <p className="font-display text-5xl font-semibold tracking-tight">{preco.texto}</p>
+          <p className="font-display text-5xl font-semibold tracking-tight">
+            {descontado ? descontado.por : preco.texto}
+          </p>
+          {descontado && (
+            <p className="mt-1.5 inline-block rounded-full bg-emerald-600/10 px-3 py-1 text-xs font-semibold text-emerald-700">
+              {locale === "es"
+                ? `Cupón ${descontado.codigo} aplicado: ${descontado.texto} de descuento`
+                : `Cupom ${descontado.codigo} aplicado: ${descontado.texto} de desconto`}
+            </p>
+          )}
           <p className="mt-1 text-xs text-muted-foreground">
             {C.pagamentoUnico}
           </p>

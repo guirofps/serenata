@@ -52,7 +52,12 @@ function leJson(chave: string): Record<string, unknown> | null {
 }
 
 /** Monta a URL do checkout com sessão e UTMs. */
-export function urlCheckout(extra?: { email?: string; telefone?: string; locale?: Locale }): string {
+export function urlCheckout(extra?: {
+  email?: string;
+  telefone?: string;
+  cupom?: string;
+  locale?: Locale;
+}): string {
   const p = new URLSearchParams();
 
   // A ponte com o webhook.
@@ -87,6 +92,12 @@ export function urlCheckout(extra?: { email?: string; telefone?: string; locale?
   // gente: em 7 dias, 223 sessões clicaram em comprar e só 86 geraram pedido.
   if (extra?.telefone) p.set("phone", extra.telefone);
 
+  // CUPOM já aplicado. Conferido abrindo os dois checkouts de verdade: `?ppc=`
+  // aplica sozinho e a tela mostra "Cupom SRN27 aplicado com sucesso". Sem
+  // isso a pessoa teria que achar o campo "Adicionar Cupom", que fica
+  // escondido atrás de um passo — e cada campo escondido é gente perdida.
+  if (extra?.cupom) p.set("ppc", extra.cupom);
+
   if (typeof window !== "undefined") {
     const daUrl: Record<string, string> = {};
     new URLSearchParams(window.location.search).forEach((v, k) => (daUrl[k] = v));
@@ -110,6 +121,11 @@ export function urlCheckout(extra?: { email?: string; telefone?: string; locale?
 }
 
 /** Leva pro checkout. */
-export function irParaCheckout(extra?: { email?: string; telefone?: string; locale?: Locale }) {
+export function irParaCheckout(extra?: {
+  email?: string;
+  telefone?: string;
+  cupom?: string;
+  locale?: Locale;
+}) {
   window.location.href = urlCheckout(extra);
 }

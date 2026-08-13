@@ -35,10 +35,20 @@ type QuizState = {
    * perderam DENTRO do formulário do gateway. Cada campo a menos conta.
    */
   whatsapp: string | null;
+  /**
+   * Cupom que veio do e-mail de recuperação (`/retomar?...&cupom=SRN27`).
+   *
+   * Fica na store porque o caminho é longo: a pessoa clica no e-mail, cai no
+   * `/retomar`, é levada pro reveal, ouve a música, vai pra oferta e só então
+   * pro checkout. Perder o código em qualquer uma dessas pontes transformaria
+   * a promessa do e-mail em preço cheio na tela do gateway.
+   */
+  cupom: string | null;
   letraFinal: LetraFinal | null;
   setResposta: (field: string, value: string | string[]) => void;
   setEmail: (email: string) => void;
   setWhatsapp: (w: string) => void;
+  setCupom: (c: string | null) => void;
   setLetraFinal: (l: LetraFinal) => void;
   reset: () => void;
 };
@@ -49,6 +59,7 @@ export const useQuizStore = create<QuizState>()(
       respostas: {},
       email: null,
       whatsapp: null,
+      cupom: null,
       letraFinal: null,
       // RESPONDER UMA PERGUNTA INVALIDA A LETRA ANTERIOR.
       //
@@ -81,8 +92,9 @@ export const useQuizStore = create<QuizState>()(
         })),
       setEmail: (email) => set({ email }),
       setWhatsapp: (whatsapp) => set({ whatsapp }),
+      setCupom: (cupom) => set({ cupom }),
       setLetraFinal: (letraFinal) => set({ letraFinal }),
-      reset: () => set({ respostas: {}, email: null, whatsapp: null, letraFinal: null }),
+      reset: () => set({ respostas: {}, email: null, whatsapp: null, cupom: null, letraFinal: null }),
     }),
     { name: "mp_quiz" },
   ),

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+﻿import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -62,6 +62,8 @@ const COPY = {
 export const Route = createFileRoute("/retomar")({
   validateSearch: (b: Record<string, unknown>) => ({
     s: typeof b.s === "string" ? b.s : undefined,
+    // O cupom do e-mail de recuperação viaja daqui até o checkout.
+    cupom: typeof b.cupom === "string" ? b.cupom : undefined,
   }),
   head: () => ({
     meta: [{ title: MARCA.nome }, { name: "robots", content: "noindex, nofollow" }],
@@ -70,7 +72,7 @@ export const Route = createFileRoute("/retomar")({
 });
 
 function Retomar() {
-  const { s } = Route.useSearch();
+  const { s, cupom } = Route.useSearch();
   const navigate = useNavigate();
   const [erro, setErro] = useState(false);
   const [locale, setLocale] = useState<"pt" | "es">("pt");
@@ -94,6 +96,9 @@ function Retomar() {
         store.reset();
         for (const [k, v] of Object.entries(r.respostas)) store.setResposta(k, v);
         store.setLetraFinal(r.letra);
+        // Guarda ANTES de navegar: a partir daqui a pessoa anda pelo funil e
+        // o código precisa sobreviver até o botão de pagar.
+        if (cupom) store.setCupom(cupom);
 
         navigate({ to: caminho("/criar", r.locale), search: { step: "reveal" } } as never);
       })

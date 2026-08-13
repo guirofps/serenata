@@ -1,4 +1,4 @@
-import { inngest } from "../client.js";
+﻿import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import {
@@ -8,6 +8,7 @@ import {
 } from "../../emails/sequencia.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
+import { cupomAtivo } from "../../src/lib/cupom.js";
 
 // A SEQUÊNCIA DE RECUPERAÇÃO: e-mails 2, 3 e 4.
 //
@@ -215,7 +216,14 @@ export const sequenciaRecuperacao = inngest.createFunction(
         // `/retomar` e não o funil cru: aquela rota busca a letra no servidor
         // pelo session_id, reidrata o navegador e ADOTA a sessão — o que faz
         // uma compra vinda deste e-mail casar com o quiz pelo mesmo `src`.
-        const link = `${SITE}/retomar?s=${encodeURIComponent(p.sessao)}`;
+        // O CUPOM só no último e-mail, e só enquanto estiver valendo. Ele viaja
+        // no link e sobrevive até o checkout: `/retomar` guarda o código, o
+        // funil carrega, e `?ppc=` aplica sozinho na tela do gateway. Sem essa
+        // corrente, o e-mail prometeria um preço e o checkout mostraria outro.
+        const cupom = p.numero === 4 ? cupomAtivo(p.locale) : null;
+        const link =
+          `${SITE}/retomar?s=${encodeURIComponent(p.sessao)}` +
+          (cupom ? `&cupom=${encodeURIComponent(cupom.codigo)}` : "");
         const linkDescadastro = `${SITE}/descadastrar?s=${encodeURIComponent(p.sessao)}&lang=${p.locale}`;
 
         const { error } = await resend.emails.send({
@@ -229,6 +237,7 @@ export const sequenciaRecuperacao = inngest.createFunction(
             link,
             linkDescadastro,
             locale: p.locale,
+            cupom,
           }),
           headers: {
             "List-Unsubscribe": `<${linkDescadastro}>`,
