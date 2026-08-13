@@ -1,4 +1,4 @@
-import { inngest } from "../client.js";
+﻿import { inngest } from "../client.js";
 import { Resend } from "resend";
 
 // VIGIA DO SALDO do kie.ai.
@@ -16,7 +16,21 @@ import { Resend } from "resend";
 // depende de alguém abrir a tela. Este cron é a outra metade — ele procura o
 // dono em vez de esperar.
 
-const AVISAR_ABAIXO_DE = 20; // músicas restantes
+// O AVISO É EM DIAS, NÃO EM MÚSICAS.
+//
+// Era um número fixo: avisar abaixo de 20 músicas restantes. Fazia sentido
+// quando o funil gerava 8 por dia — 20 músicas eram dois dias e meio de folga.
+//
+// Em 13/08 o ritmo é 119 músicas/dia. As mesmas 20 músicas viraram QUATRO
+// HORAS de operação, e o cron rodava de 6 em 6: o aviso podia chegar depois
+// do pipeline já parado. Limiar fixo envelhece junto com o negócio, e esse já
+// tinha envelhecido sem ninguém perceber.
+//
+// Agora o limiar acompanha o consumo real dos últimos dias. 1,5 dia é tempo
+// de sobra pra recarregar sem correr, e o piso de 40 músicas protege o caso
+// do dia fraco (senão, num domingo devagar, o alerta só sairia quase no fim).
+const DIAS_DE_FOLGA = 1.5;
+const PISO_MUSICAS = 40;
 const CREDITO_POR_MUSICA = 12; // tabela pública do kie.ai (2 versões)
 // O e-mail PESSOAL do dono, não o contato@. Alerta de operação tem que
 // chegar em quem pode recarregar, e a caixa de suporte é onde ele se perderia
@@ -27,9 +41,9 @@ export const vigiarSaldo = inngest.createFunction(
   {
     id: "vigiar-saldo-kie",
     retries: 1,
-    // De 6 em 6 horas. Mais frequente viraria ruído; menos deixaria a janela
-    // de silêncio grande demais — a de 08/08 teve 13h.
-    triggers: [{ cron: "0 */6 * * *" }],
+    // De 2 em 2 horas. Era de 6 em 6, o que num dia de 119 músicas deixava
+    // uma janela de silêncio maior que a folga de crédito inteira.
+    triggers: [{ cron: "0 */2 * * *" }],
   },
   async ({ step }) => {
     const saldo = await step.run("ler-saldo", async () => {
@@ -45,8 +59,26 @@ export const vigiarSaldo = inngest.createFunction(
     });
 
     const musicas = Math.floor(saldo / CREDITO_POR_MUSICA);
-    if (musicas >= AVISAR_ABAIXO_DE) {
-      return { saldo, musicas, avisou: false };
+
+    // Quantas músicas o funil consumiu por dia na última semana. É o que
+    // transforma "20 músicas restantes" em "quatro horas" ou "dois dias".
+    const porDia = await step.run("ritmo-recente", async () => {
+      const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!url || !key) return 0;
+      const { createClient } = await import("@supabase/supabase-js");
+      const sb = createClient(url, key, { auth: { persistSession: false } });
+      const { count } = await sb
+        .from("musicas")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", new Date(Date.now() - 7 * 86400000).toISOString());
+      return Math.round((count ?? 0) / 7);
+    });
+
+    const limite = porDia > 0 ? Math.max(PISO_MUSICAS, Math.ceil(porDia * DIAS_DE_FOLGA)) : PISO_MUSICAS;
+    const diasRestantes = porDia > 0 ? musicas / porDia : null;
+    if (musicas >= limite) {
+      return { saldo, musicas, porDia, limite, avisou: false };
     }
 
     await step.run("avisar", async () => {
@@ -60,7 +92,7 @@ export const vigiarSaldo = inngest.createFunction(
         // lido no título, sem abrir.
         subject: acabou
           ? "PAROU: sem crédito no kie.ai, nenhuma música está sendo gerada"
-          : `Crédito do kie.ai acabando: restam ${musicas} músicas`,
+          : `Crédito do kie.ai acabando: restam ${musicas} músicas${diasRestantes !== null ? ` (~${diasRestantes.toFixed(1)} dia${diasRestantes < 2 ? "" : "s"})` : ""}`,
         html: `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;font-size:15px;line-height:1.6;color:#2a1518;">
           <p style="font-size:18px;font-weight:600;margin:0 0 12px;">
             ${acabou ? "O pipeline está parado." : "O crédito está acabando."}
@@ -70,6 +102,14 @@ export const vigiarSaldo = inngest.createFunction(
             <strong>${musicas} música${musicas === 1 ? "" : "s"}</strong>
             (${CREDITO_POR_MUSICA} créditos cada).
           </p>
+          ${
+            diasRestantes !== null
+              ? `<p style="margin:0 0 12px;">
+                   No ritmo dos últimos 7 dias (<strong>${porDia} músicas/dia</strong>),
+                   isso é cerca de <strong>${diasRestantes.toFixed(1)} dia${diasRestantes < 2 ? "" : "s"}</strong>.
+                 </p>`
+              : ""
+          }
           ${
             acabou
               ? `<p style="margin:0 0 12px;color:#7d2b3a;font-weight:600;">
@@ -88,6 +128,6 @@ export const vigiarSaldo = inngest.createFunction(
       });
     });
 
-    return { saldo, musicas, avisou: true };
+    return { saldo, musicas, porDia, limite, avisou: true };
   },
 );
