@@ -1,6 +1,9 @@
 ﻿import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { listarAbandonados, liberarAcesso, reverterAcesso, linkDeAcesso, marcarContato, type Abandonado } from "@/lib/recuperacao";
+import {
+  listarAbandonados, listarPagos, liberarAcesso, reverterAcesso, linkDeAcesso,
+  marcarContato, type Abandonado, type Pago,
+} from "@/lib/recuperacao";
 import { entrarAdmin } from "@/lib/admin-auth";
 import { TEMA_CLARO, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
@@ -41,6 +44,69 @@ const RELACAO: Record<string, string> = {
   neta: "neta", neto: "neto", familia: "família", amiga: "amiga",
   amigo: "amigo", pet: "pet", outro: "alguém especial",
 };
+
+/**
+ * O que mandar pra quem JÁ PAGOU.
+ *
+ * Duas situações diferentes, e o texto respeita a diferença:
+ *
+ * `pediuWhatsapp` é quem digitou o número na tela de espera aceitando
+ * "quer que eu te avise quando ficar pronta?". Com essa pessoa a gente tem
+ * permissão explícita e pode abrir a conversa como quem cumpre o combinado.
+ *
+ * Quem não pediu deixou o telefone no CHECKOUT, pra comprar. Falar com ela
+ * continua legítimo (é suporte de uma compra), mas o texto entra pedindo
+ * licença, não como se ela tivesse pedido.
+ *
+ * Nos dois casos a mensagem diz que quem monta o presente é ELA. A gente não
+ * monta, e prometer o contrário cria um trabalho que não existe.
+ */
+function mensagensPago(p: Pago): { rotulo: string; texto: string }[] {
+  const quem = p.paraQuem || (p.locale === "es" ? "esa persona" : "essa pessoa");
+  const oi = p.nome ? `Oi, ${p.nome}!` : "Oi!";
+  const editor = p.linkEditor ?? "";
+  const presente = p.linkPresente ?? "";
+
+  if (p.locale === "es") {
+    return [
+      {
+        rotulo: p.pediuWhatsapp ? "★ ela pediu contato" : "entrega por WhatsApp",
+        texto:
+          `¡Hola${p.nome ? `, ${p.nome}` : ""}! Aquí es de Serenata 🎵\n\n` +
+          `${p.pediuWhatsapp ? "Como me pediste, te aviso por aquí: " : "Te escribo por aquí porque "}` +
+          `la canción de ${quem} ya está lista. Te mando los dos audios en seguida, elige el que más te guste.\n\n` +
+          `Y aquí armas la página del regalo, con las fotos de ustedes y el código QR:\n${editor}\n\n` +
+          `Ese link es solo tuyo y es el único que deja editar. Cuando termines, mandas esta página a ${quem}:\n${presente}`,
+      },
+      {
+        rotulo: "não conseguiu acessar",
+        texto:
+          `¡Hola${p.nome ? `, ${p.nome}` : ""}! Vi que tu compra está confirmada 🎵\n\n` +
+          `A veces el correo se va a spam. Aquí está tu acceso directo, sin contraseña:\n${editor}\n\n` +
+          `Ahí escuchas las dos versiones, subes las fotos y descargas el MP3. Cualquier cosa me respondes por aquí.`,
+      },
+    ];
+  }
+
+  return [
+    {
+      rotulo: p.pediuWhatsapp ? "★ ela pediu contato" : "entrega por WhatsApp",
+      texto:
+        `${oi} Aqui é da Serenata 🎵\n\n` +
+        `${p.pediuWhatsapp ? "Como você pediu, te aviso por aqui: " : "Te chamo por aqui porque "}` +
+        `a música de ${quem} ficou pronta. Já te mando os dois áudios, escolhe o que você mais gostar.\n\n` +
+        `E aqui você monta a página do presente, com as fotos de vocês e o QR Code:\n${editor}\n\n` +
+        `Esse link é só seu e é o único que deixa editar. Quando terminar, é essa página que você manda pra ${quem}:\n${presente}`,
+    },
+    {
+      rotulo: "não conseguiu acessar",
+      texto:
+        `${oi} Vi aqui que sua compra está confirmada 🎵\n\n` +
+        `Às vezes o e-mail cai no spam. Este é o seu acesso direto, sem senha:\n${editor}\n\n` +
+        `Lá você ouve as duas versões, coloca as fotos e baixa o MP3. Qualquer coisa é só me responder por aqui.`,
+    },
+  ];
+}
 
 /** O roteiro. Muda conforme o tempo, porque a conversa muda. */
 function mensagens(a: Abandonado): { rotulo: string; texto: string }[] {
@@ -109,7 +175,9 @@ function Recuperar() {
   const [gerandoLink, setGerandoLink] = useState<string | null>(null);
   const [horas, setHoras] = useState(72);
   const [soNaoContatados, setSoNaoContatados] = useState(false);
-  const [aba, setAba] = useState<"abertos" | "recuperados" | "sozinhos">("abertos");
+  const [aba, setAba] = useState<"abertos" | "recuperados" | "sozinhos" | "pagos">("abertos");
+  const [pagos, setPagos] = useState<Pago[] | null>(null);
+  const [busca, setBusca] = useState("");
   // Relógio de 1s: é o que faz o cronômetro da carência andar na tela.
   const [agora, setAgora] = useState(() => Date.now());
   useEffect(() => {
@@ -134,6 +202,13 @@ function Recuperar() {
       .then((l) => { setLista(l); setPapel("ok"); })
       .catch(() => {});
   }, []);
+
+  // A aba de pagos carrega sob demanda: são 85 pedidos em 7 dias e cada um
+  // precisa de URL assinada de áudio, então não vale trazer junto da fila.
+  useEffect(() => {
+    if (aba !== "pagos" || !papel) return;
+    listarPagos({ data: { dias: 7 } }).then(setPagos).catch(() => {});
+  }, [aba, papel]);
 
   // A fila se atualiza sozinha a cada 45s. Antes só mexia quando ele apertava
   // "Atualizar" — ou seja, um Pix gerado agora só existia pra ele quando
@@ -211,11 +286,12 @@ function Recuperar() {
             </Button>
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-1 rounded-full bg-[var(--tinta-fraca)]/20 p-1">
+          <div className="mt-3 grid grid-cols-4 gap-1 rounded-full bg-[var(--tinta-fraca)]/20 p-1">
             {([
               ["abertos", "A trabalhar", abertos.length],
               ["recuperados", "Recuperados", recuperados.length],
               ["sozinhos", "Pagaram sós", resolvidos.length],
+            ["pagos", "Pagos · suporte", pagos?.length ?? 0],
             ] as const).map(([id, rotulo, n]) => (
               <button
                 key={id}
@@ -230,7 +306,16 @@ function Recuperar() {
             ))}
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          {aba === "pagos" && (
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="buscar por e-mail (quem escreveu no suporte)"
+              className="mt-3 bg-white"
+            />
+          )}
+
+          <div className={"mt-3 flex flex-wrap items-center gap-2 " + (aba === "pagos" ? "hidden" : "")}>
             {[
               [24, "24h"], [72, "3 dias"], [168, "7 dias"], [720, "30 dias"],
             ].map(([h, rot]) => (
@@ -282,7 +367,117 @@ function Recuperar() {
           </p>
         )}
 
-        <div className="space-y-4">
+        {/* ── ABA DE QUEM JÁ PAGOU ─────────────────────────────
+            Nasceu de dois casos do mesmo dia: um senhor pagou no cartão e não
+            achou nada, e dois e-mails de entrega voltaram no Gmail. Nos três
+            o produto estava pronto e o suporte não tinha como chegar nele. */}
+        {aba === "pagos" && (
+          <div className="space-y-4">
+            {pagos === null && <p className="text-sm text-[var(--tinta-suave)]">carregando…</p>}
+            {pagos?.length === 0 && (
+              <p className="rounded-2xl border border-[var(--tinta-fraca)]/40 p-8 text-center text-[var(--tinta-suave)]">
+                Nenhuma compra nos últimos 7 dias.
+              </p>
+            )}
+            {(pagos ?? [])
+              .filter((p) => !busca.trim() || (p.email ?? "").includes(busca.trim().toLowerCase()))
+              .map((p) => {
+                const msgs = mensagensPago(p);
+                return (
+                  <div
+                    key={p.pedidoId}
+                    className={
+                      "rounded-2xl border p-4 " +
+                      (p.pediuWhatsapp
+                        ? "border-[#25D366]/50 bg-[#25D366]/5"
+                        : "border-[var(--tinta-fraca)]/40 bg-white")
+                    }
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium">
+                          {p.titulo ? `“${p.titulo}”` : "Música"}{" "}
+                          {p.paraQuem && <span className="text-[var(--tinta-suave)]">pra {p.paraQuem}</span>}
+                        </p>
+                        <p className="text-sm text-[var(--tinta-suave)]">
+                          {p.nome ? <strong className="text-[var(--tinta)]">{p.nome}</strong> : "sem nome"} · {p.email}
+                        </p>
+                        <p className="mt-1 text-xs text-[var(--tinta-suave)]">
+                          há {p.horasAtras}h
+                          {p.locale === "es" && " · 🇲🇽 espanhol"}
+                          {p.pediuWhatsapp && " · ★ pediu contato no WhatsApp"}
+                          {/* Quem não montou é o candidato natural a não ter
+                              recebido o e-mail: ela nunca chegou na plataforma. */}
+                          {!p.montouPresente && " · ⚠️ ainda não montou o presente"}
+                        </p>
+                      </div>
+                      {p.whatsapp && (
+                        <a
+                          href={`https://wa.me/${p.whatsapp}?text=${encodeURIComponent(msgs[0].texto)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2 text-sm font-semibold text-white"
+                        >
+                          <MessageCircle className="h-4 w-4" /> {p.telefone}
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Os DOIS áudios, pra ele baixar e mandar no WhatsApp. */}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {p.audioV1 && (
+                        <a href={p.audioV1} download className="inline-flex items-center gap-1.5 rounded-full border border-[var(--tinta-fraca)] px-3 py-1.5 text-xs">
+                          <Download className="h-3.5 w-3.5" /> versão 1
+                        </a>
+                      )}
+                      {p.audioV2 && (
+                        <a href={p.audioV2} download className="inline-flex items-center gap-1.5 rounded-full border border-[var(--tinta-fraca)] px-3 py-1.5 text-xs">
+                          <Download className="h-3.5 w-3.5" /> versão 2
+                        </a>
+                      )}
+                      {p.linkEditor && (
+                        <button
+                          onClick={() => copiar(p.linkEditor!, `ed-${p.pedidoId}`)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--tinta-fraca)] px-3 py-1.5 text-xs"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                          {copiado === `ed-${p.pedidoId}` ? "copiado!" : "link do editor"}
+                        </button>
+                      )}
+                      {p.linkPresente && (
+                        <a href={p.linkPresente} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-[var(--tinta-fraca)] px-3 py-1.5 text-xs">
+                          abrir o presente ↗
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="mt-3 space-y-2">
+                      {msgs.map((m) => (
+                        <div key={m.rotulo} className="rounded-xl bg-[var(--tinta-fraca)]/10 p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tinta-suave)]">
+                              {m.rotulo}
+                            </p>
+                            <button
+                              onClick={() => copiar(m.texto, `${p.pedidoId}-${m.rotulo}`)}
+                              className="shrink-0 text-[11px] text-[var(--acento)]"
+                            >
+                              {copiado === `${p.pedidoId}-${m.rotulo}` ? "copiado!" : "copiar"}
+                            </button>
+                          </div>
+                          <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-[var(--tinta-suave)]">
+                            {m.texto}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+
+        <div className={"space-y-4 " + (aba === "pagos" ? "hidden" : "")}>
           {visiveis.map((a) => {
             const msgs = mensagens(a);
             // Cronômetro da carência. Enquanto corre, o cartão já está na tela

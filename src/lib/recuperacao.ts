@@ -327,6 +327,126 @@ export const marcarContato = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export type Pago = {
+  pedidoId: string;
+  nome: string | null;
+  email: string | null;
+  telefone: string | null;
+  whatsapp: string | null;
+  /** Ela PEDIU aviso no WhatsApp na tela de espera. Muda o texto da mensagem. */
+  pediuWhatsapp: boolean;
+  pagoEm: string;
+  horasAtras: number;
+  locale: "pt" | "es";
+  paraQuem: string | null;
+  titulo: string | null;
+  linkPresente: string | null;
+  linkEditor: string | null;
+  audioV1: string | null;
+  audioV2: string | null;
+  montouPresente: boolean;
+};
+
+/**
+ * QUEM PAGOU, com os links na mão.
+ *
+ * Nasceu de dois problemas do mesmo dia. Um senhor pagou no cartão e não
+ * achou nada: o e-mail existia, mas ele não sabia procurar. E dois e-mails de
+ * entrega VOLTARAM (bounce do Gmail), então duas pessoas pagaram e nunca
+ * receberam link nenhum.
+ *
+ * Nos dois casos o produto estava pronto e o suporte não tinha como chegar
+ * nele sem abrir o banco. Esta lista resolve isso: o operador acha a pessoa,
+ * copia o link e manda.
+ *
+ * NÃO mostra dinheiro. É a mesma regra do resto da tela: quem trabalha
+ * recuperação vê o que serve pra CONVERSAR, não faturamento.
+ */
+export const listarPagos = createServerFn({ method: "POST" })
+  .validator((data: { dias?: number; busca?: string }) => data)
+  .handler(async ({ data }): Promise<Pago[]> => {
+    const { exigirRecuperacao } = await import("@/lib/admin-auth.server");
+    exigirRecuperacao();
+
+    const db = supabaseAdmin();
+    const desde = new Date(Date.now() - (data.dias ?? 7) * 86400000).toISOString();
+
+    let q = db
+      .from("pedidos")
+      .select("id, email, telefone, nome_pagador, paid_at, quiz_response_id")
+      .eq("status", "pago")
+      .gte("paid_at", desde)
+      .order("paid_at", { ascending: false });
+    // A busca existe pro caso do suporte: a pessoa escreve dizendo que pagou,
+    // e o operador tem o e-mail dela e mais nada.
+    if (data.busca?.trim()) q = q.ilike("email", `%${data.busca.trim()}%`);
+
+    const { data: pedidos } = await q;
+    if (!pedidos?.length) return [];
+
+    const out: Pago[] = [];
+    for (const p of pedidos) {
+      const { data: quiz } = p.quiz_response_id
+        ? await db
+            .from("quiz_responses")
+            .select("respostas, locale, whatsapp, whatsapp_em")
+            .eq("id", p.quiz_response_id)
+            .maybeSingle()
+        : { data: null };
+
+      const { data: m } = p.quiz_response_id
+        ? await db
+            .from("musicas")
+            .select("titulo, token, token_edicao, audio_path, audio_path_v2, foto_path, dedicatoria")
+            .eq("quiz_response_id", p.quiz_response_id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        : { data: null };
+
+      const assinar = async (caminho: string | null) => {
+        if (!caminho) return null;
+        const { data: u } = await db.storage.from("musicas").createSignedUrl(caminho, 2 * 3600);
+        return u?.signedUrl ?? null;
+      };
+
+      const q2 = quiz as {
+        respostas?: Record<string, string> | null;
+        locale?: string | null;
+        whatsapp?: string | null;
+        whatsapp_em?: string | null;
+      } | null;
+      const locale = q2?.locale === "es" ? "es" : "pt";
+      // Prefere o número que ELA digitou pedindo contato; o do checkout é o
+      // que sobra, e serve, porque quem pagou já esperava falar com a gente.
+      const tel = q2?.whatsapp ?? p.telefone ?? null;
+
+      out.push({
+        pedidoId: p.id,
+        nome: p.nome_pagador
+          ? String(p.nome_pagador).trim().split(/\s+/)[0].toLowerCase().replace(/^./, (c) => c.toUpperCase())
+          : null,
+        email: p.email,
+        telefone: tel,
+        whatsapp: paraWhatsapp(tel, locale),
+        pediuWhatsapp: Boolean(q2?.whatsapp_em),
+        pagoEm: p.paid_at,
+        horasAtras: Math.round(((Date.now() - new Date(p.paid_at).getTime()) / 3600000) * 10) / 10,
+        locale,
+        paraQuem: q2?.respostas?.nome?.trim() ?? null,
+        titulo: m?.titulo ?? null,
+        linkPresente: m?.token ? `${SITE}/p/${m.token}` : null,
+        linkEditor: m?.token_edicao ? `${SITE}/editar/${m.token_edicao}` : null,
+        audioV1: await assinar(m?.audio_path ?? null),
+        audioV2: await assinar(m?.audio_path_v2 ?? null),
+        // Se já subiu foto ou escreveu dedicatória, ela ACHOU a plataforma.
+        // Quem não montou é candidato a não ter recebido o e-mail.
+        montouPresente: Boolean(m?.foto_path || m?.dedicatoria),
+      });
+    }
+    return out;
+  });
+
 /**
  * LINK DE ACESSO pra mandar no WhatsApp.
  *

@@ -1,4 +1,4 @@
-import type { Locale } from "@/lib/i18n";
+﻿import type { Locale } from "@/lib/i18n";
 
 // O DICIONÁRIO da interface.
 //
@@ -119,19 +119,28 @@ const PT = {
   ],
   popupCta: "Quero a música completa",
   popupDepois: "Agora não",
-  // ── aviso no WhatsApp (na espera, enquanto a música grava) ───
-  // A promessa é AVISAR, nada além disso. Nada de "receba o presente pelo
-  // WhatsApp": quem monta a página com as fotos é o comprador, dentro da
-  // plataforma, e prometer entrega pronta aqui criaria um trabalho que a
-  // gente não faz.
-  zapTitulo: "Quer que eu te avise quando ficar pronta?",
+  // ── WhatsApp (na espera, enquanto a música grava) ───────────
+  //
+  // A promessa é mandar O LINK. Nada de "a gente monta o presente pra você":
+  // quem coloca as fotos é o comprador, dentro da plataforma.
+  //
+  // A PRIMEIRA VERSÃO CONVIDAVA A SAIR, e o número mostrou o preço disso.
+  // Ela dizia "se você sair da página, eu te aviso". Medido em 24h, entre quem
+  // chegou na espera: quem deixou o WhatsApp clicou em comprar 39% das vezes,
+  // contra 54% de quem ignorou o campo e 65% de quem dispensou dizendo que
+  // esperava ali. Não prova causa (pode ser que quem já ia sair seja quem
+  // aceita o aviso), mas não faz sentido correr o risco de dar licença pra
+  // embora justo antes da prévia, que é a peça que mais vende.
+  //
+  // Agora é EXTRA, não saída: recebe no WhatsApp ALÉM do que já vai ver aqui.
+  zapTitulo: "Quer receber sua música no WhatsApp também?",
   zapTexto:
-    "A gravação leva uns 2 minutos. Se você sair da página, eu te mando um toque no WhatsApp assim que ela estiver aqui.",
+    "Ela fica pronta em uns 2 minutos, aqui mesmo nesta tela. Se quiser, mando o link no seu WhatsApp também, pra ficar guardado.",
   zapCampo: "Seu WhatsApp (opcional)",
-  zapBotao: "Pode me avisar",
-  zapDispensar: "Não precisa, eu espero aqui",
+  zapBotao: "Quero receber",
+  zapDispensar: "Não precisa",
   zapInvalido: "Confere o número, parece faltar um dígito.",
-  zapPronto: "Combinado! Te aviso assim que ficar pronta.",
+  zapPronto: "Combinado! Mando no seu WhatsApp também.",
   umaMusicaPra: "uma música pra",
   linkEQr: "link + QR Code pra compartilhar",
   queroCantada: (n: string) => `Quero a música de ${n} cantada`,
@@ -256,14 +265,14 @@ const ES: Textos = {
   ],
   popupCta: "Quiero la canción completa",
   popupDepois: "Ahora no",
-  zapTitulo: "¿Quieres que te avise cuando esté lista?",
+  zapTitulo: "¿Quieres recibir tu canción por WhatsApp también?",
   zapTexto:
-    "La grabación tarda unos 2 minutos. Si sales de la página, te mando un mensaje por WhatsApp en cuanto esté aquí.",
+    "Queda lista en unos 2 minutos, aquí mismo en esta pantalla. Si quieres, te mando el link por WhatsApp también, para que lo tengas guardado.",
   zapCampo: "Tu WhatsApp (opcional)",
-  zapBotao: "Sí, avísame",
-  zapDispensar: "No hace falta, aquí espero",
+  zapBotao: "Quiero recibirla",
+  zapDispensar: "No hace falta",
   zapInvalido: "Revisa el número, parece que falta un dígito.",
-  zapPronto: "¡Listo! Te aviso en cuanto esté.",
+  zapPronto: "¡Listo! Te la mando por WhatsApp también.",
   umaMusicaPra: "una canción para",
   linkEQr: "link + código QR para compartir",
   queroCantada: (n: string) => `Quiero la canción de ${n} cantada`,
