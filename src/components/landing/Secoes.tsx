@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { FONTES } from "@/lib/marca";
 import { cn } from "@/lib/utils";
@@ -147,7 +147,7 @@ export function Beneficios() {
 
 // ── 08 + 09 · ANCORAGEM E OFERTA ── objeções: "tá caro" / "e se der errado?"
 // Ancoragem por comparação de custo, não por preço riscado falso.
-export function Oferta({ preco = "37" }: { preco?: string }) {
+export function Oferta({ preco = "38" }: { preco?: string }) {
   const inclui = [
     "A letra, feita da sua história (grátis, antes de decidir)",
     "Um trecho da música cantado, pra ouvir antes de pagar",

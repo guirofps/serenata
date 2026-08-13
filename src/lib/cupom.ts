@@ -1,4 +1,4 @@
-// SEM IMPORTS, de propósito. Este arquivo é lido pelos dois lados: pelo site
+﻿// SEM IMPORTS, de propósito. Este arquivo é lido pelos dois lados: pelo site
 // (que resolve o alias `@`) e pelo cron do Inngest, que roda como ESM puro na
 // Vercel e NÃO resolve alias. É a mesma razão pela qual `email-typo.ts` também
 // não importa nada. O tipo abaixo é a cópia local de `Locale`.
@@ -28,7 +28,7 @@ type Locale = "pt" | "es";
 export type Cupom = { codigo: string; texto: string; de: string; por: string };
 
 const CUPONS: Record<Locale, Cupom> = {
-  pt: { codigo: "SRN27", texto: "R$ 10", de: "R$ 37", por: "R$ 27" },
+  pt: { codigo: "SRN27", texto: "R$ 10", de: "R$ 38", por: "R$ 28" },
   es: { codigo: "SRN7", texto: "20%", de: "US$ 9,90", por: "US$ 7,92" },
 };
 

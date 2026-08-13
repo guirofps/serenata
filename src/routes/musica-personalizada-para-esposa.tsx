@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { Logo } from "@/components/marca/Logo";
 import { MARCA, FONTES, TEMA_CLARO } from "@/lib/marca";
@@ -105,7 +105,7 @@ const O_QUE_CONTAR = [
 const PERGUNTAS = [
   {
     q: "Quanto custa uma música personalizada para a esposa?",
-    a: "R$ 37, pagamento único. A letra fica pronta na hora e é de graça: você lê antes de decidir qualquer coisa. Só paga se quiser a música gravada e cantada.",
+    a: "R$ 38, pagamento único. A letra fica pronta na hora e é de graça: você lê antes de decidir qualquer coisa. Só paga se quiser a música gravada e cantada.",
   },
   {
     q: "Quanto tempo demora para ficar pronta?",
@@ -242,7 +242,7 @@ function Pagina() {
               Criar a música dela <ArrowRight className="h-4 w-4" />
             </Link>
             <p className="text-sm text-[var(--tinta-suave)]">
-              R$ 37, pagamento único. Você só paga depois de ler a letra e ouvir um trecho.
+              R$ 38, pagamento único. Você só paga depois de ler a letra e ouvir um trecho.
             </p>
           </div>
 
@@ -396,7 +396,7 @@ function Pagina() {
             Contar a nossa história <ArrowRight className="h-4 w-4" />
           </Link>
           <p className="mt-4 text-sm text-[var(--tinta-suave)]">
-            Grátis para ler. R$ 37 só se você quiser ouvir cantada.
+            Grátis para ler. R$ 38 só se você quiser ouvir cantada.
           </p>
         </section>
       </main>

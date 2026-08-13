@@ -65,7 +65,7 @@ export const MOEDA: Record<
   Locale,
   { simbolo: string; valor: number; texto: string; ancora: string }
 > = {
-  pt: { simbolo: "R$", valor: 37, texto: "R$ 37", ancora: "R$ 97" },
+  pt: { simbolo: "R$", valor: 38, texto: "R$ 38", ancora: "R$ 97" },
   // US$ e não MXN: a Perfect Pay cobra o internacional em dólar. E 9 e não
   // 12,99 porque a Cántale (o concorrente escalado no México, com página
   // compartilhável inclusa) cobra 12,99 — entrar 30% abaixo do líder é a

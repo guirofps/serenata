@@ -37,7 +37,10 @@ export function conversaoCompra(args: {
   if (typeof window === "undefined" || !window.gtag) return;
   window.gtag("event", "conversion", {
     send_to: CONVERSAO,
-    value: args.valor ?? 37,
+    // Sem default mágico: o valor vem do catálogo de moeda pelo chamador.
+    // Um 37 cravado aqui sobreviveria à mudança de preço e o Google passaria
+    // a otimizar em cima de um número que não existe mais.
+    value: args.valor ?? 38,
     currency: args.moeda ?? "BRL",
     // Sem isto, um F5 na página de obrigado contaria a venda de novo.
     transaction_id: args.transactionId ?? "",
