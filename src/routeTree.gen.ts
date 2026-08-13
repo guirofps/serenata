@@ -17,6 +17,7 @@ import { Route as DemoMusicaRouteImport } from './routes/demo-musica'
 import { Route as DescadastrarRouteImport } from './routes/descadastrar'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MarcaRouteImport } from './routes/marca'
+import { Route as MusicaPersonalizadaParaEsposaRouteImport } from './routes/musica-personalizada-para-esposa'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
 import { Route as RecuperarRouteImport } from './routes/recuperar'
 import { Route as RetomarRouteImport } from './routes/retomar'
@@ -68,6 +69,12 @@ const MarcaRoute = MarcaRouteImport.update({
   path: '/marca',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MusicaPersonalizadaParaEsposaRoute =
+  MusicaPersonalizadaParaEsposaRouteImport.update({
+    id: '/musica-personalizada-para-esposa',
+    path: '/musica-personalizada-para-esposa',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ObrigadoRoute = ObrigadoRouteImport.update({
   id: '/obrigado',
   path: '/obrigado',
@@ -128,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/descadastrar': typeof DescadastrarRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
+  '/musica-personalizada-para-esposa': typeof MusicaPersonalizadaParaEsposaRoute
   '/obrigado': typeof ObrigadoRoute
   '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
@@ -148,6 +156,7 @@ export interface FileRoutesByTo {
   '/descadastrar': typeof DescadastrarRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
+  '/musica-personalizada-para-esposa': typeof MusicaPersonalizadaParaEsposaRoute
   '/obrigado': typeof ObrigadoRoute
   '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
@@ -169,6 +178,7 @@ export interface FileRoutesById {
   '/descadastrar': typeof DescadastrarRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
+  '/musica-personalizada-para-esposa': typeof MusicaPersonalizadaParaEsposaRoute
   '/obrigado': typeof ObrigadoRoute
   '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/descadastrar'
     | '/login'
     | '/marca'
+    | '/musica-personalizada-para-esposa'
     | '/obrigado'
     | '/recuperar'
     | '/retomar'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/descadastrar'
     | '/login'
     | '/marca'
+    | '/musica-personalizada-para-esposa'
     | '/obrigado'
     | '/recuperar'
     | '/retomar'
@@ -231,6 +243,7 @@ export interface FileRouteTypes {
     | '/descadastrar'
     | '/login'
     | '/marca'
+    | '/musica-personalizada-para-esposa'
     | '/obrigado'
     | '/recuperar'
     | '/retomar'
@@ -252,6 +265,7 @@ export interface RootRouteChildren {
   DescadastrarRoute: typeof DescadastrarRoute
   LoginRoute: typeof LoginRoute
   MarcaRoute: typeof MarcaRoute
+  MusicaPersonalizadaParaEsposaRoute: typeof MusicaPersonalizadaParaEsposaRoute
   ObrigadoRoute: typeof ObrigadoRoute
   RecuperarRoute: typeof RecuperarRoute
   RetomarRoute: typeof RetomarRoute
@@ -320,6 +334,13 @@ declare module '@tanstack/react-router' {
       path: '/marca'
       fullPath: '/marca'
       preLoaderRoute: typeof MarcaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/musica-personalizada-para-esposa': {
+      id: '/musica-personalizada-para-esposa'
+      path: '/musica-personalizada-para-esposa'
+      fullPath: '/musica-personalizada-para-esposa'
+      preLoaderRoute: typeof MusicaPersonalizadaParaEsposaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/obrigado': {
@@ -404,6 +425,7 @@ const rootRouteChildren: RootRouteChildren = {
   DescadastrarRoute: DescadastrarRoute,
   LoginRoute: LoginRoute,
   MarcaRoute: MarcaRoute,
+  MusicaPersonalizadaParaEsposaRoute: MusicaPersonalizadaParaEsposaRoute,
   ObrigadoRoute: ObrigadoRoute,
   RecuperarRoute: RecuperarRoute,
   RetomarRoute: RetomarRoute,

@@ -1,4 +1,4 @@
-# Serenata — serenatagift.com
+﻿# Serenata — serenatagift.com
 #
 # A regra que decide este arquivo: só existem QUATRO páginas nossas que fazem
 # sentido no Google (as duas homes e os dois quizzes). Todo o resto é ou área
@@ -13,6 +13,7 @@ Allow: /$
 Allow: /criar
 Allow: /es
 Allow: /es/criar
+Allow: /musica-personalizada-para-esposa
 
 # Presentes e edição: vida privada de cliente, nunca em buscador.
 Disallow: /p/
