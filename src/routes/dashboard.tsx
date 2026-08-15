@@ -5,6 +5,8 @@ import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { tp } from "@/lib/textos-presente";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
+import { novaSessao } from "@/lib/session-context";
+import { useQuizStore } from "@/lib/quiz-store";
 import { Loader2, Pencil, ExternalLink, Plus, LogOut, Music } from "lucide-react";
 
 // A ÁREA DO COMPRADOR — a "casa" dele na plataforma. Lista as músicas que ele
@@ -58,6 +60,7 @@ const COR_STATUS: Record<string, string> = {
 
 function Dashboard() {
   const navigate = useNavigate();
+  const reset = useQuizStore((s) => s.reset);
   const [carregando, setCarregando] = useState(true);
   const [musicas, setMusicas] = useState<Musica[]>([]);
   // O idioma da CONTA é o da música mais recente. É a única pista disponível
@@ -211,9 +214,16 @@ function Dashboard() {
             </ul>
 
             {/* Recompra: por ora leva de volta ao funil. O desconto de
-                recompra depende do pagamento estar ligado (fake door hoje). */}
+                recompra depende do pagamento estar ligado (fake door hoje).
+                A sessão é ROTACIONADA antes de sair daqui: sem isso a música
+                nova reusa a linha da anterior no banco e sobrescreve o
+                presente já entregue. Ver novaSessao() em session-context. */}
             <Link
               to="/criar"
+              onClick={() => {
+                novaSessao();
+                reset();
+              }}
               className="mt-6 inline-flex h-12 items-center gap-2 rounded-full border border-[var(--tinta-fraca)] px-6 transition-colors hover:border-[var(--acento)] hover:text-[var(--acento)]"
               style={{ fontSize: "var(--t-sm)" }}
             >

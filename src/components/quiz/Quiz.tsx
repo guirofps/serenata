@@ -24,7 +24,12 @@ import { lembrarIdioma } from "@/components/OfereceIdioma";
 import { useQuizStore } from "@/lib/quiz-store";
 import { captureLeadProgress } from "@/lib/lead-capture";
 import { trackEvent, trackEventOnce } from "@/lib/track";
-import { getOrCreateSessionId, getOrAssignVariant } from "@/lib/session-context";
+import {
+  getOrCreateSessionId,
+  getOrAssignVariant,
+  sessaoGasta,
+  novaSessao,
+} from "@/lib/session-context";
 import { ChipsStep } from "@/components/quiz/ChipsStep";
 import { FaixaPresente } from "@/components/quiz/FaixaPresente";
 import { CampoNome } from "@/components/quiz/CampoNome";
@@ -45,6 +50,7 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
   const setResposta = useQuizStore((s) => s.setResposta);
   const email = useQuizStore((s) => s.email);
   const setEmail = useQuizStore((s) => s.setEmail);
+  const reset = useQuizStore((s) => s.reset);
 
   const idx = indexOfId(QUIZ_FLOW, stepId);
   const step = QUIZ_FLOW[idx];
@@ -63,6 +69,20 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
   const passoFunil = isContact(step) ? total + 1 : qNum;
 
   useEffect(() => {
+    // PRIMEIRA COISA: quem já comprou nesta sessão começa uma NOVA.
+    //
+    // A linha de quiz_responses é chaveada por session_id. Sem isto, a segunda
+    // música reusa a linha da primeira e sobrescreve as respostas de um
+    // presente já pago e já entregue. Em 15/08 um comprador pagou três vezes
+    // tentando fazer a segunda e nunca conseguiu: toda volta ao funil caía na
+    // sessão da primeira, e cada pagamento só recobrava a mesma música.
+    //
+    // Roda antes de getOrCreateSessionId pra que todo evento daqui pra frente,
+    // inclusive o quiz_started, já saia com o id novo.
+    if (sessaoGasta()) {
+      novaSessao();
+      reset();
+    }
     getOrCreateSessionId();
     // ANTES do quiz_started: a atribuição é lida no momento do evento, então
     // carimbar depois deixaria o primeiro evento da sessão — justamente o que

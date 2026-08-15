@@ -4,6 +4,7 @@ import { z } from "zod";
 import { conversaoCompra } from "@/lib/google-ads";
 import { MOEDA } from "@/lib/i18n";
 import { buscarPresenteDaCompra, type PresenteDaCompra } from "@/lib/pos-compra";
+import { marcarSessaoGasta } from "@/lib/session-context";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { Check, Mail, Inbox, Pencil, Loader2 } from "lucide-react";
@@ -85,6 +86,11 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
       moeda: locale === "es" ? "USD" : "BRL",
       transactionId: code,
     });
+    // Esta sessão já virou venda. Quem voltar ao /criar por qualquer caminho
+    // ganha uma sessão nova lá, senão a segunda música sobrescreve a primeira.
+    // Marcado DEPOIS da conversão de propósito: o evento de venda tem que
+    // sair na sessão que gerou a venda.
+    marcarSessaoGasta();
   }, [code]);
 
   // Busca o presente pelo código da transação, pra dar o botão AQUI em vez de

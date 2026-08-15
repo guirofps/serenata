@@ -6,6 +6,8 @@ const SESSION_TS_KEY = "mp_session_ts";
 // Sem isso o id vivia pra sempre no localStorage e "sessão" virava "navegador":
 // quem voltava dias depois era contado como a mesma sessão do primeiro toque.
 const SESSION_TTL_MS = 30 * 60 * 1000;
+// Sessão que já virou venda. Ver marcarSessaoGasta() abaixo.
+const SESSION_GASTA_KEY = "mp_session_gasta";
 const ATTRIBUTION_KEY = "mp_attribution";
 const DEVICE_KEY = "mp_device";
 const VARIANT_KEY = "mp_variant";
@@ -65,6 +67,50 @@ export function getOrCreateSessionId(): string {
   // Desliza a cada evento: trackEvent chama isto em toda chamada.
   localStorage.setItem(SESSION_TS_KEY, String(agora));
   return id;
+}
+
+// COMEÇAR UMA MÚSICA NOVA PRECISA DE UMA SESSÃO NOVA.
+//
+// A linha de `quiz_responses` é chaveada por `session_id`. Enquanto a sessão
+// não expira (TTL deslizante, renovado a cada evento), voltar pro /criar
+// reusa a MESMA linha: a segunda música sobrescreve as respostas da primeira.
+// E como o `pedido` pago aponta pra essa linha, o presente já entregue muda
+// de conteúdo embaixo de quem comprou.
+//
+// Em 15/08 um comprador pagou TRÊS vezes tentando fazer a segunda música
+// (R$ 114). Ele nunca conseguiu criar a segunda: cada volta ao funil caía na
+// sessão da primeira, e cada pagamento novo só recobrava a mesma música.
+//
+// Rotacionar o id resolve os dois: linha nova no banco, e o checkout leva um
+// `src` novo, então o pagamento casa com a música certa.
+//
+// A atribuição NÃO é limpa de propósito: quem volta pra comprar de novo veio
+// do mesmo anúncio da primeira vez, e é lá que o crédito deve ficar.
+export function novaSessao(): string {
+  if (typeof window === "undefined") return "ssr";
+  const id = crypto.randomUUID();
+  localStorage.setItem(SESSION_KEY, id);
+  localStorage.setItem(SESSION_TS_KEY, String(Date.now()));
+  localStorage.removeItem(SESSION_GASTA_KEY);
+  return id;
+}
+
+// O botão do painel não é o único caminho de volta ao funil: tem o link do
+// e-mail, o histórico do navegador e quem digita o endereço de novo. Foi por
+// um desses que o comprador de 15/08 voltou.
+//
+// Não dá pra rotacionar na hora da compra: a tela de obrigado ainda dispara a
+// conversão e o evento de venda, e os dois têm que cair na sessão que gerou a
+// venda, senão o funil perde a ligação. Então marca-se aqui e rotaciona-se lá,
+// na entrada do /criar, que é quando a sessão nova passa a ser necessária.
+export function marcarSessaoGasta(): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(SESSION_GASTA_KEY, "1");
+}
+
+export function sessaoGasta(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(SESSION_GASTA_KEY) === "1";
 }
 
 export function getStoredAttribution(): Attribution | null {
