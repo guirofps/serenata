@@ -22,6 +22,41 @@ const bucket = "musicas";
 // já proíbe, mas se escapar a música morreria em silêncio. Este fallback
 // troca o estilo por um genérico do gênero e tenta de novo.
 
+/**
+ * O PROVEDOR DIZ QUAL PALAVRA ELE BARROU. Basta ler.
+ *
+ * Medido em 14/08, depois que a captura do motivo entrou:
+ *   "Your lyrics contain producer tag que delicia - we don't reference..."
+ *   "Your tags contain artist name pressa - we don't reference..."
+ *
+ * O filtro de artista do Suno confunde palavra comum do português com nome de
+ * gente. "que delícia" virou produtor e "pressa" virou artista. Nenhum dos dois
+ * é referência a artista nenhum, e o `estiloSemReferencias` jamais pegaria isso,
+ * porque ele só limpa construções do tipo "no estilo de X".
+ *
+ * Como a mensagem entrega o termo, dá pra tirar exatamente ele e tentar de
+ * novo, em vez de repetir a mesma coisa e torcer.
+ */
+function termoBarrado(motivo: string | null): string | null {
+  if (!motivo) return null;
+  const m = motivo.match(/(?:producer tag|artist name|artist)\s+(.+?)\s+-\s+we don't/i);
+  const termo = m?.[1]?.trim();
+  // Termo curto demais viraria remoção cega no texto inteiro.
+  return termo && termo.length >= 3 ? termo : null;
+}
+
+/** Tira o termo barrado de um texto, sem deixar espaço duplo nem vírgula solta. */
+function semOTermo(texto: string, termo: string): string {
+  const escapado = termo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return texto
+    .replace(new RegExp(escapado, "gi"), "")
+    .replace(/ {2,}/g, " ")
+    .replace(/\s+([,.!?])/g, "$1")
+    .replace(/,\s*,/g, ",")
+    .replace(/^[\s,]+|[\s,]+$/gm, "")
+    .trim();
+}
+
 function estiloSemReferencias(estilo: string | null, genero: string | null): string {
   const limpo = String(estilo ?? "").replace(
     /,?\s*(refer[êe]ncias?|inspirad[oa]s?|no estilo)\s+(a|de|em|por)?[^,.]*/gi,
@@ -159,11 +194,19 @@ export const gerarMusica = inngest.createFunction(
       if (n === 1 && estilo.valor === estilos[0].valor) continue;
       if (estilo.esperaAntes) await step.sleep(`respiro-${estilo.rotulo}`, estilo.esperaAntes);
 
+      // TIRA O QUE O PROVEDOR APONTOU, na letra e no estilo. Se ele disse qual
+      // palavra barrou na tentativa anterior, insistir com ela é garantir a
+      // mesma recusa. Só a partir da segunda tentativa, porque na primeira
+      // ainda não existe motivo nenhum.
+      const barrado = termoBarrado(motivoRecusa);
+      const letraDaVez = barrado ? semOTermo(musica.letra, barrado) : musica.letra;
+      const estiloDaVez = barrado ? semOTermo(estilo.valor, barrado) : estilo.valor;
+
       taskId = await step.run(`iniciar-${estilo.rotulo}`, async () => {
         const id = await iniciarGeracao({
-          letra: musica.letra,
+          letra: letraDaVez,
           titulo: musica.titulo ?? "Sua música",
-          estilo: estilo.valor,
+          estilo: estiloDaVez || musica.genero || "música emotiva, arranjo acústico",
           voz,
         });
         // Cobrado no disparo, independente do resultado.

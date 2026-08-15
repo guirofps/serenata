@@ -161,7 +161,13 @@ const COPY = {
     conversao: "Verás el precio en la moneda de tu país al pagar.",
     cta: (n: string) => `Quiero la canción de ${n}`, ctaCurto: "Quiero la canción",
     abrindo: "Abriendo el pago…", abrindoCurto: "Abriendo…",
-    gateway: "Tarjeta, procesado por Perfect Pay",
+    // CENTERPAG, não Perfect Pay. É a mesma empresa, mas o checkout
+    // internacional se apresenta como Centerpag: aparece no rodapé, no
+    // "estás comprando a Centerpag" e no e-mail de suporte da tela.
+    // Prometer um nome e mostrar outro no momento do pagamento é o mesmo
+    // problema do preço que mudava no caixa, e num público que já desconfia
+    // de compra internacional custa mais caro ainda.
+    gateway: "Tarjeta, procesado por Centerpag (Perfect Pay)",
     antesDePagar: "Antes de pagar",
     suporte: "Cualquier duda, escríbenos a",
     respondemos: ". Te respondemos de verdad.",
@@ -379,10 +385,26 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           {indo ? C.abrindo : C.cta(nome)}
         </Button>
 
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-          <ShieldCheck className="h-3.5 w-3.5" />
-          {C.gateway}
-        </p>
+        {/* SEGURANÇA NO CLIQUE, e não em letra miúda cinza.
+            Medido em 13/08: a taxa de Pix gerado que vira pago caiu de 78% pra
+            33% em dois dias, e o suporte encheu de gente dizendo que o banco
+            mostrou aviso de golpe. O aviso é do banco e a gente não controla,
+            mas ele só mata a venda porque pega a pessoa de surpresa.
+            NÃO diz "loja nova": isso confirmaria a suspeita do banco em vez de
+            desarmá-la. Diz quem processa (empresa que a pessoa reconhece) e a
+            garantia, que responde exatamente o medo que o aviso planta —
+            "e se eu pagar e não receber?".
+            Os dois elementos já existiam, um acima e outro abaixo do botão, em
+            cinza pequeno. Juntar e dar contraste é o que faz virar leitura. */}
+        <div className="mt-3 rounded-2xl border border-emerald-600/20 bg-emerald-50/50 px-4 py-2.5">
+          <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-emerald-900">
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            {C.gateway}
+          </p>
+          <p className="mt-0.5 text-center text-[11px] leading-snug text-emerald-800/75">
+            {G.texto}
+          </p>
+        </div>
       </div>
 
       {/* ── OBJEÇÕES ────────────────────────────────────────── */}
