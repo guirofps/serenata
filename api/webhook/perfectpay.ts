@@ -21,6 +21,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto.js";
 import { enviarVendaUtmify } from "../lib/utmify.js";
+import { pareceTypo, sugerirEmail } from "../../src/lib/email-typo.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -90,6 +91,11 @@ async function auditar(nome: string, dados: unknown) {
 // A régua é a mesma do alerta de música (ver gerarMusica.ts): dinheiro
 // entrou = incêndio, e-mail sai na hora. A diferença é que aqui não existe
 // caso de lead — se chegou neste ponto, alguém pagou.
+// O e-mail vem do gateway e entra num corpo HTML. Não é confiável.
+function escaparHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 async function alertarDono(assunto: string, html: string) {
   try {
     const chave = process.env.RESEND_API_KEY;
@@ -541,6 +547,30 @@ export default async function handler(req: Req, res: Res) {
           `<p>Procure a pessoa por <strong>${telefone ?? "e-mail"}</strong> e trate em /recuperar.</p>`,
       );
       return res.status(200).json({ ok: true, alerta: "pago sem música casada" });
+    }
+
+    // ── E-MAIL QUE JÁ NASCE CONDENADO ────────────────────────
+    // `pareceTypo` já rodava nos crons de lead, mas não aqui, que é onde tem
+    // dinheiro em cima. Em 14/08 uma compra de R$ 38 saiu pra
+    // `...@gmail.com.br`, domínio que não existe: o e-mail foi enviado, voltou,
+    // e a pessoa ficou sem o presente.
+    //
+    // O alerta de bounce (webhook/resend.ts) pega isso, mas depende do provedor
+    // responder, e "quando voltar" pode ser hora nenhuma. Aqui dá pra saber no
+    // instante do pagamento, então o aviso sai junto com o telefone.
+    //
+    // O e-mail é enviado assim mesmo: `pareceTypo` é heurística, e recusar
+    // entrega baseado em palpite seria pior que tentar e falhar.
+    if (email && pareceTypo(email)) {
+      await auditar("perfectpay_email_suspeito", { paymentId, email, telefone });
+      await alertarDono(
+        `🔴 COMPROU COM E-MAIL QUE NÃO EXISTE: ${email}`,
+        `<p><strong>O e-mail da compra tem cara de erro de digitação</strong> ` +
+          `(${escaparHtml(email)}), então a entrega provavelmente vai voltar.</p>` +
+          `<p>Sugestão: <strong>${escaparHtml(sugerirEmail(email) ?? "sem sugestão")}</strong><br>` +
+          `Telefone: ${telefone ?? "NÃO TEMOS"}<br>Pagamento: ${paymentId}</p>` +
+          `<p>Fale com a pessoa e corrija o e-mail na ficha em /recuperar.</p>`,
+      );
     }
 
     // ── 8. E-MAIL COM O LINK DO EDITOR ───────────────────────
