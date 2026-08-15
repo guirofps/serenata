@@ -81,6 +81,32 @@ async function auditar(nome: string, dados: unknown) {
   }
 }
 
+// Auditar não é avisar. `perfectpay_pago_sem_musica` existe desde o começo e
+// funcionou: no dia 11/08 gravou certinho que uma compra de R$ 37 tinha
+// entrado sem nada pra entregar. Só que era uma linha numa tabela que ninguém
+// abre, então o comprador ficou 4 dias sem receber e a gente só descobriu
+// varrendo o banco à mão.
+//
+// A régua é a mesma do alerta de música (ver gerarMusica.ts): dinheiro
+// entrou = incêndio, e-mail sai na hora. A diferença é que aqui não existe
+// caso de lead — se chegou neste ponto, alguém pagou.
+async function alertarDono(assunto: string, html: string) {
+  try {
+    const chave = process.env.RESEND_API_KEY;
+    if (!chave) return;
+    await new Resend(chave).emails.send({
+      from: "Serenata <contato@serenatagift.com>",
+      to: ["guilhermerojasiqueira@gmail.com"],
+      subject: assunto,
+      html,
+    });
+  } catch (err) {
+    // Aviso nunca derruba o webhook: a Perfect Pay reenviaria o evento e o
+    // comprador receberia tudo duplicado.
+    console.error("[perfectpay] alerta ao dono falhou:", err);
+  }
+}
+
 // A Perfect Pay pode mandar aninhado (JSON) ou achatado (form). Os acessos
 // abaixo tentam os dois: `customer.email` OU `customer_email`.
 type Corpo = {
@@ -423,6 +449,49 @@ export default async function handler(req: Req, res: Res) {
       return res.status(500).json({ error: "falha ao gravar pedido" });
     }
 
+    // ── COBRANÇA REPETIDA PELA MESMA MÚSICA ──────────────────
+    // Em 15/08 um comprador pagou TRÊS vezes a mesma música em 78 minutos
+    // (R$ 114 por um produto de R$ 38), da mesma sessão, e o sistema aceitou
+    // e mandou o e-mail de entrega três vezes sem piscar. Cada `payment_id` é
+    // único, então nada disso conta como duplicata pro upsert.
+    //
+    // Não dá pra recusar o pagamento aqui (a Perfect Pay já cobrou; devolver
+    // é lá, e é decisão do dono). O que dá é não deixar isso passar calado:
+    // três cobranças da mesma pessoa pelo mesmo item é chargeback esperando
+    // acontecer, e chargeback é o que derruba conta de gateway.
+    if (quiz?.id) {
+      try {
+        const { data: anteriores } = await sb
+          .from("pedidos")
+          .select("payment_id, valor_centavos, paid_at")
+          .eq("quiz_response_id", quiz.id)
+          .eq("status", "pago")
+          .neq("payment_id", paymentId);
+        if (anteriores?.length) {
+          const total =
+            anteriores.reduce((s, p) => s + (p.valor_centavos ?? 0), 0) +
+            (Number.isFinite(reais) ? Math.round(reais * 100) : 0);
+          await auditar("perfectpay_cobranca_repetida", {
+            paymentId,
+            email,
+            quiz: quiz.id,
+            vezes: anteriores.length + 1,
+            totalCentavos: total,
+          });
+          await alertarDono(
+            `🔴 COBRADO ${anteriores.length + 1}x PELA MESMA MÚSICA: ${email ?? "sem e-mail"}`,
+            `<p><strong>A mesma pessoa pagou ${anteriores.length + 1} vezes pela mesma música.</strong> ` +
+              `Total cobrado: R$ ${(total / 100).toFixed(2)} por um produto de R$ ${((Number.isFinite(reais) ? reais : 0)).toFixed(2)}.</p>` +
+              `<p>E-mail: ${email ?? "-"}<br>Telefone: ${telefone ?? "-"}<br>` +
+              `Pagamentos: ${[...anteriores.map((p) => p.payment_id), paymentId].join(", ")}</p>` +
+              `<p>Devolva o excedente na Perfect Pay antes que vire chargeback.</p>`,
+          );
+        }
+      } catch (err) {
+        console.error("[perfectpay] checagem de cobrança repetida falhou:", err);
+      }
+    }
+
     // Telefone de quem comprou fica no lead: é o único canal alternativo
     // quando o e-mail cai no spam. Nunca derruba o webhook.
     if (telefone && quiz?.id) {
@@ -463,6 +532,14 @@ export default async function handler(req: Req, res: Res) {
     if (!musica) {
       await auditar("perfectpay_pago_sem_musica", { paymentId, src, email });
       console.error("[perfectpay] pago mas sem música casada:", { paymentId, src, email });
+      await alertarDono(
+        `🔴 PAGOU E NÃO TEM O QUE ENTREGAR: ${email ?? "sem e-mail"}`,
+        `<p><strong>Entrou dinheiro e não há música casada com a sessão.</strong> ` +
+          `Ninguém recebeu e-mail de entrega, porque não existe link pra mandar.</p>` +
+          `<p>E-mail: ${email ?? "-"}<br>Telefone: ${telefone ?? "-"}<br>` +
+          `Pagamento: ${paymentId}<br>Sessão: ${src ?? "não veio"}</p>` +
+          `<p>Procure a pessoa por <strong>${telefone ?? "e-mail"}</strong> e trate em /recuperar.</p>`,
+      );
       return res.status(200).json({ ok: true, alerta: "pago sem música casada" });
     }
 
