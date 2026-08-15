@@ -66,7 +66,8 @@ function Dashboard() {
   // O idioma da CONTA é o da música mais recente. É a única pista disponível
   // aqui: `/dashboard` não tem prefixo de rota, e quem compra nos dois funis
   // vê o painel na língua da última compra.
-  const T = tp(musicas[0]?.locale === "es" ? "es" : "pt");
+  const locale = musicas[0]?.locale === "es" ? ("es" as const) : ("pt" as const);
+  const T = tp(locale);
   const [nome, setNome] = useState<string>("");
 
   useEffect(() => {
@@ -219,7 +220,11 @@ function Dashboard() {
                 nova reusa a linha da anterior no banco e sobrescreve o
                 presente já entregue. Ver novaSessao() em session-context. */}
             <Link
-              to="/criar"
+              // O IDIOMA DA CONTA, não a rota fixa em português. Este botão
+              // mandava todo mundo pro /criar, e em 15/08 uma compradora
+              // mexicana passou 20 minutos respondendo o quiz em português
+              // depois de clicar aqui.
+              to={locale === "es" ? "/es/criar" : "/criar"}
               onClick={() => {
                 novaSessao();
                 reset();

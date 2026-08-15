@@ -68,17 +68,42 @@ const DOMINIOS = ["gmail.com", "hotmail.com", "outlook.com", "icloud.com", "yaho
 // links em 5 horas, todos entregues, e não conseguiu entrar uma vez sequer.
 const ESPERA_S = 60;
 
+// A espera PRECISA sobreviver a recarregar a página.
+//
+// Ela já existia, mas só como estado de componente, e por isso não pegava o
+// caminho que a pessoa realmente faz: clica no link do e-mail, dá "expirado",
+// volta pro /login numa carga nova, e o contador nasceu zerado de novo.
+//
+// Em 15/08 um comprador pediu 7 links em 21 minutos assim, cada pedido matando
+// o anterior. A tela avisava, o botão travava, e nada disso o alcançou porque
+// ele nunca ficou na mesma página.
+const ESPERA_KEY = "mp_login_espera_ate";
+
+function esperaRestante(): number {
+  if (typeof window === "undefined") return 0;
+  const ate = Number(localStorage.getItem(ESPERA_KEY) ?? 0);
+  if (!ate) return 0;
+  return Math.max(0, Math.ceil((ate - Date.now()) / 1000));
+}
+
 export function Login({ locale = "pt" }: { locale?: Locale }) {
   const C = COPY[locale] ?? COPY.pt;
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
-  const [estado, setEstado] = useState<"parado" | "enviando" | "enviado">("parado");
+  // Se a espera de um pedido anterior ainda corre, a tela já abre na confirmação
+  // com o contador. É o que impede o "voltar pro login e pedir de novo".
+  const [estado, setEstado] = useState<"parado" | "enviando" | "enviado">(() =>
+    esperaRestante() > 0 ? "enviado" : "parado",
+  );
   const [erro, setErro] = useState<string | null>(null);
-  const [espera, setEspera] = useState(0);
+  const [espera, setEspera] = useState(() => esperaRestante());
 
   useEffect(() => {
     if (espera <= 0) return;
-    const id = setTimeout(() => setEspera((s) => s - 1), 1000);
+    // Recalcula do relógio em vez de decrementar: numa aba em segundo plano o
+    // navegador estrangula o timer, e um contador que só subtrai passaria a
+    // mentir pra menos.
+    const id = setTimeout(() => setEspera(esperaRestante()), 1000);
     return () => clearTimeout(id);
   }, [espera]);
 
@@ -104,6 +129,13 @@ export function Login({ locale = "pt" }: { locale?: Locale }) {
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
+    // Segundo portão, agora contra o caminho de volta: se a espera ainda corre,
+    // não dispara pedido nenhum, só mostra o contador.
+    if (esperaRestante() > 0) {
+      setEspera(esperaRestante());
+      setEstado("enviado");
+      return;
+    }
     setErro(null);
     setEstado("enviando");
     try {
@@ -117,6 +149,7 @@ export function Login({ locale = "pt" }: { locale?: Locale }) {
         throw new Error(j.error ?? "Não consegui enviar agora.");
       }
       setEstado("enviado");
+      localStorage.setItem(ESPERA_KEY, String(Date.now() + ESPERA_S * 1000));
       setEspera(ESPERA_S);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Não consegui enviar agora.");

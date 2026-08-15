@@ -89,14 +89,31 @@ export default async function handler(req: Req, res: Res) {
     const locale =
       (quizzes ?? [])[0]?.locale === "es" ? ("es" as const) : ("pt" as const);
 
-    let temMusica = false;
+    // As músicas prontas viram LINKS DIRETOS no e-mail. O magic link é de uso
+    // único, expira, e é morto por qualquer pedido novo: três formas de falhar
+    // pra chegar a algo já pago. O token do editor não tem nenhuma delas, então
+    // o e-mail leva os dois e o login vira atalho, não portão.
+    let musicasProntas: { titulo: string | null; token_edicao: string }[] = [];
     if (quizIds.length > 0) {
       const { data: musicas } = await sb
+        .from("musicas")
+        .select("titulo, token_edicao, created_at")
+        .in("quiz_response_id", quizIds)
+        .eq("status", "pronta")
+        .not("token_edicao", "is", null)
+        .order("created_at", { ascending: false });
+      musicasProntas = musicas ?? [];
+    }
+    // O portão continua sendo "tem música", inclusive a que ainda está gerando:
+    // quem acabou de comprar precisa entrar mesmo antes de a música existir.
+    let temMusica = musicasProntas.length > 0;
+    if (!temMusica && quizIds.length > 0) {
+      const { data: qualquer } = await sb
         .from("musicas")
         .select("id")
         .in("quiz_response_id", quizIds)
         .limit(1);
-      temMusica = (musicas ?? []).length > 0;
+      temMusica = (qualquer ?? []).length > 0;
     }
 
     // Anti-enumeração: mesma resposta pra quem não tem conta nem música.
@@ -140,14 +157,35 @@ export default async function handler(req: Req, res: Res) {
       console.error("[magic-link] RESEND_API_KEY ausente");
       return res.status(200).json({ ok: true });
     }
+    const presentes = musicasProntas.map((m) => ({
+      titulo: m.titulo,
+      tokenEdicao: m.token_edicao,
+    }));
+    const site = origem(req);
+    const linhasPresentes = presentes.length
+      ? "\n\n" +
+        (locale === "es" ? "O entra directo, sin cuenta:" : "Ou vá direto, sem entrar na conta:") +
+        "\n" +
+        presentes
+          .map((p) => `${p.titulo?.trim() || "Sua música"}: ${site}/editar/${p.tokenEdicao}`)
+          .join("\n")
+      : "";
+    const avisoUltimo =
+      locale === "es"
+        ? "\n\nSi pediste el link más de una vez, usa el correo MÁS RECIENTE: al pedir uno nuevo, los anteriores dejan de funcionar."
+        : "\n\nSe você pediu o link mais de uma vez, use o e-mail MAIS RECENTE: ao pedir um novo, os anteriores param de funcionar.";
     const { error: erroEmail } = await new Resend(chave).emails.send({
       from: "Serenata <contato@serenatagift.com>",
       to: [email],
       subject: assuntoAcesso(locale),
-      html: emailAcesso({ link: actionLink, locale }),
+      html: emailAcesso({ link: actionLink, locale, presentes }),
       // Versão em texto puro: e-mail só-HTML tem mais cara de spam. O
       // multipart/alternative melhora a entrega, ainda mais em domínio novo.
-      text: `Entrar na sua conta Serenata, sem senha:\n${actionLink}\n\nEste link é de uso único e expira em 60 minutos. Se não foi você que pediu, pode ignorar este e-mail.`,
+      text:
+        `Entrar na sua conta Serenata, sem senha:\n${actionLink}\n\n` +
+        `Este link é de uso único e expira em 60 minutos. Se não foi você que pediu, pode ignorar este e-mail.` +
+        avisoUltimo +
+        linhasPresentes,
     });
     if (erroEmail) {
       console.error("[magic-link] envio falhou:", erroEmail.message);

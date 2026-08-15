@@ -8,6 +8,13 @@ entrar do mesmo jeito.
 
 Parâmetros usados: `{clienteNome}`, `{clienteEmail}`.
 
+> **NUNCA cole link em Markdown neste campo.** Em 15/08 a compradora mexicana
+> Damaris Cauich abriu ticket dizendo que o link dava 404. Ela caiu sete vezes
+> em `/login](https:/www.serenatagift.com/login)`: alguém tinha colado
+> `[www.serenatagift.com/login](https://www.serenatagift.com/login)` no painel
+> da Perfect Pay, que não renderiza Markdown e linkifica a linha inteira, colchete
+> e parêntese incluídos. Use o HTML abaixo, ou a URL sozinha e nua.
+
 ---
 
 ## Versão HTML (usar esta se o editor aceitar formatação)
@@ -108,6 +115,98 @@ Lá dentro você ouve as duas versões, escolhe a sua, sobe as fotos e recebe
 o link + QR Code pra presentear.
 
 Fica pronta em até 30 minutos. Dúvidas: contato@serenatagift.com
+```
+
+---
+
+# Produto em ESPANHOL (Centerpag / internacional)
+
+Mesmo campo, no produto em dólar. É esta que estava com o link quebrado.
+
+## Versão HTML
+
+```html
+<p>¡Hola, {clienteNome}! Pago confirmado. Tu canción ya se está grabando.</p>
+
+<p><strong>Qué sigue ahora, en 3 pasos:</strong></p>
+
+<p><strong>1. Entra a tu cuenta</strong><br>
+Ve a <a href="https://www.serenatagift.com/es/login">www.serenatagift.com/es/login</a>,
+escribe el correo <strong>{clienteEmail}</strong> (el mismo de esta compra) y toca entrar.<br>
+No hay contraseña: te mandamos un link de acceso a tu correo y solo tienes que hacer clic.<br>
+Si pides el link más de una vez, usa siempre el correo <strong>más reciente</strong>:
+al pedir uno nuevo, los anteriores dejan de funcionar.</p>
+
+<p><strong>2. Escucha y elige tu versión</strong><br>
+Generamos <strong>dos versiones</strong> de la misma letra, con interpretaciones
+distintas. Escuchas las dos y eliges la que más te emocione.</p>
+
+<p><strong>3. Arma el regalo y envíalo</strong><br>
+En el botón <em>Armar el regalo</em> subes sus fotos y eliges el color y el efecto
+de la página. Al guardar aparece el <strong>link</strong> y el <strong>código QR</strong>
+para mandárselo a la persona homenajeada, con un mensaje listo para copiar.</p>
+
+<p>La página abre en el celular con las fotos de fondo y la <strong>letra
+encendiéndose palabra por palabra</strong>, al ritmo de la canción. El MP3 también
+queda ahí para descargar.</p>
+
+<hr>
+
+<p><strong>¿Cuánto tarda?</strong><br>
+Hasta 30 minutos, normalmente menos de 5. Si entras y todavía dice
+<em>generando</em>, actualiza la página en un rato.</p>
+
+<p><strong>¿No encuentras nuestro correo?</strong><br>
+Revisa el spam o la pestaña Promociones y márcalo como "no es spam".</p>
+
+<p><strong>¿Necesitas ayuda?</strong><br>
+Responde este correo o escribe a
+<a href="mailto:contato@serenatagift.com">contato@serenatagift.com</a>.
+Contestamos de verdad.</p>
+
+<p>Gracias por confiarnos este homenaje.<br>
+<strong>Equipo Serenata</strong></p>
+```
+
+## Versão em texto puro
+
+```
+¡Hola, {clienteNome}! Pago confirmado. Tu canción ya se está grabando.
+
+QUÉ SIGUE AHORA, EN 3 PASOS:
+
+1. ENTRA A TU CUENTA
+Ve a www.serenatagift.com/es/login, escribe el correo {clienteEmail}
+(el mismo de esta compra) y toca entrar. No hay contraseña: te mandamos
+un link de acceso a tu correo. Si lo pides más de una vez, usa siempre
+el correo MÁS RECIENTE: al pedir uno nuevo, los anteriores dejan de
+funcionar.
+
+2. ESCUCHA Y ELIGE TU VERSIÓN
+Generamos dos versiones de la misma letra, con interpretaciones distintas.
+Escuchas las dos y eliges la que más te emocione.
+
+3. ARMA EL REGALO Y ENVÍALO
+En el botón "Armar el regalo" subes sus fotos y eliges el color y el efecto
+de la página. Al guardar aparece el link y el código QR para mandárselo a la
+persona homenajeada, con un mensaje listo para copiar.
+
+La página abre en el celular con las fotos de fondo y la letra encendiéndose
+palabra por palabra, al ritmo de la canción. El MP3 también queda ahí para
+descargar.
+
+¿CUÁNTO TARDA?
+Hasta 30 minutos, normalmente menos de 5. Si entras y todavía dice
+"generando", actualiza la página en un rato.
+
+¿NO ENCUENTRAS NUESTRO CORREO?
+Revisa el spam o la pestaña Promociones y márcalo como "no es spam".
+
+¿NECESITAS AYUDA?
+Responde este correo o escribe a contato@serenatagift.com.
+
+Gracias por confiarnos este homenaje.
+Equipo Serenata
 ```
 
 ---
