@@ -160,6 +160,45 @@ export default async function handler(req: Req, res: Res) {
   // Aqui a régua é a mesma do alerta de música: só acorda alguém se a pessoa
   // PAGOU. Bounce de e-mail de letra é lead que não recebeu uma prévia; bounce
   // de entrega é produto vendido e não entregue.
+  // ANTES DO ALERTA: parar de mandar pra esse endereço.
+  //
+  // Alertar sem bloquear foi metade do trabalho. Em 14 dias, 13 e-mails saíram
+  // pra endereços que JÁ tinham voltado, porque o cron não perguntava nada.
+  // Insistir num endereço morto é o que estraga a reputação do domínio, e a
+  // reputação é o que decide se a ENTREGA da música cai na caixa de entrada.
+  //
+  // Transient bloqueia igual: dos 55 bounces medidos, 48 vieram Transient e
+  // nenhum desses endereços voltou a receber depois. "Temporário" aqui é o
+  // Gmail sendo educado.
+  if (tipo === "email.bounced" && para) {
+    try {
+      const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (url && key) {
+        const sb = createClient(url, key, { auth: { persistSession: false } });
+        const alvo = para.toLowerCase();
+        const { data: ja } = await sb
+          .from("emails_mortos").select("vezes").eq("email", alvo).maybeSingle();
+        await sb.from("emails_mortos").upsert(
+          {
+            email: alvo,
+            motivo: "bounce",
+            tipo: d.bounce?.type ?? null,
+            assunto: d.subject ?? null,
+            vezes: (ja?.vezes ?? 0) + 1,
+            ultimo_em: new Date().toISOString(),
+            // Bounce novo reabre o bloqueio: se o atendimento liberou e voltou
+            // a voltar, o endereço continua morto.
+            liberado_em: null,
+          },
+          { onConflict: "email" },
+        );
+      }
+    } catch (err) {
+      console.error("[resend] bloqueio de endereço falhou:", err);
+    }
+  }
+
   if (tipo === "email.bounced" && para) {
     try {
       const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;

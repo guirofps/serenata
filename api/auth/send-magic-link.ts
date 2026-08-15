@@ -119,6 +119,27 @@ export default async function handler(req: Req, res: Res) {
     // Anti-enumeração: mesma resposta pra quem não tem conta nem música.
     if (!temConta && !temMusica) return res.status(200).json({ ok: true });
 
+    // ENDEREÇO QUE JÁ VOLTOU não recebe de novo.
+    //
+    // Este caminho é o mais perigoso dos três, porque é o único que a PESSOA
+    // dispara: quem não acha o e-mail vai pro login e pede link. Se o endereço
+    // está morto, cada pedido é mais um bounce, e ela pode repetir dez vezes.
+    // Foi assim que o endereço do Rodrigo levou duas entregas devolvidas.
+    //
+    // A resposta continua 200 e igual à dos outros casos: dizer "seu e-mail
+    // está bloqueado" aqui entregaria informação sobre a conta a quem só
+    // digitou um endereço.
+    const { data: morto } = await sb
+      .from("emails_mortos")
+      .select("email")
+      .eq("email", email)
+      .is("liberado_em", null)
+      .maybeSingle();
+    if (morto) {
+      console.warn("[magic-link] endereço bloqueado por bounce:", email);
+      return res.status(200).json({ ok: true });
+    }
+
     // ── 3. Garante a conta ───────────────────────────────────────
     // createUser é idempotente na prática: se já existe, dá erro "already
     // registered" e a gente segue (o generateLink funciona pra conta

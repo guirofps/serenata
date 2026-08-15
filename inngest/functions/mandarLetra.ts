@@ -62,16 +62,21 @@ export const mandarLetra = inngest.createFunction(
         .lte("created_at", new Date(agora - ESPERAR_MIN * 60000).toISOString())
         .order("created_at", { ascending: false });
 
-      // As três travas, nesta ordem: descadastrados, excluídos e quem já
-      // recebeu. Nenhuma é opcional.
-      const [{ data: fora }, { data: excl }, { data: pagos }] = await Promise.all([
+      // As quatro travas, nesta ordem: descadastrados, excluídos, endereços
+      // que já voltaram, e quem já comprou. Nenhuma é opcional.
+      const [{ data: fora }, { data: excl }, { data: mortos }, { data: pagos }] = await Promise.all([
         sb.from("descadastros").select("email"),
         sb.from("excluidos_email").select("email"),
+        // JÁ VOLTOU UMA VEZ, NÃO TENTA DE NOVO. O `pareceTypo` logo abaixo pega
+        // o endereço errado pela cara; este pega o que o provedor já RECUSOU na
+        // prática, que é informação melhor que qualquer heurística.
+        sb.from("emails_mortos").select("email").is("liberado_em", null),
         sb.from("pedidos").select("quiz_response_id, email").eq("status", "pago"),
       ]);
       const bloqueado = new Set([
         ...(fora ?? []).map((x) => x.email.toLowerCase()),
         ...(excl ?? []).map((x) => x.email.toLowerCase()),
+        ...(mortos ?? []).map((x) => x.email.toLowerCase()),
         // QUEM COMPROU. Recebe a música inteira pelo e-mail de entrega;
         // mandar "ouça um trecho" depois disso é ofensivo de tão errado.
         // Por e-mail E por quiz_response: a compra pode ter sido feita com

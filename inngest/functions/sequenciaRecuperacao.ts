@@ -107,10 +107,15 @@ export const sequenciaRecuperacao = inngest.createFunction(
       }
       if (!ultimo.size) return [];
 
-      const [fora, excl, pagos, leads] = await Promise.all([
+      const [fora, excl, mortos, pagos, leads] = await Promise.all([
         // Chaveadas por e-mail: não têm coluna `id`.
         paginado<{ email: string }>(sb, "descadastros", "email", undefined, "email"),
         paginado<{ email: string }>(sb, "excluidos_email", "email", undefined, "email"),
+        // Endereços cujo e-mail voltou. Esta sequência é 870 disparos em 14
+        // dias, o maior volume que sai daqui, e é ela que mais insistia em
+        // endereço morto: das repetições medidas, a maioria era "está
+        // esperando você" indo pra quem já tinha devolvido a entrega.
+        paginado<{ email: string }>(sb, "emails_mortos", "email", (q) => q.is("liberado_em", null), "email"),
         paginado<{ quiz_response_id: string | null; email: string | null }>(
           sb,
           "pedidos",
@@ -132,6 +137,7 @@ export const sequenciaRecuperacao = inngest.createFunction(
       const bloqueado = new Set<string>([
         ...fora.map((x) => x.email.toLowerCase()),
         ...excl.map((x) => x.email.toLowerCase()),
+        ...mortos.map((x) => x.email.toLowerCase()),
         ...pagos.map((x) => (x.email ?? "").toLowerCase()).filter(Boolean),
       ]);
       const comprou = new Set(pagos.map((x) => x.quiz_response_id).filter(Boolean));
