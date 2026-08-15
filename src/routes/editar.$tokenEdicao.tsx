@@ -16,6 +16,7 @@ import { QrCode } from "@/components/presente/QrCode";
 import { Efeitos, EFEITOS, rotuloEfeito } from "@/components/presente/Efeitos";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { marcarDono } from "@/lib/dono-presente";
+import { marcarSessaoGasta } from "@/lib/session-context";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE, nomeCor } from "@/lib/marca";
 import { tp } from "@/lib/textos-presente";
 import { Logo } from "@/components/marca/Logo";
@@ -72,6 +73,15 @@ function Editor() {
   // depois de já ter enviado o link.
   useEffect(() => {
     marcarDono(p.tokenPublico);
+    // E marca a SESSÃO como gasta: chegar aqui significa que este navegador já
+    // produziu um presente entregue, então uma música nova precisa começar numa
+    // linha nova do banco (ver novaSessao em session-context).
+    //
+    // Vale aqui e não só na tela de obrigado porque nem todo entregue passa por
+    // lá: quando o atendimento libera o acesso na mão, o editor é a única
+    // porta. Foi assim que o caso de 15/08 ia se repetir de graça, com o
+    // comprador ganhando 3 músicas e as 3 caindo na mesma linha.
+    marcarSessaoGasta();
   }, [p.tokenPublico]);
 
   const [fotoUrl, setFotoUrl] = useState(p.fotoUrl);
