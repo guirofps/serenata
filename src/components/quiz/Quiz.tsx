@@ -41,6 +41,21 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft } from "lucide-react";
 
+// PASSOS QUE NÃO EXISTEM SEM UMA LETRA ANTES.
+//
+// O passo vive na URL, e a URL sobrevive a tudo: histórico, favorito, aba
+// restaurada, link colado pra alguém. Em 7 dias, 40 vezes alguém chegou na
+// tela de PAGAMENTO sem ter música nenhuma, e 30 dessas sessões nunca tinham
+// nem começado o quiz.
+//
+// A trava do checkout (`checkout_barrado_sem_musica`) pegava isso no último
+// instante, o que é bom, mas tarde: a pessoa já tinha visto um preço e clicado
+// em pagar. E a mensagem que ela recebia dizia "volte pra sua letra e ouça
+// daqui a dois minutinhos", falando de uma letra que nunca existiu.
+//
+// Aqui a checagem acontece na ENTRADA da tela, antes de mostrar preço nenhum.
+const PRECISAM_DE_LETRA = new Set(["reveal", "oferta"]);
+
 export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
   const navigate = useNavigate();
   const QUIZ_FLOW = quizFlow(locale);
@@ -83,6 +98,30 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
       novaSessao();
       reset();
     }
+
+    // ENTROU DIRETO NUM PASSO QUE NÃO SE SUSTENTA SOZINHO.
+    //
+    // O sinal é o NOME da pessoa homenageada, não a letra. A letra ainda pode
+    // estar sendo gerada quando o `reveal` monta, então exigir letra aqui
+    // derrubaria gente que está no fluxo certo. O nome, não: é a segunda
+    // pergunta do quiz, e não existe caminho legítimo até a oferta sem ele.
+    //
+    // ESPERA A REIDRATAÇÃO. A store é persistida em localStorage e o estado só
+    // chega depois da hidratação; ler `respostas` direto aqui devolve `{}` até
+    // pra quem preencheu o quiz inteiro. Testado: sem esta espera, o guarda
+    // expulsava da oferta uma sessão com nome, e-mail e estilo gravados.
+    //
+    // `replace: true` pra não empilhar histórico: senão o "voltar" do celular
+    // devolve a pessoa exatamente pra tela quebrada de onde ela saiu.
+    const decidirPasso = () => {
+      if (!PRECISAM_DE_LETRA.has(stepId ?? "")) return;
+      const nome = (useQuizStore.getState().respostas.nome as string)?.trim();
+      if (nome) return;
+      trackEvent("passo_sem_contexto", { step: stepId, locale });
+      navigate({ to: rota, search: { step: QUIZ_FLOW[0]?.id } as never, replace: true });
+    };
+    if (useQuizStore.persist.hasHydrated()) decidirPasso();
+    else useQuizStore.persist.onFinishHydration(decidirPasso);
     getOrCreateSessionId();
     // ANTES do quiz_started: a atribuição é lida no momento do evento, então
     // carimbar depois deixaria o primeiro evento da sessão — justamente o que
