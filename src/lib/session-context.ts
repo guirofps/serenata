@@ -113,6 +113,26 @@ export function sessaoGasta(): boolean {
   return localStorage.getItem(SESSION_GASTA_KEY) === "1";
 }
 
+/**
+ * ADOTA uma sessão específica, vinda de um link.
+ *
+ * O `/retomar` estava fazendo isso na mão, e faltava limpar a marca de sessão
+ * gasta. O efeito colateral só aparece em quem JÁ COMPROU alguma vez: o editor
+ * marca o navegador como gasto, e aí o /retomar restaurava a sessão do link e
+ * o Quiz, ao montar, via a marca velha e apagava tudo que tinha acabado de ser
+ * restaurado. A pessoa caía no passo 1 do quiz sem entender por quê.
+ *
+ * Pego num teste com uma sessão real, depois de visitar o editor no teste
+ * anterior. Reproduz com qualquer cliente que compra uma música e depois
+ * clica no e-mail da letra de outra.
+ */
+export function adotarSessao(id: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(SESSION_KEY, id);
+  localStorage.setItem(SESSION_TS_KEY, String(Date.now()));
+  localStorage.removeItem(SESSION_GASTA_KEY);
+}
+
 export function getStoredAttribution(): Attribution | null {
   if (typeof window === "undefined") return null;
   const raw = localStorage.getItem(ATTRIBUTION_KEY);

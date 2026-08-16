@@ -240,6 +240,57 @@ export const temMusicaDaSessao = createServerFn({ method: "POST" })
     return { existe: Boolean(m), status: m?.status ?? null };
   });
 
+/**
+ * ESTA SESSÃO JÁ PAGOU?
+ *
+ * Existia `temMusicaDaSessao` ("existe música") e não existia isto ("houve
+ * pagamento"), e a diferença entre as duas é um comprador preso na vitrine.
+ *
+ * Em 16/08 um cliente pagou R$ 38 às 12h04, abriu o e-mail de entrega, e o
+ * rastro dele mostra a tela de oferta e o popup de desbloqueio aparecendo
+ * DUAS vezes depois disso, às 12h05 e às 12h19. Ele escreveu pro suporte
+ * dizendo "não consigo ouvir a música por inteira", e era verdade: o site
+ * continuava cortando em 40 segundos a música que ele já tinha comprado.
+ *
+ * O caminho é sempre o mesmo: o e-mail da letra leva ao `/retomar`, que
+ * restaura a sessão e devolve pro funil. O funil só sabia se a música existe,
+ * nunca se ela foi paga.
+ *
+ * Devolve os tokens junto porque quem chama isto quer MANDAR a pessoa pro
+ * presente, e uma segunda consulta só pra pegar o token seria mais uma ida ao
+ * servidor no meio de um redirecionamento.
+ */
+export const sessaoJaPagou = createServerFn({ method: "POST" })
+  .validator((data: { sessionId: string }) => data)
+  .handler(
+    async ({
+      data,
+    }): Promise<{ pago: boolean; token: string | null; tokenEdicao: string | null }> => {
+      const vazio = { pago: false, token: null, tokenEdicao: null };
+      const db = supabaseAdmin();
+      const quizId = await quizIdDaSessao(data.sessionId);
+      if (!quizId) return vazio;
+
+      const { data: pedido } = await db
+        .from("pedidos")
+        .select("id")
+        .eq("quiz_response_id", quizId)
+        .eq("status", "pago")
+        .limit(1)
+        .maybeSingle();
+      if (!pedido) return vazio;
+
+      const { data: m } = await db
+        .from("musicas")
+        .select("token, token_edicao")
+        .eq("quiz_response_id", quizId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return { pago: true, token: m?.token ?? null, tokenEdicao: m?.token_edicao ?? null };
+    },
+  );
+
 export const finalizarLetra = createServerFn({ method: "POST" })
   .validator(
     (data: {

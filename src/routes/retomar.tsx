@@ -7,7 +7,7 @@ import { TEMA_CLARO, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { normalizarLocale, caminho } from "@/lib/i18n";
 import { trackEvent } from "@/lib/track";
-import { novaSessao } from "@/lib/session-context";
+import { novaSessao, adotarSessao } from "@/lib/session-context";
 import { Loader2 } from "lucide-react";
 
 // RETOMAR A SESSÃO a partir de um link de e-mail.
@@ -47,7 +47,7 @@ const buscarSessao = createServerFn({ method: "POST" })
 
     const { data: m } = await db
       .from("musicas")
-      .select("titulo, letra, estilo_suno, verso_destaque")
+      .select("titulo, letra, estilo_suno, verso_destaque, token, token_edicao")
       .eq("quiz_response_id", lead.id)
       .not("letra", "is", null)
       .order("created_at", { ascending: false })
@@ -56,9 +56,23 @@ const buscarSessao = createServerFn({ method: "POST" })
     const locale = lead.locale === "es" ? ("es" as const) : ("pt" as const);
     if (!m?.letra) return { erro: "sem_letra" as Falha, locale };
 
+    // Na MESMA ida ao servidor: esta sessão já virou venda? Ver o comentário
+    // no componente. Uma consulta a mais aqui evita um redirecionamento que
+    // passaria pelo funil antes de descobrir isso.
+    const { data: pedido } = await db
+      .from("pedidos")
+      .select("id")
+      .eq("quiz_response_id", lead.id)
+      .eq("status", "pago")
+      .limit(1)
+      .maybeSingle();
+
     return {
       respostas: (lead.respostas ?? {}) as Record<string, string>,
       locale,
+      pago: Boolean(pedido),
+      token: m.token ?? null,
+      tokenEdicao: m.token_edicao ?? null,
       letra: {
         titulo: m.titulo ?? "",
         letra: m.letra,
@@ -115,13 +129,42 @@ function Retomar() {
           setErro(true);
           return;
         }
-        trackEvent("retomar_ok", { locale: r.locale });
         setLocale(r.locale);
+
+        // QUEM JÁ PAGOU NÃO VOLTA PRA VITRINE.
+        //
+        // Este link vem do e-mail da letra, que foi mandado ANTES da compra.
+        // Quem já pagou e clica nele estava sendo devolvido pro funil, onde a
+        // música toca 40 segundos e o popup pede pra desbloquear de novo.
+        //
+        // Em 16/08 pelo menos três compradores escreveram no mesmo dia
+        // dizendo que não conseguiam ouvir a música inteira. Um deles passou
+        // pelo /retomar duas vezes em quinze minutos e viu o paywall nas duas.
+        //
+        // O editor é o destino certo, e não a página pública: ali ele ouve,
+        // baixa o MP3, monta o presente e pega o link pra mandar.
+        if (r.pago) {
+          trackEvent("retomar_ja_pagou", { locale: r.locale });
+          if (r.tokenEdicao) {
+            window.location.href = `${window.location.origin}/editar/${r.tokenEdicao}`;
+            return;
+          }
+          if (r.token) {
+            window.location.href = `${window.location.origin}/p/${r.token}`;
+            return;
+          }
+        }
+
+        trackEvent("retomar_ok", { locale: r.locale });
 
         // ADOTA a sessão do link. É o que faz o polling da música achar a
         // gravação certa, e o que amarra uma compra futura ao mesmo quiz.
+        //
+        // Via `adotarSessao` e não na mão: além de gravar o id, ela limpa a
+        // marca de "sessão gasta". Sem isso, quem já comprou alguma vez tinha
+        // a sessão restaurada aqui e apagada logo em seguida pelo Quiz.
         try {
-          localStorage.setItem("mp_session_id", s);
+          adotarSessao(s);
         } catch {
           // Modo anônimo: o reveal ainda mostra a letra, só não acha o áudio.
         }

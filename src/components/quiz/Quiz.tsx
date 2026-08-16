@@ -22,6 +22,7 @@ import { Variante } from "@/components/Variante";
 import { AberturaProva } from "@/components/quiz/AberturaProva";
 import { lembrarIdioma } from "@/components/OfereceIdioma";
 import { useQuizStore } from "@/lib/quiz-store";
+import { sessaoJaPagou } from "@/lib/coautoria";
 import { captureLeadProgress } from "@/lib/lead-capture";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import {
@@ -122,6 +123,36 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
     };
     if (useQuizStore.persist.hasHydrated()) decidirPasso();
     else useQuizStore.persist.onFinishHydration(decidirPasso);
+
+    // COMPRADOR NÃO VÊ PAYWALL.
+    //
+    // O `/retomar` já desvia quem pagou, mas ele não é o único caminho de
+    // volta: histórico, aba restaurada e o botão de voltar do celular trazem
+    // a pessoa direto pra cá. O comprador de 16/08 chegou pelos dois jeitos e
+    // viu a tela de oferta nas duas vezes, depois de já ter pago.
+    //
+    // Só nos passos que mostram preço ou cortam a música. Perguntar isso no
+    // passo 1 seria uma ida ao servidor por visita, pra um caso que só existe
+    // depois da compra.
+    //
+    // FALHA ABERTA: se a consulta cair, a pessoa segue no funil normal. Barrar
+    // alguém por indisponibilidade seria trocar um problema raro por um pior.
+    if (PRECISAM_DE_LETRA.has(stepId ?? "")) {
+      sessaoJaPagou({ data: { sessionId: getOrCreateSessionId() } })
+        .then((r) => {
+          if (!r.pago) return;
+          trackEvent("funil_comprador_desviado", { step: stepId, locale });
+          const destino = r.tokenEdicao
+            ? `/editar/${r.tokenEdicao}`
+            : r.token
+              ? `/p/${r.token}`
+              : null;
+          if (destino) window.location.href = `${window.location.origin}${destino}`;
+        })
+        .catch(() => {
+          /* indisponível: segue o funil */
+        });
+    }
     getOrCreateSessionId();
     // ANTES do quiz_started: a atribuição é lida no momento do evento, então
     // carimbar depois deixaria o primeiro evento da sessão — justamente o que
