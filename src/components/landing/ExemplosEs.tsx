@@ -12,26 +12,31 @@ import { cn } from "@/lib/utils";
 // São as músicas do teste de validação, geradas pelo mesmo pipeline que o
 // cliente vai usar.
 //
-// ── A BALADA VEM PRIMEIRO, E ISSO É DE PROPÓSITO ─────────────────
+// ── OS TRÊS GÊNEROS SERVEM OS QUATRO PAÍSES ──────────────────────
 //
-// Os três exemplos foram gravados quando o alvo era o México, e dois deles
-// são gêneros mexicanos. A campanha hoje é Argentina, Chile, Peru e Colômbia:
-// abrir a home com "Mariachi" é anunciar um produto de outro país.
+// A primeira versão desta lista foi gravada quando o alvo era o México:
+// mariachi, banda e balada. Dois de três eram gêneros mexicanos, e a home
+// abria com "Mariachi".
 //
-// Não dá pra trocar o rótulo, porque o áudio é mariachi de verdade e mentir
-// no gênero seria pior. Dá pra escolher qual toca primeiro, e balada romântica
-// funciona nos quatro países. Custa zero e muda a primeira impressão.
+// A campanha roda Argentina, Chile, Peru e Colômbia. Anunciar com mariachi
+// nesses quatro é mostrar um produto de outro país logo na primeira tela, e
+// os exemplos são justamente onde a pessoa decide se isso é pra ela.
 //
-// DÍVIDA: gravar exemplos novos em cumbia e bolero, que servem os quatro, e
-// aposentar os dois mexicanos daqui. São ~R$ 1 de geração.
+// Balada, cumbia e bolero funcionam nos quatro sem exceção. Os dois novos
+// foram gravados em 17/08 pelo mesmo pipeline, com letra escrita à mão para
+// não carregar sotaque de nenhum país específico.
+//
+// Os mexicanos não foram apagados: as páginas-presente deles continuam de pé
+// e o áudio segue no bucket. Se um dia o México virar mercado próprio, é só
+// trocar esta lista de volta.
 
-// `token` abre a PÁGINA-PRESENTE de verdade — com foto, karaokê e tudo.
+// `token` abre a PÁGINA-PRESENTE de verdade — com karaokê e tudo.
 // É o argumento mais forte que existe, porque a página é o produto: no funil
 // português ela é o que a pessoa toca antes de comprar, e aqui não existia.
 const EXEMPLOS = [
   { slug: "es-balada", titulo: "El Frasco de Nescafé", para: "para el abuelo", genero: "Balada", token: "exesabueloa0f408be" },
-  { slug: "es-mariachi", titulo: "El Mandil Azul", para: "para la mamá", genero: "Mariachi", token: "exesmama651ba4fe" },
-  { slug: "es-banda", titulo: "El Pedazo de Pastel", para: "para la esposa", genero: "Banda", token: "exesesposa5c63ba27" },
+  { slug: "es-cumbia", titulo: "La Trenza de los Lunes", para: "para la hija", genero: "Cumbia", token: "exescumbia7f21a9c4" },
+  { slug: "es-bolero", titulo: "El Café de las Cinco", para: "para la esposa", genero: "Bolero", token: "exesbolero4c8d1e73" },
 ] as const;
 
 const AUDIO_BASE =

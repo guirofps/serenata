@@ -22,9 +22,14 @@ const CLIPES: Record<Locale, ReadonlyArray<{ slug: string; titulo: string; para:
     { slug: "isabela", titulo: "Desde a Escola, Isabela", para: "para a esposa" },
     { slug: "camburi", titulo: "Camburi", para: "para o marido" },
   ],
+  // Mesma troca da home: mariachi e banda saíram porque a campanha é
+  // Argentina, Chile, Peru e Colômbia. Aqui o nome do gênero nem aparece na
+  // tela, mas o que toca enquanto a pessoa espera A MÚSICA DELA é a última
+  // referência que ela ouve antes de decidir: ouvir mariachi ali sugere que a
+  // dela vai sair parecida.
   es: [
-    { slug: "es-mariachi", titulo: "El Mandil Azul", para: "para la mamá" },
-    { slug: "es-banda", titulo: "El Pedazo de Pastel", para: "para la esposa" },
+    { slug: "es-cumbia", titulo: "La Trenza de los Lunes", para: "para la hija" },
+    { slug: "es-bolero", titulo: "El Café de las Cinco", para: "para la esposa" },
     { slug: "es-balada", titulo: "El Frasco de Nescafé", para: "para el abuelo" },
   ],
 };
