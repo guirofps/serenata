@@ -85,8 +85,18 @@ const COPY: Record<
     tituloAntes: "Uma música feita da ",
     tituloOuro: "história",
     tituloDepois: " de quem você ama",
-    explicacao:
-      "Você conta a história. A letra fica pronta na hora, de graça — e você ouve um trecho cantado antes de decidir qualquer coisa.",
+    // ATENÇÃO AO QUE ESTA FRASE PROMETE.
+    //
+    // A fronteira do paywall, em `docs/produto.md`: grátis é a LETRA inteira
+    // mais uma prévia cantada de ~35s cortada no refrão; pago é a música
+    // completa, as duas versões, a página presente e o MP3.
+    //
+    // Esta redação diz que a MÚSICA fica pronta de graça. Foi pedida assim
+    // (17/08) e está no ar; fica o registro de que ela é mais larga que a
+    // fronteira documentada, pra ninguém "corrigir" um dos dois lados sem
+    // saber que o outro existe. Os "2 minutos" batem com o medido e com a
+    // faixa logo abaixo (`ProvaImediata`: ~2min pra música ser gravada).
+    explicacao: "Você conta a história. A música fica pronta em 2 minutos, de graça.",
     cta: "CRIAR MINHA MÚSICA GRÁTIS",
     rotulo: "uma música para",
     // ESPOSA e não pai: é a relação que mais vende, e a primeira tela tem que
