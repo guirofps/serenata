@@ -6,7 +6,7 @@ import {
   regravarMusica,
   type LetraParaAjuste,
 } from "@/lib/recuperacao-letra";
-import { Loader2, Wand2, Save, Disc3, AlertTriangle } from "lucide-react";
+import { Loader2, Wand2, Save, Disc3, AlertTriangle, Copy } from "lucide-react";
 
 // O painel que deixa o ATENDENTE destravar a venda sozinho.
 //
@@ -32,6 +32,7 @@ export function AjusteLetra({ musicaId }: { musicaId: string }) {
   const [recado, setRecado] = useState<string | null>(null);
   // Só aparece quando o servidor recusa por ser música PAGA. Ver regravarMusica.
   const [pedeConfirmar, setPedeConfirmar] = useState(false);
+  const [copiou, setCopiou] = useState(false);
 
   const sujo = ficha !== null && letra.trim() !== ficha.letra.trim();
 
@@ -185,6 +186,21 @@ export function AjusteLetra({ musicaId }: { musicaId: string }) {
           />
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
+            {/* COPIAR e o passo do meio do fluxo real: o atendente manda a
+                letra nova pro cliente no WhatsApp e espera o "gostei" antes de
+                gastar os R$ 0,32 gravando. Sem botao, ele selecionaria 40
+                linhas com o dedo na tela do celular. */}
+            <button
+              onClick={async () => {
+                await navigator.clipboard.writeText(letra);
+                setCopiou(true);
+                setTimeout(() => setCopiou(false), 2000);
+              }}
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--tinta-fraca)] px-3 py-1.5 text-[11px]"
+            >
+              <Copy className="h-3 w-3" />
+              {copiou ? "copiada!" : "copiar pro cliente"}
+            </button>
             <button
               onClick={salvar}
               disabled={ocupado !== null || !sujo}
@@ -202,7 +218,7 @@ export function AjusteLetra({ musicaId }: { musicaId: string }) {
               {ocupado === "gravando" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Disc3 className="h-3 w-3" />}
               gravar música nova
             </button>
-            <span className="text-[11px] text-[var(--tinta-suave)]">custa R$ 0,32</span>
+            <span className="text-[11px] text-[var(--tinta-suave)]">2 versoes, R$ 0,32</span>
           </div>
 
           {/* O SEGUNDO SIM, só pra música já paga. */}
