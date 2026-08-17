@@ -502,24 +502,33 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
 
       {/* Rodapé: continuar (some nos passos que têm CTA próprio)
 
-          JÁ FOI STICKY, POR UM DIA, E CUSTOU CARO.
-          A ideia era boa no papel: o botão nascia fora da tela em 7 dos 11
-          passos, e prendê-lo na base resolvia isso. Só que a barra fica
-          desenhada por cima do conteúdo, e com `bg-background/95` a pessoa
-          VÊ o que está embaixo dela. Medido no ar, com a tela no topo,
-          quatro chips da primeira pergunta (Amiga, Amigo, Pet, Outro)
-          ficavam sob a barra: visíveis, e mortos ao toque.
+          STICKY DE NOVO, E DESSA VEZ OPACO. É a diferença inteira.
 
-          O número: a passagem da pergunta 1 pra 2 caiu de 43% (08/08, antes)
-          pra 33% e depois 14%. O pior defeito de interface é o que parece
-          funcionar — a pessoa toca, nada acontece, e ela conclui que o site
-          está quebrado.
+          A primeira tentativa (09/08) foi revertida junto com o pacote que
+          derrubou a passagem da pergunta 1 pra 2 de 43% pra 14%. Mas a causa
+          nunca foi isolada, e o que se sabe aponta pra fora desta barra: o
+          funil ESPANHOL levou as mesmas barras e ficou estável em 15-18%, e
+          os 4 chips que ela cobria (Amiga, Amigo, Pet, Outro) são
+          secundários — Mãe, Pai e Esposa nunca saíram do topo da lista.
+          Quatro chips secundários não derrubam 60% pra 15%. O deploy tinha
+          cinco mudanças juntas; esta voltou por associação, não por prova.
 
-          Voltou pro fluxo normal. O problema que a sticky tentava resolver é
-          real e continua aberto, mas se resolve encurtando a tela, não
-          desenhando algo por cima dela. */}
+          O QUE ERA DEFEITO DE VERDADE: `bg-background/95 backdrop-blur-sm`.
+          Enquanto grudada, a barra é pintada por cima do que estiver ali —
+          e com fundo translúcido a pessoa VIA o chip por baixo. Chip visível
+          que não responde ao toque é o pior defeito possível de interface: a
+          pessoa toca, nada acontece, e conclui que o site quebrou.
+
+          Fundo 100% opaco, sem blur: o chip é CORTADO na borda da barra, que
+          é como todo aplicativo sinaliza "tem mais coisa aqui embaixo, role".
+          Nada fica inalcançável — no fim da rolagem a barra volta pro fluxo e
+          o `mt-6` garante o respiro acima dela.
+
+          Sobe sozinha, sem tocar em `min-h-screen`, na pergunta do topo nem
+          no `py-6`. Foi o pacote que não deixou ninguém saber de quem era a
+          culpa da última vez. */}
       {!isReview(step) && !isReveal(step) && !isOferta(step) && (
-        <div className="pt-8">
+        <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-border/40 bg-background px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
           <Button
             size="lg"
             className="cta w-full rounded-full border-0"
@@ -586,17 +595,19 @@ function ReviewScreen({ locale, onGerar }: { locale: Locale; onGerar: () => void
             </div>
           ))}
       </div>
-      {/* Aqui embaixo não existe nada clicável (a lista de respostas é texto),
-          então esta barra não podia estar matando toque nenhum. Voltou mesmo
-          assim: enquanto a causa da queda não estiver isolada, NADA daquele
-          deploy fica de pé. Meia reversão não prova nada.
+      {/* Sticky pelo mesmo motivo do rodapé do quiz: a lista de respostas
+          empurrava este botão 221px abaixo da dobra num celular de 667px, e
+          ele é o último clique antes da letra.
 
-          O rótulo continua vindo do dicionário: era a única coisa daquele
-          commit que consertava um bug de verdade (a revisão espanhola exibia
-          "Escrever minha letra grátis" em português). */}
-      <Button size="lg" className="cta w-full rounded-full border-0" onClick={onGerar}>
-        {T.escreverLetra}
-      </Button>
+          Aqui o risco é ainda menor que lá: embaixo desta barra só existe
+          TEXTO (a lista de respostas), então ela não tem toque nenhum pra
+          matar. Fundo opaco pela mesma razão de sempre — o que fica cortado
+          na borda tem que parecer cortado. */}
+      <div className="sticky bottom-0 z-10 -mx-4 border-t border-border/40 bg-background px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+        <Button size="lg" className="cta w-full rounded-full border-0" onClick={onGerar}>
+          {T.escreverLetra}
+        </Button>
+      </div>
     </div>
   );
 }
