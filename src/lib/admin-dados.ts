@@ -187,10 +187,11 @@ const ROTULOS: Record<string, string> = {
 
 const pct = (parte: number, total: number) => (total > 0 ? (parte / total) * 100 : 0);
 
-// Os dois nomes de evento que significam "quis pagar". São nomes diferentes
-// porque o botão mudou de lugar no funil ao longo do tempo; a pessoa é a
-// mesma, então a contagem é a UNIÃO das sessões, nunca a soma.
-const CLIQUE_COMPRA = new Set(["checkout_click", "desbloquear_click"]);
+// Os dois nomes de evento que significam "quis pagar" (`checkout_click` e
+// `desbloquear_click`) são nomes diferentes porque o botão mudou de lugar no
+// funil ao longo do tempo. A pessoa é a mesma, então a contagem é a UNIÃO das
+// sessões, nunca a soma. Essa regra mudou de casa: hoje vive dentro de
+// `admin_eventos_resumo`, onde os eventos são somados.
 
 // O PostgREST devolve no MÁXIMO 1000 linhas por requisição, em silêncio: sem
 // erro, sem aviso, e a fatia que volta nem é previsível. Uma consulta sem
@@ -222,12 +223,24 @@ type Musica = {
   personalizada_em: string | null;
 };
 type Custo = { id: string; tipo: string; custo_brl: number | null; quiz_response_id: string | null; created_at: string };
-type Evento = {
-  id: string;
-  event_name: string;
-  session_id: string | null;
-  event_data: Record<string, unknown> | null;
-  created_at: string;
+/**
+ * O que `admin_eventos_resumo` devolve (migration 20260817000000).
+ *
+ * Substituiu a leitura crua de funnel_events. Cada campo aqui era um `filter`
+ * sobre 180 mil linhas no Node; agora é um `group by` no Postgres.
+ */
+type EventosResumo = {
+  visitantes: number;
+  sessoes_oferta: number;
+  sessoes_checkout: number;
+  contagens: Record<string, number>;
+  por_entrada: Array<{
+    caminho: string;
+    visitantes: number;
+    quiz: number;
+    letras: number;
+    vendas: number;
+  }>;
 };
 type Pedido = {
   id: string;
@@ -363,11 +376,21 @@ export const carregarPainel = createServerFn({ method: "POST" })
           .range(de, ate) as never,
       );
 
-    const [leadsCru, musicas, custos, eventos, pedidos] = await Promise.all([
+    // FUNNEL_EVENTS NÃO ENTRA AQUI, e essa ausência é o conserto.
+    //
+    // Até 17/08 esta lista tinha uma sexta entrada puxando funnel_events
+    // inteiro: 180 mil linhas numa janela de 30 dias, contra 24 mil das
+    // outras quatro somadas. Vinham pro Node só pra virar meia dúzia de
+    // contadores, e o tempo disso crescia junto com o tráfego até estourar o
+    // limite da função na Vercel.
+    //
+    // Agora essa conta é feita no banco, por `admin_eventos_resumo`, e volta
+    // como ~30 linhas de resumo. Chamada mais abaixo, porque ela precisa
+    // saber quais sessões compraram, e isso sai de `pedidos`.
+    const [leadsCru, musicas, custos, pedidos] = await Promise.all([
       janela<Lead>("quiz_responses", "id, session_id, respostas, furthest_step, email, attribution, locale, created_at"),
       janela<Musica>("musicas", "id, quiz_response_id, titulo, status, created_at, gerada_em, personalizada_em"),
       janela<Custo>("custos", "id, tipo, custo_brl, quiz_response_id, created_at"),
-      janela<Evento>("funnel_events", "id, event_name, session_id, event_data, created_at"),
       janela<Pedido>(
         "pedidos",
         "id, quiz_response_id, musica_id, gateway, status, valor_centavos, email, paid_at, created_at, dinheiro_entrou",
@@ -397,20 +420,11 @@ export const carregarPainel = createServerFn({ method: "POST" })
     const localeDoQuiz = new Map<string, string>();
     for (const l of leadsCru) localeDoQuiz.set(l.id, l.locale === "es" ? "es" : "pt");
 
-    const localeDaSessao = new Map<string, string>();
-    for (const l of leadsCru) {
-      if (l.session_id) localeDaSessao.set(l.session_id, l.locale === "es" ? "es" : "pt");
-    }
-    for (const e of eventos) {
-      if (!e.session_id || localeDaSessao.has(e.session_id)) continue;
-      if (e.event_name !== "page_view") continue;
-      const caminho = String((e.event_data ?? {}).path ?? "");
-      localeDaSessao.set(e.session_id, /^\/es(\/|$)/.test(caminho) ? "es" : "pt");
-    }
-
+    // A regra 2 (idioma pelo caminho do page_view) agora vive dentro de
+    // `admin_eventos_resumo`, junto dos eventos que ela filtra. O mapa que
+    // existia aqui só servia pra isso.
     const bate = (locale: string | undefined) =>
       filtro === "todos" || (locale ?? "pt") === filtro;
-    const porSessao = (sid: string | null) => bate(sid ? localeDaSessao.get(sid) : undefined);
     const quizBate = (qid: string | null) => bate(qid ? localeDoQuiz.get(qid) : undefined);
 
     // Mais recente primeiro, como a listagem do painel espera.
@@ -418,7 +432,6 @@ export const carregarPainel = createServerFn({ method: "POST" })
       .filter((l) => bate(l.locale === "es" ? "es" : "pt"))
       .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 
-    const eventosF = eventos.filter((e) => porSessao(e.session_id));
     const musicasF = musicas.filter((m) => quizBate(m.quiz_response_id));
     const custosF = custos.filter((c) => quizBate(c.quiz_response_id));
     const pedidosF = pedidos.filter((p) => quizBate(p.quiz_response_id));
@@ -440,14 +453,6 @@ export const carregarPainel = createServerFn({ method: "POST" })
     // idioma, e inventar um rateio daria um CPA que parece preciso e não é.
     // Com o filtro em BR ou MX o número fica igual, e isso é honesto.
     const gastoAds = gastos.reduce((s, g) => s + g.brl, 0);
-
-    const conta = (nome: string) => eventosF.filter((e) => e.event_name === nome).length;
-    // Visitante único: sessões distintas com page_view. É o denominador honesto
-    // do funil (o total de page_view contaria a mesma pessoa várias vezes).
-    const sessoesComView = new Set(
-      eventosF.filter((e) => e.event_name === "page_view" && e.session_id).map((e) => e.session_id),
-    );
-    const visitantes = sessoesComView.size;
 
     // Liberação manual sem dinheiro (cortesia, acesso interno, teste) NÃO é
     // venda. O pedido precisa ficar `pago` pra música chegar no cliente, mas
@@ -491,6 +496,36 @@ export const carregarPainel = createServerFn({ method: "POST" })
     const quizIniciados = new Set(leads.map((l) => l.session_id ?? l.id)).size;
     const comEmail = leads.filter((l) => l.email).length;
 
+    // ── OS EVENTOS, SOMADOS NO BANCO ─────────────────────────────
+    //
+    // Uma chamada, ~30 linhas de volta, no lugar das 180 mil que vinham antes.
+    // As sessões que compraram vão JUNTO no pedido, porque a regra de o que
+    // conta como venda (cortesia não conta) mora aqui em cima e duplicá-la no
+    // SQL criaria uma segunda verdade sobre faturamento.
+    const sessoesVenda = [
+      ...new Set(
+        pagos
+          .map((p) => leads.find((l) => l.id === p.quiz_response_id)?.session_id)
+          .filter((s): s is string => Boolean(s)),
+      ),
+    ];
+
+    const { data: resumoCru, error: erroResumo } = await db.rpc("admin_eventos_resumo", {
+      p_desde: desde,
+      p_ate: ateISO,
+      p_filtro: filtro,
+      p_sessoes_venda: sessoesVenda,
+    });
+    // Falhar alto. Resumo vazio aqui pintaria um painel de zeros com cara de
+    // "não vendeu nada hoje", que é pior que erro na tela.
+    if (erroResumo) throw new Error(`resumo de eventos: ${erroResumo.message}`);
+    const resumo = (resumoCru ?? {}) as EventosResumo;
+
+    // Visitante único: sessões distintas com page_view. É o denominador honesto
+    // do funil (o total de page_view contaria a mesma pessoa várias vezes).
+    const visitantes = resumo.visitantes ?? 0;
+    const conta = (nome: string) => resumo.contagens?.[nome] ?? 0;
+
     // PESSOAS que clicaram em comprar, não CLIQUES.
     //
     // Antes isto era `conta("checkout_click") + conta("desbloquear_click")`, e
@@ -502,19 +537,14 @@ export const carregarPainel = createServerFn({ method: "POST" })
     // que o de visitantes, num funil onde ele só pode encolher.
     //
     // Todo passo do funil conta gente distinta; este passou a contar também.
-    const sessoesCheckout = new Set(
-      eventos
-        .filter((e) => CLIQUE_COMPRA.has(e.event_name) && e.session_id)
-        .map((e) => e.session_id),
-    );
-    const cliquesCheckout = sessoesCheckout.size;
+    // (Este degrau NÃO é separado por idioma, e nunca foi. Ver o comentário na
+    //  migration: manter idêntico foi decisão, não descuido.)
+    const cliquesCheckout = resumo.sessoes_checkout ?? 0;
 
     // Quem chegou na TELA DE OFERTA (existe desde 02/08). Antes dela, o
     // clique em comprar levava direto pro gateway; por isso o degrau fica
     // vazio em qualquer recorte anterior, e não é bug.
-    const sessoesOferta = new Set(
-      eventosF.filter((e) => e.event_name === "oferta_vista" && e.session_id).map((e) => e.session_id),
-    ).size;
+    const sessoesOferta = resumo.sessoes_oferta ?? 0;
 
     // Músicas que realmente vieram do funil. As de EXEMPLO (as da landing, as
     // dos testes) nascem de um quiz_response criado por script, com
@@ -623,44 +653,9 @@ export const carregarPainel = createServerFn({ method: "POST" })
       origemMap.set(k, v);
     }
     // ── POR PÁGINA DE ENTRADA ────────────────────────────────────
-    // A sessão conta UMA vez, na primeira página que ela abriu. Agrupar por
-    // qualquer page_view faria toda sessão aparecer em toda página visitada,
-    // e a comparação não significaria nada.
-    const entradaDaSessao = new Map<string, string>();
-    for (const e of [...eventosF].sort((a, b) => (a.created_at < b.created_at ? -1 : 1))) {
-      if (e.event_name !== "page_view" || !e.session_id) continue;
-      if (!(e.event_data ?? {}).is_landing) continue;
-      if (entradaDaSessao.has(e.session_id)) continue;
-      let caminho = String((e.event_data ?? {}).path ?? "/");
-      // Páginas de token viram um grupo só: `/p/abc123` e `/p/xyz789` são a
-      // mesma PORTA (alguém abriu um presente compartilhado), e listadas uma a
-      // uma virariam trinta linhas de uma visita cada.
-      caminho = caminho
-        .replace(/^\/p\/.+/, "/p/… (presente compartilhado)")
-        .replace(/^\/editar\/.+/, "/editar/… (editor)");
-      entradaDaSessao.set(e.session_id, caminho);
-    }
-
-    const sessoesQuiz = new Set(
-      eventosF.filter((e) => e.event_name === "quiz_started" && e.session_id).map((e) => e.session_id),
-    );
-    const sessoesLetra = new Set(
-      eventosF.filter((e) => e.event_name === "letra_finalizada" && e.session_id).map((e) => e.session_id),
-    );
-    const sessoesVenda = new Set(
-      pagos.map((p) => leads.find((l) => l.id === p.quiz_response_id)?.session_id).filter(Boolean),
-    );
-
-    const entradaMap = new Map<string, { caminho: string; visitantes: number; quiz: number; letras: number; vendas: number }>();
-    for (const [sid, caminho] of entradaDaSessao) {
-      const v = entradaMap.get(caminho) ?? { caminho, visitantes: 0, quiz: 0, letras: 0, vendas: 0 };
-      v.visitantes += 1;
-      if (sessoesQuiz.has(sid)) v.quiz += 1;
-      if (sessoesLetra.has(sid)) v.letras += 1;
-      if (sessoesVenda.has(sid)) v.vendas += 1;
-      entradaMap.set(caminho, v);
-    }
-    const porEntrada = [...entradaMap.values()]
+    // Agrupado no banco (a sessão conta UMA vez, na primeira página que ela
+    // abriu). A taxa fica aqui porque é divisão, não agregação.
+    const porEntrada = (resumo.por_entrada ?? [])
       .map((e) => ({ ...e, conversaoPct: pct(e.vendas, e.visitantes) }))
       .sort((a, b) => b.visitantes - a.visitantes);
 
