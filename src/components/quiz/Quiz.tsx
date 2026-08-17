@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import {
+  isIntro,
   isQuestion,
   isContact,
   isReview,
@@ -18,8 +19,7 @@ import { type Locale, TAG_IDIOMA } from "@/lib/i18n";
 import { t } from "@/lib/textos";
 import { sugerirEmail } from "@/lib/email-typo";
 import { carimbarExperimentos } from "@/lib/experimentos";
-import { Variante } from "@/components/Variante";
-import { AberturaProva } from "@/components/quiz/AberturaProva";
+import { AberturaPresente } from "@/components/quiz/AberturaPresente";
 import { lembrarIdioma } from "@/components/OfereceIdioma";
 import { useQuizStore } from "@/lib/quiz-store";
 import { sessaoJaPagou } from "@/lib/coautoria";
@@ -207,6 +207,17 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
       });
       trackEvent("quiz_step", { step_id: step.id, q: qNum });
     }
+    // A ABERTURA é medida, mas NÃO grava lead.
+    //
+    // `captureLeadProgress` de propósito fica de fora: se a abertura criasse
+    // linha em `quiz_responses`, o passo 1 do funil no banco passaria a
+    // significar "viu a tela de abertura" e todo número histórico ficaria
+    // incomparável da noite pro dia. A numeração continua a mesma; a tela
+    // nova aparece só em `funnel_events`, que é onde ela precisa aparecer
+    // pra responder se ela ajuda ou atrapalha.
+    if (isIntro(step)) {
+      trackEvent("quiz_step", { step_id: step.id, q: 0 });
+    }
   }, [step.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function goTo(i: number) {
@@ -243,30 +254,51 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
     // 43% pra 14%, e enquanto a causa exata não estiver isolada nada daquele
     // deploy fica de pé. Volta em separado, medindo sozinho.
     <main className="mx-auto flex min-h-screen max-w-xl flex-col px-4 py-6">
-      {/* Header: voltar + progresso */}
-      <div className="mb-4 flex items-center gap-3">
-        {idx > 0 && (
-          <button onClick={goPrev} className="text-muted-foreground hover:text-foreground">
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-        )}
-        <Progress value={qNum ? (qNum / total) * 100 : 4} className="flex-1" />
-        {isQuestion(step) && (
-          <span className="text-xs text-muted-foreground">
-            {qNum}/{total}
-          </span>
-        )}
-      </div>
+      {/* Header: voltar + progresso.
+
+          Some na ABERTURA: uma barra de progresso vazia antes da primeira
+          pergunta anuncia "isto é um formulário de 8 etapas" exatamente no
+          instante em que a tela está tentando dizer o contrário. O progresso
+          começa a existir quando existe progresso. */}
+      {!isIntro(step) && (
+        <div className="mb-4 flex items-center gap-3">
+          {idx > 0 && (
+            <button onClick={goPrev} className="text-muted-foreground hover:text-foreground">
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          )}
+          <Progress value={qNum ? (qNum / total) * 100 : 4} className="flex-1" />
+          {isQuestion(step) && (
+            <span className="text-xs text-muted-foreground">
+              {qNum}/{total}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* O entregável, visível o quiz inteiro. Some na revelação (que já
-          mostra o presente de verdade) e na oferta (que lista tudo item por
-          item logo abaixo: repetir ali era só ruído). */}
-      {!isReveal(step) && !isOferta(step) && (
+          mostra o presente de verdade), na oferta (que lista tudo item por
+          item logo abaixo: repetir ali era só ruído) e na abertura, onde o
+          presente aparece inteiro e animado — a faixa seria a versão pobre
+          da mesma informação, dez centímetros acima. */}
+      {!isIntro(step) && !isReveal(step) && !isOferta(step) && (
         <FaixaPresente nome={respostas.nome as string | undefined} locale={locale} />
       )}
 
       {/* Corpo do passo */}
       <div className="flex flex-1 flex-col justify-center">
+        {isIntro(step) && (
+          <AberturaPresente
+            locale={locale}
+            aoComecar={() => {
+              // O clique é a métrica desta tela. `quiz_step` diz quantos
+              // CHEGARAM na abertura; este diz quantos ela convenceu.
+              trackEvent("abertura_comecar", { locale });
+              goNext();
+            }}
+          />
+        )}
+
         {isQuestion(step) && (
           <div className="space-y-6 text-center">
             {step.block && (
@@ -274,15 +306,12 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
                 {step.block}
               </p>
             )}
-            {/* EXPERIMENTO `abertura`, só no primeiro passo: é lá que 79% vão
-                embora sem tocar em nada. Nos outros passos a pessoa já
-                respondeu alguma coisa e a prova não tem o mesmo trabalho a
-                fazer. Nada é renderizado na variante A. */}
-            {idx === 0 && (
-              <Variante exp="abertura" v="B">
-                <AberturaProva locale={locale} />
-              </Variante>
-            )}
+            {/* O `AberturaProva` (variante B do experimento `abertura`) ficava
+                AQUI, espremido acima da pergunta 1. Saiu porque a tela de
+                abertura faz o mesmo trabalho com espaço pra fazer direito, e
+                porque `idx === 0` agora é a abertura: o bloco nunca mais
+                renderizaria de qualquer forma. O experimento em si continua
+                desligado em `experimentos.ts`, e a máquina de A/B intacta. */}
 
             {/* NÃO É MAIS STICKY, e a volta é deliberada.
                 Prender a pergunta no topo resolvia um problema real (com o
@@ -527,7 +556,7 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
           Sobe sozinha, sem tocar em `min-h-screen`, na pergunta do topo nem
           no `py-6`. Foi o pacote que não deixou ninguém saber de quem era a
           culpa da última vez. */}
-      {!isReview(step) && !isReveal(step) && !isOferta(step) && (
+      {!isIntro(step) && !isReview(step) && !isReveal(step) && !isOferta(step) && (
         <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-border/40 bg-background px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
           <Button
             size="lg"

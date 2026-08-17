@@ -12,6 +12,14 @@ import { QUIZ_FLOW_ES } from "@/lib/quiz-flow-es";
 //   - lead parcial desde o passo 1 (nenhum concorrente tem)
 
 const QUIZ_FLOW_PT: FlowStep[] = [
+  // PRIMEIRA TELA, antes de qualquer pergunta. `indexOfId` devolve 0 quando
+  // não há `?step=` na URL, então quem cai do anúncio direto em /criar entra
+  // por aqui sem precisar de rota nova. A copy vive no componente, junto da
+  // versão espanhola, como no `AberturaProva`.
+  {
+    id: "abertura",
+    kind: "intro",
+  },
   {
     id: "relacao",
     kind: "question",

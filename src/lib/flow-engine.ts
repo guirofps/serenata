@@ -137,6 +137,27 @@ export type QuestionStep = {
     }
 );
 
+// A ABERTURA — a primeira tela, antes de qualquer pergunta.
+//
+// Existe porque o buraco do funil está no primeiro instante, e isso está
+// medido (09/08): de 195 pessoas que viram a pergunta 1, só 41 tocaram em
+// algum chip, e 63% não geraram mais nenhum evento — chegaram e saíram. Nos
+// passos seguintes o mesmo evento mostra 89% a 93% de toque, o que prova que
+// a medição funciona e que o problema é só aqui.
+//
+// Não é atrito de botão (só 6 escolheram sem avançar). A pessoa cai do
+// anúncio direto numa pergunta, sem saber que site é esse nem o que vai
+// ganhar, e vai embora antes de responder qualquer coisa. Falta o MOTIVO
+// pra responder, e é isso que esta tela entrega.
+//
+// Não conta como pergunta: `questionNumber` só soma QuestionStep, então a
+// barra de progresso continua "1/8" no `relacao` e o funil gravado no banco
+// mantém a mesma numeração de sempre. O histórico segue comparável.
+export type IntroStep = {
+  id: string;
+  kind: "intro";
+};
+
 // Interlúdio de prova social / expectativa (mockup do presente nascendo).
 export type SocialProofStep = {
   id: string;
@@ -187,6 +208,7 @@ export type OfertaStep = {
 };
 
 export type FlowStep =
+  | IntroStep
   | QuestionStep
   | SocialProofStep
   | ContactStep
@@ -195,6 +217,7 @@ export type FlowStep =
   | OfertaStep;
 
 // ─── Type guards ─────────────────────────────────────────────────
+export const isIntro = (s: FlowStep): s is IntroStep => s.kind === "intro";
 export const isQuestion = (s: FlowStep): s is QuestionStep => s.kind === "question";
 export const isSocialProof = (s: FlowStep): s is SocialProofStep => s.kind === "social-proof";
 export const isContact = (s: FlowStep): s is ContactStep => s.kind === "contact";

@@ -15,6 +15,13 @@ import { generos } from "@/lib/generos";
 // Espanhol neutro-mexicano: `tú`, nunca `vos`; `ustedes`, nunca `vosotros`.
 
 export const QUIZ_FLOW_ES: FlowStep[] = [
+  // A abertura, igual ao português. O `id` é o mesmo (ele vai pra URL e pros
+  // eventos, e separar os dois idiomas aqui só complicaria o painel); o que
+  // muda é a redação, que vive no componente.
+  {
+    id: "abertura",
+    kind: "intro",
+  },
   {
     id: "relacao",
     kind: "question",
