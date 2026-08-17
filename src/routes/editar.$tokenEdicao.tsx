@@ -17,11 +17,13 @@ import { Efeitos, EFEITOS, rotuloEfeito } from "@/components/presente/Efeitos";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { marcarDono } from "@/lib/dono-presente";
 import { marcarSessaoGasta } from "@/lib/session-context";
+import { linkSuporte, TEXTO_SUPORTE } from "@/lib/suporte-whatsapp";
+import { trackEvent } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE, nomeCor } from "@/lib/marca";
 import { tp } from "@/lib/textos-presente";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
-import { ImagePlus, Trash2, Check, Copy, ExternalLink, Loader2, X, Play, Pause } from "lucide-react";
+import { ImagePlus, Trash2, Check, Copy, ExternalLink, Loader2, X, Play, Pause, MessageCircle } from "lucide-react";
 
 // A ÁREA DO COMPRADOR — onde o presente deixa de ser um render e vira o
 // documento dela.
@@ -67,6 +69,12 @@ function Editor() {
   const p = Route.useLoaderData();
   const T = tp(p?.locale ?? "pt");
   const { tokenEdicao } = Route.useParams();
+  const tz = TEXTO_SUPORTE[p?.locale === "es" ? "es" : "pt"];
+  const linkZap = linkSuporte({
+    locale: p?.locale === "es" ? "es" : "pt",
+    titulo: p.titulo,
+    token: p.tokenPublico?.slice(0, 8),
+  });
 
   // Marca este navegador como dono do presente. É o que faz o botão de baixar
   // a música aparecer também na página pública, pra quem volta atrás do MP3
@@ -810,6 +818,31 @@ function Editor() {
             </div>
           </aside>
         </div>
+
+        {/* SUPORTE POR WHATSAPP, e só aqui dentro.
+            Esta tela é pós-pagamento por definição: só chega quem tem o token
+            de edição. Número visível antes da compra seria uma saída aberta no
+            meio do funil, e a conversa vira dúvida, desconto ou nada.
+            É também onde o comprador passa mais tempo (61% dos que compram
+            chegam aqui) e onde ele descobre que quer ajuda: subir a foto,
+            baixar o MP3, mandar o link. */}
+        {linkZap && (
+          <div className="mx-auto mt-12 max-w-md text-center">
+            <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
+              {tz.titulo}
+            </p>
+            <a
+              href={linkZap}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => trackEvent("suporte_zap_click", { origem: "editor" })}
+              className="mt-3 inline-flex h-11 items-center gap-2 rounded-full border border-[var(--tinta-fraca)] px-6 transition-colors hover:border-[var(--acento)] hover:text-[var(--acento)]"
+              style={{ fontSize: "var(--t-sm)" }}
+            >
+              <MessageCircle className="h-4 w-4" /> {tz.botao}
+            </a>
+          </div>
+        )}
       </main>
     </div>
   );

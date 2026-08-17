@@ -4,7 +4,9 @@ import { z } from "zod";
 import { conversaoCompra } from "@/lib/google-ads";
 import { MOEDA } from "@/lib/i18n";
 import { buscarPresenteDaCompra, type PresenteDaCompra } from "@/lib/pos-compra";
-import { marcarSessaoGasta } from "@/lib/session-context";
+import { sessaoJaPagou } from "@/lib/coautoria";
+import { marcarSessaoGasta, getOrCreateSessionId } from "@/lib/session-context";
+import { trackEvent } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { Check, Mail, Inbox, Pencil, Loader2 } from "lucide-react";
@@ -76,7 +78,7 @@ const COPY = {
 export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; email?: string; code?: string }) {
   const C = COPY[locale] ?? COPY.pt;
   const [presente, setPresente] = useState<PresenteDaCompra | null>(null);
-  const [procurando, setProcurando] = useState(Boolean(code));
+  const [procurando, setProcurando] = useState(true);
 
   // Conversão do Google Ads: é aqui que o algoritmo aprende quem comprou.
   useEffect(() => {
@@ -93,23 +95,55 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
     marcarSessaoGasta();
   }, [code]);
 
-  // Busca o presente pelo código da transação, pra dar o botão AQUI em vez de
-  // mandar a pessoa caçar e-mail. Faz polling porque o redirect pode chegar
-  // antes do webhook: a pessoa é devolvida pelo gateway em milissegundos e o
-  // pedido pode levar alguns segundos pra existir.
+  // Busca o presente pra dar o botão AQUI em vez de mandar a pessoa caçar
+  // e-mail. Faz polling porque o redirect chega antes do webhook: a pessoa
+  // volta do gateway em milissegundos e o pedido leva alguns segundos.
+  //
+  // ── DOIS CAMINHOS, PORQUE UM DELES NÃO É NOSSO ───────────────────
+  //
+  // O caminho original dependia do `code` que a Perfect Pay devolve no
+  // redirect. Quando ele não vem, `procurando` nasce falso, nenhum polling
+  // acontece, e a tela mostra só "enviamos pro seu e-mail" — foi exatamente
+  // essa tela que o sócio fotografou, sem botão nenhum.
+  //
+  // Isso custou caro: 33 compradores em 10 dias foram procurar login em vez
+  // de montar o presente, e sete abriram ticket dizendo que não acharam a
+  // música.
+  //
+  // O segundo caminho não depende de ninguém: a pessoa acabou de sair do
+  // NOSSO funil, então o navegador dela ainda tem a sessão, e `sessaoJaPagou`
+  // devolve os tokens a partir dela. Os dois rodam juntos e o primeiro que
+  // achar ganha.
   useEffect(() => {
-    if (!code) return;
     let vivo = true;
     let tentativas = 0;
+    setProcurando(true);
 
     async function procurar() {
       if (!vivo) return;
       try {
-        const p = await buscarPresenteDaCompra({ data: { code: code! } });
+        if (code) {
+          const p = await buscarPresenteDaCompra({ data: { code } });
+          if (!vivo) return;
+          if (p) {
+            setPresente(p);
+            setProcurando(false);
+            trackEvent("obrigado_presente_achado", { via: "code" });
+            return;
+          }
+        }
+        const s = await sessaoJaPagou({ data: { sessionId: getOrCreateSessionId() } });
         if (!vivo) return;
-        if (p) {
-          setPresente(p);
+        if (s.pago && s.tokenEdicao) {
+          setPresente({
+            tokenEdicao: s.tokenEdicao,
+            token: s.token ?? "",
+            titulo: null,
+            nome: null,
+            gerando: false,
+          });
           setProcurando(false);
+          trackEvent("obrigado_presente_achado", { via: "sessao" });
           return;
         }
       } catch (err) {
@@ -119,6 +153,7 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
       // ~90s. Passou disso, o e-mail assume (e ele já foi enviado).
       if (tentativas >= 30) {
         setProcurando(false);
+        trackEvent("obrigado_presente_nao_achado", { tinhaCode: Boolean(code) });
         return;
       }
       setTimeout(procurar, 3000);

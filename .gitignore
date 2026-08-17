@@ -30,3 +30,6 @@ backup-angelical/
 .vercel
 public/exemplos/
 materiais/
+
+# estado local do supabase cli (tem pooler-url com string de conexao)
+supabase/.temp/
