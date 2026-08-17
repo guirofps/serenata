@@ -20,7 +20,7 @@ import { type Locale } from "@/lib/i18n";
 const ROSTOS = [1, 2, 3, 4, 5];
 
 // Um lugar só pra mexer no número.
-const FAMILIAS = "1000+";
+const FAMILIAS = "+1.274";
 const CONTADOR = "+998";
 
 const T: Record<Locale, { prazo: string; amado: (n: string) => string }> = {
@@ -57,7 +57,7 @@ export function ProvaSocial({
    * empurram a única coisa que ainda podia ser lida pra ainda mais longe.
    * Emparelhado, o mesmo conteúdo ocupa pouco mais da metade da altura.
    *
-   * Os rostos encolhem de 40 pra 32px só aqui: emparelhados com o texto, os
+   * Os rostos encolhem de 40 pra 28px só aqui: emparelhados com o texto, os
    * 40 estouram a linha num celular de 375px.
    *
    * Default `false` pra home não mudar nada.
@@ -90,7 +90,7 @@ export function ProvaSocial({
     <div className="flex items-center gap-2">
       {/* `-space-x-3` é o que faz um rosto montar no outro. A borda cor de
           papel separa um do outro sem precisar de sombra. */}
-      <div className={compacto ? "flex -space-x-2" : "flex -space-x-3"}>
+      <div className={compacto ? "flex -space-x-2.5" : "flex -space-x-3"}>
         {ROSTOS.map((n) => (
           <img
             key={n}
@@ -108,7 +108,7 @@ export function ProvaSocial({
             decoding="async"
             className={
               compacto
-                ? "h-8 w-8 rounded-full border-2 border-[var(--papel)] object-cover"
+                ? "h-7 w-7 rounded-full border-2 border-[var(--papel)] object-cover"
                 : "h-10 w-10 rounded-full border-2 border-[var(--papel)] object-cover"
             }
           />
@@ -116,7 +116,7 @@ export function ProvaSocial({
         <span
           className={
             compacto
-              ? "grid h-8 w-8 place-items-center rounded-full border-2 border-[var(--papel)] bg-[var(--acento)] text-[10px] font-semibold text-white"
+              ? "grid h-7 w-7 place-items-center rounded-full border-2 border-[var(--papel)] bg-[var(--acento)] text-[9px] font-semibold text-white"
               : "grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--papel)] bg-[var(--acento)] font-semibold text-white"
           }
           style={compacto ? undefined : { fontSize: "var(--t-xs)" }}
@@ -135,13 +135,21 @@ export function ProvaSocial({
   );
 
   if (compacto) {
+    // `mt-5` e não o `mt-8` do empilhado: emparelhado o bloco já é mais leve,
+    // e na abertura ele vem logo abaixo do botão — 32px ali abriam um buraco
+    // que separava a prova do CTA que ela existe pra sustentar.
     return (
-      <div className="mt-8 flex flex-col items-center gap-3">
+      <div className="mt-5 flex flex-col items-center gap-3">
         <div className="flex items-center gap-2">
           {estrelas}
           {prazo}
         </div>
-        <div className="flex items-center gap-2.5">
+        {/* Os rostos vão a 28px com sobreposição maior SÓ aqui. Emparelhados
+            com "Amado por +1.274 famílias" — que é negrito e mais largo que o
+            "1000+" de antes — os 40px da home estouravam a linha por 25px e
+            jogavam "famílias" pra uma segunda linha, desfazendo as duas
+            fileiras que este modo existe pra garantir. */}
+        <div className="flex items-center gap-2">
           {rostos}
           {amado}
         </div>
