@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   letraParaAjuste,
   reescreverLetra,
   salvarLetra,
   regravarMusica,
+  estadoDaMusica,
   type LetraParaAjuste,
 } from "@/lib/recuperacao-letra";
-import { Loader2, Wand2, Save, Disc3, AlertTriangle, Copy } from "lucide-react";
+import { Loader2, Wand2, Save, Disc3, AlertTriangle, Copy, Download } from "lucide-react";
 
 // O painel que deixa o ATENDENTE destravar a venda sozinho.
 //
@@ -33,6 +34,36 @@ export function AjusteLetra({ musicaId }: { musicaId: string }) {
   // Só aparece quando o servidor recusa por ser música PAGA. Ver regravarMusica.
   const [pedeConfirmar, setPedeConfirmar] = useState(false);
   const [copiou, setCopiou] = useState(false);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ACOMPANHA A GRAVAÇÃO até ela terminar, e traz as duas versões novas pra
+  // cá. Sem isto o atendente mandava gravar e ficava no escuro: teria que
+  // digitar o e-mail do cliente de novo na busca pra saber se ficou pronta.
+  // Com o cliente esperando no WhatsApp, é o suficiente pra ele largar a
+  // ferramenta e voltar a pedir socorro pro dono.
+  useEffect(() => {
+    if (ficha?.status !== "gerando") return;
+    timer.current = setInterval(async () => {
+      try {
+        const e = await estadoDaMusica({ data: { musicaId } });
+        if (e.status !== "gerando") {
+          setFicha((f) =>
+            f ? { ...f, status: e.status, audioV1: e.audioV1, audioV2: e.audioV2, geradaEm: e.geradaEm } : f,
+          );
+          setRecado(
+            e.status === "pronta"
+              ? "Pronta. As duas versões novas estão aqui embaixo."
+              : `A gravação terminou como "${e.status}"${e.erro ? `: ${e.erro}` : ""}`,
+          );
+        }
+      } catch {
+        // Rede oscilando não pode derrubar a tela: a próxima volta tenta.
+      }
+    }, 5000);
+    return () => {
+      if (timer.current) clearInterval(timer.current);
+    };
+  }, [ficha?.status, musicaId]);
 
   const sujo = ficha !== null && letra.trim() !== ficha.letra.trim();
 
@@ -243,6 +274,46 @@ export function AjusteLetra({ musicaId }: { musicaId: string }) {
                   cancelar
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* AS DUAS VERSÕES, pra ouvir e baixar sem sair daqui. É o que o
+              atendente manda pro cliente depois do "gostei" na letra. */}
+          {(ficha.audioV1 || ficha.audioV2 || ficha.status === "gerando") && (
+            <div className="mt-3 rounded-lg border border-[var(--tinta-fraca)]/50 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tinta-suave)]">
+                versões gravadas
+                {ficha.geradaEm && (
+                  <span className="ml-2 font-normal normal-case">
+                    {new Date(ficha.geradaEm).toLocaleString("pt-BR")}
+                  </span>
+                )}
+              </p>
+              {ficha.status === "gerando" ? (
+                <p className="mt-2 flex items-center gap-2 text-[11px] text-[var(--tinta-suave)]">
+                  <Loader2 className="h-3 w-3 animate-spin" /> gravando, 1 a 2 minutos. Pode deixar
+                  esta tela aberta.
+                </p>
+              ) : (
+                <div className="mt-2 space-y-2">
+                  {([["versão 1", ficha.audioV1], ["versão 2", ficha.audioV2]] as const).map(
+                    ([rotulo, url]) =>
+                      url ? (
+                        <div key={rotulo} className="flex flex-wrap items-center gap-2">
+                          <span className="text-[11px] text-[var(--tinta-suave)]">{rotulo}</span>
+                          <audio src={url} controls preload="none" className="h-8 max-w-[220px]" />
+                          <a
+                            href={url}
+                            download
+                            className="inline-flex items-center gap-1 rounded-full border border-[var(--tinta-fraca)] px-2.5 py-1 text-[11px]"
+                          >
+                            <Download className="h-3 w-3" /> baixar
+                          </a>
+                        </div>
+                      ) : null,
+                  )}
+                </div>
+              )}
             </div>
           )}
 

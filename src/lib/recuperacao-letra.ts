@@ -93,7 +93,20 @@ export type LetraParaAjuste = {
   /** Já montou o presente (foto/dedicatória)? Então provavelmente já entregou. */
   entregue: boolean;
   linkPresente: string | null;
+  /** As duas versões, por URL assinada de 2h. Null enquanto não existirem. */
+  audioV1: string | null;
+  audioV2: string | null;
+  geradaEm: string | null;
 };
+
+// Áudio por URL ASSINADA e curta, como no resto do painel: o bucket é privado
+// e link que não expira acaba encaminhado pra fora. O atendente precisa OUVIR
+// e BAIXAR pra mandar pro cliente, não precisa de link eterno.
+async function assinarAudio(caminho: string | null): Promise<string | null> {
+  if (!caminho) return null;
+  const { data } = await supabaseAdmin().storage.from("musicas").createSignedUrl(caminho, 2 * 3600);
+  return data?.signedUrl ?? null;
+}
 
 /** A letra inteira de uma música, com o contexto que decide o que pode ser feito. */
 export const letraParaAjuste = createServerFn({ method: "POST" })
@@ -105,7 +118,7 @@ export const letraParaAjuste = createServerFn({ method: "POST" })
 
     const { data: m, error } = await db
       .from("musicas")
-      .select("id, titulo, letra, genero, status, token, quiz_response_id, foto_path, dedicatoria")
+      .select("id, titulo, letra, genero, status, token, quiz_response_id, foto_path, dedicatoria, audio_path, audio_path_v2, gerada_em")
       .eq("id", data.musicaId)
       .single();
     if (error || !m) throw new Error("música não encontrada");
@@ -122,6 +135,11 @@ export const letraParaAjuste = createServerFn({ method: "POST" })
       .select("status")
       .eq("quiz_response_id", m.quiz_response_id);
 
+    const [audioV1, audioV2] = await Promise.all([
+      assinarAudio(m.audio_path),
+      assinarAudio(m.audio_path_v2),
+    ]);
+
     const SITE = "https://www.serenatagift.com";
     return {
       musicaId: m.id,
@@ -135,8 +153,47 @@ export const letraParaAjuste = createServerFn({ method: "POST" })
       pago: (pedidos ?? []).some((p) => p.status === "pago"),
       entregue: Boolean(m.foto_path || m.dedicatoria),
       linkPresente: m.token ? `${SITE}/p/${m.token}` : null,
+      audioV1,
+      audioV2,
+      geradaEm: m.gerada_em,
     };
   });
+
+/**
+ * Só o estado da gravação, pra tela acompanhar sem recarregar a busca inteira.
+ *
+ * Sem isto o atendente mandava gravar e ficava no escuro: a mensagem era
+ * "recarregue a busca", e ele teria que digitar o e-mail do cliente de novo
+ * pra descobrir se ficou pronta. Com o cliente esperando no WhatsApp, isso é
+ * o suficiente pra ele desistir de usar a ferramenta.
+ */
+export const estadoDaMusica = createServerFn({ method: "POST" })
+  .validator((data: { musicaId: string }) => data)
+  .handler(
+    async ({
+      data,
+    }): Promise<{
+      status: string;
+      erro: string | null;
+      audioV1: string | null;
+      audioV2: string | null;
+      geradaEm: string | null;
+    }> => {
+      const { exigirRecuperacao } = await import("@/lib/admin-auth.server");
+      exigirRecuperacao();
+      const { data: m } = await supabaseAdmin()
+        .from("musicas")
+        .select("status, erro, audio_path, audio_path_v2, gerada_em")
+        .eq("id", data.musicaId)
+        .single();
+      if (!m) throw new Error("música não encontrada");
+      const [audioV1, audioV2] = await Promise.all([
+        assinarAudio(m.audio_path),
+        assinarAudio(m.audio_path_v2),
+      ]);
+      return { status: m.status, erro: m.erro, audioV1, audioV2, geradaEm: m.gerada_em };
+    },
+  );
 
 /**
  * Aplica o pedido do cliente e devolve a PROPOSTA. Não salva.
