@@ -9,6 +9,7 @@ import { TEMA_CLARO, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { AjusteLetra } from "@/components/recuperacao/AjusteLetra";
 import { MessageCircle, Play, Pause, Check, Loader2, Copy, Clock, Download } from "lucide-react";
 
 // TELA DE RECUPERAÇÃO DE CARRINHO ABANDONADO.
@@ -534,6 +535,11 @@ function Recuperar() {
                               abrir ↗
                             </a>
                           )}
+                          {/* AJUSTAR A LETRA E REGRAVAR, sem depender do dono.
+                              Parte das vendas nao cai por preco, cai por um
+                              detalhe da letra ("sao 22 anos, nao 16"). Ate
+                              hoje o atendente nem via a letra. */}
+                          <AjusteLetra musicaId={m.id} />
                         </div>
                       </div>
                     ))}
