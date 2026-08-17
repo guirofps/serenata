@@ -151,9 +151,17 @@ const COPY = {
     oQueLeva: "Lo que te llevas",
     provaLegenda: "reacciones de quien escuchó una canción hecha por nosotros",
     provaSelo: "reacciones reales",
-    // Ancoragem MEXICANA: mariachi a domicílio é o presente com que a nossa
-    // oferta compete de verdade lá, e o preço dele é público e verificável.
-    ancora: "Contratar mariachi para una serenata cuesta desde $1,500 MXN, y solo se escucha una noche.",
+    // A ANCORAGEM NÃO PODE CITAR MOEDA DE OUTRO PAÍS.
+    //
+    // Era "mariachi para una serenata cuesta desde $1,500 MXN", escrita quando
+    // o alvo era o México. A campanha roda Argentina, Chile, Peru e Colômbia:
+    // nesses quatro, mariachi não é o presente concorrente e peso mexicano não
+    // é dinheiro. E isto aqui não é a home, é o PAYWALL: a última coisa que a
+    // pessoa lê antes de decidir, num idioma que já é o dela, citando uma
+    // moeda que não é.
+    //
+    // A comparação nova vale nos quatro e não precisa de conversão mental.
+    ancora: "Un ramo de flores cuesta parecido, dura una semana y nadie lo recuerda.",
     hojePor: "hoy por", pagamentoUnico: "Pago único. No es suscripción.",
     // O checkout da Perfect Pay converte pra moeda local — confirmado pelo
     // dono. Dizer isso ANTES do pulo importa: o preço em dólar numa tela em

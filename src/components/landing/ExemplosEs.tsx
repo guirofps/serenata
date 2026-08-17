@@ -10,15 +10,28 @@ import { cn } from "@/lib/utils";
 // exemplo repetido pra parecer catálogo é a mentira que a gente não faz.
 //
 // São as músicas do teste de validação, geradas pelo mesmo pipeline que o
-// cliente vai usar: mariachi, banda e balada.
+// cliente vai usar.
+//
+// ── A BALADA VEM PRIMEIRO, E ISSO É DE PROPÓSITO ─────────────────
+//
+// Os três exemplos foram gravados quando o alvo era o México, e dois deles
+// são gêneros mexicanos. A campanha hoje é Argentina, Chile, Peru e Colômbia:
+// abrir a home com "Mariachi" é anunciar um produto de outro país.
+//
+// Não dá pra trocar o rótulo, porque o áudio é mariachi de verdade e mentir
+// no gênero seria pior. Dá pra escolher qual toca primeiro, e balada romântica
+// funciona nos quatro países. Custa zero e muda a primeira impressão.
+//
+// DÍVIDA: gravar exemplos novos em cumbia e bolero, que servem os quatro, e
+// aposentar os dois mexicanos daqui. São ~R$ 1 de geração.
 
 // `token` abre a PÁGINA-PRESENTE de verdade — com foto, karaokê e tudo.
 // É o argumento mais forte que existe, porque a página é o produto: no funil
 // português ela é o que a pessoa toca antes de comprar, e aqui não existia.
 const EXEMPLOS = [
+  { slug: "es-balada", titulo: "El Frasco de Nescafé", para: "para el abuelo", genero: "Balada", token: "exesabueloa0f408be" },
   { slug: "es-mariachi", titulo: "El Mandil Azul", para: "para la mamá", genero: "Mariachi", token: "exesmama651ba4fe" },
   { slug: "es-banda", titulo: "El Pedazo de Pastel", para: "para la esposa", genero: "Banda", token: "exesesposa5c63ba27" },
-  { slug: "es-balada", titulo: "El Frasco de Nescafé", para: "para el abuelo", genero: "Balada", token: "exesabueloa0f408be" },
 ] as const;
 
 const AUDIO_BASE =

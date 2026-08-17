@@ -71,43 +71,39 @@ const PT: Genero[] = [
     estiloSuno: "canção infantil suave, caixinha de música, ukulele, clima doce" },
 ];
 
-// ── ESPANHOL (México primeiro) ────────────────────────────────────
+// ── ESPANHOL (o CONE SUL e a região andina primeiro) ──────────────
 //
 // NÃO é a lista de cima traduzida. Sertanejo, piseiro, forró e pagode não
-// existem no México, e mariachi, banda e corrido tumbado não têm equivalente
-// no Brasil. É outra lista.
+// existem lá, e bolero, cumbia e bachata não têm equivalente no Brasil.
+// É outra lista.
 //
-// A ordem veio do que a Cántale (cantale.mx, o concorrente escalado de lá)
-// oferece e destaca no próprio site, mais o peso cultural de cada gênero como
-// PRESENTE: mariachi vem primeiro porque *llevar serenata* com mariachi na
-// janela é a tradição que dá nome à nossa marca, e é o pedido óbvio.
+// ── A ORDEM MUDOU PORQUE O ALVO MUDOU ────────────────────────────
 //
-// Espanhol NEUTRO-MEXICANO nos rótulos. Regionais fortes de outros países
-// (vallenato colombiano, tango argentino, merengue dominicano) ficam de fora
-// enquanto o teste for México: chip que ninguém escolhe é chip que só faz o
-// seletor parecer mais longo.
+// A primeira versão foi escrita para o MÉXICO, com mariachi em primeiro
+// lugar, banda sinaloense em segundo, e vallenato colombiano e tango
+// argentino DELIBERADAMENTE de fora ("chip que ninguém escolhe só faz o
+// seletor parecer mais longo").
+//
+// Hoje a campanha roda ARGENTINA, CHILE, PERU e COLÔMBIA, os quatro na mesma
+// verba, e nenhum deles é o México. Mariachi, banda, norteño e corrido tumbado
+// ocupavam quatro dos sete primeiros lugares, e os quatro são mexicanos: quem
+// abria o seletor via, logo de cara, dois gêneros que não são do país dele.
+//
+// Agora vêm primeiro os que funcionam nos QUATRO (balada, cumbia, bolero,
+// pop latino, salsa, bachata, reggaetón), e os regionais aparecem depois,
+// incluindo os dois que estavam banidos. Os mexicanos continuam na lista,
+// só não na frente: gênero de sobra custa uma linha de seletor, gênero
+// ausente custa a venda de quem queria justamente aquele.
 const ES: Genero[] = [
-  { value: "mariachi", label: "Mariachi", emoji: "🎺",
-    rotuloPrompt: "mariachi mexicano",
-    estiloSuno: "mariachi mexicano tradicional, trompetas, violines, guitarrón y vihuela, voz sentida con gritos suaves, ritmo de ranchera lenta" },
-  { value: "banda", label: "Banda", emoji: "🎷",
-    rotuloPrompt: "banda sinaloense",
-    estiloSuno: "banda sinaloense, tuba, tarola, clarinetes y trompetas, ritmo de balada romántica, voz potente y emotiva" },
   { value: "balada", label: "Balada romántica", emoji: "💕",
     rotuloPrompt: "balada romántica latina",
     estiloSuno: "balada romántica latina, piano, cuerdas suaves, voz emotiva, clima cinematográfico e íntimo" },
-  { value: "nortena", label: "Norteño", emoji: "🪗",
-    rotuloPrompt: "norteño",
-    estiloSuno: "norteño mexicano, acordeón y bajo sexto, ritmo moderado, voz cálida, clima de canción de amor de rancho" },
   { value: "cumbia", label: "Cumbia", emoji: "🥁",
     rotuloPrompt: "cumbia",
     estiloSuno: "cumbia romántica latinoamericana, güira, congas y teclado, ritmo bailable y cadencioso, voz alegre" },
   { value: "bolero", label: "Bolero", emoji: "🌙",
     rotuloPrompt: "bolero",
     estiloSuno: "bolero clásico latinoamericano, guitarra de nylon arpegiada, contrabajo, voz aterciopelada, clima nocturno y romántico" },
-  { value: "corrido", label: "Corrido tumbado", emoji: "🤠",
-    rotuloPrompt: "corrido tumbado",
-    estiloSuno: "corrido tumbado, guitarra acústica de doce cuerdas, requinto, tuba suave, voz joven y narrativa, clima íntimo" },
   { value: "pop_latino", label: "Pop latino", emoji: "✨",
     rotuloPrompt: "pop latino",
     estiloSuno: "pop latino moderno, guitarra acústica, percusión suave, producción limpia, voz cercana y emotiva" },
@@ -126,6 +122,36 @@ const ES: Genero[] = [
   { value: "rock_esp", label: "Rock en español", emoji: "🤘",
     rotuloPrompt: "rock en español romántico",
     estiloSuno: "rock en español romántico, guitarra eléctrica con distorción suave, batería marcada, voz emotiva, clima de balada rock" },
+
+  // ── REGIONAIS DOS PAÍSES QUE ESTAMOS ANUNCIANDO ────────────────
+  // Vallenato e tango estavam banidos por escrito. Eram os gêneros mais
+  // óbvios da Colômbia e da Argentina, dois dos quatro países da campanha.
+  { value: "vallenato", label: "Vallenato", emoji: "🪗",
+    rotuloPrompt: "vallenato romántico",
+    estiloSuno: "vallenato romántico colombiano, acordeón diatónico, caja vallenata y guacharaca, ritmo de paseo, voz sentida" },
+  { value: "tango", label: "Tango", emoji: "🌹",
+    rotuloPrompt: "tango romántico",
+    estiloSuno: "tango argentino romántico, bandoneón, piano y cuerdas, tempo lento y dramático, voz grave y sentida" },
+  { value: "huayno", label: "Huayno / andino", emoji: "🏔️",
+    rotuloPrompt: "música andina romántica",
+    estiloSuno: "música andina romántica, quena y charango, guitarra acústica, ritmo suave de huayno, voz cálida y nostálgica" },
+  { value: "cueca", label: "Cueca / folclore", emoji: "🇨🇱",
+    rotuloPrompt: "folclore chileno romántico",
+    estiloSuno: "folclore chileno romántico, guitarra y arpa, ritmo de tonada lenta, voz clara y sentida" },
+
+  // ── MEXICANOS: continuam, só não na frente ─────────────────────
+  { value: "mariachi", label: "Mariachi", emoji: "🎺",
+    rotuloPrompt: "mariachi mexicano",
+    estiloSuno: "mariachi mexicano tradicional, trompetas, violines, guitarrón y vihuela, voz sentida con gritos suaves, ritmo de ranchera lenta" },
+  { value: "banda", label: "Banda", emoji: "🎷",
+    rotuloPrompt: "banda sinaloense",
+    estiloSuno: "banda sinaloense, tuba, tarola, clarinetes y trompetas, ritmo de balada romántica, voz potente y emotiva" },
+  { value: "nortena", label: "Norteño", emoji: "🪗",
+    rotuloPrompt: "norteño",
+    estiloSuno: "norteño mexicano, acordeón y bajo sexto, ritmo moderado, voz cálida, clima de canción de amor de rancho" },
+  { value: "corrido", label: "Corrido tumbado", emoji: "🤠",
+    rotuloPrompt: "corrido tumbado",
+    estiloSuno: "corrido tumbado, guitarra acústica de doce cuerdas, requinto, tuba suave, voz joven y narrativa, clima íntimo" },
   { value: "cristiana", label: "Música cristiana", emoji: "📖",
     rotuloPrompt: "música cristiana",
     estiloSuno: "música cristiana latina, piano y cuerdas, coro suave, clima reverente e inspirador" },

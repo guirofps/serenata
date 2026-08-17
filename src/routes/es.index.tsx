@@ -30,10 +30,25 @@ import {
 // e com dados.
 //
 // O que MUDA de verdade em relação à portuguesa, e não é tradução:
-//   - Sem a seção de Dia dos Pais: no México é junho, não agosto.
-//   - A ancoragem é o MARIACHI (o presente com que a gente compete lá),
-//     não "um presente comum de R$ 200".
-//   - Os exemplos tocáveis são mariachi, banda e balada.
+//   - Sem a seção de Dia dos Pais: a data não bate entre os países.
+//   - A ancoragem é um presente comum (flores e jantar), não um preço local.
+//
+// ── ESTA PÁGINA NASCEU MEXICANA, E O ALVO MUDOU ──────────────────
+//
+// Ela foi escrita em 07/08 para o México: ancoragem em mariachi a domicílio,
+// preço em MXN, exemplos de mariachi e banda. Hoje a campanha roda ARGENTINA,
+// CHILE, PERU e COLÔMBIA, os quatro na mesma verba.
+//
+// Nesses quatro países mariachi não é o presente concorrente e peso mexicano
+// não é dinheiro. Quem chegava aqui via, na seção de preço, uma moeda
+// estrangeira comparada a um serviço que não existe onde mora.
+//
+// Enquanto os quatro dividirem a mesma campanha, tudo aqui precisa funcionar
+// nos quatro. Nada de referência que só um deles reconhece.
+//
+// O "tú" fica: é correto na Colômbia, no Peru e no Chile. Só a Argentina usa
+// "vos", e trocar o tratamento inteiro por causa de um país quebraria os
+// outros três. Onde der, a frase é escrita sem tratamento nenhum.
 
 export const Route = createFileRoute("/es/")({
   component: HomeEs,
@@ -414,18 +429,26 @@ function HomeEs() {
               className="text-balance"
               style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-3xl)", lineHeight: 1.15 }}
             >
-              Cuesta menos que la serenata de una noche
+              Cuesta menos que un regalo que se olvida
             </h2>
-            {/* Ancoragem MEXICANA: o mariachi na janela é o presente com que a
-                gente compete lá de verdade, e o preço dele é público. */}
+            {/* A ANCORAGEM NÃO PODE TER PAÍS.
+                Estava "Mariachi a domicilio, $1.500 MXN+", escrita quando o
+                alvo era o México. Hoje a campanha roda Argentina, Chile, Peru
+                e Colômbia na mesma verba: nesses quatro, mariachi não é o
+                concorrente e peso mexicano não é dinheiro. A pessoa abria a
+                seção de PREÇO e via uma moeda estrangeira comparada a um
+                serviço que não existe no país dela.
+                Flores e jantar existem nos quatro, custam parecido, e todo
+                mundo entende sem conversão. E dizem a mesma coisa que a
+                comparação antiga dizia: aquilo acaba, isto fica. */}
             <div
               className="mx-auto mt-8 grid max-w-md grid-cols-2 gap-px overflow-hidden rounded-2xl border border-[var(--tinta-fraca)]/40 bg-[var(--tinta-fraca)]/20 text-center"
               style={{ fontSize: "var(--t-sm)" }}
             >
               <div className="bg-[var(--papel)] px-4 py-5">
-                <p className="text-[var(--tinta-suave)]">Mariachi a domicilio</p>
-                <p className="mt-1 font-semibold">$1,500 MXN+</p>
-                <p className="mt-1 text-[var(--tinta-fraca)]">se escucha una noche</p>
+                <p className="text-[var(--tinta-suave)]">Flores y una cena</p>
+                <p className="mt-1 font-semibold">se acaban el domingo</p>
+                <p className="mt-1 text-[var(--tinta-fraca)]">y nadie las recuerda</p>
               </div>
               <div className="bg-[var(--papel)] px-4 py-5">
                 <p className="text-[var(--tinta-suave)]">Una canción solo suya</p>
