@@ -10,6 +10,7 @@ import { Logo } from "@/components/marca/Logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AjusteLetra } from "@/components/recuperacao/AjusteLetra";
+import { HistoricoCliente } from "@/components/recuperacao/HistoricoCliente";
 import { MessageCircle, Play, Pause, Check, Loader2, Copy, Clock, Download } from "lucide-react";
 
 // TELA DE RECUPERAÇÃO DE CARRINHO ABANDONADO.
@@ -544,6 +545,20 @@ function Recuperar() {
                       </div>
                     ))}
                   </div>
+
+                  {/* "O E-MAIL CHEGOU?" e a primeira pergunta de metade dos
+                      tickets, e ate hoje o atendente so tinha a palavra do
+                      cliente. A janela de busca sai do pedido mais antigo
+                      dele: sem limite de data o banco estoura. */}
+                  <HistoricoCliente
+                    emails={f.emails}
+                    pedidoIds={f.pedidos.map((p) => p.id)}
+                    desde={
+                      f.pedidos.length
+                        ? f.pedidos.reduce((a, p) => (p.criadoEm < a ? p.criadoEm : a), f.pedidos[0].criadoEm)
+                        : new Date(Date.now() - 7 * 86400000).toISOString()
+                    }
+                  />
                 </div>
               ))}
             </div>
