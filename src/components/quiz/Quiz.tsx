@@ -301,11 +301,18 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
 
         {isQuestion(step) && (
           <div className="space-y-6 text-center">
-            {step.block && (
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                {step.block}
-              </p>
-            )}
+            {/* O RÓTULO VERMELHO DO BLOCO ("PRA QUEM", "A OCASIÃO") SAIU.
+                Ele dava dois títulos a cada tela: um olho vermelho em caixa
+                alta e, logo abaixo, a pergunta de verdade. Duas linhas
+                disputando o mesmo trabalho, e a de cima não é a que importa —
+                quem chega quer ler a PERGUNTA, não saber em que capítulo do
+                formulário está. Sem ele a pergunta sobe e ganha a tela.
+
+                O campo `block` continua no `quiz-flow` de propósito: ele
+                registra o agrupamento das perguntas (Pra quem / A ocasião /
+                O estilo / A história), que é desenho de funil e não enfeite,
+                e volta a ser útil no dia em que o progresso for por seção.
+                Ver a nota no `QuestionStep`. */}
             {/* O `AberturaProva` (variante B do experimento `abertura`) ficava
                 AQUI, espremido acima da pergunta 1. Saiu porque a tela de
                 abertura faz o mesmo trabalho com espaço pra fazer direito, e

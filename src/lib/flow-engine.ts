@@ -22,7 +22,18 @@ export type ChipOption = {
 export type QuestionStep = {
   id: string;
   kind: "question";
-  block: string; // rótulo do bloco, ex. "Sobre quem"
+  /**
+   * Rótulo do bloco, ex. "Sobre quem".
+   *
+   * NÃO É MAIS RENDERIZADO. Saiu da tela porque virava um segundo título:
+   * um olho vermelho em caixa alta acima da pergunta, disputando a atenção
+   * com a única linha que a pessoa precisa ler.
+   *
+   * Fica aqui porque registra o AGRUPAMENTO das perguntas (Pra quem / A
+   * ocasião / O estilo / A história), que é desenho de funil, não enfeite —
+   * e é o que uma barra de progresso por seção usaria.
+   */
+  block: string;
   text: string; // enunciado
   subtext?: string;
   field: string; // chave em que a resposta é gravada (respostas[field])
