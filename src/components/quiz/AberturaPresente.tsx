@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Play } from "lucide-react";
 import { Efeitos } from "@/components/presente/Efeitos";
 import { Logo } from "@/components/marca/Logo";
+import { ProvaSocial } from "@/components/landing/ProvaSocial";
+import { ProvaImediata } from "@/components/landing/Secoes";
 import { Button } from "@/components/ui/button";
-import { CORES, FONTES } from "@/lib/marca";
+import { CORES, FONTES, TEMA_CLARO } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
 
 // A PRIMEIRA TELA DO FUNIL — o que a pessoa ganha, antes do que a gente pede.
@@ -73,7 +75,6 @@ const COPY: Record<
     tituloDepois: string;
     explicacao: string;
     cta: string;
-    micro: string;
     rotulo: string;
     nome: string;
     foto: string;
@@ -87,12 +88,6 @@ const COPY: Record<
     explicacao:
       "Você conta a história. A letra fica pronta na hora, de graça — e você ouve um trecho cantado antes de decidir qualquer coisa.",
     cta: "CRIAR MINHA MÚSICA GRÁTIS",
-    // "grátis" saiu daqui porque agora está no botão, e dizer duas vezes na
-    // mesma dobra não convence mais — só ocupa a linha que ainda podia
-    // derrubar uma objeção. "Sem cartão" é verdade e é a objeção real de
-    // quem desconfia de "grátis": a letra e o trecho cantado saem sem
-    // pagamento nenhum.
-    micro: "sem cadastro · sem cartão",
     rotulo: "uma música para",
     // ESPOSA e não pai: é a relação que mais vende, e a primeira tela tem que
     // mostrar o caso mais provável de quem está chegando. O cartão da home
@@ -119,7 +114,6 @@ const COPY: Record<
     explicacao:
       "Tú cuentas la historia. La letra queda lista al instante, gratis — y escuchas un pedazo cantado antes de decidir nada.",
     cta: "CREAR MI CANCIÓN GRATIS",
-    micro: "sin registro · sin tarjeta",
     rotulo: "una canción para",
     nome: "Lupita",
     foto: "/img/exemplos/mae.webp",
@@ -348,7 +342,29 @@ export function AberturaPresente({
       >
         {C.cta}
       </Button>
-      <p className="mt-2 text-[11px] text-muted-foreground">{C.micro}</p>
+      {/* ── A PROVA, abaixo do botão ──────────────────────────────
+          Os dois blocos são os MESMOS da home (`ProvaSocial` e
+          `ProvaImediata`), importados e não copiados: número de famílias,
+          rostos e fatos medidos passam a ter um lugar só pra mudar.
+
+          O `TEMA_CLARO` é obrigatório aqui. Esses componentes estilizam por
+          `var(--tinta-suave)`, `var(--ouro)`, `var(--papel)` e `var(--t-sm)`,
+          que vêm do tema aplicado na raiz da LANDING e não existem no quiz —
+          foi assim que o título desta tela ficou em 16px sem ninguém notar.
+          Sem isto as estrelas perdem o dourado, as bordas dos rostos somem e
+          os tamanhos todos caem pro herdado.
+
+          Fica só em volta destes dois blocos, e não na tela inteira: o resto
+          já está medido e verificado nos tokens do quiz. */}
+      <div style={TEMA_CLARO} className="w-full">
+        <ProvaSocial locale={locale} centralizado />
+
+        {/* `-mx-4` desfaz o respiro do `main` pra faixa encostar nas bordas,
+            que é como ela existe na home. */}
+        <div className="-mx-4 mt-8">
+          <ProvaImediata />
+        </div>
+      </div>
     </div>
   );
 }

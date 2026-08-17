@@ -34,10 +34,29 @@ const T: Record<Locale, { prazo: string; amado: (n: string) => string }> = {
   },
 };
 
-export function ProvaSocial({ locale = "pt" }: { locale?: Locale }) {
+export function ProvaSocial({
+  locale = "pt",
+  centralizado = false,
+}: {
+  locale?: Locale;
+  /**
+   * Centra em TODA largura. Na home o bloco acompanha o herói, que vira duas
+   * colunas no desktop e por isso encosta à esquerda; no quiz a coluna é uma
+   * só e centrada, e o `lg:items-start` deixaria o bloco torto.
+   *
+   * Default `false` pra home não mudar nada.
+   */
+  centralizado?: boolean;
+}) {
   const t = T[locale] ?? T.pt;
   return (
-    <div className="mt-8 flex flex-col items-center gap-3 lg:items-start">
+    <div
+      className={
+        centralizado
+          ? "mt-8 flex flex-col items-center gap-3"
+          : "mt-8 flex flex-col items-center gap-3 lg:items-start"
+      }
+    >
       <p
         className="italic text-[var(--tinta-suave)]"
         style={{ fontSize: "var(--t-sm)" }}
