@@ -17,7 +17,8 @@
   ],
   "functions": {
     "api/inngest.ts": { "maxDuration": 300 },
-    "api/webhook/cakto.ts": { "maxDuration": 30 }
+    "api/webhook/cakto.ts": { "maxDuration": 30 },
+    "api/ssr.js": { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/api/inngest", "destination": "/api/inngest" },

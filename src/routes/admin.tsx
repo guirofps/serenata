@@ -121,6 +121,10 @@ function Admin() {
   const navigate = useNavigate();
   const [dados, setDados] = useState<Painel | null>(null);
   const [precisaLogin, setPrecisaLogin] = useState(false);
+  // Falha que NÃO é de autenticação. Separada de `precisaLogin` de propósito:
+  // ver "deu erro, tentar de novo" e ver a tela de login levam a pessoa a
+  // fazer coisas diferentes.
+  const [falha, setFalha] = useState<string | null>(null);
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -132,14 +136,32 @@ function Admin() {
   const filtro: FunilFiltro = funil ?? "todos";
   const usandoDatas = Boolean(de);
 
+  // FALHAR NÃO É O MESMO QUE NÃO ESTAR LOGADO.
+  //
+  // Este catch já mandou TODA falha pra tela de login. O efeito, quando a
+  // consulta do painel passou a estourar o tempo (180 mil eventos por
+  // abertura, em agosto/26), foi este: a pessoa digitava a senha certa, o
+  // cookie era gravado, `carregar()` rodava, estourava, e ela voltava pra
+  // tela de login SEM mensagem nenhuma. Da cadeira dela, "o admin não loga".
+  //
+  // Só `nao-autorizado`, que é o que `exigirAdmin` lança, pede login. Erro de
+  // rede, tempo esgotado ou falha do banco pedem "tentar de novo", e precisam
+  // aparecer como erro, senão ninguém conserta o que está quebrado.
   async function carregar() {
     setCarregando(true);
     try {
       const args = usandoDatas ? { de, ate, funil: filtro } : { dias: periodo, funil: filtro };
       setDados(await carregarPainel({ data: args }));
       setPrecisaLogin(false);
-    } catch {
-      setPrecisaLogin(true);
+      setFalha(null);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/nao-autorizado/.test(msg)) {
+        setPrecisaLogin(true);
+        setFalha(null);
+      } else {
+        setFalha(msg || "erro desconhecido");
+      }
     } finally {
       setCarregando(false);
     }
@@ -174,6 +196,33 @@ function Admin() {
             Entrar
           </Button>
         </form>
+      </div>
+    );
+  }
+
+  // Logado, mas a consulta falhou. Antes isso caía na tela de login e parecia
+  // senha errada; agora diz o que houve e oferece a saída que resolve na hora,
+  // que é encurtar o período (o custo da consulta é proporcional a ele).
+  if (!carregando && falha) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[var(--papel)] px-4" style={TEMA_CLARO}>
+        <div className="w-full max-w-sm space-y-4 text-center">
+          <div className="flex justify-center">
+            <Logo tamanho="md" />
+          </div>
+          <p className="text-[var(--tinta)]">Não consegui carregar o painel.</p>
+          <p className="break-words text-xs text-[var(--tinta-suave)]">{falha}</p>
+          <Button onClick={() => carregar()} className="cta w-full rounded-full border-0">
+            Tentar de novo
+          </Button>
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/admin", search: { dias: 7 } })}
+            className="w-full text-sm text-[var(--tinta-suave)] underline"
+          >
+            Ver só os últimos 7 dias
+          </button>
+        </div>
       </div>
     );
   }
