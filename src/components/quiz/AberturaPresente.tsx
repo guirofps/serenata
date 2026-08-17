@@ -57,9 +57,14 @@ const prog = (t: number, inicio: number, dur: number) =>
 // landing de cada idioma, pra quem veio da home encontrar a mesma promessa e
 // quem veio do anúncio receber ela inteira.
 //
-// Os versos e a foto são os mesmos do cartão da home (`PresenteNoTopo`), e não
-// são inventados: saem de presentes reais gerados por este funil. O espanhol
-// vem de "El Mandil Azul", uma das três músicas da validação de 07/08.
+// Os versos e as fotos NÃO são inventados: saem de presentes reais gerados por
+// este funil, os mesmos que a home oferece pra ouvir. O português vem de
+// "Desde a Escola, Isabela" (esposa, sertanejo universitário) e o espanhol de
+// "El Mandil Azul", uma das três músicas da validação de 07/08.
+//
+// O espanhol segue na MÃE porque não existe verso nem capa do exemplo de
+// esposa espanhol ("El Café de las Cinco") em lugar nenhum do repositório, e
+// escrever letra pra ilustrar seria fabricar prova.
 const COPY: Record<
   Locale,
   {
@@ -84,13 +89,22 @@ const COPY: Record<
     cta: "Criar minha música",
     micro: "grátis · sem cadastro",
     rotulo: "uma música para",
-    nome: "Antônio",
-    foto: "/img/exemplos/pai.webp",
+    // ESPOSA e não pai: é a relação que mais vende, e a primeira tela tem que
+    // mostrar o caso mais provável de quem está chegando. O cartão da home
+    // (`PresenteNoTopo`) continua no Antônio — lá a pessoa já rolou até um
+    // seletor de exemplos por relação, aqui ela tem um cartão só e ele
+    // precisa acertar de primeira.
+    //
+    // "Desde a Escola, Isabela" é o exemplo de esposa que já roda no site
+    // (`ExemplosReais`, token e406f9b4356f4a5a9e7d8e). Os versos saem dele,
+    // literais: nada aqui é escrito pra ilustrar.
+    nome: "Isabela",
+    foto: "/img/exemplos/isabela.webp",
     versos: [
-      "Seu Antônio, essa aqui é pra você",
-      "O senhor acorda antes do sol nascer",
-      "Café coado, o dia já quer começar",
-      "Domingo de churrasco, a família inteira",
+      "Isabela, deixa eu te contar",
+      "uma história que já é nossa há dez anos.",
+      "Eu te vi ainda no colégio",
+      "e o mundo mudou de lugar",
     ],
   },
   es: {
@@ -235,7 +249,12 @@ export function AberturaPresente({
                 return (
                   <p
                     key={verso}
-                    className="text-[10.5px] leading-snug transition-colors duration-300"
+                    // `text-balance`: os versos são letra de verdade e alguns
+                    // não cabem numa linha (o mais longo do exemplo estoura
+                    // por 6px). Sem isto a sobra vira uma palavra órfã —
+                    // "anos." sozinha embaixo. Balanceada, a quebra parece
+                    // verso, que é o que ela é.
+                    className="text-balance text-[10.5px] leading-snug transition-colors duration-300"
                     style={{
                       opacity: 0.12 + p * 0.88,
                       color: acesa ? "oklch(0.86 0.13 78)" : "rgba(247,240,232,0.45)",
