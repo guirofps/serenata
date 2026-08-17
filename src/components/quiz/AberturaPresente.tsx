@@ -86,8 +86,13 @@ const COPY: Record<
     tituloDepois: " de quem você ama",
     explicacao:
       "Você conta a história. A letra fica pronta na hora, de graça — e você ouve um trecho cantado antes de decidir qualquer coisa.",
-    cta: "Criar minha música",
-    micro: "grátis · sem cadastro",
+    cta: "CRIAR MINHA MÚSICA GRÁTIS",
+    // "grátis" saiu daqui porque agora está no botão, e dizer duas vezes na
+    // mesma dobra não convence mais — só ocupa a linha que ainda podia
+    // derrubar uma objeção. "Sem cartão" é verdade e é a objeção real de
+    // quem desconfia de "grátis": a letra e o trecho cantado saem sem
+    // pagamento nenhum.
+    micro: "sem cadastro · sem cartão",
     rotulo: "uma música para",
     // ESPOSA e não pai: é a relação que mais vende, e a primeira tela tem que
     // mostrar o caso mais provável de quem está chegando. O cartão da home
@@ -113,8 +118,8 @@ const COPY: Record<
     tituloDepois: " de quien amas",
     explicacao:
       "Tú cuentas la historia. La letra queda lista al instante, gratis — y escuchas un pedazo cantado antes de decidir nada.",
-    cta: "Crear mi canción",
-    micro: "gratis · sin registro",
+    cta: "CREAR MI CANCIÓN GRATIS",
+    micro: "sin registro · sin tarjeta",
     rotulo: "una canción para",
     nome: "Lupita",
     foto: "/img/exemplos/mae.webp",
@@ -162,34 +167,52 @@ export function AberturaPresente({
           em 28px, que é mais barato que uma linha de texto. */}
       <Logo tamanho="sm" />
 
-      <h1
-        className="mt-4 text-balance"
-        style={{
-          fontFamily: FONTES.display,
-          fontWeight: 500,
-          fontSize: "var(--t-2xl)",
-          lineHeight: 1.12,
-          letterSpacing: "-0.02em",
-        }}
-      >
+      {/* CLASSES DO QUIZ, não as variáveis da landing.
+          Este componente nasceu copiando o herói da home, que estiliza por
+          `var(--t-3xl)` e `var(--tinta-suave)` — variáveis que vêm do
+          `TEMA_CLARO`, aplicado no `<div>` raiz da landing e em lugar nenhum
+          do quiz. Aqui elas não resolvem, e `font-size: var(--indefinida)` é
+          declaração inválida: o título caía nos 16px herdados do corpo, ou
+          seja, MENOR que o enunciado de qualquer pergunta do funil.
+          Medido no navegador, não no olho — 16px de computed style.
+
+          Um degrau acima das perguntas (`text-2xl sm:text-3xl`) de propósito:
+          esta é a tela que faz a promessa.
+
+          Só o iPhone SE antigo (≤600px de altura) recebe o tamanho menor, e
+          lá o cartão sozinho já não paga a conta. Faixas fechadas de novo,
+          pelo mesmo motivo do cartão: sobrepostas, quem ganha é a ordem do
+          arquivo. Sem degrau por LARGURA (`sm:`) porque este funil é 99%
+          celular e um segundo eixo aqui só reabriria o conflito de ordem. */}
+      <h1 className="mt-4 text-balance font-display font-semibold leading-tight tracking-tight [@media(max-height:600px)]:text-2xl [@media(min-height:601px)]:text-3xl">
         {C.tituloAntes}
         <span className="texto-ouro">{C.tituloOuro}</span>
         {C.tituloDepois}
       </h1>
 
       {/* ── O PRESENTE ────────────────────────────────────────── */}
-      {/* 228px e não 236: com aspecto 4/5, cada pixel de largura custa 1,25 de
-          altura, e a 360x640 (Android pequeno, ainda comum no tráfego BR) os
-          236 sobravam 7px e faziam a tela rolar. Uma tela que se propõe a
-          explicar em um relance não pode pedir rolagem pra mostrar o botão.
+      {/* O CARTÃO É QUEM CEDE ESPAÇO.
+          Com aspecto 4/5, cada pixel de largura custa 1,25 de altura, então
+          ele é o regulador natural da tela. O título e o botão carregam a
+          mensagem e não encolhem; o cartão ilustra e pode.
 
-          O degrau em 620px de ALTURA é pro iPhone SE antigo (320x568), onde os
-          228 empurravam o botão 69px pra fora da tela. Consulta de altura e
-          não de largura, e sem `vh`: no celular `100vh` é a tela SEM a barra
-          do navegador, ou seja, mede mais do que se enxerga — foi essa
-          armadilha que derrubou o funil em 09/08. */}
+          Os degraus são de ALTURA, não de largura, e sem `vh`: no celular
+          `100vh` é a tela SEM a barra do navegador, ou seja, mede mais do que
+          se enxerga — foi essa armadilha que derrubou o funil em 09/08.
+
+          Medido, não estimado (`main` tem 686px a 375x667 com o cartão cheio):
+            >720px       228px  o tamanho de projeto
+            661–720px    196px  iPhone comum (375x667) e afins
+            601–660px    172px  Android pequeno (360x640)
+            ≤600px       132px  iPhone SE antigo (320x568)
+
+          As faixas são MUTUAMENTE EXCLUSIVAS de propósito. Com `max-height`
+          solto elas se sobrepõem, todas têm a mesma especificidade, e quem
+          vence é a última que o Tailwind escrever no arquivo — a 360x640 o
+          cartão saía com o tamanho do degrau de 720px. Faixa fechada não
+          depende de ordem de CSS. */}
       <div
-        className="mt-5 w-full max-w-[228px] [@media(max-height:620px)]:max-w-[168px]"
+        className="mt-5 w-full [@media(min-height:721px)]:max-w-[228px] [@media(max-height:720px)_and_(min-height:661px)]:max-w-[196px] [@media(max-height:660px)_and_(min-height:601px)]:max-w-[172px] [@media(max-height:600px)]:max-w-[132px]"
         aria-hidden
       >
         <div
@@ -309,17 +332,23 @@ export function AberturaPresente({
       </div>
 
       {/* A PROPOSTA em uma frase: o que ela faz, o que recebe, o que custa. */}
-      <p
-        className="mt-4 max-w-[19rem] text-[var(--tinta-suave)]"
-        style={{ fontSize: "var(--t-sm)", lineHeight: 1.5 }}
-      >
+      {/* `text-muted-foreground` e não `var(--tinta-suave)`: mesma armadilha
+          do título. A variável não existe no quiz, então esta frase saía na
+          tinta cheia, com o mesmo peso do título logo acima. */}
+      <p className="mt-4 max-w-[19rem] text-sm leading-relaxed text-muted-foreground">
         {C.explicacao}
       </p>
 
-      <Button size="lg" className="cta mt-5 w-full rounded-full border-0" onClick={aoComecar}>
+      {/* `tracking-wide` porque o rótulo é caixa alta: sem folga entre as
+          letras, maiúscula em Poppins fica empastada. */}
+      <Button
+        size="lg"
+        className="cta mt-5 w-full rounded-full border-0 tracking-wide"
+        onClick={aoComecar}
+      >
         {C.cta}
       </Button>
-      <p className="mt-2 text-[11px] text-[var(--tinta-suave)]">{C.micro}</p>
+      <p className="mt-2 text-[11px] text-muted-foreground">{C.micro}</p>
     </div>
   );
 }
