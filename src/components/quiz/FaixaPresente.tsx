@@ -1,7 +1,6 @@
 import { Music, Images, Sparkles, QrCode } from "lucide-react";
 import { type Locale } from "@/lib/i18n";
 import { t } from "@/lib/textos";
-import { GARANTIA } from "@/lib/garantia";
 
 // O QUE A PESSOA ESTÁ MONTANDO, visível o quiz inteiro.
 //
@@ -24,7 +23,6 @@ export function FaixaPresente({
   locale?: Locale;
 }) {
   const T = t(locale);
-  const G = GARANTIA[locale] ?? GARANTIA.pt;
   const limpo = nome?.trim();
 
   // Dentro do componente porque cada texto depende do idioma. Fora dele o
@@ -55,23 +53,21 @@ export function FaixaPresente({
         ))}
       </ul>
 
-      {/* GARANTIA, acompanhando o quiz inteiro — igual ao concorrente, que
-          carrega o selo dele em todas as telas.
+      {/* A GARANTIA SAIU DAQUI (17/08), com o filete que a separava.
+          Era `garantia de 7 dias · reembolso sem perguntas`, numa linha de
+          ~10px com `border-t` por cima, e acompanhava o quiz inteiro desde
+          10/08 — a ideia era espelhar o selo que a NossaCanção carrega em
+          todas as telas.
 
-          Vive DENTRO da faixa que já existia, e não num bloco novo, porque
-          altura no celular é o recurso mais escasso do funil: em 10/08 sete
-          dos onze passos tinham o botão de avançar fora da tela. Uma linha de
-          ~18px cabe; um cartão a mais empurraria a pergunta pra baixo de novo.
+          Some do QUIZ, não do produto: `GARANTIA` continua em `garantia.ts`,
+          e a versão com peso visual segue na tela da OFERTA, que é onde a
+          objeção decide a compra. Aqui ela falava de reembolso antes de
+          existir preço — a pessoa ainda está respondendo pergunta e a letra é
+          de graça. Junto com o rótulo virando "o que você vai receber em 2
+          minutos", a faixa passa a dizer só o que se ganha e quando.
 
-          Sem ícone verde nem caixa colorida aqui: no quiz ela é lembrete de
-          segurança, discreta. O peso visual fica reservado pra tela da oferta,
-          onde a objeção realmente decide a compra. */}
-      <p
-        className="mt-2 border-t border-primary/10 pt-2 text-center text-[10px] text-muted-foreground"
-        title={G.texto}
-      >
-        {G.curto}
-      </p>
+          Se voltar: é um `<p>` com `mt-2 border-t border-primary/10 pt-2`,
+          `title={G.texto}` e `{G.curto}` dentro. */}
     </div>
   );
 }

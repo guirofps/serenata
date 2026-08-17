@@ -30,7 +30,15 @@ const PT = {
   reacoesLegenda: "Reações de quem ouviu uma música feita por nós.",
 
   // ── faixa do entregável ──────────────────────────────────────
-  oQueVaiMontar: "o que você vai montar",
+  // "MONTAR" virou "RECEBER EM 2 MINUTOS" (17/08). Montar descreve trabalho
+  // pra quem está no meio de um formulário; receber descreve prêmio, e o prazo
+  // é a parte que responde "quando" — a mesma promessa da tela de abertura, e
+  // dentro do medido (84-110s do pedido ao arquivo).
+  //
+  // Sem ponto final: o rótulo é renderizado em caixa alta com `tracking`, onde
+  // ponto vira sujeira. A chave continua `oQueVaiMontar` de propósito, pra não
+  // espalhar renomeação por um texto que muda de novo no próximo teste.
+  oQueVaiMontar: "o que você vai receber em 2 minutos",
   musicaCantada: "música cantada",
   paginaComFotos: "página com fotos",
   karaoke: "karaokê",
