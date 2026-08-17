@@ -177,8 +177,21 @@ export function AberturaPresente({
           lá o cartão sozinho já não paga a conta. Faixas fechadas de novo,
           pelo mesmo motivo do cartão: sobrepostas, quem ganha é a ordem do
           arquivo. Sem degrau por LARGURA (`sm:`) porque este funil é 99%
-          celular e um segundo eixo aqui só reabriria o conflito de ordem. */}
-      <h1 className="mt-4 text-balance font-display font-semibold leading-tight tracking-tight [@media(max-height:600px)]:text-2xl [@media(min-height:601px)]:text-3xl">
+          celular e um segundo eixo aqui só reabriria o conflito de ordem.
+
+          28px E NÃO OS 30 DO `text-3xl`, pra fechar em DUAS linhas.
+          Medido a 375px, procurando a largura mínima de cada corpo:
+
+            30px  precisa de 360px  →  falta 17 mesmo com `px-4`
+            29px  precisa de 348px  →  sobram 3 com `px-3`: no limite
+            28px  precisa de 337px  →  sobram 14 com `px-3`
+
+          Os 30px não cabem em duas linhas de jeito nenhum: precisariam de
+          360 dos 375 da tela inteira, ou seja, texto a 7px da borda. E os
+          29px passam por 3px, que é menos que a diferença de renderização da
+          Fraunces entre navegadores — passaria aqui e voltaria pra três
+          linhas num Safari. 28px é o maior corpo que fecha com folga. */}
+      <h1 className="mt-4 text-balance font-display font-semibold leading-tight tracking-tight [@media(max-height:600px)]:text-2xl [@media(min-height:601px)]:text-[28px]">
         {C.tituloAntes}
         <span className="texto-ouro">{C.tituloOuro}</span>
         {C.tituloDepois}
@@ -357,11 +370,11 @@ export function AberturaPresente({
           Fica só em volta destes dois blocos, e não na tela inteira: o resto
           já está medido e verificado nos tokens do quiz. */}
       <div style={TEMA_CLARO} className="w-full">
-        <ProvaSocial locale={locale} centralizado />
+        <ProvaSocial locale={locale} centralizado compacto />
 
-        {/* `-mx-4` desfaz o respiro do `main` pra faixa encostar nas bordas,
+        {/* `-mx-3` desfaz o respiro do `main` pra faixa encostar nas bordas,
             que é como ela existe na home. */}
-        <div className="-mx-4 mt-8">
+        <div className="-mx-3 mt-8">
           <ProvaImediata />
         </div>
       </div>

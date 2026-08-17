@@ -253,7 +253,13 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
     // Mas ele entrou no mesmo deploy que derrubou a passagem da pergunta 1 de
     // 43% pra 14%, e enquanto a causa exata não estiver isolada nada daquele
     // deploy fica de pé. Volta em separado, medindo sozinho.
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col px-4 py-6">
+    // `px-3` e não `px-4`: 8px a mais de linha útil no celular.
+    //
+    // Veio da abertura, onde o título de 30px precisava de 360px pra fechar
+    // em duas linhas e só tinha 343. Mas serve o quiz inteiro — é largura de
+    // texto e de chip numa tela de 375px, onde ela é o recurso escasso.
+    // `py-6` intocado: o problema era horizontal.
+    <main className="mx-auto flex min-h-screen max-w-xl flex-col px-3 py-6">
       {/* Header: voltar + progresso.
 
           Some na ABERTURA: uma barra de progresso vazia antes da primeira
@@ -564,7 +570,7 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
           no `py-6`. Foi o pacote que não deixou ninguém saber de quem era a
           culpa da última vez. */}
       {!isIntro(step) && !isReview(step) && !isReveal(step) && !isOferta(step) && (
-        <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-border/40 bg-background px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+        <div className="sticky bottom-0 z-10 -mx-3 mt-6 border-t border-border/40 bg-background px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
           <Button
             size="lg"
             className="cta w-full rounded-full border-0"
@@ -639,7 +645,7 @@ function ReviewScreen({ locale, onGerar }: { locale: Locale; onGerar: () => void
           TEXTO (a lista de respostas), então ela não tem toque nenhum pra
           matar. Fundo opaco pela mesma razão de sempre — o que fica cortado
           na borda tem que parecer cortado. */}
-      <div className="sticky bottom-0 z-10 -mx-4 border-t border-border/40 bg-background px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+      <div className="sticky bottom-0 z-10 -mx-3 border-t border-border/40 bg-background px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
         <Button size="lg" className="cta w-full rounded-full border-0" onClick={onGerar}>
           {T.escreverLetra}
         </Button>
