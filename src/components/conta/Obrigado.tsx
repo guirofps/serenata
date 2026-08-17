@@ -9,6 +9,7 @@ import { marcarSessaoGasta, getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
+import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
 import { Check, Mail, Inbox, Pencil, Loader2 } from "lucide-react";
 
 // Página de PÓS-COMPRA — o destino do redirect do checkout (Cakto/Perfect Pay).
@@ -297,6 +298,21 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
         </ol>
         </>
         )}
+
+        {/* DISCRETO, e de propósito.
+            A ação desta tela é UMA: montar o presente. O comprador ainda nem
+            viu o dele pronto, então um cartão vendendo a segunda música
+            competiria com a primeira e faria ele sair sem montar nada. O
+            cartão inteiro fica no editor, que é depois. Aqui é só uma porta
+            visível pra quem já sabe que quer outra, que é o caso de quem
+            comprou pensando em duas pessoas. */}
+        <div className="mt-10 text-center">
+          <ConviteOutraMusica
+            locale={locale === "es" ? "es" : "pt"}
+            origem="obrigado"
+            variante="discreto"
+          />
+        </div>
 
         <p
           className="mt-8 text-center text-[var(--tinta-suave)]"

@@ -18,6 +18,7 @@ import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { marcarDono } from "@/lib/dono-presente";
 import { marcarSessaoGasta } from "@/lib/session-context";
 import { linkSuporte, TEXTO_SUPORTE } from "@/lib/suporte-whatsapp";
+import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
 import { trackEvent } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE, nomeCor } from "@/lib/marca";
 import { tp } from "@/lib/textos-presente";
@@ -817,6 +818,15 @@ function Editor() {
               )}
             </div>
           </aside>
+        </div>
+
+        {/* CONVITE PRA FAZER OUTRA, e ele vem ANTES do suporte de propósito.
+            O comprador chega aqui pra montar o presente, ou seja, no momento
+            em que ele acabou de ouvir a música da pessoa dele e está com o
+            resultado na mão. É onde a pergunta "quem mais merece uma?" cai em
+            pé. Depois do bloco de ajuda ela viraria rodapé. */}
+        <div className="mx-auto max-w-md">
+          <ConviteOutraMusica locale={p?.locale === "es" ? "es" : "pt"} origem="editor" />
         </div>
 
         {/* SUPORTE POR WHATSAPP, e só aqui dentro.

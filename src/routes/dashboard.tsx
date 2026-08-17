@@ -7,6 +7,7 @@ import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
 import { novaSessao } from "@/lib/session-context";
 import { useQuizStore } from "@/lib/quiz-store";
+import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
 import { Loader2, Pencil, ExternalLink, Plus, LogOut, Music } from "lucide-react";
 
 // A ÁREA DO COMPRADOR — a "casa" dele na plataforma. Lista as músicas que ele
@@ -144,8 +145,17 @@ function Dashboard() {
               <Music className="h-5 w-5" />
             </div>
             <p style={{ fontSize: "var(--t-base)" }}>{T.semMusicas}</p>
+            {/* Mesmas duas regras do convite de recompra, pelos mesmos dois
+                motivos: a rota SEGUE O IDIOMA da conta (este link mandava
+                mexicano pro funil em português) e o store é limpo antes de
+                sair (uma `letraFinal` velha de funil abandonado apareceria na
+                revelação do quiz novo). */}
             <Link
-              to="/criar"
+              to={locale === "es" ? "/es/criar" : "/criar"}
+              onClick={() => {
+                novaSessao();
+                reset();
+              }}
               className="mt-5 inline-flex h-12 items-center gap-2 rounded-full cta px-6 font-medium"
               style={{ fontSize: "var(--t-sm)" }}
             >
@@ -214,26 +224,12 @@ function Dashboard() {
               })}
             </ul>
 
-            {/* Recompra: por ora leva de volta ao funil. O desconto de
-                recompra depende do pagamento estar ligado (fake door hoje).
-                A sessão é ROTACIONADA antes de sair daqui: sem isso a música
-                nova reusa a linha da anterior no banco e sobrescreve o
-                presente já entregue. Ver novaSessao() em session-context. */}
-            <Link
-              // O IDIOMA DA CONTA, não a rota fixa em português. Este botão
-              // mandava todo mundo pro /criar, e em 15/08 uma compradora
-              // mexicana passou 20 minutos respondendo o quiz em português
-              // depois de clicar aqui.
-              to={locale === "es" ? "/es/criar" : "/criar"}
-              onClick={() => {
-                novaSessao();
-                reset();
-              }}
-              className="mt-6 inline-flex h-12 items-center gap-2 rounded-full border border-[var(--tinta-fraca)] px-6 transition-colors hover:border-[var(--acento)] hover:text-[var(--acento)]"
-              style={{ fontSize: "var(--t-sm)" }}
-            >
-              <Plus className="h-4 w-4" /> Criar outra música
-            </Link>
+            {/* Este botão virou componente (ConviteOutraMusica) quando passou
+                a existir também no editor e na tela de obrigado. As regras de
+                sair pro funil (rotacionar sessão, limpar o store, respeitar o
+                idioma) custaram três incidentes e não podem viver em três
+                cópias, que divergem na primeira mudança. */}
+            <ConviteOutraMusica locale={locale === "es" ? "es" : "pt"} origem="dashboard" />
           </>
         )}
       </main>
