@@ -10,7 +10,7 @@ import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.j
 import { pareceTypo } from "../../src/lib/email-typo.js";
 import { cupomAtivo } from "../../src/lib/cupom.js";
 
-// A SEQUÊNCIA DE RECUPERAÇÃO: e-mails 2, 3 e 4.
+// A SEQUENCIA DE RECUPERACAO: hoje so o e-mail 2 (ver ULTIMO_EMAIL).
 //
 // O e-mail 1 (a letra) já roda em `mandarLetra` e é uma fila FINITA: pega quem
 // passou pelo funil e nunca recebeu nada. Ela secou — 117 envios em 08/08, 76
@@ -35,6 +35,27 @@ const ESPERA_H: Record<NumeroDaSequencia, number> = {
   3: 72, // três dias depois do 2
   4: 120, // cinco dias depois do 3 — e aí para
 };
+
+// ATÉ ONDE A RÉGUA VAI. Medido em 16/08, com a conversão de cada etapa:
+//
+//   1 · a letra        1.068 envios   63 compras   5,9%
+//   2 · "ficou pronta"   827 envios    8 compras   1,0%
+//   3 · "esperando"      330 envios    1 compra    0,3%
+//   4                      0 envios      -           -
+//
+// O e-mail da letra é a recuperação inteira. O 2 ainda se paga. O 3 são 330
+// disparos para UMA venda, e o 4 nunca chegou a sair (o primeiro só venceria
+// agora).
+//
+// Não é o custo de enviar que pesa, é a reputação. 84% dos compradores estão
+// no Gmail, e é o Gmail que decide se o e-mail de ENTREGA (o único que carrega
+// produto pago) cai na caixa de entrada ou no spam. Gastar esse crédito com
+// duas etapas que somam uma venda é trocar a entrega de quem pagou por quase
+// nada.
+//
+// Fica em 2. Subir de novo é mudar este número, e os dados dos e-mails 3 e 4
+// continuam no banco pra comparar se um dia isso for revisto.
+const ULTIMO_EMAIL = 2;
 
 // Janela de entrada. Mais velho que isso não entra na sequência: e-mail sobre
 // uma letra de mês passado chega como cobrança, não como lembrança.
@@ -154,7 +175,7 @@ export const sequenciaRecuperacao = inngest.createFunction(
 
       for (const [quizId, { quando, numero }] of ultimo) {
         if (out.length >= MAX_POR_RODADA) break;
-        if (numero >= 4) continue; // a régua acabou; o 4 é o último de propósito
+        if (numero >= ULTIMO_EMAIL) continue; // a régua acabou (ver ULTIMO_EMAIL)
         const proximo = (numero + 1) as NumeroDaSequencia;
 
         const l = porId.get(quizId);
@@ -226,6 +247,16 @@ export const sequenciaRecuperacao = inngest.createFunction(
         // no link e sobrevive até o checkout: `/retomar` guarda o código, o
         // funil carrega, e `?ppc=` aplica sozinho na tela do gateway. Sem essa
         // corrente, o e-mail prometeria um preço e o checkout mostraria outro.
+        //
+        // ATENÇÃO: com `ULTIMO_EMAIL = 2`, o número 4 nunca acontece, então
+        // ESTE CUPOM NUNCA É ENVIADO. E olhando pra trás, ele nunca foi: o
+        // e-mail 4 exigia 120h depois do 3, e o 3 só começou a sair em 13/08.
+        // Nenhum cliente recebeu SRN27 ou SRN7 até hoje.
+        //
+        // Deixei a condição amarrada ao 4 de propósito, em vez de mover pro 2.
+        // Pôr desconto no e-mail que ainda converte (1,0%) é decisão de
+        // margem, não de código: são R$ 10 de um ticket de R$ 38, e o dono
+        // precisa escolher se quer pagar isso pra recuperar quem já ia voltar.
         const cupom = p.numero === 4 ? cupomAtivo(p.locale) : null;
         const link =
           `${SITE}/retomar?s=${encodeURIComponent(p.sessao)}` +

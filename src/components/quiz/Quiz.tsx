@@ -114,22 +114,53 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
     //
     // `replace: true` pra não empilhar histórico: senão o "voltar" do celular
     // devolve a pessoa exatamente pra tela quebrada de onde ela saiu.
+    // O SERVIDOR DECIDE PRA ONDE, NÃO O NAVEGADOR.
+    //
+    // A primeira versão mandava direto pro passo 1 quando o armazenamento
+    // local estava vazio. Em 16/08 isso pegou alguém que tinha a letra PRONTA
+    // no servidor e voltou pelo `?step=reveal` 21 minutos depois: o navegador
+    // não tinha mais o estado, e o funil mandou a pessoa recomeçar do zero.
+    // Ela tentou duas vezes e desistiu.
+    //
+    // Barrar continua certo (tela de letra sem letra não existe), o destino é
+    // que estava errado. Agora são três saídas:
+    //   pagou      -> o editor, que é onde está o presente dela
+    //   tem letra  -> /retomar, que reidrata a sessão e devolve pro reveal
+    //   nada       -> o passo 1, como antes
     const decidirPasso = () => {
       if (!PRECISAM_DE_LETRA.has(stepId ?? "")) return;
       const nome = (useQuizStore.getState().respostas.nome as string)?.trim();
       if (nome) return;
-      trackEvent("passo_sem_contexto", { step: stepId, locale });
-      navigate({ to: rota, search: { step: QUIZ_FLOW[0]?.id } as never, replace: true });
+      const sessao = getOrCreateSessionId();
+      sessaoJaPagou({ data: { sessionId: sessao } })
+        .then((r) => {
+          if (r.pago && (r.tokenEdicao || r.token)) {
+            trackEvent("passo_sem_contexto", { step: stepId, locale, saida: "editor" });
+            window.location.href = `${window.location.origin}${r.tokenEdicao ? `/editar/${r.tokenEdicao}` : `/p/${r.token}`}`;
+            return;
+          }
+          if (r.temLetra) {
+            trackEvent("passo_sem_contexto", { step: stepId, locale, saida: "retomar" });
+            window.location.href = `${window.location.origin}/retomar?s=${encodeURIComponent(sessao)}`;
+            return;
+          }
+          trackEvent("passo_sem_contexto", { step: stepId, locale, saida: "inicio" });
+          navigate({ to: rota, search: { step: QUIZ_FLOW[0]?.id } as never, replace: true });
+        })
+        .catch(() => {
+          // Consulta indisponível: o começo é o destino seguro.
+          trackEvent("passo_sem_contexto", { step: stepId, locale, saida: "inicio_por_erro" });
+          navigate({ to: rota, search: { step: QUIZ_FLOW[0]?.id } as never, replace: true });
+        });
     };
     if (useQuizStore.persist.hasHydrated()) decidirPasso();
     else useQuizStore.persist.onFinishHydration(decidirPasso);
 
-    // COMPRADOR NÃO VÊ PAYWALL.
+    // COMPRADOR NÃO VÊ PAYWALL, mesmo com o estado local intacto.
     //
-    // O `/retomar` já desvia quem pagou, mas ele não é o único caminho de
-    // volta: histórico, aba restaurada e o botão de voltar do celular trazem
-    // a pessoa direto pra cá. O comprador de 16/08 chegou pelos dois jeitos e
-    // viu a tela de oferta nas duas vezes, depois de já ter pago.
+    // O caso acima cobre quem chegou SEM estado. Este cobre quem chegou COM:
+    // o comprador de 16/08 tinha nome e letra no navegador, voltou pelo
+    // histórico, e viu a tela de oferta de novo depois de já ter pago.
     //
     // Só nos passos que mostram preço ou cortam a música. Perguntar isso no
     // passo 1 seria uma ida ao servidor por visita, pra um caso que só existe
@@ -137,7 +168,7 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
     //
     // FALHA ABERTA: se a consulta cair, a pessoa segue no funil normal. Barrar
     // alguém por indisponibilidade seria trocar um problema raro por um pior.
-    if (PRECISAM_DE_LETRA.has(stepId ?? "")) {
+    if (PRECISAM_DE_LETRA.has(stepId ?? "") && (useQuizStore.getState().respostas.nome as string)?.trim()) {
       sessaoJaPagou({ data: { sessionId: getOrCreateSessionId() } })
         .then((r) => {
           if (!r.pago) return;

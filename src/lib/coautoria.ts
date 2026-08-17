@@ -265,29 +265,42 @@ export const sessaoJaPagou = createServerFn({ method: "POST" })
   .handler(
     async ({
       data,
-    }): Promise<{ pago: boolean; token: string | null; tokenEdicao: string | null }> => {
-      const vazio = { pago: false, token: null, tokenEdicao: null };
+    }): Promise<{
+      pago: boolean;
+      /** Existe letra pronta no servidor, mesmo que o navegador tenha perdido. */
+      temLetra: boolean;
+      token: string | null;
+      tokenEdicao: string | null;
+    }> => {
+      const vazio = { pago: false, temLetra: false, token: null, tokenEdicao: null };
       const db = supabaseAdmin();
       const quizId = await quizIdDaSessao(data.sessionId);
       if (!quizId) return vazio;
 
-      const { data: pedido } = await db
-        .from("pedidos")
-        .select("id")
-        .eq("quiz_response_id", quizId)
-        .eq("status", "pago")
-        .limit(1)
-        .maybeSingle();
-      if (!pedido) return vazio;
+      const [{ data: pedido }, { data: m }] = await Promise.all([
+        db
+          .from("pedidos")
+          .select("id")
+          .eq("quiz_response_id", quizId)
+          .eq("status", "pago")
+          .limit(1)
+          .maybeSingle(),
+        db
+          .from("musicas")
+          .select("token, token_edicao, letra")
+          .eq("quiz_response_id", quizId)
+          .not("letra", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-      const { data: m } = await db
-        .from("musicas")
-        .select("token, token_edicao")
-        .eq("quiz_response_id", quizId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return { pago: true, token: m?.token ?? null, tokenEdicao: m?.token_edicao ?? null };
+      return {
+        pago: Boolean(pedido),
+        temLetra: Boolean(m?.letra),
+        token: m?.token ?? null,
+        tokenEdicao: m?.token_edicao ?? null,
+      };
     },
   );
 
