@@ -27,15 +27,49 @@ const QUIZ_FLOW_PT: FlowStep[] = [
     text: "Pra quem é esse presente?",
     field: "relacao",
     input: "chips",
+    // A ORDEM VEM DO PAINEL, não do parentesco (17/08).
+    //
+    // Antes os chips vinham em PARES (mãe/pai, esposa/marido, namorada/
+    // namorado…), que é bonito de ler e não tem nada a ver com o que as
+    // pessoas escolhem. Medido em "Pra quem", no painel:
+    //
+    //   esposa 404 · namorada 66 · filha 56 · filho 37 · marido 36 · mãe 23
+    //
+    // Esposa sozinha é 6x a segunda colocada, e estava em TERCEIRO — atrás de
+    // mãe, que tem 23. Numa lista de dezenove chips onde o primeiro par ocupa
+    // a linha mais visível, isso é o item que mais vende começando abaixo de
+    // dois que quase ninguém marca.
+    //
+    // Os seis medidos sobem, na ordem exata do painel. O resto mantém a ordem
+    // relativa que já tinha.
+    //
+    // O QUE ISSO CUSTA: os pares se separam. Esposa e marido deixam de ficar
+    // lado a lado, e quem procura o par masculino não o acha mais ao lado do
+    // feminino. É o preço de ordenar por demanda, e é reversível numa
+    // ordenação por par (esposa/marido, namorada/namorado, filha/filho,
+    // mãe/pai) se a leitura piorar.
+    //
+    // Só o funil PORTUGUÊS. O `quiz-flow-es.ts` tem a ordem dele, e estes
+    // números são de tráfego brasileiro — o México pode presentear outro
+    // parente, e reordenar lá com dado daqui seria chutar com cara de medida.
     options: [
-      { value: "mae", label: "Mãe", emoji: "👩" },
-      { value: "pai", label: "Pai", emoji: "👨", tag: "em alta" },
-      { value: "esposa", label: "Esposa", emoji: "💍" },
-      { value: "marido", label: "Marido", emoji: "💍" },
+      // "EM ALTA" mudou de chip junto com a ordem. Estava no Pai desde a
+      // janela do Dia dos Pais; hoje o painel não põe o pai nem entre os seis
+      // primeiros, e o selo passou a apontar pra um item que quase ninguém
+      // marca — chamando atenção justamente pra longe do que vende.
+      //
+      // Na esposa ele é o único que é literalmente verdade: 404 contra 66 da
+      // segunda colocada. Selo em cima do primeiro colocado não cria alegação
+      // nova, só diz em voz alta o que o número já diz.
+      { value: "esposa", label: "Esposa", emoji: "💍", tag: "em alta" },
       { value: "namorada", label: "Namorada", emoji: "❤️" },
-      { value: "namorado", label: "Namorado", emoji: "❤️" },
       { value: "filha", label: "Filha", emoji: "👧" },
       { value: "filho", label: "Filho", emoji: "👦" },
+      { value: "marido", label: "Marido", emoji: "💍" },
+      { value: "mae", label: "Mãe", emoji: "👩" },
+      // Daqui pra baixo, a ordem de antes.
+      { value: "pai", label: "Pai", emoji: "👨" },
+      { value: "namorado", label: "Namorado", emoji: "❤️" },
       { value: "avo_f", label: "Avó", emoji: "👵" },
       { value: "avo_m", label: "Avô", emoji: "👴" },
       { value: "irma", label: "Irmã", emoji: "🤝" },
@@ -58,8 +92,17 @@ const QUIZ_FLOW_PT: FlowStep[] = [
     kind: "question",
     block: "Pra quem",
     text: "Como você chama essa pessoa?",
+    // A DICA DE PRONÚNCIA SAIU (17/08). Era: "Se a pronúncia não for óbvia,
+    // escreva como se fala (ex.: Thaís → ta-ís)". Resolvia um problema real
+    // (o Suno canta o que está escrito, e nome incomum sai torto), mas cobrava
+    // caro por isso: dobrava o tamanho do subtexto, pedia uma segunda decisão
+    // numa tela que só quer um nome, e a que mais perde gente do quiz inteiro
+    // — 881 pessoas, 41,5%, é a maior queda do funil.
+    //
+    // Se voltar, o lugar é o `eco` ou uma dica que só aparece depois de
+    // digitar, não no enunciado de quem ainda não escreveu nada.
     subtext:
-      "Escreva do jeito que você chama no dia a dia, apelido vale. Se a pronúncia não for óbvia, escreva como se fala (ex.: Thaís → ta-ís).",
+      "Escreva do jeito que você chama no dia a dia, pode ser um apelido carinhoso.",
     field: "nome",
     input: "text",
     placeholder: "Zé, mãe, vó Rosa...",
@@ -74,14 +117,30 @@ const QUIZ_FLOW_PT: FlowStep[] = [
     text: "Qual é a ocasião?",
     field: "ocasiao",
     input: "chips",
+    // TAMBÉM ORDENADA PELO PAINEL (17/08), como "Pra quem" e "Estilo".
+    //
+    //   declaração 373 · aniversário 79 · homenagem 78 · só porque 44
+    //   · outro 24 · casamento 20
+    //
+    // Declaração é 4,7x o segundo colocado e estava em TERCEIRO, atrás de
+    // casamento (20), que é o último dos seis.
+    //
+    // "OUTRO MOMENTO" FICA NO FIM, e é a única divergência do painel.
+    // Ele aparece em quinto (24), mas é a saída de emergência da pergunta:
+    // subir a saída pra perto do topo faz gente marcar por preguiça, e essa
+    // resposta vai direto pro prompt da letra como "ocasião não informada" —
+    // ou seja, o chip que menos informa passaria na frente dos que mais
+    // informam. Foi por dado igual a este que "Família" e "Neta" viraram chip
+    // próprio em "Pra quem": parte do 24 é gente que não achou o chip dela.
     options: [
-      { value: "aniversario", label: "Aniversário", emoji: "🎂" },
-      { value: "casamento", label: "Casamento ou bodas", emoji: "💒" },
       { value: "declaracao", label: "Declaração de amor", emoji: "❤️" },
+      { value: "aniversario", label: "Aniversário", emoji: "🎂" },
       { value: "homenagem", label: "Homenagem", emoji: "🌟" },
+      { value: "soporque", label: "Só porque sim", emoji: "✨" },
+      { value: "casamento", label: "Casamento ou bodas", emoji: "💒" },
+      // Sem medição no recorte; mantêm a ordem relativa que já tinham.
       { value: "memorial", label: "Saudade de quem partiu", emoji: "🕊️" },
       { value: "formatura", label: "Formatura", emoji: "🎓" },
-      { value: "soporque", label: "Só porque sim", emoji: "✨" },
       { value: "outro", label: "Outro momento", emoji: "🎁" },
     ],
   },

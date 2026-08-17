@@ -27,30 +27,52 @@ export type Genero = {
 };
 
 // ── PORTUGUÊS (Brasil) ────────────────────────────────────────────
-// Ordenados por quanto se pede. Sem "Outro": num seletor de GÊNERO, "outro"
-// virava "à escolha do compositor" e o Suno precisa de um estilo concreto.
+// Sem "Outro": num seletor de GÊNERO, "outro" virava "à escolha do
+// compositor" e o Suno precisa de um estilo concreto.
+//
+// ── A ORDEM AGORA É MEDIDA, E ANTES SÓ DIZIA QUE ERA (17/08) ─────
+//
+// O comentário aqui dizia "ordenados por quanto se pede" desde que a lista
+// nasceu, e a lista estava na ordem de quem a escreveu. O painel, em "Estilo":
+//
+//   gospel 185 · pop romântico 113 · sertanejo 85 · sertanejo univ. 53
+//   · MPB 42 · pagode 27
+//
+// GOSPEL É O PRIMEIRO COLOCADO E ESTAVA EM DÉCIMO PRIMEIRO, de treze. O
+// gênero mais pedido do funil brasileiro morava na última fileira de chips,
+// depois de rock e reggae. Pop romântico, o segundo, estava em sexto.
+//
+// Os seis medidos sobem na ordem exata do painel; os outros sete mantêm a
+// ordem relativa que tinham. Só a ORDEM muda: nenhum `value`, `label`,
+// `rotuloPrompt` ou `estiloSuno` foi tocado, então letra e música saem
+// idênticas às de ontem pra quem escolher o mesmo gênero.
+//
+// A lista ES é outra lista, logo abaixo, e não se mexe com número brasileiro.
 const PT: Genero[] = [
+  { value: "gospel", label: "Gospel", emoji: "📖",
+    rotuloPrompt: "gospel",
+    estiloSuno: "gospel brasileiro, piano e órgão, cordas, clima reverente e inspirador" },
+  { value: "pop_romantico", label: "Pop romântico", emoji: "💕",
+    rotuloPrompt: "pop romântico",
+    estiloSuno: "balada pop romântica, piano, cordas suaves, emocional e cinematográfica" },
   { value: "sertanejo", label: "Sertanejo", emoji: "🤠",
     rotuloPrompt: "sertanejo",
     estiloSuno: "sertanejo romântico brasileiro, viola e violão, batida moderada, clima emotivo" },
   { value: "sertanejo_univ", label: "Sertanejo universitário", emoji: "🎸",
     rotuloPrompt: "sertanejo universitário",
     estiloSuno: "sertanejo universitário, violão e viola, produção pop, romântico" },
-  { value: "piseiro", label: "Piseiro / arrocha", emoji: "🎹",
-    rotuloPrompt: "piseiro/arrocha romântico",
-    estiloSuno: "piseiro romântico brasileiro, teclado marcante, batida eletrônica dançante, vocal melódico, clima apaixonado" },
-  { value: "pagode", label: "Pagode / samba", emoji: "🥁",
-    rotuloPrompt: "pagode/samba",
-    estiloSuno: "pagode romântico, cavaquinho, pandeiro, banjo, clima alegre e caloroso" },
-  { value: "forro", label: "Forró", emoji: "🪗",
-    rotuloPrompt: "forró",
-    estiloSuno: "forró brasileiro, sanfona, zabumba e triângulo, clima nordestino" },
-  { value: "pop_romantico", label: "Pop romântico", emoji: "💕",
-    rotuloPrompt: "pop romântico",
-    estiloSuno: "balada pop romântica, piano, cordas suaves, emocional e cinematográfica" },
   { value: "mpb", label: "MPB / voz e violão", emoji: "🎙️",
     rotuloPrompt: "MPB (voz e violão)",
     estiloSuno: "MPB intimista, violão acústico dedilhado, andamento lento, arranjo minimalista" },
+  { value: "pagode", label: "Pagode / samba", emoji: "🥁",
+    rotuloPrompt: "pagode/samba",
+    estiloSuno: "pagode romântico, cavaquinho, pandeiro, banjo, clima alegre e caloroso" },
+  { value: "piseiro", label: "Piseiro / arrocha", emoji: "🎹",
+    rotuloPrompt: "piseiro/arrocha romântico",
+    estiloSuno: "piseiro romântico brasileiro, teclado marcante, batida eletrônica dançante, vocal melódico, clima apaixonado" },
+  { value: "forro", label: "Forró", emoji: "🪗",
+    rotuloPrompt: "forró",
+    estiloSuno: "forró brasileiro, sanfona, zabumba e triângulo, clima nordestino" },
   { value: "bossa", label: "Bossa nova", emoji: "🌙",
     rotuloPrompt: "bossa nova",
     estiloSuno: "bossa nova, violão de nylon dedilhado, batida suave, vocal intimista e sussurrado, clima sofisticado" },
@@ -60,9 +82,6 @@ const PT: Genero[] = [
   { value: "reggae", label: "Reggae", emoji: "🌴",
     rotuloPrompt: "reggae romântico brasileiro",
     estiloSuno: "reggae romântico brasileiro, guitarra no contratempo, baixo marcante, batida cadenciada, vocal suave, clima praiano e apaixonado" },
-  { value: "gospel", label: "Gospel", emoji: "📖",
-    rotuloPrompt: "gospel",
-    estiloSuno: "gospel brasileiro, piano e órgão, cordas, clima reverente e inspirador" },
   { value: "rap", label: "Rap / hip-hop", emoji: "🎤",
     rotuloPrompt: "rap/hip-hop melódico",
     estiloSuno: "rap/hip-hop melódico brasileiro, batida boom-bap suave, piano, vocal falado e cantado, clima intimista" },
