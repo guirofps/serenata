@@ -37,9 +37,11 @@ const SITE = "https://www.serenatagift.com";
 
 const MIN_DIAS = 5;
 const MAX_DIAS = 30;
-// Teto por rodada: o cron roda de hora em hora, e mandar centenas de uma vez
-// num domínio de 20 dias é o jeito mais rápido de queimar a reputação.
-const MAX_POR_RODADA = 25;
+// Teto por rodada: mandar centenas de uma vez num domínio de 20 dias é o jeito
+// mais rápido de queimar a reputação. Medido em 19/08: a fila inicial tem 81
+// pessoas, então a 15 por hora ela se esvazia em pouco mais de meio dia de
+// janela, sem pico nenhum.
+const MAX_POR_RODADA = 15;
 
 function db() {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -49,7 +51,19 @@ function db() {
 }
 
 export const volteCriar = inngest.createFunction(
-  { id: "volte-criar", retries: 1, triggers: [{ cron: "30 * * * *" }] },
+  {
+    id: "volte-criar",
+    retries: 1,
+    // ── SÓ EM HORÁRIO DECENTE ──────────────────────────────────
+    //
+    // Cron do Inngest é UTC, e o Brasil é UTC-3: 12h-23h UTC dá 9h-20h aqui.
+    //
+    // Não é frescura. Este é um e-mail de VENDA, e venda que chega às 3 da
+    // manhã é lida às 9 com outras vinte, ou nunca. Os transacionais (entrega,
+    // acesso) continuam saindo a qualquer hora, porque aqueles a pessoa está
+    // esperando.
+    triggers: [{ cron: "30 12-23 * * *" }],
+  },
   async ({ step }) => {
     const fila = await step.run("achar-quem-pode-voltar", async () => {
       const sb = db();
