@@ -14,6 +14,7 @@ import { useProfundidadeRolagem } from "@/lib/rolagem";
 import { OfereceIdioma } from "@/components/OfereceIdioma";
 import { linksDeIdioma, METATAGS_COMPARTILHAR, dadosEstruturados } from "@/lib/seo";
 import { Play, ArrowRight, Menu, X } from "lucide-react";
+import { ZapFlutuante } from "@/components/marca/ZapFlutuante";
 
 // Landing da Serenata — mundo CLARO.
 //
@@ -368,6 +369,12 @@ function Home() {
       </footer>
 
       {/* ── 12 · BARRA FLUTUANTE DE CTA ─────────────────────── */}
+      {/* O SOCORRO DE QUEM JÁ COMPROU. Fica na home e NUNCA no /criar: as
+          campanhas mandam direto pro quiz, então a home não está no caminho
+          de quem ainda vai comprar, e está no caminho de quem já comprou e
+          veio procurar ajuda. */}
+      <ZapFlutuante />
+
       <BarraCTA alvoRef={heroRef} />
     </div>
   );

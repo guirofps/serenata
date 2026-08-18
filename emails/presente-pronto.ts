@@ -1,3 +1,5 @@
+import { linkSuporte } from "../src/lib/suporte-whatsapp";
+
 ﻿// E-mail que o comprador recebe quando o pagamento é confirmado.
 //
 // É o ÚNICO caminho até o editor: o `token_edicao` não aparece em lugar
@@ -16,6 +18,7 @@ const COPY: Record<IdiomaEmail, {
   titulo: (n: string) => string;
   faltaSo: string; montar: string; coloque: string;
   botao: string; guarde: string; comPressa: string; verPresente: string; rodape: string;
+  ajuda: string; ajudaBotao: string;
 }> = {
   pt: {
     assunto: (n) => `A música de ${n} está pronta`,
@@ -25,6 +28,8 @@ const COPY: Record<IdiomaEmail, {
       "Coloque uma foto e escreva uma frase sua. É o que transforma a página em algo que só vocês dois entendem.",
     botao: "MONTAR O PRESENTE →",
     guarde: "Guarde este e-mail: este link é seu e só ele deixa editar a página.",
+    ajuda: "Não conseguiu abrir sua música? Fale com a gente no WhatsApp.",
+    ajudaBotao: "Chamar no WhatsApp",
     comPressa: "Com pressa? O presente já funciona do jeito que está:",
     verPresente: "VER A PÁGINA DO PRESENTE",
     rodape: "Serenata · uma música feita da história de quem você ama",
@@ -39,6 +44,8 @@ const COPY: Record<IdiomaEmail, {
     guarde: "Guarda este correo: este link es tuyo y solo él permite editar la página.",
     comPressa: "¿Con prisa? El regalo ya funciona tal como está:",
     verPresente: "VER LA PÁGINA DEL REGALO",
+    ajuda: "¿No pudiste abrir tu canción? Habla con nosotros por WhatsApp.",
+    ajudaBotao: "Escribir por WhatsApp",
     rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
   },
 };
@@ -57,6 +64,12 @@ export function emailPresentePronto(args: {
 }): string {
   const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
   const { nome, titulo, linkEditor, linkPresente } = args;
+  // Devolve null quando o número não está configurado, e aí o bloco de ajuda
+  // não é renderizado: melhor sem canal do que com um link que não abre.
+  const linkZap = linkSuporte({
+    locale: args.locale === "es" ? "es" : "pt",
+    titulo,
+  });
   return `<!DOCTYPE html>
 <html lang="${args.locale === "es" ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>
 <body style="margin:0;padding:0;background-color:#f2e9dc;font-family:Georgia,'Times New Roman',serif;">
@@ -118,6 +131,17 @@ export function emailPresentePronto(args: {
           <a href="${linkPresente}" style="display:inline-block;margin-top:8px;padding:10px 20px;border-radius:999px;border:1px solid rgba(125,43,58,0.35);color:#7d2b3a;text-decoration:none;font-weight:600;">${C.verPresente}</a>
         </td></tr>
       </table>
+
+      <!-- O SOCORRO, no e-mail e não só no site.
+           Medido em 18/08: 248 dos 294 compradores nunca entraram na conta.
+           Quem não consegue abrir o presente não vai procurar uma página de
+           ajuda; ela está olhando pra ESTE e-mail, e é aqui que o canal
+           precisa estar. Sem isso, quem digitou o e-mail errado ou não achou
+           o link simplesmente some, e a gente só descobre pelo ticket. -->
+      ${linkZap ? `<p style="margin:20px 0 0;padding-top:16px;border-top:1px solid rgba(42,21,24,0.08);color:rgba(42,21,24,0.65);font-size:13px;line-height:1.5;font-family:Helvetica,Arial,sans-serif;">
+        ${C.ajuda}<br>
+        <a href="${linkZap}" style="display:inline-block;margin-top:8px;color:#7d2b3a;font-weight:600;text-decoration:underline;">${C.ajudaBotao}</a>
+      </p>` : ""}
 
       <p style="margin:18px 0 0;color:rgba(42,21,24,0.4);font-size:11px;font-family:Helvetica,Arial,sans-serif;">
         ${C.rodape}

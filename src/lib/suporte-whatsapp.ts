@@ -18,32 +18,29 @@
 /**
  * Número do atendimento, em dígitos, com DDI.
  *
- * ATENÇÃO AO FORMATO: celular brasileiro tem 9 dígitos depois do DDD desde
- * 2016 (o "nono dígito"). Um número com 8 gera um link que abre o WhatsApp
- * dizendo que o contato não existe, e isso apareceria pra TODO comprador.
+ * ELE TEM 8 DÍGITOS DEPOIS DO DDD, E ISSO ESTÁ CERTO.
  *
- * Já aconteceu de um número entrar quebrado na base sem ninguém notar: o
- * comprador de 15/08 ficou inalcançável porque o telefone dele tinha dígitos
- * faltando, e só foi descoberto quando o suporte tentou usá-lo.
+ * Ficou desligado por dias porque parecia quebrado: celular brasileiro tem 9
+ * dígitos desde 2016. A suspeita estava errada. O nono dígito passou a valer
+ * para números NOVOS; contas de WhatsApp criadas antes disso, em DDDs acima
+ * de 30 (este é 65), seguem registradas com 8 dígitos, e é assim que elas
+ * aparecem pra quem já conversa com a pessoa. Acrescentar o 9 geraria um
+ * número que pode nem existir, e o link abriria dizendo que o contato não
+ * está no WhatsApp, pra todo comprador.
+ *
+ * Conferido tocando os dois links no celular, não deduzido: o de 8 dígitos
+ * abre a conversa do atendimento, o de 9 não.
+ *
+ * VAZIO DESLIGA O BOTÃO: `linkSuporte` devolve null e nada é renderizado.
  */
-// VAZIO = BOTÃO DESLIGADO. `linkSuporte` devolve null e nada é renderizado.
-//
-// Está assim de propósito. O número informado foi "+55 65 9919-3386", que tem
-// 8 dígitos depois do DDD, e celular brasileiro tem 9 desde 2016. Falta o
-// nono dígito, e existem duas leituras possíveis:
-//
-//   5565999193386   (o 9 na frente, mais provável)
-//   5565991933386   (o 9 no meio)
-//
-// Publicar o errado é pior que não ter botão: ele vai pra tela de obrigado, pro
-// editor e pro e-mail de entrega, então TODO comprador clicaria e receberia
-// "esse número não está no WhatsApp". E a gente só descobriria pelo ticket.
-//
-// Pra ligar: teste os dois links wa.me no celular, veja qual abre a conversa
-// do atendimento, e ponha os dígitos aqui.
-const NUMERO = "";
+const NUMERO = "556599193386";
 
-/** Só dígitos e tamanho plausível de celular com DDI. */
+/**
+ * Só dígitos e tamanho plausível de celular com DDI.
+ *
+ * O piso é 12 por causa do caso acima: 55 + DDD de 2 + 8 dígitos dá 12, e
+ * exigir 13 desligaria um número que funciona.
+ */
 export function numeroValido(n: string = NUMERO): boolean {
   const so = n.replace(/\D/g, "");
   return so.length >= 12 && so.length <= 15;
@@ -60,17 +57,39 @@ export function linkSuporte(args: {
   locale: "pt" | "es";
   titulo?: string | null;
   token?: string | null;
+  /** Nome de quem comprou, pra mensagem sair assinada. */
+  nome?: string | null;
+  /**
+   * `ajuda`   — "preciso de ajuda", genérico.
+   * `receber` — "quero receber minha música", que é o pedido de verdade de
+   *             quem comprou e não achou o e-mail.
+   */
+  motivo?: "ajuda" | "receber";
 }): string | null {
   if (!numeroValido()) return null;
   const musica = args.titulo?.trim();
+  const quem = args.nome?.trim();
+  const ref = args.token ? ` (${args.token})` : "";
+
+  // A MENSAGEM VAI PRONTA, e isso não é enfeite: o atendente recebe "oi" e
+  // gasta três mensagens perguntando quem é, qual música e qual e-mail. Com
+  // nome, título e código na primeira linha, ele já procura e responde. É o
+  // trabalho manual que este botão existe pra poupar.
   const texto =
-    args.locale === "es"
-      ? `Hola! Acabo de comprar mi canción${musica ? ` "${musica}"` : ""} en Serenata` +
-        (args.token ? ` (${args.token})` : "") +
-        ` y necesito ayuda.`
-      : `Oi! Acabei de comprar minha música${musica ? ` "${musica}"` : ""} na Serenata` +
-        (args.token ? ` (${args.token})` : "") +
-        ` e preciso de ajuda.`;
+    args.motivo === "receber"
+      ? args.locale === "es"
+        ? `Hola! Soy ${quem || "un cliente"} y acabo de comprar mi canción` +
+          `${musica ? ` "${musica}"` : ""}${ref} en Serenata. ` +
+          `Me gustaría recibir las dos versiones, por favor.`
+        : `Oi! Eu sou ${quem || "cliente"} e acabei de comprar minha música` +
+          `${musica ? ` "${musica}"` : ""}${ref} na Serenata. ` +
+          `Gostaria de receber as duas versões, por favor.`
+      : args.locale === "es"
+        ? `Hola! Acabo de comprar mi canción${musica ? ` "${musica}"` : ""} en Serenata` +
+          `${ref} y necesito ayuda.`
+        : `Oi! Acabei de comprar minha música${musica ? ` "${musica}"` : ""} na Serenata` +
+          `${ref} e preciso de ajuda.`;
+
   return `https://wa.me/${NUMERO.replace(/\D/g, "")}?text=${encodeURIComponent(texto)}`;
 }
 
@@ -79,10 +98,18 @@ export const TEXTO_SUPORTE = {
     titulo: "Precisa de ajuda?",
     sub: "Fale com a gente no WhatsApp. A gente responde de verdade.",
     botao: "Chamar no WhatsApp",
+    receberTitulo: "Quer receber sua música pelo WhatsApp?",
+    receberSub:
+      "Toque no botão abaixo e fale com o nosso atendimento. A mensagem já vai escrita com os seus dados: é só enviar, e a gente manda as duas versões pra você.",
+    receberBotao: "Solicitar minha música no WhatsApp",
   },
   es: {
     titulo: "¿Necesitas ayuda?",
     sub: "Habla con nosotros por WhatsApp. Contestamos de verdad.",
     botao: "Escribir por WhatsApp",
+    receberTitulo: "¿Quieres recibir tu canción por WhatsApp?",
+    receberSub:
+      "Toca el botón de abajo y habla con nuestro equipo. El mensaje ya va escrito con tus datos: solo tienes que enviarlo y te mandamos las dos versiones.",
+    receberBotao: "Solicitar mi canción por WhatsApp",
   },
 } as const;

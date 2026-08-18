@@ -13,6 +13,7 @@ import { linksDeIdioma, METATAGS_COMPARTILHAR, dadosEstruturados } from "@/lib/s
 import { useProfundidadeRolagem } from "@/lib/rolagem";
 import { OfereceIdioma, lembrarIdioma } from "@/components/OfereceIdioma";
 import { MOEDA } from "@/lib/i18n";
+import { ZapFlutuante } from "@/components/marca/ZapFlutuante";
 import {
   ArrowRight, Menu, X, Check, ChevronDown, Sparkles, Gift, Clock, Link2,
 } from "lucide-react";
@@ -579,6 +580,12 @@ function HomeEs() {
           {MARCA.nome} · <a href="mailto:contato@serenatagift.com" className="underline underline-offset-4">contato@serenatagift.com</a>
         </p>
       </footer>
+
+      {/* O SOCORRO DE QUEM JÁ COMPROU. Fica na home e NUNCA no /criar: as
+          campanhas mandam direto pro quiz, então a home não está no caminho
+          de quem ainda vai comprar, e está no caminho de quem já comprou e
+          veio procurar ajuda. */}
+      <ZapFlutuante locale="es" />
 
       <BarraCTA alvoRef={heroRef} locale="es" />
     </div>

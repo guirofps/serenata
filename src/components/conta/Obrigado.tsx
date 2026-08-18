@@ -10,6 +10,7 @@ import { trackEvent } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
+import { linkSuporte, TEXTO_SUPORTE } from "@/lib/suporte-whatsapp";
 import { Check, Mail, Inbox, Pencil, Loader2 } from "lucide-react";
 
 // Página de PÓS-COMPRA — o destino do redirect do checkout (Cakto/Perfect Pay).
@@ -78,6 +79,13 @@ const COPY = {
 
 export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; email?: string; code?: string }) {
   const C = COPY[locale] ?? COPY.pt;
+  // O WHATSAPP DO SUPORTE, aqui e não antes.
+  //
+  // 248 dos 294 compradores nunca entraram na conta (medido em 18/08): quem
+  // não acha o e-mail não tem canal nenhum, e essa pessoa hoje simplesmente
+  // some. Esta é a primeira tela depois do pagamento, então é o primeiro
+  // lugar legítimo pro número aparecer.
+  const tz = TEXTO_SUPORTE[locale === "es" ? "es" : "pt"];
   const [presente, setPresente] = useState<PresenteDaCompra | null>(null);
   const [procurando, setProcurando] = useState(true);
 
@@ -298,6 +306,50 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
         </ol>
         </>
         )}
+
+        {/* SOLICITAR A MÚSICA PELO WHATSAPP.
+            Não é "precisa de ajuda?", é o pedido que a pessoa realmente tem.
+            Medido em 18/08: 248 dos 294 compradores nunca entraram na conta,
+            e quem digitou o e-mail errado não tem canal nenhum. Ela some, e a
+            gente só descobre pelo ticket.
+
+            A mensagem já vai escrita com nome, título e código da música. O
+            atendente recebe "oi" e gasta três mensagens perguntando quem é;
+            assim ele já procura e responde. É esse trabalho que o botão
+            existe pra poupar. */}
+        {(() => {
+          const zap = linkSuporte({
+            locale: locale === "es" ? "es" : "pt",
+            motivo: "receber",
+            nome: presente?.nome ?? null,
+            titulo: presente?.titulo ?? null,
+            token: presente?.tokenEdicao?.slice(0, 8) ?? null,
+          });
+          if (!zap) return null;
+          return (
+            <div className="mx-auto mt-10 max-w-md rounded-[var(--raio-lg)] border border-[#25D366]/40 bg-[#25D366]/[0.06] p-5 text-center">
+              <p className="font-medium" style={{ fontSize: "var(--t-base)" }}>
+                {tz.receberTitulo}
+              </p>
+              <p
+                className="mx-auto mt-1.5 max-w-sm text-[var(--tinta-suave)]"
+                style={{ fontSize: "var(--t-sm)", lineHeight: 1.55 }}
+              >
+                {tz.receberSub}
+              </p>
+              <a
+                href={zap}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackEvent("suporte_zap_click", { origem: "obrigado" })}
+                className="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full font-medium text-white transition-opacity hover:opacity-90"
+                style={{ fontSize: "var(--t-sm)", background: "#25D366" }}
+              >
+                {tz.receberBotao}
+              </a>
+            </div>
+          );
+        })()}
 
         {/* DISCRETO, e de propósito.
             A ação desta tela é UMA: montar o presente. O comprador ainda nem
