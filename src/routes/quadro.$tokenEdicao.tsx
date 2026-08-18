@@ -95,12 +95,12 @@ const T = {
     dicaClaro: "El fondo claro gasta mucha menos tinta en impresora de casa.",
     previaTexto: "Tienes un cuadro para armar. Confirma que es el de esta canción para liberar la impresión.",
     previaCta: "Elegir esta canción",
-    ofertaTexto: "Este es el cuadro de tu canción: la letra y su foto en una hoja A4, lista para imprimir y enmarcar.",
-    // O preço do quadro é cobrado em real pela Perfect Pay também no ES (não
-    // existe produto em dólar ainda), então o número fica em R$ de propósito:
-    // dizer "$ 24,90" a um mexicano prometeria pesos e cobraria reais.
-    ofertaCta: "Quiero este cuadro por R$ 24,90",
-    ofertaNota: "Después de comprar vuelves y eliges de cuál canción es.",
+    ofertaTexto: "Este es el cuadro de tu canción. Todavía no está disponible en tu país; te avisamos por correo cuando lo esté.",
+    // SEM PREÇO E SEM BOTÃO NO ES: o produto do quadro não existe no México.
+    // A oferta inteira é escondida lá, então este texto não é usado; fica
+    // vazio pra ninguém achar que basta traduzir pra vender.
+    ofertaCta: "",
+    ofertaNota: "",
     deOndeVieram: "Estos textos vinieron de tu página regalo. Cámbialos aquí si quieres: solo cambia el cuadro.",
     rotuloTitulo: "Título",
     rotuloMensagem: "Mensaje de abajo",
@@ -536,17 +536,22 @@ function Pagina() {
               <p className="text-[13px] leading-relaxed text-white/70">
                 {t.ofertaTexto}
               </p>
-              <a
-                href={OFERTAS.find((o) => o.id === "quadro")?.checkout ?? "/dashboard"}
-                onClick={() => trackEvent("credito_oferta_click", { oferta: "quadro", origem: "quadro" })}
-                className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-7 font-medium"
-                style={{ fontSize: 15, background: "#f0b95f", color: "#0d0a08" }}
-              >
-                <Lock className="h-4 w-4" /> {t.ofertaCta}
-              </a>
-              <p className="mt-2 text-[12px] text-white/40">
-                {t.ofertaNota}
-              </p>
+              {/* O BOTÃO SÓ EXISTE ONDE EXISTE PRODUTO. No México o quadro
+                  não foi criado na Perfect Pay: mostrar preço em real levaria
+                  a um checkout que não é dela. */}
+              {q.locale === "pt" && (
+                <>
+                  <a
+                    href={OFERTAS.find((o) => o.id === "quadro")?.checkout ?? "/dashboard"}
+                    onClick={() => trackEvent("credito_oferta_click", { oferta: "quadro", origem: "quadro" })}
+                    className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-7 font-medium"
+                    style={{ fontSize: 15, background: "#f0b95f", color: "#0d0a08" }}
+                  >
+                    <Lock className="h-4 w-4" /> {t.ofertaCta}
+                  </a>
+                  <p className="mt-2 text-[12px] text-white/40">{t.ofertaNota}</p>
+                </>
+              )}
             </div>
           )}
         </div>

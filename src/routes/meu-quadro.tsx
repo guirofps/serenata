@@ -88,6 +88,7 @@ const TXT = {
     semDireito: "Você não tem nenhum quadro pra montar agora.",
     erroGeral: "Não deu pra confirmar agora. Tente de novo daqui a pouco.",
     naoTem: "Você ainda não tem um quadro",
+    indisponivel: "",
     naoTemSub:
       "Cada quadro vale por uma música. Depois de comprar, você volta aqui e escolhe qual delas vai pro papel.",
     trava:
@@ -121,6 +122,10 @@ const TXT = {
     semDireito: "No tienes ningún cuadro para armar ahora.",
     erroGeral: "No pudimos confirmar ahora. Inténtalo de nuevo en un momento.",
     naoTem: "Todavía no tienes un cuadro",
+    // NÃO EXISTE PRODUTO DE QUADRO NO MÉXICO. Não é tradução pendente: é
+    // produto que não foi criado. Enquanto não existir, esta tela não oferece
+    // nada e não mostra preço nenhum.
+    indisponivel: "El cuadro todavía no está disponible en tu país. Te avisamos por correo cuando lo esté.",
     naoTemSub:
       "Cada cuadro vale por una canción. Después de comprar, vuelves aquí y eliges cuál de ellas va al papel.",
     trava:
@@ -379,7 +384,27 @@ function MeuQuadro() {
             )}
 
             {/* ── NÃO COMPROU ──────────────────────────────────── */}
-            {dados && dados.paraMontar === 0 && dados.prontos.length === 0 && oferta && (
+            {/* NO ES A TELA NÃO VENDE. O produto do quadro só existe na
+                Perfect Pay BR, cobrado em real: oferecer aqui mostraria um
+                preço em R$ pra quem comprou em dólar e levaria a um checkout
+                que não é dela. Enquanto o produto não for criado lá, a tela
+                diz isso e para. */}
+            {dados && dados.paraMontar === 0 && dados.prontos.length === 0 && locale === "es" && (
+              <section className="mt-8 rounded-[var(--raio-lg)] border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-5 text-center">
+                <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)", lineHeight: 1.55 }}>
+                  {t.indisponivel}
+                </p>
+                <Link
+                  to="/dashboard"
+                  className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-[var(--tinta-fraca)] font-medium"
+                  style={{ fontSize: "var(--t-sm)" }}
+                >
+                  <ArrowLeft className="h-4 w-4" /> {t.voltar}
+                </Link>
+              </section>
+            )}
+
+            {dados && dados.paraMontar === 0 && dados.prontos.length === 0 && locale === "pt" && oferta && (
               <section className="mt-8 rounded-[var(--raio-lg)] border border-[var(--acento)]/40 bg-[var(--acento)]/5 p-5 text-center">
                 <p className="font-medium" style={{ fontSize: "var(--t-base)" }}>
                   {t.naoTem}
