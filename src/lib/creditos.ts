@@ -42,7 +42,21 @@ export type Oferta = {
   precoBrl: number;
   /** Link de checkout da Perfect Pay. */
   checkout: string;
+  /**
+   * `product.code` da Perfect Pay (formato PPPB...). É o jeito CERTO de
+   * reconhecer a compra no webhook: sobrevive a mudança de preço, promoção e
+   * cupom, que o valor não sobrevive.
+   *
+   * Os três foram criados como PRODUTOS separados, não como planos do produto
+   * principal. Por isso a chave é `product.code` e não `plan.code`.
+   */
+  productCode: string;
 };
+
+// O produto principal, pra referência: product.code PPPBF7CL, plan.code
+// PPLQQQ4CU, "Serenata · Música personalizada + Página presente". Descoberto
+// lendo um payload REAL da auditoria, não chutando.
+export const PRODUTO_PRINCIPAL = "PPPBF7CL";
 
 export const OFERTAS: Oferta[] = [
   {
@@ -50,12 +64,14 @@ export const OFERTAS: Oferta[] = [
     creditos: 1,
     precoBrl: 28,
     checkout: "https://go.perfectpay.com.br/PPU38CQFE9E",
+    productCode: "PPPBFA6E",
   },
   {
     id: "tres",
     creditos: 3,
     precoBrl: 67,
     checkout: "https://go.perfectpay.com.br/PPU38CQFE9J",
+    productCode: "PPPBFA6G",
   },
   {
     id: "quadro",
@@ -64,8 +80,43 @@ export const OFERTAS: Oferta[] = [
     creditos: 0,
     precoBrl: 24.9,
     checkout: "https://go.perfectpay.com.br/PPU38CQFE9O",
+    productCode: "PPPBFA6H",
   },
 ];
+
+/**
+ * Qual oferta foi comprada, e por qual caminho o webhook descobriu.
+ *
+ * DOIS CAMINHOS, e a ordem importa:
+ *
+ * 1. `product.code`, que é como os três foram criados na Perfect Pay. É
+ *    estável: sobrevive a mudança de preço, a promoção e o cupom.
+ * 2. O VALOR, enquanto o código não estiver cadastrado. Funciona hoje e quebra
+ *    no dia que um preço mudar, então é ponte, não destino.
+ *
+ * Devolve `null` quando não reconhece NADA, e aí o webhook alerta em vez de
+ * engolir: pagar e não receber é o pior defeito possível, e sumir em silêncio
+ * é como ele acontece.
+ */
+export function reconhecerOferta(
+  productCode: string | null,
+  valorReais: number | null,
+): { oferta: Oferta; via: "codigo" | "valor" } | null {
+  if (productCode) {
+    const porCodigo = OFERTAS.find((o) => o.productCode && o.productCode === productCode);
+    if (porCodigo) return { oferta: porCodigo, via: "codigo" };
+    // O produto principal não é upsell: não credita nada, e também não é
+    // "desconhecido" que mereça alerta.
+    if (productCode === PRODUTO_PRINCIPAL) return null;
+  }
+  if (valorReais != null) {
+    // Tolerância de 1 centavo: o gateway às vezes devolve 28.00 e às vezes
+    // 27.999999 dependendo de como o número trafegou.
+    const porValor = OFERTAS.find((o) => Math.abs(o.precoBrl - valorReais) < 0.011);
+    if (porValor) return { oferta: porValor, via: "valor" };
+  }
+  return null;
+}
 
 /** Texto de cada oferta, nos dois idiomas do produto. */
 export const TEXTO_OFERTA = {

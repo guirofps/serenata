@@ -22,6 +22,7 @@ import { Resend } from "resend";
 import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto.js";
 import { enviarVendaUtmify } from "../lib/utmify.js";
 import { pareceTypo, sugerirEmail } from "../../src/lib/email-typo.js";
+import { reconhecerOferta, PRODUTO_PRINCIPAL } from "../../src/lib/creditos.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -118,6 +119,16 @@ async function alertarDono(assunto: string, html: string) {
 type Corpo = {
   token?: string;
   code?: string;
+  // QUAL PRODUTO FOI COMPRADO. A Perfect Pay manda dois niveis, `product` e o
+  // `plan` dentro dele. O principal e product PPPBF7CL / plan PPLQQQ4CU.
+  //
+  // Os tres upsells foram criados como PRODUTOS separados (PPPBFA6E, PPPBFA6G,
+  // PPPBFA6H), entao a chave de reconhecimento e `product.code`. O `plan.code`
+  // fica guardado na auditoria por garantia, mas nao decide nada.
+  //
+  // Descoberto lendo um payload REAL da auditoria, nao chutando nome de campo.
+  plan?: { code?: string; name?: string };
+  product?: { code?: string; name?: string };
   sale_status_enum_key?: string;
   sale_status_detail?: string;
   sale_status?: string;
@@ -360,6 +371,117 @@ export default async function handler(req: Req, res: Res) {
       .maybeSingle();
     if (existente?.status === "pago") {
       return res.status(200).json({ ok: true, duplicado: true });
+    }
+
+    // ── 5b. É UM UPSELL? ─────────────────────────────────────
+    //
+    // Música extra, três músicas e quadro chegam pelo MESMO webhook, com outro
+    // `plan.code`. Eles não têm música pra casar nem presente pra entregar: o
+    // que compram é CRÉDITO, e o crédito só vira música quando a pessoa entra
+    // na plataforma e responde outro quiz.
+    //
+    // Por isso este bloco sai cedo, antes de tudo que existe pra entregar o
+    // produto principal. Deixar seguir faria o webhook procurar uma música que
+    // não existe e disparar o alerta de "pago sem música casada" em toda venda
+    // de crédito.
+    // A chave é `product.code`: os três upsells foram criados como PRODUTOS
+    // separados na Perfect Pay, não como planos do principal.
+    const produtoCode = body.product?.code ?? null;
+    const planCode = body.plan?.code ?? null;
+    const upsell = reconhecerOferta(produtoCode, Number.isFinite(reais) ? reais : null);
+
+    if (upsell) {
+      const { oferta, via } = upsell;
+      if (!email) {
+        // Sem e-mail não há a quem creditar, e inventar um dono é pior que
+        // falhar. Alerta e para.
+        await auditar("perfectpay_upsell_sem_email", { code: paymentId, produto: produtoCode });
+        await alertarDono(
+          "Upsell pago SEM e-mail",
+          `<p>Chegou <b>${oferta.id}</b> (R$ ${oferta.precoBrl}) sem e-mail do comprador.` +
+            ` payment_id ${escaparHtml(paymentId)}. Crédito NÃO foi lançado.</p>`,
+        );
+        return res.status(200).json({ ok: true, alerta: "upsell sem e-mail" });
+      }
+
+      // O pedido é gravado igual, pra aparecer no painel e na ficha do cliente.
+      const { data: pedidoUpsell } = await sb
+        .from("pedidos")
+        .upsert(
+          {
+            payment_id: paymentId,
+            gateway: "perfectpay",
+            status: "pago",
+            status_gateway: rawStatus || null,
+            email,
+            telefone,
+            nome_pagador: nomeCliente,
+            valor_centavos: Number.isFinite(reais) ? Math.round(reais * 100) : null,
+            paid_at: new Date().toISOString(),
+          },
+          { onConflict: "payment_id" },
+        )
+        .select("id")
+        .maybeSingle();
+
+      if (oferta.creditos > 0) {
+        // O índice único por pedido é quem garante que reenvio não credita de
+        // novo. Aqui só ignoramos o conflito.
+        const { error: erroCredito } = await sb.from("creditos").insert({
+          email,
+          quantidade: oferta.creditos,
+          origem: "compra",
+          pedido_id: pedidoUpsell?.id ?? null,
+          nota: { oferta: oferta.id, produto: produtoCode, plan: planCode, via },
+        });
+        if (erroCredito && erroCredito.code !== "23505") {
+          await alertarDono(
+            "Crédito NÃO lançado",
+            `<p>Pagamento de <b>${oferta.id}</b> confirmado mas o crédito falhou:` +
+              ` ${escaparHtml(erroCredito.message)}<br>${escaparHtml(email)} · ${escaparHtml(paymentId)}</p>`,
+          );
+        }
+      }
+
+      await auditar("perfectpay_upsell", {
+        code: paymentId,
+        email,
+        oferta: oferta.id,
+        creditos: oferta.creditos,
+        via,
+        produto: produtoCode,
+        plan: planCode,
+      });
+
+      // RECONHECIDO PELO VALOR = o código ainda não está cadastrado. Funciona,
+      // mas é frágil: no dia de uma promoção o valor muda e o reconhecimento
+      // some. O alerta entrega o código pronto pra colar em creditos.ts.
+      if (via === "valor" && produtoCode) {
+        await alertarDono(
+          `Cadastre o plan.code de "${oferta.id}"`,
+          `<p>Uma compra de <b>${oferta.id}</b> foi reconhecida pelo VALOR, porque o código` +
+            ` ainda não está em <code>src/lib/creditos.ts</code>.</p>` +
+            `<p>Cole isto no campo <code>planCode</code> da oferta <b>${oferta.id}</b>:</p>` +
+            `<p style="font-size:20px"><code>${escaparHtml(produtoCode)}</code></p>` +
+            `<p>Enquanto isso continua funcionando pelo valor.</p>`,
+        );
+      }
+
+      return res.status(200).json({ ok: true, upsell: oferta.id, creditos: oferta.creditos });
+    }
+
+    // NÃO É O PRINCIPAL NEM UPSELL CONHECIDO. Alerta e segue o fluxo normal:
+    // pode ser um produto novo que alguém criou sem avisar, e engolir calado é
+    // como "pagou e não recebeu" nasce.
+    if (produtoCode && produtoCode !== PRODUTO_PRINCIPAL) {
+      await alertarDono(
+        "Produto desconhecido no webhook",
+        `<p>Chegou uma venda com <code>product.code = ${escaparHtml(produtoCode)}</code>` +
+          ` (${escaparHtml(body.plan?.name ?? "sem nome")}), R$ ${escaparHtml(String(reais))}.</p>` +
+          `<p>Não é o produto principal nem um upsell cadastrado. O webhook seguiu o fluxo` +
+          ` normal de entrega. Se era pra creditar algo, cadastre em` +
+          ` <code>src/lib/creditos.ts</code>.</p>`,
+      );
     }
 
     // ── 6. CASA O PAGAMENTO COM A SESSÃO ─────────────────────
