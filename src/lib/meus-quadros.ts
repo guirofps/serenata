@@ -47,6 +47,16 @@ export type MeusQuadros = {
   musicas: MusicaDoQuadro[];
 };
 
+/**
+ * O estilo GRAVADO, com campos concretos.
+ *
+ * Não é `Record<string, unknown>` porque o serializador das server functions
+ * recusa `unknown` (ele precisa saber que aquilo atravessa a rede). Campos
+ * opcionais porque a linha pode ter sido gravada por uma versão anterior, com
+ * menos opções de estilo.
+ */
+export type EstiloGravado = { modo?: string; cor?: string; efeito?: string };
+
 /** O que a pessoa tem: direitos, quadros prontos e as músicas pra escolher. */
 export const meusQuadros = createServerFn({ method: "POST" })
   .validator((data: { token: string }) => data)
@@ -202,7 +212,7 @@ export const salvarQuadro = createServerFn({ method: "POST" })
       musicaId: string;
       titulo?: string;
       dedicatoria?: string;
-      estilo?: Record<string, unknown>;
+      estilo?: EstiloGravado;
     }) => data,
   )
   .handler(async ({ data }): Promise<{ ok: boolean }> => {
@@ -240,20 +250,26 @@ export const acessoAoQuadro = createServerFn({ method: "POST" })
       acesso: "confirmado" | "previa" | "nenhum";
       titulo: string | null;
       dedicatoria: string | null;
+      estilo: EstiloGravado | null;
     }> => {
-      const nada = { acesso: "nenhum" as const, titulo: null, dedicatoria: null };
+      const nada = { acesso: "nenhum" as const, titulo: null, dedicatoria: null, estilo: null };
       const email = await emailDaSessao(data.token);
       if (!email) return nada;
 
       const db = supabaseAdmin();
       const { data: meu } = await db
         .from("quadros")
-        .select("id, titulo, dedicatoria")
+        .select("id, titulo, dedicatoria, estilo")
         .ilike("email", email)
         .eq("musica_id", data.musicaId)
         .maybeSingle();
       if (meu?.id) {
-        return { acesso: "confirmado", titulo: meu.titulo, dedicatoria: meu.dedicatoria };
+        return {
+          acesso: "confirmado",
+          titulo: meu.titulo,
+          dedicatoria: meu.dedicatoria,
+          estilo: (meu.estilo ?? null) as EstiloGravado | null,
+        };
       }
 
       const { count } = await db
@@ -261,6 +277,11 @@ export const acessoAoQuadro = createServerFn({ method: "POST" })
         .select("id", { count: "exact", head: true })
         .ilike("email", email)
         .is("musica_id", null);
-      return { acesso: (count ?? 0) > 0 ? "previa" : "nenhum", titulo: null, dedicatoria: null };
+      return {
+        acesso: (count ?? 0) > 0 ? "previa" : "nenhum",
+        titulo: null,
+        dedicatoria: null,
+        estilo: null,
+      };
     },
   );

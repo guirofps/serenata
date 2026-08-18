@@ -16,7 +16,7 @@ import { EFEITOS, rotuloEfeito } from "@/components/presente/Efeitos";
 import { FONTES, MARCA } from "@/lib/marca";
 import { Printer, Lock, Check } from "lucide-react";
 import { supabase } from "@/lib/supabase-client";
-import { acessoAoQuadro } from "@/lib/meus-quadros";
+import { acessoAoQuadro, salvarQuadro } from "@/lib/meus-quadros";
 import { OFERTAS } from "@/lib/creditos";
 import { trackEvent } from "@/lib/track";
 
@@ -146,6 +146,35 @@ function Pagina() {
   // quebrou.
   const [acesso, setAcesso] = useState<Quadro["acesso"]>(q.acesso);
   const [conferindo, setConferindo] = useState(q.acesso !== "confirmado");
+  // ── OS TEXTOS DO QUADRO ────────────────────────────────────────
+  //
+  // Nascem copiados da página presente, na confirmação. Ela já escreveu isso
+  // uma vez, e pedir de novo é onde as pessoas desistem. Mas são PEÇAS
+  // DIFERENTES: o que cabe num parágrafo na tela pode não caber embaixo de uma
+  // foto emoldurada, então daqui pra frente os dois textos são independentes.
+  const [titulo, setTitulo] = useState(q.titulo);
+  const [dedicatoria, setDedicatoria] = useState(q.dedicatoria ?? "");
+  const [salvo, setSalvo] = useState<"nao" | "salvando" | "sim">("nao");
+  // ── A FOLHA CABENDO NO CELULAR ─────────────────────────────────
+  //
+  // A4 tem 210mm, que dão 794px. Num celular de 375px a folha vazava e a
+  // página rolava PRA O LADO: a pessoa via um pedaço do quadro e tinha que
+  // arrastar pra ler o resto, num produto cuja graça é ver a coisa inteira.
+  //
+  // A saída é encolher a EXIBIÇÃO, não o conteúdo. Um `scale` mantém tudo em
+  // milímetros por dentro (o cálculo do corpo da letra, a caixa, a impressão)
+  // e só muda o tamanho na tela. Na hora de imprimir o `scale` é anulado por
+  // CSS, então o papel sai em A4 de verdade.
+  const [escala, setEscala] = useState(1);
+  useEffect(() => {
+    const medir = () => {
+      // 24px de respiro nas laterais, senão a folha encosta na borda.
+      setEscala(Math.min(1, (window.innerWidth - 24) / 794));
+    };
+    medir();
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, []);
   useEffect(() => {
     if (!q.musicaId) {
       setConferindo(false);
@@ -162,6 +191,15 @@ function Pagina() {
       const r = await acessoAoQuadro({ data: { token: tk, musicaId: q.musicaId as string } });
       if (vivo) {
         setAcesso(r.acesso);
+        // O QUE ELA GRAVOU MANDA. O loader roda sem sessão, então ele devolve
+        // o título e a dedicatória da PÁGINA PRESENTE. Sem isto, um título
+        // editado aqui voltaria ao original no primeiro reload, e ela
+        // reescreveria a mesma coisa toda vez.
+        if (r.titulo) setTitulo(r.titulo);
+        if (r.dedicatoria !== null && r.dedicatoria !== undefined) setDedicatoria(r.dedicatoria);
+        // E o estilo também: o quadro é montado no celular e impresso no
+        // computador. Estilo só no localStorage não atravessa aparelho.
+        if (r.estilo) setEstilo((v) => ({ ...v, ...(r.estilo as Partial<Estilo>) }));
         setConferindo(false);
       }
     })().catch(() => {
@@ -291,8 +329,29 @@ function Pagina() {
     }
   }, [corpoPt, estilo.modo, estilo.efeito, formato, qr]);
 
+  // GRAVA NO SERVIDOR, não no localStorage. O quadro é montado no celular e
+  // impresso no computador (ou na lan house): o que ela escreveu tem que
+  // existir no outro aparelho. Salva no blur, que é quando ela terminou de
+  // digitar, e não a cada tecla.
+  async function gravarTextos() {
+    if (!q.musicaId) return;
+    setSalvo("salvando");
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const tk = sess.session?.access_token;
+      if (!tk) return setSalvo("nao");
+      const r = await salvarQuadro({
+        data: { token: tk, musicaId: q.musicaId, titulo, dedicatoria, estilo },
+      });
+      setSalvo(r.ok ? "sim" : "nao");
+    } catch {
+      setSalvo("nao");
+    }
+  }
+
+  // 44px de altura, que é o mínimo pra dedo. Estava em 30.
   const botao = (ativo: boolean) =>
-    "rounded-full px-3 py-1.5 text-[12px] transition-colors " +
+    "inline-flex h-11 items-center rounded-full px-4 text-[13px] transition-colors " +
     (ativo ? "bg-white text-[#1a1512] font-semibold" : "border border-white/25 text-white/70");
 
   return (
@@ -306,6 +365,11 @@ function Pagina() {
           html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
           .tela { min-height: 0 !important; padding: 0 !important; background: #fff !important; }
           .folha { box-shadow: none !important; margin: 0 !important; }
+          /* O ENCOLHIMENTO É SÓ DE TELA. Ele existe pra folha caber num
+             celular de 375px; no papel ela precisa sair em A4 inteiro, senão
+             a pessoa imprime um quadro do tamanho de um cartão. */
+          .palco { height: auto !important; overflow: visible !important; }
+          .folha { transform: none !important; }
         }
         /* Sem isto o navegador "economiza tinta" e imprime o fundo em branco. */
         .folha, .folha * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -332,12 +396,20 @@ function Pagina() {
                   onClick={() => mudar({ cor: c.chave })}
                   aria-label={q.locale === "es" ? c.nomeEs : c.nome}
                   title={q.locale === "es" ? c.nomeEs : c.nome}
-                  className={
-                    "h-6 w-6 rounded-full transition-transform " +
-                    (estilo.cor === c.chave ? "ring-2 ring-white ring-offset-2 ring-offset-[#1c1815]" : "")
-                  }
-                  style={{ background: c.escuro }}
-                />
+                  // A BOLINHA CONTINUA PEQUENA, o ALVO é que cresceu: 44px de
+                  // área invisível em volta de 26px de cor. Aumentar a bolinha
+                  // faria a fileira de seis cores não caber num celular
+                  // estreito; aumentar o alvo não muda nada visualmente.
+                  className="grid h-11 w-11 place-items-center"
+                >
+                  <span
+                    className={
+                      "block h-[26px] w-[26px] rounded-full transition-transform " +
+                      (estilo.cor === c.chave ? "ring-2 ring-white ring-offset-2 ring-offset-[#1c1815]" : "")
+                    }
+                    style={{ background: c.escuro }}
+                  />
+                </button>
               ))}
             </div>
           </div>
@@ -350,6 +422,55 @@ function Pagina() {
               </button>
             ))}
           </div>
+
+          {/* ── OS TEXTOS, editáveis só por quem tem o quadro ──
+              Aparecem DEPOIS das cores, e não antes: cor e fundo são um toque
+              e mudam a folha inteira na hora, o que ensina que a tela é
+              editável. Texto exige teclado, e teclado no celular tampa metade
+              da tela: é o último passo, não o primeiro.
+
+              A frase de onde os textos vieram é obrigatória. Sem ela a pessoa
+              acha que o site inventou um título, ou pior, edita aqui achando
+              que está mudando a página presente também. */}
+          {acesso === "confirmado" && q.musicaId && (
+            <div className="mx-auto w-full max-w-md space-y-3 text-left">
+              <p className="text-center text-[12px] leading-relaxed text-white/45">
+                {q.locale === "es"
+                  ? "Estos textos vinieron de tu página regalo. Cámbialos aquí si quieres: solo cambia el cuadro."
+                  : "Estes textos vieram da sua página presente. Mude aqui se quiser: muda só o quadro."}
+              </p>
+              <label className="block">
+                <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/40">
+                  {q.locale === "es" ? "Título" : "Título"}
+                </span>
+                <input
+                  value={titulo}
+                  onChange={(e) => { setTitulo(e.target.value.slice(0, 60)); setSalvo("nao"); }}
+                  onBlur={gravarTextos}
+                  className="h-12 w-full rounded-xl border border-white/20 bg-white/5 px-4 text-[15px] text-white outline-none focus:border-white/50"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/40">
+                  {q.locale === "es" ? "Mensaje de abajo" : "Mensagem de baixo"}
+                </span>
+                <textarea
+                  value={dedicatoria}
+                  onChange={(e) => { setDedicatoria(e.target.value.slice(0, 160)); setSalvo("nao"); }}
+                  onBlur={gravarTextos}
+                  rows={2}
+                  className="w-full resize-none rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-[15px] leading-snug text-white outline-none focus:border-white/50"
+                />
+              </label>
+              <p className="text-center text-[12px] text-white/40">
+                {salvo === "salvando"
+                  ? q.locale === "es" ? "guardando..." : "salvando..."
+                  : salvo === "sim"
+                    ? q.locale === "es" ? "guardado" : "salvo"
+                    : " "}
+              </p>
+            </div>
+          )}
 
           {/* ── O QUE ESTA PESSOA PODE FAZER AQUI ──────────────
               Três estados, e cada um mostra UMA ação só. Duas ações lado a
@@ -411,11 +532,17 @@ function Pagina() {
           )}
         </div>
 
+        {/* O PALCO tem a altura da folha JÁ ENCOLHIDA. Sem ele, o `scale`
+            deixaria embaixo um vão do tamanho do que foi encolhido, porque
+            transform não muda o espaço que o elemento ocupa. */}
+        <div className="palco mx-auto overflow-hidden" style={{ height: 1123 * escala }}>
         <div
           className="folha relative mx-auto overflow-hidden"
           style={{
             width: "210mm",
             height: "297mm",
+            transform: escala < 1 ? `scale(${escala})` : undefined,
+            transformOrigin: "top center",
             background: p.fundo,
             color: p.texto,
             boxShadow: "0 10px 50px rgba(0,0,0,.5)",
@@ -589,7 +716,7 @@ function Pagina() {
                   color: p.texto,
                 }}
               >
-                {q.titulo}
+                {titulo}
               </h1>
             </div>
 
@@ -621,7 +748,7 @@ function Pagina() {
               </p>
             </div>
 
-            {q.dedicatoria && (
+            {dedicatoria && (
               <p
                 style={{
                   textAlign: "center",
@@ -632,7 +759,7 @@ function Pagina() {
                   margin: "6mm 0 0",
                 }}
               >
-                {q.dedicatoria}
+                {dedicatoria}
               </p>
             )}
 
@@ -691,6 +818,7 @@ function Pagina() {
               />
             </div>
           </div>
+        </div>
         </div>
       </div>
     </>
