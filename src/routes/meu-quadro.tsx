@@ -95,6 +95,7 @@ const TXT = {
       "Depois de confirmar, este quadro fica sendo o desta música. A cor, o fundo e os textos você ainda muda quando quiser.",
     confirmar: "Confirmar e montar meu quadro",
     confirmando: "confirmando...",
+    confirmandoPagamento: "Confirmando seu pagamento. Isso leva menos de um minuto.",
   },
   es: {
     voltar: "mis canciones",
@@ -132,6 +133,7 @@ const TXT = {
       "Después de confirmar, este cuadro queda siendo el de esta canción. El color, el fondo y los textos todavía los cambias cuando quieras.",
     confirmar: "Confirmar y armar mi cuadro",
     confirmando: "confirmando...",
+    confirmandoPagamento: "Confirmando tu pago. Esto toma menos de un minuto.",
   },
 };
 
@@ -142,6 +144,13 @@ function MeuQuadro() {
   const [escolhida, setEscolhida] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  // A ESPERA DO PIX, igual à do painel e pelo mesmo motivo.
+  //
+  // Esta é a página de obrigado do quadro. O Pix leva ~60s pra aprovar (medido
+  // em 18/08: 64s e 21s nas duas compras de teste), então quem aperta o botão
+  // da Perfect Pay na hora chega aqui ANTES do direito existir, e lia "você
+  // ainda não tem um quadro" logo depois de pagar por um.
+  const [confirmandoPix, setConfirmandoPix] = useState(false);
   const oferta = OFERTAS.find((o) => o.id === "quadro");
   const locale = dados?.locale === "es" ? ("es" as const) : ("pt" as const);
   const t = TXT[locale];
@@ -159,9 +168,31 @@ function MeuQuadro() {
         navigate({ to: "/login" });
         return;
       }
-      const r = await meusQuadros({ data: { token: sess.session.access_token } });
+      const tk = sess.session.access_token;
+      const r = await meusQuadros({ data: { token: tk } });
       if (!vivo) return;
       setDados(r);
+
+      // Veio da compra e ainda não tem direito? Procura por 90 segundos.
+      const veioDaCompra =
+        new URLSearchParams(window.location.search).get("novo") === "1" ||
+        /perfectpay/i.test(document.referrer || "");
+      if (veioDaCompra && r.paraMontar === 0 && r.prontos.length === 0) {
+        setConfirmandoPix(true);
+        const ate = Date.now() + 90_000;
+        const bater = async () => {
+          if (!vivo) return;
+          const novo = await meusQuadros({ data: { token: tk } }).catch(() => null);
+          if (!vivo) return;
+          if (novo) setDados(novo);
+          if ((novo?.paraMontar ?? 0) > 0 || Date.now() > ate) {
+            setConfirmandoPix(false);
+            return;
+          }
+          setTimeout(bater, 5000);
+        };
+        setTimeout(bater, 4000);
+      }
       // Uma música só: já vem escolhida. Pedir pra escolher entre uma coisa é
       // um passo que só existe pra ser cumprido.
       const livres = r.musicas.filter((m) => !m.jaTemQuadro);
@@ -220,6 +251,13 @@ function MeuQuadro() {
           </div>
         ) : (
           <>
+            {confirmandoPix && (
+              <div className="mb-5 flex items-center gap-3 rounded-[var(--raio)] border border-[var(--acento)]/40 bg-[var(--acento)]/[0.06] p-4">
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--acento)]" />
+                <span style={{ fontSize: "var(--t-sm)", lineHeight: 1.45 }}>{t.confirmandoPagamento}</span>
+              </div>
+            )}
+
             <h1
               className="text-balance"
               style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-2xl)", lineHeight: 1.15 }}
