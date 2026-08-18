@@ -29,8 +29,18 @@ const TXT = {
     saldo: (n: number) => (n === 1 ? "Você tem 1 crédito" : `Você tem ${n} créditos`),
     saldoSub: "Uma música nova e completa, pra quem você quiser, no gênero que quiser.",
     usar: (n: number) => (n === 1 ? "Usar meu crédito agora" : `Usar 1 dos meus ${n} créditos`),
-    titulo: "Quem mais merece uma?",
-    sub: "A letra sai de graça de novo. Você só paga se quiser ouvir cantada.",
+    titulo: "Quer criar outra música?",
+    sub: "Aqui você compra crédito com desconto. Cada crédito vale uma música nova e completa, pra quem você quiser.",
+    passos: [
+      "Compre o crédito aqui",
+      "Conte a história de outra pessoa",
+      "A música fica pronta em minutos",
+    ],
+    quadroPronto: (n: number) =>
+      n === 1 ? "Você tem 1 quadro pra montar" : `Você tem ${n} quadros pra montar`,
+    quadroProntoSub:
+      "Escolha de qual música ele é e salve o PDF pra imprimir. Você troca de música quantas vezes quiser antes de confirmar.",
+    quadroProntoCta: "Montar meu quadro",
     porMusica: (v: number) => `${brl(v)} cada`,
     naoExpira: "Os créditos não expiram",
     off: (p: number) => `${p}% off`,
@@ -39,8 +49,18 @@ const TXT = {
     saldo: (n: number) => (n === 1 ? "Tienes 1 crédito" : `Tienes ${n} créditos`),
     saldoSub: "Una canción nueva y completa, para quien quieras, en el género que quieras.",
     usar: (n: number) => (n === 1 ? "Usar mi crédito ahora" : `Usar 1 de mis ${n} créditos`),
-    titulo: "¿Quién más merece una?",
-    sub: "La letra vuelve a ser gratis. Solo pagas si quieres escucharla cantada.",
+    titulo: "¿Quieres crear otra canción?",
+    sub: "Aquí compras crédito con descuento. Cada crédito vale una canción nueva y completa, para quien tú quieras.",
+    passos: [
+      "Compra el crédito aquí",
+      "Cuenta la historia de otra persona",
+      "La canción queda lista en minutos",
+    ],
+    quadroPronto: (n: number) =>
+      n === 1 ? "Tienes 1 cuadro para armar" : `Tienes ${n} cuadros para armar`,
+    quadroProntoSub:
+      "Elige de cuál canción es y guarda el PDF para imprimir. Puedes cambiar de canción todas las veces que quieras antes de confirmar.",
+    quadroProntoCta: "Armar mi cuadro",
     porMusica: (v: number) => `${brl(v)} c/u`,
     naoExpira: "Los créditos no vencen",
     off: (p: number) => `${p}% off`,
@@ -55,11 +75,14 @@ export function BlocoCreditos({
   saldo,
   locale,
   email,
+  quadrosParaMontar = 0,
 }: {
   saldo: number;
   locale: "pt" | "es";
   /** Vai no checkout pra o webhook saber a quem creditar. */
   email: string;
+  /** Quadros comprados e ainda não amarrados a uma música. */
+  quadrosParaMontar?: number;
 }) {
   const t = TXT[locale] ?? TXT.pt;
   const o = TEXTO_OFERTA[locale] ?? TEXTO_OFERTA.pt;
@@ -72,6 +95,34 @@ export function BlocoCreditos({
 
   return (
     <section className="mt-8">
+      {/* ── O QUE ELA COMPROU E AINDA NÃO USOU VEM PRIMEIRO ──────────
+          Antes de qualquer oferta. Vender de novo pra quem tem produto parado
+          é a forma mais rápida de a pessoa achar que pagou e não recebeu. */}
+      {quadrosParaMontar > 0 && (
+        <div className="mb-4 rounded-[var(--raio-lg)] border-2 border-[var(--acento)]/50 bg-[var(--acento)]/[0.07] p-5">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--acento)]/15 text-[var(--acento)]">
+              <Frame className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p style={{ fontFamily: "var(--fonte-display)", fontSize: "var(--t-lg)", fontWeight: 500 }}>
+                {t.quadroPronto(quadrosParaMontar)}
+              </p>
+              <p className="mt-1 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)", lineHeight: 1.55 }}>
+                {t.quadroProntoSub}
+              </p>
+            </div>
+          </div>
+          <a
+            href="/meu-quadro"
+            onClick={() => trackEvent("quadro_montar_click", { quantos: quadrosParaMontar })}
+            className="cta mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border-0 font-medium"
+          >
+            {t.quadroProntoCta} <ArrowRight className="h-4 w-4" />
+          </a>
+        </div>
+      )}
+
       {/* ── A FAIXA DE SALDO, quando existe ───────────────────────────
           É o ÚNICO botão de "criar outra música" do painel. O que existia no
           rodapé mandava pro funil no preço cheio mesmo com crédito na conta:
@@ -117,6 +168,24 @@ export function BlocoCreditos({
         <p className="mt-1 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)", lineHeight: 1.5 }}>
           {t.sub}
         </p>
+
+        {/* COMO FUNCIONA, em três passos numerados.
+            "Crédito" não é palavra do vocabulário de quem compra aqui: sem
+            dizer o que acontece depois de pagar, o card vira uma cobrança sem
+            promessa. Três linhas curtas resolvem, e cabem no celular. */}
+        <ol className="mt-4 space-y-2">
+          {t.passos.map((passo, i) => (
+            <li key={passo} className="flex items-center gap-2.5">
+              <span
+                className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--acento)]/12 font-semibold text-[var(--acento)]"
+                style={{ fontSize: "var(--t-xs)" }}
+              >
+                {i + 1}
+              </span>
+              <span style={{ fontSize: "var(--t-sm)" }}>{passo}</span>
+            </li>
+          ))}
+        </ol>
 
         {/* Uma coluna no celular, que é onde 99% abre. O `pt-3` existe pra o
             selo, que sobe pra fora do card, não ser cortado. */}
@@ -191,21 +260,23 @@ export function BlocoCreditos({
               onClick={() => trackEvent("credito_oferta_click", { oferta: "quadro" })}
               className="block p-4"
             >
+              {/* EMPILHADO, não em três colunas.
+                  A descrição do quadro é longa de propósito (ela precisa saber
+                  que vai imprimir e comprar moldura), e com o preço ao lado ela
+                  virava uma coluna de quatro palavras no celular. */}
               <span className="flex items-center gap-3">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--tinta-fraca)]/15 text-[var(--acento)]">
                   <Frame className="h-4 w-4" />
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium" style={{ fontSize: "var(--t-base)" }}>
-                    {o.quadro.titulo}
-                  </span>
-                  <span className="block text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)", lineHeight: 1.45 }}>
-                    {o.quadro.sub}
-                  </span>
+                <span className="min-w-0 flex-1 font-medium" style={{ fontSize: "var(--t-base)" }}>
+                  {o.quadro.titulo}
                 </span>
-                <span className="shrink-0 font-semibold text-[var(--acento)]" style={{ fontSize: "var(--t-lg)" }}>
-                  {brl(quadro.precoBrl)}
-                </span>
+              </span>
+              <span className="mt-2 block text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)", lineHeight: 1.5 }}>
+                {o.quadro.sub}
+              </span>
+              <span className="mt-3 block font-semibold text-[var(--acento)]" style={{ fontSize: "var(--t-xl)" }}>
+                {brl(quadro.precoBrl)}
               </span>
               <span
                 className="cta mt-3 inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-full border-0 font-medium"
@@ -214,7 +285,8 @@ export function BlocoCreditos({
                 {o.quadro.cta} <ArrowRight className="h-4 w-4" />
               </span>
             </a>
-            {/* VER ANTES DE COMPRAR. É o produto mais difícil de imaginar da
+            {/* VER ANTES DE COMPRAR. Com 44px de altura: abaixo disso o dedo
+                erra no celular, e este link estava com 39. É o produto mais difícil de imaginar da
                 lista: "folha A4 com a letra" não desenha nada na cabeça de
                 ninguém. O exemplo usa dado inventado e a foto que já é pública
                 na home, nunca o presente de um cliente. */}
@@ -226,8 +298,8 @@ export function BlocoCreditos({
                 e.stopPropagation();
                 trackEvent("quadro_exemplo_click");
               }}
-              className="block border-t border-[var(--tinta-fraca)]/30 px-4 py-2.5 text-center text-[var(--tinta-suave)] underline underline-offset-2"
-              style={{ fontSize: "var(--t-xs)" }}
+              className="flex h-11 items-center justify-center border-t border-[var(--tinta-fraca)]/30 px-4 text-center text-[var(--tinta-suave)] underline underline-offset-2"
+              style={{ fontSize: "var(--t-sm)" }}
             >
               {"exemplo" in o.quadro ? o.quadro.exemplo : "ver um exemplo"}
             </a>

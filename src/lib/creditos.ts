@@ -153,7 +153,7 @@ export const TEXTO_OFERTA = {
     },
     quadro: {
       titulo: "O quadro da música",
-      sub: "A letra e a foto de vocês numa folha A4, pronta pra emoldurar. Você escolhe a cor, o detalhe e o fundo claro ou escuro.",
+      sub: "A letra da música e a foto de vocês numa folha A4, com o QR Code que toca a música. Você salva em PDF aqui, manda imprimir, compra uma moldura de A4 e pendura na parede.",
       cta: "Quero o quadro",
       exemplo: "ver um exemplo",
     },
@@ -172,7 +172,7 @@ export const TEXTO_OFERTA = {
     },
     quadro: {
       titulo: "El cuadro de la canción",
-      sub: "La letra y su foto en una hoja A4, lista para enmarcar. Eliges el color, el detalle y el fondo claro u oscuro.",
+      sub: "La letra de la canción y su foto en una hoja A4, con el código QR que reproduce la canción. La guardas en PDF aquí, la mandas a imprimir, compras un marco A4 y la cuelgas en la pared.",
       cta: "Quiero el cuadro",
       exemplo: "ver un ejemplo",
     },

@@ -10,6 +10,7 @@ import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
 import { useQuizStore } from "@/lib/quiz-store";
 import { nomeDoComprador } from "@/lib/nome-comprador";
 import { meusCreditos } from "@/lib/meus-creditos";
+import { meusQuadros } from "@/lib/meus-quadros";
 import { BlocoCreditos } from "@/components/conta/BlocoCreditos";
 import { Loader2, Pencil, ExternalLink, Plus, LogOut, Music, Sparkles } from "lucide-react";
 
@@ -75,6 +76,7 @@ function Dashboard() {
   const [nome, setNome] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [saldo, setSaldo] = useState<number | null>(null);
+  const [quadros, setQuadros] = useState(0);
   // ── AS OFERTAS SAO BR-ONLY, POR ENQUANTO ──────────────────────────
   //
   // Os tres upsells existem so na Perfect Pay BR, cobrados em real. Mostrar
@@ -122,6 +124,12 @@ function Dashboard() {
       meusCreditos({ data: { token } })
         .then((c) => { if (vivo) setSaldo(c.saldo); })
         .catch(() => { if (vivo) setSaldo(0); });
+      // O QUADRO COMPRADO E NÃO MONTADO. Também não bloqueia a lista: produto
+      // parado é urgente de mostrar, mas não a ponto de esconder o que ela já
+      // recebeu se a consulta cair.
+      meusQuadros({ data: { token } })
+        .then((q) => { if (vivo) setQuadros(q.paraMontar); })
+        .catch(() => {});
 
       // RLS garante que só vêm as músicas DESTE usuário (auth.uid() = user_id).
       const { data } = await supabase
@@ -194,7 +202,12 @@ function Dashboard() {
             fazer. Só aparece depois que o saldo chega, pra não piscar de
             "compre" para "você tem 2 créditos". */}
         {temOfertas && saldo !== null && email && (
-          <BlocoCreditos saldo={saldo} locale={locale} email={email} />
+          <BlocoCreditos
+            saldo={saldo}
+            locale={locale}
+            email={email}
+            quadrosParaMontar={quadros}
+          />
         )}
 
         {carregando ? (
