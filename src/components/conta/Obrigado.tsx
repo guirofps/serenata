@@ -374,7 +374,11 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
             ? C.semPressa
             : C.podeFechar}
           {C.qualquerCoisa}{" "}
-          <a href="mailto:contato@serenatagift.com" className="text-[var(--acento)] underline underline-offset-2">
+          <a
+            href="mailto:contato@serenatagift.com"
+            // Mesmo tratamento: 44px sem empurrar a frase em volta.
+            className="-my-3 inline-flex h-11 items-center py-3 text-[var(--acento)] underline underline-offset-2"
+          >
             contato@serenatagift.com
           </a>
           .

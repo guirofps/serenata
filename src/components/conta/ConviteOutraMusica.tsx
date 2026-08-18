@@ -64,7 +64,9 @@ export function ConviteOutraMusica({
       <Link
         to={destino}
         onClick={sair}
-        className="inline-flex items-center gap-2 text-[var(--tinta-suave)] underline underline-offset-4 hover:text-[var(--acento)]"
+        // 44px de alvo com padding e margem negativa: o dedo ganha a área e
+        // o texto não se mexe. Tinha 21.
+        className="-my-3 inline-flex h-11 items-center gap-2 py-3 text-[var(--tinta-suave)] underline underline-offset-4 hover:text-[var(--acento)]"
         style={{ fontSize: "var(--t-sm)" }}
       >
         <Plus className="h-4 w-4" />
