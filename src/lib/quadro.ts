@@ -85,6 +85,11 @@ export const carregarQuadro = createServerFn({ method: "POST" })
   .validator((data: { tokenEdicao: string }) => data)
   .handler(async ({ data }): Promise<Quadro | null> => {
     if (data.tokenEdicao === "exemplo") return EXEMPLO;
+    // Exemplo com foto EM PÉ, pra conferir o arranjo de retrato sem depender
+    // de um cliente ter subido uma. Não é linkado em lugar nenhum.
+    if (data.tokenEdicao === "exemplo-retrato") {
+      return { ...EXEMPLO, fotoUrl: "/img/teste-vertical.png" };
+    }
     const db = supabaseAdmin();
 
     // O TOKEN DE EDIÇÃO é a credencial, como no resto do pós-compra: quem tem

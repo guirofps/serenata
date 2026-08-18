@@ -132,6 +132,16 @@ function Pagina() {
   const [qr, setQr] = useState<string | null>(null);
   const [corpoPt, setCorpoPt] = useState(11);
   const [pronto, setPronto] = useState(false);
+  // O FORMATO DA FOTO decide o arranjo, e isso não é detalhe.
+  //
+  // A faixa que sangra de borda a borda funciona pra foto DEITADA: `cover`
+  // corta um pouco das laterais e a cena continua inteira. Numa foto EM PÉ ela
+  // faz o oposto: a imagem é escalada pra preencher os 210mm de largura, fica
+  // muito mais alta que a faixa, e o corte come cabeça e pés. Justamente os
+  // rostos.
+  //
+  // Metade das fotos de celular é retrato, então isso não é caso raro.
+  const [formato, setFormato] = useState<"paisagem" | "quadrada" | "retrato">("paisagem");
   const caixaRef = useRef<HTMLDivElement>(null);
   const letraRef = useRef<HTMLParagraphElement>(null);
 
@@ -153,6 +163,18 @@ function Pagina() {
   useEffect(() => {
     if (token) setEstilo(lerEstilo(token));
   }, [token]);
+
+  // Mede a imagem ANTES de decidir o layout. Uma imagem em memória, sem tocar
+  // na tela: só precisamos da proporção.
+  useEffect(() => {
+    if (!q.fotoUrl) return;
+    const img = new Image();
+    img.onload = () => {
+      const r = img.naturalWidth / img.naturalHeight;
+      setFormato(r > 1.15 ? "paisagem" : r < 0.85 ? "retrato" : "quadrada");
+    };
+    img.src = q.fotoUrl;
+  }, [q.fotoUrl]);
 
   useEffect(() => {
     QRCode.toDataURL(q.linkPresente, {
@@ -194,28 +216,27 @@ function Pagina() {
       cancelAnimationFrame(rAF);
       obs.disconnect();
     };
-  }, [q.letra, duasColunas, estilo.modo]);
-
-  // A CONFERÊNCIA QUE NÃO MENTE.
+  }, [q.letra, duasColunas, estilo.modo, formato]);
+  // A REDE DE SEGURANÇA, e ela já existiu e eu deixei cair numa reescrita.
   //
-  // O cálculo do clone acerta quase sempre, mas erra pra cima quando o CSS
-  // distribui as duas colunas de forma desigual (com linhas em branco entre
-  // estrofes, ele não parte no meio exato). Aí a letra aparece CORTADA em cima
-  // e embaixo, porque a caixa tem `overflow: hidden` e o conteúdo está
-  // centralizado.
+  // O cálculo do clone acerta quase sempre, mas erra pra cima quando algo muda
+  // a altura da caixa depois dele: o rodapé crescendo, a foto trocando de
+  // arranjo, o CSS partindo as duas colunas de forma desigual. Quando erra, a
+  // letra aparece CORTADA em cima e embaixo, porque a caixa tem
+  // `overflow: hidden` e o conteúdo está centralizado.
   //
-  // `scrollHeight` não serve pra detectar isso em multicoluna, mas o retângulo
-  // de um Range serve: ele devolve a posição REAL do primeiro e do último
-  // caractere na tela. Se algum estiver fora da caixa, encolhe 0,25pt e o
-  // efeito roda de novo, até parar de vazar.
+  // `scrollHeight` não detecta transbordo em multicoluna. O retângulo de um
+  // Range detecta: ele devolve a posição REAL do primeiro e do último
+  // caractere na tela. Se algum estiver fora, encolhe 0,25pt e o efeito roda
+  // de novo, até parar de vazar.
   useLayoutEffect(() => {
     const el = letraRef.current;
     const caixa = caixaRef.current;
     const txt = el?.firstChild;
     if (!el || !caixa || !txt || !txt.textContent || corpoPt <= 7) return;
-
     const fim = txt.textContent.trimEnd().length;
     if (fim < 2) return;
+
     const r = document.createRange();
     r.setStart(txt, 0);
     r.setEnd(txt, 2);
@@ -226,9 +247,9 @@ function Pagina() {
     const cx = caixa.getBoundingClientRect();
 
     if (primeiro.top < cx.top - 1 || ultimo.bottom > cx.bottom + 1) {
-      setCorpoPt((p) => Math.max(7, p - 0.25));
+      setCorpoPt((v) => Math.max(7, v - 0.25));
     }
-  }, [corpoPt, estilo.modo, estilo.efeito, qr]);
+  }, [corpoPt, estilo.modo, estilo.efeito, formato, qr]);
 
   const botao = (ativo: boolean) =>
     "rounded-full px-3 py-1.5 text-[12px] transition-colors " +
@@ -323,19 +344,58 @@ function Pagina() {
               "escurecer até o creme" sem sujar a imagem), então ela vira um
               bloco com margem e o texto vive no papel. */}
           {q.fotoUrl && p.fotoSangra && (
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "88mm" }}>
+            <div
+              style={
+                formato === "retrato"
+                  ? {
+                      // EM PÉ: não sangra. A foto vira um bloco centralizado,
+                      // com a proporção quase intacta, e o fundo escuro é a
+                      // moldura. Cortar uma foto vertical pra caber numa faixa
+                      // deitada é o que destrói o rosto.
+                      position: "absolute",
+                      top: "14mm",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: "62mm",
+                      height: "74mm",
+                      overflow: "hidden",
+                      borderRadius: 3,
+                    }
+                  : {
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: formato === "quadrada" ? "96mm" : "88mm",
+                    }
+              }
+            >
               <img
                 src={q.fotoUrl}
                 alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 22%", display: "block" }}
-              />
-              <div
                 style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: `linear-gradient(to bottom, rgba(13,10,8,0.18) 0%, rgba(13,10,8,0.62) 34%, rgba(13,10,8,0.93) 62%, ${p.fundo} 82%)`,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  // Deitada e quadrada: puxa pro terço superior, onde ficam os
+                  // rostos. Em pé: centro, porque o bloco já respeita a
+                  // proporção e não há o que compensar.
+                  objectPosition: formato === "retrato" ? "center center" : "center 22%",
+                  display: "block",
                 }}
               />
+              {/* O degradê é o que entrega o título quando a foto sangra. No
+                  arranjo em pé a foto não encosta no texto, então ele viraria
+                  uma sombra sem função em cima da imagem. */}
+              {formato !== "retrato" && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: `linear-gradient(to bottom, rgba(13,10,8,0.18) 0%, rgba(13,10,8,0.62) 34%, rgba(13,10,8,0.93) 62%, ${p.fundo} 82%)`,
+                  }}
+                />
+              )}
             </div>
           )}
 
@@ -367,18 +427,41 @@ function Pagina() {
             }}
           >
             {q.fotoUrl && !p.fotoSangra && (
-              <div style={{ marginTop: "2mm", height: "55mm", overflow: "hidden", borderRadius: 3 }}>
+              <div
+                style={{
+                  marginTop: "2mm",
+                  // Em pé ganha altura e perde largura; deitada fica na faixa.
+                  height: formato === "retrato" ? "84mm" : formato === "quadrada" ? "64mm" : "55mm",
+                  width: formato === "retrato" ? "72mm" : "100%",
+                  marginLeft: formato === "retrato" ? "auto" : undefined,
+                  marginRight: formato === "retrato" ? "auto" : undefined,
+                  overflow: "hidden",
+                  borderRadius: 3,
+                }}
+              >
                 <img
                   src={q.fotoUrl}
                   alt=""
-                  style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 22%", display: "block" }}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    objectPosition: formato === "retrato" ? "center center" : "center 22%",
+                    display: "block",
+                  }}
                 />
               </div>
             )}
 
             <div
               style={{
-                marginTop: q.fotoUrl ? (p.fotoSangra ? "70mm" : "8mm") : "10mm",
+                marginTop: q.fotoUrl
+                  ? p.fotoSangra
+                    ? formato === "quadrada"
+                      ? "78mm"
+                      : "70mm"
+                    : "8mm"
+                  : "10mm",
                 textAlign: "center",
               }}
             >
