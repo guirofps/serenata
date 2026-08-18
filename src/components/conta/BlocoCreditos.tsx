@@ -44,6 +44,9 @@ const TXT = {
     porMusica: (v: number) => `${brl(v)} cada`,
     naoExpira: "Os créditos não expiram",
     off: (p: number) => `${p}% off`,
+    oQueECredito: "O que é um crédito?",
+    oQueECreditoTexto:
+      "É uma música nova e completa, já paga. Você compra aqui, entra em “Minhas músicas”, toca em criar, conta a história de outra pessoa e no fim não paga nada de novo. Cada crédito vale uma música, e eles não expiram.",
   },
   es: {
     saldo: (n: number) => (n === 1 ? "Tienes 1 crédito" : `Tienes ${n} créditos`),
@@ -64,6 +67,9 @@ const TXT = {
     porMusica: (v: number) => `${brl(v)} c/u`,
     naoExpira: "Los créditos no vencen",
     off: (p: number) => `${p}% off`,
+    oQueECredito: "¿Qué es un crédito?",
+    oQueECreditoTexto:
+      "Es una canción nueva y completa, ya pagada. La compras aquí, entras en “Mis canciones”, tocas en crear, cuentas la historia de otra persona y al final no pagas nada de nuevo. Cada crédito vale una canción, y no vencen.",
   },
 };
 
@@ -253,60 +259,21 @@ export function BlocoCreditos({
           })}
         </div>
 
-        {quadro && (
-          <div className="mt-4 rounded-[var(--raio)] border border-[var(--tinta-fraca)]/40 transition-colors hover:border-[var(--tinta-fraca)]">
-            <a
-              href={`${quadro.checkout}?email=${encodeURIComponent(email)}`}
-              onClick={() => trackEvent("credito_oferta_click", { oferta: "quadro" })}
-              className="block p-4"
-            >
-              {/* EMPILHADO, não em três colunas.
-                  A descrição do quadro é longa de propósito (ela precisa saber
-                  que vai imprimir e comprar moldura), e com o preço ao lado ela
-                  virava uma coluna de quatro palavras no celular. */}
-              <span className="flex items-center gap-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--tinta-fraca)]/15 text-[var(--acento)]">
-                  <Frame className="h-4 w-4" />
-                </span>
-                <span className="min-w-0 flex-1 font-medium" style={{ fontSize: "var(--t-base)" }}>
-                  {o.quadro.titulo}
-                </span>
-              </span>
-              <span className="mt-2 block text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)", lineHeight: 1.5 }}>
-                {o.quadro.sub}
-              </span>
-              <span className="mt-3 block font-semibold text-[var(--acento)]" style={{ fontSize: "var(--t-xl)" }}>
-                {brl(quadro.precoBrl)}
-              </span>
-              <span
-                className="cta mt-3 inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-full border-0 font-medium"
-                style={{ fontSize: "var(--t-sm)" }}
-              >
-                {o.quadro.cta} <ArrowRight className="h-4 w-4" />
-              </span>
-            </a>
-            {/* VER ANTES DE COMPRAR. Com 44px de altura: abaixo disso o dedo
-                erra no celular, e este link estava com 39. É o produto mais difícil de imaginar da
-                lista: "folha A4 com a letra" não desenha nada na cabeça de
-                ninguém. O exemplo usa dado inventado e a foto que já é pública
-                na home, nunca o presente de um cliente. */}
-            <a
-              href="/quadro/exemplo"
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => {
-                e.stopPropagation();
-                trackEvent("quadro_exemplo_click");
-              }}
-              className="flex h-11 items-center justify-center border-t border-[var(--tinta-fraca)]/30 px-4 text-center text-[var(--tinta-suave)] underline underline-offset-2"
-              style={{ fontSize: "var(--t-sm)" }}
-            >
-              {"exemplo" in o.quadro ? o.quadro.exemplo : "ver um exemplo"}
-            </a>
-          </div>
-        )}
+        {/* ── O QUE É UM CRÉDITO ────────────────────────────────
+          Vai no fim de propósito: quem já entendeu compra antes de chegar
+          aqui, e quem não entendeu precisa de uma explicação que não atrapalhe
+          quem não precisa dela. "Crédito" não é palavra do vocabulário de
+          quem compra aqui, e ninguém compra o que não sabe o que é. */}
+      <div className="mt-5 rounded-[var(--raio)] border border-[var(--tinta-fraca)]/40 p-4">
+        <p className="font-medium" style={{ fontSize: "var(--t-sm)" }}>
+          {t.oQueECredito}
+        </p>
+        <p className="mt-1.5 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)", lineHeight: 1.55 }}>
+          {t.oQueECreditoTexto}
+        </p>
+      </div>
 
-        <p className="mt-4 text-center text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
+      <p className="mt-4 text-center text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
           {t.naoExpira}
         </p>
       </div>

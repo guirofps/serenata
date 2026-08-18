@@ -12,6 +12,7 @@ import { nomeDoComprador } from "@/lib/nome-comprador";
 import { meusCreditos } from "@/lib/meus-creditos";
 import { meusQuadros } from "@/lib/meus-quadros";
 import { BlocoCreditos } from "@/components/conta/BlocoCreditos";
+import { BlocoQuadro } from "@/components/conta/BlocoQuadro";
 import {
   Loader2, Pencil, ExternalLink, Plus, LogOut, Music, Sparkles, Frame, Lock, ChevronRight,
 } from "lucide-react";
@@ -89,7 +90,17 @@ function Dashboard() {
   // Abre em "músicas" de propósito. E as abas não substituem a faixa do quadro
   // comprado, que fica ACIMA delas: produto pago que espera não pode ficar
   // escondido dentro de aba nenhuma.
-  const [aba, setAba] = useState<"musicas" | "criar">("musicas");
+  const [aba, setAba] = useState<"musicas" | "criar" | "quadro">("musicas");
+  // ── A ESPERA DO PIX ─────────────────────────────────────────────
+  //
+  // Medido no teste de 18/08: 64 segundos entre gerar o Pix e o webhook
+  // aprovar. Quem aperta o botão da Perfect Pay na hora chega aqui ANTES do
+  // crédito existir, e a tela dizia "você não tem créditos" pra quem tinha
+  // acabado de pagar. É o pior momento possível pra ela duvidar da gente.
+  //
+  // Então quando ela vem da compra a página fica PROCURANDO por 90 segundos,
+  // dizendo que está confirmando, e para no instante em que o crédito chega.
+  const [confirmandoPix, setConfirmandoPix] = useState(false);
   // ── AS OFERTAS SAO BR-ONLY, POR ENQUANTO ──────────────────────────
   //
   // Os tres upsells existem so na Perfect Pay BR, cobrados em real. Mostrar
@@ -143,6 +154,35 @@ function Dashboard() {
       meusQuadros({ data: { token } })
         .then((q) => { if (vivo) setQuadros(q.paraMontar); })
         .catch(() => {});
+
+      // VEIO DA COMPRA? Duas pistas, porque nenhuma sozinha é confiável: o
+      // `?novo=1` que a gente põe na URL de obrigado da Perfect Pay, e o
+      // referrer, que cobre o caso de alguém mexer nessa configuração e
+      // esquecer o parâmetro.
+      const veioDaCompra =
+        new URLSearchParams(window.location.search).get("novo") === "1" ||
+        /perfectpay/i.test(document.referrer || "");
+      if (veioDaCompra) {
+        setConfirmandoPix(true);
+        const ate = Date.now() + 90_000;
+        const bater = async () => {
+          if (!vivo) return;
+          const [c, q] = await Promise.all([
+            meusCreditos({ data: { token } }).catch(() => null),
+            meusQuadros({ data: { token } }).catch(() => null),
+          ]);
+          if (!vivo) return;
+          if (c) setSaldo(c.saldo);
+          if (q) setQuadros(q.paraMontar);
+          // Chegou alguma coisa, ou o tempo acabou: para de procurar.
+          if ((c?.saldo ?? 0) > 0 || (q?.paraMontar ?? 0) > 0 || Date.now() > ate) {
+            setConfirmandoPix(false);
+            return;
+          }
+          setTimeout(bater, 5000);
+        };
+        setTimeout(bater, 4000);
+      }
 
       // RLS garante que só vêm as músicas DESTE usuário (auth.uid() = user_id).
       const { data } = await supabase
@@ -210,6 +250,15 @@ function Dashboard() {
           {T.painelSub}
         </p>
 
+        {/* CONFIRMANDO O PAGAMENTO. Fica acima de tudo enquanto procura, pra
+            ninguém que acabou de pagar ler "você não tem créditos". */}
+        {confirmandoPix && (
+          <div className="mt-5 flex items-center gap-3 rounded-[var(--raio)] border border-[var(--acento)]/40 bg-[var(--acento)]/[0.06] p-4">
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--acento)]" />
+            <span style={{ fontSize: "var(--t-sm)", lineHeight: 1.45 }}>{T.confirmandoPix}</span>
+          </div>
+        )}
+
         {/* A FAIXA DO QUADRO COMPRADO, acima das abas.
             Fina de propósito: é um lembrete, não uma oferta. */}
         {temOfertas && quadros > 0 && (
@@ -235,9 +284,10 @@ function Dashboard() {
           <div className="sticky top-0 z-20 -mx-6 mt-6 border-b border-[var(--tinta-fraca)]/30 bg-[var(--papel)]/97 px-6 backdrop-blur-md">
             <div className="flex gap-1">
               {([
-                ["musicas", T.abaMusicas, musicas.length],
-                ["criar", T.abaCriar, 0],
-              ] as const).map(([chave, rotulo, quantos]) => (
+                ["musicas", T.abaMusicas, musicas.length, ""],
+                ["criar", T.abaCriar, 0, T.seloDesconto],
+                ["quadro", T.abaQuadro, quadros, ""],
+              ] as const).map(([chave, rotulo, quantos, selo]) => (
                 <button
                   key={chave}
                   onClick={() => setAba(chave)}
@@ -248,6 +298,17 @@ function Dashboard() {
                   style={{ fontSize: "var(--t-sm)" }}
                 >
                   {rotulo}
+                  {/* O SELO NA ABA. Ela precisa de um motivo pra tocar numa
+                      aba que vende, e "com desconto" é esse motivo, dito no
+                      lugar onde a decisão de tocar acontece. */}
+                  {selo && (
+                    <span
+                      className="rounded-full bg-[var(--acento)] px-1.5 py-0.5 font-semibold text-white"
+                      style={{ fontSize: "10px" }}
+                    >
+                      {selo}
+                    </span>
+                  )}
                   {quantos > 0 && (
                     <span
                       className="rounded-full bg-[var(--tinta-fraca)]/25 px-1.5 py-0.5"
@@ -269,7 +330,11 @@ function Dashboard() {
           <BlocoCreditos saldo={saldo} locale={locale} email={email} />
         )}
 
-        {temOfertas && aba === "criar" ? null : carregando ? (
+        {temOfertas && aba === "quadro" && email && (
+          <BlocoQuadro paraMontar={quadros} locale={locale} email={email} />
+        )}
+
+        {temOfertas && aba !== "musicas" ? null : carregando ? (
           <div className="mt-10 flex items-center gap-3 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
             <Loader2 className="h-4 w-4 animate-spin" /> {T.carregando}
           </div>
