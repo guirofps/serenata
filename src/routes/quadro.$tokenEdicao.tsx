@@ -671,15 +671,25 @@ function Pagina() {
                   display: "block",
                 }}
               />
-              {/* O degradê é o que entrega o título quando a foto sangra. No
-                  arranjo em pé a foto não encosta no texto, então ele viraria
-                  uma sombra sem função em cima da imagem. */}
+              {/* O DEGRADÊ SÓ ONDE ELE TRABALHA.
+                  A função dele é uma só: dar fundo pro título, que encosta no
+                  último quinto da faixa. A primeira versão começava
+                  escurecendo a foto já no topo (18% de preto no 0%) e chegava
+                  a 62% no primeiro terço, então a imagem respirava em menos de
+                  um terço dela e o resto era apagamento. Numa foto de rosto
+                  isso come justamente o que a pessoa quer ver.
+
+                  Agora a metade de cima fica intacta e a transição inteira
+                  acontece depois dos 55%, ficando opaca só onde o texto entra.
+
+                  No arranjo em pé a foto não encosta no texto, então nem
+                  existe: seria sombra sem função em cima da imagem. */}
               {formato !== "retrato" && (
                 <div
                   style={{
                     position: "absolute",
                     inset: 0,
-                    background: `linear-gradient(to bottom, rgba(13,10,8,0.18) 0%, rgba(13,10,8,0.62) 34%, rgba(13,10,8,0.93) 62%, ${p.fundo} 82%)`,
+                    background: `linear-gradient(to bottom, rgba(13,10,8,0) 0%, rgba(13,10,8,0) 52%, rgba(13,10,8,0.40) 68%, rgba(13,10,8,0.88) 80%, ${p.fundo} 93%)`,
                   }}
                 />
               )}
