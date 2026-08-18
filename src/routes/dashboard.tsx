@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { novaSessao } from "@/lib/session-context";
 import { useQuizStore } from "@/lib/quiz-store";
 import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
+import { nomeDoComprador } from "@/lib/nome-comprador";
 import { Loader2, Pencil, ExternalLink, Plus, LogOut, Music } from "lucide-react";
 
 // A ÁREA DO COMPRADOR — a "casa" dele na plataforma. Lista as músicas que ele
@@ -81,7 +82,17 @@ function Dashboard() {
         navigate({ to: "/login" });
         return;
       }
-      setNome(sess.session.user.email?.split("@")[0] ?? "");
+      // NOME DE VERDADE, não o pedaço do e-mail.
+      //
+      // Isto mostrava "Olá, fenix bebidas" pra quem comprou com e-mail de
+      // empresa. A Perfect Pay já manda o nome no webhook (99% dos pedidos
+      // pagos têm), então é só buscar. O e-mail fica como reserva pra conta
+      // que ainda não tem compra nenhuma.
+      const email = sess.session.user.email ?? "";
+      setNome(email.split("@")[0]);
+      nomeDoComprador({ data: { email } })
+        .then((r) => { if (vivo && r.nome) setNome(r.nome); })
+        .catch(() => {});
 
       // RLS garante que só vêm as músicas DESTE usuário (auth.uid() = user_id).
       const { data } = await supabase
