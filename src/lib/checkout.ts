@@ -101,7 +101,27 @@ export function urlCheckout(extra?: {
   if (typeof window !== "undefined") {
     const daUrl: Record<string, string> = {};
     new URLSearchParams(window.location.search).forEach((v, k) => (daUrl[k] = v));
-    const fontes = [leJson("utmify_data"), daUrl, leJson("mp_attribution")].filter(
+    // AS CHAVES DA UTMIFY, uma por uma.
+    //
+    // `utmify_data` NUNCA EXISTIU. Conferido no navegador em 19/08: a UTMify
+    // guarda `utm_source`, `utm_medium`, `utm_campaign`, `utm_content` e
+    // `utm_term` como chaves SEPARADAS no localStorage, não num JSON. A
+    // primeira fonte desta lista era código morto desde que foi escrita.
+    //
+    // Isso não aparecia porque a atribuição vinha de carona: o script da
+    // UTMify reescreve os links internos com os UTMs, então `daUrl` acabava
+    // achando o que a fonte morta deveria ter dado. Um acidente que funciona é
+    // um acidente que quebra sozinho um dia, e agora que o script carrega
+    // depois da hidratação, a carona ficou mais frágil ainda.
+    //
+    // Lendo as chaves de verdade, a atribuição para de depender disso.
+    const daUtmify: Record<string, string> = {};
+    for (const chave of PARAMS_RASTREIO) {
+      const v = window.localStorage.getItem(chave);
+      if (v) daUtmify[chave] = v;
+    }
+
+    const fontes = [daUrl, daUtmify, leJson("mp_attribution")].filter(
       Boolean,
     ) as Array<Record<string, unknown>>;
 

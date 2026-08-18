@@ -139,21 +139,67 @@ function RootShell({ children }: { children: React.ReactNode }) {
             __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','AW-16919557808');`,
           }}
         />
-        {/* UTMify: captura os UTMs da visita e guarda em localStorage. Quem
-            repassa pro checkout é src/lib/checkout.ts (a ida é por JS, então o
-            script não consegue reescrever o link sozinho). A venda em si é
-            reportada pela API no webhook (api/lib/utmify.ts). */}
-        <script
-          src="https://cdn.utmify.com.br/scripts/utms/latest.js"
-          data-utmify-prevent-xcod-sck=""
-          data-utmify-prevent-subids=""
-          async
-          defer
-        />
+        {/* UTMify NÃO fica aqui. Ver `carregarUtmify` mais abaixo: o script
+            reescreve todo <a href> interno, e no HTML do servidor isso quebra
+            a hidratação do React. */}
         <Scripts />
       </body>
     </html>
   );
+}
+
+/**
+ * CARREGA A UTMIFY DEPOIS DA HIDRATAÇÃO, e não no HTML do servidor.
+ *
+ * ── O BUG QUE ISTO CONSERTA ──────────────────────────────────────
+ *
+ * O script da UTMify reescreve TODO `<a href>` interno da página, colando
+ * `?utm_source=organic&utm_campaign=&utm_medium=&utm_content=&utm_term=` em
+ * cada um. Quando ele roda antes da hidratação, o React encontra `/criar` no
+ * HTML que o servidor mandou e `/criar?utm_source=...` no DOM, declara
+ * "hydration failed" e JOGA FORA a árvore inteira, remontando tudo no cliente.
+ *
+ * Achado no console em 19/08, na home e na página presente. O custo é maior
+ * justamente onde dói: num Android lento, remontar a página inteira é uma
+ * piscada e um punhado de segundos sem interatividade, e 99% do nosso tráfego
+ * é celular.
+ *
+ * Efeito colateral que some junto: o link que a pessoa copia da barra de
+ * endereço pra mandar no WhatsApp ia com UTMs vazias grudadas, e o
+ * presenteado entrava carimbado como "organic".
+ *
+ * ── POR QUE ISTO NÃO QUEBRA A ATRIBUIÇÃO ─────────────────────────
+ *
+ * O que a gente usa da UTMify é o `localStorage.utmify_data`, lido lá na ida
+ * pro checkout (`src/lib/checkout.ts`), que acontece minutos depois. Carregar
+ * o script um tique mais tarde não muda nada nisso: os UTMs da URL continuam
+ * lá pra ele ler.
+ */
+function carregarUtmify() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById("utmify-utms")) return;
+  // NÃO BASTA ESPERAR O ROOT MONTAR. As rotas são carregadas em `lazy`, então
+  // elas hidratam DEPOIS do root: um script que já esteja reescrevendo links
+  // pega a próxima rota no meio da hidratação e o problema volta, só que mais
+  // difícil de enxergar. Esperar o navegador ficar ocioso cobre todas.
+  //
+  // Atrasar não custa nada aqui: o que a gente lê dele é o
+  // `localStorage.utmify_data` na ida pro checkout, que acontece minutos
+  // depois, e os UTMs continuam na URL o tempo todo.
+  const s = document.createElement("script");
+  s.id = "utmify-utms";
+  s.src = "https://cdn.utmify.com.br/scripts/utms/latest.js";
+  s.async = true;
+  s.defer = true;
+  s.setAttribute("data-utmify-prevent-xcod-sck", "");
+  s.setAttribute("data-utmify-prevent-subids", "");
+  const injetar = () => document.body.appendChild(s);
+  if ("requestIdleCallback" in window) {
+    (window as Window & { requestIdleCallback: (cb: () => void, o?: { timeout: number }) => void })
+      .requestIdleCallback(injetar, { timeout: 4000 });
+  } else {
+    setTimeout(injetar, 2500);
+  }
 }
 
 function RootComponent() {
@@ -171,6 +217,9 @@ function RootComponent() {
     const variant = getOrAssignVariant();
     stampVariantIntoAttribution(variant);
     trackEvent("page_view", { is_landing: true });
+    // DEPOIS de tudo montado. Ver o comentário de `carregarUtmify`: rodando
+    // antes da hidratação ele quebrava a página inteira.
+    carregarUtmify();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const router = useRouter();
