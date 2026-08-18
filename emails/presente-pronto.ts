@@ -1,5 +1,9 @@
 import { linkSuporte } from "../src/lib/suporte-whatsapp";
 
+// O domínio, escrito aqui e não deduzido: e-mail não tem `window.location`, e
+// caminho relativo em HTML de e-mail não resolve em cliente nenhum.
+const SITE = "https://www.serenatagift.com";
+
 ﻿// E-mail que o comprador recebe quando o pagamento é confirmado.
 //
 // É o ÚNICO caminho até o editor: o `token_edicao` não aparece em lugar
@@ -19,6 +23,7 @@ const COPY: Record<IdiomaEmail, {
   faltaSo: string; montar: string; coloque: string;
   botao: string; guarde: string; comPressa: string; verPresente: string; rodape: string;
   ajuda: string; ajudaBotao: string;
+  quadroTitulo: string; quadroTexto: string; quadroBotao: string;
 }> = {
   pt: {
     assunto: (n) => `A música de ${n} está pronta`,
@@ -30,6 +35,10 @@ const COPY: Record<IdiomaEmail, {
     guarde: "Guarde este e-mail: este link é seu e só ele deixa editar a página.",
     ajuda: "Não conseguiu abrir sua música? Fale com a gente no WhatsApp.",
     ajudaBotao: "Chamar no WhatsApp",
+    quadroTitulo: "E se essa música também ficasse na parede?",
+    quadroTexto:
+      "O quadro é a letra dela e a foto de vocês numa folha A4, com o QR Code que toca a música. Você salva o PDF, manda imprimir, põe numa moldura e pendura. Quem passar na frente aponta a câmera e ouve.",
+    quadroBotao: "VER O QUADRO DA MINHA MÚSICA",
     comPressa: "Com pressa? O presente já funciona do jeito que está:",
     verPresente: "VER A PÁGINA DO PRESENTE",
     rodape: "Serenata · uma música feita da história de quem você ama",
@@ -46,6 +55,9 @@ const COPY: Record<IdiomaEmail, {
     verPresente: "VER LA PÁGINA DEL REGALO",
     ajuda: "¿No pudiste abrir tu canción? Habla con nosotros por WhatsApp.",
     ajudaBotao: "Escribir por WhatsApp",
+    quadroTitulo: "",
+    quadroTexto: "",
+    quadroBotao: "",
     rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
   },
 };
@@ -131,6 +143,38 @@ export function emailPresentePronto(args: {
           <a href="${linkPresente}" style="display:inline-block;margin-top:8px;padding:10px 20px;border-radius:999px;border:1px solid rgba(125,43,58,0.35);color:#7d2b3a;text-decoration:none;font-weight:600;">${C.verPresente}</a>
         </td></tr>
       </table>
+
+      <!-- O QUADRO, no e-mail de entrega.
+           Medido em 18/08: 248 dos 294 compradores NUNCA entraram na conta.
+           A vitrine do painel não alcança essa gente; este e-mail alcança
+           (66% de abertura, 57% de clique, os melhores números que a gente
+           tem em qualquer lugar). Se a oferta só existir no painel, ela não
+           existe pra 84% de quem compra.
+
+           VAI DEPOIS DO CTA PRINCIPAL, e é visualmente mais fraco: a ação
+           desta mensagem é montar o presente, e uma oferta competindo com ela
+           faria a pessoa sair sem montar nada, que é o defeito que a gente já
+           corrigiu na tela de obrigado.
+
+           E é o QUADRO, não "mais uma música": ele soma ao que ela acabou de
+           receber. Pedir a segunda música de alguém que ainda não ouviu a
+           primeira é pedir cedo demais. -->
+      ${
+        C.quadroTitulo
+          ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;border-top:1px solid rgba(42,21,24,0.10);">
+        <tr><td style="padding-top:22px;" align="center">
+          <img src="${SITE}/img/quadro-exemplo.jpg" width="120" alt="" style="display:block;border:6px solid #2c211a;border-radius:2px;background:#f6f2ea;padding:6px;">
+          <p style="margin:14px 0 0;font-size:17px;color:#2a1518;font-family:Georgia,'Times New Roman',serif;">
+            ${C.quadroTitulo}
+          </p>
+          <p style="margin:8px 0 0;font-size:14px;line-height:1.55;color:rgba(42,21,24,0.7);font-family:Helvetica,Arial,sans-serif;">
+            ${C.quadroTexto}
+          </p>
+          <a href="${SITE}/dashboard" style="display:inline-block;margin-top:14px;padding:11px 22px;border-radius:999px;border:1px solid rgba(125,43,58,0.35);color:#7d2b3a;text-decoration:none;font-weight:600;font-size:13px;font-family:Helvetica,Arial,sans-serif;">${C.quadroBotao}</a>
+        </td></tr>
+      </table>`
+          : ""
+      }
 
       <!-- O SOCORRO, no e-mail e não só no site.
            Medido em 18/08: 248 dos 294 compradores nunca entraram na conta.
