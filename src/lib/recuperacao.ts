@@ -445,6 +445,31 @@ export const buscarCliente = createServerFn({ method: "POST" })
       grupos.set(chave, g);
     }
 
+    // ── QUEM NUNCA PAGOU TAMBÉM É CLIENTE PRA QUEM ATENDE ────────
+    //
+    // Até aqui a ficha era montada A PARTIR DOS PEDIDOS: sem pedido, nenhum
+    // grupo, e a busca devolvia vazio. Só que a maior parte de quem escreve
+    // pro suporte dizendo "paguei e não recebi" NÃO TEM PEDIDO — pagou com
+    // outro e-mail, pagou e o webhook não chegou, ou não pagou mesmo.
+    //
+    // Dois casos reais no mesmo dia (19/08): `cantorgospelmarcondesleal` e
+    // `wando.viegas.cg`. Os dois fizeram o quiz, os dois têm MÚSICA PRONTA
+    // no banco, e o atendente via tela em branco nos dois, sem nada pra
+    // responder.
+    //
+    // Então quando o termo casa com um lead e não existe pedido nenhum, a
+    // ficha é montada com o que existe: a pessoa, as músicas dela e o
+    // veredito de que não há pagamento registrado. É a informação que decide
+    // a conversa.
+    if (!grupos.size && (porQuiz ?? []).length) {
+      for (const q of porQuiz ?? []) {
+        const chave = q.whatsapp
+          ? String(q.whatsapp).replace(/\D/g, "").slice(-8)
+          : (q.email ?? "sem").toLowerCase();
+        if (!grupos.has(chave)) grupos.set(chave, []);
+      }
+    }
+
     const assinar = async (caminho: string | null) => {
       if (!caminho) return null;
       const { data: u } = await db.storage.from("musicas").createSignedUrl(caminho, 2 * 3600);
@@ -456,7 +481,11 @@ export const buscarCliente = createServerFn({ method: "POST" })
       const quizIds = [...new Set((pedidos ?? []).map((p) => p.quiz_response_id).filter(Boolean))] as string[];
       // Também as sessões daquele e-mail que nunca viraram pedido: é onde mora
       // a música que a pessoa fez e não comprou.
-      const emailsDoGrupo = [...new Set((pedidos ?? []).map((p) => (p.email ?? "").toLowerCase()).filter(Boolean))];
+      // Sem pedido, os e-mails do grupo saem do LEAD que casou com a busca:
+      // é o único vínculo que existe pra chegar nas músicas dele.
+      const emailsDoGrupo = (pedidos ?? []).length
+        ? [...new Set((pedidos ?? []).map((p) => (p.email ?? "").toLowerCase()).filter(Boolean))]
+        : [...mails];
       const { data: sessoes } = emailsDoGrupo.length
         ? await db.from("quiz_responses").select("id").in("email", emailsDoGrupo)
         : { data: [] };
@@ -478,8 +507,14 @@ export const buscarCliente = createServerFn({ method: "POST" })
       fichas.push({
         chave,
         nomes: [...new Set((pedidos ?? []).map((p) => p.nome_pagador).filter(Boolean) as string[])],
-        emails: [...new Set((pedidos ?? []).map((p) => p.email).filter(Boolean) as string[])],
-        telefones: [...new Set((pedidos ?? []).map((p) => p.telefone).filter(Boolean) as string[])],
+        // Sem pedido não há `nome_pagador` nem telefone de compra: o que se
+        // tem é o e-mail e o WhatsApp que ela deixou no funil.
+        emails: (pedidos ?? []).length
+          ? [...new Set((pedidos ?? []).map((p) => p.email).filter(Boolean) as string[])]
+          : [...mails],
+        telefones: (pedidos ?? []).length
+          ? [...new Set((pedidos ?? []).map((p) => p.telefone).filter(Boolean) as string[])]
+          : [...tels],
         pedidos: (pedidos ?? []).map((p) => ({
           id: p.id,
           paymentId: p.payment_id,

@@ -1,4 +1,10 @@
-import { linkSuporte } from "../src/lib/suporte-whatsapp";
+// A EXTENSÃO `.js` NÃO É OPCIONAL. Este arquivo é importado pelo webhook, que
+// roda como ESM na Vercel: sem ela o módulo não resolve em runtime e o handler
+// inteiro morre com 500 ANTES de conferir o token.
+//
+// Foi exatamente o que aconteceu em 18/08: o webhook ficou 5h29 fora do ar e
+// nenhum pagamento aprovado virou pedido. Está no CLAUDE.md e eu repeti.
+import { linkSuporte } from "../src/lib/suporte-whatsapp.js";
 
 // O domínio, escrito aqui e não deduzido: e-mail não tem `window.location`, e
 // caminho relativo em HTML de e-mail não resolve em cliente nenhum.
