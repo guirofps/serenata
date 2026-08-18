@@ -7,11 +7,10 @@ import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
 import { novaSessao } from "@/lib/session-context";
 import { useQuizStore } from "@/lib/quiz-store";
-import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
 import { nomeDoComprador } from "@/lib/nome-comprador";
 import { meusCreditos } from "@/lib/meus-creditos";
 import { BlocoCreditos } from "@/components/conta/BlocoCreditos";
-import { Loader2, Pencil, ExternalLink, Plus, LogOut, Music } from "lucide-react";
+import { Loader2, Pencil, ExternalLink, Plus, LogOut, Music, Sparkles } from "lucide-react";
 
 // A ÁREA DO COMPRADOR — a "casa" dele na plataforma. Lista as músicas que ele
 // criou; cada uma leva ao editor do presente (montar foto/galeria/cor) e à
@@ -134,13 +133,27 @@ function Dashboard() {
       <header className="border-b border-[var(--tinta-fraca)]/30">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <Logo tamanho="sm" />
-          <button
+          <div className="flex items-center gap-4">
+            {/* O CONTADOR, no cabeçalho. Fica aqui porque é o único lugar que
+                continua na tela enquanto ela rola a lista de músicas, e
+                porque saldo que ela não vê é saldo que ela não usa. */}
+            {saldo !== null && saldo > 0 && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--acento)]/12 px-3 py-1 font-medium text-[var(--acento)]"
+                style={{ fontSize: "var(--t-xs)" }}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {saldo} {saldo === 1 ? T.credito : T.creditos}
+              </span>
+            )}
+            <button
             onClick={sair}
             className="inline-flex items-center gap-1.5 text-[var(--tinta-suave)] transition-colors hover:text-[var(--tinta)]"
             style={{ fontSize: "var(--t-sm)" }}
           >
             <LogOut className="h-4 w-4" /> sair
-          </button>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -194,8 +207,7 @@ function Dashboard() {
             </Link>
           </div>
         ) : (
-          <>
-            <ul className="mt-8 space-y-3">
+          <ul className="mt-8 space-y-3">
               {musicas.map((m) => {
                 const st = {
                   texto: T.status[m.status] ?? m.status,
@@ -253,15 +265,7 @@ function Dashboard() {
                   </li>
                 );
               })}
-            </ul>
-
-            {/* Este botão virou componente (ConviteOutraMusica) quando passou
-                a existir também no editor e na tela de obrigado. As regras de
-                sair pro funil (rotacionar sessão, limpar o store, respeitar o
-                idioma) custaram três incidentes e não podem viver em três
-                cópias, que divergem na primeira mudança. */}
-            <ConviteOutraMusica locale={locale === "es" ? "es" : "pt"} origem="dashboard" />
-          </>
+          </ul>
         )}
       </main>
     </div>

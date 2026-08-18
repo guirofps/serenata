@@ -58,6 +58,25 @@ export type Oferta = {
 // lendo um payload REAL da auditoria, não chutando.
 export const PRODUTO_PRINCIPAL = "PPPBF7CL";
 
+/**
+ * O preco cheio da musica avulsa no funil BR, em reais. E a ancora dos selos
+ * de desconto do painel.
+ *
+ * Ele existe pra o selo poder ser VERDADE: R$ 28 contra R$ 38 e 26% de
+ * desconto de verdade, e R$ 67 por tres contra R$ 114 e 41% de verdade. Selo
+ * de desconto ancorado em preco inventado e alegacao falsa, e alegacao falsa
+ * derruba conta no Google Ads.
+ *
+ * Vem de `i18n.ts` (`pt.valor`), e precisa andar junto com ele: se o funil
+ * subir pra R$ 42 e isto ficar em 38, o selo passa a mentir pra baixo.
+ *
+ * NAO SERVE PRO FUNIL ES. La a compra foi em dolar (US$ 9,90) e os upsells
+ * sao cobrados em real pela Perfect Pay: riscar "R$ 114" pra quem pagou em
+ * dolar compara duas moedas diferentes. Por isso o painel so mostra o selo e
+ * o preco riscado em pt.
+ */
+export const PRECO_CHEIO = 38;
+
 export const OFERTAS: Oferta[] = [
   {
     id: "extra",
