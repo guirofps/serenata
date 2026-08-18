@@ -242,7 +242,13 @@ function Admin() {
   }
 
   const t = dados.topo;
-  const maiorQueda = [...dados.funil].filter((f) => f.alcancaram > 0).sort((a, b) => b.perdidos - a.perdidos)[1];
+  // O aviso dizia "maior perda" e mostrava a SEGUNDA: o índice era `[1]`.
+  // Medido no painel de 17/08 — a maior perda era "Nome" (881 pessoas, 41,5%)
+  // e o aviso apontava "Começou o quiz" (565). Justamente o degrau que a
+  // pessoa é mandada olhar primeiro, apontando pro lugar errado.
+  // `[0]` é seguro: o primeiro degrau ("Visitou o site") tem `perdidos` 0 por
+  // construção, então ele nunca ganha essa ordenação.
+  const maiorQueda = [...dados.funil].filter((f) => f.alcancaram > 0).sort((a, b) => b.perdidos - a.perdidos)[0];
 
   return (
     <div className="min-h-screen bg-[var(--papel)] text-[var(--tinta)]" style={TEMA_CLARO}>

@@ -254,6 +254,11 @@ type Custo = { id: string; tipo: string; custo_brl: number | null; quiz_response
  */
 type EventosResumo = {
   visitantes: number;
+  /** Sessões que abriram /criar (migration 20260817100000). Ver o degrau da
+   *  abertura mais abaixo. Opcional de propósito: se o painel subir antes da
+   *  migration, o campo vem `undefined` e o degrau cai pra "Começou o quiz"
+   *  em vez de zerar. */
+  sessoes_abertura?: number;
   sessoes_oferta: number;
   sessoes_checkout: number;
   contagens: Record<string, number>;
@@ -568,6 +573,22 @@ export const carregarPainel = createServerFn({ method: "POST" })
     const visitantes = resumo.visitantes ?? 0;
     const conta = (nome: string) => resumo.contagens?.[nome] ?? 0;
 
+    // QUEM ABRIU O QUIZ, que desde 17/08 não é mais quem começou a responder.
+    //
+    // A tela de ABERTURA entrou antes da primeira pergunta. Quem cai do
+    // anúncio em /criar vê ela primeiro e só vira linha em `quiz_responses`
+    // quando clica no botão — de propósito, pra não mexer na numeração de
+    // `furthest_step` (ver o comentário no `Quiz.tsx`). O efeito colateral é
+    // no PAINEL: sem este degrau, quem desiste na abertura some dentro de
+    // "Visitou o site → Começou o quiz" e vira queda do site, não da tela.
+    //
+    // O `Math.max` é o piso, e cobre o buraco que a união do SQL não alcança:
+    // lead SEM session_id entra em `quizIniciados` pelo `?? l.id`, mas não
+    // existe pro resumo, que só enxerga sessão. Os dois números são pisos do
+    // mesmo conjunto, então o maior é o mais próximo da verdade — e garante
+    // que o degrau nunca fique abaixo do de baixo.
+    const abriramQuiz = Math.max(resumo.sessoes_abertura ?? 0, quizIniciados);
+
     // PESSOAS que clicaram em comprar, não CLIQUES.
     //
     // Antes isto era `conta("checkout_click") + conta("desbloquear_click")`, e
@@ -607,6 +628,10 @@ export const carregarPainel = createServerFn({ method: "POST" })
     const passosQuiz = QUIZ_FLOW.filter((s) => isQuestion(s) || s.kind === "contact");
     const bruto: Array<{ id: string; rotulo: string; alcancaram: number; etapa: Painel["funil"][0]["etapa"] }> = [
       { id: "visita", rotulo: "Visitou o site", alcancaram: visitantes, etapa: "topo" },
+      // Abriu ≠ começou desde 17/08: entre os dois está a tela de abertura.
+      // Em recorte anterior a ela os dois degraus dão igual, e isso é o certo
+      // — a tela não existia, ninguém podia desistir nela.
+      { id: "abertura", rotulo: "Abriu o quiz", alcancaram: abriramQuiz, etapa: "topo" },
       { id: "quiz_started", rotulo: "Começou o quiz", alcancaram: quizIniciados, etapa: "topo" },
       ...passosQuiz.map((s, i) => ({
         id: s.id,
