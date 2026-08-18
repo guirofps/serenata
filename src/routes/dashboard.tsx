@@ -6,6 +6,7 @@ import { tp } from "@/lib/textos-presente";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
 import { novaSessao } from "@/lib/session-context";
+import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
 import { useQuizStore } from "@/lib/quiz-store";
 import { nomeDoComprador } from "@/lib/nome-comprador";
 import { meusCreditos } from "@/lib/meus-creditos";
@@ -74,6 +75,23 @@ function Dashboard() {
   const [nome, setNome] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [saldo, setSaldo] = useState<number | null>(null);
+  // ── AS OFERTAS SAO BR-ONLY, POR ENQUANTO ──────────────────────────
+  //
+  // Os tres upsells existem so na Perfect Pay BR, cobrados em real. Mostrar
+  // "R$ 67" pra quem comprou em dolar oferece um produto que ela nao consegue
+  // comprar direito, e o preco nem faz sentido na cabeca dela.
+  //
+  // Espera `carregando` de proposito: o idioma sai da musica mais recente, e
+  // enquanto a lista nao chega `locale` cai no "pt" por padrao. Sem essa
+  // trava, o mexicano veria o bloco em real piscar antes de sumir.
+  //
+  // Quando o LATAM ganhar os produtos, isto vira `true` pros dois e o
+  // BlocoCreditos ja tem o texto em espanhol pronto.
+  //
+  // E exige ter PELO MENOS UMA musica: sem nenhuma, o idioma cai no "pt" por
+  // falta de pista, e "Quem mais merece uma?" sairia pra quem nao fez nem a
+  // primeira. Essa conta ve o convite de criar a primeira, que ja existe.
+  const temOfertas = !carregando && musicas.length > 0 && locale === "pt";
 
   useEffect(() => {
     let vivo = true;
@@ -137,7 +155,7 @@ function Dashboard() {
             {/* O CONTADOR, no cabeçalho. Fica aqui porque é o único lugar que
                 continua na tela enquanto ela rola a lista de músicas, e
                 porque saldo que ela não vê é saldo que ela não usa. */}
-            {saldo !== null && saldo > 0 && (
+            {temOfertas && saldo !== null && saldo > 0 && (
               <span
                 className="inline-flex items-center gap-1.5 rounded-full bg-[var(--acento)]/12 px-3 py-1 font-medium text-[var(--acento)]"
                 style={{ fontSize: "var(--t-xs)" }}
@@ -175,7 +193,7 @@ function Dashboard() {
             ela já tem; o que faz a plataforma crescer é o que ela ainda pode
             fazer. Só aparece depois que o saldo chega, pra não piscar de
             "compre" para "você tem 2 créditos". */}
-        {saldo !== null && email && (
+        {temOfertas && saldo !== null && email && (
           <BlocoCreditos saldo={saldo} locale={locale} email={email} />
         )}
 
@@ -266,6 +284,14 @@ function Dashboard() {
                 );
               })}
           </ul>
+        )}
+
+        {/* O CONVITE ANTIGO, agora SO no ES. No BR ele sumiu porque mandava
+            pro funil no preco cheio mesmo com credito na conta. No ES nao
+            existe credito nenhum pra atropelar, e sem ele o painel de la
+            ficaria sem nenhum caminho pra criar outra musica. */}
+        {!carregando && !temOfertas && musicas.length > 0 && (
+          <ConviteOutraMusica locale="es" origem="dashboard" />
         )}
       </main>
     </div>
