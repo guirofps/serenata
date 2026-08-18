@@ -2,6 +2,9 @@
 import { useQuizStore } from "@/lib/quiz-store";
 import { irParaCheckout } from "@/lib/checkout";
 import { temMusicaDaSessao } from "@/lib/coautoria";
+import { meusCreditos } from "@/lib/meus-creditos";
+import { usarCredito } from "@/lib/usar-credito";
+import { supabase } from "@/lib/supabase-client";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
@@ -134,6 +137,13 @@ const COPY = {
     // Só o ES precisa: o BR cobra na moeda de quem compra.
     conversao: "",
     cta: (n: string) => `Quero a música de ${n}`, ctaCurto: "Quero a música",
+    creditoTitulo: (n: number) => (n === 1 ? "Você tem 1 crédito" : `Você tem ${n} créditos`),
+    creditoSub: "Esta música já está paga. É só desbloquear.",
+    creditoCta: "Usar meu crédito e desbloquear",
+    creditoCtaCurto: "Usar meu crédito",
+    creditoLabel: "já pago",
+    creditoValor: "R$ 0",
+    creditoIndo: "Desbloqueando...",
     abrindo: "Abrindo o pagamento…", abrindoCurto: "Abrindo…",
     gateway: "PIX ou cartão, processado pela Perfect Pay",
     antesDePagar: "Antes de pagar",
@@ -168,6 +178,13 @@ const COPY = {
     // espanhol levanta a dúvida "vou pagar câmbio?" bem no clique.
     conversao: "Verás el precio en la moneda de tu país al pagar.",
     cta: (n: string) => `Quiero la canción de ${n}`, ctaCurto: "Quiero la canción",
+    creditoTitulo: (n: number) => (n === 1 ? "Tienes 1 crédito" : `Tienes ${n} créditos`),
+    creditoSub: "Esta canción ya está pagada. Solo falta desbloquearla.",
+    creditoCta: "Usar mi crédito y desbloquear",
+    creditoCtaCurto: "Usar mi crédito",
+    creditoLabel: "ya pagado",
+    creditoValor: "$ 0",
+    creditoIndo: "Desbloqueando...",
     abrindo: "Abriendo el pago…", abrindoCurto: "Abriendo…",
     // CENTERPAG, não Perfect Pay. É a mesma empresa, mas o checkout
     // internacional se apresenta como Centerpag: aparece no rodapé, no
@@ -188,6 +205,21 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   const G = GARANTIA[locale] ?? GARANTIA.pt;
   const preco = MOEDA[locale] ?? MOEDA.pt;
   const [semMusica, setSemMusica] = useState(false);
+  // ── O MODO CRÉDITO ────────────────────────────────────────────
+  //
+  // Quem já pagou por um crédito não pode ser cobrado de novo. Esta tela é o
+  // último ponto antes do gateway, então é aqui que a checagem tem que estar:
+  // qualquer caminho que chegue no botão de pagar passa por ela.
+  //
+  // NÃO DEPENDE DO `?credito=1`. O link do painel manda o parâmetro, mas ele
+  // se perde no primeiro reload, e um crédito que some porque a pessoa
+  // atualizou a página seria cobrança dupla por bug de navegação. A pergunta
+  // certa é "esta conta tem saldo?", e ela é respondida pelo servidor.
+  //
+  // Custo: uma chamada a mais SÓ pra quem está logado. Tráfego de anúncio é
+  // anônimo e nem chega no `if`.
+  const [credito, setCredito] = useState<{ saldo: number; token: string } | null>(null);
+  const [erroCredito, setErroCredito] = useState<string | null>(null);
   const respostas = useQuizStore((s) => s.respostas);
   const email = useQuizStore((s) => s.email);
   const whatsapp = useQuizStore((s) => s.whatsapp);
@@ -210,6 +242,25 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     trackEventOnce("oferta_vista", "v1");
   }, []);
 
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      const tk = data.session?.access_token;
+      if (!tk || !vivo) return;
+      const c = await meusCreditos({ data: { token: tk } });
+      if (vivo && c.saldo > 0) {
+        setCredito({ saldo: c.saldo, token: tk });
+        trackEvent("oferta_com_credito", { saldo: c.saldo });
+      }
+    })().catch(() => {
+      // Consulta indisponível: a tela segue cobrando. Ver `pagar`.
+    });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
   // A TRAVA FINAL: não vai pro gateway sem música gravada no servidor.
   //
   // "Nunca cobrar por algo que ainda não foi produzido" é a regra que o
@@ -226,7 +277,58 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   // Falha do servidor não trava a venda (`catch` deixa passar): indisponível
   // não é o mesmo que inexistente, e barrar comprador por causa de uma
   // consulta que caiu seria trocar um problema raro por um pior.
+  // O RESGATE. Não passa pelo gateway: debita o crédito no servidor, grava o
+  // pedido e manda pro /obrigado, que é a mesma porta de quem pagou.
+  async function resgatar(tk: string) {
+    setIndo(true);
+    setErroCredito(null);
+    try {
+      const r = await usarCredito({
+        data: { token: tk, sessionId: getOrCreateSessionId() },
+      });
+      if (r.ok) {
+        trackEvent("credito_resgatado", { saldo: r.saldo });
+        window.location.href = "/obrigado";
+        return;
+      }
+      if (r.erro === "sem-musica") {
+        // Mesma tela do barramento normal: não entrega o que não existe, e o
+        // crédito continua intocado porque o servidor confere antes de debitar.
+        trackEvent("credito_barrado_sem_musica");
+        setSemMusica(true);
+        setIndo(false);
+        return;
+      }
+      if (r.erro === "sem-saldo" || r.erro === "sem-conta") {
+        // Saldo acabou ou a sessão venceu: volta a ser uma venda normal.
+        trackEvent("credito_indisponivel", { erro: r.erro });
+        setCredito(null);
+        setIndo(false);
+        return;
+      }
+      // `falhou` NÃO cai pro checkout. Mandar pro gateway quem tem crédito
+      // seria cobrar duas vezes por causa de um erro nosso.
+      setErroCredito(
+        locale === "es"
+          ? "No pudimos usar tu crédito ahora. Inténtalo de nuevo en un momento."
+          : "Não deu pra usar seu crédito agora. Tente de novo daqui a pouco.",
+      );
+      setIndo(false);
+    } catch {
+      setErroCredito(
+        locale === "es"
+          ? "No pudimos usar tu crédito ahora. Inténtalo de nuevo en un momento."
+          : "Não deu pra usar seu crédito agora. Tente de novo daqui a pouco.",
+      );
+      setIndo(false);
+    }
+  }
+
   async function pagar() {
+    if (credito) {
+      await resgatar(credito.token);
+      return;
+    }
     setIndo(true);
     try {
       const { existe } = await temMusicaDaSessao({
@@ -315,8 +417,22 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
         <VitrineVideo caption={C.provaLegenda} selo={C.provaSelo} />
       </div>
 
-      {/* ── PREÇO, ancorado no que a alternativa custa de verdade ── */}
+      {/* ── CRÉDITO NO LUGAR DO PREÇO ───────────────────────────
+          Ancoragem, cupom e "hoje por" existem pra vencer a decisão de gastar.
+          Quem já gastou não tem essa decisão pela frente: mostrar preço aqui
+          só levanta a dúvida de estar sendo cobrada de novo. */}
       <div className="rounded-2xl border-2 border-primary/25 bg-primary/5 px-5 py-6 text-center">
+        {credito ? (
+          <>
+            <p className="font-display text-2xl font-semibold tracking-tight">
+              {C.creditoTitulo(credito.saldo)}
+            </p>
+            <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
+              {C.creditoSub}
+            </p>
+          </>
+        ) : (
+          <>
         <p className="mx-auto max-w-xs text-sm leading-relaxed text-muted-foreground">
           {C.ancora}
         </p>
@@ -359,6 +475,8 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
             <p className="text-xs leading-snug text-emerald-800/80">{G.texto}</p>
           </div>
         </div>
+          </>
+        )}
 
         {/* Só aparece se a trava barrar. Manda de volta pra revelação, que é
             onde a letra e a música nascem — e não deixa a pessoa presa numa
@@ -384,13 +502,25 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           </div>
         )}
 
+        {erroCredito && (
+          <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+            {erroCredito}
+          </p>
+        )}
+
         <Button
           size="lg"
           className="cta mt-4 w-full rounded-full border-0"
           disabled={indo}
           onClick={pagar}
         >
-          {indo ? C.abrindo : C.cta(nome)}
+          {credito
+            ? indo
+              ? C.creditoIndo
+              : C.creditoCta
+            : indo
+              ? C.abrindo
+              : C.cta(nome)}
         </Button>
 
         {/* SEGURANÇA NO CLIQUE, e não em letra miúda cinza.
@@ -459,17 +589,23 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-xl items-center gap-3 px-4 py-3">
           <div className="min-w-0 shrink-0">
-            <p className="text-[10px] leading-none text-muted-foreground">{C.unicoLabel}</p>
-            <p className="font-display text-lg font-semibold leading-tight">{preco.texto}</p>
+            <p className="text-[10px] leading-none text-muted-foreground">
+              {credito ? C.creditoLabel : C.unicoLabel}
+            </p>
+            <p className="font-display text-lg font-semibold leading-tight">
+              {credito ? C.creditoValor : preco.texto}
+            </p>
           </div>
           <Button
             className="cta h-12 flex-1 rounded-full border-0"
             disabled={indo}
             onClick={pagar}
           >
-            {indo ? C.abrindoCurto : (
+            {indo ? (
+              credito ? C.creditoIndo : C.abrindoCurto
+            ) : (
               <>
-                <Check className="h-4 w-4" /> {C.ctaCurto}
+                <Check className="h-4 w-4" /> {credito ? C.creditoCtaCurto : C.ctaCurto}
               </>
             )}
           </Button>
