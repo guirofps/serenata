@@ -6,6 +6,7 @@ import { tp } from "@/lib/textos-presente";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
 import { novaSessao } from "@/lib/session-context";
+import { trackEvent } from "@/lib/track";
 import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
 import { useQuizStore } from "@/lib/quiz-store";
 import { nomeDoComprador } from "@/lib/nome-comprador";
@@ -286,7 +287,7 @@ function Dashboard() {
               {([
                 ["musicas", T.abaMusicas, musicas.length, ""],
                 ["criar", T.abaCriar, 0, T.seloDesconto],
-                ["quadro", T.abaQuadro, quadros, ""],
+                ["quadro", T.abaQuadro, quadros, quadros > 0 ? "" : T.seloQuadro],
               ] as const).map(([chave, rotulo, quantos, selo]) => (
                 <button
                   key={chave}
@@ -395,7 +396,69 @@ function Dashboard() {
               )
             )}
 
-            <ul className="mt-5 space-y-3">
+            {/* ── A CHAMADA DO QUADRO, na primeira tela ────────────
+                "Quadro" numa aba não diz nada pra quem nunca viu um. O que
+                diz é a coisa acontecendo: a moldura em miniatura e a frase
+                "pendurar na parede", que é concreta. Nada de "emoldurar":
+                metade do nosso público não usa essa palavra.
+
+                Fica ENTRE o botão de criar e a lista, e por isso é baixinha:
+                alta demais empurraria as músicas pra fora da tela de novo,
+                que foi o problema que as abas vieram resolver.
+
+                Some quando ela já tem um quadro pra montar: aí quem chama é a
+                faixa lá de cima, e duas chamadas pra mesma coisa competem. */}
+            {temOfertas && quadros === 0 && (
+              <button
+                onClick={() => {
+                  setAba("quadro");
+                  trackEvent("quadro_chamada_click");
+                }}
+                className="mt-4 flex w-full items-center gap-3 rounded-[var(--raio)] border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-3 text-left transition-colors hover:border-[var(--acento)]/50"
+              >
+                <span
+                  className="shrink-0"
+                  style={{
+                    padding: 4,
+                    borderRadius: 2,
+                    background: "linear-gradient(150deg,#3b2c22,#241a14 45%,#443327)",
+                    boxShadow: "0 4px 10px rgba(0,0,0,.22)",
+                  }}
+                >
+                  <span className="block" style={{ background: "#f6f2ea", padding: 2 }}>
+                    <img
+                      src="/img/quadro-exemplo.jpg"
+                      alt=""
+                      className="block"
+                      style={{ width: 34, height: 48, objectFit: "cover" }}
+                      loading="lazy"
+                    />
+                  </span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="font-medium" style={{ fontSize: "var(--t-sm)" }}>
+                      {T.chamadaQuadroTitulo}
+                    </span>
+                    <span
+                      className="shrink-0 rounded-full bg-[var(--acento)] px-1.5 py-0.5 font-semibold uppercase text-white"
+                      style={{ fontSize: "10px" }}
+                    >
+                      {T.seloQuadro}
+                    </span>
+                  </span>
+                  <span
+                    className="mt-0.5 block text-[var(--tinta-suave)]"
+                    style={{ fontSize: "var(--t-xs)", lineHeight: 1.4 }}
+                  >
+                    {T.chamadaQuadroSub}
+                  </span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-[var(--acento)]" />
+              </button>
+            )}
+
+            <ul className="mt-4 space-y-3">
               {musicas.map((m) => {
                 const st = {
                   texto: T.status[m.status] ?? m.status,
