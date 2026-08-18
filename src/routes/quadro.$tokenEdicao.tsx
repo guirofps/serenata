@@ -14,7 +14,7 @@ import {
 } from "@/lib/quadro-estilo";
 import { EFEITOS, rotuloEfeito } from "@/components/presente/Efeitos";
 import { FONTES, MARCA } from "@/lib/marca";
-import { Printer, Lock, Check } from "lucide-react";
+import { Printer, Lock, Check, ChevronLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase-client";
 import { acessoAoQuadro, salvarQuadro } from "@/lib/meus-quadros";
 import { OFERTAS } from "@/lib/creditos";
@@ -81,6 +81,8 @@ const T = {
     salvando: "salvando...",
     salvo: "salvo",
     conferindo: "conferindo...",
+    voltarMontar: "Voltar e escolher outra música",
+    voltarPainel: "Voltar pra minhas músicas",
   },
   es: {
     acao: "Imprimir o guardar en PDF",
@@ -107,6 +109,8 @@ const T = {
     salvando: "guardando...",
     salvo: "guardado",
     conferindo: "comprobando...",
+    voltarMontar: "Volver y elegir otra canción",
+    voltarPainel: "Volver a mis canciones",
   },
 };
 
@@ -192,6 +196,19 @@ function Pagina() {
   // milímetros por dentro (o cálculo do corpo da letra, a caixa, a impressão)
   // e só muda o tamanho na tela. Na hora de imprimir o `scale` é anulado por
   // CSS, então o papel sai em A4 de verdade.
+  // DE ONDE ELA VEIO, pra o botão de voltar dizer pra onde vai.
+  //
+  // Antes esta página abria em ABA NOVA, e aba nova é beco sem saída pra quem
+  // não sabe alternar entre abas no celular: a pessoa personalizava o quadro e
+  // não achava mais o caminho de volta pra escolher outra música. Agora ela
+  // navega na mesma aba, e o caminho de volta é um botão com nome, não uma
+  // seta genérica: destino escrito é o que essa gente consegue seguir.
+  const [de, setDe] = useState<"montar" | "painel">("painel");
+  useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get("de");
+    if (v === "montar") setDe("montar");
+  }, []);
+
   const [escala, setEscala] = useState(1);
   useEffect(() => {
     const medir = () => {
@@ -404,6 +421,16 @@ function Pagina() {
 
       <div className="tela min-h-screen bg-[#1c1815] py-6">
         <div className="nao-imprime mx-auto mb-6 max-w-[210mm] space-y-4 px-4">
+          {/* O CAMINHO DE VOLTA, primeira coisa da tela. Em cima e com nome,
+              porque quem se perde aqui não volta sozinho. */}
+          <a
+            href={de === "montar" ? "/meu-quadro" : "/dashboard"}
+            className="inline-flex h-11 items-center gap-2 rounded-full border border-white/25 px-4 text-[13px] text-white/75 transition-colors hover:border-white/50 hover:text-white"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            {de === "montar" ? t.voltarMontar : t.voltarPainel}
+          </a>
+
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
             <div className="flex items-center gap-2">
               <span className="text-[11px] uppercase tracking-wider text-white/40">{t.modo}</span>

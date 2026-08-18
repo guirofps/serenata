@@ -71,9 +71,7 @@ export function BlocoQuadro({
           A moldura é CSS, não foto: madeira escura, passe-partout branco e
           sombra. Assim ela acompanha o tamanho da tela e não pesa nada. */}
       <a
-        href="/quadro/exemplo"
-        target="_blank"
-        rel="noreferrer"
+        href="/quadro/exemplo?de=painel"
         onClick={() => trackEvent("quadro_exemplo_click", { origem: "aba" })}
         className="block"
       >

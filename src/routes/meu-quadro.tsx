@@ -186,7 +186,7 @@ function MeuQuadro() {
     const r = await confirmarQuadro({ data: { token: tk, musicaId: escolhida } });
     if (r.ok) {
       trackEvent("quadro_confirmado", { musica: escolhida });
-      window.location.href = `/quadro/${r.tokenEdicao}`;
+      window.location.href = `/quadro/${r.tokenEdicao}?de=montar`;
       return;
     }
     setErro(
@@ -246,9 +246,7 @@ function MeuQuadro() {
                 </div>
               </div>
               <a
-                href="/quadro/exemplo"
-                target="_blank"
-                rel="noreferrer"
+                href="/quadro/exemplo?de=montar"
                 onClick={() => trackEvent("quadro_exemplo_click", { origem: "meu-quadro" })}
                 className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-[var(--tinta-fraca)] font-medium transition-colors hover:border-[var(--tinta-suave)]"
                 style={{ fontSize: "var(--t-sm)" }}
@@ -273,7 +271,7 @@ function MeuQuadro() {
                         {q.titulo}
                       </p>
                       <a
-                        href={`/quadro/${q.tokenEdicao}`}
+                        href={`/quadro/${q.tokenEdicao}?de=montar`}
                         className="cta mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border-0 font-medium"
                         style={{ fontSize: "var(--t-sm)" }}
                       >
@@ -350,9 +348,11 @@ function MeuQuadro() {
                               não um link perdido no fim da página. */}
                           {ativa && (
                             <a
-                              href={`/quadro/${m.tokenEdicao}`}
-                              target="_blank"
-                              rel="noreferrer"
+                              // MESMA ABA, de propósito. Aba nova é beco sem
+                              // saída pra quem não sabe alternar entre abas
+                              // no celular, e o `?de=montar` é o que faz a
+                              // prévia saber pra onde ela volta.
+                              href={`/quadro/${m.tokenEdicao}?de=montar`}
                               onClick={() => trackEvent("quadro_previa_click")}
                               className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-[var(--tinta-fraca)] font-medium transition-colors hover:border-[var(--tinta-suave)]"
                               style={{ fontSize: "var(--t-sm)" }}
