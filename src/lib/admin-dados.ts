@@ -129,6 +129,29 @@ export type Painel = {
     porDia: Array<{ dia: string; brl: number; receitaBrl: number; vendas: number }>;
   };
 
+  /**
+   * O ECOSSISTEMA DE E-MAIL. Conta PESSOA, não evento: o Resend dispara
+   * `opened`/`clicked` a cada reabertura, e taxa por evento cru passa de 100%.
+   *
+   * Clique PODE ser maior que abertura, e não é bug: quem bloqueia imagem não
+   * registra abertura (o pixel não carrega), mas o clique no link registra.
+   */
+  emails: {
+    enviadosLetra: number;
+    enviadosSequencia: number;
+    entregues: number;
+    abriram: number;
+    clicaram: number;
+    voltaram: number;
+    porModelo: Array<{
+      modelo: string;
+      entregues: number;
+      abriram: number;
+      clicaram: number;
+      voltaram: number;
+    }>;
+  };
+
   qualidade: {
     refacoes: number;
     aprimorou: number;
@@ -521,6 +544,25 @@ export const carregarPainel = createServerFn({ method: "POST" })
     if (erroResumo) throw new Error(`resumo de eventos: ${erroResumo.message}`);
     const resumo = (resumoCru ?? {}) as EventosResumo;
 
+    // O e-mail é agregado à parte porque não compartilha nada com o funil: ele
+    // é por DESTINATÁRIO, não por sessão, e mistura eventos que vêm do Resend
+    // com os nossos. Falha aqui NÃO derruba o painel: não saber a taxa de
+    // abertura é ruim, não ver o faturamento é pior.
+    let emails: Painel["emails"] = {
+      enviadosLetra: 0, enviadosSequencia: 0, entregues: 0,
+      abriram: 0, clicaram: 0, voltaram: 0, porModelo: [],
+    };
+    try {
+      const { data: e, error } = await db.rpc("admin_emails_resumo", {
+        p_desde: desde,
+        p_ate: ateISO,
+      });
+      if (error) throw new Error(error.message);
+      if (e) emails = e as Painel["emails"];
+    } catch (err) {
+      console.error("[admin] resumo de e-mail não lido:", err);
+    }
+
     // Visitante único: sessões distintas com page_view. É o denominador honesto
     // do funil (o total de page_view contaria a mesma pessoa várias vezes).
     const visitantes = resumo.visitantes ?? 0;
@@ -786,6 +828,8 @@ export const carregarPainel = createServerFn({ method: "POST" })
           .map(([dia, v]) => ({ dia, ...v }))
           .sort((a, b) => a.dia.localeCompare(b.dia)),
       },
+
+      emails,
 
       qualidade: {
         refacoes: conta("letra_refacao"),

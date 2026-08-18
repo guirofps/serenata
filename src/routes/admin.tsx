@@ -78,6 +78,12 @@ function Cartao({
   );
 }
 
+/** "34%" ou "-" quando nao ha base. Evita 0% que parece medido e nao e. */
+function pctTxt(parte: number, total: number): string {
+  if (!total) return "-";
+  return `${Math.round((parte / total) * 100)}%`;
+}
+
 function Secao({ titulo, sub, children }: { titulo: string; sub?: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
@@ -612,6 +618,75 @@ function Admin() {
               <span>Tem música que não chegou ao cliente. Verifique antes que vire pedido de reembolso.</span>
             </div>
           )}
+        </Secao>
+
+        {/* ── E-MAIL ────────────────────────────────────────────────
+            O funil media ate a venda e parava ali. O e-mail, que e o que traz
+            de volta quem abandonou, era invisivel: dava pra contar envio e
+            nada mais.
+
+            Conta PESSOA, nao evento: o Resend dispara opened/clicked a cada
+            reabertura, e taxa por evento cru passa de 100%. E agrupa por
+            MODELO, nao por assunto, porque o assunto carrega o nome do
+            presenteado ("pra Maria") e quebraria o dado em centenas de baldes
+            de seis pessoas. */}
+        <Secao
+          titulo="E-mail"
+          sub="Por pessoa, não por evento. Clique pode passar a abertura: quem bloqueia imagem não registra abertura, mas o clique conta."
+        >
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Cartao
+              rotulo="Entregues"
+              valor={String(dados.emails.entregues)}
+              apoio={`${dados.emails.enviadosLetra + dados.emails.enviadosSequencia} disparados`}
+            />
+            <Cartao
+              rotulo="Abriram"
+              valor={`${pctTxt(dados.emails.abriram, dados.emails.entregues)}`}
+              apoio={`${dados.emails.abriram} pessoas`}
+            />
+            <Cartao
+              rotulo="Clicaram"
+              valor={`${pctTxt(dados.emails.clicaram, dados.emails.entregues)}`}
+              apoio={`${dados.emails.clicaram} pessoas`}
+            />
+            <Cartao
+              rotulo="Voltaram"
+              valor={`${pctTxt(dados.emails.voltaram, dados.emails.entregues + dados.emails.voltaram)}`}
+              // Acima de 2% o provedor comeca a punir o dominio inteiro, e o
+              // proximo e-mail bom cai no spam de quem nunca deu problema.
+              alerta={
+                dados.emails.voltaram >
+                (dados.emails.entregues + dados.emails.voltaram) * 0.02
+              }
+              apoio={`${dados.emails.voltaram} endereços ruins`}
+            />
+          </div>
+
+          <Tabela cabecalho={["Modelo", "Entregues", "Abriram", "Clicaram", "Voltaram"]}>
+            {dados.emails.porModelo.map((m) => (
+              <tr key={m.modelo} className="border-t border-[var(--tinta-fraca)]/30">
+                <td className="p-3">{m.modelo}</td>
+                <td className="p-3 tabular-nums">{m.entregues}</td>
+                <td className="p-3 tabular-nums">
+                  {m.abriram} <span className="text-[var(--tinta-suave)]">{pctTxt(m.abriram, m.entregues)}</span>
+                </td>
+                <td className="p-3 tabular-nums">
+                  {m.clicaram} <span className="text-[var(--tinta-suave)]">{pctTxt(m.clicaram, m.entregues)}</span>
+                </td>
+                <td className={`p-3 tabular-nums ${m.voltaram > m.entregues * 0.02 ? "text-amber-600" : ""}`}>
+                  {m.voltaram}
+                </td>
+              </tr>
+            ))}
+            {dados.emails.porModelo.length === 0 && (
+              <tr>
+                <td colSpan={5} className="p-3 text-[var(--tinta-suave)]">
+                  Nenhum e-mail no período.
+                </td>
+              </tr>
+            )}
+          </Tabela>
         </Secao>
 
         {/* ── PREFERÊNCIAS ─────────────────────────────────────── */}
