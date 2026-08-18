@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { emailDaSessao } from "@/lib/conta-sessao";
 
 // O QUADRO: a página presente virando uma folha A4 pra imprimir e emoldurar.
 //
@@ -25,6 +26,19 @@ export type Quadro = {
   corDestaque: string | null;
   /** Link da página presente, que vira o QR Code no rodapé. */
   linkPresente: string;
+  /**
+   * O DIREITO DE IMPRIMIR.
+   *
+   *   `confirmado` — ela amarrou um quadro comprado a esta música. Imprime.
+   *   `previa`     — tem quadro comprado e ainda não escolheu. Vê, não imprime.
+   *   `nenhum`     — não comprou. Vê o exemplo e a oferta.
+   *
+   * Antes disto a rota era aberta a quem tivesse o link do editor, que vai por
+   * e-mail: o quadro estava à venda e de graça ao mesmo tempo.
+   */
+  acesso: "confirmado" | "previa" | "nenhum";
+  /** O que ela escreveu NO QUADRO, que começa copiado da página presente. */
+  musicaId: string | null;
 };
 
 /**
@@ -79,10 +93,13 @@ Obrigada por me encontrar`,
   fotoUrl: "/img/exemplo-pai.webp",
   corDestaque: null,
   linkPresente: "https://www.serenatagift.com",
+  // O exemplo imprime: é a vitrine, e vitrine que não deixa ver não vende.
+  acesso: "confirmado",
+  musicaId: null,
 };
 
 export const carregarQuadro = createServerFn({ method: "POST" })
-  .validator((data: { tokenEdicao: string }) => data)
+  .validator((data: { tokenEdicao: string; token?: string }) => data)
   .handler(async ({ data }): Promise<Quadro | null> => {
     if (data.tokenEdicao === "exemplo") return EXEMPLO;
     // Exemplo com foto EM PÉ, pra conferir o arranjo de retrato sem depender
@@ -97,10 +114,40 @@ export const carregarQuadro = createServerFn({ method: "POST" })
     // da pessoa direto do e-mail.
     const { data: m } = await db
       .from("musicas")
-      .select("titulo, letra, dedicatoria, foto_path, cor_destaque, token, quiz_response_id, locale")
+      .select("id, titulo, letra, dedicatoria, foto_path, cor_destaque, token, quiz_response_id, locale")
       .eq("token_edicao", data.tokenEdicao)
       .maybeSingle();
     if (!m?.letra) return null;
+
+    // ── QUEM ESTÁ PEDINDO, E TEM DIREITO? ────────────────────
+    // O token de edição prova que o link é dela, não que ela comprou o quadro.
+    // O direito mora em `quadros`, e quem prova a identidade é a sessão.
+    let acesso: Quadro["acesso"] = "nenhum";
+    const email = data.token ? await emailDaSessao(data.token) : null;
+    if (email) {
+      const { data: meu } = await db
+        .from("quadros")
+        .select("id, musica_id, titulo, dedicatoria")
+        .ilike("email", email)
+        .eq("musica_id", m.id)
+        .maybeSingle();
+      if (meu?.id) {
+        acesso = "confirmado";
+        // O que ela escreveu no QUADRO manda sobre o que está na página
+        // presente: são peças diferentes e ela pode querer textos diferentes.
+        if (meu.titulo) m.titulo = meu.titulo;
+        if (meu.dedicatoria !== null && meu.dedicatoria !== undefined) {
+          m.dedicatoria = meu.dedicatoria;
+        }
+      } else {
+        const { count } = await db
+          .from("quadros")
+          .select("id", { count: "exact", head: true })
+          .ilike("email", email)
+          .is("musica_id", null);
+        if ((count ?? 0) > 0) acesso = "previa";
+      }
+    }
 
     const { data: q } = await db
       .from("quiz_responses")
@@ -129,5 +176,7 @@ export const carregarQuadro = createServerFn({ method: "POST" })
       fotoUrl,
       corDestaque: m.cor_destaque,
       linkPresente: `https://www.serenatagift.com/p/${m.token}`,
+      acesso,
+      musicaId: m.id,
     };
   });

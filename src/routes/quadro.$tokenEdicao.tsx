@@ -14,7 +14,10 @@ import {
 } from "@/lib/quadro-estilo";
 import { EFEITOS, rotuloEfeito } from "@/components/presente/Efeitos";
 import { FONTES, MARCA } from "@/lib/marca";
-import { Printer } from "lucide-react";
+import { Printer, Lock, Check } from "lucide-react";
+import { supabase } from "@/lib/supabase-client";
+import { acessoAoQuadro } from "@/lib/meus-quadros";
+import { OFERTAS } from "@/lib/creditos";
 import { trackEvent } from "@/lib/track";
 
 // A FOLHA A4 PRA EMOLDURAR.
@@ -132,6 +135,43 @@ function Pagina() {
   const [qr, setQr] = useState<string | null>(null);
   const [corpoPt, setCorpoPt] = useState(11);
   const [pronto, setPronto] = useState(false);
+  // ── O DIREITO DE IMPRIMIR ──────────────────────────────────────
+  //
+  // O loader roda no servidor, onde não existe sessão pra ler: ele devolve
+  // `nenhum` pra todo mundo (e `confirmado` só pro exemplo). Então a folha
+  // aparece primeiro, que é o que ela veio ver, e o direito chega logo depois.
+  //
+  // Enquanto não chega, a tela mostra a folha SEM o botão de imprimir. O
+  // contrário (mostrar e tirar) seria pior: ela clica, some, e ela acha que
+  // quebrou.
+  const [acesso, setAcesso] = useState<Quadro["acesso"]>(q.acesso);
+  const [conferindo, setConferindo] = useState(q.acesso !== "confirmado");
+  useEffect(() => {
+    if (!q.musicaId) {
+      setConferindo(false);
+      return;
+    }
+    let vivo = true;
+    (async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      const tk = sess.session?.access_token;
+      if (!tk) {
+        if (vivo) setConferindo(false);
+        return;
+      }
+      const r = await acessoAoQuadro({ data: { token: tk, musicaId: q.musicaId as string } });
+      if (vivo) {
+        setAcesso(r.acesso);
+        setConferindo(false);
+      }
+    })().catch(() => {
+      if (vivo) setConferindo(false);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [q.musicaId]);
+
   // O FORMATO DA FOTO decide o arranjo, e isso não é detalhe.
   //
   // A faixa que sangra de borda a borda funciona pra foto DEITADA: `cover`
@@ -311,21 +351,64 @@ function Pagina() {
             ))}
           </div>
 
-          <div className="text-center">
-            <button
-              onClick={() => {
-                trackEvent("quadro_imprimir", { modo: estilo.modo, efeito: estilo.efeito });
-                window.print();
-              }}
-              className="inline-flex h-12 items-center gap-2 rounded-full px-7 font-medium"
-              style={{ fontSize: 15, background: "#f0b95f", color: "#0d0a08" }}
-            >
-              <Printer className="h-4 w-4" /> {t.acao}
-            </button>
-            <p className="mx-auto mt-3 max-w-md text-[13px] leading-relaxed text-white/45">
-              {t.dica} {estilo.modo === "escuro" && t.dicaClaro}
-            </p>
-          </div>
+          {/* ── O QUE ESTA PESSOA PODE FAZER AQUI ──────────────
+              Três estados, e cada um mostra UMA ação só. Duas ações lado a
+              lado numa tela de celular é onde a pessoa aperta a errada. */}
+          {conferindo ? (
+            <div className="text-center text-[13px] text-white/40">conferindo...</div>
+          ) : acesso === "confirmado" ? (
+            <div className="text-center">
+              <button
+                onClick={() => {
+                  trackEvent("quadro_imprimir", { modo: estilo.modo, efeito: estilo.efeito });
+                  window.print();
+                }}
+                className="inline-flex h-12 w-full max-w-md items-center justify-center gap-2 rounded-full px-7 font-medium"
+                style={{ fontSize: 15, background: "#f0b95f", color: "#0d0a08" }}
+              >
+                <Printer className="h-4 w-4" /> {t.acao}
+              </button>
+              <p className="mx-auto mt-3 max-w-md text-[13px] leading-relaxed text-white/45">
+                {t.dica} {estilo.modo === "escuro" && t.dicaClaro}
+              </p>
+            </div>
+          ) : acesso === "previa" ? (
+            /* COMPROU, AINDA NÃO ESCOLHEU. Não é hora de vender de novo: é
+               hora de mandar ela terminar o que já pagou. */
+            <div className="mx-auto max-w-md text-center">
+              <p className="text-[13px] leading-relaxed text-white/70">
+                Você tem um quadro pra montar. Confirme que ele é o desta
+                música pra liberar a impressão.
+              </p>
+              <a
+                href="/meu-quadro"
+                className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-7 font-medium"
+                style={{ fontSize: 15, background: "#f0b95f", color: "#0d0a08" }}
+              >
+                <Check className="h-4 w-4" /> Escolher esta música
+              </a>
+            </div>
+          ) : (
+            /* NÃO COMPROU. O quadro fica visível de propósito: é a vitrine
+               dele. O que não sai é o papel. */
+            <div className="mx-auto max-w-md text-center">
+              <p className="text-[13px] leading-relaxed text-white/70">
+                Este é o quadro da sua música: a letra e a foto de vocês numa
+                folha A4, pronta pra você imprimir e emoldurar.
+              </p>
+              <a
+                href={OFERTAS.find((o) => o.id === "quadro")?.checkout ?? "/dashboard"}
+                onClick={() => trackEvent("credito_oferta_click", { oferta: "quadro", origem: "quadro" })}
+                className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-7 font-medium"
+                style={{ fontSize: 15, background: "#f0b95f", color: "#0d0a08" }}
+              >
+                <Lock className="h-4 w-4" /> Quero este quadro por R$ 24,90
+              </a>
+              <p className="mt-2 text-[12px] text-white/40">
+                Depois de comprar você volta e escolhe de qual música é.
+              </p>
+            </div>
+          )}
         </div>
 
         <div
@@ -339,6 +422,32 @@ function Pagina() {
             opacity: pronto ? 1 : 0,
           }}
         >
+          {/* A MARCA DE PRÉVIA.
+              Esconder o botão de imprimir não impede Ctrl+P, e um quadro que
+              sai inteiro sem pagar não é produto. A marca vai DENTRO da folha
+              e imprime junto: quem burlar leva um papel que não serve pra
+              emoldurar, que é exatamente a diferença entre ver e ter.
+              O exemplo (`musicaId` nulo) não leva marca: ele é a vitrine. */}
+          {q.musicaId && acesso !== "confirmado" && !conferindo && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 z-20 grid place-items-center"
+              style={{ transform: "rotate(-28deg)" }}
+            >
+              <span
+                style={{
+                  fontSize: "34mm",
+                  letterSpacing: "0.12em",
+                  fontWeight: 700,
+                  color: p.texto,
+                  opacity: 0.14,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {q.locale === "es" ? "VISTA PREVIA" : "PRÉVIA"}
+              </span>
+            </div>
+          )}
           {/* A FOTO. No escuro ela sangra e some no degradê, que é o gesto da
               página presente. No claro esse gesto não existe (não dá pra
               "escurecer até o creme" sem sujar a imagem), então ela vira um

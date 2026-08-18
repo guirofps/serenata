@@ -443,6 +443,28 @@ export default async function handler(req: Req, res: Res) {
         }
       }
 
+      // O QUADRO NÃO É CRÉDITO: é uma peça amarrada a UMA música, e por isso
+      // nasce como uma linha própria em `quadros`, com `musica_id` nulo. O
+      // nulo é o direito: ela ainda vai escolher de qual música o quadro é.
+      //
+      // Antes disto o direito era deduzido do preço (`valor_centavos = 2490`),
+      // que some no dia de uma promoção e não conta a segunda compra. O índice
+      // único por pedido é quem segura o reenvio do mesmo evento.
+      if (oferta.id === "quadro") {
+        const { error: erroQuadro } = await sb.from("quadros").insert({
+          email,
+          pedido_id: pedidoUpsell?.id ?? null,
+        });
+        if (erroQuadro && erroQuadro.code !== "23505") {
+          await alertarDono(
+            "Quadro pago e NÃO liberado",
+            `<p>O pagamento do quadro entrou mas o direito não foi criado:` +
+              ` ${escaparHtml(erroQuadro.message)}<br>${escaparHtml(email)} · ${escaparHtml(paymentId)}</p>` +
+              `<p>Ela pagou e o painel não vai mostrar o quadro pra montar.</p>`,
+          );
+        }
+      }
+
       await auditar("perfectpay_upsell", {
         code: paymentId,
         email,
