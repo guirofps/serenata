@@ -22,7 +22,7 @@ import { Resend } from "resend";
 import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto.js";
 import { enviarVendaUtmify } from "../lib/utmify.js";
 import { pareceTypo, sugerirEmail } from "../../src/lib/email-typo.js";
-import { reconhecerOferta, PRODUTO_PRINCIPAL } from "../../src/lib/creditos.js";
+import { reconhecerOferta, PRODUTO_PRINCIPAL, OFERTAS } from "../../src/lib/creditos.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -129,6 +129,18 @@ type Corpo = {
   // Descoberto lendo um payload REAL da auditoria, nao chutando nome de campo.
   plan?: { code?: string; name?: string };
   product?: { code?: string; name?: string };
+  /**
+   * OS ITENS DA VENDA, que é onde o ORDER BUMP aparece.
+   *
+   * Numa venda de um produto só ele vem `[]` (conferido em 381 payloads
+   * reais). Quando existir bump, a compra principal continua vindo em
+   * `product.code`, e o que foi marcado na caixinha do checkout vem aqui.
+   *
+   * O tipo é frouxo de propósito: nunca vimos um payload COM bump, então
+   * cravar o formato seria chutar. O que a gente faz é varrer o pedaço todo
+   * atrás de códigos conhecidos, o que funciona em qualquer formato.
+   */
+  plan_itens?: unknown;
   sale_status_enum_key?: string;
   sale_status_detail?: string;
   sale_status?: string;
@@ -569,7 +581,7 @@ export default async function handler(req: Req, res: Res) {
 
     // ── 7. GRAVA O PEDIDO ────────────────────────────────────
     // sale_amount vem em REAIS; guardamos em centavos.
-    const { error: erroPedido } = await sb.from("pedidos").upsert(
+    const { data: pedidoPrincipal, error: erroPedido } = await sb.from("pedidos").upsert(
       {
         payment_id: paymentId,
         gateway: "perfectpay",
@@ -592,7 +604,12 @@ export default async function handler(req: Req, res: Res) {
         paid_at: new Date().toISOString(),
       },
       { onConflict: "payment_id" },
-    );
+    )
+      // O ID É PRA O ORDER BUMP: os índices únicos que impedem crédito
+      // duplicado são por `pedido_id`, então sem ele o reenvio do mesmo evento
+      // creditaria de novo.
+      .select("id")
+      .maybeSingle();
     if (erroPedido) {
       await auditar("perfectpay_pedido_falhou", { paymentId, erro: erroPedido.message });
       console.error("[perfectpay] gravar pedido falhou:", erroPedido.message);
@@ -649,6 +666,62 @@ export default async function handler(req: Req, res: Res) {
         await sb.from("quiz_responses").update({ whatsapp: telefone }).eq("id", quiz.id);
       } catch (err) {
         console.error("[perfectpay] telefone não gravado:", err);
+      }
+    }
+
+    // ── 7b. O ORDER BUMP DA VENDA PRINCIPAL ──────────────────
+    //
+    // O bump não é um pagamento separado: vem dentro da MESMA venda, e por
+    // isso não passa pelo bloco de upsell lá em cima, que só olha
+    // `product.code` — e aqui esse código é o do produto principal.
+    //
+    // Sem isto a pessoa marca a caixinha, paga os R$ 24,90 a mais e não recebe
+    // nada. É o defeito exato que este webhook inteiro existe pra impedir.
+    //
+    // A VARREDURA É POR TEXTO, não por caminho de campo. A gente nunca viu um
+    // payload COM bump (`plan_itens` vem `[]` nas 381 vendas guardadas), então
+    // navegar até `plan_itens[0].plan.code` seria chutar o formato e falhar em
+    // silêncio no dia da primeira venda. Procurar os códigos conhecidos dentro
+    // do JSON inteiro acerta em qualquer formato, e um código de 8 letras não
+    // aparece por acaso.
+    const cruDoBump = JSON.stringify(body.plan_itens ?? "");
+    const bumps = OFERTAS.filter((o) => o.productCode && cruDoBump.includes(o.productCode));
+    if (bumps.length && email) {
+      await auditar("perfectpay_bump", {
+        code: paymentId,
+        email,
+        ofertas: bumps.map((b) => b.id),
+      });
+      for (const bump of bumps) {
+        if (bump.creditos > 0) {
+          const { error } = await sb.from("creditos").insert({
+            email,
+            quantidade: bump.creditos,
+            origem: "compra",
+            pedido_id: pedidoPrincipal?.id ?? null,
+            nota: { oferta: bump.id, via: "order_bump", produto: produtoCode },
+          });
+          if (error && error.code !== "23505") {
+            await alertarDono(
+              "Order bump pago e NÃO creditado",
+              `<p>Veio <b>${bump.id}</b> como order bump e o crédito falhou:` +
+                ` ${escaparHtml(error.message)}<br>${escaparHtml(email)} · ${escaparHtml(paymentId)}</p>`,
+            );
+          }
+        }
+        if (bump.id === "quadro") {
+          const { error } = await sb.from("quadros").insert({
+            email,
+            pedido_id: pedidoPrincipal?.id ?? null,
+          });
+          if (error && error.code !== "23505") {
+            await alertarDono(
+              "Quadro pago no bump e NÃO liberado",
+              `<p>O quadro veio como order bump e o direito não foi criado:` +
+                ` ${escaparHtml(error.message)}<br>${escaparHtml(email)} · ${escaparHtml(paymentId)}</p>`,
+            );
+          }
+        }
       }
     }
 
