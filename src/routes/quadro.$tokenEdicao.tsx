@@ -159,7 +159,14 @@ function Pagina() {
   /** Corpo da letra depois do ajuste. Vive em estado, não no DOM: ver `medir`. */
   const [corpoPt, setCorpoPt] = useState(11);
 
-  const acento = q.corDestaque ?? AMBAR;
+  // A COR QUE ELA ESCOLHEU FICA SÓ NO FIO, não no texto.
+  //
+  // Na página presente a cor dela funciona: fundo preto, karaokê aceso, a
+  // palavra brilhando no ritmo. No papel ela vira texto ciano sobre bordô, que
+  // é feio e some na impressão. O texto usa o âmbar da marca, que conversa com
+  // o fundo; a escolha dela assina no fio do topo, onde some se destoar.
+  const fio = q.corDestaque ?? AMBAR;
+  const acento = AMBAR;
 
   useEffect(() => {
     QRCode.toDataURL(q.linkPresente, {
@@ -266,13 +273,13 @@ function Pagina() {
               <img
                 src={q.fotoUrl}
                 alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 22%", display: "block" }}
               />
               <div
                 style={{
                   position: "absolute",
                   inset: 0,
-                  background: `linear-gradient(to bottom, rgba(13,10,8,0.30) 0%, rgba(13,10,8,0.70) 46%, ${FUNDO} 96%)`,
+                  background: `linear-gradient(to bottom, rgba(13,10,8,0.18) 0%, rgba(13,10,8,0.62) 34%, rgba(13,10,8,0.93) 62%, ${FUNDO} 82%)`,
                 }}
               />
             </div>
@@ -287,7 +294,7 @@ function Pagina() {
               transform: "translateX(-50%)",
               width: "18mm",
               height: "0.6mm",
-              background: acento,
+              background: fio,
               borderRadius: 1,
             }}
           />
