@@ -2,35 +2,41 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { carregarQuadro, type Quadro } from "@/lib/quadro";
+import { QuadroEfeitos } from "@/components/presente/QuadroEfeitos";
+import {
+  CORES_QUADRO,
+  corDoQuadro,
+  paleta,
+  lerEstilo,
+  gravarEstilo,
+  ESTILO_PADRAO,
+  type Estilo,
+} from "@/lib/quadro-estilo";
+import { EFEITOS, rotuloEfeito } from "@/components/presente/Efeitos";
 import { FONTES, MARCA } from "@/lib/marca";
 import { Printer } from "lucide-react";
 import { trackEvent } from "@/lib/track";
 
 // A FOLHA A4 PRA EMOLDURAR.
 //
-// A primeira versão era uma folha branca com um filete de cor e o texto
-// empilhado. Dois defeitos, e o dono viu os dois de cara: não parecia
-// Serenata, e o texto VAZAVA por cima da foto e do título.
+// ── O HISTÓRICO DE ERROS, porque cada um custou uma rodada ────────
 //
-// ── O VAZAMENTO, e por que meu teste não pegou ───────────────────
+// 1. Primeira versão: folha branca com um filete de cor, sem nada da Serenata,
+//    e o texto VAZANDO por cima da foto e do título.
 //
-// A letra vivia num flex com `minHeight: 0`. Quando não cabia, a caixa
-// encolhia e o texto transbordava POR FORA dela, sobrepondo os vizinhos. E o
-// meu teste comparava `scrollHeight` com `clientHeight` DO CONTAINER, que
-// continuam iguais nesse caso: eu estava medindo a caixa, não o conteúdo.
+// 2. O vazamento resistiu a quatro tentativas de conserto. A raiz:
+//    `scrollHeight` de um elemento com `column-count`, dentro de um pai com
+//    `overflow: hidden`, devolve a altura LIMITADA da caixa, não a do texto.
+//    Todas as medições liam esse número e "cabia" quando não cabia. A versão
+//    boa mede num clone fora da tela, uma coluna, sem limite de altura.
 //
-// Agora o corpo é medido de verdade (`ajustarCorpo`), encolhendo até caber, e
-// a caixa tem `overflow: hidden` pra não haver para onde vazar.
+// 3. O PDF saía com DUAS páginas. Esconder o botão não bastava: o container em
+//    volta mantinha padding e altura de tela cheia, e a sobra virava folha
+//    vazia. Agora a moldura de tela é zerada na impressão.
 //
-// ── A IDENTIDADE ─────────────────────────────────────────────────
-//
-// Emprestada da página presente, não inventada aqui: fundo #0d0a08, a foto
-// entrando por baixo do mesmo degradê que ela usa, Fraunces no título, e a cor
-// que o comprador escolheu como ACENTO (o nome, o fio, a dedicatória), nunca
-// como bloco solto.
-//
-// Escuro num A4 gasta tinta, e é decisão consciente: isto existe pra ser
-// impresso em gráfica e emoldurado, não pra sair na jato de tinta de casa.
+// 4. Ao aumentar o QR, a letra apareceu CORTADA: o rodapé cresceu depois que o
+//    corpo já tinha sido calculado. Um ResizeObserver na caixa resolve a
+//    família inteira, em vez de perseguir cada imagem que carrega depois.
 
 export const Route = createFileRoute("/quadro/$tokenEdicao")({
   loader: async ({ params }) => {
@@ -53,45 +59,35 @@ const T = {
     dica: "Escolha “Salvar como PDF”. Pra emoldurar, peça impressão em gráfica, papel fosco A4.",
     ouvir: "Aponte a câmera e ouça",
     para: "para",
+    modo: "Fundo",
+    escuro: "Escuro",
+    claro: "Claro",
+    cor: "Cor",
+    efeito: "Detalhe",
+    dicaClaro: "O fundo claro gasta muito menos tinta em impressora de casa.",
   },
   es: {
     acao: "Imprimir o guardar en PDF",
     dica: "Elige “Guardar como PDF”. Para enmarcar, pide impresión profesional en papel mate A4.",
     ouvir: "Apunta la cámara y escucha",
     para: "para",
+    modo: "Fondo",
+    escuro: "Oscuro",
+    claro: "Claro",
+    cor: "Color",
+    efeito: "Detalle",
+    dicaClaro: "El fondo claro gasta mucha menos tinta en impresora de casa.",
   },
 };
 
 const NOVA_LINHA = String.fromCharCode(10);
-const FUNDO = "#0d0a08";
-const AMBAR = "#f0b95f";
 
 /**
- * Encolhe o corpo da letra até ela caber na altura disponível.
+ * O corpo que faz a letra caber. MEDE num clone e escala.
  *
- * Roda em `useLayoutEffect` pra acontecer ANTES da pintura: depois, a folha
- * piscaria com o texto grande antes de assentar, e quem mandasse imprimir
- * rápido pegaria o estado errado.
- */
-/**
- * O corpo que faz a letra caber. MEDE a altura real e escala por regra de três.
- *
- * Duas tentativas anteriores falharam, e vale registrar as duas porque erram
- * por motivos diferentes:
- *
- * 1. Um LAÇO encolhendo 0,25pt por vez, medindo a cada passo. Não convergia
- *    porque o React re-renderizava e o `style` do JSX desfazia o `fontSize`
- *    que o laço tinha acabado de gravar no DOM.
- *
- * 2. Uma CONTA a partir do NÚMERO DE LINHAS do texto. Errava por baixo: em
- *    duas colunas estreitas as linhas longas QUEBRAM EM DUAS, então 51 linhas
- *    de letra viram bem mais de 51 linhas na tela. Devolvia 8,5pt onde a caixa
- *    pedia 7,75, e a letra vazava 11px.
- *
- * O que funciona é não adivinhar quantas linhas existem: medir a altura que o
- * texto REALMENTE ocupou no corpo atual e escalar, já que a entrelinha é
- * múltiplo do corpo. Encolher reduz a quebra de linha, então o resultado só
- * sobra, nunca falta.
+ * Medir o elemento real não funciona (ver o histórico no topo). O clone tem
+ * uma coluna só, a largura de UMA coluna do layout final, e nenhum limite de
+ * altura: ali o `scrollHeight` volta a ser o que diz ser.
  */
 function corpoQueCabe(
   texto: string,
@@ -102,16 +98,6 @@ function corpoQueCabe(
   maxPt: number,
 ): number {
   if (!caixaPx || !larguraColunaPx) return maxPt;
-
-  // MEDE NUM CLONE FORA DA TELA, e isso é o coração do conserto.
-  //
-  // Medir o elemento real não funciona: com `column-count`, dentro de um pai
-  // com `overflow: hidden`, o `scrollHeight` devolve a altura LIMITADA da
-  // caixa, não a altura natural do texto. Todas as minhas medições anteriores
-  // liam esse número e por isso "cabia" quando não cabia.
-  //
-  // O clone tem uma coluna só, a largura de UMA coluna do layout final, e
-  // nenhum limite de altura. Aí o `scrollHeight` volta a ser o que diz ser.
   const REF = 10;
   const clone = document.createElement("p");
   clone.textContent = texto;
@@ -130,91 +116,75 @@ function corpoQueCabe(
   const alturaUmaColuna = clone.scrollHeight;
   clone.remove();
   if (!alturaUmaColuna) return maxPt;
-
   // Em N colunas a altura vira ~1/N. O 0,94 cobre o arredondamento da quebra
   // de coluna, que nunca divide exatamente ao meio.
-  const alturaNoLayout = alturaUmaColuna / colunas;
-  const alvo = (REF * caixaPx * 0.94) / alturaNoLayout;
+  const alvo = (REF * caixaPx * 0.94) / (alturaUmaColuna / colunas);
   // Piso de 7pt: abaixo disso não se lê num quadro na parede.
   return Math.max(7, Math.min(maxPt, Math.floor(alvo * 4) / 4));
 }
 
 function Pagina() {
   const q = Route.useLoaderData() as Quadro;
-  // DUAS COLUNAS QUANDO A LETRA É LONGA, e não é escolha estética.
-  //
-  // A conta que eu não tinha feito: 49 linhas com entrelinha legível ocupam
-  // ~270mm, e o A4 tem 297mm no total. Numa coluna só, com foto, NÃO CABE em
-  // tamanho nenhum que se leia num quadro. Foi por isso que a primeira versão
-  // vazou por cima da foto: não era bug de CSS, era falta de espaço.
-  //
-  // O corte em 26 linhas é onde a coluna única deixa de caber com a foto de
-  // 112mm. Abaixo disso, uma coluna centralizada é mais bonita e fica.
-  const duasColunas = q.letra.split(NOVA_LINHA).filter((l) => l.trim()).length > 26;
   const t = T[q.locale] ?? T.pt;
+  const token = q.linkPresente.split("/p/")[1] ?? "";
+
+  const [estilo, setEstilo] = useState<Estilo>(ESTILO_PADRAO);
   const [qr, setQr] = useState<string | null>(null);
+  const [corpoPt, setCorpoPt] = useState(11);
+  const [pronto, setPronto] = useState(false);
   const caixaRef = useRef<HTMLDivElement>(null);
   const letraRef = useRef<HTMLParagraphElement>(null);
-  const [pronto, setPronto] = useState(false);
-  /** Corpo da letra depois do ajuste. Vive em estado, não no DOM: ver `medir`. */
-  const [corpoPt, setCorpoPt] = useState(11);
 
-  // A COR QUE ELA ESCOLHEU FICA SÓ NO FIO, não no texto.
-  //
-  // Na página presente a cor dela funciona: fundo preto, karaokê aceso, a
-  // palavra brilhando no ritmo. No papel ela vira texto ciano sobre bordô, que
-  // é feio e some na impressão. O texto usa o âmbar da marca, que conversa com
-  // o fundo; a escolha dela assina no fio do topo, onde some se destoar.
-  const fio = q.corDestaque ?? AMBAR;
-  const acento = AMBAR;
+  const p = paleta(estilo.modo);
+  const acento = corDoQuadro(estilo.cor, estilo.modo);
+
+  // DUAS COLUNAS QUANDO A LETRA É LONGA, e não é escolha estética: 49 linhas
+  // com entrelinha legível ocupam ~270mm, e o A4 tem 297mm no total. Numa
+  // coluna só, com foto, não cabe em tamanho nenhum que se leia.
+  const duasColunas = q.letra.split(NOVA_LINHA).filter((l) => l.trim()).length > 26;
+
+  const mudar = (novo: Partial<Estilo>) => {
+    const e = { ...estilo, ...novo };
+    setEstilo(e);
+    gravarEstilo(token, e);
+    trackEvent("quadro_personalizou", novo as Record<string, string>);
+  };
+
+  useEffect(() => {
+    if (token) setEstilo(lerEstilo(token));
+  }, [token]);
 
   useEffect(() => {
     QRCode.toDataURL(q.linkPresente, {
       margin: 0,
       width: 400,
-      // Claro sobre o fundo escuro: leitor de celular precisa de contraste, e
-      // QR escuro sobre preto não lê.
-      color: { dark: FUNDO, light: "#f7f0e8" },
+      // O QR inverte com o modo: leitor de celular precisa de contraste, e QR
+      // escuro sobre fundo escuro simplesmente não lê.
+      color: { dark: p.qrEscuro, light: p.qrFundo },
     })
       .then(setQr)
       .catch(() => {});
-  }, [q.linkPresente]);
+  }, [q.linkPresente, p.qrEscuro, p.qrFundo]);
 
   useLayoutEffect(() => {
-    // MEDE, ESCALA, E CONFERE DE NOVO.
-    //
-    // O `style` do elemento é mexido só DENTRO da medição, como rascunho, e o
-    // valor final vai pra estado. Foi a mistura dos dois que travou a versão
-    // do laço: ele gravava no DOM e o React desfazia no re-render.
-    //
-    // Duas passadas porque encolher o texto muda a quebra de linha: a primeira
-    // dá o valor quase certo, a segunda confirma em cima do layout novo.
     const medir = () => {
       const el = letraRef.current;
       const caixa = caixaRef.current;
       if (!el || !caixa) return;
       const colunas = duasColunas ? 2 : 1;
-      // Largura de UMA coluna: o vão de 12mm entre elas sai da conta.
-      const vao = duasColunas ? 12 * 3.7795 : 0;
+      const vao = duasColunas ? 12 * 3.7795 : 0; // 12mm de vão entre colunas
       const larguraColuna = (el.clientWidth - vao) / colunas;
-      setCorpoPt(corpoQueCabe(q.letra, larguraColuna, colunas, caixa.clientHeight, 1.55, 11));
+      setCorpoPt(corpoQueCabe(q.letra, larguraColuna, colunas, caixa.clientHeight, duasColunas ? 1.42 : 1.6, 11));
       setPronto(true);
     };
 
     medir();
-    // E de novo no quadro seguinte: a primeira medição pega a caixa antes de o
-    // flex assentar a altura.
     const rAF = requestAnimationFrame(medir);
-
-    // MEDIR DE NOVO QUANDO AS FONTES CARREGAREM.
-    //
-    // A primeira medição acontece com a fonte de sistema. Quando a Fraunces e
-    // a Poppins entram, o texto muda de largura, reflui e CRESCE, e o ajuste
-    // feito antes vira mentira: foi assim que a letra continuou vazando 26px
-    // mesmo com o encolhimento rodando.
-    //
-    // `document.fonts.ready` resolve na hora quando já estão em cache, então
-    // não custa nada no caso comum.
+    // SEMPRE QUE A CAIXA MUDAR DE TAMANHO. O rodapé cresce quando o QR e a
+    // logo carregam, e cada milímetro que ele ganha a letra perde. Foi assim
+    // que ela apareceu cortada depois que aumentei o QR.
+    const obs = new ResizeObserver(medir);
+    if (caixaRef.current) obs.observe(caixaRef.current);
     let vivo = true;
     document.fonts?.ready.then(() => {
       if (vivo) medir();
@@ -222,36 +192,119 @@ function Pagina() {
     return () => {
       vivo = false;
       cancelAnimationFrame(rAF);
+      obs.disconnect();
     };
-  }, [q.letra, duasColunas]);
+  }, [q.letra, duasColunas, estilo.modo]);
+
+  // A CONFERÊNCIA QUE NÃO MENTE.
+  //
+  // O cálculo do clone acerta quase sempre, mas erra pra cima quando o CSS
+  // distribui as duas colunas de forma desigual (com linhas em branco entre
+  // estrofes, ele não parte no meio exato). Aí a letra aparece CORTADA em cima
+  // e embaixo, porque a caixa tem `overflow: hidden` e o conteúdo está
+  // centralizado.
+  //
+  // `scrollHeight` não serve pra detectar isso em multicoluna, mas o retângulo
+  // de um Range serve: ele devolve a posição REAL do primeiro e do último
+  // caractere na tela. Se algum estiver fora da caixa, encolhe 0,25pt e o
+  // efeito roda de novo, até parar de vazar.
+  useLayoutEffect(() => {
+    const el = letraRef.current;
+    const caixa = caixaRef.current;
+    const txt = el?.firstChild;
+    if (!el || !caixa || !txt || !txt.textContent || corpoPt <= 7) return;
+
+    const fim = txt.textContent.trimEnd().length;
+    if (fim < 2) return;
+    const r = document.createRange();
+    r.setStart(txt, 0);
+    r.setEnd(txt, 2);
+    const primeiro = r.getBoundingClientRect();
+    r.setStart(txt, fim - 2);
+    r.setEnd(txt, fim);
+    const ultimo = r.getBoundingClientRect();
+    const cx = caixa.getBoundingClientRect();
+
+    if (primeiro.top < cx.top - 1 || ultimo.bottom > cx.bottom + 1) {
+      setCorpoPt((p) => Math.max(7, p - 0.25));
+    }
+  }, [corpoPt, estilo.modo, estilo.efeito, qr]);
+
+  const botao = (ativo: boolean) =>
+    "rounded-full px-3 py-1.5 text-[12px] transition-colors " +
+    (ativo ? "bg-white text-[#1a1512] font-semibold" : "border border-white/25 text-white/70");
 
   return (
     <>
       <style>{`
         @page { size: A4 portrait; margin: 0; }
         @media print {
+          /* Esconder o botão NÃO basta: o container em volta mantinha padding
+             e altura de tela cheia, e a sobra virava uma segunda folha. */
           .nao-imprime { display: none !important; }
-          html, body { background: #fff !important; margin: 0 !important; }
+          html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+          .tela { min-height: 0 !important; padding: 0 !important; background: #fff !important; }
           .folha { box-shadow: none !important; margin: 0 !important; }
         }
-        /* Sem isto o navegador "economiza tinta" e imprime o fundo em branco,
-           o que apagaria a folha inteira, já que ela é escura. */
+        /* Sem isto o navegador "economiza tinta" e imprime o fundo em branco. */
         .folha, .folha * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       `}</style>
 
-      <div className="min-h-screen bg-[#1c1815] py-6">
-        <div className="nao-imprime mx-auto mb-6 max-w-[210mm] px-4 text-center">
-          <button
-            onClick={() => {
-              trackEvent("quadro_imprimir");
-              window.print();
-            }}
-            className="inline-flex h-12 items-center gap-2 rounded-full px-7 font-medium"
-            style={{ fontSize: 15, background: AMBAR, color: FUNDO }}
-          >
-            <Printer className="h-4 w-4" /> {t.acao}
-          </button>
-          <p className="mx-auto mt-3 max-w-md text-[13px] leading-relaxed text-white/45">{t.dica}</p>
+      <div className="tela min-h-screen bg-[#1c1815] py-6">
+        <div className="nao-imprime mx-auto mb-6 max-w-[210mm] space-y-4 px-4">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] uppercase tracking-wider text-white/40">{t.modo}</span>
+              <button onClick={() => mudar({ modo: "escuro" })} className={botao(estilo.modo === "escuro")}>
+                {t.escuro}
+              </button>
+              <button onClick={() => mudar({ modo: "claro" })} className={botao(estilo.modo === "claro")}>
+                {t.claro}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] uppercase tracking-wider text-white/40">{t.cor}</span>
+              {CORES_QUADRO.map((c) => (
+                <button
+                  key={c.chave}
+                  onClick={() => mudar({ cor: c.chave })}
+                  aria-label={q.locale === "es" ? c.nomeEs : c.nome}
+                  title={q.locale === "es" ? c.nomeEs : c.nome}
+                  className={
+                    "h-6 w-6 rounded-full transition-transform " +
+                    (estilo.cor === c.chave ? "ring-2 ring-white ring-offset-2 ring-offset-[#1c1815]" : "")
+                  }
+                  style={{ background: c.escuro }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span className="text-[11px] uppercase tracking-wider text-white/40">{t.efeito}</span>
+            {EFEITOS.map((e) => (
+              <button key={e.chave} onClick={() => mudar({ efeito: e.chave })} className={botao(estilo.efeito === e.chave)}>
+                {rotuloEfeito(e, q.locale)}
+              </button>
+            ))}
+          </div>
+
+          <div className="text-center">
+            <button
+              onClick={() => {
+                trackEvent("quadro_imprimir", { modo: estilo.modo, efeito: estilo.efeito });
+                window.print();
+              }}
+              className="inline-flex h-12 items-center gap-2 rounded-full px-7 font-medium"
+              style={{ fontSize: 15, background: "#f0b95f", color: "#0d0a08" }}
+            >
+              <Printer className="h-4 w-4" /> {t.acao}
+            </button>
+            <p className="mx-auto mt-3 max-w-md text-[13px] leading-relaxed text-white/45">
+              {t.dica} {estilo.modo === "escuro" && t.dicaClaro}
+            </p>
+          </div>
         </div>
 
         <div
@@ -259,17 +312,18 @@ function Pagina() {
           style={{
             width: "210mm",
             height: "297mm",
-            background: FUNDO,
-            color: "#f7f0e8",
+            background: p.fundo,
+            color: p.texto,
             boxShadow: "0 10px 50px rgba(0,0,0,.5)",
             opacity: pronto ? 1 : 0,
           }}
         >
-          {/* A FOTO, sangrando de borda a borda e sumindo no fundo.
-              É o gesto da página presente: a imagem não é um retângulo colado,
-              ela É o ambiente, e o degradê é o que entrega o texto. */}
-          {q.fotoUrl && (
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "112mm" }}>
+          {/* A FOTO. No escuro ela sangra e some no degradê, que é o gesto da
+              página presente. No claro esse gesto não existe (não dá pra
+              "escurecer até o creme" sem sujar a imagem), então ela vira um
+              bloco com margem e o texto vive no papel. */}
+          {q.fotoUrl && p.fotoSangra && (
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "88mm" }}>
               <img
                 src={q.fotoUrl}
                 alt=""
@@ -279,13 +333,15 @@ function Pagina() {
                 style={{
                   position: "absolute",
                   inset: 0,
-                  background: `linear-gradient(to bottom, rgba(13,10,8,0.18) 0%, rgba(13,10,8,0.62) 34%, rgba(13,10,8,0.93) 62%, ${FUNDO} 82%)`,
+                  background: `linear-gradient(to bottom, rgba(13,10,8,0.18) 0%, rgba(13,10,8,0.62) 34%, rgba(13,10,8,0.93) 62%, ${p.fundo} 82%)`,
                 }}
               />
             </div>
           )}
 
-          {/* Fio de acento no alto: assina sem virar bloco de cor. */}
+          <QuadroEfeitos tipo={estilo.efeito} cor={acento} />
+
+          {/* Fio de acento: assina sem virar bloco de cor. */}
           <div
             style={{
               position: "absolute",
@@ -294,32 +350,40 @@ function Pagina() {
               transform: "translateX(-50%)",
               width: "18mm",
               height: "0.6mm",
-              background: fio,
+              background: acento,
               borderRadius: 1,
+              zIndex: 2,
             }}
           />
 
           <div
             style={{
               position: "relative",
+              zIndex: 2,
               height: "100%",
               display: "flex",
               flexDirection: "column",
               padding: "22mm 20mm 15mm",
             }}
           >
-            {/* O título entra na altura em que a foto já escureceu, e por isso
-                fica legível sem caixa nem sombra por baixo. */}
-            <div style={{ marginTop: q.fotoUrl ? "62mm" : "10mm", textAlign: "center" }}>
+            {q.fotoUrl && !p.fotoSangra && (
+              <div style={{ marginTop: "2mm", height: "55mm", overflow: "hidden", borderRadius: 3 }}>
+                <img
+                  src={q.fotoUrl}
+                  alt=""
+                  style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 22%", display: "block" }}
+                />
+              </div>
+            )}
+
+            <div
+              style={{
+                marginTop: q.fotoUrl ? (p.fotoSangra ? "70mm" : "8mm") : "10mm",
+                textAlign: "center",
+              }}
+            >
               {q.nome && (
-                <p
-                  style={{
-                    fontSize: "7.5pt",
-                    letterSpacing: "0.42em",
-                    textTransform: "uppercase",
-                    color: acento,
-                  }}
-                >
+                <p style={{ fontSize: "7.5pt", letterSpacing: "0.42em", textTransform: "uppercase", color: acento }}>
                   {t.para} {q.nome}
                 </p>
               )}
@@ -330,21 +394,19 @@ function Pagina() {
                   fontSize: "23pt",
                   lineHeight: 1.12,
                   marginTop: "3mm",
-                  color: "#fdfaf5",
+                  color: p.texto,
                 }}
               >
                 {q.titulo}
               </h1>
             </div>
 
-            {/* A CAIXA DA LETRA. A altura vem do flex e o corpo do texto se
-                ajusta a ela. Com `overflow: hidden`, não há para onde vazar. */}
             <div
               ref={caixaRef}
               style={{
                 flex: 1,
                 minHeight: 0,
-                marginTop: "9mm",
+                marginTop: "8mm",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -357,12 +419,10 @@ function Pagina() {
                   whiteSpace: "pre-wrap",
                   textAlign: "center",
                   fontSize: `${corpoPt}pt`,
-                  lineHeight: 1.55,
-                  color: "rgba(247,240,232,0.82)",
+                  lineHeight: duasColunas ? 1.42 : 1.6,
+                  color: p.textoSuave,
                   maxWidth: duasColunas ? "100%" : "138mm",
-                  ...(duasColunas
-                    ? { columnCount: 2, columnGap: "12mm", width: "100%" }
-                    : {}),
+                  ...(duasColunas ? { columnCount: 2, columnGap: "12mm", width: "100%" } : {}),
                 }}
               >
                 {q.letra}
@@ -377,46 +437,66 @@ function Pagina() {
                   fontSize: "11pt",
                   fontStyle: "italic",
                   color: acento,
-                  margin: "7mm 0 0",
+                  margin: "6mm 0 0",
                 }}
               >
                 {q.dedicatoria}
               </p>
             )}
 
+            {/* O RODAPÉ É O QR, não a assinatura. Quem olha o quadro na parede
+                não precisa saber quem fez, precisa conseguir OUVIR. */}
             <div
               style={{
-                marginTop: "8mm",
-                paddingTop: "5mm",
-                borderTop: "0.25mm solid rgba(247,240,232,0.14)",
+                marginTop: "5mm",
+                paddingTop: "4mm",
+                borderTop: `0.25mm solid ${p.linha}`,
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
-                justifyContent: "space-between",
-                gap: "6mm",
+                gap: "2mm",
               }}
             >
-              <div>
-                <p
-                  style={{
-                    fontFamily: FONTES.display,
-                    fontSize: "13.5pt",
-                    fontWeight: 500,
-                    color: "#fdfaf5",
-                  }}
-                >
-                  {MARCA.nome}
-                </p>
-                <p style={{ fontSize: "7pt", color: "rgba(247,240,232,0.45)", marginTop: "1.5mm" }}>
-                  {t.ouvir}
-                </p>
-              </div>
+              <p
+                style={{
+                  fontSize: "9pt",
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: acento,
+                  fontWeight: 600,
+                }}
+              >
+                {t.ouvir}
+              </p>
               {qr && (
                 <img
                   src={qr}
                   alt=""
-                  style={{ width: "21mm", height: "21mm", display: "block", borderRadius: 1 }}
+                  // Zona de silêncio em volta: sem margem clara o leitor erra
+                  // os cantos e o celular não engata.
+                  style={{
+                    width: "24mm",
+                    height: "24mm",
+                    display: "block",
+                    background: p.qrFundo,
+                    padding: "1.8mm",
+                    borderRadius: 2,
+                  }}
                 />
               )}
+              <img
+                src="/img/logo-serenata-alfa.png"
+                alt={MARCA.nome}
+                style={{
+                  height: "7mm",
+                  width: "auto",
+                  display: "block",
+                  marginTop: "0.5mm",
+                  // A logo é vinho sobre transparente: no fundo escuro ela some,
+                  // então clareia. No claro vai como é.
+                  filter: p.fotoSangra ? "brightness(0) invert(1) opacity(0.82)" : "none",
+                }}
+              />
             </div>
           </div>
         </div>
