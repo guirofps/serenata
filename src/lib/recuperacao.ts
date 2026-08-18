@@ -563,17 +563,40 @@ export const listarPagos = createServerFn({ method: "POST" })
     exigirRecuperacao();
 
     const db = supabaseAdmin();
-    const desde = new Date(Date.now() - (data.dias ?? 7) * 86400000).toISOString();
+    const termo = (data.busca ?? "").trim();
 
     let q = db
       .from("pedidos")
       .select("id, email, telefone, nome_pagador, paid_at, quiz_response_id")
       .eq("status", "pago")
-      .gte("paid_at", desde)
       .order("paid_at", { ascending: false });
-    // A busca existe pro caso do suporte: a pessoa escreve dizendo que pagou,
-    // e o operador tem o e-mail dela e mais nada.
-    if (data.busca?.trim()) q = q.ilike("email", `%${data.busca.trim()}%`);
+
+    if (termo) {
+      // ── BUSCA NÃO TEM JANELA ─────────────────────────────────
+      //
+      // A lista do dia a dia olha 7 dias, e isso está certo: é uma fila de
+      // trabalho. Mas BUSCA é outra coisa. A pessoa escreve pro suporte quando
+      // o problema aparece pra ela, que pode ser duas semanas depois da compra,
+      // e o atendente digitava o e-mail dela e via a tela em branco.
+      //
+      // Relatado pelo atendente em 19/08: "quando busco email ou nome nos
+      // pagos, fica tudo branco". Era isto.
+      //
+      // E procura por E-MAIL, NOME OU TELEFONE. Antes era só e-mail, então
+      // buscar pelo nome que a pessoa assina no WhatsApp nunca achava nada.
+      //
+      // Vírgula e parêntese são separadores da sintaxe `or` do PostgREST: um
+      // nome com vírgula quebraria a consulta inteira, então saem.
+      const limpo = termo.replace(/[(),]/g, " ").trim();
+      q = q
+        .or(
+          `email.ilike.%${limpo}%,nome_pagador.ilike.%${limpo}%,telefone.ilike.%${limpo}%`,
+        )
+        .limit(60);
+    } else {
+      const desde = new Date(Date.now() - (data.dias ?? 7) * 86400000).toISOString();
+      q = q.gte("paid_at", desde);
+    }
 
     const { data: pedidos } = await q;
     if (!pedidos?.length) return [];

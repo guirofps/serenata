@@ -188,6 +188,9 @@ function Recuperar() {
   const [termo, setTermo] = useState("");
   const [fichas, setFichas] = useState<FichaCliente[] | null>(null);
   const [buscando, setBuscando] = useState(false);
+  // O QUE ACHEI EM OUTRO LUGAR quando a busca em "pagos" não achou nada.
+  // Ver o bloco de vazio lá embaixo.
+  const [pistaFora, setPistaFora] = useState<FichaCliente[] | null>(null);
   // Relógio de 1s: é o que faz o cronômetro da carência andar na tela.
   const [agora, setAgora] = useState(() => Date.now());
   useEffect(() => {
@@ -217,8 +220,56 @@ function Recuperar() {
   // precisa de URL assinada de áudio, então não vale trazer junto da fila.
   useEffect(() => {
     if (aba !== "pagos" || !papel) return;
-    listarPagos({ data: { dias: 7 } }).then(setPagos).catch(() => {});
-  }, [aba, papel]);
+    const termo = busca.trim();
+
+    // ── A BUSCA PRECISA IR PRO SERVIDOR ────────────────────────
+    //
+    // Antes a tela carregava 7 dias e filtrava na memória, então buscar
+    // alguém que comprou há 10 dias devolvia branco. O atendente relatou
+    // exatamente isso em 19/08: "quando busco email ou nome nos pagos, fica
+    // tudo branco". A lista era uma fila de trabalho servindo de mecanismo de
+    // busca, e as duas coisas têm janelas diferentes: fila é dos últimos
+    // dias, busca é de sempre.
+    //
+    // Com termo, o servidor procura no histórico inteiro por e-mail, nome ou
+    // telefone. Sem termo, volta a ser a fila de 7 dias.
+    const buscarAgora = () => {
+      setPagos(null);
+      setPistaFora(null);
+      listarPagos({ data: termo.length >= 3 ? { busca: termo } : { dias: 7 } })
+        .then((r) => {
+          setPagos(r);
+          // ── NÃO ACHOU COMPRA? PROCURA A PESSOA MESMO ASSIM ────
+          //
+          // Caso real de 19/08: o atendente buscou
+          // `cantorgospelmarcondesleal@hotmail.com` em "pagos" e viu branco.
+          // A tela estava certa (não existe pedido com esse e-mail) e era
+          // inútil: a pessoa escreveu dizendo que pagou, e o atendente
+          // precisava saber o que responder.
+          //
+          // Quase sempre é uma de duas coisas, e as duas têm resposta:
+          // ela pagou com OUTRO e-mail, ou fez o quiz e não pagou. A ficha
+          // do cliente sabe as duas, então busca lá e mostra na tela em vez
+          // de deixar o atendente adivinhando.
+          if (termo.length >= 3 && r.length === 0) {
+            buscarCliente({ data: { termo } })
+              .then(setPistaFora)
+              .catch(() => setPistaFora([]));
+          }
+        })
+        .catch(() => setPagos([]));
+    };
+
+    // Sem espera quando não há termo (é a fila abrindo). Com termo, 350ms pra
+    // não disparar uma consulta por tecla digitada.
+    if (!termo) {
+      buscarAgora();
+      return;
+    }
+    if (termo.length < 3) return;
+    const id = setTimeout(buscarAgora, 350);
+    return () => clearTimeout(id);
+  }, [aba, papel, busca]);
 
   // A fila se atualiza sozinha a cada 45s. Antes só mexia quando ele apertava
   // "Atualizar" — ou seja, um Pix gerado agora só existia pra ele quando
@@ -322,7 +373,7 @@ function Recuperar() {
               <Input
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                placeholder="buscar por e-mail (quem escreveu no suporte)"
+                placeholder="buscar por e-mail, nome ou telefone (histórico inteiro)"
                 className="mt-3 bg-white"
               />
               <div className="mt-2 flex flex-wrap gap-2">
@@ -574,11 +625,80 @@ function Recuperar() {
             {pagos === null && <p className="text-sm text-[var(--tinta-suave)]">carregando…</p>}
             {pagos?.length === 0 && (
               <p className="rounded-2xl border border-[var(--tinta-fraca)]/40 p-8 text-center text-[var(--tinta-suave)]">
-                Nenhuma compra nos últimos 7 dias.
+                {busca.trim().length >= 3
+                  ? `Nenhuma COMPRA com "${busca.trim()}". Procurei no histórico inteiro, por e-mail, nome e telefone.`
+                  : "Nenhuma compra nos últimos 7 dias."}
               </p>
             )}
+
+            {/* A PISTA, quando não há compra. Sem isto o atendente lê "branco"
+                e não tem o que responder pro cliente que jurou que pagou. */}
+            {pagos?.length === 0 && pistaFora !== null && (
+              <div className="rounded-2xl border border-amber-500/40 bg-amber-50 p-4">
+                {pistaFora.length === 0 ? (
+                  <p className="text-sm text-amber-900">
+                    Também não achei essa pessoa como lead. Ou o dado está
+                    escrito diferente do que ela mandou, ou ela nunca passou
+                    pelo site. Peça o comprovante e o e-mail exato do
+                    pagamento.
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-amber-900">
+                      Sem compra com esse dado, mas encontrei a pessoa:
+                    </p>
+                    <ul className="mt-2 space-y-2">
+                      {pistaFora.slice(0, 4).map((f) => {
+                        const pagou = f.pedidos.filter((x) => x.status === "pago");
+                        const pix = f.pedidos.filter((x) => x.status !== "pago" && x.temPix);
+                        return (
+                          <li key={f.chave} className="text-sm text-amber-900">
+                            <span className="font-medium">
+                              {f.nomes[0] ?? f.emails[0] ?? f.chave}
+                            </span>{" "}
+                            · {f.emails.join(", ") || "sem e-mail"}
+                            <br />
+                            {pagou.length > 0 ? (
+                              <span className="font-semibold">
+                                PAGOU com outro e-mail ({pagou[0].email ?? "?"}). Abra em
+                                Buscar cliente e entregue por lá.
+                              </span>
+                            ) : pix.length > 0 ? (
+                              <span>
+                                Gerou Pix e não consta pago. Confira no gateway antes de
+                                entregar.
+                              </span>
+                            ) : (
+                              <span>
+                                Fez o quiz ({f.musicas.length} música
+                                {f.musicas.length === 1 ? "" : "s"} criada
+                                {f.musicas.length === 1 ? "" : "s"}) e não há pagamento
+                                registrado.
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <button
+                      onClick={() => {
+                        setTermo(busca.trim());
+                        setFichas(pistaFora);
+                        setAba("ficha");
+                      }}
+                      className="mt-3 inline-flex h-11 items-center rounded-full border border-amber-600/40 px-4 text-sm font-medium text-amber-900"
+                    >
+                      Abrir a ficha completa
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+            {/* Sem filtro local por texto: quem peneira o termo agora é o
+                servidor, no histórico inteiro. Peneirar de novo aqui
+                esconderia resultado achado por NOME (o card mostra o e-mail,
+                e o nome nem sempre bate com ele). */}
             {(pagos ?? [])
-              .filter((p) => !busca.trim() || (p.email ?? "").includes(busca.trim().toLowerCase()))
               .filter((p) =>
                 filtroPago === "pediram" ? p.pediuWhatsapp
                 : filtroPago === "sumidos" ? !p.montouPresente
