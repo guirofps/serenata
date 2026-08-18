@@ -48,12 +48,19 @@ function Cartao({
   apoio,
   destaque,
   alerta,
+  atual,
+  anterior,
+  unidade,
 }: {
   rotulo: string;
   valor: string;
   apoio?: string;
   destaque?: boolean;
   alerta?: boolean;
+  /** O par que alimenta a setinha de variação. Sem os dois, ela não aparece. */
+  atual?: number;
+  anterior?: number;
+  unidade?: "relativa" | "pontos";
 }) {
   return (
     <div
@@ -67,14 +74,72 @@ function Cartao({
       )}
     >
       <p className="text-[11px] uppercase tracking-wider text-[var(--tinta-suave)]">{rotulo}</p>
-      <p
-        className={cn("mt-1 tabular-nums leading-none", destaque && "text-[var(--acento)]")}
-        style={{ fontFamily: FONTES.display, fontWeight: 600, fontSize: "var(--t-2xl)" }}
-      >
-        {valor}
-      </p>
+      {/* `flex items-baseline`: a variação assenta na linha de base do número
+          em vez de centralizar na altura dele, que é o que a deixa parecendo
+          nota de rodapé e não um segundo valor competindo com o primeiro. */}
+      <div className="mt-1 flex items-baseline">
+        <p
+          className={cn("tabular-nums leading-none", destaque && "text-[var(--acento)]")}
+          style={{ fontFamily: FONTES.display, fontWeight: 600, fontSize: "var(--t-2xl)" }}
+        >
+          {valor}
+        </p>
+        {atual !== undefined && <Variacao atual={atual} anterior={anterior} unidade={unidade} />}
+      </div>
       {apoio && <p className="mt-1.5 text-xs text-[var(--tinta-suave)]">{apoio}</p>}
     </div>
+  );
+}
+
+/**
+ * A VARIAÇÃO CONTRA O MESMO RECORTE DE UM PERÍODO ATRÁS.
+ *
+ * "Hoje até agora" é comparado com "ontem até esta mesma hora", nunca com o
+ * dia de ontem inteiro (a janela é cortada no servidor, em `janelaAnterior`).
+ *
+ * SEM VERDE E SEM VERMELHO, de propósito. Subir é boa notícia em Vendas e má
+ * notícia em Custo de produção, e o mesmo componente serve os dois. Cor daria
+ * um veredito errado em metade dos cartões; a seta diz a direção e quem lê
+ * sabe o que quer de cada número. É também o que a Shopify faz.
+ *
+ * DUAS UNIDADES, porque comparar porcentagem com porcentagem tem armadilha:
+ *   - `relativa` (padrão): quanto o número cresceu. 15 vendas contra 12 = +25%.
+ *   - `pontos`: para métricas que JÁ SÃO porcentagem. De 21,5% pra 14,4% é uma
+ *     queda de 7,1 PONTOS; dizer "-33%" ali é tecnicamente certo e péssimo de
+ *     ler, porque some com a escala do número que se está olhando.
+ *
+ * Não desenha nada quando não há base (os dois períodos em zero): 0 -> 0 não é
+ * estabilidade, é ausência de dado, e "0%" pareceria medido.
+ */
+function Variacao({
+  atual,
+  anterior,
+  unidade = "relativa",
+}: {
+  atual: number;
+  anterior: number | undefined;
+  unidade?: "relativa" | "pontos";
+}) {
+  if (anterior === undefined) return null;
+  if (!anterior && !atual) return null;
+
+  // Saiu do zero: não existe porcentagem de aumento sobre nada. "novo" é a
+  // única leitura honesta, e some quando a base aparecer.
+  if (!anterior) {
+    return <span className="ml-2 whitespace-nowrap text-[11px] text-[var(--tinta-suave)]">novo</span>;
+  }
+
+  const delta = unidade === "pontos" ? atual - anterior : ((atual - anterior) / anterior) * 100;
+  const arredondado = Math.abs(delta) >= 10 ? Math.round(delta) : Math.round(delta * 10) / 10;
+  if (arredondado === 0) {
+    return <span className="ml-2 whitespace-nowrap text-[11px] text-[var(--tinta-suave)]">=</span>;
+  }
+  const sobe = arredondado > 0;
+  return (
+    <span className="ml-2 whitespace-nowrap text-[11px] tabular-nums text-[var(--tinta-suave)]">
+      {sobe ? "↗" : "↘"} {Math.abs(arredondado).toLocaleString("pt-BR")}
+      {unidade === "pontos" ? " pts" : "%"}
+    </span>
   );
 }
 
@@ -242,6 +307,10 @@ function Admin() {
   }
 
   const t = dados.topo;
+  // O topo do período anterior. `undefined` quando o comparativo não veio, e
+  // aí toda `Variacao` se cala sozinha — nenhum cartão precisa saber disso.
+  const a = dados.comparativo?.topo;
+  const antesDoFunil = dados.comparativo?.funil;
   // O aviso dizia "maior perda" e mostrava a SEGUNDA: o índice era `[1]`.
   // Medido no painel de 17/08 — a maior perda era "Nome" (881 pessoas, 41,5%)
   // e o aviso apontava "Começou o quiz" (565). Justamente o degrau que a
@@ -368,10 +437,18 @@ function Admin() {
           titulo="O dinheiro"
           sub={`Últimos ${dados.periodoDias} dias · ${
             dados.filtro === "es" ? "funil espanhol" : dados.filtro === "pt" ? "funil português" : "os dois funis"
+          }${
+            // Dizer CONTRA O QUE a setinha compara, com a hora à vista. Sem
+            // isso "↘ 24%" é um número sem régua, e a régua aqui não é óbvia:
+            // "hoje" é comparado com ontem até esta MESMA hora, não com o dia
+            // de ontem fechado.
+            dados.comparativo
+              ? ` · ↗↘ contra ${quando(dados.comparativo.de)} – ${quando(dados.comparativo.ate)}`
+              : ""
           }`}
         >
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-            <Cartao rotulo="Vendas" valor={String(t.vendas)} destaque apoio={`${pc(t.taxaGeral)} dos visitantes`} />
+            <Cartao rotulo="Vendas" valor={String(t.vendas)} destaque apoio={`${pc(t.taxaGeral)} dos visitantes`} atual={t.vendas} anterior={a?.vendas} />
             {/* RECEITA: nunca um número só quando há duas moedas.
                 O funil brasileiro cobra em real, o espanhol cobra em dólar na
                 Perfect Pay. Somar os dois produz um total que não existe no
@@ -388,24 +465,28 @@ function Admin() {
                 rotulo="Receita"
                 valor={usd(t.receitaUsd)}
                 destaque
+                atual={t.receitaUsd}
+                anterior={a?.receitaUsd}
                 apoio={`ticket ${usd(t.receitaUsd / Math.max(1, t.vendas))}`}
               />
             ) : (
-              <Cartao rotulo="Receita" valor={brl(t.receitaBrl)} destaque apoio={`ticket ${brl(t.ticketMedioBrl)}`} />
+              <Cartao rotulo="Receita" valor={brl(t.receitaBrl)} destaque apoio={`ticket ${brl(t.ticketMedioBrl)}`} atual={t.receitaBrl} anterior={a?.receitaBrl} />
             )}
-            <Cartao rotulo="Custo de produção" valor={brl(t.custoTotalBrl)} apoio={`${brl(t.custoPorVendaBrl)} por venda`} />
+            <Cartao rotulo="Custo de produção" valor={brl(t.custoTotalBrl)} apoio={`${brl(t.custoPorVendaBrl)} por venda`} atual={t.custoTotalBrl} anterior={a?.custoTotalBrl} />
             <Cartao
               rotulo="Margem bruta"
               valor={brl(t.margemBrl)}
               alerta={t.margemBrl < 0}
+              atual={t.margemBrl}
+              anterior={a?.margemBrl}
               apoio={
                 t.receitaConvertidaBrl > 0
                   ? `${pc((t.margemBrl / t.receitaConvertidaBrl) * 100)} da receita`
                   : "sem receita ainda"
               }
             />
-            <Cartao rotulo="Visitantes" valor={String(t.visitantes)} apoio={`${t.quizIniciados} começaram o quiz`} />
-            <Cartao rotulo="Letras entregues" valor={String(t.letrasGeradas)} apoio={`${t.leads} deixaram e-mail`} />
+            <Cartao rotulo="Visitantes" valor={String(t.visitantes)} apoio={`${t.quizIniciados} começaram o quiz`} atual={t.visitantes} anterior={a?.visitantes} />
+            <Cartao rotulo="Letras entregues" valor={String(t.letrasGeradas)} apoio={`${t.leads} deixaram e-mail`} atual={t.letrasGeradas} anterior={a?.letrasGeradas} />
           </div>
           {/* ── MÍDIA: a conta que decide se a operação vive ──────
               Margem bruta sem CPA não diz nada: R$ 209 pode ser lucro ou
@@ -415,11 +496,15 @@ function Admin() {
               rotulo="Gasto em anúncio"
               valor={t.gastoAdsBrl > 0 ? brl(t.gastoAdsBrl) : "—"}
               apoio={t.gastoAdsBrl > 0 ? "lançado à mão" : "lance abaixo pra ver o CPA"}
+              atual={t.gastoAdsBrl > 0 ? t.gastoAdsBrl : undefined}
+              anterior={a?.gastoAdsBrl}
             />
             <Cartao
               rotulo="CPA"
               valor={t.cpaBrl > 0 ? brl(t.cpaBrl) : "—"}
               destaque={t.cpaBrl > 0}
+              atual={t.cpaBrl > 0 ? t.cpaBrl : undefined}
+              anterior={a?.cpaBrl}
               alerta={t.cpaBrl > 0 && t.cpaBrl > t.ticketMedioBrl}
               apoio={t.cpaBrl > 0 ? `ticket ${brl(t.ticketMedioBrl)}` : "precisa do gasto"}
             />
@@ -427,12 +512,16 @@ function Admin() {
               rotulo="ROAS"
               valor={t.roas > 0 ? `${t.roas.toFixed(2)}x` : "—"}
               alerta={t.roas > 0 && t.roas < 1}
+              atual={t.roas > 0 ? t.roas : undefined}
+              anterior={a?.roas}
               apoio={t.roas > 0 ? (t.roas < 1 ? "abaixo de 1 é prejuízo" : "receita ÷ gasto") : "precisa do gasto"}
             />
             <Cartao
               rotulo="Lucro"
               valor={t.gastoAdsBrl > 0 ? brl(t.lucroBrl) : "—"}
               alerta={t.gastoAdsBrl > 0 && t.lucroBrl < 0}
+              atual={t.gastoAdsBrl > 0 ? t.lucroBrl : undefined}
+              anterior={a?.lucroBrl}
               apoio="receita − produção − mídia"
             />
           </div>
@@ -453,11 +542,11 @@ function Admin() {
         {/* ── TAXAS DE PASSAGEM ────────────────────────────────── */}
         <Secao titulo="Onde converte" sub="A passagem de cada etapa pra próxima">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-            <Cartao rotulo="Visita → quiz" valor={pc(t.taxaVisitaQuiz)} />
-            <Cartao rotulo="Quiz → letra" valor={pc(t.taxaQuizLetra)} />
-            <Cartao rotulo="Letra → checkout" valor={pc(t.taxaLetraCheckout)} />
-            <Cartao rotulo="Checkout → pagou" valor={pc(t.taxaCheckoutVenda)} destaque />
-            <Cartao rotulo="Visita → venda" valor={pc(t.taxaGeral)} apoio="conversão geral" />
+            <Cartao rotulo="Visita → quiz" valor={pc(t.taxaVisitaQuiz)} atual={t.taxaVisitaQuiz} anterior={a?.taxaVisitaQuiz} unidade="pontos" />
+            <Cartao rotulo="Quiz → letra" valor={pc(t.taxaQuizLetra)} atual={t.taxaQuizLetra} anterior={a?.taxaQuizLetra} unidade="pontos" />
+            <Cartao rotulo="Letra → checkout" valor={pc(t.taxaLetraCheckout)} atual={t.taxaLetraCheckout} anterior={a?.taxaLetraCheckout} unidade="pontos" />
+            <Cartao rotulo="Checkout → pagou" valor={pc(t.taxaCheckoutVenda)} destaque atual={t.taxaCheckoutVenda} anterior={a?.taxaCheckoutVenda} unidade="pontos" />
+            <Cartao rotulo="Visita → venda" valor={pc(t.taxaGeral)} apoio="conversão geral" atual={t.taxaGeral} anterior={a?.taxaGeral} unidade="pontos" />
           </div>
         </Secao>
 
@@ -498,6 +587,14 @@ function Admin() {
                   <span className="w-24 shrink-0 text-right text-[11px] tabular-nums text-[var(--tinta-suave)]">
                     {f.conversao < 100 && <>{pc(f.conversao)}</>}
                     {f.perdidos > 0 && <span className="ml-1 text-red-600/70">-{f.perdidos}</span>}
+                  </span>
+                  {/* A variação de QUANTA GENTE chegou neste degrau, contra o
+                      mesmo recorte de um período atrás. Coluna própria, e não
+                      espremida na de cima, porque ali já convivem a taxa de
+                      passagem e os perdidos — três números disputando 24px
+                      viram tarja, não informação. */}
+                  <span className="hidden w-16 shrink-0 text-right sm:block">
+                    <Variacao atual={f.alcancaram} anterior={antesDoFunil?.[f.id]} />
                   </span>
                 </div>
               );

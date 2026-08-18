@@ -62,6 +62,27 @@ export type Painel = {
     custoPorVendaBrl: number;
   };
 
+  /**
+   * O MESMO RECORTE, UM PERÍODO ATRÁS. É o que alimenta a variação ao lado de
+   * cada número ("↓ 24%"), no espírito do painel da Shopify.
+   *
+   * Guarda VALORES, não porcentagens: a conta é feita na tela, onde se sabe
+   * qual número é bom subir. Guardar a % aqui obrigaria a decidir o sinal de
+   * cada métrica no servidor, e "custo caiu 20%" e "vendas caiu 20%" não são
+   * a mesma notícia.
+   *
+   * `null` quando a janela anterior falhou. A tela some com as setinhas e o
+   * resto do painel continua de pé.
+   */
+  comparativo?: {
+    /** A janela comparada, pra tela poder dizer contra o que está comparando. */
+    de: string;
+    ate: string;
+    topo: Painel["topo"];
+    /** id do degrau -> quantos chegaram nele. */
+    funil: Record<string, number>;
+  } | null;
+
   /** O funil inteiro, do clique à venda. É o mapa de onde fura. */
   funil: Array<{
     id: string;
@@ -355,38 +376,75 @@ async function paginado<T extends { id: string }>(
   }
 }
 
-export const carregarPainel = createServerFn({ method: "POST" })
-  // `de`/`ate` em "YYYY-MM-DD" (hora local BR) têm prioridade sobre `dias`.
-  // Com eles dá pra olhar UM dia específico ou qualquer intervalo.
-  .validator((data: { dias?: number; de?: string; ate?: string; funil?: FunilFiltro }) => data)
-  .handler(async ({ data }): Promise<Painel> => {
-    // Import dinâmico: mantém node:crypto fora do bundle do cliente.
-    const { exigirAdmin } = await import("@/lib/admin-auth.server");
-    exigirAdmin();
+type ArgsPainel = { dias?: number; de?: string; ate?: string; funil?: FunilFiltro };
+type Janela = { inicio: Date; fim: Date; dias: number };
+
+/**
+ * O recorte pedido, em instantes.
+ *
+ * Saiu de dentro do handler porque o COMPARATIVO precisa deslocar a mesma
+ * janela sem repetir a regra do fuso — e regra de fuso duplicada é regra que
+ * diverge.
+ */
+function janelaDo(data: ArgsPainel): Janela {
+  // O Brasil é UTC-3: um dia "31/07" local vai de 03:00Z de 31/07 até
+  // 03:00Z de 01/08. Sem esse deslocamento, o filtro de um dia pegaria as
+  // horas erradas e o número não bateria com o que se vê no gateway.
+  const OFFSET_BR = 3 * 3600000;
+  const inicioDoDiaBr = (yyyymmdd: string) =>
+    new Date(new Date(`${yyyymmdd}T00:00:00.000Z`).getTime() + OFFSET_BR);
+
+  if (data.de) {
+    const inicio = inicioDoDiaBr(data.de);
+    // `ate` é inclusivo: somamos 1 dia pra pegar o dia inteiro.
+    const fim = data.ate ? new Date(inicioDoDiaBr(data.ate).getTime() + 86400000) : new Date();
+    return { inicio, fim, dias: Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / 86400000)) };
+  }
+  const dias = data.dias && data.dias > 0 ? data.dias : 30;
+  return { inicio: new Date(Date.now() - dias * 86400000), fim: new Date(), dias };
+}
+
+/**
+ * A MESMA JANELA, UM PERÍODO ATRÁS — e cortada na mesma hora do dia.
+ *
+ * O deslocamento é de DIAS INTEIROS (`dias * 24h`), nunca da duração medida.
+ * É o que preserva a hora: "hoje das 00:00 às 14:32" tem que ser comparado com
+ * "ontem das 00:00 às 14:32", e não com as 14h32m que antecedem a meia-noite.
+ *
+ * O CORTE EM `agora` é o que faz a comparação ser honesta. "Hoje" é pedido ao
+ * banco como o dia inteiro (o `fim` é amanhã 00:00, no futuro) — dá no mesmo
+ * pra contar, porque não existe linha no futuro. Mas se esse `fim` nominal
+ * fosse deslocado, o dia de hoje pela metade apareceria comparado com o dia de
+ * ontem INTEIRO, e o painel mostraria queda toda manhã, todo dia, por
+ * construção. É o erro clássico deste tipo de cartão.
+ *
+ * Sempre devolve uma janela, inclusive anterior à existência do site: ali ela
+ * dá zero, e zero vira "sem base" na tela em vez de uma alta de 100%.
+ */
+function janelaAnterior(j: Janela): Janela {
+  const fimReal = Math.min(j.fim.getTime(), Date.now());
+  const deslocamento = j.dias * 86400000;
+  return {
+    inicio: new Date(j.inicio.getTime() - deslocamento),
+    fim: new Date(fimReal - deslocamento),
+    dias: j.dias,
+  };
+}
+
+/**
+ * O painel de UMA janela. É chamado DUAS vezes por carregamento: a janela
+ * pedida e a anterior, em paralelo.
+ *
+ * `enxuto` corta o que não entra em comparação nenhuma e custa caro: o saldo
+ * do kie.ai (uma chamada HTTP externa, com timeout de 5s) e o resumo de
+ * e-mail. Sem isso, ligar o comparativo dobraria as duas coisas à toa.
+ */
+async function montarPainel(
+  data: ArgsPainel,
+  { inicio, fim, dias }: Janela,
+  opts: { enxuto?: boolean } = {},
+): Promise<Painel> {
     const db = supabaseAdmin();
-
-    // O Brasil é UTC-3: um dia "31/07" local vai de 03:00Z de 31/07 até
-    // 03:00Z de 01/08. Sem esse deslocamento, o filtro de um dia pegaria as
-    // horas erradas e o número não bateria com o que se vê no gateway.
-    const OFFSET_BR = 3 * 3600000;
-    const inicioDoDiaBr = (yyyymmdd: string) =>
-      new Date(new Date(`${yyyymmdd}T00:00:00.000Z`).getTime() + OFFSET_BR);
-
-    let inicio: Date;
-    let fim: Date;
-    let dias: number;
-
-    if (data.de) {
-      inicio = inicioDoDiaBr(data.de);
-      // `ate` é inclusivo: somamos 1 dia pra pegar o dia inteiro.
-      fim = data.ate ? new Date(inicioDoDiaBr(data.ate).getTime() + 86400000) : new Date();
-      dias = Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / 86400000));
-    } else {
-      dias = data.dias && data.dias > 0 ? data.dias : 30;
-      inicio = new Date(Date.now() - dias * 86400000);
-      fim = new Date();
-    }
-
     const desde = inicio.toISOString();
     const ateISO = fim.toISOString();
 
@@ -557,15 +615,18 @@ export const carregarPainel = createServerFn({ method: "POST" })
       enviadosLetra: 0, enviadosSequencia: 0, entregues: 0,
       abriram: 0, clicaram: 0, voltaram: 0, porModelo: [],
     };
-    try {
-      const { data: e, error } = await db.rpc("admin_emails_resumo", {
-        p_desde: desde,
-        p_ate: ateISO,
-      });
-      if (error) throw new Error(error.message);
-      if (e) emails = e as Painel["emails"];
-    } catch (err) {
-      console.error("[admin] resumo de e-mail não lido:", err);
+    // `enxuto`: o comparativo não mostra e-mail, então nem pede.
+    if (!opts.enxuto) {
+      try {
+        const { data: e, error } = await db.rpc("admin_emails_resumo", {
+          p_desde: desde,
+          p_ate: ateISO,
+        });
+        if (error) throw new Error(error.message);
+        if (e) emails = e as Painel["emails"];
+      } catch (err) {
+        console.error("[admin] resumo de e-mail não lido:", err);
+      }
     }
 
     // Visitante único: sessões distintas com page_view. É o denominador honesto
@@ -737,15 +798,19 @@ export const carregarPainel = createServerFn({ method: "POST" })
     // O SALDO DO PROVEDOR. Falha aqui não derruba o painel: provedor fora do
     // ar não pode impedir de ver o resto da operação.
     let creditoKie: number | null = null;
-    try {
-      const rs = await fetch("https://api.kie.ai/api/v1/chat/credit", {
-        headers: { Authorization: `Bearer ${process.env.KIE_API_KEY ?? ""}` },
-        signal: AbortSignal.timeout(5000),
-      });
-      const j = await rs.json();
-      if (typeof j?.data === "number") creditoKie = j.data;
-    } catch (err) {
-      console.error("[admin] saldo kie.ai não lido:", err);
+    // `enxuto`: saldo é estado de AGORA, não do período — comparar não faz
+    // sentido, e são 5s de timeout numa chamada externa.
+    if (!opts.enxuto) {
+      try {
+        const rs = await fetch("https://api.kie.ai/api/v1/chat/credit", {
+          headers: { Authorization: `Bearer ${process.env.KIE_API_KEY ?? ""}` },
+          signal: AbortSignal.timeout(5000),
+        });
+        const j = await rs.json();
+        if (typeof j?.data === "number") creditoKie = j.data;
+      } catch (err) {
+        console.error("[admin] saldo kie.ai não lido:", err);
+      }
     }
 
     let travadas = 0;
@@ -906,6 +971,55 @@ export const carregarPainel = createServerFn({ method: "POST" })
           quando: l.created_at,
         };
       }),
+    };
+  }
+
+/**
+ * O PAINEL, COM O PERÍODO ANTERIOR JUNTO.
+ *
+ * As duas janelas rodam em PARALELO de propósito. O trabalho de banco dobra —
+ * não tem como comparar sem ler o período comparado —, mas o tempo de parede
+ * fica no mais lento dos dois, não na soma. O painel já morreu uma vez por
+ * lentidão (`admin_eventos_resumo`, 17/08); dobrar em série seria pedir de
+ * novo.
+ *
+ * A janela anterior NÃO derruba o painel: se ela falhar, `comparativo` vem
+ * `null` e a tela some com as setinhas. Número de ontem é bom de ter; número
+ * de hoje é o que não pode faltar.
+ */
+export const carregarPainel = createServerFn({ method: "POST" })
+  // `de`/`ate` em "YYYY-MM-DD" (hora local BR) têm prioridade sobre `dias`.
+  // Com eles dá pra olhar UM dia específico ou qualquer intervalo.
+  .validator((data: ArgsPainel) => data)
+  .handler(async ({ data }): Promise<Painel> => {
+    // Import dinâmico: mantém node:crypto fora do bundle do cliente.
+    const { exigirAdmin } = await import("@/lib/admin-auth.server");
+    exigirAdmin();
+
+    const janela = janelaDo(data);
+    const antes = janelaAnterior(janela);
+
+    const [painel, anterior] = await Promise.all([
+      montarPainel(data, janela),
+      montarPainel(data, antes, { enxuto: true }).catch((err) => {
+        console.error("[admin] periodo anterior nao lido:", err);
+        return null;
+      }),
+    ]);
+
+    return {
+      ...painel,
+      comparativo: anterior
+        ? {
+            de: antes.inicio.toISOString(),
+            ate: antes.fim.toISOString(),
+            topo: anterior.topo,
+            // Só o alcance de cada degrau. As taxas do funil se recalculam
+            // sozinhas a partir daí, e guardar as duas coisas abriria espaço
+            // pra elas discordarem.
+            funil: Object.fromEntries(anterior.funil.map((f) => [f.id, f.alcancaram])),
+          }
+        : null,
     };
   });
 
