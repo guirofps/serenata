@@ -170,7 +170,7 @@ export function emailPresentePronto(args: {
           <p style="margin:8px 0 0;font-size:14px;line-height:1.55;color:rgba(42,21,24,0.7);font-family:Helvetica,Arial,sans-serif;">
             ${C.quadroTexto}
           </p>
-          <a href="${SITE}/dashboard" style="display:inline-block;margin-top:14px;padding:11px 22px;border-radius:999px;border:1px solid rgba(125,43,58,0.35);color:#7d2b3a;text-decoration:none;font-weight:600;font-size:13px;font-family:Helvetica,Arial,sans-serif;">${C.quadroBotao}</a>
+          <a href="${SITE}/dashboard?aba=quadro" style="display:inline-block;margin-top:14px;padding:13px 24px;border-radius:999px;border:1px solid rgba(125,43,58,0.35);color:#7d2b3a;text-decoration:none;font-weight:600;font-size:13px;font-family:Helvetica,Arial,sans-serif;">${C.quadroBotao}</a>
         </td></tr>
       </table>`
           : ""

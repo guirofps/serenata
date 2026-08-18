@@ -92,6 +92,13 @@ function Dashboard() {
   // comprado, que fica ACIMA delas: produto pago que espera não pode ficar
   // escondido dentro de aba nenhuma.
   const [aba, setAba] = useState<"musicas" | "criar" | "quadro">("musicas");
+  // ABA POR LINK. O e-mail de recompra tem um botão que diz "ver o quadro":
+  // cair no painel genérico e deixar a pessoa procurar a aba desfaz metade da
+  // promessa do botão. `?aba=quadro` e `?aba=criar` abrem onde prometeram.
+  useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get("aba");
+    if (v === "quadro" || v === "criar") setAba(v);
+  }, []);
   // ── A ESPERA DO PIX ─────────────────────────────────────────────
   //
   // Medido no teste de 18/08: 64 segundos entre gerar o Pix e o webhook

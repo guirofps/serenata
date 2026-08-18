@@ -6,6 +6,7 @@ import { inngest } from "../inngest/client.js";
 import { healthcheck } from "../inngest/functions/healthcheck.js";
 import { gerarMusica } from "../inngest/functions/gerarMusica.js";
 import { lembrarPresente } from "../inngest/functions/lembrarPresente.js";
+import { volteCriar } from "../inngest/functions/volteCriar.js";
 import { vigiarSaldo } from "../inngest/functions/vigiarSaldo.js";
 import { mandarLetra } from "../inngest/functions/mandarLetra.js";
 import { sequenciaRecuperacao } from "../inngest/functions/sequenciaRecuperacao.js";
@@ -21,6 +22,7 @@ export default serve({
     healthcheck,
     gerarMusica,
     lembrarPresente,
+    volteCriar,
     vigiarSaldo,
     mandarLetra,
     sequenciaRecuperacao,
