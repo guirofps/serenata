@@ -69,7 +69,16 @@ export function emailPresentePronto(args: {
           <!-- alt estilizado: o Gmail bloqueia imagem de remetente novo, e
                assim aparece SERENATA em serifada vinho no lugar do ícone
                quebrado. -->
-          <img src="https://www.serenatagift.com/img/logo-serenata.png" alt="SERENATA" width="168" height="35" style="display:block;margin:0 auto 16px;border:0;max-width:168px;height:auto;font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:3px;color:#7d2b3a;text-align:center;text-decoration:none;" />
+          <!-- A LOGO E TEXTO, nao imagem, e isso e decisao.
+               Era um <img> com o alt estilizado como plano B. O plano B virou
+               o CASO COMUM: Gmail e Apple Mail bloqueiam imagem remota por
+               padrao e desenham um ICONE DE QUEBRADO ao lado do alt. O dono
+               abriu o proprio e-mail em 17/08 e viu exatamente isso, com o
+               arquivo servindo HTTP 200 o tempo todo.
+               A marca e uma palavra numa serifa com espacejamento. Texto
+               renderiza igual em todo cliente, nunca bloqueia, nunca quebra,
+               e nao pesa 50 KB. -->
+          <div style="margin:0 auto 16px;font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:3px;color:#7d2b3a;text-align:center;">SERENATA</div>
           <h1 style="margin:0;color:#2a1518;font-size:25px;font-weight:normal;line-height:1.32;">
             ${C.titulo(nome)}
           </h1>
