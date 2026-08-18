@@ -146,10 +146,11 @@ export function BlocoCreditos({
       </div>
 
       {quadro && (
+        <div className="mt-3 rounded-[var(--raio)] border border-[var(--tinta-fraca)]/40 transition-colors hover:border-[var(--tinta-fraca)]">
         <a
           href={`${quadro.checkout}?email=${encodeURIComponent(email)}`}
           onClick={() => trackEvent("credito_oferta_click", { oferta: "quadro" })}
-          className="mt-3 flex items-center gap-3 rounded-[var(--raio)] border border-[var(--tinta-fraca)]/40 p-4 transition-colors hover:border-[var(--tinta-fraca)]"
+          className="flex items-center gap-3 p-4"
         >
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--tinta-fraca)]/15 text-[var(--acento)]">
             <Frame className="h-4 w-4" />
@@ -166,6 +167,21 @@ export function BlocoCreditos({
             R$ {quadro.precoBrl.toFixed(2).replace(".", ",")}
           </span>
         </a>
+        {/* VER ANTES DE COMPRAR. É o produto mais difícil de imaginar da lista:
+            "folha A4 com a letra" não desenha nada na cabeça de ninguém. O
+            exemplo usa dado inventado e a foto que já é pública na home,
+            nunca o presente de um cliente. */}
+        <a
+          href="/quadro/exemplo"
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => { e.stopPropagation(); trackEvent("quadro_exemplo_click"); }}
+          className="block border-t border-[var(--tinta-fraca)]/30 px-4 py-2.5 text-center text-[var(--tinta-suave)] underline underline-offset-2"
+          style={{ fontSize: "var(--t-xs)" }}
+        >
+          {"exemplo" in o.quadro ? o.quadro.exemplo : "ver um exemplo"}
+        </a>
+        </div>
       )}
 
       <p className="mt-4 text-center text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>

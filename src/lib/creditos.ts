@@ -134,8 +134,9 @@ export const TEXTO_OFERTA = {
     },
     quadro: {
       titulo: "O quadro da música",
-      sub: "A letra e a foto de vocês numa folha A4, pronta pra emoldurar.",
+      sub: "A letra e a foto de vocês numa folha A4, pronta pra emoldurar. Você escolhe a cor, o detalhe e o fundo claro ou escuro.",
       cta: "Quero o quadro",
+      exemplo: "ver um exemplo",
     },
   },
   es: {
@@ -152,8 +153,9 @@ export const TEXTO_OFERTA = {
     },
     quadro: {
       titulo: "El cuadro de la canción",
-      sub: "La letra y su foto en una hoja A4, lista para enmarcar.",
+      sub: "La letra y su foto en una hoja A4, lista para enmarcar. Eliges el color, el detalle y el fondo claro u oscuro.",
       cta: "Quiero el cuadro",
+      exemplo: "ver un ejemplo",
     },
   },
 } as const;

@@ -43,9 +43,48 @@ function limparLetra(bruta: string): string {
     .trim();
 }
 
+// O EXEMPLO, pra quem ainda não comprou poder ver o que está comprando.
+//
+// Dado inventado, foto que já é pública na home. Não usa presente de cliente
+// nenhum: um exemplo que expõe a homenagem de uma pessoa real seria trair
+// exatamente quem confiou na gente pra guardar isso.
+const EXEMPLO: Quadro = {
+  locale: "pt",
+  titulo: "Um Minuto na Padaria",
+  nome: "Amor",
+  letra: `Você entrou pela porta e o cheiro de pão quentinho
+Não foi mais o mesmo depois que os nossos olhos se acharam
+Ficamos um minuto só nos olhando de leve
+E nesse minuto inteiro os anos todos começaram
+
+Foi um minuto de olhar e mudou minha vida inteira
+Desde aquele primeiro dia você virou minha rotina
+Tantos anos depois eu escolho você de novo
+Obrigada por me encontrar, meu coração é seu de fato
+
+Virei sua namorada antes mesmo de perceber
+Depois veio o vestido branco e o sim
+Duas filhas vieram como presente pra nós dois
+E você ainda me chama do seu jeito, sorrindo assim
+
+Seu jeito brincalhão nunca deixou de existir
+Na vida inteira que a gente construiu
+Se eu voltasse pra aquele instante primeiro
+Eu ia escolher de novo esse minuto inteiro
+
+Me chama do seu jeito
+Que eu vou te chamar de meu, de agora e pra sempre
+Obrigada por me encontrar`,
+  dedicatoria: "Pra você, com todo amor. ❤️",
+  fotoUrl: "/img/exemplo-pai.webp",
+  corDestaque: null,
+  linkPresente: "https://www.serenatagift.com",
+};
+
 export const carregarQuadro = createServerFn({ method: "POST" })
   .validator((data: { tokenEdicao: string }) => data)
   .handler(async ({ data }): Promise<Quadro | null> => {
+    if (data.tokenEdicao === "exemplo") return EXEMPLO;
     const db = supabaseAdmin();
 
     // O TOKEN DE EDIÇÃO é a credencial, como no resto do pós-compra: quem tem
