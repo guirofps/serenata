@@ -171,6 +171,8 @@ export const sequenciaRecuperacao = inngest.createFunction(
         nome: string;
         numero: NumeroDaSequencia;
         locale: "pt" | "es";
+        /** Um trecho da letra QUE ELA ESCREVEU, pra ir dentro do e-mail. */
+        verso: string | null;
       }> = [];
 
       for (const [quizId, { quando, numero }] of ultimo) {
@@ -200,8 +202,41 @@ export const sequenciaRecuperacao = inngest.createFunction(
           nome: r.nome?.trim() || (locale === "es" ? "esa persona" : "quem você ama"),
           numero: proximo,
           locale,
+          verso: null,
         });
       }
+      // ── A LETRA DELA, DENTRO DO E-MAIL ────────────────────
+      //
+      // O cupom saiu daqui e isto entrou no lugar. Motivo medido em 18/08:
+      // ZERO cupons usados em 383 vendas. Desconto não era o obstáculo, e
+      // dar 26% pra quem ia comprar de qualquer jeito é margem jogada fora.
+      //
+      // O que a gente tem e ninguém mais tem é a letra que ELA escreveu. Um
+      // e-mail que diz "sua letra está lá" é uma afirmação; um e-mail que
+      // MOSTRA duas linhas dela é a coisa em si. E foi isso que ela veio
+      // buscar.
+      //
+      // Uma consulta só pra fila inteira, não uma por pessoa.
+      if (out.length) {
+        const { data: musicas } = await sb
+          .from("musicas")
+          .select("quiz_response_id, verso_destaque, letra")
+          .in("quiz_response_id", out.map((o) => o.quizId));
+        const porQuiz = new Map((musicas ?? []).map((m) => [m.quiz_response_id, m]));
+        for (const item of out) {
+          const m = porQuiz.get(item.quizId);
+          // O verso de destaque é o que ELA escolheu na revelação. Sem ele,
+          // as duas primeiras linhas da letra, que é onde o nome aparece.
+          const bruto = (m?.verso_destaque ?? m?.letra ?? "").toString();
+          const linhas = bruto
+            .split(String.fromCharCode(10))
+            .map((l: string) => l.trim())
+            .filter((l: string) => l && !/^\[.*\]$/.test(l))
+            .slice(0, 2);
+          item.verso = linhas.length ? linhas.join(String.fromCharCode(10)) : null;
+        }
+      }
+
       return out;
     });
 
@@ -257,10 +292,11 @@ export const sequenciaRecuperacao = inngest.createFunction(
         // Pôr desconto no e-mail que ainda converte (1,0%) é decisão de
         // margem, não de código: são R$ 10 de um ticket de R$ 38, e o dono
         // precisa escolher se quer pagar isso pra recuperar quem já ia voltar.
-        const cupom = p.numero === 4 ? cupomAtivo(p.locale) : null;
-        const link =
-          `${SITE}/retomar?s=${encodeURIComponent(p.sessao)}` +
-          (cupom ? `&cupom=${encodeURIComponent(cupom.codigo)}` : "");
+        // O CUPOM SAIU. Zero usos em 383 vendas (medido em 18/08): ele não
+        // era o obstáculo, e mantê-lo era pagar 26% pra quem compraria do
+        // mesmo jeito. O que entra no lugar é a letra dela, logo acima.
+
+        const link = `${SITE}/retomar?s=${encodeURIComponent(p.sessao)}`;
         const linkDescadastro = `${SITE}/descadastrar?s=${encodeURIComponent(p.sessao)}&lang=${p.locale}`;
 
         const { error } = await resend.emails.send({
@@ -279,7 +315,7 @@ export const sequenciaRecuperacao = inngest.createFunction(
             link,
             linkDescadastro,
             locale: p.locale,
-            cupom,
+            verso: p.verso,
           }),
           headers: {
             "List-Unsubscribe": `<${linkDescadastro}>`,

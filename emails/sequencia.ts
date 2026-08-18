@@ -199,18 +199,45 @@ export function emailSequencia(args: {
   locale?: IdiomaEmail;
   /** Cupom da recuperação, quando ainda vale. Só entra no e-mail 4. */
   cupom?: { codigo: string; texto: string; por: string } | null;
+  /**
+   * Duas linhas da letra QUE ELA ESCREVEU.
+   *
+   * Entrou no lugar do cupom. Zero cupons usados em 383 vendas (medido em
+   * 18/08): desconto não era o obstáculo. O que a gente tem e nenhum
+   * concorrente tem é a letra dela, e um e-mail que MOSTRA duas linhas dela é
+   * outra coisa que um e-mail que diz "sua letra está lá".
+   */
+  verso?: string | null;
 }): string {
   const locale = args.locale ?? "pt";
   const C = COPY[locale] ?? COPY.pt;
   const p = (t: string) =>
     `<p style="margin:0 0 14px;">${t}</p>`;
 
+  // A letra vem do banco e vai pra dentro de HTML: um "&" ou um "<" na letra
+  // quebraria a marcação. Escapar não é paranoia, é o mesmo cuidado que o
+  // CLAUDE.md manda ter com nome injetado sem sanitizar.
+  const escapar = (t: string) =>
+    t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  // O VERSO DELA, em citação. Serifa e recuo, do mesmo jeito que ele aparece
+  // na tela de oferta: é a letra, não é copy nossa, e precisa parecer letra.
+  const citacao = (v?: string | null) =>
+    v
+      ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 18px;">
+        <tr><td style="padding:14px 18px;border-left:3px solid rgba(125,43,58,0.45);background:rgba(125,43,58,0.045);">
+          <p style="margin:0;font-size:17px;line-height:1.55;color:#2a1518;font-family:Georgia,'Times New Roman',serif;font-style:italic;white-space:pre-line;">${escapar(v)}</p>
+        </td></tr>
+      </table>`
+      : "";
+
+
   if (args.numero === 2) {
     return moldura({
       locale,
       preheader: C.a2Assunto(args.nome),
       titulo: C.a2Titulo(args.nome),
-      miolo: p(C.a2Intro) + p(C.a2Corpo),
+      miolo: p(C.a2Intro) + citacao(args.verso) + p(C.a2Corpo),
       botao: C.a2Botao,
       link: args.link,
       linkDescadastro: args.linkDescadastro,
@@ -235,18 +262,15 @@ export function emailSequencia(args: {
     });
   }
 
-  // O QUARTO é o último, e é onde o desconto cabe. Quem chegou aqui atravessou
+  // O QUARTO é o último, e é onde o desconto cabia. Quem chegou aqui atravessou
   // três e-mails sem comprar, então não há venda pra canibalizar; nos
   // anteriores seria dar desconto pra quem ia comprar de qualquer jeito.
   return moldura({
     locale,
     preheader: C.a4Assunto(args.nome),
     titulo: C.a4Titulo,
-    miolo:
-      p(C.a4Intro) +
-      (args.cupom ? p(C.a4Cupom(args.cupom.texto, args.cupom.por)) : "") +
-      p(C.a4Corpo),
-    botao: args.cupom ? C.a4CupomBotao : C.a4Botao,
+    miolo: p(C.a4Intro) + citacao(args.verso) + p(C.a4Corpo),
+    botao: C.a4Botao,
     link: args.link,
     linkDescadastro: args.linkDescadastro,
   });
