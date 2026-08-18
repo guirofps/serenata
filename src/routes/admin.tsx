@@ -311,12 +311,15 @@ function Admin() {
   // aí toda `Variacao` se cala sozinha — nenhum cartão precisa saber disso.
   const a = dados.comparativo?.topo;
   const antesDoFunil = dados.comparativo?.funil;
+  // O topo do funil e' o primeiro degrau que sobrou, e nao mais o total de
+  // sessoes do site. E' a escala das barras.
+  const topoDoFunil = dados.funil[0]?.alcancaram ?? 0;
   // O aviso dizia "maior perda" e mostrava a SEGUNDA: o índice era `[1]`.
   // Medido no painel de 17/08 — a maior perda era "Nome" (881 pessoas, 41,5%)
   // e o aviso apontava "Começou o quiz" (565). Justamente o degrau que a
   // pessoa é mandada olhar primeiro, apontando pro lugar errado.
-  // `[0]` é seguro: o primeiro degrau ("Visitou o site") tem `perdidos` 0 por
-  // construção, então ele nunca ganha essa ordenação.
+  // `[0]` é seguro: o primeiro degrau tem `perdidos` 0 por construção (não há
+  // degrau anterior de onde perder), então ele nunca ganha essa ordenação.
   const maiorQueda = [...dados.funil].filter((f) => f.alcancaram > 0).sort((a, b) => b.perdidos - a.perdidos)[0];
 
   return (
@@ -448,7 +451,7 @@ function Admin() {
           }`}
         >
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-            <Cartao rotulo="Vendas" valor={String(t.vendas)} destaque apoio={`${pc(t.taxaGeral)} dos visitantes`} atual={t.vendas} anterior={a?.vendas} />
+            <Cartao rotulo="Vendas" valor={String(t.vendas)} destaque apoio={`${pc(t.taxaGeral)} de quem abriu o quiz`} atual={t.vendas} anterior={a?.vendas} />
             {/* RECEITA: nunca um número só quando há duas moedas.
                 O funil brasileiro cobra em real, o espanhol cobra em dólar na
                 Perfect Pay. Somar os dois produz um total que não existe no
@@ -540,18 +543,24 @@ function Admin() {
         </Secao>
 
         {/* ── TAXAS DE PASSAGEM ────────────────────────────────── */}
-        <Secao titulo="Onde converte" sub="A passagem de cada etapa pra próxima">
+        <Secao
+          titulo="Onde converte"
+          sub="A passagem de cada etapa pra próxima. A base é quem ABRIU O QUIZ, não quem abriu qualquer página do site — presenteado abrindo o presente é entrega, não visita."
+        >
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-            <Cartao rotulo="Visita → quiz" valor={pc(t.taxaVisitaQuiz)} atual={t.taxaVisitaQuiz} anterior={a?.taxaVisitaQuiz} unidade="pontos" />
+            <Cartao rotulo="Abriu → começou" valor={pc(t.taxaAbriuComecou)} atual={t.taxaAbriuComecou} anterior={a?.taxaAbriuComecou} unidade="pontos" />
             <Cartao rotulo="Quiz → letra" valor={pc(t.taxaQuizLetra)} atual={t.taxaQuizLetra} anterior={a?.taxaQuizLetra} unidade="pontos" />
             <Cartao rotulo="Letra → checkout" valor={pc(t.taxaLetraCheckout)} atual={t.taxaLetraCheckout} anterior={a?.taxaLetraCheckout} unidade="pontos" />
             <Cartao rotulo="Checkout → pagou" valor={pc(t.taxaCheckoutVenda)} destaque atual={t.taxaCheckoutVenda} anterior={a?.taxaCheckoutVenda} unidade="pontos" />
-            <Cartao rotulo="Visita → venda" valor={pc(t.taxaGeral)} apoio="conversão geral" atual={t.taxaGeral} anterior={a?.taxaGeral} unidade="pontos" />
+            <Cartao rotulo="Abriu → venda" valor={pc(t.taxaGeral)} apoio="conversão geral" atual={t.taxaGeral} anterior={a?.taxaGeral} unidade="pontos" />
           </div>
         </Secao>
 
         {/* ── FUNIL COMPLETO ───────────────────────────────────── */}
-        <Secao titulo="O funil, passo a passo" sub="Onde as pessoas desistem. A barra é sobre o total de visitantes.">
+        <Secao
+          titulo="O funil, passo a passo"
+          sub="Onde as pessoas desistem. Começa em quem abriu /criar — quem só abriu a página presente ou o editor não é topo de funil, é entrega. A barra é sobre o primeiro degrau."
+        >
           {maiorQueda && maiorQueda.perdidos > 0 && (
             <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
               <TrendingDown className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
@@ -562,7 +571,11 @@ function Admin() {
           )}
           <div className="space-y-1.5">
             {dados.funil.map((f) => {
-              const largura = t.visitantes > 0 ? Math.max(1.5, (f.alcancaram / t.visitantes) * 100) : 0;
+              // A barra e' sobre o PRIMEIRO DEGRAU, nao sobre os visitantes do
+              // site. Desde 18/08 o funil comeca em "Abriu o quiz"; manter a
+              // escala no total de sessoes deixaria a barra cheia sempre
+              // faltando, medindo contra um numero que saiu da tela.
+              const largura = topoDoFunil > 0 ? Math.max(1.5, (f.alcancaram / topoDoFunil) * 100) : 0;
               const cor =
                 f.etapa === "venda"
                   ? "bg-[var(--acento)]"

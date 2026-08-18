@@ -54,11 +54,26 @@ export type Painel = {
     /** Receita menos produção menos mídia. O que sobra de verdade. */
     lucroBrl: number;
     // conversões-chave
-    taxaVisitaQuiz: number; // visitante -> começou o quiz
+    // A CONVERSÃO É MEDIDA SOBRE QUEM ABRIU O QUIZ (18/08), não sobre quem
+    // abriu qualquer página do site.
+    //
+    // `page_view` dispara no `__root`, então "visitante" incluía as quinze
+    // rotas que não são funil: a página presente que o presenteado abre, o
+    // editor, o quadro, o /obrigado, o /dashboard, o próprio /admin. Medido:
+    // 1.071 sessões contra 370 que abriram /criar. Os 701 do vão nunca
+    // puderam comprar.
+    //
+    // E a base ANDAVA SOZINHA: cada música entregue vira uma página presente
+    // circulando, então a conversão caía quanto mais se vendia. Denominador
+    // que cresce com o sucesso transforma boa notícia em número vermelho.
+    //
+    // `visitantes` continua no painel, no cartão que leva esse nome e na
+    // tabela de páginas de entrada — lá ele significa o que diz.
+    taxaAbriuComecou: number; // abriu /criar -> começou a responder
     taxaQuizLetra: number; // começou -> recebeu a letra
     taxaLetraCheckout: number; // letra -> clicou em comprar
     taxaCheckoutVenda: number; // clicou -> pagou
-    taxaGeral: number; // visitante -> venda
+    taxaGeral: number; // abriu /criar -> venda
     custoPorVendaBrl: number;
   };
 
@@ -688,7 +703,25 @@ async function montarPainel(
     // ── FUNIL COMPLETO: do clique à venda ────────────────────────
     const passosQuiz = QUIZ_FLOW.filter((s) => isQuestion(s) || s.kind === "contact");
     const bruto: Array<{ id: string; rotulo: string; alcancaram: number; etapa: Painel["funil"][0]["etapa"] }> = [
-      { id: "visita", rotulo: "Visitou o site", alcancaram: visitantes, etapa: "topo" },
+      // O FUNIL COMEÇA EM /criar, E NÃO NO SITE (18/08).
+      //
+      // O primeiro degrau era "Visitou o site": qualquer sessão com qualquer
+      // `page_view`. Só que o `page_view` dispara no `__root`, ou seja, em
+      // TODAS as rotas — inclusive as quinze que não são funil: a página
+      // presente que o presenteado abre (`/p/<token>`), o editor do comprador,
+      // o quadro, o /obrigado, o /dashboard e até o próprio /admin.
+      //
+      // Medido em 18/08: 1.071 "visitantes" contra 370 que abriram o quiz. Os
+      // 701 do vão nunca puderam comprar — a maioria é presenteado abrindo o
+      // presente, que é ENTREGA de produto, não topo de funil.
+      //
+      // E o número PIORAVA COM O SUCESSO: cada música entregue vira uma página
+      // presente circulando, e cada abertura dela afundava a conversão geral.
+      // Um degrau que se degrada quando a operação vai bem não mede nada.
+      //
+      // `visitantes` continua existindo pro cartão "Visitantes" e pra tabela
+      // de páginas de entrada, que é onde ele significa alguma coisa.
+      //
       // Abriu ≠ começou desde 17/08: entre os dois está a tela de abertura.
       // Em recorte anterior a ela os dois degraus dão igual, e isso é o certo
       // — a tela não existia, ninguém podia desistir nela.
@@ -883,11 +916,11 @@ async function montarPainel(
         ticketMedioBrl: pagos.length ? receita / pagos.length : 0,
         custoTotalBrl: custoTotal,
         margemBrl: receita - custoTotal,
-        taxaVisitaQuiz: pct(quizIniciados, visitantes),
+        taxaAbriuComecou: pct(quizIniciados, abriramQuiz),
         taxaQuizLetra: pct(doFunil.length, quizIniciados),
         taxaLetraCheckout: pct(cliquesCheckout, doFunil.length),
         taxaCheckoutVenda: pct(pagos.length, cliquesCheckout),
-        taxaGeral: pct(pagos.length, visitantes),
+        taxaGeral: pct(pagos.length, abriramQuiz),
         custoPorVendaBrl: pagos.length ? custoTotal / pagos.length : 0,
         gastoAdsBrl: gastoAds,
         cpaBrl: pagos.length ? gastoAds / pagos.length : 0,
