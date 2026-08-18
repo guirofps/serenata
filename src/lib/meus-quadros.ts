@@ -34,6 +34,14 @@ export type MusicaDoQuadro = {
 };
 
 export type MeusQuadros = {
+  /**
+   * O IDIOMA DA CONTA, tirado da música mais recente.
+   *
+   * `/meu-quadro` não tem prefixo de rota de onde deduzir, e é a mesma pista
+   * que o painel usa. Sem isto a tela sai em português pra quem comprou no
+   * funil mexicano e abriu o link do quadro direto.
+   */
+  locale: "pt" | "es";
   /** Quantos direitos comprados e ainda não amarrados a uma música. */
   paraMontar: number;
   /** Os quadros já confirmados, pra ela voltar e reimprimir. */
@@ -61,7 +69,7 @@ export type EstiloGravado = { modo?: string; cor?: string; efeito?: string };
 export const meusQuadros = createServerFn({ method: "POST" })
   .validator((data: { token: string }) => data)
   .handler(async ({ data }): Promise<MeusQuadros> => {
-    const vazio: MeusQuadros = { paraMontar: 0, prontos: [], musicas: [] };
+    const vazio: MeusQuadros = { locale: "pt", paraMontar: 0, prontos: [], musicas: [] };
     const email = await emailDaSessao(data.token);
     if (!email) return vazio;
 
@@ -80,7 +88,7 @@ export const meusQuadros = createServerFn({ method: "POST" })
       conta?.id
         ? db
             .from("musicas")
-            .select("id, titulo, token_edicao, genero, created_at, foto_path, quiz_response_id")
+            .select("id, titulo, token_edicao, genero, created_at, foto_path, quiz_response_id, locale")
             .eq("user_id", conta.id)
             .eq("status", "pronta")
             .order("created_at", { ascending: false })
@@ -107,6 +115,7 @@ export const meusQuadros = createServerFn({ method: "POST" })
     }
 
     return {
+      locale: (musicas ?? [])[0]?.locale === "es" ? "es" : "pt",
       paraMontar: linhas.filter((q) => !q.musica_id).length,
       prontos: linhas
         .filter((q) => q.musica_id)

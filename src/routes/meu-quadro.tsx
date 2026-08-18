@@ -51,6 +51,85 @@ const QUANDO = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
 });
 
+const QUANDO_ES = new Intl.DateTimeFormat("es-MX", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "2-digit",
+  timeZone: "America/Mexico_City",
+});
+
+// O IDIOMA sai da conta (a música mais recente), não da rota: `/meu-quadro`
+// não tem prefixo de onde deduzir, e quem comprou no funil mexicano chega
+// aqui pelo mesmo caminho.
+const TXT = {
+  pt: {
+    voltar: "minhas músicas",
+    carregando: "carregando...",
+    tituloMontar: "Monte o seu quadro",
+    tituloSem: "O quadro da música",
+    oQueE:
+      "A letra da música e a foto de vocês numa folha A4, com o QR Code que toca a música. Você salva em PDF aqui, manda imprimir numa gráfica ou na sua impressora, compra uma moldura de A4 e pendura na parede.",
+    verPronto: "Ver um quadro pronto",
+    meusUm: "Seu quadro",
+    meusVarios: "Seus quadros",
+    abrir: "Abrir e imprimir",
+    escolhaVarias: "De qual música é o seu quadro?",
+    escolhaUma: "A música do seu quadro",
+    escolhaSubVarias:
+      "Toque na música que você quer no papel. Dá pra ver como fica antes de decidir, e trocar quantas vezes quiser.",
+    escolhaSubUma: "Veja como fica e confirme quando estiver bom.",
+    todasTem:
+      "Todas as suas músicas já têm quadro. Crie uma música nova pra usar este quadro nela.",
+    verComoFica: "Ver como fica esta",
+    para: (n: string) => `para ${n} · `,
+    semFoto: " · sem foto ainda",
+    avisoSemFoto:
+      "Esta música ainda não tem foto. O quadro fica bonito sem foto, mas se você quiser a foto de vocês nele, coloque antes na página presente: ela é a mesma foto.",
+    semDireito: "Você não tem nenhum quadro pra montar agora.",
+    erroGeral: "Não deu pra confirmar agora. Tente de novo daqui a pouco.",
+    naoTem: "Você ainda não tem um quadro",
+    naoTemSub:
+      "Cada quadro vale por uma música. Depois de comprar, você volta aqui e escolhe qual delas vai pro papel.",
+    trava:
+      "Depois de confirmar, este quadro fica sendo o desta música. A cor, o fundo e os textos você ainda muda quando quiser.",
+    confirmar: "Confirmar e montar meu quadro",
+    confirmando: "confirmando...",
+  },
+  es: {
+    voltar: "mis canciones",
+    carregando: "cargando...",
+    tituloMontar: "Arma tu cuadro",
+    tituloSem: "El cuadro de la canción",
+    oQueE:
+      "La letra de la canción y su foto en una hoja A4, con el código QR que reproduce la canción. La guardas en PDF aquí, la mandas a imprimir en una imprenta o en tu impresora, compras un marco A4 y la cuelgas en la pared.",
+    verPronto: "Ver un cuadro terminado",
+    meusUm: "Tu cuadro",
+    meusVarios: "Tus cuadros",
+    abrir: "Abrir e imprimir",
+    escolhaVarias: "¿De cuál canción es tu cuadro?",
+    escolhaUma: "La canción de tu cuadro",
+    escolhaSubVarias:
+      "Toca la canción que quieres en el papel. Puedes ver cómo queda antes de decidir, y cambiar todas las veces que quieras.",
+    escolhaSubUma: "Mira cómo queda y confirma cuando esté bien.",
+    todasTem:
+      "Todas tus canciones ya tienen cuadro. Crea una canción nueva para usar este cuadro en ella.",
+    verComoFica: "Ver cómo queda esta",
+    para: (n: string) => `para ${n} · `,
+    semFoto: " · todavía sin foto",
+    avisoSemFoto:
+      "Esta canción todavía no tiene foto. El cuadro queda bonito sin foto, pero si quieres la foto de ustedes en él, ponla antes en la página regalo: es la misma foto.",
+    semDireito: "No tienes ningún cuadro para armar ahora.",
+    erroGeral: "No pudimos confirmar ahora. Inténtalo de nuevo en un momento.",
+    naoTem: "Todavía no tienes un cuadro",
+    naoTemSub:
+      "Cada cuadro vale por una canción. Después de comprar, vuelves aquí y eliges cuál de ellas va al papel.",
+    trava:
+      "Después de confirmar, este cuadro queda siendo el de esta canción. El color, el fondo y los textos todavía los cambias cuando quieras.",
+    confirmar: "Confirmar y armar mi cuadro",
+    confirmando: "confirmando...",
+  },
+};
+
 function MeuQuadro() {
   const navigate = useNavigate();
   const [carregando, setCarregando] = useState(true);
@@ -59,7 +138,12 @@ function MeuQuadro() {
   const [confirmando, setConfirmando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const oferta = OFERTAS.find((o) => o.id === "quadro");
-  const txt = TEXTO_OFERTA.pt.quadro;
+  const locale = dados?.locale === "es" ? ("es" as const) : ("pt" as const);
+  const t = TXT[locale];
+  const txt = TEXTO_OFERTA[locale].quadro;
+  // A data em pt-BR e es-MX: dd/mm nos dois, mas a ordem e o separador do
+  // Intl mudam, e data com cara de estrangeira é ruído numa tela de escolha.
+  const quando = locale === "es" ? QUANDO_ES : QUANDO;
 
   useEffect(() => {
     let vivo = true;
@@ -101,9 +185,7 @@ function MeuQuadro() {
       return;
     }
     setErro(
-      r.erro === "sem-direito"
-        ? "Você não tem nenhum quadro pra montar agora."
-        : "Não deu pra confirmar agora. Tente de novo daqui a pouco.",
+      r.erro === "sem-direito" ? t.semDireito : t.erroGeral,
     );
     setConfirmando(false);
   }
@@ -121,7 +203,7 @@ function MeuQuadro() {
             className="inline-flex items-center gap-1.5 text-[var(--tinta-suave)] transition-colors hover:text-[var(--tinta)]"
             style={{ fontSize: "var(--t-sm)" }}
           >
-            <ArrowLeft className="h-4 w-4" /> minhas músicas
+            <ArrowLeft className="h-4 w-4" /> {t.voltar}
           </Link>
         </div>
       </header>
@@ -129,7 +211,7 @@ function MeuQuadro() {
       <main className="mx-auto max-w-2xl px-5 py-8 pb-32">
         {carregando ? (
           <div className="flex items-center gap-3 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
-            <Loader2 className="h-4 w-4 animate-spin" /> carregando...
+            <Loader2 className="h-4 w-4 animate-spin" /> {t.carregando}
           </div>
         ) : (
           <>
@@ -137,9 +219,7 @@ function MeuQuadro() {
               className="text-balance"
               style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-2xl)", lineHeight: 1.15 }}
             >
-              {dados && dados.paraMontar > 0
-                ? "Monte o seu quadro"
-                : "O quadro da música"}
+              {dados && dados.paraMontar > 0 ? t.tituloMontar : t.tituloSem}
             </h1>
 
             {/* ── O QUE É, EM UMA FRASE E UMA IMAGEM MENTAL ──────
@@ -156,10 +236,7 @@ function MeuQuadro() {
                     {txt.titulo}
                   </p>
                   <p className="mt-1.5 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)", lineHeight: 1.55 }}>
-                    A letra da música e a foto de vocês numa folha A4, com o QR
-                    Code que toca a música. Você salva em PDF aqui, manda
-                    imprimir numa gráfica ou na sua impressora, compra uma
-                    moldura de A4 e pendura na parede.
+                    {t.oQueE}
                   </p>
                 </div>
               </div>
@@ -171,7 +248,7 @@ function MeuQuadro() {
                 className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-[var(--tinta-fraca)] font-medium transition-colors hover:border-[var(--tinta-suave)]"
                 style={{ fontSize: "var(--t-sm)" }}
               >
-                <Eye className="h-4 w-4" /> Ver um quadro pronto
+                <Eye className="h-4 w-4" /> {t.verPronto}
               </a>
             </div>
 
@@ -179,7 +256,7 @@ function MeuQuadro() {
             {dados && dados.prontos.length > 0 && (
               <section className="mt-8">
                 <h2 className="font-medium" style={{ fontFamily: FONTES.display, fontSize: "var(--t-lg)" }}>
-                  {dados.prontos.length === 1 ? "Seu quadro" : "Seus quadros"}
+                  {dados.prontos.length === 1 ? t.meusUm : t.meusVarios}
                 </h2>
                 <ul className="mt-3 space-y-3">
                   {dados.prontos.map((q) => (
@@ -195,7 +272,7 @@ function MeuQuadro() {
                         className="cta mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border-0 font-medium"
                         style={{ fontSize: "var(--t-sm)" }}
                       >
-                        <Printer className="h-4 w-4" /> Abrir e imprimir
+                        <Printer className="h-4 w-4" /> {t.abrir}
                       </a>
                     </li>
                   ))}
@@ -207,20 +284,15 @@ function MeuQuadro() {
             {dados && dados.paraMontar > 0 && (
               <section className="mt-8">
                 <h2 className="font-medium" style={{ fontFamily: FONTES.display, fontSize: "var(--t-lg)" }}>
-                  {disponiveis.length > 1
-                    ? "De qual música é o seu quadro?"
-                    : "A música do seu quadro"}
+                  {disponiveis.length > 1 ? t.escolhaVarias : t.escolhaUma}
                 </h2>
                 <p className="mt-1 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)", lineHeight: 1.55 }}>
-                  {disponiveis.length > 1
-                    ? "Toque na música que você quer no papel. Dá pra ver como fica antes de decidir, e trocar quantas vezes quiser."
-                    : "Veja como fica e confirme quando estiver bom."}
+                  {disponiveis.length > 1 ? t.escolhaSubVarias : t.escolhaSubUma}
                 </p>
 
                 {disponiveis.length === 0 ? (
                   <p className="mt-4 rounded-[var(--raio)] border border-[var(--tinta-fraca)]/40 p-4 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
-                    Todas as suas músicas já têm quadro. Crie uma música nova pra
-                    usar este quadro nela.
+                    {t.todasTem}
                   </p>
                 ) : (
                   <ul className="mt-4 space-y-3">
@@ -261,9 +333,9 @@ function MeuQuadro() {
                                 className="block text-[var(--tinta-suave)]"
                                 style={{ fontSize: "var(--t-xs)" }}
                               >
-                                {m.para ? `para ${m.para} · ` : ""}
-                                {QUANDO.format(new Date(m.criadaEm))}
-                                {m.temFoto ? "" : " · sem foto ainda"}
+                                {m.para ? t.para(m.para) : ""}
+                                {quando.format(new Date(m.criadaEm))}
+                                {m.temFoto ? "" : t.semFoto}
                               </span>
                             </span>
                           </button>
@@ -280,7 +352,7 @@ function MeuQuadro() {
                               className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-[var(--tinta-fraca)] font-medium transition-colors hover:border-[var(--tinta-suave)]"
                               style={{ fontSize: "var(--t-sm)" }}
                             >
-                              <Eye className="h-4 w-4" /> Ver como fica esta
+                              <Eye className="h-4 w-4" /> {t.verComoFica}
                             </a>
                           )}
                         </li>
@@ -293,9 +365,7 @@ function MeuQuadro() {
                   <p className="mt-4 flex items-start gap-2 rounded-[var(--raio)] border border-amber-500/30 bg-amber-50 p-3 text-amber-900" style={{ fontSize: "var(--t-xs)", lineHeight: 1.5 }}>
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>
-                      Esta música ainda não tem foto. O quadro fica bonito sem
-                      foto, mas se você quiser a foto de vocês nele, coloque
-                      antes na página presente: ela é a mesma foto.
+                      {t.avisoSemFoto}
                     </span>
                   </p>
                 )}
@@ -312,11 +382,10 @@ function MeuQuadro() {
             {dados && dados.paraMontar === 0 && dados.prontos.length === 0 && oferta && (
               <section className="mt-8 rounded-[var(--raio-lg)] border border-[var(--acento)]/40 bg-[var(--acento)]/5 p-5 text-center">
                 <p className="font-medium" style={{ fontSize: "var(--t-base)" }}>
-                  Você ainda não tem um quadro
+                  {t.naoTem}
                 </p>
                 <p className="mx-auto mt-1.5 max-w-sm text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)", lineHeight: 1.55 }}>
-                  Cada quadro vale por uma música. Depois de comprar, você volta
-                  aqui e escolhe qual delas vai pro papel.
+                  {t.naoTemSub}
                 </p>
                 <p className="mt-4 font-semibold text-[var(--acento)]" style={{ fontSize: "var(--t-2xl)" }}>
                   R$ {oferta.precoBrl.toFixed(2).replace(".", ",")}
@@ -343,8 +412,7 @@ function MeuQuadro() {
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--tinta-fraca)]/30 bg-[var(--papel)]/97 backdrop-blur-md">
           <div className="mx-auto max-w-2xl px-5 py-3">
             <p className="text-center text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)", lineHeight: 1.4 }}>
-              Depois de confirmar, este quadro fica sendo o desta música. A cor,
-              o fundo e os textos você ainda muda quando quiser.
+              {t.trava}
             </p>
             <button
               onClick={confirmar}
@@ -354,11 +422,11 @@ function MeuQuadro() {
             >
               {confirmando ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> confirmando...
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t.confirmando}
                 </>
               ) : (
                 <>
-                  <Check className="h-4 w-4" /> Confirmar e montar meu quadro
+                  <Check className="h-4 w-4" /> {t.confirmar}
                 </>
               )}
             </button>

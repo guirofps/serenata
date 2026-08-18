@@ -68,6 +68,19 @@ const T = {
     cor: "Cor",
     efeito: "Detalhe",
     dicaClaro: "O fundo claro gasta muito menos tinta em impressora de casa.",
+    // Os textos das três portas: quem tem, quem comprou e não escolheu, e
+    // quem ainda não comprou.
+    previaTexto: "Você tem um quadro pra montar. Confirme que ele é o desta música pra liberar a impressão.",
+    previaCta: "Escolher esta música",
+    ofertaTexto: "Este é o quadro da sua música: a letra e a foto de vocês numa folha A4, pronta pra você imprimir e emoldurar.",
+    ofertaCta: "Quero este quadro por R$ 24,90",
+    ofertaNota: "Depois de comprar você volta e escolhe de qual música é.",
+    deOndeVieram: "Estes textos vieram da sua página presente. Mude aqui se quiser: muda só o quadro.",
+    rotuloTitulo: "Título",
+    rotuloMensagem: "Mensagem de baixo",
+    salvando: "salvando...",
+    salvo: "salvo",
+    conferindo: "conferindo...",
   },
   es: {
     acao: "Imprimir o guardar en PDF",
@@ -80,6 +93,20 @@ const T = {
     cor: "Color",
     efeito: "Detalle",
     dicaClaro: "El fondo claro gasta mucha menos tinta en impresora de casa.",
+    previaTexto: "Tienes un cuadro para armar. Confirma que es el de esta canción para liberar la impresión.",
+    previaCta: "Elegir esta canción",
+    ofertaTexto: "Este es el cuadro de tu canción: la letra y su foto en una hoja A4, lista para imprimir y enmarcar.",
+    // O preço do quadro é cobrado em real pela Perfect Pay também no ES (não
+    // existe produto em dólar ainda), então o número fica em R$ de propósito:
+    // dizer "$ 24,90" a um mexicano prometeria pesos e cobraria reais.
+    ofertaCta: "Quiero este cuadro por R$ 24,90",
+    ofertaNota: "Después de comprar vuelves y eliges de cuál canción es.",
+    deOndeVieram: "Estos textos vinieron de tu página regalo. Cámbialos aquí si quieres: solo cambia el cuadro.",
+    rotuloTitulo: "Título",
+    rotuloMensagem: "Mensaje de abajo",
+    salvando: "guardando...",
+    salvo: "guardado",
+    conferindo: "comprobando...",
   },
 };
 
@@ -435,13 +462,11 @@ function Pagina() {
           {acesso === "confirmado" && q.musicaId && (
             <div className="mx-auto w-full max-w-md space-y-3 text-left">
               <p className="text-center text-[12px] leading-relaxed text-white/45">
-                {q.locale === "es"
-                  ? "Estos textos vinieron de tu página regalo. Cámbialos aquí si quieres: solo cambia el cuadro."
-                  : "Estes textos vieram da sua página presente. Mude aqui se quiser: muda só o quadro."}
+                {t.deOndeVieram}
               </p>
               <label className="block">
                 <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/40">
-                  {q.locale === "es" ? "Título" : "Título"}
+                  {t.rotuloTitulo}
                 </span>
                 <input
                   value={titulo}
@@ -452,7 +477,7 @@ function Pagina() {
               </label>
               <label className="block">
                 <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/40">
-                  {q.locale === "es" ? "Mensaje de abajo" : "Mensagem de baixo"}
+                  {t.rotuloMensagem}
                 </span>
                 <textarea
                   value={dedicatoria}
@@ -463,11 +488,7 @@ function Pagina() {
                 />
               </label>
               <p className="text-center text-[12px] text-white/40">
-                {salvo === "salvando"
-                  ? q.locale === "es" ? "guardando..." : "salvando..."
-                  : salvo === "sim"
-                    ? q.locale === "es" ? "guardado" : "salvo"
-                    : " "}
+                {salvo === "salvando" ? t.salvando : salvo === "sim" ? t.salvo : " "}
               </p>
             </div>
           )}
@@ -476,7 +497,7 @@ function Pagina() {
               Três estados, e cada um mostra UMA ação só. Duas ações lado a
               lado numa tela de celular é onde a pessoa aperta a errada. */}
           {conferindo ? (
-            <div className="text-center text-[13px] text-white/40">conferindo...</div>
+            <div className="text-center text-[13px] text-white/40">{t.conferindo}</div>
           ) : acesso === "confirmado" ? (
             <div className="text-center">
               <button
@@ -498,15 +519,14 @@ function Pagina() {
                hora de mandar ela terminar o que já pagou. */
             <div className="mx-auto max-w-md text-center">
               <p className="text-[13px] leading-relaxed text-white/70">
-                Você tem um quadro pra montar. Confirme que ele é o desta
-                música pra liberar a impressão.
+                {t.previaTexto}
               </p>
               <a
                 href="/meu-quadro"
                 className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-7 font-medium"
                 style={{ fontSize: 15, background: "#f0b95f", color: "#0d0a08" }}
               >
-                <Check className="h-4 w-4" /> Escolher esta música
+                <Check className="h-4 w-4" /> {t.previaCta}
               </a>
             </div>
           ) : (
@@ -514,8 +534,7 @@ function Pagina() {
                dele. O que não sai é o papel. */
             <div className="mx-auto max-w-md text-center">
               <p className="text-[13px] leading-relaxed text-white/70">
-                Este é o quadro da sua música: a letra e a foto de vocês numa
-                folha A4, pronta pra você imprimir e emoldurar.
+                {t.ofertaTexto}
               </p>
               <a
                 href={OFERTAS.find((o) => o.id === "quadro")?.checkout ?? "/dashboard"}
@@ -523,10 +542,10 @@ function Pagina() {
                 className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-7 font-medium"
                 style={{ fontSize: 15, background: "#f0b95f", color: "#0d0a08" }}
               >
-                <Lock className="h-4 w-4" /> Quero este quadro por R$ 24,90
+                <Lock className="h-4 w-4" /> {t.ofertaCta}
               </a>
               <p className="mt-2 text-[12px] text-white/40">
-                Depois de comprar você volta e escolhe de qual música é.
+                {t.ofertaNota}
               </p>
             </div>
           )}
