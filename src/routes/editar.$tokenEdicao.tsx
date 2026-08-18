@@ -299,7 +299,11 @@ function Editor() {
           <Logo tamanho="sm" />
           <a
             href="/dashboard"
-            className="text-[var(--tinta-suave)] transition-colors hover:text-[var(--tinta)]"
+            // A ÁREA DE TOQUE CRESCE, O TEXTO NÃO SE MEXE. Link dentro de
+            // linha não pode ter 44px de altura sem empurrar o layout, então
+            // o padding entra e a margem negativa devolve o espaço. O dedo
+            // ganha o alvo inteiro e a tela continua igual.
+            className="-my-3 inline-flex h-11 items-center py-3 text-[var(--tinta-suave)] transition-colors hover:text-[var(--tinta)]"
             style={{ fontSize: "var(--t-sm)" }}
           >
             {T.suaConta}
@@ -390,7 +394,9 @@ function Editor() {
                             type="button"
                             onClick={() => escolherVersao(v)}
                             className={cn(
-                              "mt-0.5 inline-flex items-center gap-1 transition-colors",
+                              // Mesma técnica do link do cabeçalho: alvo de
+                              // 44px sem mexer no espaçamento da lista.
+                              "-my-3 inline-flex h-11 items-center gap-1 py-3 transition-colors",
                               escolhida
                                 ? "text-[var(--acento)]"
                                 : "text-[var(--tinta-suave)] hover:text-[var(--tinta)]",
@@ -435,17 +441,25 @@ function Editor() {
                       aria-label={nomeCor(c, p?.locale ?? "pt")}
                       aria-pressed={escolhida}
                       title={nomeCor(c, p?.locale ?? "pt")}
-                      className={cn(
-                        "grid h-10 w-10 place-items-center rounded-full transition-transform active:scale-90",
-                        escolhida
-                          ? "ring-2 ring-[var(--tinta)] ring-offset-2 ring-offset-[var(--papel)]"
-                          : "hover:scale-110",
-                      )}
-                      style={{ backgroundColor: c.oklch }}
+                      // 44px É O MÍNIMO PRA DEDO, e a bolinha tinha 40. A cor
+                      // continua com 40 (seis delas maiores não caberiam numa
+                      // fileira de celular estreito); o que cresceu foi a área
+                      // de toque em volta, que ninguém vê e todo mundo usa.
+                      className="grid h-11 w-11 place-items-center rounded-full"
                     >
-                      {escolhida && (
-                        <Check className="h-4 w-4 text-[#0d0a08]" strokeWidth={3} />
-                      )}
+                      <span
+                        className={cn(
+                          "grid h-10 w-10 place-items-center rounded-full transition-transform active:scale-90",
+                          escolhida
+                            ? "ring-2 ring-[var(--tinta)] ring-offset-2 ring-offset-[var(--papel)]"
+                            : "hover:scale-110",
+                        )}
+                        style={{ backgroundColor: c.oklch }}
+                      >
+                        {escolhida && (
+                          <Check className="h-4 w-4 text-[#0d0a08]" strokeWidth={3} />
+                        )}
+                      </span>
                     </button>
                   );
                 })}
@@ -472,7 +486,8 @@ function Editor() {
                       type="button"
                       onClick={() => escolherEfeito(op.chave)}
                       className={cn(
-                        "rounded-full border px-4 py-2 transition-colors",
+                        // `py-2` dava 39px de altura. `h-11` crava os 44.
+                        "inline-flex h-11 items-center rounded-full border px-4 transition-colors",
                         on
                           ? "border-[var(--acento)] bg-[var(--acento)]/10 text-[var(--acento)]"
                           : "border-[var(--tinta-fraca)] text-[var(--tinta-suave)] hover:border-[var(--tinta-suave)]",

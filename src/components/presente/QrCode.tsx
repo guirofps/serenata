@@ -69,10 +69,12 @@ export function QrCode({
         <a
           href={png}
           download={`qrcode-presente-${nome.toLowerCase().replace(/\s+/g, "-")}.png`}
-          className="mt-3 inline-flex items-center gap-1.5 text-[var(--tinta-suave)] underline-offset-4 transition-colors duration-150 hover:text-[var(--acento)] hover:underline"
-          style={{ fontSize: "var(--t-xs)" }}
+          // 44px de alvo num link que a pessoa vai procurar no celular pra
+          // imprimir e colar numa caixa de bombom. Tinha 18.
+          className="mt-2 inline-flex h-11 items-center gap-1.5 px-2 text-[var(--tinta-suave)] underline-offset-4 transition-colors duration-150 hover:text-[var(--acento)] hover:underline"
+          style={{ fontSize: "var(--t-sm)" }}
         >
-          <Download className="h-3.5 w-3.5" /> {T.baixarQr}
+          <Download className="h-4 w-4" /> {T.baixarQr}
         </a>
       )}
     </div>

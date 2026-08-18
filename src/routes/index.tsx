@@ -116,12 +116,18 @@ function Home() {
           <div className="flex items-center gap-3 sm:hidden">
             <Link
               to="/criar"
-              className="cta rounded-full px-4 py-2 font-medium"
+              className="cta inline-flex h-11 items-center rounded-full px-4 font-medium"
               style={{ fontSize: "var(--t-sm)" }}
             >
               Criar
             </Link>
-            <button onClick={() => setMenuAberto((v) => !v)} aria-label="Menu">
+            {/* 44px. O botão tinha 20 de altura: era o alvo mais difícil da
+                home inteira, e é a porta de toda a navegação. */}
+            <button
+              onClick={() => setMenuAberto((v) => !v)}
+              aria-label="Menu"
+              className="-mr-2 grid h-11 w-11 place-items-center"
+            >
               {menuAberto ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
           </div>
@@ -129,13 +135,13 @@ function Home() {
 
         {menuAberto && (
           <div className="border-t border-[var(--tinta-fraca)]/30 px-6 py-4 sm:hidden">
-            <a href="#como-funciona" className="block py-2 text-sm" onClick={() => setMenuAberto(false)}>
+            <a href="#como-funciona" className="flex h-11 items-center text-sm" onClick={() => setMenuAberto(false)}>
               Como funciona
             </a>
-            <a href="#exemplo" className="block py-2 text-sm" onClick={() => setMenuAberto(false)}>
+            <a href="#exemplo" className="flex h-11 items-center text-sm" onClick={() => setMenuAberto(false)}>
               Ver um exemplo
             </a>
-            <Link to="/login" className="block py-2 text-sm" onClick={() => setMenuAberto(false)}>
+            <Link to="/login" className="flex h-11 items-center text-sm" onClick={() => setMenuAberto(false)}>
               Entrar
             </Link>
             <Link
