@@ -12,7 +12,9 @@ import { nomeDoComprador } from "@/lib/nome-comprador";
 import { meusCreditos } from "@/lib/meus-creditos";
 import { meusQuadros } from "@/lib/meus-quadros";
 import { BlocoCreditos } from "@/components/conta/BlocoCreditos";
-import { Loader2, Pencil, ExternalLink, Plus, LogOut, Music, Sparkles } from "lucide-react";
+import {
+  Loader2, Pencil, ExternalLink, Plus, LogOut, Music, Sparkles, Frame, Lock, ChevronRight,
+} from "lucide-react";
 
 // A ÁREA DO COMPRADOR — a "casa" dele na plataforma. Lista as músicas que ele
 // criou; cada uma leva ao editor do presente (montar foto/galeria/cor) e à
@@ -77,6 +79,17 @@ function Dashboard() {
   const [email, setEmail] = useState<string>("");
   const [saldo, setSaldo] = useState<number | null>(null);
   const [quadros, setQuadros] = useState(0);
+  // ── AS DUAS ABAS ────────────────────────────────────────────────
+  //
+  // O painel estava ordenado pela NOSSA prioridade (vender) e não pela dela
+  // (ver o que é dela): a oferta ocupava a primeira tela inteira e as músicas
+  // ficavam abaixo de tudo, atrás de muita rolagem. Num painel, o conteúdo da
+  // pessoa vem primeiro; a oferta tem lugar, não tem precedência.
+  //
+  // Abre em "músicas" de propósito. E as abas não substituem a faixa do quadro
+  // comprado, que fica ACIMA delas: produto pago que espera não pode ficar
+  // escondido dentro de aba nenhuma.
+  const [aba, setAba] = useState<"musicas" | "criar">("musicas");
   // ── AS OFERTAS SAO BR-ONLY, POR ENQUANTO ──────────────────────────
   //
   // Os tres upsells existem so na Perfect Pay BR, cobrados em real. Mostrar
@@ -197,20 +210,66 @@ function Dashboard() {
           {T.painelSub}
         </p>
 
-        {/* O BLOCO DE CRÉDITOS FICA NO TOPO, acima da lista. A lista é o que
-            ela já tem; o que faz a plataforma crescer é o que ela ainda pode
-            fazer. Só aparece depois que o saldo chega, pra não piscar de
-            "compre" para "você tem 2 créditos". */}
-        {temOfertas && saldo !== null && email && (
-          <BlocoCreditos
-            saldo={saldo}
-            locale={locale}
-            email={email}
-            quadrosParaMontar={quadros}
-          />
+        {/* A FAIXA DO QUADRO COMPRADO, acima das abas.
+            Fina de propósito: é um lembrete, não uma oferta. */}
+        {temOfertas && quadros > 0 && (
+          <a
+            href="/meu-quadro"
+            className="mt-5 flex items-center gap-3 rounded-[var(--raio)] border border-[var(--acento)]/45 bg-[var(--acento)]/[0.07] p-4"
+          >
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--acento)]/15 text-[var(--acento)]">
+              <Frame className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1 font-medium" style={{ fontSize: "var(--t-sm)" }}>
+              {quadros === 1 ? T.quadroPronto1 : T.quadroPronto(quadros)}
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-[var(--acento)]" />
+          </a>
         )}
 
-        {carregando ? (
+        {/* ── AS ABAS ────────────────────────────────────────────
+            Grudadas no topo ao rolar: é o que separa um painel de uma página
+            que se desce. Só no BR, porque no ES não existe o que ofertar e uma
+            aba com uma opção só é um enfeite que confunde. */}
+        {temOfertas && (
+          <div className="sticky top-0 z-20 -mx-6 mt-6 border-b border-[var(--tinta-fraca)]/30 bg-[var(--papel)]/97 px-6 backdrop-blur-md">
+            <div className="flex gap-1">
+              {([
+                ["musicas", T.abaMusicas, musicas.length],
+                ["criar", T.abaCriar, 0],
+              ] as const).map(([chave, rotulo, quantos]) => (
+                <button
+                  key={chave}
+                  onClick={() => setAba(chave)}
+                  className={
+                    "relative flex h-12 flex-1 items-center justify-center gap-1.5 font-medium transition-colors " +
+                    (aba === chave ? "text-[var(--acento)]" : "text-[var(--tinta-suave)]")
+                  }
+                  style={{ fontSize: "var(--t-sm)" }}
+                >
+                  {rotulo}
+                  {quantos > 0 && (
+                    <span
+                      className="rounded-full bg-[var(--tinta-fraca)]/25 px-1.5 py-0.5"
+                      style={{ fontSize: "var(--t-xs)" }}
+                    >
+                      {quantos}
+                    </span>
+                  )}
+                  {aba === chave && (
+                    <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-[var(--acento)]" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {temOfertas && aba === "criar" && saldo !== null && email && (
+          <BlocoCreditos saldo={saldo} locale={locale} email={email} />
+        )}
+
+        {temOfertas && aba === "criar" ? null : carregando ? (
           <div className="mt-10 flex items-center gap-3 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
             <Loader2 className="h-4 w-4 animate-spin" /> {T.carregando}
           </div>
@@ -238,7 +297,40 @@ function Dashboard() {
             </Link>
           </div>
         ) : (
-          <ul className="mt-8 space-y-3">
+          <>
+            {/* O BOTÃO DE CRIAR, SEMPRE VISÍVEL, no topo da lista.
+                Com crédito ele cria. Sem crédito ele ganha cadeado e leva pra
+                aba de comprar, em vez de morrer no toque: botão morto não
+                ensina nada, e mandar pro preço cheio era exatamente o que a
+                gente tirou daqui. */}
+            {temOfertas && saldo !== null && (
+              saldo > 0 ? (
+                <Link
+                  to="/criar"
+                  search={{ credito: 1 } as never}
+                  onClick={() => {
+                    // Sessão nova e store limpo: as duas regras que custaram
+                    // três incidentes. Ver ConviteOutraMusica.
+                    novaSessao();
+                    reset();
+                  }}
+                  className="cta mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border-0 font-medium"
+                  style={{ fontSize: "var(--t-sm)" }}
+                >
+                  <Plus className="h-4 w-4" /> {T.criarComCredito(saldo)}
+                </Link>
+              ) : (
+                <button
+                  onClick={() => setAba("criar")}
+                  className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-dashed border-[var(--tinta-fraca)] text-[var(--tinta-suave)] transition-colors hover:border-[var(--tinta-suave)]"
+                  style={{ fontSize: "var(--t-sm)" }}
+                >
+                  <Lock className="h-4 w-4" /> {T.criarSemCredito}
+                </button>
+              )
+            )}
+
+            <ul className="mt-5 space-y-3">
               {musicas.map((m) => {
                 const st = {
                   texto: T.status[m.status] ?? m.status,
@@ -296,7 +388,8 @@ function Dashboard() {
                   </li>
                 );
               })}
-          </ul>
+            </ul>
+          </>
         )}
 
         {/* O CONVITE ANTIGO, agora SO no ES. No BR ele sumiu porque mandava

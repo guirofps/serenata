@@ -27,6 +27,13 @@ import { emailPresentePronto, assuntoPresentePronto } from "../../emails/present
 // (admin-dados.ts:487), então um pedido de R$ 0 entraria na contagem de vendas
 // e afundaria o ticket médio. A coluna existe exatamente pra isso.
 //
+// ── O CRÉDITO SÓ É GASTO COM MÚSICA NASCENDO ─────────────────────
+//
+// Clicar em "usar meu crédito" no painel NÃO gasta nada: aquilo só abre o
+// funil. O débito acontece no fim, na tela de oferta, e só se a gravação já
+// tiver começado (status `gerando` ou `pronta`). Quem desiste no meio do quiz
+// volta amanhã com o crédito inteiro.
+//
 // ── A ORDEM IMPORTA E É ESTA ─────────────────────────────────────
 //
 // 1. Gasta o crédito.  2. Grava o pedido.  3. Manda o e-mail.
@@ -79,13 +86,28 @@ export const usarCredito = createServerFn({ method: "POST" })
 
     const { data: musica } = await db
       .from("musicas")
-      .select("id, token, token_edicao, titulo")
+      .select("id, token, token_edicao, titulo, status")
       .eq("quiz_response_id", quiz.id)
       .not("letra", "is", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (!musica?.id) return { ok: false, erro: "sem-musica" };
+
+    // O QUE DESTRAVA O GASTO É A GRAVAÇÃO TER COMEÇADO, não a letra existir.
+    //
+    // Antes bastava `letra is not null`, e isso é cedo demais: a letra fica
+    // pronta em segundos e a música leva um minuto e meio. Entre uma coisa e
+    // outra existe um estado em que a pessoa tem texto e não tem canção, e
+    // debitar ali cobraria por algo que ainda não foi produzido, que é a regra
+    // que este projeto não quebra.
+    //
+    // `aguardando` é o pedido que ainda não saiu, e `falhou` é o que não vai
+    // sair sozinho. Nos dois casos a resposta é a mesma tela de "ainda não
+    // está pronta", que manda ela voltar pra letra, e o crédito fica intacto.
+    if (musica.status !== "gerando" && musica.status !== "pronta") {
+      return { ok: false, erro: "sem-musica" };
+    }
 
     // ── 2. GASTA ─────────────────────────────────────────────
     // Devolve -1 quando não há saldo. A trava de concorrência é um advisory
