@@ -190,7 +190,25 @@ export default async function handler(req: Req, res: Res) {
     }
     const recebido = body.token ?? tokenUrl;
     if (recebido !== esperado) {
-      await auditar("perfectpay_recusado", { motivo: "token inválido" });
+      // QUAL VENDA FOI RECUSADA, e nunca o token.
+      //
+      // Em 18/08, no reenvio dos postbacks perdidos, 5 chegaram sem token e
+      // foram recusados. A auditoria só dizia "token inválido", então não
+      // havia como saber QUAIS vendas ficaram de fora: a recusa estava certa e
+      // a informação, inútil. Agora ela guarda o código do pagamento, o
+      // produto e o e-mail, que é o suficiente pra reenviar de novo ou
+      // entregar à mão.
+      //
+      // O token não entra aqui de propósito: é o nosso segredo, e auditoria é
+      // lida por mais gente que produção.
+      await auditar("perfectpay_recusado", {
+        motivo: "token inválido",
+        code: body.code ?? null,
+        produto: body.product?.code ?? null,
+        email: body.customer?.email ?? body.customer_email ?? null,
+        status: body.sale_status_enum_key ?? body.sale_status ?? null,
+        tinhaToken: Boolean(body.token ?? tokenUrl),
+      });
       return res.status(401).json({ error: "token inválido" });
     }
 
