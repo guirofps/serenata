@@ -103,16 +103,6 @@ export const QUIZ_FLOW_ES: FlowStep[] = [
     // Do catálogo, não copiado: mariachi, banda e corrido tumbado não têm
     // equivalente brasileiro, e sertanejo e forró não existem no México.
     options: generos("es").map((g) => ({ value: g.value, label: g.label, emoji: g.emoji })),
-    extraChips: {
-      field: "tom",
-      pergunta: "¿Y el tono? (opcional)",
-      options: [
-        { value: "romantica", label: "Romántica", emoji: "💗" },
-        { value: "divertida", label: "Divertida", emoji: "😄" },
-        { value: "emocionante", label: "Emotiva", emoji: "🥹" },
-        { value: "animada", label: "Alegre", emoji: "🎉" },
-      ],
-    },
   },
   {
     id: "voz",
@@ -126,6 +116,21 @@ export const QUIZ_FLOW_ES: FlowStep[] = [
       { value: "masculina", label: "Voz masculina", emoji: "👨" },
       { value: "surpresa", label: "Sorpréndeme", emoji: "🎲" },
     ],
+    // O tom veio do passo do estilo em 18/08, junto com o português. É
+    // ESTRUTURA, não redação: os rótulos daqui não mudaram uma letra, só a
+    // tela em que aparecem. Os dois funis passarem a divergir na ordem das
+    // perguntas custaria caro na próxima mudança, e não há decisão de mercado
+    // nenhuma envolvida. Ver a nota longa no `quiz-flow.ts`.
+    extraChips: {
+      field: "tom",
+      pergunta: "¿Y el tono? (opcional)",
+      options: [
+        { value: "romantica", label: "Romántica", emoji: "💗" },
+        { value: "divertida", label: "Divertida", emoji: "😄" },
+        { value: "emocionante", label: "Emotiva", emoji: "🥹" },
+        { value: "animada", label: "Alegre", emoji: "🎉" },
+      ],
+    },
   },
   {
     id: "historia1",

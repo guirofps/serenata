@@ -168,19 +168,6 @@ const QUIZ_FLOW_PT: FlowStep[] = [
     // rótulo do prompt vivem juntos no catálogo (`generos.ts`) — eram três
     // listas que precisavam concordar entre si.
     options: generos("pt").map((g) => ({ value: g.value, label: g.label, emoji: g.emoji })),
-    // O TOM, segunda fileira. Opcional: sem escolha, o modelo decide pela
-    // ocasião e pela história, que é o que já fazia antes deste campo existir.
-    // Os `value` são idênticos nos dois idiomas (é o que vai pro banco).
-    extraChips: {
-      field: "tom",
-      pergunta: "E o tom? (opcional)",
-      options: [
-        { value: "romantica", label: "Romântica", emoji: "💗" },
-        { value: "divertida", label: "Divertida", emoji: "😄" },
-        { value: "emocionante", label: "Emocionante", emoji: "🥹" },
-        { value: "animada", label: "Animada", emoji: "🎉" },
-      ],
-    },
   },
   {
     id: "voz",
@@ -194,6 +181,33 @@ const QUIZ_FLOW_PT: FlowStep[] = [
       { value: "masculina", label: "Voz masculina", emoji: "👨" },
       { value: "surpresa", label: "Surpreenda-me", emoji: "🎲" },
     ],
+    // O TOM, segunda fileira. Estava no passo do ESTILO e veio pra cá em
+    // 18/08. Opcional: sem escolha, o modelo decide pela ocasião e pela
+    // história, que é o que já fazia antes deste campo existir. Os `value` são
+    // idênticos nos dois idiomas (é o que vai pro banco).
+    //
+    // POR QUE AQUI E NÃO LÁ: o estilo já é a tela mais cheia do quiz — treze
+    // gêneros, que a reordenação de 17/08 deixou em quatro fileiras. Empilhar
+    // uma segunda pergunta embaixo disso enterrava o tom, e ele é opcional
+    // justamente pra quem já rolou até o fim. A voz tem três chips e sobra
+    // tela; as duas perguntas são da mesma natureza (como a música SOA), então
+    // dividir 13+4 em 13 e 3+4 não separa assunto nenhum.
+    //
+    // EFEITO COLATERAL, no `Quiz.tsx`: o avanço automático da variante B é
+    // desligado onde existe `extraChips` (avançar sozinho pularia um campo que
+    // a pessoa nem viu). Ao mover o bloco, essa trava sai do estilo e vai pra
+    // voz junto. Hoje não muda nada — a variante B só roda com `?f=b` na URL —
+    // mas se ela for ligada, é o estilo que passa a avançar no toque.
+    extraChips: {
+      field: "tom",
+      pergunta: "E o tom? (opcional)",
+      options: [
+        { value: "romantica", label: "Romântica", emoji: "💗" },
+        { value: "divertida", label: "Divertida", emoji: "😄" },
+        { value: "emocionante", label: "Emocionante", emoji: "🥹" },
+        { value: "animada", label: "Animada", emoji: "🎉" },
+      ],
+    },
   },
   {
     id: "historia1",
