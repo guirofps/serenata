@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { emailDaSessao } from "@/lib/conta-sessao";
 
 // O PRIMEIRO NOME DE QUEM COMPROU, pra saudação do painel.
 //
@@ -30,9 +31,11 @@ function primeiroNome(completo: string): string {
  * ser: tem valor, telefone e status de pagamento de todo mundo).
  */
 export const nomeDoComprador = createServerFn({ method: "POST" })
-  .validator((data: { email: string }) => data)
+  // O TOKEN, não o e-mail: com o e-mail solto, qualquer um descobriria o nome
+  // completo de qualquer comprador mandando o endereço dele.
+  .validator((data: { token: string }) => data)
   .handler(async ({ data }): Promise<{ nome: string | null }> => {
-    const email = data.email.trim().toLowerCase();
+    const email = await emailDaSessao(data.token);
     if (!email) return { nome: null };
 
     const { data: p } = await supabaseAdmin()

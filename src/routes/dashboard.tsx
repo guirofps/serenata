@@ -9,6 +9,8 @@ import { novaSessao } from "@/lib/session-context";
 import { useQuizStore } from "@/lib/quiz-store";
 import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
 import { nomeDoComprador } from "@/lib/nome-comprador";
+import { meusCreditos } from "@/lib/meus-creditos";
+import { BlocoCreditos } from "@/components/conta/BlocoCreditos";
 import { Loader2, Pencil, ExternalLink, Plus, LogOut, Music } from "lucide-react";
 
 // A ÁREA DO COMPRADOR — a "casa" dele na plataforma. Lista as músicas que ele
@@ -71,6 +73,8 @@ function Dashboard() {
   const locale = musicas[0]?.locale === "es" ? ("es" as const) : ("pt" as const);
   const T = tp(locale);
   const [nome, setNome] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+  const [saldo, setSaldo] = useState<number | null>(null);
 
   useEffect(() => {
     let vivo = true;
@@ -89,10 +93,18 @@ function Dashboard() {
       // pagos têm), então é só buscar. O e-mail fica como reserva pra conta
       // que ainda não tem compra nenhuma.
       const email = sess.session.user.email ?? "";
+      const token = sess.session.access_token;
       setNome(email.split("@")[0]);
-      nomeDoComprador({ data: { email } })
+      setEmail(email);
+      nomeDoComprador({ data: { token } })
         .then((r) => { if (vivo && r.nome) setNome(r.nome); })
         .catch(() => {});
+      // O saldo NÃO bloqueia a lista de músicas: se o razão falhar, ela ainda
+      // vê o que comprou. Bloco de venda quebrado não pode esconder produto
+      // entregue.
+      meusCreditos({ data: { token } })
+        .then((c) => { if (vivo) setSaldo(c.saldo); })
+        .catch(() => { if (vivo) setSaldo(0); });
 
       // RLS garante que só vêm as músicas DESTE usuário (auth.uid() = user_id).
       const { data } = await supabase
@@ -145,6 +157,14 @@ function Dashboard() {
         >
           {T.painelSub}
         </p>
+
+        {/* O BLOCO DE CRÉDITOS FICA NO TOPO, acima da lista. A lista é o que
+            ela já tem; o que faz a plataforma crescer é o que ela ainda pode
+            fazer. Só aparece depois que o saldo chega, pra não piscar de
+            "compre" para "você tem 2 créditos". */}
+        {saldo !== null && email && (
+          <BlocoCreditos saldo={saldo} locale={locale} email={email} />
+        )}
 
         {carregando ? (
           <div className="mt-10 flex items-center gap-3 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
