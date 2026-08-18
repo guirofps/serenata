@@ -282,12 +282,25 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
         </div>
       )}
 
-      {/* O entregável, visível o quiz inteiro. Some na revelação (que já
-          mostra o presente de verdade), na oferta (que lista tudo item por
-          item logo abaixo: repetir ali era só ruído) e na abertura, onde o
-          presente aparece inteiro e animado — a faixa seria a versão pobre
-          da mesma informação, dez centímetros acima. */}
-      {!isIntro(step) && !isReveal(step) && !isOferta(step) && (
+      {/* O entregável — visível até a pergunta 3, e não mais o quiz inteiro.
+          Ele existe pra lembrar do prêmio quem ainda não sabe o que ganha
+          (medido em 01/08: de 119 que entram, 29 chegam na letra). Nas três
+          primeiras telas — relação, nome, ocasião — isso vale a altura que
+          custa. Da 4 em diante não: quem chegou ali já leu a faixa três
+          vezes, e as telas ficam pesadas justo quando o conteúdo cresce
+          (estilo tem 13 chips mais a fileira de tom, e as de história pedem
+          150 caracteres). A faixa passa a disputar espaço com a resposta.
+
+          `qNum < 4` é cumulativo, então cobre também os passos que não são
+          pergunta: `prova1` fica com 3 (aparece, ainda é o começo) e contato,
+          revisão, revelação e oferta ficam com 8 (somem). A revelação e a
+          oferta já sumiam por regra própria — a oferta lista tudo item por
+          item logo abaixo, e repetir ali era ruído.
+
+          A ABERTURA continua de fora por outro motivo: lá o presente aparece
+          inteiro e animado, e a faixa seria a versão pobre da mesma
+          informação, dez centímetros acima. */}
+      {!isIntro(step) && qNum < 4 && (
         <FaixaPresente nome={respostas.nome as string | undefined} locale={locale} />
       )}
 
