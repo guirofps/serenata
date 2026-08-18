@@ -264,6 +264,11 @@ export const sequenciaRecuperacao = inngest.createFunction(
         const linkDescadastro = `${SITE}/descadastrar?s=${encodeURIComponent(p.sessao)}&lang=${p.locale}`;
 
         const { error } = await resend.emails.send({
+      // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
+      // (entregue, aberto, clicado, devolvido), e e o unico jeito de
+      // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
+      // pessoa e nem sempre vem no evento.
+      tags: [{ name: "template", value: `recuperacao_${p.numero}` }],
           from: REMETENTE_RECUPERACAO,
           replyTo: RESPONDER_PARA,
           to: [p.email],

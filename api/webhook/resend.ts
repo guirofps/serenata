@@ -79,6 +79,7 @@ type Evento = {
   type?: string;
   created_at?: string;
   data?: {
+    tags?: Array<{ name?: string; value?: string }>;
     email_id?: string;
     to?: string[] | string;
     subject?: string;
@@ -135,6 +136,21 @@ export default async function handler(req: Req, res: Res) {
           // O ASSUNTO é o que permite separar "letra pronta" de "recuperação
           // 2" na hora de medir. Sem ele, abertura vira um número só, inútil.
           assunto: d.subject ?? null,
+          // O TEMPLATE, que é o que faltava pra medir.
+          //
+          // O `assunto` parecia suficiente e não é: o Resend manda `subject`
+          // em uns eventos e não em outros (3.307 dos nossos eventos vieram
+          // sem ele), e além disso o assunto carrega o nome da pessoa, então
+          // cada envio vira uma linha diferente na hora de agrupar.
+          //
+          // `tags` é o campo que o Resend ecoa em TODO evento do ciclo de
+          // vida, exatamente pra isso. Sem ele, abertura e clique da
+          // recuperação 1, 2 e 3 caem num balaio só e não dá pra saber qual
+          // e-mail vale a pena.
+          template:
+            (Array.isArray(d.tags)
+              ? d.tags.find((t) => t?.name === "template")?.value
+              : null) ?? null,
           para: para ?? null,
           link: d.click?.link ?? null,
           bounce: d.bounce?.type ?? null,

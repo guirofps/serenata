@@ -174,6 +174,11 @@ export const mandarLetra = inngest.createFunction(
         const linkDescadastro = `${SITE}/descadastrar?s=${encodeURIComponent(p.sessao)}&lang=${p.locale}`;
 
         const { error } = await resend.emails.send({
+      // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
+      // (entregue, aberto, clicado, devolvido), e e o unico jeito de
+      // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
+      // pessoa e nem sempre vem no evento.
+      tags: [{ name: "template", value: "letra_pronta" }],
           // Subdomínio, não o domínio raiz. Este e-mail vai pra quem NÃO
           // comprou, e é o tipo que junta reclamação de spam por natureza.
           // Se ele queimar reputação, queima a do `envio.` — a ENTREGA de

@@ -816,6 +816,10 @@ export default async function handler(req: Req, res: Res) {
         const linkEditor = `${SITE}/editar/${musica.token_edicao}`;
         const linkPresente = `${SITE}/p/${musica.token}`;
         const { error } = await new Resend(chave).emails.send({
+          // A ETIQUETA DO ENVIO, que o Resend devolve em todo evento. E o
+          // unico jeito de medir DEPOIS qual e-mail performou: o assunto
+          // carrega o nome da pessoa e nem sempre vem no evento.
+          tags: [{ name: "template", value: "entrega" }],
           from: "Serenata <contato@serenatagift.com>",
           to: [email],
           subject: assuntoPresentePronto(nome, locale),

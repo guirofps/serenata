@@ -132,6 +132,11 @@ export const lembrarPresente = inngest.createFunction(
         if (await jaLembrado(sb, c.musicaId)) return false;
 
         const { error } = await new Resend(chave).emails.send({
+      // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
+      // (entregue, aberto, clicado, devolvido), e e o unico jeito de
+      // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
+      // pessoa e nem sempre vem no evento.
+      tags: [{ name: "template", value: "lembrar_presente" }],
           from: "Serenata <contato@serenatagift.com>",
           to: [c.email],
           subject: assuntoLembrete(c.nome, c.locale),

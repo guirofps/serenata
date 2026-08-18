@@ -196,6 +196,11 @@ export default async function handler(req: Req, res: Res) {
         ? "\n\nSi pediste el link más de una vez, usa el correo MÁS RECIENTE: al pedir uno nuevo, los anteriores dejan de funcionar."
         : "\n\nSe você pediu o link mais de uma vez, use o e-mail MAIS RECENTE: ao pedir um novo, os anteriores param de funcionar.";
     const { error: erroEmail } = await new Resend(chave).emails.send({
+      // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
+      // (entregue, aberto, clicado, devolvido), e e o unico jeito de
+      // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
+      // pessoa e nem sempre vem no evento.
+      tags: [{ name: "template", value: "magic_link" }],
       from: "Serenata <contato@serenatagift.com>",
       to: [email],
       subject: assuntoAcesso(locale),

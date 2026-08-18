@@ -265,13 +265,43 @@ function Dashboard() {
         {temOfertas && quadros > 0 && (
           <a
             href="/meu-quadro"
-            className="mt-5 flex items-center gap-3 rounded-[var(--raio)] border border-[var(--acento)]/45 bg-[var(--acento)]/[0.07] p-4"
+            onClick={() => trackEvent("quadro_montar_click", { origem: "faixa" })}
+            className="mt-5 flex items-center gap-3 rounded-[var(--raio)] border-2 border-[var(--acento)]/45 bg-[var(--acento)]/[0.07] p-3"
           >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--acento)]/15 text-[var(--acento)]">
-              <Frame className="h-4 w-4" />
+            {/* A MINIATURA TAMBÉM AQUI.
+                Esta faixa nasceu lisa, e quem comprou o quadro (justamente
+                quem mais precisa ser puxado pra montar) via a versão mais
+                pobre da tela: a chamada com moldura só aparecia pra quem NÃO
+                tinha comprado. Estava invertido. */}
+            <span
+              className="shrink-0"
+              style={{
+                padding: 4,
+                borderRadius: 2,
+                background: "linear-gradient(150deg,#3b2c22,#241a14 45%,#443327)",
+                boxShadow: "0 4px 10px rgba(0,0,0,.22)",
+              }}
+            >
+              <span className="block" style={{ background: "#f6f2ea", padding: 2 }}>
+                <img
+                  src="/img/quadro-exemplo.jpg"
+                  alt=""
+                  className="block"
+                  style={{ width: 34, height: 48, objectFit: "cover" }}
+                  loading="lazy"
+                />
+              </span>
             </span>
-            <span className="min-w-0 flex-1 font-medium" style={{ fontSize: "var(--t-sm)" }}>
-              {quadros === 1 ? T.quadroPronto1 : T.quadroPronto(quadros)}
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium" style={{ fontSize: "var(--t-sm)" }}>
+                {quadros === 1 ? T.quadroPronto1 : T.quadroPronto(quadros)}
+              </span>
+              <span
+                className="mt-0.5 block text-[var(--tinta-suave)]"
+                style={{ fontSize: "var(--t-xs)", lineHeight: 1.4 }}
+              >
+                {T.quadroProntoSub}
+              </span>
             </span>
             <ChevronRight className="h-5 w-5 shrink-0 text-[var(--acento)]" />
           </a>

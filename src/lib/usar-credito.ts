@@ -171,6 +171,11 @@ export const usarCredito = createServerFn({ method: "POST" })
         const linkEditor = `${site}/editar/${musica.token_edicao}`;
         const linkPresente = `${site}/p/${musica.token}`;
         await new Resend(chave).emails.send({
+      // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
+      // (entregue, aberto, clicado, devolvido), e e o unico jeito de
+      // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
+      // pessoa e nem sempre vem no evento.
+      tags: [{ name: "template", value: "entrega_credito" }],
           from: "Serenata <contato@serenatagift.com>",
           to: [email],
           subject: assuntoPresentePronto(nome, locale),
