@@ -112,6 +112,16 @@ export async function garantirConfig(): Promise<void> {
  * a página em seguida pode ver o preço velho por mais uma carga. Quem
  * precisa do dado fresco na hora é o painel, e o painel não passa por aqui:
  * ele chama `lerConfigFresca()` direto, sem cache nenhum.
+ *
+ * E isso é só a história de UMA instância. `lidoEm`/`snapshotDoServidor` são
+ * variáveis de MÓDULO — em produção (Vercel), cada lambda tem a sua cópia,
+ * sem nada em comum entre elas. `invalidarConfig()` zera o relógio só do
+ * processo que atendeu o `salvarExperimento`; as outras lambdas (que
+ * atenderam outras visitas, ou vão atender a próxima) nem sabem que isto
+ * rodou, e continuam servindo o snapshot antigo até a PRÓPRIA janela de 60s
+ * de cada uma vencer. Ou seja: mesmo pra quem não é o dono salvando, a
+ * defasagem real depois de um save pode chegar aos 60s inteiros — é o
+ * mesmo `VALIDADE_MS` de sempre, só que sem atalho nenhum pra encurtá-lo.
  */
 export function invalidarConfig(): void {
   lidoEm = 0;

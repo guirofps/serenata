@@ -166,7 +166,7 @@ function experimentoPrecoDaConfig(): ExperimentoConfigPublica | undefined {
  * incompleto tem que ser tratado exatamente como plano ausente: a variante
  * cai no controle, nunca sai meio preenchida pra tela ou pro caixa.
  */
-function planoCompleto(p: Plano | undefined): p is Plano {
+export function planoCompleto(p: Plano | undefined): p is Plano {
   return (
     !!p &&
     typeof p.texto === "string" &&
