@@ -288,15 +288,34 @@ function CartaoExperimento({
       </div>
 
       {/* faixa 3: o resultado, se já existe algum lead pra este experimento */}
-      {resultado && <TabelaResultado resultado={resultado} />}
+      {resultado && <TabelaResultado resultado={resultado} config={rascunho.variantes} />}
     </div>
   );
 }
 
-function TabelaResultado({ resultado }: { resultado: Painel["porExperimento"][number] }) {
+function TabelaResultado({
+  resultado,
+  config,
+}: {
+  resultado: Painel["porExperimento"][number];
+  /**
+   * As variantes da CONFIG, só pra saber o preço de cada nome.
+   *
+   * O resultado vem de `admin-dados.ts`, que conta lead e venda e não sabe
+   * nada de preço — e é bom que continue assim: engordar aquela consulta foi
+   * o que já a fez estourar o tempo uma vez. O preço já está aqui na tela,
+   * carregado pela config, então é só cruzar por nome.
+   *
+   * Um nome APOSENTADO não existe mais na config: aparece sem preço, com "—".
+   * É o certo — o preço que ele teve não está guardado em lugar nenhum, e
+   * inventar um seria pior que admitir que não se sabe.
+   */
+  config: Variante[];
+}) {
+  const precoDe = (nome: string) => config.find((v) => v.nome === nome)?.plano?.texto ?? "—";
   return (
     <div className="overflow-x-auto rounded-xl border border-[var(--tinta-fraca)]/40">
-      <table className="w-full min-w-[680px] text-sm">
+      <table className="w-full min-w-[760px] text-sm">
         <thead className="bg-[var(--papel-fundo)] text-[11px] uppercase tracking-wider text-[var(--tinta-suave)]">
           <tr>
             {/* LETRAS entre Leads e Vendas, como a spec pede. É a etapa do
@@ -306,6 +325,7 @@ function TabelaResultado({ resultado }: { resultado: Painel["porExperimento"][nu
                 calculado em `admin-dados.ts` e trafegava sem leitor. */}
             {[
               "Versão",
+              "Preço",
               "Leads",
               "Letras",
               "Vendas",
@@ -341,6 +361,16 @@ function TabelaResultado({ resultado }: { resultado: Painel["porExperimento"][nu
                 {v.ehFora ? "fora do teste" : v.variante}
                 {v.controle && <span className="ml-2 text-[10px]">controle</span>}
                 {v.aposentada && <span className="ml-2 text-[10px]">aposentada</span>}
+              </td>
+              {/* O PREÇO em segundo lugar, colado no nome. "B" e "C" não
+                  querem dizer nada sozinhos: quem lê esta tabela pra decidir
+                  precisa ver R$ 19 e R$ 9 sem ter que subir até a tabela de
+                  cima e cruzar na cabeça. `fora` não tem preço próprio — vê o
+                  controle — então mostra o do controle. */}
+              <td className="px-3 py-2 text-right tabular-nums">
+                {v.ehFora
+                  ? precoDe(resultado.variantes.find((x) => x.controle)?.variante ?? "")
+                  : precoDe(v.variante)}
               </td>
               <td className="px-3 py-2 text-right tabular-nums">{v.leads}</td>
               <td className="px-3 py-2 text-right tabular-nums">{v.letras}</td>
