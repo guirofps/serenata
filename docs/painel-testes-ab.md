@@ -89,9 +89,16 @@ escreve `window.__SRN_EXP__` com as variantes e os planos. `preco.ts` lê dali,
 com o catálogo do código como fallback. **Nenhuma requisição nova** — a
 informação já estava sendo enviada, só não estava sendo aproveitada.
 
-Só os experimentos **ativos** entram nesse objeto. Um teste desligado não
-publica os planos dele no HTML de todo mundo: preço que ainda não foi
-decidido não é informação que se deixa vazar no fonte da página.
+Com o teste LIGADO, os planos de todas as variantes entram — a tela precisa
+deles pra renderizar cada preço. Com ele DESLIGADO, entra **só o do controle**:
+esse é o preço que está na tela de todo mundo, então não é segredo. Os das
+demais versões ficam de fora, porque o ciclo que este painel impõe é
+desligar → editar preço → religar, e durante essa janela os preços novos
+estariam no "ver código-fonte" de qualquer visitante.
+
+Não dá pra simplesmente cortar tudo quando desligado: `planoControle()` lê o
+plano do controle da config viva, e é esse caminho que faz "mudar preço pelo
+painel sem deploy" funcionar justamente com o teste fora do ar.
 
 `MOEDA` em `i18n.ts` continua sendo a fonte do plano de controle, e é dela que
 a migration copia o seed. O catálogo em código não some — ele é o chão.
