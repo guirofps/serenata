@@ -293,10 +293,11 @@ create table if not exists public.experimentos (
 -- checkout e preço que ainda não foi decidido; nada disso é leitura pública.
 alter table public.experimentos enable row level security;
 
--- O SEED É O QUE JÁ ESTAVA VENDENDO, e entra DESLIGADO.
+-- O SEED É O QUE JÁ ESTÁ VENDENDO, e entra LIGADO.
 --
 -- Os cinco planos foram conferidos abrindo o checkout em 19/08: o "Total
 -- Hoje" de cada tela bate com o `texto` daqui.
+--
 -- `ativo` NASCE VERDADEIRO porque o teste JÁ ESTÁ NO AR (subiu em 19/08, pelo
 -- código). Esta migration tem que ser um NÃO-EVENTO: o banco passa a
 -- descrever o que já está acontecendo, sem impor nada novo.
