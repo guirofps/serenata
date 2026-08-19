@@ -92,6 +92,44 @@ async function quizIdDaSessao(sessionId: string): Promise<string | null> {
   return data?.id ?? null;
 }
 
+/**
+ * O mesmo id, mas para CONTABILIDADE. Nunca lança.
+ *
+ * O bug que isto conserta era de ORDEM DE AVALIAÇÃO, e por isso não se via
+ * lendo o código de cima:
+ *
+ *   await registrarCustoLetra({ quizResponseId: await quizIdDaSessao(...), ... })
+ *
+ * O `registrarCustoLetra` tem `try/catch` interno justamente para custo nunca
+ * derrubar entrega. Só que o `await quizIdDaSessao(...)` roda na LISTA DE
+ * ARGUMENTOS — ou seja, ANTES de a função ser chamada, e portanto fora da
+ * proteção dela. Uma falha ali derrubava `gerarRefroes` inteiro DEPOIS de a
+ * letra já ter sido escrita e paga em tokens: dinheiro gasto, nada entregue,
+ * e o usuário vendo "Não consegui escrever agora".
+ *
+ * ── POR QUE NÃO CONSERTEI NO `quizIdDaSessao` ────────────────────
+ *
+ * Seria uma linha a menos e um defeito PIOR. Os outros três chamadores dele
+ * (`temMusicaDaSessao` e os dois estados do funil) leem `null` como "esta
+ * sessão não tem música", e `temMusicaDaSessao` usa isso pra BARRAR o
+ * checkout. Fazer o lookup devolver `null` quando o banco pisca transformaria
+ * um erro passageiro em venda bloqueada — hoje ele estoura, e o `catch` do
+ * `TelaOferta` deixa o comprador seguir de propósito ("indisponível não é o
+ * mesmo que inexistente").
+ *
+ * Então o silêncio fica SÓ onde ele é correto: custo sem chave é uma linha de
+ * contabilidade órfã, que se conserta depois olhando o banco. É barato. Venda
+ * barrada e letra perdida não são.
+ */
+async function quizIdParaCusto(sessionId: string): Promise<string | null> {
+  try {
+    return await quizIdDaSessao(sessionId);
+  } catch (err) {
+    console.error("[coautoria] id da sessão não lido; custo fica sem chave:", err);
+    return null;
+  }
+}
+
 function respostasSanitizadas(respostas: Record<string, unknown>) {
   const nome = sanitizeNome(respostas.nome);
   return { ...respostas, nome: nome || "essa pessoa" };
@@ -148,7 +186,7 @@ ${INSTRUCOES[locale].refroes}`;
     const p = extrairJson<{ titulo: string; estilo_suno: string; refroes: string[] }>(texto);
 
     // Custo atribuído à sessão (musicaId ainda não existe).
-    await registrarCustoLetra({ quizResponseId: await quizIdDaSessao(data.sessionId), modelo: MODEL, uso });
+    await registrarCustoLetra({ quizResponseId: await quizIdParaCusto(data.sessionId), modelo: MODEL, uso });
 
     const refroes = (p.refroes ?? []).map((s) => String(s).trim()).filter(Boolean);
     if (refroes.length < 2) throw new Error("modelo não devolveu dois refrões");
@@ -174,7 +212,7 @@ ${INSTRUCOES[locale].montar(data.refrao)}`;
     if (stopReason === "max_tokens") throw new Error("Letra truncada pelo limite de tokens");
     const p = extrairJson<LetraGerada>(texto);
 
-    await registrarCustoLetra({ quizResponseId: await quizIdDaSessao(data.sessionId), modelo: MODEL, uso });
+    await registrarCustoLetra({ quizResponseId: await quizIdParaCusto(data.sessionId), modelo: MODEL, uso });
 
     return {
       titulo: String(p.titulo ?? "Sua música"),
@@ -197,7 +235,7 @@ ${data.letra}`;
     if (stopReason === "max_tokens") throw new Error("Letra truncada pelo limite de tokens");
     const p = extrairJson<{ letra: string }>(texto);
 
-    await registrarCustoLetra({ quizResponseId: await quizIdDaSessao(data.sessionId), modelo: MODEL, uso });
+    await registrarCustoLetra({ quizResponseId: await quizIdParaCusto(data.sessionId), modelo: MODEL, uso });
 
     const letra = String(p.letra ?? "").trim();
     if (!letra) throw new Error("aprimorar não devolveu letra");
