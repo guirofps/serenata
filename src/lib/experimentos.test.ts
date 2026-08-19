@@ -1,6 +1,9 @@
 import vm from "node:vm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  EXPERIMENTOS,
+  experimentosAtivos,
+  variantesAtuais,
   scriptExperimentos,
   cssExperimentos,
   scriptConfigGlobal,
@@ -273,6 +276,60 @@ describe("configAtual (isomórfico)", () => {
     expect(JSON.stringify(publica)).not.toContain("nota");
     expect(JSON.stringify(publica)).not.toContain("estratégia interna");
   });
+
+  // OS PLANOS DE UM TESTE DESLIGADO NÃO VÃO PRO <head> DE TODO MUNDO.
+  //
+  // O ciclo que o painel impõe pra mexer em preço é desligar → editar →
+  // religar. Sem este corte, os preços e links NOVOS ficavam no "ver
+  // código-fonte" de qualquer visitante durante essa janela.
+  const comPlanos = (ativo: boolean) =>
+    cfg({
+      ativo,
+      variantes: [
+        {
+          nome: "A",
+          peso: 1,
+          plano: { texto: "R$ 38", valor: 38, ancora: "R$ 97", checkout: "https://pay/a" },
+        },
+        {
+          nome: "B",
+          peso: 1,
+          plano: { texto: "R$ 19", valor: 19, ancora: "R$ 97", checkout: "https://pay/b" },
+        },
+      ],
+    });
+
+  it("LIGADO: os planos de todas as variantes saem no HTML — é o que a tela e o checkout leem", () => {
+    definirConfigDoServidor(comPlanos(true));
+    const publica = configAtual();
+    expect(publica[0].variantes.map((v) => v.plano?.texto)).toEqual(["R$ 38", "R$ 19"]);
+  });
+
+  it("DESLIGADO: só o plano do controle sai; o das outras versões não vaza", () => {
+    definirConfigDoServidor(comPlanos(false));
+    const publica = configAtual();
+    // O controle FICA: é o preço que está na tela agora, e é dele que
+    // `planoControle()` lê pra "mudar preço pelo painel" funcionar com o
+    // teste desligado.
+    expect(publica[0].variantes[0].plano?.texto).toBe("R$ 38");
+    expect(publica[0].variantes[1].plano).toBeUndefined();
+    const html = scriptConfigGlobal(publica);
+    expect(html).not.toContain("R$ 19");
+    expect(html).not.toContain("pay/b");
+  });
+
+  it("DESLIGADO: o corte continua idempotente — reprojetar não muda mais nada", () => {
+    // `configAtual()` projeta no servidor e projeta DE NOVO no cliente, em
+    // cima do que já foi projetado. Se o corte não fosse idempotente, o
+    // <script> e o <style> do servidor divergiriam dos do cliente e toda
+    // página ganharia erro de hidratação.
+    definirConfigDoServidor(comPlanos(false));
+    const servidor = configAtual();
+    vi.stubGlobal("window", { __SRN_CFG__: servidor });
+    expect(configAtual()).toEqual(servidor);
+    expect(cssExperimentos(configAtual())).toBe(cssExperimentos(servidor));
+    vi.unstubAllGlobals();
+  });
 });
 
 describe("round-trip de isomorfia (servidor → HTML → cliente)", () => {
@@ -315,5 +372,38 @@ describe("round-trip de isomorfia (servidor → HTML → cliente)", () => {
     expect(scriptCfgServidor).not.toContain("</script>");
     expect(scriptCfgServidor).not.toContain("estratégia de preço interna");
     expect(JSON.stringify(sandbox.window.__SRN_CFG__)).not.toContain("estratégia");
+  });
+});
+
+// QUEM CARIMBA TAMBÉM LÊ O BANCO.
+//
+// `variantesAtuais` é o que `carimbarExperimentos` usa pra gravar a escolha em
+// `mp_attribution` — sem isso o experimento roda na tela e não aparece em
+// resultado nenhum. Enquanto ela filtrava pelo `ativo` do array em código, era
+// o único caminho que o painel não conseguia ligar nem desligar.
+describe("experimentosAtivos / variantesAtuais leem a config viva", () => {
+  afterEach(() => {
+    _resetConfigDoServidorParaTeste();
+    vi.unstubAllGlobals();
+  });
+
+  const comDocumento = (atributos: Record<string, string>) =>
+    vi.stubGlobal("document", {
+      documentElement: { getAttribute: (k: string) => atributos[k] ?? null },
+    });
+
+  it("o array em código diz `ativo: true`, e mesmo assim o desligado do banco vence", () => {
+    expect(EXPERIMENTOS.find((e) => e.id === "preco")?.ativo).toBe(true);
+    definirConfigDoServidor(cfg({ ativo: false }));
+    expect(experimentosAtivos()).toEqual([]);
+
+    comDocumento({ "data-exp-preco": "B" });
+    expect(variantesAtuais()).toEqual({});
+  });
+
+  it("ligado pelo painel, a escolha volta a ser carimbada", () => {
+    definirConfigDoServidor(cfg({ ativo: true }));
+    comDocumento({ "data-exp-preco": "B" });
+    expect(variantesAtuais()).toEqual({ preco: "B" });
   });
 });

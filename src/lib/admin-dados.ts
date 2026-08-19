@@ -123,16 +123,26 @@ export type Painel = {
    *
    * Vazio quando nenhum experimento tem lead no período.
    */
+  // `nota` e `ativo` NÃO viajam aqui de propósito: a aba de testes lê os dois
+  // da server function de config (`carregarExperimentos`), que é onde eles são
+  // EDITADOS. Mandá-los junto do resultado criaria uma segunda cópia, sempre
+  // um render atrás da que a tela edita, dentro da consulta que a spec faz
+  // questão de não engordar.
   porExperimento: Array<{
     id: string;
-    nota: string;
-    ativo: boolean;
     variantes: Array<{
       variante: string;
       /** Controle é a primeira variante do catálogo. É contra ela que se compara. */
       controle: boolean;
       /** A linha de quem NÃO entrou no teste. Referência, não concorrente. */
       ehFora: boolean;
+      /**
+       * Nome que já carimbou gente e saiu da config. A Trava 2 do painel
+       * (`admin-experimentos.ts`) faz de aposentar nome uma ROTINA — é assim
+       * que se troca o preço de um braço sem misturar as duas médias —, então
+       * o histórico dele precisa continuar visível depois de sair da lista.
+       */
+      aposentada: boolean;
       leads: number;
       letras: number;
       vendas: number;
@@ -899,8 +909,8 @@ async function montarPainel(
     // estouraram o tempo desta consulta uma vez), então falha não pode
     // derrubar o resto do painel: sem os testes A/B o dono ainda precisa ver
     // faturamento, e por isso o catch degrada pra lista vazia em vez de jogar.
-    const { lerConfigFresca } = await import("@/lib/experimentos-config.server");
-    const configExp = await lerConfigFresca().catch((err) => {
+    const { lerConfigFresca, TIMEOUT_PAINEL_MS } = await import("@/lib/experimentos-config.server");
+    const configExp = await lerConfigFresca(TIMEOUT_PAINEL_MS).catch((err) => {
       console.error("[admin] config de experimentos nao lida:", err);
       return [] as Awaited<ReturnType<typeof lerConfigFresca>>;
     });
@@ -937,13 +947,14 @@ async function montarPainel(
       const doControle = porVariante.get(controleNome);
       const rplControle = doControle?.leads ? doControle.receitaBrl / doControle.leads : 0;
 
-      const montar = (v: string, ehFora: boolean) => {
+      const montar = (v: string, ehFora: boolean, aposentada = false) => {
         const d = porVariante.get(v)!;
         const rpl = d.leads ? d.receitaBrl / d.leads : 0;
         return {
           variante: v,
           controle: !ehFora && v === controleNome,
           ehFora,
+          aposentada,
           ...d,
           conversaoPct: pct(d.vendas, d.leads),
           receitaPorLeadBrl: rpl,
@@ -955,16 +966,25 @@ async function montarPainel(
         };
       };
 
+      // OS NOMES APOSENTADOS: carimbaram gente e não estão mais na config.
+      // Antes eles eram simplesmente descartados (`nomes.filter(...)` só
+      // enxerga o que a config declara hoje), e com isso o histórico do braço
+      // sumia da tela no instante em que ele era aposentado — justamente o
+      // movimento que a Trava 2 transforma em rotina.
+      const aposentados = [...porVariante.keys()]
+        .filter((v) => v !== FORA && !nomes.includes(v))
+        .sort();
+
       return {
         id: exp.id,
-        nota: exp.nota,
-        ativo: exp.ativo,
         // A ORDEM É A DA CONFIGURAÇÃO, não a do resultado: o controle sempre
         // em cima, pra leitura ser sempre "B contra A" — ordenar por receita
-        // faria a coluna de referência pular de lugar a cada dia. `fora` vai
-        // por último e separada, porque não é uma versão em disputa.
+        // faria a coluna de referência pular de lugar a cada dia. Depois vêm
+        // os aposentados (histórico, não disputa) e, por último e separada,
+        // `fora`, que também não é uma versão em disputa.
         variantes: [
           ...nomes.filter((v) => porVariante.has(v)).map((v) => montar(v, false)),
+          ...aposentados.map((v) => montar(v, false, true)),
           ...(porVariante.has(FORA) ? [montar(FORA, true)] : []),
         ],
       };

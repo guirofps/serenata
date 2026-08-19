@@ -52,14 +52,15 @@ export type Experimento = {
 // forma ANTIGA (array fixo em código); estas são a forma nova, que troca o
 // array por linha de banco.
 //
-// As duas NÃO deixam de conviver na Task 4 — só trocam de papel. `EXPERIMENTOS`
-// vira o FALLBACK de `ExperimentoConfig` (ver `configDoCodigo` mais abaixo),
-// nunca mais a fonte ativa do sorteio. `experimentosAtivos`, `atributoDe`,
-// `varianteDe`, `variantesAtuais` e `carimbarExperimentos` continuam lendo a
-// forma antiga direto: são leitura pura do atributo que JÁ foi carimbado no
-// `<html>` (por `scriptExperimentos`, que esse sim passou a rodar sobre a
-// config do banco), não decidem sorteio nenhum, e por isso não precisam saber
-// de onde o sorteio veio.
+// As duas NÃO deixam de conviver — só trocam de papel. `EXPERIMENTOS` vira o
+// FALLBACK de `ExperimentoConfig` (ver `configDoCodigo` mais abaixo), nunca
+// mais a fonte ativa de nada: TODO caminho deste arquivo lê `configAtual()`.
+// Isso inclui `experimentosAtivos`, `varianteDe` e `variantesAtuais`, que por
+// um tempo continuaram lendo o array direto — parecia inofensivo (são leitura
+// do atributo que o `<head>` JÁ carimbou), mas era por ali que passava o
+// `ativo` que decide se a escolha é GRAVADA em `mp_attribution`. Com o array
+// mandando nisso, um experimento ligado pelo painel aparecia na tela e não
+// aparecia no resultado.
 
 /** O preço como número, como texto e como link. Um objeto só, de propósito. */
 export type Plano = { texto: string; valor: number; ancora: string; checkout: string };
@@ -124,9 +125,23 @@ const CHAVE = "mp_exp:";
  */
 export const FORA = "fora";
 
-/** Só os ativos. Um experimento desligado some do <html> e do CSS. */
-export function experimentosAtivos(): Experimento[] {
-  return EXPERIMENTOS.filter((e) => e.ativo);
+/**
+ * Só os ativos, LIDOS DA CONFIG VIVA (`configAtual()`) — nunca do array em
+ * código.
+ *
+ * Era o último caminho que ainda perguntava `ativo` pro array: enquanto
+ * `scriptExperimentos`/`cssExperimentos` já liam o banco, quem CARIMBA
+ * (`variantesAtuais` → `carimbarExperimentos`) lia o código. Ligar um
+ * experimento pelo painel, portanto, sorteava e escondia a variante certa e
+ * mesmo assim não gravava a escolha em `mp_attribution` — teste rodando na
+ * tela e invisível no resultado, que é o pior dos dois mundos: gasta tráfego
+ * e não responde nada.
+ *
+ * Devolve a forma NOVA (`ExperimentoConfigPublica`), porque é o que a config
+ * viva tem. Os dois consumidores só precisam do `id`.
+ */
+export function experimentosAtivos(): ExperimentoConfigPublica[] {
+  return configAtual().filter((e) => e.ativo);
 }
 
 /** `data-exp-preco` — o atributo que o CSS lê. */
@@ -168,8 +183,9 @@ export function atributoDe(id: string): string {
  * painel deixar editar. Nenhum dos três consumidores do <head>
  * (`scriptConfigGlobal`, `scriptExperimentos`, `cssExperimentos`) LÊ `nota` —
  * então ela não tem por que sair pro HTML público, que qualquer um pode abrir
- * com "ver código-fonte". `plano` FICA: a Task 5 monta tela e link de
- * checkout no cliente a partir dele.
+ * com "ver código-fonte". `plano` FICA — a tela e o link de checkout são
+ * montados no cliente a partir dele —, mas só o das variantes que estão de
+ * fato no ar: ver o corte por posição em `projetarParaPublico`.
  */
 export type ExperimentoConfigPublica = Omit<ExperimentoConfig, "nota">;
 
@@ -183,13 +199,38 @@ export type ExperimentoConfigPublica = Omit<ExperimentoConfig, "nota">;
  * reconstrói os campos que quer manter, campo por campo — então reprojetar
  * um valor já projetado devolve exatamente o mesmo valor. É isso que garante
  * que os dois lados do <head> continuem idênticos mesmo depois deste corte.
+ *
+ * ── EXPERIMENTO DESLIGADO PUBLICA SÓ O PLANO DO CONTROLE ──────────
+ *
+ * O ciclo que o painel IMPÕE pra mexer em preço é desligar → editar → religar
+ * (Trava 1, `admin-experimentos.ts`). Se o desligado continuasse publicando o
+ * plano de todas as variantes, os preços e links NOVOS ficariam no "ver
+ * código-fonte" de qualquer visitante durante essa janela — preço que ainda
+ * não foi decidido, e link de checkout que ninguém deveria abrir ainda.
+ *
+ * Mas o corte NÃO pode ser "sem plano nenhum quando desligado": `planoControle()`
+ * (`preco.ts`) lê o plano da variante-CONTROLE da config viva, e é esse
+ * caminho que faz "mudar o preço pelo painel, sem deploy" funcionar com o
+ * teste desligado — que é justamente o estado normal de quem não está
+ * testando nada. Sem ele, o site voltaria a exibir o preço do catálogo em
+ * código e o painel viraria enfeite.
+ *
+ * Então o corte é por POSIÇÃO: o plano da primeira variante (o controle — é o
+ * preço que está na tela, público por definição) fica; o das demais cai. Com
+ * o teste LIGADO, todos ficam, porque aí todos já estão sendo exibidos.
+ *
+ * `cssExperimentos` não é afetada: ela só lê `id`, `ativo` e `nome`.
  */
 function projetarParaPublico(cfg: ExperimentoConfigPublica[]): ExperimentoConfigPublica[] {
   return cfg.map((e) => ({
     id: e.id,
     ativo: e.ativo,
     exposicaoPct: e.exposicaoPct,
-    variantes: e.variantes.map((v) => ({ nome: v.nome, peso: v.peso, plano: v.plano })),
+    variantes: e.variantes.map((v, i) => ({
+      nome: v.nome,
+      peso: v.peso,
+      plano: e.ativo || i === 0 ? v.plano : undefined,
+    })),
   }));
 }
 
@@ -367,10 +408,15 @@ export function cssExperimentos(cfg: ExperimentoConfigPublica[]): string {
   return linhas.join("");
 }
 
-/** A variante desta pessoa. No servidor devolve o controle. */
+/**
+ * A variante desta pessoa. No servidor devolve o controle.
+ *
+ * O controle sai da CONFIG VIVA, pela mesma razão de `experimentosAtivos`:
+ * quem decide qual é a primeira variante é o painel. Sem banco, `configAtual()`
+ * já cai sozinha no array em código, que é de onde isto lia antes.
+ */
 export function varianteDe(id: string): string {
-  const exp = EXPERIMENTOS.find((e) => e.id === id);
-  const controle = exp?.variantes[0] ?? "A";
+  const controle = configAtual().find((e) => e.id === id)?.variantes[0]?.nome ?? "A";
   if (typeof document === "undefined") return controle;
   return document.documentElement.getAttribute(atributoDe(id)) ?? controle;
 }

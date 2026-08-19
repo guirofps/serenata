@@ -22,6 +22,14 @@ export default defineConfig({
       //   - COM env de Supabase no build: a home congela a config LIGADA que
       //     existia no momento do deploy, e desligar o experimento pelo
       //     painel não desliga a home — só o próximo deploy desliga.
+      // CONSEQUÊNCIA NO `vercel.json`, e ela quase derrubou a home: sem
+      // pré-render não existe mais `dist/client/index.html`, e o catch-all
+      // era `/(.+)` — que exige ao menos um caractere depois da barra e
+      // portanto NÃO casa `/`. Sem arquivo estático e sem rewrite, a raiz
+      // dava 404. Hoje o catch-all é `/(.*)`. O `vercel.json` é JSON
+      // estrito e não aceita comentário; a explicação mora aqui, na spec e
+      // no teste `src/lib/vercel-rotas.test.ts`.
+      //
       // Um HTML estático que às vezes mente sobre o estado do teste é pior
       // que perder 1.3s de TTFB. Se a home algum dia deixar de depender de
       // config mutável (ou o time decidir que a defasagem é aceitável e

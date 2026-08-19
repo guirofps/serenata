@@ -24,6 +24,6 @@
     { "source": "/api/inngest", "destination": "/api/inngest" },
     { "source": "/api/og/:token", "destination": "/api/og/[token]" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.+)", "destination": "/api/ssr" }
+    { "source": "/(.*)", "destination": "/api/ssr" }
   ]
 }

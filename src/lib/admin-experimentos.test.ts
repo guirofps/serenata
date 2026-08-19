@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decidirSalvamento, formatoValido } from "./admin-experimentos";
+import { decidirSalvamento, formatoValido, nomesComPlanoAlterado } from "./admin-experimentos";
 import { FORA, type Variante } from "./experimentos";
 
 // Testa SÓ `decidirSalvamento` e `formatoValido`: são onde moram as travas e
@@ -511,5 +511,137 @@ describe("formatoValido", () => {
 
   it("variante sem `plano` (undefined) é aceito no formato — a completude é regra de negócio, não de forma", () => {
     expect(formatoValido({ ...base, variantes: [{ nome: "A", peso: 1 }] })).toBe(true);
+  });
+});
+
+// ── TRAVA 2: NOME APOSENTADO, NUNCA RECICLADO ────────────────────
+//
+// A Trava 1 impede que dois preços apareçam debaixo do mesmo rótulo AGORA. Sem
+// esta, o mesmo dano acontece NO TEMPO: desligar, trocar o preço do `B` de
+// R$ 19 pra R$ 24, religar — e os dias em cada preço viram uma média só, sem
+// jeito de separar depois.
+
+const planoB24: Variante = {
+  ...planoB,
+  plano: { texto: "R$ 24", valor: 24, ancora: "R$ 67", checkout: "https://pay/b24" },
+};
+
+describe("nomesComPlanoAlterado", () => {
+  it("nada mudou: lista vazia, e o servidor não vai ao banco de leads", () => {
+    expect(
+      nomesComPlanoAlterado(
+        { ativo: false, variantes: [planoA, planoB] },
+        {
+          id: "preco",
+          ativo: false,
+          exposicaoPct: 50,
+          nota: "outra nota",
+          variantes: [planoA, planoB],
+        },
+      ),
+    ).toEqual([]);
+  });
+
+  it("preço trocado no mesmo nome entra na lista", () => {
+    expect(
+      nomesComPlanoAlterado(
+        { ativo: false, variantes: [planoA, planoB] },
+        { id: "preco", ativo: false, exposicaoPct: 100, nota: "", variantes: [planoA, planoB24] },
+      ),
+    ).toEqual(["B"]);
+  });
+
+  it("nome que não existia entra na lista — é o caso do nome RECICLADO", () => {
+    expect(
+      nomesComPlanoAlterado(
+        { ativo: false, variantes: [planoA] },
+        {
+          id: "preco",
+          ativo: false,
+          exposicaoPct: 100,
+          nota: "",
+          variantes: [planoA, { ...planoB24, nome: "B" }],
+        },
+      ),
+    ).toEqual(["B"]);
+  });
+
+  it("mexer só em peso não conta como mudança de plano", () => {
+    expect(
+      nomesComPlanoAlterado(
+        { ativo: false, variantes: [planoA, planoB] },
+        {
+          id: "preco",
+          ativo: false,
+          exposicaoPct: 100,
+          nota: "",
+          variantes: [planoA, { ...planoB, peso: 7 }],
+        },
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("decidirSalvamento — Trava 2", () => {
+  const trocarPrecoDoB = (nomesComLead: string[]) =>
+    decidirSalvamento(
+      { ativo: false, variantes: [planoA, planoB] },
+      { id: "preco", ativo: false, exposicaoPct: 100, nota: "", variantes: [planoA, planoB24] },
+      nomesComLead,
+    );
+
+  it("recusa trocar o preço de um nome que já tem lead carimbado, mesmo DESLIGADO", () => {
+    const r = trocarPrecoDoB(["B"]);
+    expect(r.ok).toBe(false);
+    expect(r.ok === false && r.erro).toContain("já tem lead carimbado");
+    expect(r.ok === false && r.erro).toContain("B");
+  });
+
+  it("aceita a mesma troca quando o nome é NOVO (B vira B2)", () => {
+    // O ciclo que a spec prescreve, inteiro: aposenta `B`, cria `B2` com o
+    // preço novo. `B` continua com lead carimbado, mas ninguém está mexendo
+    // no plano dele.
+    const r = decidirSalvamento(
+      { ativo: false, variantes: [planoA, planoB] },
+      {
+        id: "preco",
+        ativo: false,
+        exposicaoPct: 100,
+        nota: "",
+        variantes: [planoA, { ...planoB24, nome: "B2" }],
+      },
+      ["A", "B"],
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  it("aceita quando o nome ainda não carimbou ninguém", () => {
+    expect(trocarPrecoDoB(["A"]).ok).toBe(true);
+  });
+
+  it("recusa RECICLAR um nome aposentado: `B` volta com outro preço", () => {
+    // `B` saiu da config (ficou só o A), e o histórico dele continua no
+    // `attribution` de quem foi sorteado. Trazê-lo de volta com outro preço é
+    // exatamente o que a trava existe pra impedir.
+    const r = decidirSalvamento(
+      { ativo: false, variantes: [planoA] },
+      {
+        id: "preco",
+        ativo: false,
+        exposicaoPct: 100,
+        nota: "",
+        variantes: [planoA, { ...planoB24, nome: "B" }],
+      },
+      ["B"],
+    );
+    expect(r.ok).toBe(false);
+    expect(r.ok === false && r.erro).toContain("já tem lead carimbado");
+  });
+
+  it("sem lista de nomes carimbados, a decisão não inventa: quem lê o banco é o chamador", () => {
+    // O padrão vazio existe pra os testes das outras travas e pro caso em que
+    // nenhum plano mudou. O fail-closed de verdade (consulta que falhou) mora
+    // em `salvarExperimento`, que nem chega a chamar isto.
+    expect(trocarPrecoDoB([]).ok).toBe(true);
   });
 });

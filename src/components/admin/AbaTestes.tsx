@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { carregarExperimentos, salvarExperimento } from "@/lib/admin-experimentos";
-import type { ExperimentoConfig } from "@/lib/experimentos";
+import type { ExperimentoConfig, Variante } from "@/lib/experimentos";
 import type { Painel } from "@/lib/admin-dados";
 import { distribuirPercentuais } from "@/lib/percentuais";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,9 @@ export function AbaTestes({ resultados }: { resultados: Painel["porExperimento"]
   );
 }
 
+/** A versão nova nasce SEM plano: ela ganha um no primeiro campo digitado. */
+const VERSAO_NOVA: Variante = { nome: "", peso: 1 };
+
 function CartaoExperimento({
   exp,
   resultado,
@@ -70,6 +73,10 @@ function CartaoExperimento({
   // `admin-experimentos.ts`). Sem essa trava no cliente também, o campo
   // pareceria editável e o "não deu pra salvar" só apareceria depois do
   // clique — um ciclo a mais de confusão pra quem só queria mudar um preço.
+  //
+  // Lê `exp` (o que o servidor devolveu), não `rascunho`: o toggle de ligado
+  // só vale depois de salvo, e destravar os campos no clique do toggle daria
+  // a impressão contrária.
   const travado = exp.ativo;
 
   // Qualquer edição apaga o aviso de "salvo" anterior: com o teste no ar e
@@ -79,33 +86,33 @@ function CartaoExperimento({
     setAviso(null);
     setRascunho({ ...rascunho, ...p });
   };
-  const mudarPeso = (nome: string, peso: number) => {
+
+  // POR ÍNDICE, não por nome: o nome virou campo editável (é o que a Trava 2
+  // exige — aposentar `B` e criar `B2` sem deploy), e casar a linha pelo nome
+  // que está sendo digitado perde a linha na primeira letra apagada.
+  const mudarVariante = (i: number, p: Partial<Variante>) => {
     setAviso(null);
     setRascunho({
       ...rascunho,
-      variantes: rascunho.variantes.map((v) => (v.nome === nome ? { ...v, peso } : v)),
+      variantes: rascunho.variantes.map((v, j) => (j === i ? { ...v, ...p } : v)),
     });
   };
   const mudarPlano = (
-    nome: string,
+    i: number,
     campo: "texto" | "valor" | "ancora" | "checkout",
     valor: string,
   ) => {
-    setAviso(null);
-    setRascunho({
-      ...rascunho,
-      variantes: rascunho.variantes.map((v) =>
-        v.nome === nome
-          ? {
-              ...v,
-              plano: {
-                ...(v.plano ?? { texto: "", valor: 0, ancora: "", checkout: "" }),
-                [campo]: campo === "valor" ? Number(valor.replace(",", ".")) || 0 : valor,
-              },
-            }
-          : v,
-      ),
+    const atual = rascunho.variantes[i]?.plano ?? { texto: "", valor: 0, ancora: "", checkout: "" };
+    mudarVariante(i, {
+      plano: {
+        ...atual,
+        [campo]: campo === "valor" ? Number(valor.replace(",", ".")) || 0 : valor,
+      },
     });
+  };
+  const acrescentarVersao = () => {
+    setAviso(null);
+    setRascunho({ ...rascunho, variantes: [...rascunho.variantes, { ...VERSAO_NOVA }] });
   };
 
   async function salvar() {
@@ -115,13 +122,19 @@ function CartaoExperimento({
     setSalvando(false);
     if (!r.ok) {
       // O texto que a server function mandou, sem trocar por nada genérico —
-      // é ele que explica qual trava recusou (preço travado, link duplicado,
-      // peso todo zerado etc.), não um "erro ao salvar" que manda a pessoa
-      // adivinhar.
+      // é ele que explica qual trava recusou (preço travado, nome já
+      // carimbado, link duplicado, peso todo zerado etc.), não um "erro ao
+      // salvar" que manda a pessoa adivinhar.
       setAviso(r.erro ?? "não deu pra salvar");
       return;
     }
-    aoSalvar(rascunho);
+    // O QUE FOI GRAVADO, não o que foi digitado. O servidor normaliza
+    // (exposição clampada e arredondada, nomes e URLs trimados, peso negativo
+    // virando 0) — ecoar o rascunho cru deixava a tela dizendo `150%` com o
+    // banco em `100`, e o salvamento seguinte partia de um número que nunca
+    // existiu.
+    setRascunho(r.salvo);
+    aoSalvar(r.salvo);
     setAviso("salvo — vale no site em até 1 minuto");
   }
 
@@ -157,7 +170,20 @@ function CartaoExperimento({
             min={0}
             max={100}
             value={rascunho.exposicaoPct}
-            onChange={(e) => mudar({ exposicaoPct: Number(e.target.value) })}
+            onChange={(e) => {
+              // CAMPO VAZIO NÃO É ZERO. `Number("")` dá `0`, e exposição 0
+              // joga 100% do tráfego pra `fora` — apagar o "100" pra digitar
+              // "50" passa por esse estado, e um clique em Salvar no meio da
+              // digitação desligaria o teste inteiro sem ninguém pedir.
+              // Ignorar mantém o último número válido na tela.
+              const bruto = e.target.value.trim();
+              if (bruto === "") return;
+              const n = Number(bruto);
+              if (!Number.isFinite(n)) return;
+              // Clampado aqui também pra a tela não prometer o que o servidor
+              // não vai gravar (ele clampa e arredonda igual).
+              mudar({ exposicaoPct: Math.max(0, Math.min(100, Math.round(n))) });
+            }}
           />
         </label>
       </div>
@@ -166,9 +192,9 @@ function CartaoExperimento({
           antiga do painel e sumiu na primeira versão desta aba — perda real
           numa tela cujo propósito é operar teste, não só números soltos.
           NUNCA desabilitada por `travado`: `nota` não entra em
-          `variantesIguaisParaTrava1` (admin-experimentos.ts:163-166) nem na
-          checagem da Trava 1 (linha 221) — só nome e plano travam com o
-          teste no ar. */}
+          `variantesIguaisParaTrava1` nem na checagem da Trava 1 (em
+          `admin-experimentos.ts`) — só nome e plano travam com o teste no
+          ar. */}
       <label className="block text-xs text-[var(--tinta-suave)]">
         O que este teste está testando, e por quê
         <Textarea
@@ -182,10 +208,11 @@ function CartaoExperimento({
       {/* faixa 2: as versões */}
       {travado && (
         <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Preço e link estão travados porque o teste está no ar: quem já foi sorteada pra uma versão
-          tem o preço dela guardado no navegador, e mudar o número agora faria dois preços
+          Nome, preço e link estão travados porque o teste está no ar: quem já foi sorteada pra uma
+          versão tem o preço dela guardado no navegador, e mudar o número agora faria dois preços
           diferentes aparecerem debaixo do mesmo rótulo. Desligue o teste pra editar, e ligue de
-          novo depois.
+          novo depois — trocando o preço de uma versão, troque o NOME dela junto (B vira B2), senão
+          o servidor recusa: o nome antigo já tem lead carimbado com o preço antigo.
         </p>
       )}
       <div className="overflow-x-auto">
@@ -201,9 +228,17 @@ function CartaoExperimento({
           </thead>
           <tbody>
             {rascunho.variantes.map((v, i) => (
-              <tr key={v.nome}>
+              // `key` pelo ÍNDICE porque o nome é editável: com `key={v.nome}`
+              // cada letra digitada remontaria a linha e o campo perderia o
+              // foco. A lista não reordena, então o índice é estável.
+              <tr key={i}>
                 <td className="px-2 py-1.5">
-                  {v.nome}
+                  <Input
+                    className="h-8 w-24"
+                    disabled={travado}
+                    value={v.nome}
+                    onChange={(e) => mudarVariante(i, { nome: e.target.value })}
+                  />
                   {i === 0 && (
                     <span className="ml-1 text-[10px] text-[var(--tinta-suave)]">controle</span>
                   )}
@@ -214,7 +249,7 @@ function CartaoExperimento({
                     type="number"
                     min={0}
                     value={v.peso}
-                    onChange={(e) => mudarPeso(v.nome, Number(e.target.value))}
+                    onChange={(e) => mudarVariante(i, { peso: Number(e.target.value) })}
                   />
                 </td>
                 <td className="px-2 py-1.5 tabular-nums text-[var(--tinta-suave)]">
@@ -226,7 +261,7 @@ function CartaoExperimento({
                       className={cn("h-8", campo === "checkout" ? "w-72" : "w-24")}
                       disabled={travado}
                       value={String(v.plano?.[campo] ?? "")}
-                      onChange={(e) => mudarPlano(v.nome, campo, e.target.value)}
+                      onChange={(e) => mudarPlano(i, campo, e.target.value)}
                     />
                   </td>
                 ))}
@@ -240,6 +275,15 @@ function CartaoExperimento({
         <Button size="sm" disabled={salvando} onClick={salvar}>
           {salvando ? "salvando…" : "Salvar"}
         </Button>
+        {/* Acrescentar versão fecha o ciclo que a spec prescreve: desligar →
+            aposentar o nome → criar o novo → religar. Sem este botão, a
+            Trava 2 recusaria a edição e a tela não ofereceria saída nenhuma.
+            Travado com o teste no ar pela mesma razão dos outros campos —
+            entrar uma versão nova muda o comprimento da lista, e a Trava 1
+            recusa isso no servidor. */}
+        <Button size="sm" variant="ghost" disabled={travado} onClick={acrescentarVersao}>
+          + versão
+        </Button>
         {aviso && <span className="text-xs text-[var(--tinta-suave)]">{aviso}</span>}
       </div>
 
@@ -252,19 +296,31 @@ function CartaoExperimento({
 function TabelaResultado({ resultado }: { resultado: Painel["porExperimento"][number] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-[var(--tinta-fraca)]/40">
-      <table className="w-full min-w-[620px] text-sm">
+      <table className="w-full min-w-[680px] text-sm">
         <thead className="bg-[var(--papel-fundo)] text-[11px] uppercase tracking-wider text-[var(--tinta-suave)]">
           <tr>
-            {["Versão", "Leads", "Vendas", "Receita", "Conv.", "R$/lead", "vs controle"].map(
-              (c, i) => (
-                <th
-                  key={c}
-                  className={cn("px-3 py-2 font-medium", i === 0 ? "text-left" : "text-right")}
-                >
-                  {c}
-                </th>
-              ),
-            )}
+            {/* LETRAS entre Leads e Vendas, como a spec pede. É a etapa do
+                meio do funil: se um braço perde gente ANTES da letra ficar
+                pronta, o problema não é o preço (que ela ainda nem viu) —
+                é a tela quebrada embaixo. Sem esta coluna o número era
+                calculado em `admin-dados.ts` e trafegava sem leitor. */}
+            {[
+              "Versão",
+              "Leads",
+              "Letras",
+              "Vendas",
+              "Receita",
+              "Conv.",
+              "R$/lead",
+              "vs controle",
+            ].map((c, i) => (
+              <th
+                key={c}
+                className={cn("px-3 py-2 font-medium", i === 0 ? "text-left" : "text-right")}
+              >
+                {c}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -275,16 +331,19 @@ function TabelaResultado({ resultado }: { resultado: Painel["porExperimento"][nu
                 v.controle && "bg-[var(--tinta-fraca)]/10",
                 // A linha `fora` é REFERÊNCIA, não concorrente: itálico e
                 // apagada, pra não competir visualmente com as variantes que
-                // estão de fato em disputa. A ordem (ela por último) já vem
-                // pronta de `admin-dados.ts`.
-                v.ehFora && "italic text-[var(--tinta-suave)]",
+                // estão de fato em disputa. Um nome APOSENTADO é histórico,
+                // não disputa, e leva o mesmo tratamento. A ordem (as duas
+                // depois das versões vivas) já vem pronta de `admin-dados.ts`.
+                (v.ehFora || v.aposentada) && "italic text-[var(--tinta-suave)]",
               )}
             >
               <td className="px-3 py-2">
                 {v.ehFora ? "fora do teste" : v.variante}
                 {v.controle && <span className="ml-2 text-[10px]">controle</span>}
+                {v.aposentada && <span className="ml-2 text-[10px]">aposentada</span>}
               </td>
               <td className="px-3 py-2 text-right tabular-nums">{v.leads}</td>
+              <td className="px-3 py-2 text-right tabular-nums">{v.letras}</td>
               <td className="px-3 py-2 text-right tabular-nums">{v.vendas}</td>
               <td className="px-3 py-2 text-right tabular-nums">
                 {v.receitaBrl > 0 ? brl(v.receitaBrl) : "—"}
@@ -308,7 +367,7 @@ function TabelaResultado({ resultado }: { resultado: Painel["porExperimento"][nu
           ))}
         </tbody>
       </table>
-      {resultado.variantes.some((v) => !v.ehFora && v.leads < 200) && (
+      {resultado.variantes.some((v) => !v.ehFora && !v.aposentada && v.leads < 200) && (
         <p className="px-3 py-2 text-[11px] text-[var(--tinta-suave)]">
           Amostra pequena: com menos de ~200 leads por lado, a diferença ainda pode ser sorteio.
           Deixe rodar.

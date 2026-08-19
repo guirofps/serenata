@@ -124,6 +124,27 @@ tráfego pago cai em `/criar`, não na home. Trocar latência mensurável por
 eliminação de falha invisível é o mesmo negócio que este projeto já fez ao
 gerar a música antes de cobrar.
 
+#### A consequência no `vercel.json`
+
+Tirar o pré-render tirou junto o `dist/client/index.html` — e era ele que
+atendia `/` pelo filesystem, antes de qualquer rewrite. O catch-all era
+`/(.+)`, que exige ao menos um caractere depois da barra e **não casa a
+raiz**: sem arquivo e sem rewrite, a home passaria a dar 404 em produção.
+
+**Decisão: alargar o catch-all para `/(.*)`**, em vez de acrescentar uma regra
+só pra `/`. Uma regra a menos pra manter, e nenhuma dúvida de ordem entre as
+duas. O que continua valendo:
+
+- as três regras de `/api/*` vêm ANTES e ganham (a Vercel usa a primeira que
+  casa);
+- rewrite roda DEPOIS da checagem de filesystem, então `/assets/*` e `/img/*`
+  continuam sendo servidos estáticos.
+
+`vercel.json` é JSON estrito e não aceita comentário; a explicação mora aqui,
+no comentário do `vite.config.ts` e no teste `src/lib/vercel-rotas.test.ts`,
+que casa `/`, `/es`, `/criar`, `/p/tok` e `/api/x` contra as regras reais do
+arquivo.
+
 ### "Fora do teste" é uma variante
 
 O sorteio ganha um passo antes do que já faz: tira um número e, se cair fora
@@ -155,7 +176,11 @@ não foi o pedido, e mexer nela de graça custa mais do que rende.
 
 - **Resultados**: de `dados.porExperimento`, que a consulta grande já traz.
   Nenhuma consulta nova — essa consulta já estourou o tempo uma vez (180 mil
-  eventos por abertura, agosto/26) e não vai ganhar trabalho.
+  eventos por abertura, agosto/26) e não vai ganhar trabalho. Ela carrega só o
+  que a tabela de resultado LÊ: `nota` e `ativo` saem de lá (a aba já os lê da
+  server function de config, que é onde são editados) e as versões
+  **aposentadas** entram, porque a Trava 2 faz de aposentar nome uma rotina e o
+  histórico precisa continuar visível depois de o nome sair da config.
 - **Config editável**: uma server function própria, minúscula, que ignora o
   cache e lê fresco. Quem está editando nunca pode ver estado velho.
 
@@ -207,6 +232,14 @@ trava que `curl` ignora — e é um dos erros herdados listados no CLAUDE.md
    tem lead carimbado, porque reusar `B` faria dois preços diferentes
    compartilharem um rótulo no histórico — exatamente o que a trava evita no
    presente.
+   Implementada em duas metades: `nomesComPlanoAlterado` (puro) diz quais
+   rótulos mudaram de preço nesta gravação, e só se houver algum é que
+   `salvarExperimento` faz UMA consulta em `quiz_responses.attribution->'exp'`
+   pra saber quais já carimbaram gente. Consulta que falha **recusa**
+   (fail-closed): sem conseguir conferir, não dá pra afirmar que o nome é novo.
+   Na tela, nome e "+ versão" só ficam editáveis com o teste desligado, pela
+   mesma razão dos outros campos.
+
 3. **Não liga com duas versões dividindo o mesmo link de checkout.** É o
    defeito que o teste de preço inteiro existe pra impedir, e com painel ele
    vira um clique de distração.

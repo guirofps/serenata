@@ -14,8 +14,11 @@ export const carregarExperimentos = createServerFn({ method: "POST" }).handler(
   async (): Promise<ExperimentoConfig[]> => {
     const { exigirAdmin } = await import("@/lib/admin-auth.server");
     exigirAdmin();
-    const { lerConfigFresca } = await import("@/lib/experimentos-config.server");
-    return lerConfigFresca();
+    const { lerConfigFresca, TIMEOUT_PAINEL_MS } = await import("@/lib/experimentos-config.server");
+    // Prazo de PAINEL, não de render: aqui tem gente esperando na frente da
+    // tela e não existe fallback nenhum pra cair (ver os dois timeouts em
+    // `experimentos-config.server.ts`).
+    return lerConfigFresca(TIMEOUT_PAINEL_MS);
   },
 );
 
@@ -31,6 +34,17 @@ export type EntradaSalvar = {
 type EstadoNoBanco = { ativo: boolean; variantes: Variante[] } | null;
 
 type Decisao = { ok: true; variantes: Variante[] } | { ok: false; erro: string };
+
+/**
+ * O que volta pra tela depois de salvar.
+ *
+ * `salvo` é a linha COMO FICOU NO BANCO, não o rascunho que o formulário
+ * mandou: exposição clampada em 0..100 e arredondada, nomes e URLs trimados,
+ * peso negativo virando 0. Sem isto a tela ficava mentindo em silêncio —
+ * digitar `150` em exposição deixava a tela dizendo 150 com o banco em 100, e
+ * o próximo salvamento partia desse número que nunca existiu.
+ */
+export type ResultadoSalvar = { ok: true; salvo: ExperimentoConfig } | { ok: false; erro: string };
 
 /**
  * Confere só a FORMA do payload — o suficiente pra não estourar 500 dentro
@@ -83,7 +97,7 @@ export function formatoValido(data: unknown): data is EntradaSalvar {
  *
  * Existe por dois furos encontrados na revisão:
  *   - `"https://pay/a"` e `"https://pay/a "` são strings DIFERENTES pro
- *     `Set` da Trava 2, mas o navegador ignora o espaço em volta da URL —
+ *     `Set` da Trava 3, mas o navegador ignora o espaço em volta da URL —
  *     as duas abrem o MESMO checkout mostrando preços diferentes.
  *   - `"FORA"` e `" fora "` não batem com `=== FORA` mas colidem do mesmo
  *     jeito com o sentinela: o script do `<head>` (`scriptExperimentos`, em
@@ -166,6 +180,38 @@ function variantesIguaisParaTrava1(a: Variante[], b: Variante[]): boolean {
 }
 
 /**
+ * Os nomes de versão cujo PLANO muda nesta gravação — os únicos que precisam
+ * ser nomes NOVOS, e os únicos que justificam ir ao banco perguntar se já têm
+ * lead carimbado (ver Trava 2 em `decidirSalvamento`).
+ *
+ * Compara por NOME, não por posição, ao contrário de `variantesIguaisParaTrava1`
+ * — e a diferença é o ponto. A Trava 1 pergunta "o conjunto mudou?" (reordenar
+ * já é mudar o controle). Esta aqui pergunta outra coisa: "o que este RÓTULO
+ * promete mudou?". É o rótulo que fica gravado no navegador de quem foi
+ * sorteado e no `attribution` de quem virou lead, então é por ele que a
+ * pergunta tem que ser feita.
+ *
+ * Um nome que não existia antes entra na lista mesmo com plano novinho: é
+ * exatamente o caso do nome RECICLADO (o `B` que foi apagado semana passada e
+ * voltou hoje com outro preço), que é o que a trava existe pra pegar.
+ *
+ * Versão sem plano fica de fora: ela não promete preço nenhum, então não há
+ * dois preços possíveis embaixo do mesmo rótulo.
+ */
+export function nomesComPlanoAlterado(banco: EstadoNoBanco, entrada: EntradaSalvar): string[] {
+  if (!banco) return [];
+  const antes = new Map(
+    (banco.variantes ?? []).map(normalizarVariante).map((v) => [v.nome, v.plano] as const),
+  );
+  const mudaram: string[] = [];
+  for (const v of entrada.variantes.map(normalizarVariante)) {
+    if (!v.nome || !v.plano) continue;
+    if (!antes.has(v.nome) || !planosIguais(antes.get(v.nome), v.plano)) mudaram.push(v.nome);
+  }
+  return [...new Set(mudaram)];
+}
+
+/**
  * TODAS as travas de `salvarExperimento`, sem tocar em banco nem em rede.
  *
  * Extraída à parte de propósito: são elas que protegem dinheiro de verdade
@@ -183,8 +229,20 @@ function variantesIguaisParaTrava1(a: Variante[], b: Variante[]): boolean {
  * (`{ok:true, variantes}`) — é isso que `salvarExperimento` grava, não
  * `entrada.variantes` cru. Decidir sobre um valor e gravar outro é o mesmo
  * defeito que motivou normalizar antes de decidir (ver `normalizarVariante`).
+ *
+ * `nomesComLead` é a única coisa que esta função não consegue descobrir
+ * sozinha: quais nomes de versão já aparecem em `quiz_responses.attribution`.
+ * Quem lê o banco é o chamador (uma consulta só, e só quando algum plano
+ * mudou — ver `nomesComPlanoAlterado`); aqui a lista chega pronta pra a
+ * decisão continuar sendo pura e testável. Chamador que não consegue ler o
+ * banco NÃO pode passar lista vazia: sem saber, a resposta certa é recusar
+ * (fail-closed), e é o que `salvarExperimento` faz.
  */
-export function decidirSalvamento(banco: EstadoNoBanco, entrada: EntradaSalvar): Decisao {
+export function decidirSalvamento(
+  banco: EstadoNoBanco,
+  entrada: EntradaSalvar,
+  nomesComLead: readonly string[] = [],
+): Decisao {
   if (!banco) return { ok: false, erro: "experimento não existe" };
   if (!entrada.variantes.length) return { ok: false, erro: "precisa de pelo menos uma versão" };
 
@@ -225,6 +283,27 @@ export function decidirSalvamento(banco: EstadoNoBanco, entrada: EntradaSalvar):
     };
   }
 
+  // TRAVA 2 — nome de versão é APOSENTADO, nunca reciclado.
+  //
+  // Vale com o teste DESLIGADO, e é aí que ela importa: o ciclo que a Trava 1
+  // impõe é desligar → editar → religar, e é exatamente no meio dele que dá
+  // pra trocar o preço do `B` de R$ 19 pra R$ 24 mantendo o rótulo. Os dias no
+  // preço antigo e os dias no novo virariam uma média só debaixo do mesmo
+  // nome, no painel e em toda leitura futura do histórico — o mesmo dano que a
+  // Trava 1 impede no presente, só que espalhado no tempo, onde é pior porque
+  // não dá pra desfazer.
+  //
+  // Por isso a régua não é "o experimento está no ar", é "este nome já tem
+  // lead carimbado". Nome que nunca carimbou ninguém pode ser reprecificado à
+  // vontade.
+  const reciclados = nomesComPlanoAlterado(banco, entrada).filter((n) => nomesComLead.includes(n));
+  if (reciclados.length) {
+    return {
+      ok: false,
+      erro: `a versão ${reciclados.join(", ")} já tem lead carimbado com o preço antigo — aposente o nome e crie um novo (B vira B2)`,
+    };
+  }
+
   if (entrada.ativo) {
     // TRAVA — não liga com todo peso zerado.
     //
@@ -240,7 +319,7 @@ export function decidirSalvamento(banco: EstadoNoBanco, entrada: EntradaSalvar):
       return { ok: false, erro: "pelo menos uma versão precisa ter peso maior que zero" };
     }
 
-    // TRAVA 2 — não liga com duas versões dividindo o mesmo checkout.
+    // TRAVA 3 — não liga com duas versões dividindo o mesmo checkout.
     //
     // É o defeito que o teste de preço inteiro existe pra impedir: a tela diz
     // um número e o caixa cobra outro. `v.plano?.checkout` já vem TRIMADO
@@ -252,7 +331,7 @@ export function decidirSalvamento(banco: EstadoNoBanco, entrada: EntradaSalvar):
       return { ok: false, erro: "duas versões apontam pro mesmo link de checkout" };
     }
 
-    // TRAVA 3 — versão sem plano completo (e com preço > 0) não entra no ar.
+    // TRAVA 4 — versão sem plano completo (e com preço > 0) não entra no ar.
     const incompleta = novas.find((v) => !planoProntoParaAtivar(v.plano));
     if (incompleta) {
       return { ok: false, erro: `a versão ${incompleta.nome} está sem preço ou link válido` };
@@ -260,6 +339,40 @@ export function decidirSalvamento(banco: EstadoNoBanco, entrada: EntradaSalvar):
   }
 
   return { ok: true, variantes: novas };
+}
+
+/**
+ * Quais destes nomes JÁ têm lead carimbado neste experimento. `null` quando a
+ * consulta falhou — que é diferente de "nenhum", e o chamador trata como
+ * recusa (ver o fail-closed em `salvarExperimento`).
+ *
+ * A variante mora em `quiz_responses.attribution->'exp'->>'<id>'`, gravada
+ * pela RPC de lead a partir do `mp_attribution` que `carimbarExperimentos`
+ * mantém — a mesma leitura que `admin-dados.ts` faz pra montar o resultado do
+ * teste.
+ *
+ * UMA consulta, com `limit` baixo: o interesse é "existe?", não "quantos". O
+ * Postgres para de varrer assim que junta as primeiras linhas que casam, e o
+ * filtro já está restrito aos poucos nomes cujo plano mudou.
+ */
+async function nomesJaCarimbados(expId: string, nomes: string[]): Promise<string[] | null> {
+  // O id entra numa EXPRESSÃO de coluna do PostgREST (não num valor
+  // parametrizado), então só passa o que é seguramente inofensivo ali. Todo
+  // id real é `[a-z_]` — `preco` — e um que não seja não tem lead nenhum
+  // mesmo, então recusar aqui não tira função de ninguém.
+  if (!/^[a-z0-9_-]+$/i.test(expId)) return null;
+  const coluna = `attribution->exp->>${expId}`;
+  const { data, error } = await supabaseAdmin()
+    .from("quiz_responses")
+    .select(`v:${coluna}`)
+    .in(coluna, nomes)
+    .limit(50);
+  if (error) {
+    console.error("[experimentos] nomes carimbados não conferidos:", error.message);
+    return null;
+  }
+  const vistos = (data ?? []).map((r) => String((r as { v?: unknown }).v ?? "")).filter(Boolean);
+  return [...new Set(vistos)];
 }
 
 /**
@@ -273,7 +386,7 @@ export function decidirSalvamento(banco: EstadoNoBanco, entrada: EntradaSalvar):
  */
 export const salvarExperimento = createServerFn({ method: "POST" })
   .validator((data: EntradaSalvar) => data)
-  .handler(async ({ data }): Promise<{ ok: boolean; erro?: string }> => {
+  .handler(async ({ data }): Promise<ResultadoSalvar> => {
     const { exigirAdmin } = await import("@/lib/admin-auth.server");
     exigirAdmin();
 
@@ -299,9 +412,28 @@ export const salvarExperimento = createServerFn({ method: "POST" })
       ? { ativo: Boolean(linha.ativo), variantes: (linha.variantes ?? []) as Variante[] }
       : null;
 
-    const decisao = decidirSalvamento(banco, data);
+    // A ÚNICA COISA QUE A DECISÃO NÃO SABE SOZINHA: quais nomes já carimbaram
+    // gente. Uma consulta só, e só quando algum PLANO mudou — salvar peso,
+    // exposição ou nota não encosta no banco de leads.
+    let nomesComLead: string[] = [];
+    const mudaram = nomesComPlanoAlterado(banco, data);
+    if (mudaram.length) {
+      const encontrados = await nomesJaCarimbados(data.id, mudaram);
+      if (encontrados === null) {
+        // FAIL-CLOSED. Sem conseguir conferir, não dá pra afirmar que o nome é
+        // novo — e gravar sob dúvida é justamente o que produz dois preços
+        // debaixo do mesmo rótulo, de forma irreversível. Recusar custa um
+        // "tente de novo"; aceitar custa o histórico.
+        return { ok: false, erro: "não deu pra conferir se o nome já tem lead — nada foi salvo" };
+      }
+      nomesComLead = encontrados;
+    }
+
+    const decisao = decidirSalvamento(banco, data, nomesComLead);
     if (!decisao.ok) return decisao;
 
+    // A exposição que se GRAVA é a clampada — e é ela que volta pra tela em
+    // `salvo`, logo abaixo. Ver `ResultadoSalvar`.
     const exposicao = Math.max(0, Math.min(100, Math.round(data.exposicaoPct)));
     const { error } = await db
       .from("experimentos")
@@ -330,5 +462,15 @@ export const salvarExperimento = createServerFn({ method: "POST" })
     // própria janela de 60s delas vencer. Ver o comentário de
     // `invalidarConfig` em `experimentos-config.server.ts`.
     invalidarConfig();
-    return { ok: true };
+    // O ESTADO GRAVADO, não o rascunho que chegou. Ver `ResultadoSalvar`.
+    return {
+      ok: true,
+      salvo: {
+        id: data.id,
+        ativo: data.ativo,
+        exposicaoPct: exposicao,
+        nota: data.nota,
+        variantes: decisao.variantes,
+      },
+    };
   });

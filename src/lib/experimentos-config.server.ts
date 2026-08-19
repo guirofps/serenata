@@ -37,6 +37,28 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const VALIDADE_MS = 60_000;
 
+/**
+ * O prazo da leitura no CAMINHO DO RENDER.
+ *
+ * O cliente do Supabase usa `fetch` sem deadline nenhum: sem isto, um
+ * Supabase lento (não fora do ar — LENTO, que é o caso comum e o que não
+ * dispara alarme nenhum) segura o primeiro render de TODA página até o
+ * timeout da própria plataforma. E o site tem fallback pra config ausente
+ * justamente pra não precisar esperar: 1,5s já é mais do que o banco leva
+ * quando está bem, e desistir aqui custa no máximo 60s de config velha.
+ */
+const TIMEOUT_RENDER_MS = 1_500;
+
+/**
+ * O prazo de quem está EDITANDO no painel.
+ *
+ * Bem maior de propósito: aqui tem gente esperando na frente da tela, e uma
+ * config que não carregou é melhor que uma que carregou pela metade — o
+ * painel não tem fallback nenhum pra cair, ele mostra o erro. Desistir em
+ * 1,5s só produziria "Config não carregou" num dia de banco lento.
+ */
+export const TIMEOUT_PAINEL_MS = 15_000;
+
 // `carregouUmaVez` é o "instância fria?" desta tarefa — não dá pra perguntar
 // isso olhando o snapshot em `experimentos.ts`, porque ele é privado de
 // propósito (só `configAtual()` e `definirConfigDoServidor()` mexem nele; ver
@@ -46,13 +68,30 @@ let carregouUmaVez = false;
 let lidoEm = 0;
 let emVoo: Promise<void> | null = null;
 
-/** Lê do banco, sem cache. O painel usa isto: quem edita não vê estado velho. */
-export async function lerConfigFresca(): Promise<ExperimentoConfig[]> {
+/** SÓ PARA TESTE: devolve o relógio ao estado de instância recém-nascida. */
+export function _resetRelogioParaTeste(): void {
+  carregouUmaVez = false;
+  lidoEm = 0;
+  emVoo = null;
+}
+
+/**
+ * Lê do banco, sem cache. O painel usa isto: quem edita não vê estado velho.
+ *
+ * `timeoutMs` existe porque os dois chamadores têm pressa oposta — ver
+ * `TIMEOUT_RENDER_MS` e `TIMEOUT_PAINEL_MS`. O padrão é o do render, que é o
+ * caminho onde esperar custa caro; quem pode esperar pede mais tempo
+ * explicitamente.
+ */
+export async function lerConfigFresca(
+  timeoutMs: number = TIMEOUT_RENDER_MS,
+): Promise<ExperimentoConfig[]> {
   const db = supabaseAdmin();
   const { data, error } = await db
     .from("experimentos")
     .select("id, ativo, exposicao_pct, nota, variantes")
-    .order("id");
+    .order("id")
+    .abortSignal(AbortSignal.timeout(timeoutMs));
   if (error) throw new Error(`config de experimentos: ${error.message}`);
   return (data ?? []).map((r) => ({
     id: String(r.id),
@@ -75,8 +114,18 @@ async function recarregar(): Promise<void> {
     // valendo. Ficar sem config seria tirar gente do teste em silêncio, que é
     // pior que dado com até 5 min de atraso.
     console.error("[experimentos] config não recarregada:", err);
-    // Marca a tentativa mesmo assim, pra não martelar o banco a cada visita
-    // enquanto ele estiver fora.
+    // TENTATIVA FEITA, mesmo tendo falhado — os dois marcadores, não só um.
+    //
+    // `lidoEm` sozinho era código morto exatamente na falha pra qual foi
+    // escrito: ele só é lido no ramo QUENTE de `garantirConfig`, e sem
+    // `carregouUmaVez` a instância nunca saía do ramo frio. O resultado era o
+    // oposto do que o comentário prometia — enquanto a tabela não existisse
+    // (deploy antes da migration) ou o Supabase estivesse fora, TODA
+    // requisição fazia `await` de uma consulta condenada, e a primeira tela
+    // de cada visitante esperava por ela. Marcar aqui é o que faz o relógio
+    // de 60s passar a governar as retentativas e o fallback do código
+    // (`configDoCodigo`, tudo desligado) valer de verdade.
+    carregouUmaVez = true;
     lidoEm = Date.now();
   } finally {
     emVoo = null;
@@ -86,8 +135,14 @@ async function recarregar(): Promise<void> {
 /**
  * Garante que existe snapshot. Chamada pelo middleware, antes do render.
  *
- * Espera SÓ na instância fria. Depois disso, uma config velha é devolvida na
- * hora e a releitura acontece por trás — ninguém fica esperando por config.
+ * Espera SÓ na instância fria — e "fria" quer dizer "ainda não TENTOU ler",
+ * não "ainda não conseguiu": uma tentativa que falhou também esquenta a
+ * instância (ver o `catch` de `recarregar`). Sem isso, banco fora do ar
+ * transformava esta espera de uma-vez-só em toda-requisição, que é o oposto
+ * de degradar.
+ *
+ * Depois disso, uma config velha é devolvida na hora e a releitura acontece
+ * por trás — ninguém fica esperando por config.
  */
 export async function garantirConfig(): Promise<void> {
   if (!carregouUmaVez) {
