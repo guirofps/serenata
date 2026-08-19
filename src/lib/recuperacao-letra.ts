@@ -64,7 +64,21 @@ async function chamarClaude(userMsg: string): Promise<{ texto: string; uso: UsoC
       messages: [{ role: "user", content: userMsg }],
     }),
   });
-  if (!r.ok) throw new Error(`Anthropic ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  if (!r.ok) {
+    // O CORPO É LIDO UMA VEZ SÓ. `r.text()` consome o stream: ler de novo pra
+    // montar a mensagem do throw devolveria string vazia, e o erro chegaria
+    // sem a única informação que distingue saldo de chave de sobrecarga.
+    const corpo = (await r.text()).slice(0, 500);
+    // Loga no servidor e, quando a causa precisa de gente, manda e-mail.
+    // Import dinâmico: mantém o Resend fora de qualquer bundle que não seja
+    // este caminho de erro. Não usa `await` no alerta pra não somar latência
+    // de e-mail em cima de um usuário que já está esperando — mas o `catch`
+    // existe porque promessa solta que rejeita derruba o processo no Node.
+    void import("@/lib/alerta-operacao")
+      .then((m) => m.alertarFalhaClaude({ status: r.status, corpo, onde: "recuperacao-letra" }))
+      .catch(() => {});
+    throw new Error(`Anthropic ${r.status}: ${corpo.slice(0, 200)}`);
+  }
   const j = await r.json();
   return {
     texto: j.content?.find((b: { type: string }) => b.type === "text")?.text ?? "",
