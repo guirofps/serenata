@@ -154,22 +154,49 @@ function experimentoPrecoDaConfig(): ExperimentoConfigPublica | undefined {
 }
 
 /**
+ * `true` só quando os QUATRO campos do plano estão preenchidos de verdade —
+ * não basta o objeto existir.
+ *
+ * Existe porque a config vem do banco, e o banco não tem o compilador
+ * garantindo nada: um `UPDATE` manual hoje, ou o formulário da Task 7
+ * amanhã, produz com facilidade um plano PARCIAL (checkout em branco, valor
+ * `NaN` de um campo numérico mal digitado). `if (v.plano)` sozinho deixava
+ * esse objeto passar por "válido" — e o resultado prático era um link de
+ * checkout tipo `undefined?ppc=...`, ou uma tela mostrando `R$ NaN`. Plano
+ * incompleto tem que ser tratado exatamente como plano ausente: a variante
+ * cai no controle, nunca sai meio preenchida pra tela ou pro caixa.
+ */
+function planoCompleto(p: Plano | undefined): p is Plano {
+  return (
+    !!p &&
+    typeof p.texto === "string" &&
+    p.texto.trim() !== "" &&
+    Number.isFinite(p.valor) &&
+    typeof p.ancora === "string" &&
+    p.ancora.trim() !== "" &&
+    typeof p.checkout === "string" &&
+    p.checkout.trim() !== ""
+  );
+}
+
+/**
  * Os planos que a config viva anexou às variantes de `preco`, indexados por
  * nome, na ordem em que a config as declara (a primeira é sempre o
- * controle).
+ * controle). Só entram variantes com `plano` COMPLETO — ver `planoCompleto`.
  *
  * `null` em dois casos que se resolvem da mesma forma: nenhuma leitura de
  * banco chegou ainda — `configAtual()` caiu no `configDoCodigo()` de
  * `experimentos.ts`, que monta variante SEM `plano`, de propósito, porque o
  * array `Experimento` em código nunca teve esse campo — ou o experimento na
- * config real não tem preço cadastrado em variante nenhuma. Nos dois, o
- * catálogo em código (`PLANOS`) é a resposta certa, porque ele É o controle.
+ * config real não tem preço COMPLETO cadastrado em variante nenhuma. Nos
+ * dois, o catálogo em código (`PLANOS`) é a resposta certa, porque ele É o
+ * controle.
  */
 function planosDaConfig(): Record<string, Plano> | null {
   const exp = experimentoPrecoDaConfig();
   if (!exp?.variantes?.length) return null;
   const out: Record<string, Plano> = {};
-  for (const v of exp.variantes) if (v.plano) out[v.nome] = v.plano;
+  for (const v of exp.variantes) if (planoCompleto(v.plano)) out[v.nome] = v.plano;
   return Object.keys(out).length ? out : null;
 }
 
@@ -250,6 +277,20 @@ export function variantesComPlano(locale: Locale): string[] {
  * O idioma é a segunda: fora do português não há segundo plano.
  *
  * NO SERVIDOR devolve o controle, sempre. Ver a nota no topo do arquivo.
+ *
+ * O GATE de validação (linha de baixo) TEM que aceitar a mesma lista que
+ * autorizou a TELA a mostrar preço — `variantesComPlano`, que já lê a
+ * config viva com o catálogo em código como fallback. Antes desta correção
+ * o gate validava contra `PLANOS.pt` (só o catálogo em código): uma
+ * variante que existisse SÓ na config do banco (nome novo, cadastrado sem
+ * deploy) aparecia certinho na tela — `variantesComPlano`/`planoDe` já
+ * liam a config — mas caía calada pro controle bem aqui, e o caixa cobrava
+ * um valor diferente do que a pessoa acabou de ler. É o defeito descrito no
+ * topo do arquivo (US$ 9 anunciado, US$ 9,68 cobrado), só que produzido por
+ * este arquivo em vez de evitado por ele. Reaproveitar `variantesComPlano`
+ * em vez de reconstruir a checagem torna as duas listas impossíveis de
+ * divergir: não tem como mudar uma sem mudar a outra, porque é a mesma
+ * chamada.
  */
 export function varianteDePreco(
   locale: Locale = LOCALE_PADRAO,
@@ -258,7 +299,7 @@ export function varianteDePreco(
   if (locale !== "pt") return "A";
   if (opcoes?.temCupom) return "A";
   const v = varianteDe(EXP_PRECO);
-  return PLANOS.pt[v] ? v : "A";
+  return variantesComPlano(locale).includes(v) ? v : "A";
 }
 
 /** O plano completo desta pessoa. É por aqui que checkout e conversão passam. */
