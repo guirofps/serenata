@@ -87,7 +87,18 @@ export const PLANOS: Record<Locale, Record<string, Plano>> = {
     C: {
       texto: "R$ 9",
       valor: 9,
-      ancora: MOEDA.pt.ancora,
+      // ÂNCORA MENOR SÓ AQUI, e não é capricho de design.
+      //
+      // R$ 97 riscado contra R$ 9 é 91% de desconto na tela. O CLAUDE.md
+      // registra que o Google Ads é rígido com alegação, e desconto desse
+      // tamanho é o tipo de número que chama revisão — além de soar a golpe
+      // pra quem lê. R$ 49,90 mantém a ancoragem de pé sem a alegação
+      // absurda.
+      //
+      // Consequência pra leitura do teste: este braço tem UMA variável a mais
+      // que os outros quatro (preço E âncora). Se ele vencer, não dá pra
+      // creditar o resultado só ao preço.
+      ancora: "R$ 49,90",
       checkout: "https://go.perfectpay.com.br/PPU38CQFF7I",
     },
     D: {
