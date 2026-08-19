@@ -101,7 +101,18 @@ export async function garantirConfig(): Promise<void> {
   }
 }
 
-/** Depois de salvar no painel: a próxima visita já lê o novo. */
+/**
+ * Depois de salvar no painel: derruba a validade do snapshot.
+ *
+ * NÃO faz a próxima visita ler o novo. `garantirConfig` é stale-while-
+ * revalidate (ver o comentário dela): zerar `lidoEm` só faz a visita
+ * SEGUINTE disparar `recarregar()` por trás, sem esperar por ela — quem
+ * gerou essa visita ainda recebe o snapshot ANTIGO na hora, igual a qualquer
+ * outra visita que cai fora da janela de validade. O dono salvando e abrindo
+ * a página em seguida pode ver o preço velho por mais uma carga. Quem
+ * precisa do dado fresco na hora é o painel, e o painel não passa por aqui:
+ * ele chama `lerConfigFresca()` direto, sem cache nenhum.
+ */
 export function invalidarConfig(): void {
   lidoEm = 0;
 }
