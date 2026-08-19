@@ -1,5 +1,5 @@
 import { type Locale, LOCALE_PADRAO, MOEDA } from "@/lib/i18n";
-import { varianteDe } from "@/lib/experimentos";
+import { EXPERIMENTOS, varianteDe } from "@/lib/experimentos";
 
 // O PREÇO, QUANDO ELE É A COISA SENDO TESTADA.
 //
@@ -65,17 +65,42 @@ export const PLANOS: Record<Locale, Record<string, Plano>> = {
       ancora: MOEDA.pt.ancora,
       checkout: "https://go.perfectpay.com.br/PPU38CQER4D",
     },
-    // B = O PREÇO EM TESTE.
+    // OS QUATRO PREÇOS EM TESTE.
     //
-    // FALTA O PRODUTO NOVO NA PERFECT PAY. Enquanto `checkout` for igual ao
-    // do controle, o experimento fica DESLIGADO em `experimentos.ts` — ligar
-    // assim mostraria um preço na tela e cobraria outro no caixa, que é o
-    // pior defeito que este arquivo existe pra impedir.
+    // Todos são PLANOS DO MESMO PRODUTO na Perfect Pay, não produtos novos, e
+    // isso não é detalhe de cadastro: `reconhecerOferta` (creditos.ts) tem um
+    // fallback que reconhece upsell POR VALOR, com R$ 28, R$ 67 e R$ 24,90
+    // cadastrados. Um PRODUTO novo cujo preço caísse num desses seria
+    // classificado como compra de crédito, sairia cedo no webhook e nunca
+    // entregaria a música. Como o `product.code` continua sendo o principal,
+    // a checagem devolve null antes de chegar no fallback.
+    //
+    // Os cinco valores foram conferidos ABRINDO o checkout, não pelo painel:
+    // o "Total Hoje" de cada tela bate com o `texto` daqui. É a única prova
+    // que interessa, porque é a que o comprador vê.
     B: {
-      texto: "R$ 38",
-      valor: 38,
-      ancora: "R$ 97",
-      checkout: "https://go.perfectpay.com.br/PPU38CQER4D",
+      texto: "R$ 19",
+      valor: 19,
+      ancora: MOEDA.pt.ancora,
+      checkout: "https://go.perfectpay.com.br/PPU38CQFF7H",
+    },
+    C: {
+      texto: "R$ 9",
+      valor: 9,
+      ancora: MOEDA.pt.ancora,
+      checkout: "https://go.perfectpay.com.br/PPU38CQFF7I",
+    },
+    D: {
+      texto: "R$ 29",
+      valor: 29,
+      ancora: MOEDA.pt.ancora,
+      checkout: "https://go.perfectpay.com.br/PPU38CQFF7J",
+    },
+    E: {
+      texto: "R$ 54,90",
+      valor: 54.9,
+      ancora: MOEDA.pt.ancora,
+      checkout: "https://go.perfectpay.com.br/PPU38CQFF7K",
     },
   },
   // O ESPANHOL FICA DE FORA DO TESTE, de propósito.
@@ -105,9 +130,25 @@ export function planoDe(locale: Locale, variante: string): Plano {
   return doIdioma[variante] ?? doIdioma.A;
 }
 
-/** As variantes que este idioma realmente tem preço pra mostrar. */
+/**
+ * As variantes que renderizam preço na tela.
+ *
+ * É o CRUZAMENTO de duas listas: o que o experimento declara e o que tem
+ * plano. Não pode ser só `Object.keys(PLANOS)`, e a razão é um bug conhecido
+ * desta casa: `cssExperimentos` só escreve regra de `display:none` pras
+ * variantes DECLARADAS no experimento. Um `<Variante v="E">` sem regra
+ * nenhuma não fica escondido — ele aparece pra 100% do tráfego, junto com o
+ * preço do controle. Foi exatamente assim que desligar um experimento chegou
+ * a publicar a variante pra todo mundo, em 10/08.
+ *
+ * Cruzando as duas, cadastrar um plano a mais em `PLANOS` nunca vaza pra
+ * tela: ele só passa a existir quando entrar no `variantes` do experimento.
+ */
 export function variantesComPlano(locale: Locale): string[] {
-  return Object.keys(PLANOS[locale] ?? PLANOS.pt);
+  const planos = PLANOS[locale] ?? PLANOS.pt;
+  const exp = EXPERIMENTOS.find((e) => e.id === EXP_PRECO);
+  if (!exp) return ["A"];
+  return exp.variantes.filter((v) => planos[v]);
 }
 
 /**

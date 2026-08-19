@@ -62,20 +62,21 @@ export const EXPERIMENTOS: Experimento[] = [
   },
   {
     id: "preco",
-    variantes: ["A", "B"],
-    // DESLIGADO até o produto novo existir na Perfect Pay.
+    // A=38 (controle) · B=19 · C=9 · D=29 · E=54,90.
     //
-    // A trava não é burocracia: `PLANOS.pt.B` em `preco.ts` ainda aponta pro
-    // MESMO link do controle. Ligar assim mostraria um preço na tela e
-    // cobraria outro no caixa — que é o defeito que este teste inteiro existe
-    // pra não cometer. Ligar SÓ depois de trocar o `checkout` do B pelo link
-    // do produto novo, e depois de abrir `?exp=preco:B` e conferir o valor na
-    // tela da Perfect Pay com os próprios olhos.
+    // Os cinco planos existem na Perfect Pay e os cinco foram conferidos
+    // abrindo o checkout: o "Total Hoje" de cada tela bate com o texto do
+    // plano em `preco.ts`. São PLANOS do mesmo produto, não produtos novos —
+    // ver a nota lá sobre o fallback por valor do `reconhecerOferta`.
+    variantes: ["A", "B", "C", "D", "E"],
+    // PESO IGUAL, cinco fatias de 20%.
     //
-    // O preço saiu da home, da landing de SEO e do schema.org junto com este
-    // teste: enquanto ele roda, nenhum número público pode prometer o que a
-    // tela de oferta não vai necessariamente cobrar.
-    ativo: false,
+    // Cinco braços é muita divisão pro volume desta operação: os extremos
+    // (R$ 9 contra R$ 54,90) separam rápido porque a diferença é grande, mas
+    // 29 contra 38 leva meses. Está registrado como escolha do dono, com a
+    // conta na mesa, e não por descuido.
+    peso: [1, 1, 1, 1, 1],
+    ativo: true,
     nota:
       "Quanto custa a música. O preço vive em `preco.ts` como PLANO (número na tela + produto da Perfect Pay + valor da conversão no mesmo objeto), porque o que estraga teste de preço é a tela dizer um número e o caixa cobrar outro. Fora do teste: o funil espanhol (volume pequeno demais pra dividir) e quem chega com cupom da recuperação (o e-mail já prometeu um número exato).",
   },
