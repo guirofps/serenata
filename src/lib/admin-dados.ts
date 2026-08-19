@@ -1,5 +1,5 @@
 ﻿import { createServerFn } from "@tanstack/react-start";
-import { EXPERIMENTOS } from "@/lib/experimentos";
+import { FORA } from "@/lib/experimentos";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { QUIZ_FLOW } from "@/lib/quiz-flow";
 import { isQuestion } from "@/lib/flow-engine";
@@ -131,6 +131,8 @@ export type Painel = {
       variante: string;
       /** Controle é a primeira variante do catálogo. É contra ela que se compara. */
       controle: boolean;
+      /** A linha de quem NÃO entrou no teste. Referência, não concorrente. */
+      ehFora: boolean;
       leads: number;
       letras: number;
       vendas: number;
@@ -148,6 +150,15 @@ export type Painel = {
        * Em real e convertido: comparar variantes exige unidade única.
        */
       receitaPorLeadBrl: number;
+      /**
+       * Quanto a receita por lead desta versão está acima ou abaixo do
+       * controle, em %. É a leitura do teste em um número.
+       *
+       * `null` no próprio controle e quando o controle não tem lead — dividir
+       * por zero produziria "∞% melhor", que é o tipo de número que faz
+       * alguém trocar o preço do site inteiro por causa de uma venda.
+       */
+      variacaoVsControlePct: number | null;
     }>;
   }>;
 
@@ -881,7 +892,20 @@ async function montarPainel(
       return typeof v === "string" && v ? v : null;
     };
 
-    const porExperimento = EXPERIMENTOS.map((exp) => {
+    // A CONFIGURAÇÃO VEM DO BANCO, não do array em código. Sem isto, uma
+    // versão criada pelo painel de testes A/B não teria linha na tabela de
+    // resultado — o painel deixaria criar algo que ele mesmo não sabe mostrar.
+    // É leitura minúscula (poucas linhas, sem os 180 mil eventos que já
+    // estouraram o tempo desta consulta uma vez), então falha não pode
+    // derrubar o resto do painel: sem os testes A/B o dono ainda precisa ver
+    // faturamento, e por isso o catch degrada pra lista vazia em vez de jogar.
+    const { lerConfigFresca } = await import("@/lib/experimentos-config.server");
+    const configExp = await lerConfigFresca().catch((err) => {
+      console.error("[admin] config de experimentos nao lida:", err);
+      return [] as Awaited<ReturnType<typeof lerConfigFresca>>;
+    });
+
+    const porExperimento = configExp.map((exp) => {
       type Linha = { leads: number; letras: number; vendas: number; receitaBrl: number };
       const porVariante = new Map<string, Linha>();
       const linha = (v: string) => {
@@ -906,25 +930,43 @@ async function montarPainel(
         linhaV.receitaBrl += valorEmBrl(pedido);
       }
 
+      // A primeira variante da CONFIG é sempre o controle — é ela que decide
+      // a leitura "B contra A" de toda a linha `variacaoVsControlePct` abaixo.
+      const nomes = exp.variantes.map((v) => v.nome);
+      const controleNome = nomes[0];
+      const doControle = porVariante.get(controleNome);
+      const rplControle = doControle?.leads ? doControle.receitaBrl / doControle.leads : 0;
+
+      const montar = (v: string, ehFora: boolean) => {
+        const d = porVariante.get(v)!;
+        const rpl = d.leads ? d.receitaBrl / d.leads : 0;
+        return {
+          variante: v,
+          controle: !ehFora && v === controleNome,
+          ehFora,
+          ...d,
+          conversaoPct: pct(d.vendas, d.leads),
+          receitaPorLeadBrl: rpl,
+          // null no próprio controle (não se compara com ele mesmo) e quando
+          // o controle não tem lead (rplControle === 0 dividiria por zero e
+          // produziria "∞% melhor" — ver o comentário no tipo `Painel`).
+          variacaoVsControlePct:
+            ehFora || v === controleNome || !rplControle ? null : ((rpl - rplControle) / rplControle) * 100,
+        };
+      };
+
       return {
         id: exp.id,
         nota: exp.nota,
         ativo: exp.ativo,
-        // A ORDEM É A DO CATÁLOGO, não a do resultado. O controle tem que
-        // ficar em cima pra leitura ser sempre "B contra A" — ordenar por
-        // receita faria a coluna de referência pular de lugar a cada dia.
-        variantes: exp.variantes
-          .filter((v) => porVariante.has(v))
-          .map((v, i) => {
-            const d = porVariante.get(v)!;
-            return {
-              variante: v,
-              controle: i === 0 && v === exp.variantes[0],
-              ...d,
-              conversaoPct: pct(d.vendas, d.leads),
-              receitaPorLeadBrl: d.leads ? d.receitaBrl / d.leads : 0,
-            };
-          }),
+        // A ORDEM É A DA CONFIGURAÇÃO, não a do resultado: o controle sempre
+        // em cima, pra leitura ser sempre "B contra A" — ordenar por receita
+        // faria a coluna de referência pular de lugar a cada dia. `fora` vai
+        // por último e separada, porque não é uma versão em disputa.
+        variantes: [
+          ...nomes.filter((v) => porVariante.has(v)).map((v) => montar(v, false)),
+          ...(porVariante.has(FORA) ? [montar(FORA, true)] : []),
+        ],
       };
     }).filter((e) => e.variantes.length > 0);
 
