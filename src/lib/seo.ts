@@ -1,5 +1,20 @@
 ﻿import { type Locale, MOEDA } from "@/lib/i18n";
 import { MARCA } from "@/lib/marca";
+import { EXPERIMENTOS } from "@/lib/experimentos";
+import { PLANOS } from "@/lib/preco";
+
+/**
+ * Se dá pra anunciar um preço em público neste idioma.
+ *
+ * Não dá quando o experimento de preço está ligado E este idioma tem mais de
+ * um plano. O espanhol tem um plano só, então o preço dele continua no schema
+ * mesmo com o teste rodando no português.
+ */
+function precoEhPublico(locale: Locale): boolean {
+  const testando = EXPERIMENTOS.some((e) => e.id === "preco" && e.ativo);
+  if (!testando) return true;
+  return Object.keys(PLANOS[locale] ?? {}).length <= 1;
+}
 
 // O QUE FALTAVA DE SEO TÉCNICO, num lugar só.
 //
@@ -73,8 +88,26 @@ export function dadosEstruturados(locale: Locale) {
       // O preço sai do catálogo de moeda, nunca cravado aqui. Já ficou pra
       // trás uma vez: o site subiu pra US$ 9,90 e este bloco seguiu anunciando
       // 9.00 pro Google, que é o número que aparece no resultado de busca.
-      price: MOEDA[locale].valor.toFixed(2),
-      priceCurrency: es ? "USD" : "BRL",
+      //
+      // ── E SOME ENQUANTO O TESTE DE PREÇO RODA ──────────────────
+      //
+      // Este número é o que aparece no resultado de busca e o que assistente
+      // de IA lê quando alguém pergunta "quanto custa". Com o preço variando
+      // por pessoa na tela de oferta, declarar UM preço aqui é prometer, em
+      // público e por escrito, um número que metade do tráfego não vai
+      // encontrar. Melhor o Google mostrar o resultado sem preço do que
+      // mostrar o preço errado — schema com dado que não bate vira
+      // penalidade, e é a mesma regra que já vale pra nota de avaliação.
+      //
+      // A condição é o próprio experimento, não uma bandeira à parte: no dia
+      // em que o teste for desligado, o preço volta sozinho. Desligar tem que
+      // ser a coisa mais segura de fazer (ver `cssExperimentos`).
+      ...(precoEhPublico(locale)
+        ? {
+            price: MOEDA[locale].valor.toFixed(2),
+            priceCurrency: es ? "USD" : "BRL",
+          }
+        : {}),
       availability: "https://schema.org/InStock",
       url: URLS[locale].criar,
     },

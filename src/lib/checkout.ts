@@ -1,5 +1,6 @@
 ﻿import { getOrCreateSessionId } from "@/lib/session-context";
 import { type Locale, LOCALE_PADRAO } from "@/lib/i18n";
+import { meuPlano, planoControle } from "@/lib/preco";
 
 // Ida pro CHECKOUT (Perfect Pay).
 //
@@ -17,17 +18,22 @@ import { type Locale, LOCALE_PADRAO } from "@/lib/i18n";
 //    fontes, em ordem de confiança: store da Utmify, a URL atual, e a nossa
 //    captura first-touch.
 
-// Um produto por idioma na Perfect Pay: o brasileiro cobra R$ 37 no PIX ou
+// Um produto por idioma na Perfect Pay: o brasileiro cobra em real no PIX ou
 // cartão, o internacional cobra em dólar. Mesmo gateway, mesmo webhook, IDs
 // diferentes — e é o `src` (nosso session_id) que casa o pagamento com a
 // música, não o produto.
-const CHECKOUT: Record<Locale, string> = {
-  pt: "https://go.perfectpay.com.br/PPU38CQER4D",
-  es: "https://go.centerpag.com/PPU38CQF4HJ",
-};
+//
+// A LISTA DE LINKS MUDOU DE CASA em 18/08, pro `preco.ts`. Não foi arrumação:
+// com o teste A/B de preço, um idioma passa a ter MAIS DE UM produto, e o link
+// deixa de ser função do idioma pra ser função do PLANO. Manter os dois mapas
+// (o de preço aqui e o de link ali) é como se garante que a tela e o caixa
+// nunca discordem — eles saem do mesmo objeto.
+//
+// Quem chama sem dizer o plano continua caindo no controle do idioma, que é o
+// que já estava vendendo.
 
-/** Compat: código que não conhece idioma continua indo pro produto BR. */
-export const CHECKOUT_URL = CHECKOUT.pt;
+/** Compat: código que não conhece idioma nem plano vai pro produto BR. */
+export const CHECKOUT_URL = planoControle("pt").checkout;
 
 const PARAMS_RASTREIO = [
   "utm_source",
@@ -137,7 +143,17 @@ export function urlCheckout(extra?: {
     }
   }
 
-  return `${CHECKOUT[locale] ?? CHECKOUT.pt}?${p.toString()}`;
+  // O PRODUTO SAI DO PLANO, e o plano sai da variante de preço desta pessoa.
+  //
+  // `meuPlano` já aplica as exceções: fora do português não há segundo plano,
+  // e quem veio com o cupom da recuperação volta pro controle (o cupom só
+  // existe naquele produto, e o e-mail já prometeu um número exato).
+  //
+  // Chamado AQUI, e não recebido de fora, de propósito: todo caminho até o
+  // gateway passa por esta função, então é o único lugar onde dá pra garantir
+  // que ninguém abre o produto errado por ter esquecido de passar o plano.
+  const plano = meuPlano(locale, { temCupom: Boolean(extra?.cupom) });
+  return `${plano.checkout}?${p.toString()}`;
 }
 
 /** Leva pro checkout. */

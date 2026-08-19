@@ -145,9 +145,23 @@ export function Beneficios() {
   );
 }
 
-// ── 08 + 09 · ANCORAGEM E OFERTA ── objeções: "tá caro" / "e se der errado?"
-// Ancoragem por comparação de custo, não por preço riscado falso.
-export function Oferta({ preco = "38" }: { preco?: string }) {
+// ── 08 + 09 · A OFERTA ── objeções: "o que eu levo?" / "e se der errado?"
+//
+// ── POR QUE NÃO TEM PREÇO AQUI ────────────────────────────────────
+//
+// Saiu em 18/08 pro teste A/B de preço (`preco` em `experimentos.ts`). Um
+// número na home é um número que o anúncio promete e que a tela de oferta
+// tem que cumprir: com o preço variando por pessoa no fim do quiz, metade
+// do tráfego leria 38 aqui e pagaria outra coisa lá — o mesmo problema do
+// checkout internacional que cobrava 9,68 depois de anunciar 9.
+//
+// O que substitui o preço não é silêncio: é a razão de clicar que a gente
+// já cumpre de verdade — a letra inteira e um trecho cantado ANTES de pagar
+// qualquer coisa. Era a letra miúda do rodapé do cartão; virou o argumento.
+//
+// A ancoragem não sumiu do funil, mudou de lugar: ela vive na `TelaOferta`,
+// colada no preço que aquela pessoa vai ver, que é onde ancoragem funciona.
+export function Oferta() {
   const inclui = [
     "A letra, feita da sua história (grátis, antes de decidir)",
     "Um trecho da música cantado, pra ouvir antes de pagar",
@@ -160,29 +174,20 @@ export function Oferta({ preco = "38" }: { preco?: string }) {
   return (
     <section id="preco" className="luz-ouro" style={{ paddingBlock: "var(--secao)" }}>
       <div className="mx-auto max-w-2xl px-6">
-        {/* ancoragem: compara com o que ela gastaria de qualquer jeito */}
         <div className="text-center">
           <h2
             className="text-balance"
             style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-3xl)", lineHeight: 1.15 }}
           >
-            Menos que o presente que vão esquecer
+            O presente que vão esquecer, e o que não vão
           </h2>
-          <div
-            className="mx-auto mt-8 grid max-w-md grid-cols-2 gap-px overflow-hidden rounded-2xl border border-[var(--tinta-fraca)]/40 bg-[var(--tinta-fraca)]/20 text-center"
-            style={{ fontSize: "var(--t-sm)" }}
+          <p
+            className="mx-auto mt-4 max-w-md text-balance text-[var(--tinta-suave)]"
+            style={{ fontSize: "var(--t-base)", lineHeight: 1.6 }}
           >
-            <div className="bg-[var(--papel)] px-4 py-5">
-              <p className="text-[var(--tinta-suave)]">Um presente comum</p>
-              <p className="mt-1 font-semibold">R$ 200+</p>
-              <p className="mt-1 text-[var(--tinta-fraca)]">esquecido em 3 meses</p>
-            </div>
-            <div className="bg-[var(--papel)] px-4 py-5">
-              <p className="text-[var(--tinta-suave)]">Uma música só de quem você ama</p>
-              <p className="mt-1 font-semibold text-[var(--acento)]">R$ {preco}</p>
-              <p className="mt-1 text-[var(--tinta-fraca)]">fica pra sempre</p>
-            </div>
-          </div>
+            Uma música feita da história de vocês não vai pro fundo da gaveta.
+            Ela fica no celular, na data, no dia ruim.
+          </p>
         </div>
 
         {/* oferta: o que inclui, sem letra miúda */}
@@ -202,27 +207,18 @@ export function Oferta({ preco = "38" }: { preco?: string }) {
             ))}
           </ul>
 
-          {/* Preço ancorado + CTA. R$97 riscado = valor de uma música feita à
-              mão; R$37 é o lançamento. Pagamento único, sem mensalidade. */}
+          {/* No lugar do preço, a promessa que faz o clique valer a pena.
+              É a mesma frase que estava no rodapé do cartão, promovida ao
+              tamanho que ela merece: é ela que tira o risco de clicar. */}
           <div className="mt-8 border-t border-[var(--tinta-fraca)]/40 pt-7 text-center">
-            <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
-              uma música feita à mão custaria
+            <p
+              className="mx-auto max-w-md text-balance"
+              style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-xl)", lineHeight: 1.3 }}
+            >
+              Você lê a letra inteira e ouve um trecho cantado{" "}
+              <span className="texto-ouro">antes de pagar</span>.
             </p>
-            <div className="mt-1 flex items-end justify-center gap-3">
-              <span
-                className="text-[var(--tinta-fraca)] line-through"
-                style={{ fontSize: "var(--t-xl)" }}
-              >
-                R$ 97
-              </span>
-              <span
-                className="texto-ouro leading-none"
-                style={{ fontFamily: FONTES.display, fontWeight: 600, fontSize: "var(--t-hero)" }}
-              >
-                R$ {preco}
-              </span>
-            </div>
-            <p className="mt-2 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
+            <p className="mt-3 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
               pagamento único · sem mensalidade · a página fica sua pra sempre
             </p>
 
@@ -236,9 +232,6 @@ export function Oferta({ preco = "38" }: { preco?: string }) {
               className="mx-auto mt-5 max-w-md text-[var(--tinta-suave)]"
               style={{ fontSize: "var(--t-sm)", lineHeight: 1.6 }}
             >
-              <strong className="text-[var(--tinta)]">
-                Você lê a letra inteira e ouve um trecho cantado antes de pagar.
-              </strong>{" "}
               Se não for a cara da pessoa, não paga nada, e ainda pode pedir pra
               reescrever de graça.
             </p>

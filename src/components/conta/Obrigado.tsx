@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { conversaoCompra } from "@/lib/google-ads";
-import { MOEDA } from "@/lib/i18n";
+import { meuPlano } from "@/lib/preco";
+import { useQuizStore } from "@/lib/quiz-store";
 import { buscarPresenteDaCompra, type PresenteDaCompra } from "@/lib/pos-compra";
 import { sessaoJaPagou } from "@/lib/coautoria";
 import { marcarSessaoGasta, getOrCreateSessionId } from "@/lib/session-context";
@@ -91,9 +92,25 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
 
   // Conversão do Google Ads: é aqui que o algoritmo aprende quem comprou.
   useEffect(() => {
-    // O valor e a moeda saem do idioma da venda, não de um número cravado.
+    // O valor e a moeda saem do PLANO desta venda, não de um número cravado.
+    //
+    // Com o teste A/B de preço rodando, "o preço" deixou de ser um número só:
+    // mandar o do catálogo faria o Google aprender 38 em cima de vendas que
+    // entraram por outro valor, e ele otimiza a campanha pelo que recebe. O
+    // erro seria silencioso e só apareceria no ROAS, semanas depois.
+    //
+    // A variante é lida do navegador, que é o mesmo que voltou do gateway —
+    // a pessoa acabou de pagar nesta aba. `temCupom` reproduz a mesma exceção
+    // do checkout: quem veio pela recuperação foi cobrada no produto do
+    // controle, então é o valor do controle que tem que ser reportado.
+    //
+    // (Fica de fora, e é dívida conhecida: o DESCONTO do cupom em si. Quem
+    // pagou com SRN27 é reportada pelo cheio. São três vendas em 285 e-mails,
+    // e o número certo mora em `pedidos.valor_centavos`, no servidor — é de lá
+    // que a correção tem que vir, não de um parse do texto "R$ 28".)
+    const plano = meuPlano(locale, { temCupom: Boolean(useQuizStore.getState().cupom) });
     conversaoCompra({
-      valor: (MOEDA[locale] ?? MOEDA.pt).valor,
+      valor: plano.valor,
       moeda: locale === "es" ? "USD" : "BRL",
       transactionId: code,
     });

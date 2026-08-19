@@ -1,4 +1,5 @@
 ﻿import { createServerFn } from "@tanstack/react-start";
+import { EXPERIMENTOS } from "@/lib/experimentos";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { QUIZ_FLOW } from "@/lib/quiz-flow";
 import { isQuestion } from "@/lib/flow-engine";
@@ -109,6 +110,45 @@ export type Painel = {
     perdidos: number;
     quedaPct: number;
     etapa: "topo" | "quiz" | "entrega" | "venda";
+  }>;
+
+  /**
+   * OS TESTES A/B, lado a lado.
+   *
+   * Sem isto o experimento roda e não dá pra ler — foi exatamente o que
+   * aconteceu com o `abertura`, que ficou no ar dias e foi desligado sem
+   * ninguém ter chegado a comparar A com B. A variante sempre esteve no banco
+   * (`quiz_responses.attribution.exp`), só não havia nada que agrupasse por
+   * ela.
+   *
+   * Vazio quando nenhum experimento tem lead no período.
+   */
+  porExperimento: Array<{
+    id: string;
+    nota: string;
+    ativo: boolean;
+    variantes: Array<{
+      variante: string;
+      /** Controle é a primeira variante do catálogo. É contra ela que se compara. */
+      controle: boolean;
+      leads: number;
+      letras: number;
+      vendas: number;
+      receitaBrl: number;
+      conversaoPct: number;
+      /**
+       * RECEITA POR LEAD. É O NÚMERO QUE DECIDE UM TESTE DE PREÇO.
+       *
+       * Taxa de conversão sozinha MENTE aqui, e mente do jeito mais caro: um
+       * preço mais alto converte pior por definição, e ainda assim pode ser o
+       * que traz mais dinheiro. Ler `conversaoPct` e desligar a variante cara
+       * é o erro clássico — quem faz isso escolhe o preço que vende mais
+       * unidades, não o que fatura mais.
+       *
+       * Em real e convertido: comparar variantes exige unidade única.
+       */
+      receitaPorLeadBrl: number;
+    }>;
   }>;
 
   /** Atribuição: de onde vêm os leads e as VENDAS. */
@@ -824,6 +864,70 @@ async function montarPainel(
       .map((v) => ({ ...v, conversaoPct: pct(v.vendas, v.leads) }))
       .sort((a, b) => b.receitaBrl - a.receitaBrl || b.leads - a.leads);
 
+    // ── OS TESTES A/B ────────────────────────────────────────────
+    //
+    // A variante viaja em `attribution.exp` desde que `carimbarExperimentos`
+    // roda no início do quiz, então ela já está em toda linha de lead e em
+    // todo pedido (pelo `quiz_response_id`). Só faltava juntar.
+    //
+    // Um lead SEM `exp` não entra em variante nenhuma, e é o certo: são as
+    // pessoas que chegaram antes do experimento subir, ou com o localStorage
+    // bloqueado. Contá-las no controle inflaria o controle com gente que
+    // nunca foi sorteada.
+    const varianteDoLead = (attribution: Record<string, unknown> | null, exp: string) => {
+      const e = attribution?.exp;
+      if (!e || typeof e !== "object") return null;
+      const v = (e as Record<string, unknown>)[exp];
+      return typeof v === "string" && v ? v : null;
+    };
+
+    const porExperimento = EXPERIMENTOS.map((exp) => {
+      type Linha = { leads: number; letras: number; vendas: number; receitaBrl: number };
+      const porVariante = new Map<string, Linha>();
+      const linha = (v: string) => {
+        const atual = porVariante.get(v) ?? { leads: 0, letras: 0, vendas: 0, receitaBrl: 0 };
+        porVariante.set(v, atual);
+        return atual;
+      };
+
+      for (const l of leads) {
+        const v = varianteDoLead(l.attribution, exp.id);
+        if (!v) continue;
+        const linhaV = linha(v);
+        linhaV.leads++;
+        if (musicas.some((m) => m.quiz_response_id === l.id)) linhaV.letras++;
+      }
+      for (const pedido of pagos) {
+        const l = pedido.quiz_response_id ? porQuiz.get(pedido.quiz_response_id) : null;
+        const v = l ? varianteDoLead(l.attribution, exp.id) : null;
+        if (!v) continue;
+        const linhaV = linha(v);
+        linhaV.vendas++;
+        linhaV.receitaBrl += valorEmBrl(pedido);
+      }
+
+      return {
+        id: exp.id,
+        nota: exp.nota,
+        ativo: exp.ativo,
+        // A ORDEM É A DO CATÁLOGO, não a do resultado. O controle tem que
+        // ficar em cima pra leitura ser sempre "B contra A" — ordenar por
+        // receita faria a coluna de referência pular de lugar a cada dia.
+        variantes: exp.variantes
+          .filter((v) => porVariante.has(v))
+          .map((v, i) => {
+            const d = porVariante.get(v)!;
+            return {
+              variante: v,
+              controle: i === 0 && v === exp.variantes[0],
+              ...d,
+              conversaoPct: pct(d.vendas, d.leads),
+              receitaPorLeadBrl: d.leads ? d.receitaBrl / d.leads : 0,
+            };
+          }),
+      };
+    }).filter((e) => e.variantes.length > 0);
+
     // ── PRODUÇÃO ─────────────────────────────────────────────────
     const porStatus: Record<string, number> = {};
     const tempos: number[] = [];
@@ -929,6 +1033,7 @@ async function montarPainel(
       },
 
       funil,
+      porExperimento,
       porOrigem,
       porEntrada,
       gastos,

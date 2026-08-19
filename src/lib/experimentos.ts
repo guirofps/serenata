@@ -60,6 +60,25 @@ export const EXPERIMENTOS: Experimento[] = [
     nota:
       "A primeira tela do quiz. Medido em 09/08: de 195 que viram a pergunta 1, só 41 (21%) tocaram em algum chip, e 63% não produziram mais nenhum evento. Não é atrito de botão (só 6 escolheram sem avançar), é o primeiro instante. B mostra a prova e a promessa ANTES de pedir a primeira resposta.",
   },
+  {
+    id: "preco",
+    variantes: ["A", "B"],
+    // DESLIGADO até o produto novo existir na Perfect Pay.
+    //
+    // A trava não é burocracia: `PLANOS.pt.B` em `preco.ts` ainda aponta pro
+    // MESMO link do controle. Ligar assim mostraria um preço na tela e
+    // cobraria outro no caixa — que é o defeito que este teste inteiro existe
+    // pra não cometer. Ligar SÓ depois de trocar o `checkout` do B pelo link
+    // do produto novo, e depois de abrir `?exp=preco:B` e conferir o valor na
+    // tela da Perfect Pay com os próprios olhos.
+    //
+    // O preço saiu da home, da landing de SEO e do schema.org junto com este
+    // teste: enquanto ele roda, nenhum número público pode prometer o que a
+    // tela de oferta não vai necessariamente cobrar.
+    ativo: false,
+    nota:
+      "Quanto custa a música. O preço vive em `preco.ts` como PLANO (número na tela + produto da Perfect Pay + valor da conversão no mesmo objeto), porque o que estraga teste de preço é a tela dizer um número e o caixa cobrar outro. Fora do teste: o funil espanhol (volume pequeno demais pra dividir) e quem chega com cupom da recuperação (o e-mail já prometeu um número exato).",
+  },
 ];
 
 const CHAVE = "mp_exp:";
