@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { carregarExperimentos, salvarExperimento } from "@/lib/admin-experimentos";
 import type { ExperimentoConfig } from "@/lib/experimentos";
 import type { Painel } from "@/lib/admin-dados";
+import { distribuirPercentuais } from "@/lib/percentuais";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 // A ABA DE TESTES A/B.
@@ -123,7 +125,12 @@ function CartaoExperimento({
     setAviso("salvo — vale no site em até 1 minuto");
   }
 
-  const somaPesos = rascunho.variantes.reduce((s, v) => s + (v.peso || 0), 0) || 1;
+  // Método do maior resto, não `Math.round` linha a linha: arredondar cada
+  // fatia isoladamente não garante soma 100 (ver o comentário em
+  // `percentuais.ts`) — e uma coluna de "%" que não soma 100 numa tela que
+  // edita preço é o tipo de detalhe que faz a pessoa desconfiar da tela
+  // inteira.
+  const percentuais = distribuirPercentuais(rascunho.variantes.map((v) => v.peso));
 
   return (
     <div className="space-y-5 rounded-2xl border border-[var(--tinta-fraca)]/40 p-5">
@@ -154,6 +161,23 @@ function CartaoExperimento({
           />
         </label>
       </div>
+
+      {/* A NOTA: o que este teste está testando, e por quê. Existia na seção
+          antiga do painel e sumiu na primeira versão desta aba — perda real
+          numa tela cujo propósito é operar teste, não só números soltos.
+          NUNCA desabilitada por `travado`: `nota` não entra em
+          `variantesIguaisParaTrava1` (admin-experimentos.ts:163-166) nem na
+          checagem da Trava 1 (linha 221) — só nome e plano travam com o
+          teste no ar. */}
+      <label className="block text-xs text-[var(--tinta-suave)]">
+        O que este teste está testando, e por quê
+        <Textarea
+          className="mt-1 min-h-0 rounded-xl px-3 py-2 text-sm"
+          rows={2}
+          value={rascunho.nota}
+          onChange={(e) => mudar({ nota: e.target.value })}
+        />
+      </label>
 
       {/* faixa 2: as versões */}
       {travado && (
@@ -194,7 +218,7 @@ function CartaoExperimento({
                   />
                 </td>
                 <td className="px-2 py-1.5 tabular-nums text-[var(--tinta-suave)]">
-                  {Math.round(((v.peso || 0) / somaPesos) * 100)}%
+                  {percentuais[i]}%
                 </td>
                 {(["texto", "valor", "ancora", "checkout"] as const).map((campo) => (
                   <td key={campo} className="px-2 py-1.5">
