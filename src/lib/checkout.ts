@@ -1,6 +1,6 @@
 ﻿import { getOrCreateSessionId } from "@/lib/session-context";
 import { type Locale, LOCALE_PADRAO } from "@/lib/i18n";
-import { meuPlano, planoControle } from "@/lib/preco";
+import { meuPlano } from "@/lib/preco";
 
 // Ida pro CHECKOUT (Perfect Pay).
 //
@@ -31,9 +31,6 @@ import { meuPlano, planoControle } from "@/lib/preco";
 //
 // Quem chama sem dizer o plano continua caindo no controle do idioma, que é o
 // que já estava vendendo.
-
-/** Compat: código que não conhece idioma nem plano vai pro produto BR. */
-export const CHECKOUT_URL = planoControle("pt").checkout;
 
 const PARAMS_RASTREIO = [
   "utm_source",

@@ -1,5 +1,11 @@
 import { type Locale, LOCALE_PADRAO, MOEDA } from "@/lib/i18n";
-import { EXPERIMENTOS, varianteDe } from "@/lib/experimentos";
+import {
+  EXPERIMENTOS,
+  type Plano,
+  varianteDe,
+  configAtual,
+  type ExperimentoConfigPublica,
+} from "@/lib/experimentos";
 
 // O PREÇO, QUANDO ELE É A COISA SENDO TESTADA.
 //
@@ -36,16 +42,11 @@ import { EXPERIMENTOS, varianteDe } from "@/lib/experimentos";
 
 export const EXP_PRECO = "preco";
 
-export type Plano = {
-  /** O número como a pessoa lê. */
-  texto: string;
-  /** O mesmo número como máquina: Google Ads, schema.org, painel. */
-  valor: number;
-  /** O riscado que ancora. Nunca uma moeda de outro país (ver `TelaOferta`). */
-  ancora: string;
-  /** O produto na Perfect Pay. UM POR PREÇO — é o que fecha o ciclo. */
-  checkout: string;
-};
+// `Plano` mudou de dono: agora vive em `experimentos.ts`, junto com
+// `ExperimentoConfig` (a config que vem do banco — ver a nota lá sobre o
+// ciclo que isso evita). Reexportado daqui pra não quebrar quem já importa
+// `Plano` de `preco.ts`.
+export type { Plano } from "@/lib/experimentos";
 
 /**
  * Um plano por variante, por idioma.
@@ -129,14 +130,102 @@ export const PLANOS: Record<Locale, Record<string, Plano>> = {
   },
 };
 
-/** O controle do idioma: o que vale sem sorteio, sem JavaScript e no servidor. */
+// ── A CONFIG VIVA, NÃO O CATÁLOGO EM CÓDIGO ───────────────────────
+//
+// Até aqui `PLANOS` era a única fonte: código, deploy pra mudar um preço.
+// A Task 4 já publica o plano de cada variante dentro de `window.__SRN_CFG__`
+// (ver `Variante.plano` e `projetarParaPublico` em `experimentos.ts`) — não
+// existe um segundo canal a criar aqui, `configAtual()` já é isomórfica
+// (servidor lê o snapshot do banco, cliente lê o que o servidor plantou) e
+// já é a MESMA função que `RootShell` usa pra gerar `scriptExperimentos` e
+// `cssExperimentos`. Ler qualquer coisa diferente disto aqui reabriria o
+// defeito que a Task 4 fechou: dois lugares afirmando "isto é o experimento
+// preco" e podendo divergir.
+
+/**
+ * O experimento `preco`, tal como a config viva o publicou — ativo ou não,
+ * com plano em cada variante ou não. Não filtra nada por conta própria:
+ * é a MESMA leitura que `cssExperimentos` faz (`__root.tsx` passa o mesmo
+ * `configAtual()` pras duas funções). Ver `variantesComPlano` mais abaixo
+ * pra por que essa igualdade importa.
+ */
+function experimentoPrecoDaConfig(): ExperimentoConfigPublica | undefined {
+  return configAtual().find((e) => e.id === EXP_PRECO);
+}
+
+/**
+ * `true` só quando os QUATRO campos do plano estão preenchidos de verdade —
+ * não basta o objeto existir.
+ *
+ * Existe porque a config vem do banco, e o banco não tem o compilador
+ * garantindo nada: um `UPDATE` manual hoje, ou o formulário da Task 7
+ * amanhã, produz com facilidade um plano PARCIAL (checkout em branco, valor
+ * `NaN` de um campo numérico mal digitado). `if (v.plano)` sozinho deixava
+ * esse objeto passar por "válido" — e o resultado prático era um link de
+ * checkout tipo `undefined?ppc=...`, ou uma tela mostrando `R$ NaN`. Plano
+ * incompleto tem que ser tratado exatamente como plano ausente: a variante
+ * cai no controle, nunca sai meio preenchida pra tela ou pro caixa.
+ */
+export function planoCompleto(p: Plano | undefined): p is Plano {
+  return (
+    !!p &&
+    typeof p.texto === "string" &&
+    p.texto.trim() !== "" &&
+    Number.isFinite(p.valor) &&
+    typeof p.ancora === "string" &&
+    p.ancora.trim() !== "" &&
+    typeof p.checkout === "string" &&
+    p.checkout.trim() !== ""
+  );
+}
+
+/**
+ * Os planos que a config viva anexou às variantes de `preco`, indexados por
+ * nome, na ordem em que a config as declara (a primeira é sempre o
+ * controle). Só entram variantes com `plano` COMPLETO — ver `planoCompleto`.
+ *
+ * `null` em dois casos que se resolvem da mesma forma: nenhuma leitura de
+ * banco chegou ainda — `configAtual()` caiu no `configDoCodigo()` de
+ * `experimentos.ts`, que monta variante SEM `plano`, de propósito, porque o
+ * array `Experimento` em código nunca teve esse campo — ou o experimento na
+ * config real não tem preço COMPLETO cadastrado em variante nenhuma. Nos
+ * dois, o catálogo em código (`PLANOS`) é a resposta certa, porque ele É o
+ * controle.
+ */
+function planosDaConfig(): Record<string, Plano> | null {
+  const exp = experimentoPrecoDaConfig();
+  if (!exp?.variantes?.length) return null;
+  const out: Record<string, Plano> = {};
+  for (const v of exp.variantes) if (planoCompleto(v.plano)) out[v.nome] = v.plano;
+  return Object.keys(out).length ? out : null;
+}
+
+/**
+ * O controle do idioma: o que vale sem sorteio, sem JavaScript e no
+ * servidor.
+ *
+ * Em português, primeiro tenta o preço que a variante-controle tem na config
+ * viva; sem isso (config ausente, ou o próprio controle sem plano
+ * cadastrado — configuração incompleta, não motivo pra inventar preço), cai
+ * no catálogo em código. Fora do português não há config de preço: sempre o
+ * catálogo.
+ */
 export function planoControle(locale: Locale = LOCALE_PADRAO): Plano {
+  if (locale === "pt") {
+    const nomeControle = experimentoPrecoDaConfig()?.variantes[0]?.nome;
+    const plano = nomeControle ? planosDaConfig()?.[nomeControle] : undefined;
+    if (plano) return plano;
+  }
   const doIdioma = PLANOS[locale] ?? PLANOS.pt;
   return doIdioma.A;
 }
 
 /** O plano de uma variante nomeada. Desconhecida cai no controle. */
 export function planoDe(locale: Locale, variante: string): Plano {
+  if (locale === "pt") {
+    const daConfig = planosDaConfig();
+    if (daConfig) return daConfig[variante] ?? planoControle(locale);
+  }
   const doIdioma = PLANOS[locale] ?? PLANOS.pt;
   return doIdioma[variante] ?? doIdioma.A;
 }
@@ -144,18 +233,30 @@ export function planoDe(locale: Locale, variante: string): Plano {
 /**
  * As variantes que renderizam preço na tela.
  *
- * É o CRUZAMENTO de duas listas: o que o experimento declara e o que tem
- * plano. Não pode ser só `Object.keys(PLANOS)`, e a razão é um bug conhecido
- * desta casa: `cssExperimentos` só escreve regra de `display:none` pras
- * variantes DECLARADAS no experimento. Um `<Variante v="E">` sem regra
- * nenhuma não fica escondido — ele aparece pra 100% do tráfego, junto com o
- * preço do controle. Foi exatamente assim que desligar um experimento chegou
- * a publicar a variante pra todo mundo, em 10/08.
+ * Lê a MESMA config que `cssExperimentos` usa pra decidir o que esconder —
+ * as duas passam por `configAtual()` (`experimentos.ts`), então a lista de
+ * `<Variante>` que esta função autoriza a aparecer nunca fica maior que a
+ * lista de regras `display:none` que o CSS escreveu: qualquer nome que saia
+ * daqui já teve sua regra de esconder gerada a partir da mesma leitura.
  *
- * Cruzando as duas, cadastrar um plano a mais em `PLANOS` nunca vaza pra
- * tela: ele só passa a existir quando entrar no `variantes` do experimento.
+ * Antes desta task as duas listas vinham de lugares diferentes — esta função
+ * do array `EXPERIMENTOS` em código, `cssExperimentos` da config do banco —
+ * e só coincidiam enquanto ninguém mexesse numa sem mexer na outra. Foi
+ * esse desalinhamento (uma variante declarada de um lado e não do outro)
+ * que publicou um braço pra 100% do tráfego ao desligar um experimento, em
+ * 10/08. Ler a mesma fonte fecha essa classe de bug de vez — não tem mais
+ * "esquecer de manter as duas em sincronia" possível, porque não há duas.
+ *
+ * Ainda cruza com "tem plano": variante que a config declarou mas ainda não
+ * precificou não vira bloco na tela — melhor não renderizar do que
+ * renderizar sem preço. Sem config viva, cai no cruzamento equivalente
+ * feito em cima do catálogo em código, que é o que sempre existiu aqui.
  */
 export function variantesComPlano(locale: Locale): string[] {
+  if (locale === "pt") {
+    const daConfig = planosDaConfig();
+    if (daConfig) return Object.keys(daConfig);
+  }
   const planos = PLANOS[locale] ?? PLANOS.pt;
   const exp = EXPERIMENTOS.find((e) => e.id === EXP_PRECO);
   if (!exp) return ["A"];
@@ -176,6 +277,20 @@ export function variantesComPlano(locale: Locale): string[] {
  * O idioma é a segunda: fora do português não há segundo plano.
  *
  * NO SERVIDOR devolve o controle, sempre. Ver a nota no topo do arquivo.
+ *
+ * O GATE de validação (linha de baixo) TEM que aceitar a mesma lista que
+ * autorizou a TELA a mostrar preço — `variantesComPlano`, que já lê a
+ * config viva com o catálogo em código como fallback. Antes desta correção
+ * o gate validava contra `PLANOS.pt` (só o catálogo em código): uma
+ * variante que existisse SÓ na config do banco (nome novo, cadastrado sem
+ * deploy) aparecia certinho na tela — `variantesComPlano`/`planoDe` já
+ * liam a config — mas caía calada pro controle bem aqui, e o caixa cobrava
+ * um valor diferente do que a pessoa acabou de ler. É o defeito descrito no
+ * topo do arquivo (US$ 9 anunciado, US$ 9,68 cobrado), só que produzido por
+ * este arquivo em vez de evitado por ele. Reaproveitar `variantesComPlano`
+ * em vez de reconstruir a checagem torna as duas listas impossíveis de
+ * divergir: não tem como mudar uma sem mudar a outra, porque é a mesma
+ * chamada.
  */
 export function varianteDePreco(
   locale: Locale = LOCALE_PADRAO,
@@ -184,7 +299,7 @@ export function varianteDePreco(
   if (locale !== "pt") return "A";
   if (opcoes?.temCupom) return "A";
   const v = varianteDe(EXP_PRECO);
-  return PLANOS.pt[v] ? v : "A";
+  return variantesComPlano(locale).includes(v) ? v : "A";
 }
 
 /** O plano completo desta pessoa. É por aqui que checkout e conversão passam. */

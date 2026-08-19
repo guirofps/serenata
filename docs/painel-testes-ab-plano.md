@@ -22,9 +22,21 @@ dela.
 
 ## Restrições globais
 
-- **Todo experimento no array em código fica `ativo: false`.** Não é higiene,
-  é o que mantém o pré-render da home seguro (spec, "A home é pré-renderizada").
+- **O array em código NUNCA dirige sorteio.** `configDoCodigo()` força
+  `ativo: false` ao converter, sempre, independente do que estiver escrito lá.
   O banco é quem liga.
+  **Exceção, e é deliberada:** o campo `ativo` do array continua sendo lido por
+  `seo.ts` em tempo de BUILD, pra decidir se publica preço no schema.org. A home
+  é pré-renderizada e ali não existe banco, então essa decisão é inerentemente
+  de deploy, não de painel. Consequência aceita: encerrar o teste pelo painel
+  não devolve o preço à busca orgânica — isso pede um deploy.
+- **O TESTE DE PREÇO ESTÁ NO AR desde 19/08**, com as cinco versões e peso
+  igual. Isso mudou DEPOIS que este plano foi escrito, e muda duas coisas: o
+  seed nasce **`ativo: true`** (semear `false` faria este trabalho DESLIGAR um
+  teste que está coletando dado), e a **migration é aplicada ANTES do deploy**
+  (sem a tabela, `lerConfigFresca` falha, a config cai no fallback do código, e
+  o teste morre em silêncio na primeira instância fria). Quem já foi sorteado
+  não é afetado: o script lê o `localStorage` antes de sortear.
 - **Desligar é sempre a direção segura.** Qualquer falha — banco fora, JSON
   inválido, variante desconhecida — resolve pro controle, nunca pra uma
   variante em teste.
@@ -35,6 +47,15 @@ dela.
   variante pode se chamar assim.
 - Comentários e nomes em português, como o resto do repo. Comentário explica
   **por quê**, não o quê.
+- **`RootShell` NUNCA importa um módulo `.server`.** Ele renderiza no servidor
+  E é hidratado no cliente. Se o cliente lesse a config de outro lugar que o
+  servidor, geraria um `<script>`/`<style>` DIFERENTE do que veio no HTML —
+  erro de hidratação em toda página do site, que é exatamente o defeito que a
+  máquina de A/B existe pra não ter. Por isso: o servidor emite a config como
+  JSON num `<script>` **antes** do script de sorteio, e `configAtual()` é
+  ISOMÓRFICA — no servidor lê o snapshot em memória, no cliente lê
+  `window.__SRN_CFG__`, já definido quando a hidratação roda. O arquivo
+  `.server` guarda só a leitura do banco e o preenchimento do snapshot.
 - Nada de rodar `prettier --write` em arquivo existente: o repo inteiro
   diverge do prettier e isso produziria diff gigante sem relação com a tarefa.
 
@@ -51,6 +72,7 @@ uma cópia em TypeScript da mesma lógica. Cópia diverge do original em silênc
 e aí o teste passa enquanto o site erra.
 
 **Files:**
+- Modify: `src/lib/experimentos.ts` (os tipos), `src/lib/preco.ts` (reexport de `Plano`)
 - Create: `vitest.config.ts`
 - Create: `src/lib/experimentos.test.ts`
 - Modify: `package.json` (script `test`)
@@ -59,13 +81,44 @@ e aí o teste passa enquanto o site erra.
 - Consumes: `scriptExperimentos()`, `cssExperimentos()`, `EXPERIMENTOS` de `src/lib/experimentos.ts` (assinaturas atuais, sem mudança nesta tarefa).
 - Produces: o helper de teste `rodarScript(cfgHtml, opcoes)` usado pelas tarefas 4 e 5.
 
-- [ ] **Passo 1: instalar o vitest**
+- [ ] **Passo 1: os tipos, antes de tudo**
+
+Eles moram no arquivo **sem import de servidor**, senão nasce um ciclo
+(`experimentos-config.server.ts` precisa de `EXPERIMENTOS`, e `experimentos.ts`
+precisaria do tipo de volta) — e, pior, `preco.ts` roda no cliente e encostaria
+num módulo com service role.
+
+Em `src/lib/experimentos.ts`, acrescente — e **mova `Plano` pra cá**, deixando
+`preco.ts` com `export type { Plano } from "@/lib/experimentos";` pra não
+quebrar quem já importa de lá:
+
+```ts
+/** O preço como número, como texto e como link. Um objeto só, de propósito. */
+export type Plano = { texto: string; valor: number; ancora: string; checkout: string };
+
+export type Variante = { nome: string; peso: number; plano?: Plano };
+
+export type ExperimentoConfig = {
+  id: string;
+  ativo: boolean;
+  exposicaoPct: number;
+  nota: string;
+  variantes: Variante[];
+};
+```
+
+Vêm aqui, e não na Task 3, porque o teste do Passo 5 os importa: deixá-los pra
+depois manteria `tsc --noEmit` vermelho durante duas tarefas, e typecheck que
+já está quebrado para de ser sinal.
+
+
+- [ ] **Passo 2: instalar o vitest**
 
 ```bash
 npm install -D vitest@^3
 ```
 
-- [ ] **Passo 2: criar `vitest.config.ts`**
+- [ ] **Passo 3: criar `vitest.config.ts`**
 
 ```ts
 import { defineConfig } from "vite";
@@ -80,7 +133,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Passo 3: acrescentar o script em `package.json`**
+- [ ] **Passo 4: acrescentar o script em `package.json`**
 
 Dentro de `"scripts"`, depois de `"typecheck"`:
 
@@ -88,7 +141,7 @@ Dentro de `"scripts"`, depois de `"typecheck"`:
 "test": "vitest run",
 ```
 
-- [ ] **Passo 4: escrever o teste que falha**
+- [ ] **Passo 5: escrever o teste que falha**
 
 Crie `src/lib/experimentos.test.ts`:
 
@@ -171,7 +224,7 @@ describe("scriptExperimentos", () => {
 });
 ```
 
-- [ ] **Passo 5: rodar e ver falhar**
+- [ ] **Passo 6: rodar e ver falhar**
 
 Run: `npm test`
 Expected: FAIL nos dois — `scriptExperimentos` ainda não aceita config, então
@@ -181,10 +234,10 @@ Os dois testes são escritos contra a assinatura FINAL de propósito: um teste
 escrito contra a assinatura velha teria que ser reescrito na Task 4, e teste
 reescrito no meio do caminho não prova nada.
 
-- [ ] **Passo 6: commit do arranjo de teste**
+- [ ] **Passo 7: commit do arranjo de teste**
 
 ```bash
-git add vitest.config.ts src/lib/experimentos.test.ts package.json package-lock.json
+git add src/lib/experimentos.ts src/lib/preco.ts vitest.config.ts src/lib/experimentos.test.ts package.json package-lock.json
 git commit -m "test: vitest entra, e o sorteio passa a ser testado pela string que vai pro <head>"
 ```
 
@@ -245,14 +298,18 @@ create table if not exists public.experimentos (
 -- checkout e preço que ainda não foi decidido; nada disso é leitura pública.
 alter table public.experimentos enable row level security;
 
--- O SEED É O QUE JÁ ESTAVA VENDENDO, e entra DESLIGADO.
+-- O SEED É O QUE JÁ ESTÁ VENDENDO, e entra LIGADO.
 --
 -- Os cinco planos foram conferidos abrindo o checkout em 19/08: o "Total
 -- Hoje" de cada tela bate com o `texto` daqui.
+--
+-- `ativo` NASCE VERDADEIRO porque o teste JÁ ESTÁ NO AR (subiu em 19/08, pelo
+-- código). Esta migration tem que ser um NÃO-EVENTO: o banco passa a
+-- descrever o que já está acontecendo, sem impor nada novo.
 insert into public.experimentos (id, ativo, exposicao_pct, nota, variantes)
 values (
   'preco',
-  false,
+  true,
   100,
   'Quanto custa a música. A=38 (controle), B=19, C=9, D=29, E=54,90. Receita por lead é o que decide, não conversão: preço mais alto converte pior por definição e ainda pode faturar mais.',
   '[
@@ -274,13 +331,14 @@ Cole o arquivo no SQL Editor do projeto e rode. Confirme com:
 select id, ativo, exposicao_pct, jsonb_array_length(variantes) from public.experimentos;
 ```
 
-Expected: uma linha, `preco | false | 100 | 5`.
+Expected: uma linha, `preco | true | 100 | 5` — espelhando exatamente o que
+já está rodando em produção.
 
 - [ ] **Passo 3: commit**
 
 ```bash
 git add supabase/migrations/20260819000000_experimentos.sql
-git commit -m "feat: a config dos testes A/B ganha tabela, com o seed desligado"
+git commit -m "feat: a config dos testes A/B ganha tabela, espelhando o teste que ja roda"
 ```
 
 ---
@@ -299,7 +357,10 @@ git commit -m "feat: a config dos testes A/B ganha tabela, com o seed desligado"
   - `lerConfigFresca(): Promise<ExperimentoConfig[]>` — ignora o cache; o painel usa.
   - `invalidarConfig(): void` — chamada após salvar.
 
-- [ ] **Passo 1: mover os tipos pra `src/lib/experimentos.ts`**
+- [ ] **Passo 1: (feito na Task 1)** Os tipos `Plano`, `Variante` e
+`ExperimentoConfig` já vivem em `src/lib/experimentos.ts`. Confira e siga.
+
+<details><summary>o que a Task 1 deixou pronto</summary>
 
 Os tipos têm que morar no arquivo **sem import de servidor**, senão nasce um
 ciclo: `experimentos-config.server.ts` precisa de `EXPERIMENTOS`, e
@@ -916,8 +977,6 @@ git commit -m "feat: o preco e o link da tela passam a vir da config, sem requis
 Dentro de `porExperimento`, no tipo `Painel`, acrescente ao objeto externo:
 
 ```ts
-    /** Que fatia das visitas está entrando no teste. */
-    exposicaoPct: number;
 ```
 
 E dentro de cada variante:
@@ -979,7 +1038,6 @@ final do `map` por:
         id: exp.id,
         nota: exp.nota,
         ativo: exp.ativo,
-        exposicaoPct: exp.exposicaoPct,
         // A ORDEM É A DA CONFIGURAÇÃO, não a do resultado: o controle sempre
         // em cima, pra leitura ser sempre "B contra A". `fora` vai por último
         // e separada, porque não é uma versão em disputa.
@@ -1516,6 +1574,21 @@ git commit -m "feat: a aba de testes A/B, com os botoes, as versoes e o resultad
 
 ## Depois do plano
 
-Rodar `npm test`, `npx tsc --noEmit`, `npm run build`, subir, e então ligar o
-experimento **pelo painel** — não pelo código. Se ligar pelo código funcionar,
-alguma coisa deste plano não foi feita.
+Rodar `npm test`, `npx tsc --noEmit` e `npm run build`.
+
+**A ORDEM DO DEPLOY NÃO É PREFERÊNCIA, É CORRETUDE.** O teste está no ar;
+inverter os dois primeiros passos o desliga.
+
+1. **Migration primeiro**, em produção, com `ativo: true` e os cinco planos
+   idênticos aos que já rodam. Enquanto o código antigo estiver no ar, ninguém
+   lê essa tabela — é um não-evento.
+2. **Depois o deploy.** Neste instante a config passa a vir do banco, e ela
+   descreve exatamente o que já estava acontecendo: nenhum visitante vê
+   diferença, nenhum sorteio muda.
+3. Conferir na aba que os cinco aparecem como `no ar`, com 20% cada, e que a
+   tabela de resultado traz o dado acumulado desde 19/08.
+4. Só então mexer em botão.
+
+Teste final do objetivo: mudar alguma coisa **pelo painel** e ver valer no site
+sem deploy. Se ainda for preciso deploy pra mudar preço, este plano não foi
+feito.

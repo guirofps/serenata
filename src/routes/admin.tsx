@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
+import { AbaTestes } from "@/components/admin/AbaTestes";
 import { RefreshCw, LogOut, TrendingDown, AlertTriangle, ExternalLink, Calendar } from "lucide-react";
 
 // PAINEL DA OPERAÇÃO.
@@ -23,6 +24,9 @@ export const Route = createFileRoute("/admin")({
     de: z.string().optional(),
     ate: z.string().optional(),
     funil: z.enum(["todos", "pt", "es"]).optional(),
+    // A ABA na URL, como os campos acima: reload e botão voltar funcionam, e
+    // dá pra mandar o link direto pra alguém já na aba certa.
+    aba: z.enum(["operacao", "testes"]).optional(),
   }),
   head: () => ({
     meta: [{ title: `Painel · ${MARCA.nome}` }, { name: "robots", content: "noindex, nofollow" }],
@@ -188,7 +192,7 @@ function hojeBr(deslocaDias = 0): string {
 }
 
 function Admin() {
-  const { dias, de, ate, funil } = Route.useSearch();
+  const { dias, de, ate, funil, aba } = Route.useSearch();
   const navigate = useNavigate();
   const [dados, setDados] = useState<Painel | null>(null);
   const [precisaLogin, setPrecisaLogin] = useState(false);
@@ -435,6 +439,32 @@ function Admin() {
       </header>
 
       <main className="mx-auto max-w-7xl space-y-10 px-4 py-8">
+        {/* AS ABAS na URL, como `dias` e `funil` já estão: reload e botão
+            voltar funcionam, e dá pra mandar o link direto pra alguém. */}
+        <div className="flex gap-1 rounded-full border border-[var(--tinta-fraca)]/40 p-1 text-sm">
+          {(
+            [
+              ["operacao", "Operação"],
+              ["testes", "Testes A/B"],
+            ] as const
+          ).map(([id, rotulo]) => (
+            <button
+              key={id}
+              onClick={() => navigate({ search: (s) => ({ ...s, aba: id }) as never })}
+              className={cn(
+                "rounded-full px-4 py-1.5 transition-colors",
+                (aba ?? "operacao") === id
+                  ? "bg-[var(--acento)] text-white"
+                  : "text-[var(--tinta-suave)] hover:text-[var(--tinta)]",
+              )}
+            >
+              {rotulo}
+            </button>
+          ))}
+        </div>
+
+      {(aba ?? "operacao") === "operacao" && (
+        <>
         {/* ── DINHEIRO ─────────────────────────────────────────── */}
         <Secao
           titulo="O dinheiro"
@@ -652,80 +682,6 @@ function Admin() {
             )}
           </Tabela>
         </Secao>
-
-        {/* ── TESTES A/B ───────────────────────────────────────
-            Só aparece quando existe experimento com lead no período: painel
-            com tabela vazia permanente vira ruído que se aprende a ignorar. */}
-        {dados.porExperimento.length > 0 && (
-          <Secao
-            titulo="Testes A/B"
-            sub="Receita por lead é o número que decide. Conversão sozinha engana em teste de preço: o preço mais caro converte pior e ainda pode faturar mais."
-          >
-            <div className="space-y-6">
-              {dados.porExperimento.map((e) => (
-                <div key={e.id}>
-                  <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <span className="font-medium">{e.id}</span>
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-[11px]",
-                        e.ativo
-                          ? "bg-[var(--acento)]/15 text-[var(--acento)]"
-                          : "bg-[var(--tinta-fraca)]/20 text-[var(--tinta-suave)]",
-                      )}
-                    >
-                      {e.ativo ? "rodando" : "desligado"}
-                    </span>
-                    <span className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
-                      {e.nota}
-                    </span>
-                  </div>
-                  <Tabela
-                    cabecalho={["Variante", "Leads", "Letras", "Vendas", "Receita", "Conv.", "R$/lead"]}
-                  >
-                    {e.variantes.map((v) => (
-                      <tr key={v.variante} className={cn(v.controle && "bg-[var(--tinta-fraca)]/10")}>
-                        <td className="px-3 py-2.5 font-medium">
-                          {v.variante}
-                          {v.controle && (
-                            <span className="ml-2 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
-                              controle
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">{v.leads}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">{v.letras}</td>
-                        <td className="px-3 py-2.5 text-right font-medium tabular-nums">{v.vendas}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">
-                          {v.receitaBrl > 0 ? brl(v.receitaBrl) : "—"}
-                        </td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-[var(--tinta-suave)]">
-                          {pc(v.conversaoPct)}
-                        </td>
-                        {/* A COLUNA QUE DECIDE, e por isso é a única em cor
-                            de acento: receita dividida por lead. */}
-                        <td className="px-3 py-2.5 text-right font-medium tabular-nums text-[var(--acento)]">
-                          {brl(v.receitaPorLeadBrl)}
-                        </td>
-                      </tr>
-                    ))}
-                  </Tabela>
-                  {/* O AVISO DE AMOSTRA PEQUENA.
-                      Com 40 leads por lado, a diferença que aparece na tela é
-                      quase sempre ruído — e ler ruído como resultado é o modo
-                      mais comum de um teste A/B dar prejuízo. O número não é
-                      cerimônia estatística, é a régua de "ainda não olhe". */}
-                  {e.variantes.some((v) => v.leads < 200) && (
-                    <p className="mt-2 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
-                      Amostra pequena: com menos de ~200 leads por lado, a diferença
-                      ainda pode ser sorteio. Deixe rodar.
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </Secao>
-        )}
 
         <Secao titulo="De onde vêm as vendas" sub="Atribuição pela captura first-touch (utm, gclid, fbclid ou referência)">
           <Tabela cabecalho={["Origem", "Campanha", "Leads", "Letras", "Vendas", "Receita", "Conv."]}>
@@ -963,6 +919,10 @@ function Admin() {
             ver o site <ExternalLink className="h-3 w-3" />
           </a>
         </footer>
+        </>
+      )}
+
+      {aba === "testes" && <AbaTestes resultados={dados.porExperimento} />}
       </main>
     </div>
   );

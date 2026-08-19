@@ -89,39 +89,68 @@ escreve `window.__SRN_EXP__` com as variantes e os planos. `preco.ts` lê dali,
 com o catálogo do código como fallback. **Nenhuma requisição nova** — a
 informação já estava sendo enviada, só não estava sendo aproveitada.
 
-Só os experimentos **ativos** entram nesse objeto. Um teste desligado não
-publica os planos dele no HTML de todo mundo: preço que ainda não foi
-decidido não é informação que se deixa vazar no fonte da página.
+Com o teste LIGADO, os planos de todas as variantes entram — a tela precisa
+deles pra renderizar cada preço. Com ele DESLIGADO, entra **só o do controle**:
+esse é o preço que está na tela de todo mundo, então não é segredo. Os das
+demais versões ficam de fora, porque o ciclo que este painel impõe é
+desligar → editar preço → religar, e durante essa janela os preços novos
+estariam no "ver código-fonte" de qualquer visitante.
+
+Não dá pra simplesmente cortar tudo quando desligado: `planoControle()` lê o
+plano do controle da config viva, e é esse caminho que faz "mudar preço pelo
+painel sem deploy" funcionar justamente com o teste fora do ar.
 
 `MOEDA` em `i18n.ts` continua sendo a fonte do plano de controle, e é dela que
 a migration copia o seed. O catálogo em código não some — ele é o chão.
 
-### A home é pré-renderizada, e isso decide uma regra
+### A home SAIU do pré-render, e por quê
 
-`vite.config.ts` pré-renderiza `/` no build, de propósito: mata ~1,3s de cold
-start no TTFB. O efeito colateral só aparece quando a config sai do código —
-o `<script>` de sorteio da home fica **congelado no HTML estático**, com a
-configuração que existia na hora do build. Nenhuma mudança feita no painel
-alcança aquele arquivo.
+`vite.config.ts` pré-renderizava `/` no build, de propósito: matava ~1,3s de
+cold start no TTFB. Isso deixou de ser possível no instante em que a config
+virou mutável, e a descoberta veio da revisão da implementação, não do desenho.
 
-Verificado, não deduzido: o `dist/client/index.html` gerado em 19/08 traz as
-cinco variantes de preço cravadas dentro do script.
+HTML estático **congela a configuração do build**. Com a config no banco, isso
+dá duas saídas, e as duas falham em silêncio:
 
-A saída não é desligar o pré-render (o ganho de TTFB é real e foi pago caro).
-É esta regra:
+- **Sem env de Supabase no build**, a home sai com o script de sorteio inerte.
+  Quem entra por ela nunca é sorteado — e não é sorteado depois tampouco,
+  porque a home linka pra `/criar` com `<Link>` do TanStack, que é navegação
+  SPA: o `<head>` não reexecuta. Essa pessoa atravessa o funil inteiro no
+  controle e some do teste, sem deixar rastro.
+- **Com env no build**, a home congela a config VIVA. O teste sorteia lá, mas
+  desligar pelo painel não desliga a home até o próximo deploy.
 
-> **O array em código tem que ter TODO experimento `ativo: false`.**
+Nenhuma das duas é aceitável num painel cujo propósito é "desligar sem deploy".
+Alternativas consideradas e recusadas: forçar o pré-render a usar o fallback do
+código (mantém o primeiro modo de falha), e um bootstrap de sorteio no cliente
+(reintroduz piscada e um segundo mecanismo com falhas próprias).
 
-No build não existe banco, então o snapshot nasce vazio e cai no fallback do
-código. Com tudo desligado lá, o script pré-renderizado da home **não sorteia
-nada** — e quem chega nela é sorteado depois, em `/criar`, que é renderizada
-no servidor e enxerga a config do banco.
+**Decisão: `/` sai do pré-render e passa a ser SSR como o resto do site.** O
+custo é ~1,3s de TTFB em cold start, só na home, e é medível e reversível. O
+tráfego pago cai em `/criar`, não na home. Trocar latência mensurável por
+eliminação de falha invisível é o mesmo negócio que este projeto já fez ao
+gerar a música antes de cobrar.
 
-Isso funciona porque o tráfego pago cai direto em `/criar` (decisão de 17/08,
-"o funil começa em /criar") e porque a home não tem mais preço nenhum. A regra
-deixa de valer no dia em que alguém puser conteúdo de experimento na home:
-esse dia exige tirar `/` do pré-render, e o teste vai falhar em silêncio se
-ninguém lembrar. Está anotado no `vite.config.ts` por isso.
+#### A consequência no `vercel.json`
+
+Tirar o pré-render tirou junto o `dist/client/index.html` — e era ele que
+atendia `/` pelo filesystem, antes de qualquer rewrite. O catch-all era
+`/(.+)`, que exige ao menos um caractere depois da barra e **não casa a
+raiz**: sem arquivo e sem rewrite, a home passaria a dar 404 em produção.
+
+**Decisão: alargar o catch-all para `/(.*)`**, em vez de acrescentar uma regra
+só pra `/`. Uma regra a menos pra manter, e nenhuma dúvida de ordem entre as
+duas. O que continua valendo:
+
+- as três regras de `/api/*` vêm ANTES e ganham (a Vercel usa a primeira que
+  casa);
+- rewrite roda DEPOIS da checagem de filesystem, então `/assets/*` e `/img/*`
+  continuam sendo servidos estáticos.
+
+`vercel.json` é JSON estrito e não aceita comentário; a explicação mora aqui,
+no comentário do `vite.config.ts` e no teste `src/lib/vercel-rotas.test.ts`,
+que casa `/`, `/es`, `/criar`, `/p/tok` e `/api/x` contra as regras reais do
+arquivo.
 
 ### "Fora do teste" é uma variante
 
@@ -154,7 +183,11 @@ não foi o pedido, e mexer nela de graça custa mais do que rende.
 
 - **Resultados**: de `dados.porExperimento`, que a consulta grande já traz.
   Nenhuma consulta nova — essa consulta já estourou o tempo uma vez (180 mil
-  eventos por abertura, agosto/26) e não vai ganhar trabalho.
+  eventos por abertura, agosto/26) e não vai ganhar trabalho. Ela carrega só o
+  que a tabela de resultado LÊ: `nota` e `ativo` saem de lá (a aba já os lê da
+  server function de config, que é onde são editados) e as versões
+  **aposentadas** entram, porque a Trava 2 faz de aposentar nome uma rotina e o
+  histórico precisa continuar visível depois de o nome sair da config.
 - **Config editável**: uma server function própria, minúscula, que ignora o
   cache e lê fresco. Quem está editando nunca pode ver estado velho.
 
@@ -206,6 +239,14 @@ trava que `curl` ignora — e é um dos erros herdados listados no CLAUDE.md
    tem lead carimbado, porque reusar `B` faria dois preços diferentes
    compartilharem um rótulo no histórico — exatamente o que a trava evita no
    presente.
+   Implementada em duas metades: `nomesComPlanoAlterado` (puro) diz quais
+   rótulos mudaram de preço nesta gravação, e só se houver algum é que
+   `salvarExperimento` faz UMA consulta em `quiz_responses.attribution->'exp'`
+   pra saber quais já carimbaram gente. Consulta que falha **recusa**
+   (fail-closed): sem conseguir conferir, não dá pra afirmar que o nome é novo.
+   Na tela, nome e "+ versão" só ficam editáveis com o teste desligado, pela
+   mesma razão dos outros campos.
+
 3. **Não liga com duas versões dividindo o mesmo link de checkout.** É o
    defeito que o teste de preço inteiro existe pra impedir, e com painel ele
    vira um clique de distração.
@@ -240,12 +281,16 @@ esconder, o `?exp=`) continua verificado à mão, como foi feito em 18/08.
 
 ## Migração
 
-1. Migration cria a tabela e insere a linha de `preco` copiada do código
-   (`ativo: false`, exposição 100, A/B em 50/50, planos de `PLANOS.pt`).
-2. Deploy com o middleware, o fallback e a aba. Nada muda no site: a config do
-   banco é idêntica à do código, e está desligada.
-3. O experimento passa a ser ligado pelo painel, depois de cadastrar o produto
-   novo na Perfect Pay e conferir o valor no checkout de verdade.
+1. Migration cria a tabela e insere a linha de `preco` copiada do código.
+   **`ativo: true`**, exposição 100, os cinco planos que já estão vendendo.
+   O teste subiu em 19/08 pelo código, antes do painel existir: semear
+   `false` faria esta migração desligar um teste em andamento.
+2. **Depois** o deploy, nunca antes: sem a tabela, a config cai no fallback do
+   código (tudo desligado) e o teste morre em silêncio na primeira instância
+   fria. Com a ordem certa, nada muda no site — a config do banco descreve o
+   que já estava acontecendo.
+3. A partir daí o experimento é operado **pelo painel**: ligar, desligar,
+   exposição, peso e — com ele desligado — preço e link.
 
 ## Fora de escopo
 
