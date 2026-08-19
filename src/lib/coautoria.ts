@@ -53,7 +53,21 @@ async function chamarClaude(userMsg: string, maxTokens: number, locale: Locale =
       messages: [{ role: "user", content: userMsg }],
     }),
   });
-  if (!r.ok) throw new Error(`Anthropic ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  if (!r.ok) {
+    // O CORPO É LIDO UMA VEZ SÓ. `r.text()` consome o stream: ler de novo pra
+    // montar a mensagem do throw devolveria string vazia, e o erro chegaria
+    // sem a única informação que distingue saldo de chave de sobrecarga.
+    const corpo = (await r.text()).slice(0, 500);
+    // Loga no servidor e, quando a causa precisa de gente, manda e-mail.
+    // Import dinâmico: mantém o Resend fora de qualquer bundle que não seja
+    // este caminho de erro. Não usa `await` no alerta pra não somar latência
+    // de e-mail em cima de um usuário que já está esperando — mas o `catch`
+    // existe porque promessa solta que rejeita derruba o processo no Node.
+    void import("@/lib/alerta-operacao")
+      .then((m) => m.alertarFalhaClaude({ status: r.status, corpo, onde: "coautoria" }))
+      .catch(() => {});
+    throw new Error(`Anthropic ${r.status}: ${corpo.slice(0, 200)}`);
+  }
   const j = await r.json();
   const texto: string = j.content?.find((b: { type: string }) => b.type === "text")?.text ?? "";
   return { texto, uso: (j.usage ?? {}) as UsoClaude, stopReason: j.stop_reason ?? null };
@@ -76,6 +90,44 @@ async function quizIdDaSessao(sessionId: string): Promise<string | null> {
     .eq("session_id", sessionId)
     .maybeSingle();
   return data?.id ?? null;
+}
+
+/**
+ * O mesmo id, mas para CONTABILIDADE. Nunca lança.
+ *
+ * O bug que isto conserta era de ORDEM DE AVALIAÇÃO, e por isso não se via
+ * lendo o código de cima:
+ *
+ *   await registrarCustoLetra({ quizResponseId: await quizIdDaSessao(...), ... })
+ *
+ * O `registrarCustoLetra` tem `try/catch` interno justamente para custo nunca
+ * derrubar entrega. Só que o `await quizIdDaSessao(...)` roda na LISTA DE
+ * ARGUMENTOS — ou seja, ANTES de a função ser chamada, e portanto fora da
+ * proteção dela. Uma falha ali derrubava `gerarRefroes` inteiro DEPOIS de a
+ * letra já ter sido escrita e paga em tokens: dinheiro gasto, nada entregue,
+ * e o usuário vendo "Não consegui escrever agora".
+ *
+ * ── POR QUE NÃO CONSERTEI NO `quizIdDaSessao` ────────────────────
+ *
+ * Seria uma linha a menos e um defeito PIOR. Os outros três chamadores dele
+ * (`temMusicaDaSessao` e os dois estados do funil) leem `null` como "esta
+ * sessão não tem música", e `temMusicaDaSessao` usa isso pra BARRAR o
+ * checkout. Fazer o lookup devolver `null` quando o banco pisca transformaria
+ * um erro passageiro em venda bloqueada — hoje ele estoura, e o `catch` do
+ * `TelaOferta` deixa o comprador seguir de propósito ("indisponível não é o
+ * mesmo que inexistente").
+ *
+ * Então o silêncio fica SÓ onde ele é correto: custo sem chave é uma linha de
+ * contabilidade órfã, que se conserta depois olhando o banco. É barato. Venda
+ * barrada e letra perdida não são.
+ */
+async function quizIdParaCusto(sessionId: string): Promise<string | null> {
+  try {
+    return await quizIdDaSessao(sessionId);
+  } catch (err) {
+    console.error("[coautoria] id da sessão não lido; custo fica sem chave:", err);
+    return null;
+  }
 }
 
 function respostasSanitizadas(respostas: Record<string, unknown>) {
@@ -134,7 +186,7 @@ ${INSTRUCOES[locale].refroes}`;
     const p = extrairJson<{ titulo: string; estilo_suno: string; refroes: string[] }>(texto);
 
     // Custo atribuído à sessão (musicaId ainda não existe).
-    await registrarCustoLetra({ quizResponseId: await quizIdDaSessao(data.sessionId), modelo: MODEL, uso });
+    await registrarCustoLetra({ quizResponseId: await quizIdParaCusto(data.sessionId), modelo: MODEL, uso });
 
     const refroes = (p.refroes ?? []).map((s) => String(s).trim()).filter(Boolean);
     if (refroes.length < 2) throw new Error("modelo não devolveu dois refrões");
@@ -160,7 +212,7 @@ ${INSTRUCOES[locale].montar(data.refrao)}`;
     if (stopReason === "max_tokens") throw new Error("Letra truncada pelo limite de tokens");
     const p = extrairJson<LetraGerada>(texto);
 
-    await registrarCustoLetra({ quizResponseId: await quizIdDaSessao(data.sessionId), modelo: MODEL, uso });
+    await registrarCustoLetra({ quizResponseId: await quizIdParaCusto(data.sessionId), modelo: MODEL, uso });
 
     return {
       titulo: String(p.titulo ?? "Sua música"),
@@ -183,7 +235,7 @@ ${data.letra}`;
     if (stopReason === "max_tokens") throw new Error("Letra truncada pelo limite de tokens");
     const p = extrairJson<{ letra: string }>(texto);
 
-    await registrarCustoLetra({ quizResponseId: await quizIdDaSessao(data.sessionId), modelo: MODEL, uso });
+    await registrarCustoLetra({ quizResponseId: await quizIdParaCusto(data.sessionId), modelo: MODEL, uso });
 
     const letra = String(p.letra ?? "").trim();
     if (!letra) throw new Error("aprimorar não devolveu letra");
