@@ -96,32 +96,33 @@ decidido não é informação que se deixa vazar no fonte da página.
 `MOEDA` em `i18n.ts` continua sendo a fonte do plano de controle, e é dela que
 a migration copia o seed. O catálogo em código não some — ele é o chão.
 
-### A home é pré-renderizada, e isso decide uma regra
+### A home SAIU do pré-render, e por quê
 
-`vite.config.ts` pré-renderiza `/` no build, de propósito: mata ~1,3s de cold
-start no TTFB. O efeito colateral só aparece quando a config sai do código —
-o `<script>` de sorteio da home fica **congelado no HTML estático**, com a
-configuração que existia na hora do build. Nenhuma mudança feita no painel
-alcança aquele arquivo.
+`vite.config.ts` pré-renderizava `/` no build, de propósito: matava ~1,3s de
+cold start no TTFB. Isso deixou de ser possível no instante em que a config
+virou mutável, e a descoberta veio da revisão da implementação, não do desenho.
 
-Verificado, não deduzido: o `dist/client/index.html` gerado em 19/08 traz as
-cinco variantes de preço cravadas dentro do script.
+HTML estático **congela a configuração do build**. Com a config no banco, isso
+dá duas saídas, e as duas falham em silêncio:
 
-A saída não é desligar o pré-render (o ganho de TTFB é real e foi pago caro).
-É esta regra:
+- **Sem env de Supabase no build**, a home sai com o script de sorteio inerte.
+  Quem entra por ela nunca é sorteado — e não é sorteado depois tampouco,
+  porque a home linka pra `/criar` com `<Link>` do TanStack, que é navegação
+  SPA: o `<head>` não reexecuta. Essa pessoa atravessa o funil inteiro no
+  controle e some do teste, sem deixar rastro.
+- **Com env no build**, a home congela a config VIVA. O teste sorteia lá, mas
+  desligar pelo painel não desliga a home até o próximo deploy.
 
-> **O array em código tem que ter TODO experimento `ativo: false`.**
+Nenhuma das duas é aceitável num painel cujo propósito é "desligar sem deploy".
+Alternativas consideradas e recusadas: forçar o pré-render a usar o fallback do
+código (mantém o primeiro modo de falha), e um bootstrap de sorteio no cliente
+(reintroduz piscada e um segundo mecanismo com falhas próprias).
 
-No build não existe banco, então o snapshot nasce vazio e cai no fallback do
-código. Com tudo desligado lá, o script pré-renderizado da home **não sorteia
-nada** — e quem chega nela é sorteado depois, em `/criar`, que é renderizada
-no servidor e enxerga a config do banco.
-
-Isso funciona porque o tráfego pago cai direto em `/criar` (decisão de 17/08,
-"o funil começa em /criar") e porque a home não tem mais preço nenhum. A regra
-deixa de valer no dia em que alguém puser conteúdo de experimento na home:
-esse dia exige tirar `/` do pré-render, e o teste vai falhar em silêncio se
-ninguém lembrar. Está anotado no `vite.config.ts` por isso.
+**Decisão: `/` sai do pré-render e passa a ser SSR como o resto do site.** O
+custo é ~1,3s de TTFB em cold start, só na home, e é medível e reversível. O
+tráfego pago cai em `/criar`, não na home. Trocar latência mensurável por
+eliminação de falha invisível é o mesmo negócio que este projeto já fez ao
+gerar a música antes de cobrar.
 
 ### "Fora do teste" é uma variante
 

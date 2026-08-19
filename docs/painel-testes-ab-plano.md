@@ -23,9 +23,8 @@ dela.
 ## Restrições globais
 
 - **O array em código NUNCA dirige sorteio.** `configDoCodigo()` força
-  `ativo: false` ao converter, sempre, independente do que estiver escrito lá —
-  é isso que mantém o pré-render da home seguro (spec, "A home é
-  pré-renderizada"). O banco é quem liga.
+  `ativo: false` ao converter, sempre, independente do que estiver escrito lá.
+  O banco é quem liga.
   **Exceção, e é deliberada:** o campo `ativo` do array continua sendo lido por
   `seo.ts` em tempo de BUILD, pra decidir se publica preço no schema.org. A home
   é pré-renderizada e ali não existe banco, então essa decisão é inerentemente
