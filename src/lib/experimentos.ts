@@ -42,6 +42,29 @@ export type Experimento = {
   nota: string;
 };
 
+// ── OS TIPOS DA CONFIG QUE VEM DO BANCO ──────────────────────────
+//
+// Moram aqui, não em `experimentos-config.server.ts`: aquele módulo lê o
+// banco com service role, e se o tipo morasse lá o import viraria um ciclo
+// (o server precisa de `EXPERIMENTOS`, e este arquivo precisaria do tipo de
+// volta). Pior, `preco.ts` roda no cliente — encostar num módulo `.server.ts`
+// dali vazaria service role pro bundle do navegador. `Experimento` acima é a
+// forma ANTIGA (array fixo em código); estas são a forma nova, que troca o
+// array por linha de banco. As duas convivem até a Task 4 apagar a antiga.
+
+/** O preço como número, como texto e como link. Um objeto só, de propósito. */
+export type Plano = { texto: string; valor: number; ancora: string; checkout: string };
+
+export type Variante = { nome: string; peso: number; plano?: Plano };
+
+export type ExperimentoConfig = {
+  id: string;
+  ativo: boolean;
+  exposicaoPct: number;
+  nota: string;
+  variantes: Variante[];
+};
+
 export const EXPERIMENTOS: Experimento[] = [
   {
     id: "abertura",

@@ -1,5 +1,5 @@
 import { type Locale, LOCALE_PADRAO, MOEDA } from "@/lib/i18n";
-import { EXPERIMENTOS, varianteDe } from "@/lib/experimentos";
+import { EXPERIMENTOS, type Plano, varianteDe } from "@/lib/experimentos";
 
 // O PREÇO, QUANDO ELE É A COISA SENDO TESTADA.
 //
@@ -36,16 +36,11 @@ import { EXPERIMENTOS, varianteDe } from "@/lib/experimentos";
 
 export const EXP_PRECO = "preco";
 
-export type Plano = {
-  /** O número como a pessoa lê. */
-  texto: string;
-  /** O mesmo número como máquina: Google Ads, schema.org, painel. */
-  valor: number;
-  /** O riscado que ancora. Nunca uma moeda de outro país (ver `TelaOferta`). */
-  ancora: string;
-  /** O produto na Perfect Pay. UM POR PREÇO — é o que fecha o ciclo. */
-  checkout: string;
-};
+// `Plano` mudou de dono: agora vive em `experimentos.ts`, junto com
+// `ExperimentoConfig` (a config que vem do banco — ver a nota lá sobre o
+// ciclo que isso evita). Reexportado daqui pra não quebrar quem já importa
+// `Plano` de `preco.ts`.
+export type { Plano } from "@/lib/experimentos";
 
 /**
  * Um plano por variante, por idioma.
