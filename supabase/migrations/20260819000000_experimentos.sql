@@ -36,7 +36,10 @@ create table if not exists public.experimentos (
 -- SEM POLICY ANON, de propósito. Só o service role lê e escreve, pelas server
 -- functions autenticadas com `exigirAdmin()`. A config carrega link de
 -- checkout e preço que ainda não foi decidido; nada disso é leitura pública.
+-- O revoke abaixo é defesa em profundidade: RLS sem policy já nega, mas fixar
+-- a permissão impede surpresas se alguém esquecer de uma policy daqui a meses.
 alter table public.experimentos enable row level security;
+revoke all on public.experimentos from anon, authenticated;
 
 -- O SEED É O QUE JÁ ESTAVA VENDENDO, e entra DESLIGADO.
 --
