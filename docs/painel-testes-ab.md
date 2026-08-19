@@ -96,6 +96,33 @@ decidido não é informação que se deixa vazar no fonte da página.
 `MOEDA` em `i18n.ts` continua sendo a fonte do plano de controle, e é dela que
 a migration copia o seed. O catálogo em código não some — ele é o chão.
 
+### A home é pré-renderizada, e isso decide uma regra
+
+`vite.config.ts` pré-renderiza `/` no build, de propósito: mata ~1,3s de cold
+start no TTFB. O efeito colateral só aparece quando a config sai do código —
+o `<script>` de sorteio da home fica **congelado no HTML estático**, com a
+configuração que existia na hora do build. Nenhuma mudança feita no painel
+alcança aquele arquivo.
+
+Verificado, não deduzido: o `dist/client/index.html` gerado em 19/08 traz as
+cinco variantes de preço cravadas dentro do script.
+
+A saída não é desligar o pré-render (o ganho de TTFB é real e foi pago caro).
+É esta regra:
+
+> **O array em código tem que ter TODO experimento `ativo: false`.**
+
+No build não existe banco, então o snapshot nasce vazio e cai no fallback do
+código. Com tudo desligado lá, o script pré-renderizado da home **não sorteia
+nada** — e quem chega nela é sorteado depois, em `/criar`, que é renderizada
+no servidor e enxerga a config do banco.
+
+Isso funciona porque o tráfego pago cai direto em `/criar` (decisão de 17/08,
+"o funil começa em /criar") e porque a home não tem mais preço nenhum. A regra
+deixa de valer no dia em que alguém puser conteúdo de experimento na home:
+esse dia exige tirar `/` do pré-render, e o teste vai falhar em silêncio se
+ninguém lembrar. Está anotado no `vite.config.ts` por isso.
+
 ### "Fora do teste" é uma variante
 
 O sorteio ganha um passo antes do que já faz: tira um número e, se cair fora
