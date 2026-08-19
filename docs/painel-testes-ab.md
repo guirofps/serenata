@@ -240,12 +240,16 @@ esconder, o `?exp=`) continua verificado à mão, como foi feito em 18/08.
 
 ## Migração
 
-1. Migration cria a tabela e insere a linha de `preco` copiada do código
-   (`ativo: false`, exposição 100, A/B em 50/50, planos de `PLANOS.pt`).
-2. Deploy com o middleware, o fallback e a aba. Nada muda no site: a config do
-   banco é idêntica à do código, e está desligada.
-3. O experimento passa a ser ligado pelo painel, depois de cadastrar o produto
-   novo na Perfect Pay e conferir o valor no checkout de verdade.
+1. Migration cria a tabela e insere a linha de `preco` copiada do código.
+   **`ativo: true`**, exposição 100, os cinco planos que já estão vendendo.
+   O teste subiu em 19/08 pelo código, antes do painel existir: semear
+   `false` faria esta migração desligar um teste em andamento.
+2. **Depois** o deploy, nunca antes: sem a tabela, a config cai no fallback do
+   código (tudo desligado) e o teste morre em silêncio na primeira instância
+   fria. Com a ordem certa, nada muda no site — a config do banco descreve o
+   que já estava acontecendo.
+3. A partir daí o experimento é operado **pelo painel**: ligar, desligar,
+   exposição, peso e — com ele desligado — preço e link.
 
 ## Fora de escopo
 

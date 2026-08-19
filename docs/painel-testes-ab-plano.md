@@ -25,6 +25,13 @@ dela.
 - **Todo experimento no array em código fica `ativo: false`.** Não é higiene,
   é o que mantém o pré-render da home seguro (spec, "A home é pré-renderizada").
   O banco é quem liga.
+- **O TESTE DE PREÇO ESTÁ NO AR desde 19/08**, com as cinco versões e peso
+  igual. Isso mudou DEPOIS que este plano foi escrito, e muda duas coisas: o
+  seed nasce **`ativo: true`** (semear `false` faria este trabalho DESLIGAR um
+  teste que está coletando dado), e a **migration é aplicada ANTES do deploy**
+  (sem a tabela, `lerConfigFresca` falha, a config cai no fallback do código, e
+  o teste morre em silêncio na primeira instância fria). Quem já foi sorteado
+  não é afetado: o script lê o `localStorage` antes de sortear.
 - **Desligar é sempre a direção segura.** Qualquer falha — banco fora, JSON
   inválido, variante desconhecida — resolve pro controle, nunca pra uma
   variante em teste.
@@ -249,10 +256,13 @@ alter table public.experimentos enable row level security;
 --
 -- Os cinco planos foram conferidos abrindo o checkout em 19/08: o "Total
 -- Hoje" de cada tela bate com o `texto` daqui.
+-- `ativo` NASCE VERDADEIRO porque o teste JÁ ESTÁ NO AR (subiu em 19/08, pelo
+-- código). Esta migration tem que ser um NÃO-EVENTO: o banco passa a
+-- descrever o que já está acontecendo, sem impor nada novo.
 insert into public.experimentos (id, ativo, exposicao_pct, nota, variantes)
 values (
   'preco',
-  false,
+  true,
   100,
   'Quanto custa a música. A=38 (controle), B=19, C=9, D=29, E=54,90. Receita por lead é o que decide, não conversão: preço mais alto converte pior por definição e ainda pode faturar mais.',
   '[
@@ -274,13 +284,14 @@ Cole o arquivo no SQL Editor do projeto e rode. Confirme com:
 select id, ativo, exposicao_pct, jsonb_array_length(variantes) from public.experimentos;
 ```
 
-Expected: uma linha, `preco | false | 100 | 5`.
+Expected: uma linha, `preco | true | 100 | 5` — espelhando exatamente o que
+já está rodando em produção.
 
 - [ ] **Passo 3: commit**
 
 ```bash
 git add supabase/migrations/20260819000000_experimentos.sql
-git commit -m "feat: a config dos testes A/B ganha tabela, com o seed desligado"
+git commit -m "feat: a config dos testes A/B ganha tabela, espelhando o teste que ja roda"
 ```
 
 ---
@@ -1516,6 +1527,21 @@ git commit -m "feat: a aba de testes A/B, com os botoes, as versoes e o resultad
 
 ## Depois do plano
 
-Rodar `npm test`, `npx tsc --noEmit`, `npm run build`, subir, e então ligar o
-experimento **pelo painel** — não pelo código. Se ligar pelo código funcionar,
-alguma coisa deste plano não foi feita.
+Rodar `npm test`, `npx tsc --noEmit` e `npm run build`.
+
+**A ORDEM DO DEPLOY NÃO É PREFERÊNCIA, É CORRETUDE.** O teste está no ar;
+inverter os dois primeiros passos o desliga.
+
+1. **Migration primeiro**, em produção, com `ativo: true` e os cinco planos
+   idênticos aos que já rodam. Enquanto o código antigo estiver no ar, ninguém
+   lê essa tabela — é um não-evento.
+2. **Depois o deploy.** Neste instante a config passa a vir do banco, e ela
+   descreve exatamente o que já estava acontecendo: nenhum visitante vê
+   diferença, nenhum sorteio muda.
+3. Conferir na aba que os cinco aparecem como `no ar`, com 20% cada, e que a
+   tabela de resultado traz o dado acumulado desde 19/08.
+4. Só então mexer em botão.
+
+Teste final do objetivo: mudar alguma coisa **pelo painel** e ver valer no site
+sem deploy. Se ainda for preciso deploy pra mudar preço, este plano não foi
+feito.
