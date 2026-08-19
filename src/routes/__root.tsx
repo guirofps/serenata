@@ -8,7 +8,12 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { scriptExperimentos, cssExperimentos } from "@/lib/experimentos";
+import {
+  scriptExperimentos,
+  cssExperimentos,
+  scriptConfigGlobal,
+  configAtual,
+} from "@/lib/experimentos";
 
 import appCss from "../styles.css?url";
 import {
@@ -112,18 +117,35 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: React.ReactNode }) {
+  // A config isomórfica: no servidor vem do snapshot em memória (mantido
+  // fresco pelo middleware, ver `src/start.ts`); no cliente, do
+  // `window.__SRN_CFG__` que o <script> logo abaixo planta — ver o comentário
+  // grande em cima de `configAtual()` em `experimentos.ts` pra entender por
+  // que os dois lados TÊM que enxergar o mesmo valor aqui. Uma leitura só,
+  // reaproveitada nos três lugares abaixo: ler duas vezes arriscaria pegar um
+  // `configAtual()` diferente no meio (o snapshot pode trocar entre chamadas,
+  // já que o middleware recarrega por trás) e aí o <script> de sorteio e o
+  // <style> descreveriam experimentos diferentes.
+  const cfgExperimentos = configAtual();
   return (
     <html lang="pt-BR">
       <head>
         <HeadContent />
-        {/* TESTE A/B — precisa ser a PRIMEIRA coisa do <head>.
-            O script sorteia a variante e carimba no <html>; o CSS esconde a
-            que não saiu. Síncrono e antes de tudo porque, se rodasse depois do
-            primeiro pixel, a pessoa veria a tela trocar na frente dela. É por
-            isso que ele está escrito à mão e não importado: um <script src>
-            seria uma ida à rede antes de qualquer pintura. */}
-        <script dangerouslySetInnerHTML={{ __html: scriptExperimentos() }} />
-        <style dangerouslySetInnerHTML={{ __html: cssExperimentos() }} />
+        {/* TESTE A/B — os três <script>/<style> abaixo precisam ser a
+            PRIMEIRA coisa do <head>, NESTA ordem. Síncronos e antes de tudo
+            porque, se rodassem depois do primeiro pixel, a pessoa veria a
+            tela trocar na frente dela. É por isso que estão escritos à mão e
+            não importados: um <script src> seria uma ida à rede antes de
+            qualquer pintura.
+              1. planta `window.__SRN_CFG__` — sem isto, o script de sorteio
+                 no cliente não sabe a config viva (e no servidor nem faz
+                 falta, mas escrever sempre os três mantém HTML e hidratação
+                 no mesmo formato).
+              2. sorteia a variante e carimba no <html>.
+              3. o CSS que esconde a variante que não saiu. */}
+        <script dangerouslySetInnerHTML={{ __html: scriptConfigGlobal(cfgExperimentos) }} />
+        <script dangerouslySetInnerHTML={{ __html: scriptExperimentos(cfgExperimentos) }} />
+        <style dangerouslySetInnerHTML={{ __html: cssExperimentos(cfgExperimentos) }} />
       </head>
       <body className="bg-background text-foreground">
         {children}

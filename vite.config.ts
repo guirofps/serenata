@@ -14,6 +14,13 @@ export default defineConfig({
       //   - crawlLinks: false            -> não segue <a> para /quiz etc.
       //   - autoStaticPathsDiscovery: false -> não mescla rotas auto-descobertas
       //   - filter: só "/" passa         -> allow-list de segurança
+      //
+      // ATENÇÃO, TESTE A/B: o <script> de sorteio da home fica CONGELADO
+      // neste HTML, com a config que existia no build. Funciona porque o
+      // array de fallback tem tudo desligado, então o script pré-renderizado
+      // nasce inerte e quem chega é sorteado em /criar (que é SSR). No dia em
+      // que a home ganhar conteúdo de variante, tire "/" daqui — senão o
+      // teste falha em silêncio. Ver docs/painel-testes-ab.md.
       prerender: {
         enabled: true,
         crawlLinks: false,

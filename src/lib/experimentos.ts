@@ -50,7 +50,16 @@ export type Experimento = {
 // volta). Pior, `preco.ts` roda no cliente — encostar num módulo `.server.ts`
 // dali vazaria service role pro bundle do navegador. `Experimento` acima é a
 // forma ANTIGA (array fixo em código); estas são a forma nova, que troca o
-// array por linha de banco. As duas convivem até a Task 4 apagar a antiga.
+// array por linha de banco.
+//
+// As duas NÃO deixam de conviver na Task 4 — só trocam de papel. `EXPERIMENTOS`
+// vira o FALLBACK de `ExperimentoConfig` (ver `configDoCodigo` mais abaixo),
+// nunca mais a fonte ativa do sorteio. `experimentosAtivos`, `atributoDe`,
+// `varianteDe`, `variantesAtuais` e `carimbarExperimentos` continuam lendo a
+// forma antiga direto: são leitura pura do atributo que JÁ foi carimbado no
+// `<html>` (por `scriptExperimentos`, que esse sim passou a rodar sobre a
+// config do banco), não decidem sorteio nenhum, e por isso não precisam saber
+// de onde o sorteio veio.
 
 /** O preço como número, como texto e como link. Um objeto só, de propósito. */
 export type Plano = { texto: string; valor: number; ancora: string; checkout: string };
@@ -65,24 +74,21 @@ export type ExperimentoConfig = {
   variantes: Variante[];
 };
 
+/**
+ * O CHÃO, não a verdade.
+ *
+ * A configuração viva mora na tabela `experimentos`: `experimentos-config.server.ts`
+ * lê o banco, e `configAtual()` (mais abaixo, ISOMÓRFICA de propósito — ver o
+ * comentário dela) é quem devolve o snapshot pro `<head>`. Este array só entra
+ * em jogo quando nem banco nem snapshot respondem, via `configDoCodigo()`, que
+ * mapeia pra `ExperimentoConfig` forçando `ativo: false` — INDEPENDENTE do que
+ * estiver escrito no campo `ativo` de cada entrada abaixo (o `preco` está
+ * `true` aqui só porque `seo.ts` e `admin-dados.ts` ainda leem esse campo pra
+ * outra coisa; o sorteio nunca mais olha pra ele). É o que mantém o pré-render
+ * da home seguro: no build não existe banco, então o script pré-renderizado
+ * nasce inerte e o sorteio acontece em /criar.
+ */
 export const EXPERIMENTOS: Experimento[] = [
-  {
-    id: "abertura",
-    variantes: ["A", "B"],
-    // DESLIGADO em 10/08, sem ter chegado a medir nada.
-    //
-    // Não porque a variante perdeu: porque a BASE quebrou embaixo dela. O
-    // deploy que trouxe este teste trouxe junto as barras fixas do quiz, e a
-    // passagem da pergunta 1 pra 2 caiu de 43% pra 14% nas mesmas campanhas.
-    // Comparar A com B em cima de uma tela quebrada não mede a ideia, mede o
-    // defeito — e as duas variantes carregavam o mesmo defeito.
-    //
-    // A máquina de A/B continua inteira e testada. É só religar isto (e
-    // conferir a taxa base antes) quando o funil voltar ao normal.
-    ativo: false,
-    nota:
-      "A primeira tela do quiz. Medido em 09/08: de 195 que viram a pergunta 1, só 41 (21%) tocaram em algum chip, e 63% não produziram mais nenhum evento. Não é atrito de botão (só 6 escolheram sem avançar), é o primeiro instante. B mostra a prova e a promessa ANTES de pedir a primeira resposta.",
-  },
   {
     id: "preco",
     // A=38 (controle) · B=19 · C=9 · D=29 · E=54,90.
@@ -107,38 +113,147 @@ export const EXPERIMENTOS: Experimento[] = [
 
 const CHAVE = "mp_exp:";
 
+/**
+ * Quem não entrou no teste.
+ *
+ * É carimbada como qualquer variante, e por isso vira linha própria no painel
+ * sem nenhuma agregação nova. Serve de canário: se o controle DENTRO do teste
+ * se comporta muito diferente de quem está fora, o problema não é a variante,
+ * é a tela quebrada embaixo dela. Foi exatamente isso que impediu de ler o
+ * experimento `abertura`.
+ */
+export const FORA = "fora";
+
 /** Só os ativos. Um experimento desligado some do <html> e do CSS. */
 export function experimentosAtivos(): Experimento[] {
   return EXPERIMENTOS.filter((e) => e.ativo);
 }
 
-/** `data-exp-abertura` — o atributo que o CSS lê. */
+/** `data-exp-preco` — o atributo que o CSS lê. */
 export function atributoDe(id: string): string {
   return `data-exp-${id}`;
+}
+
+// ── A CONFIG ISOMÓRFICA: MESMA LEITURA NO SERVIDOR E NO CLIENTE ──────────
+//
+// `configAtual()` é quem `RootShell` (`__root.tsx`) chama pra saber que config
+// passar pra `scriptExperimentos`/`cssExperimentos`. `RootShell` renderiza no
+// servidor (a cada requisição) E hidrata no cliente (uma vez, no load) — se
+// cada lado lesse a config de um lugar diferente, o <script> e o <style> que
+// saem daqui divergiriam entre o HTML que o servidor mandou e o que o React
+// monta ao hidratar. É O MESMO defeito que motiva todo o resto deste arquivo
+// (ver o topo), só que na config em vez de no sorteio.
+//
+// A ponte é o <script> que `RootShell` escreve ANTES do de sorteio, com
+// `scriptConfigGlobal` (mais abaixo): planta `window.__SRN_CFG__` com a
+// config que o servidor acabou de usar. No servidor, `configAtual()` lê
+// `snapshotDoServidor` — variável de módulo que `experimentos-config.server.ts`
+// preenche a cada requisição, ANTES do render, via `definirConfigDoServidor`
+// (chamada pelo `requestMiddleware` em `src/start.ts`). No cliente,
+// `configAtual()` lê `window.__SRN_CFG__`, que é literalmente o JSON que o
+// servidor escreveu. Os dois lados partem do MESMO valor — não de uma cópia
+// dele, do mesmo objeto serializado — então a string que sai depois de
+// `scriptExperimentos`/`cssExperimentos` é idêntica dos dois lados.
+//
+// `experimentos-config.server.ts` continua sendo o ÚNICO arquivo que importa
+// o cliente Supabase com service role: ele só lê o banco e empurra o
+// resultado pra cá. Nunca o contrário — se este arquivo importasse algo de
+// lá, o ciclo (e o vazamento de service role pro bundle do cliente) voltaria.
+// É por isso que `configAtual()` mora AQUI, isomórfica, e não no `.server.ts`.
+
+declare global {
+  interface Window {
+    /** Escrito pelo servidor no <head>, antes do <script> de sorteio. */
+    __SRN_CFG__?: ExperimentoConfig[];
+  }
+}
+
+/** Preenchida por `definirConfigDoServidor`, a cada requisição, só no servidor. */
+let snapshotDoServidor: ExperimentoConfig[] | null = null;
+
+/**
+ * Só `experimentos-config.server.ts` chama isto — depois de ler o banco. Se a
+ * leitura falhar, ele simplesmente NÃO chama, e o snapshot anterior continua
+ * valendo (ver o comentário de `recarregar` lá): cair pro fallback do código
+ * a cada soluço do banco tiraria gente do teste em silêncio.
+ */
+export function definirConfigDoServidor(cfg: ExperimentoConfig[]): void {
+  snapshotDoServidor = cfg;
+}
+
+/**
+ * O chão de `configAtual()`, quando nem o snapshot do servidor nem
+ * `window.__SRN_CFG__` respondem — instância fria antes da primeira leitura,
+ * ou build sem banco (pré-render). TUDO `ativo: false`, sempre, mesmo que
+ * `EXPERIMENTOS` diga outra coisa: ver o comentário do array acima.
+ */
+function configDoCodigo(): ExperimentoConfig[] {
+  return EXPERIMENTOS.map((e) => ({
+    id: e.id,
+    ativo: false, // NUNCA true no fallback. Ver restrições globais do plano.
+    exposicaoPct: 100,
+    nota: e.nota,
+    variantes: e.variantes.map((nome, i) => ({ nome, peso: e.peso?.[i] ?? 1 })),
+  }));
+}
+
+/** A config viva, lida dos dois lados. Ver o comentário grande acima. */
+export function configAtual(): ExperimentoConfig[] {
+  if (typeof window !== "undefined") return window.__SRN_CFG__ ?? configDoCodigo();
+  return snapshotDoServidor ?? configDoCodigo();
+}
+
+/**
+ * O <script> que planta `window.__SRN_CFG__` — a ponte que faz `configAtual()`
+ * ser isomórfica (ver o comentário grande acima). PRECISA vir ANTES do
+ * <script> de `scriptExperimentos` no <head>: se viesse depois, o sorteio já
+ * teria rodado sem saber a config viva.
+ *
+ * Escapa `<`, `>` e `&`: `nota` e os campos de `Plano` (texto, ancora,
+ * checkout) são texto digitado no painel, não literal de código — um
+ * `</script>` digitado ali dentro fecharia a tag mais cedo e injetaria HTML no
+ * <head> de todo visitante do site. `scriptExperimentos` não corre este risco
+ * porque só embarca id, nome de variante, peso e exposição; este aqui embarca
+ * o objeto inteiro, texto livre incluído.
+ */
+export function scriptConfigGlobal(cfg: ExperimentoConfig[]): string {
+  const seguro = JSON.stringify(cfg).replace(
+    /[<>&]/g,
+    (c) => ({ "<": "\\u003c", ">": "\\u003e", "&": "\\u0026" })[c]!,
+  );
+  return `window.__SRN_CFG__=${seguro};`;
 }
 
 /**
  * O script que roda ANTES do React, direto no <head>.
  *
  * Síncrono de propósito: se ele fosse `async` ou rodasse no `onload`, o
- * navegador já teria pintado a versão A e a troca apareceria. É pequeno
+ * navegador já teria pintado o controle e a troca apareceria. É pequeno
  * porque tudo aqui atrasa o primeiro pixel de toda visita.
  *
- * `?exp=abertura:b` força uma variante e fica grudada — é como se testa a
- * própria variante antes de mandar tráfego pra ela.
+ * A ordem de decisão é: `?exp=` força e gruda > o que já está guardado no
+ * navegador (quem já foi sorteado nunca é reclassificado) > a EXPOSIÇÃO, que
+ * decide se a pessoa entra no teste ou cai em `FORA` > só então o peso, que
+ * escolhe a variante entre quem entrou. Sortear a exposição depois de `?exp=`
+ * e do guardado é o que deixa forçar variante pra testar continuar funcionando
+ * mesmo com a exposição em 1%.
  */
-export function scriptExperimentos(): string {
-  const cfg = experimentosAtivos().map((e) => ({
+export function scriptExperimentos(cfg: ExperimentoConfig[]): string {
+  const ativos = cfg.filter((e) => e.ativo && e.variantes.length > 0);
+  if (!ativos.length) return "";
+  const compacto = ativos.map((e) => ({
     id: e.id,
-    v: e.variantes,
-    p: e.peso ?? e.variantes.map(() => 1),
+    v: e.variantes.map((v) => v.nome),
+    p: e.variantes.map((v) => v.peso || 1),
+    x: e.exposicaoPct,
   }));
   return `(function(){try{
-var C=${JSON.stringify(cfg)},D=document.documentElement,U=new URLSearchParams(location.search),F=U.get("exp")||"";
+var C=${JSON.stringify(compacto)},D=document.documentElement,U=new URLSearchParams(location.search),F=U.get("exp")||"";
 for(var i=0;i<C.length;i++){var e=C[i],k="${CHAVE}"+e.id,v=null;
 var m=F.split(",").map(function(s){return s.trim()}).filter(function(s){return s.indexOf(e.id+":")===0});
-if(m.length){var f=m[0].split(":")[1];for(var j=0;j<e.v.length;j++){if(e.v[j].toLowerCase()===String(f).toLowerCase())v=e.v[j];}}
-if(!v){try{var s=localStorage.getItem(k);if(s&&e.v.indexOf(s)>=0)v=s;}catch(_){}}
+if(m.length){var f=m[0].split(":")[1];if(String(f).toLowerCase()==="${FORA}")v="${FORA}";for(var j=0;j<e.v.length;j++){if(e.v[j].toLowerCase()===String(f).toLowerCase())v=e.v[j];}}
+if(!v){try{var s=localStorage.getItem(k);if(s==="${FORA}"||e.v.indexOf(s)>=0)v=s;}catch(_){}}
+if(!v&&Math.random()*100>=e.x){v="${FORA}";}
 if(!v){var t=0;for(var j=0;j<e.p.length;j++)t+=e.p[j];var r=Math.random()*t,a=0;v=e.v[0];
 for(var j=0;j<e.v.length;j++){a+=e.p[j];if(r<a){v=e.v[j];break;}}}
 try{localStorage.setItem(k,v);}catch(_){}
@@ -152,35 +267,40 @@ D.setAttribute("data-exp-"+e.id,v);}
  * `display:contents` e não `block`: o invólucro precisa sumir do layout, senão
  * ele vira uma caixa a mais dentro de um flex e desalinha tudo.
  *
- * A regra `:not([data-exp-...])` é o caso de JavaScript desligado ou script
- * bloqueado: sem atributo nenhum, aparece o controle. Nunca uma tela vazia.
+ * Três redes de segurança, nesta ordem de prioridade: `:not([data-exp-...])`
+ * é JavaScript desligado ou script bloqueado (sem atributo nenhum, aparece o
+ * controle); `[data-exp-...="fora"]` é quem a exposição deixou de fora do
+ * teste (aparece o controle também); e o experimento DESLIGADO nem chega a
+ * gerar as duas regras acima — só a do controle, incondicional.
  */
-export function cssExperimentos(): string {
+export function cssExperimentos(cfg: ExperimentoConfig[]): string {
   const linhas: string[] = [];
   // TODOS os experimentos, não só os ativos. Descoberto do jeito ruim em
   // 10/08: ao desligar um experimento, as regras dele sumiam do CSS, e o
-  // bloco da variante B ficava SEM nenhuma regra de `display:none` — ou seja,
-  // desligar o teste publicava a variante pra 100% do tráfego, exatamente o
-  // contrário do pretendido. Desligar tem que ser a coisa mais segura de
-  // fazer com um experimento, não a mais perigosa.
-  for (const e of EXPERIMENTOS) {
-    const seletores = e.variantes.map((v) => `[data-v="${e.id}:${v}"]`).join(",");
-    linhas.push(`${seletores}{display:none}`);
+  // bloco da variante ficava SEM nenhuma regra de `display:none` — ou seja,
+  // desligar publicava a variante pra 100% do tráfego. Desligar tem que ser a
+  // coisa mais segura de fazer com um experimento, não a mais perigosa.
+  for (const e of cfg) {
+    if (!e.variantes.length) continue;
+    const nomes = e.variantes.map((v) => v.nome);
+    const controle = nomes[0];
+    linhas.push(nomes.map((v) => `[data-v="${e.id}:${v}"]`).join(",") + "{display:none}");
 
     if (!e.ativo) {
       // Desligado: só o controle aparece, pra quem tiver escrito conteúdo de
       // controle dentro de um <Variante> não ficar com a tela vazia.
-      linhas.push(`[data-v="${e.id}:${e.variantes[0]}"]{display:contents}`);
+      linhas.push(`[data-v="${e.id}:${controle}"]{display:contents}`);
       continue;
     }
-    for (const v of e.variantes) {
-      linhas.push(
-        `html[${atributoDe(e.id)}="${v}"] [data-v="${e.id}:${v}"]{display:contents}`,
-      );
+    for (const v of nomes) {
+      linhas.push(`html[${atributoDe(e.id)}="${v}"] [data-v="${e.id}:${v}"]{display:contents}`);
     }
+    // Quem ficou de fora do teste vê o CONTROLE. Sem esta regra, a tela dele
+    // sairia sem preço nenhum.
     linhas.push(
-      `html:not([${atributoDe(e.id)}]) [data-v="${e.id}:${e.variantes[0]}"]{display:contents}`,
+      `html[${atributoDe(e.id)}="${FORA}"] [data-v="${e.id}:${controle}"]{display:contents}`,
     );
+    linhas.push(`html:not([${atributoDe(e.id)}]) [data-v="${e.id}:${controle}"]{display:contents}`);
   }
   return linhas.join("");
 }
@@ -193,7 +313,7 @@ export function varianteDe(id: string): string {
   return document.documentElement.getAttribute(atributoDe(id)) ?? controle;
 }
 
-/** Todas as escolhas, no formato que vai pro banco: `{ abertura: "B" }`. */
+/** Todas as escolhas, no formato que vai pro banco: `{ preco: "B" }`. */
 export function variantesAtuais(): Record<string, string> {
   if (typeof document === "undefined") return {};
   const out: Record<string, string> = {};
