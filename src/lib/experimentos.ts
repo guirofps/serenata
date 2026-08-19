@@ -60,6 +60,26 @@ export const EXPERIMENTOS: Experimento[] = [
     nota:
       "A primeira tela do quiz. Medido em 09/08: de 195 que viram a pergunta 1, só 41 (21%) tocaram em algum chip, e 63% não produziram mais nenhum evento. Não é atrito de botão (só 6 escolheram sem avançar), é o primeiro instante. B mostra a prova e a promessa ANTES de pedir a primeira resposta.",
   },
+  {
+    id: "preco",
+    // A=38 (controle) · B=19 · C=9 · D=29 · E=54,90.
+    //
+    // Os cinco planos existem na Perfect Pay e os cinco foram conferidos
+    // abrindo o checkout: o "Total Hoje" de cada tela bate com o texto do
+    // plano em `preco.ts`. São PLANOS do mesmo produto, não produtos novos —
+    // ver a nota lá sobre o fallback por valor do `reconhecerOferta`.
+    variantes: ["A", "B", "C", "D", "E"],
+    // PESO IGUAL, cinco fatias de 20%.
+    //
+    // Cinco braços é muita divisão pro volume desta operação: os extremos
+    // (R$ 9 contra R$ 54,90) separam rápido porque a diferença é grande, mas
+    // 29 contra 38 leva meses. Está registrado como escolha do dono, com a
+    // conta na mesa, e não por descuido.
+    peso: [1, 1, 1, 1, 1],
+    ativo: true,
+    nota:
+      "Quanto custa a música. O preço vive em `preco.ts` como PLANO (número na tela + produto da Perfect Pay + valor da conversão no mesmo objeto), porque o que estraga teste de preço é a tela dizer um número e o caixa cobrar outro. Fora do teste: o funil espanhol (volume pequeno demais pra dividir) e quem chega com cupom da recuperação (o e-mail já prometeu um número exato).",
+  },
 ];
 
 const CHAVE = "mp_exp:";

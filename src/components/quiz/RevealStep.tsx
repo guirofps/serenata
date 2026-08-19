@@ -12,7 +12,8 @@ import { PreviaPresente } from "@/components/quiz/PreviaPresente";
 import { EscolherRefrao } from "@/components/quiz/coautoria/EscolherRefrao";
 import { EditorLetra } from "@/components/quiz/coautoria/EditorLetra";
 import { QrCode } from "lucide-react";
-import { type Locale, caminho, MOEDA } from "@/lib/i18n";
+import { type Locale, caminho } from "@/lib/i18n";
+import { APartirDe } from "@/components/quiz/PrecoDaOferta";
 import { t } from "@/lib/textos";
 
 // A REVELAÇÃO — agora é COAUTORIA, não letra pronta.
@@ -296,10 +297,16 @@ function IrPagar({ nome, locale }: { nome: string; locale: Locale }) {
       </Button>
       {/* O preço vinha CRAVADO aqui, em português e em real: o funil
           espanhol mostrava "A partir de R$ 37" no pico emocional, logo depois
-          da pessoa ouvir a própria música. Agora sai do catálogo de moeda. */}
-      <p className="mt-3 text-center text-xs text-muted-foreground">
-        {T.aPartirDe((MOEDA[locale] ?? MOEDA.pt).texto)}
-      </p>
+          da pessoa ouvir a própria música. Depois passou a sair do catálogo de
+          moeda; desde 18/08 sai do PLANO sorteado pra esta pessoa.
+          Este é o primeiro preço que ela lê no funil inteiro — se ele não
+          acompanhasse o teste, metade do tráfego leria um número aqui e
+          encontraria outro na tela seguinte. */}
+      <APartirDe
+        locale={locale}
+        frase={T.aPartirDe}
+        className="mt-3 text-center text-xs text-muted-foreground"
+      />
     </div>
   );
 }

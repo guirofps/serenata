@@ -9,7 +9,9 @@ import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { TEMA_CLARO } from "@/lib/marca";
-import { type Locale, MOEDA } from "@/lib/i18n";
+import { type Locale } from "@/lib/i18n";
+import { meuPlano } from "@/lib/preco";
+import { PrecoCurto, PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
 import { cupomAtivo } from "@/lib/cupom";
 import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
@@ -203,7 +205,13 @@ const COPY = {
 export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; locale?: Locale }) {
   const C = COPY[locale] ?? COPY.pt;
   const G = GARANTIA[locale] ?? GARANTIA.pt;
-  const preco = MOEDA[locale] ?? MOEDA.pt;
+  // NÃO EXISTE MAIS UM `preco` NESTE CORPO, e isso é a trava.
+  //
+  // O preço que a pessoa VÊ sai de `PrecoDaOferta`/`PrecoCurto` (as duas
+  // versões no HTML, CSS esconde a perdedora — sem piscada no servidor). O
+  // preço que vira DINHEIRO sai de `meuPlano` dentro do handler, depois da
+  // hidratação, junto do link do checkout. Uma variável só aqui em cima
+  // convidaria a usar o número do controle num dos dois lugares errados.
   const [semMusica, setSemMusica] = useState(false);
   // ── O MODO CRÉDITO ────────────────────────────────────────────
   //
@@ -343,7 +351,14 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     } catch {
       // Consulta indisponível: segue. Ver comentário acima.
     }
-    trackEvent("checkout_click", { valor: preco.valor, locale });
+    // O VALOR DO EVENTO É O DAQUELA PESSOA, não o do catálogo.
+    //
+    // Aqui já passou a hidratação, então `meuPlano` sabe a variante sorteada.
+    // Um `valor` fixo faria o painel somar 38 em cima de cliques que iam pagar
+    // outra coisa — e o degrau "clicou em comprar" é justamente onde o teste
+    // de preço tem que ser lido.
+    const plano = meuPlano(locale, { temCupom: Boolean(cupom && descontado) });
+    trackEvent("checkout_click", { valor: plano.valor, locale, preco: plano.texto });
     irParaCheckout({
       email: email || undefined,
       telefone: whatsapp || undefined,
@@ -439,12 +454,11 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
         <div className="mt-4">
           {/* Com cupom, a âncora deixa de ser o preço inventado e passa a ser
               o preço REAL de quem não tem cupom. É mais forte e é verdade. */}
-          <p className="text-sm text-muted-foreground">
-            <span className="line-through">{descontado ? preco.texto : preco.ancora}</span> {C.hojePor}
-          </p>
-          <p className="font-display text-5xl font-semibold tracking-tight">
-            {descontado ? descontado.por : preco.texto}
-          </p>
+          <PrecoDaOferta
+            locale={locale}
+            hojePor={C.hojePor}
+            descontado={descontado}
+          />
           {descontado && (
             <p className="mt-1.5 inline-block rounded-full bg-emerald-600/10 px-3 py-1 text-xs font-semibold text-emerald-700">
               {locale === "es"
@@ -592,9 +606,17 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
             <p className="text-[10px] leading-none text-muted-foreground">
               {credito ? C.creditoLabel : C.unicoLabel}
             </p>
-            <p className="font-display text-lg font-semibold leading-tight">
-              {credito ? C.creditoValor : preco.texto}
-            </p>
+            {credito ? (
+              <p className="font-display text-lg font-semibold leading-tight">
+                {C.creditoValor}
+              </p>
+            ) : (
+              <PrecoCurto
+                locale={locale}
+                descontado={descontado}
+                className="font-display text-lg font-semibold leading-tight"
+              />
+            )}
           </div>
           <Button
             className="cta h-12 flex-1 rounded-full border-0"
