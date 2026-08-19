@@ -18,28 +18,16 @@
 /**
  * Número do atendimento, em dígitos, com DDI.
  *
- * ELE TEM 8 DÍGITOS DEPOIS DO DDD, E ISSO ESTÁ CERTO.
- *
- * Ficou desligado por dias porque parecia quebrado: celular brasileiro tem 9
- * dígitos desde 2016. A suspeita estava errada. O nono dígito passou a valer
- * para números NOVOS; contas de WhatsApp criadas antes disso, em DDDs acima
- * de 30 (este é 65), seguem registradas com 8 dígitos, e é assim que elas
- * aparecem pra quem já conversa com a pessoa. Acrescentar o 9 geraria um
- * número que pode nem existir, e o link abriria dizendo que o contato não
- * está no WhatsApp, pra todo comprador.
- *
- * Conferido tocando os dois links no celular, não deduzido: o de 8 dígitos
- * abre a conversa do atendimento, o de 9 não.
- *
  * VAZIO DESLIGA O BOTÃO: `linkSuporte` devolve null e nada é renderizado.
  */
-const NUMERO = "556599193386";
+const NUMERO = "5511950557212";
 
 /**
  * Só dígitos e tamanho plausível de celular com DDI.
  *
- * O piso é 12 por causa do caso acima: 55 + DDD de 2 + 8 dígitos dá 12, e
- * exigir 13 desligaria um número que funciona.
+ * O piso é 12, não 13: o atendimento já usou um número de 8 dígitos depois do
+ * DDD (conta de WhatsApp anterior a 2016, DDD acima de 30), que é válido e dá
+ * 55 + DDD de 2 + 8 = 12. Exigir 13 desligaria um número que funciona.
  */
 export function numeroValido(n: string = NUMERO): boolean {
   const so = n.replace(/\D/g, "");
