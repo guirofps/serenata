@@ -161,10 +161,42 @@ export function atributoDe(id: string): string {
 // lá, o ciclo (e o vazamento de service role pro bundle do cliente) voltaria.
 // É por isso que `configAtual()` mora AQUI, isomórfica, e não no `.server.ts`.
 
+/**
+ * O que `nota` NÃO É: `nota` é estratégia de preço interna (o porquê de cada
+ * braço, pra quem olha o painel — ver o comentário de `preco` em
+ * `EXPERIMENTOS`), digitada por gente, e vai continuar sendo depois que o
+ * painel deixar editar. Nenhum dos três consumidores do <head>
+ * (`scriptConfigGlobal`, `scriptExperimentos`, `cssExperimentos`) LÊ `nota` —
+ * então ela não tem por que sair pro HTML público, que qualquer um pode abrir
+ * com "ver código-fonte". `plano` FICA: a Task 5 monta tela e link de
+ * checkout no cliente a partir dele.
+ */
+export type ExperimentoConfigPublica = Omit<ExperimentoConfig, "nota">;
+
+/**
+ * Reduz a config aos campos públicos, antes de qualquer serialização.
+ *
+ * IDEMPOTENTE de propósito, e não por acaso: `configAtual()` roda isto tanto
+ * no servidor (sobre o snapshot cru, que TEM `nota`) quanto no cliente (sobre
+ * `window.__SRN_CFG__`, que É o resultado desta mesma função já rodada no
+ * servidor, momentos antes). A função nunca LÊ `nota` do que recebe — só
+ * reconstrói os campos que quer manter, campo por campo — então reprojetar
+ * um valor já projetado devolve exatamente o mesmo valor. É isso que garante
+ * que os dois lados do <head> continuem idênticos mesmo depois deste corte.
+ */
+function projetarParaPublico(cfg: ExperimentoConfigPublica[]): ExperimentoConfigPublica[] {
+  return cfg.map((e) => ({
+    id: e.id,
+    ativo: e.ativo,
+    exposicaoPct: e.exposicaoPct,
+    variantes: e.variantes.map((v) => ({ nome: v.nome, peso: v.peso, plano: v.plano })),
+  }));
+}
+
 declare global {
   interface Window {
-    /** Escrito pelo servidor no <head>, antes do <script> de sorteio. */
-    __SRN_CFG__?: ExperimentoConfig[];
+    /** Escrito pelo servidor no <head>, antes do <script> de sorteio. JÁ projetada. */
+    __SRN_CFG__?: ExperimentoConfigPublica[];
   }
 }
 
@@ -176,9 +208,25 @@ let snapshotDoServidor: ExperimentoConfig[] | null = null;
  * leitura falhar, ele simplesmente NÃO chama, e o snapshot anterior continua
  * valendo (ver o comentário de `recarregar` lá): cair pro fallback do código
  * a cada soluço do banco tiraria gente do teste em silêncio.
+ *
+ * Recebe a config CRUA (com `nota`) — `configAtual()` é quem projeta na
+ * saída. Guardar a crua aqui deixa outro código de servidor (o painel, Task
+ * 6) ler `nota` de algum outro caminho no futuro, se precisar; hoje só
+ * `lerConfigFresca()` faz isso, direto, sem passar por este snapshot.
  */
 export function definirConfigDoServidor(cfg: ExperimentoConfig[]): void {
   snapshotDoServidor = cfg;
+}
+
+/**
+ * SÓ PARA TESTE. Devolve o snapshot do servidor pro estado "nunca li o banco
+ * ainda" — sem isto, testar o ramo de fallback de `configAtual()` depende de
+ * rodar ANTES de qualquer teste que chame `definirConfigDoServidor`, porque
+ * `snapshotDoServidor` é uma variável de módulo e persiste entre `it`s do
+ * mesmo arquivo.
+ */
+export function _resetConfigDoServidorParaTeste(): void {
+  snapshotDoServidor = null;
 }
 
 /**
@@ -197,10 +245,15 @@ function configDoCodigo(): ExperimentoConfig[] {
   }));
 }
 
-/** A config viva, lida dos dois lados. Ver o comentário grande acima. */
-export function configAtual(): ExperimentoConfig[] {
-  if (typeof window !== "undefined") return window.__SRN_CFG__ ?? configDoCodigo();
-  return snapshotDoServidor ?? configDoCodigo();
+/**
+ * A config viva, JÁ PROJETADA pro que o <head> público usa (`nota` fora — ver
+ * `projetarParaPublico`). Lida dos dois lados. Ver o comentário grande acima.
+ */
+export function configAtual(): ExperimentoConfigPublica[] {
+  if (typeof window !== "undefined") {
+    return projetarParaPublico(window.__SRN_CFG__ ?? configDoCodigo());
+  }
+  return projetarParaPublico(snapshotDoServidor ?? configDoCodigo());
 }
 
 /**
@@ -209,14 +262,15 @@ export function configAtual(): ExperimentoConfig[] {
  * <script> de `scriptExperimentos` no <head>: se viesse depois, o sorteio já
  * teria rodado sem saber a config viva.
  *
- * Escapa `<`, `>` e `&`: `nota` e os campos de `Plano` (texto, ancora,
- * checkout) são texto digitado no painel, não literal de código — um
- * `</script>` digitado ali dentro fecharia a tag mais cedo e injetaria HTML no
- * <head> de todo visitante do site. `scriptExperimentos` não corre este risco
- * porque só embarca id, nome de variante, peso e exposição; este aqui embarca
- * o objeto inteiro, texto livre incluído.
+ * Escapa `<`, `>` e `&`: os campos de `Plano` (texto, ancora, checkout) são
+ * texto digitado no painel, não literal de código — um `</script>` digitado
+ * ali dentro fecharia a tag mais cedo e injetaria HTML no <head> de todo
+ * visitante do site. `scriptExperimentos` não corre este risco porque só
+ * embarca id, nome de variante, peso e exposição; este aqui embarca a config
+ * pública inteira (`nota` já saiu — ver `configAtual`/`projetarParaPublico`),
+ * `Plano` incluído.
  */
-export function scriptConfigGlobal(cfg: ExperimentoConfig[]): string {
+export function scriptConfigGlobal(cfg: ExperimentoConfigPublica[]): string {
   const seguro = JSON.stringify(cfg).replace(
     /[<>&]/g,
     (c) => ({ "<": "\\u003c", ">": "\\u003e", "&": "\\u0026" })[c]!,
@@ -237,14 +291,22 @@ export function scriptConfigGlobal(cfg: ExperimentoConfig[]): string {
  * escolhe a variante entre quem entrou. Sortear a exposição depois de `?exp=`
  * e do guardado é o que deixa forçar variante pra testar continuar funcionando
  * mesmo com a exposição em 1%.
+ *
+ * `peso || 1` era o bug: `0` é peso VÁLIDO (zerar um braço é como se para de
+ * mandar tráfego pra ele sem apagar a variante — o painel vai deixar fazer
+ * isso), e `||` trata `0` como ausente e troca por 1. É `?? 1` que faz a
+ * distinção certa: só peso AUSENTE (undefined) vira 1. Com todos os pesos
+ * zerados, `t` (a soma) dá `0`, e o `if(t>0)` abaixo pula o sorteio inteiro —
+ * `v` fica no valor com que já entrou no bloco, o controle (`e.v[0]`), sem
+ * tocar em `Math.random()` nem arriscar dividir por zero.
  */
-export function scriptExperimentos(cfg: ExperimentoConfig[]): string {
+export function scriptExperimentos(cfg: ExperimentoConfigPublica[]): string {
   const ativos = cfg.filter((e) => e.ativo && e.variantes.length > 0);
   if (!ativos.length) return "";
   const compacto = ativos.map((e) => ({
     id: e.id,
     v: e.variantes.map((v) => v.nome),
-    p: e.variantes.map((v) => v.peso || 1),
+    p: e.variantes.map((v) => v.peso ?? 1),
     x: e.exposicaoPct,
   }));
   return `(function(){try{
@@ -254,8 +316,8 @@ var m=F.split(",").map(function(s){return s.trim()}).filter(function(s){return s
 if(m.length){var f=m[0].split(":")[1];if(String(f).toLowerCase()==="${FORA}")v="${FORA}";for(var j=0;j<e.v.length;j++){if(e.v[j].toLowerCase()===String(f).toLowerCase())v=e.v[j];}}
 if(!v){try{var s=localStorage.getItem(k);if(s==="${FORA}"||e.v.indexOf(s)>=0)v=s;}catch(_){}}
 if(!v&&Math.random()*100>=e.x){v="${FORA}";}
-if(!v){var t=0;for(var j=0;j<e.p.length;j++)t+=e.p[j];var r=Math.random()*t,a=0;v=e.v[0];
-for(var j=0;j<e.v.length;j++){a+=e.p[j];if(r<a){v=e.v[j];break;}}}
+if(!v){var t=0;for(var j=0;j<e.p.length;j++)t+=e.p[j];v=e.v[0];
+if(t>0){var r=Math.random()*t,a=0;for(var j=0;j<e.v.length;j++){a+=e.p[j];if(r<a){v=e.v[j];break;}}}}
 try{localStorage.setItem(k,v);}catch(_){}
 D.setAttribute("data-exp-"+e.id,v);}
 }catch(_){}})();`;
@@ -273,7 +335,7 @@ D.setAttribute("data-exp-"+e.id,v);}
  * teste (aparece o controle também); e o experimento DESLIGADO nem chega a
  * gerar as duas regras acima — só a do controle, incondicional.
  */
-export function cssExperimentos(cfg: ExperimentoConfig[]): string {
+export function cssExperimentos(cfg: ExperimentoConfigPublica[]): string {
   const linhas: string[] = [];
   // TODOS os experimentos, não só os ativos. Descoberto do jeito ruim em
   // 10/08: ao desligar um experimento, as regras dele sumiam do CSS, e o
