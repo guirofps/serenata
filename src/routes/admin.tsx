@@ -50,6 +50,23 @@ const brl = (n: number) =>
 const usd = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 const pc = (n: number) => `${n.toFixed(1)}%`;
+/**
+ * Como a legenda do gráfico nomeia uma janela.
+ *
+ * Num recorte de um dia o que importa é QUAL dia ("20/08"); num recorte maior,
+ * o intervalo. A legenda do comparativo usa a mesma função, então "hoje contra
+ * ontem" sai escrito com as duas datas em vez de um "período anterior" que não
+ * diz qual.
+ */
+function rotuloDaJanela(de: string, ate: string, granularidade: "hora" | "dia"): string {
+  const dia = (iso: string) =>
+    new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  if (granularidade === "hora") return dia(de);
+  // O fim da janela é EXCLUSIVO (o dia seguinte às 00:00): mostrar ele cru
+  // faria um recorte de 7 dias parecer de 8.
+  const fim = new Date(new Date(ate).getTime() - 1);
+  return `${dia(de)} – ${dia(fim.toISOString())}`;
+}
 const seg = (n: number | null) =>
   n == null ? "—" : n < 90 ? `${Math.round(n)}s` : `${(n / 60).toFixed(1)}min`;
 const quando = (iso: string) =>
@@ -662,8 +679,25 @@ function Admin() {
 
               {/* O GRÁFICO PRINCIPAL, logo abaixo da linha de cartões.
                   Os cartões dizem COMO ESTÁ; nenhum deles diz pra ONDE ESTÁ
-                  INDO, e "93 vendas" tem forma de rampa e forma de queda. */}
-              <GraficoVendas porDia={dados.custos.porDia} de={dados.de} ate={dados.ate} />
+                  INDO, e "R$ 2.406" tem forma de rampa e forma de queda.
+
+                  A granularidade segue o recorte, decidida no servidor: um dia
+                  vira baldes de hora, mais que isso vira baldes de dia. */}
+              <GraficoVendas
+                serie={dados.serie.pontos}
+                anterior={dados.comparativo?.serie ?? []}
+                granularidade={dados.serie.granularidade}
+                rotuloPeriodo={rotuloDaJanela(dados.de, dados.ate, dados.serie.granularidade)}
+                rotuloAnterior={
+                  dados.comparativo
+                    ? rotuloDaJanela(
+                        dados.comparativo.de,
+                        dados.comparativo.ate,
+                        dados.serie.granularidade,
+                      )
+                    : "período anterior"
+                }
+              />
               {/* ── MÍDIA: a conta que decide se a operação vive ──────
               Margem bruta sem CPA não diz nada: R$ 209 pode ser lucro ou
               prejuízo, depende do que se gastou pra trazer as vendas. */}

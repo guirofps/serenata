@@ -19,6 +19,18 @@ const CREDITO_POR_MUSICA = 12;
 /** Qual funil o painel está olhando. */
 export type FunilFiltro = "todos" | "pt" | "es";
 
+/** Um balde da série do gráfico. `rotulo` já vem pronto pro eixo. */
+export type PontoSerie = {
+  /** Instante de início do balde, ISO. Serve de chave estável. */
+  inicio: string;
+  /** "14" (hora) ou "20/08" (dia). */
+  rotulo: string;
+  /** Receita do balde, com o dólar convertido — é o que o gráfico desenha. */
+  receitaBrl: number;
+  /** Quantas vendas. Vai pro balão do hover, não pro eixo. */
+  vendas: number;
+};
+
 export type Painel = {
   /** Qual funil este recorte está olhando. */
   filtro: FunilFiltro;
@@ -97,6 +109,17 @@ export type Painel = {
     topo: Painel["topo"];
     /** id do degrau -> quantos chegaram nele. */
     funil: Record<string, number>;
+    /**
+     * A série do período anterior INTEIRO — e é o único número deste bloco que
+     * não é cortado na hora de agora.
+     *
+     * Todo o resto do `comparativo` compara "hoje até agora" com "ontem até
+     * esta mesma hora", que é o que faz a setinha ser honesta. No gráfico a
+     * régua é outra: a linha tracejada cheia mostra ONDE ONTEM FECHOU, e é isso
+     * que transforma o desenho em meta em vez de só placar. A sólida para em
+     * agora e a diferença fica à vista, que é o desenho da Shopify.
+     */
+    serie: PontoSerie[];
   } | null;
 
   /** O funil inteiro, do clique à venda. É o mapa de onde fura. */
@@ -221,6 +244,25 @@ export type Painel = {
     musicasQueCabem: number | null;
   };
 
+  /**
+   * A SÉRIE DO GRÁFICO PRINCIPAL.
+   *
+   * Balde por HORA quando o recorte é de um dia, por DIA quando é maior — a
+   * mesma régua da Shopify, e pela mesma razão: "hoje" num gráfico de barras
+   * diárias é uma barra só, que não é gráfico nenhum.
+   *
+   * Traz RECEITA, não contagem. A operação faz poucas vendas por dia, então a
+   * contagem por hora é uma linha de zeros e uns sem forma; a receita desenha
+   * a curva. A contagem viaja junto pra o balão do hover.
+   *
+   * `pontos` cobre só até AGORA. O que vem depois não é zero, é futuro — e a
+   * linha tem que parar, não descer.
+   */
+  serie: {
+    granularidade: "hora" | "dia";
+    pontos: PontoSerie[];
+  };
+
   custos: {
     porTipo: Array<{ tipo: string; brl: number; n: number }>;
     porDia: Array<{ dia: string; brl: number; receitaBrl: number; vendas: number }>;
@@ -342,7 +384,13 @@ type Musica = {
   gerada_em: string | null;
   personalizada_em: string | null;
 };
-type Custo = { id: string; tipo: string; custo_brl: number | null; quiz_response_id: string | null; created_at: string };
+type Custo = {
+  id: string;
+  tipo: string;
+  custo_brl: number | null;
+  quiz_response_id: string | null;
+  created_at: string;
+};
 /**
  * O que `admin_eventos_resumo` devolve (migration 20260817000000).
  *
@@ -410,7 +458,10 @@ const LOTE = 12;
  * visível, porque só o erro faz alguém consertar.
  */
 async function paginado<T extends { id: string }>(
-  monta: (de: number, ate: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  monta: (
+    de: number,
+    ate: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
 ): Promise<T[]> {
   const TETO = 500_000;
   const tudo: T[] = [];
@@ -474,10 +525,83 @@ function janelaDo(data: ArgsPainel): Janela {
     const inicio = inicioDoDiaBr(data.de);
     // `ate` é inclusivo: somamos 1 dia pra pegar o dia inteiro.
     const fim = data.ate ? new Date(inicioDoDiaBr(data.ate).getTime() + 86400000) : new Date();
-    return { inicio, fim, dias: Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / 86400000)) };
+    return {
+      inicio,
+      fim,
+      dias: Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / 86400000)),
+    };
   }
   const dias = data.dias && data.dias > 0 ? data.dias : 30;
   return { inicio: new Date(Date.now() - dias * 86400000), fim: new Date(), dias };
+}
+
+// ── A SÉRIE DO GRÁFICO ──────────────────────────────────────────
+//
+// Mora fora de `montarPainel` porque tem DOIS chamadores com necessidades
+// opostas: o período pedido (cortado em agora) e o período anterior INTEIRO.
+
+const OFFSET_BR_MS = 3 * 3600000;
+
+/** O instante, deslocado pro fuso do Brasil. Só pra fatiar dia e hora. */
+function emBr(t: number): Date {
+  return new Date(t - OFFSET_BR_MS);
+}
+
+/**
+ * Hora quando o recorte é de um dia; dia quando é maior.
+ *
+ * O corte é em `dias <= 1`, e não em "de === ate", porque o atalho "Hoje" e um
+ * intervalo de um dia só escolhido à mão são a mesma pergunta.
+ */
+export function granularidadeDe(dias: number): "hora" | "dia" {
+  return dias <= 1 ? "hora" : "dia";
+}
+
+/**
+ * Monta os baldes de uma janela e distribui as vendas neles.
+ *
+ * `ate` corta a série: com ele, os baldes que ainda não aconteceram ficam de
+ * fora, e a linha PARA em vez de descer até o chão. Sem ele (o período
+ * anterior), a série vai até o fim da janela.
+ *
+ * Os baldes são fatiados no fuso do BRASIL. O `porDia` antigo fatiava a string
+ * ISO em UTC, e por isso uma venda da madrugada caía no dia anterior — erro que
+ * ninguém nota até olhar um dia de perto, que é exatamente o que este gráfico
+ * passa a permitir.
+ */
+export function montarSerie(
+  vendas: Array<{ quando: number; brl: number }>,
+  janela: Janela,
+  granularidade: "hora" | "dia",
+  ate?: number,
+): PontoSerie[] {
+  const passo = granularidade === "hora" ? 3600000 : 86400000;
+  const limite = Math.min(janela.fim.getTime(), ate ?? Infinity);
+
+  const baldes: PontoSerie[] = [];
+  // Teto de segurança: janela absurda não vira série de dez mil pontos.
+  for (let t = janela.inicio.getTime(), i = 0; t < limite && i < 400; t += passo, i++) {
+    const br = emBr(t);
+    baldes.push({
+      inicio: new Date(t).toISOString(),
+      rotulo:
+        granularidade === "hora"
+          ? String(br.getUTCHours()).padStart(2, "0")
+          : `${String(br.getUTCDate()).padStart(2, "0")}/${String(br.getUTCMonth() + 1).padStart(2, "0")}`,
+      receitaBrl: 0,
+      vendas: 0,
+    });
+  }
+  if (!baldes.length) return [];
+
+  const inicio = janela.inicio.getTime();
+  for (const v of vendas) {
+    const i = Math.floor((v.quando - inicio) / passo);
+    if (i < 0 || i >= baldes.length) continue;
+    baldes[i].receitaBrl += v.brl;
+    baldes[i].vendas++;
+  }
+  return baldes;
 }
 
 /**
@@ -520,15 +644,16 @@ async function montarPainel(
   { inicio, fim, dias }: Janela,
   opts: { enxuto?: boolean } = {},
 ): Promise<Painel> {
-    const db = supabaseAdmin();
-    const desde = inicio.toISOString();
-    const ateISO = fim.toISOString();
+  const db = supabaseAdmin();
+  const desde = inicio.toISOString();
+  const ateISO = fim.toISOString();
 
-    // A ordenação por `id` não é enfeite: sem ORDER BY estável, duas páginas
-    // do mesmo range podem repetir e pular linhas. A ordem de exibição é
-    // reconstruída em JS depois.
-    const janela = <T extends { id: string }>(tabela: string, colunas: string) =>
-      paginado<T>((de, ate) =>
+  // A ordenação por `id` não é enfeite: sem ORDER BY estável, duas páginas
+  // do mesmo range podem repetir e pular linhas. A ordem de exibição é
+  // reconstruída em JS depois.
+  const janela = <T extends { id: string }>(tabela: string, colunas: string) =>
+    paginado<T>(
+      (de, ate) =>
         db
           .from(tabela)
           .select(colunas)
@@ -536,386 +661,420 @@ async function montarPainel(
           .lt("created_at", ateISO)
           .order("id")
           .range(de, ate) as never,
-      );
-
-    // FUNNEL_EVENTS NÃO ENTRA AQUI, e essa ausência é o conserto.
-    //
-    // Até 17/08 esta lista tinha uma sexta entrada puxando funnel_events
-    // inteiro: 180 mil linhas numa janela de 30 dias, contra 24 mil das
-    // outras quatro somadas. Vinham pro Node só pra virar meia dúzia de
-    // contadores, e o tempo disso crescia junto com o tráfego até estourar o
-    // limite da função na Vercel.
-    //
-    // Agora essa conta é feita no banco, por `admin_eventos_resumo`, e volta
-    // como ~30 linhas de resumo. Chamada mais abaixo, porque ela precisa
-    // saber quais sessões compraram, e isso sai de `pedidos`.
-    const [leadsCru, musicas, custos, pedidos] = await Promise.all([
-      janela<Lead>("quiz_responses", "id, session_id, respostas, furthest_step, email, attribution, locale, created_at"),
-      janela<Musica>("musicas", "id, quiz_response_id, titulo, status, created_at, gerada_em, personalizada_em"),
-      janela<Custo>("custos", "id, tipo, custo_brl, quiz_response_id, created_at"),
-      janela<Pedido>(
-        "pedidos",
-        "id, quiz_response_id, musica_id, gateway, status, valor_centavos, email, paid_at, created_at, dinheiro_entrou",
-      ),
-    ]);
-
-
-    // ── SEPARAÇÃO DOS DOIS FUNIS ──────────────────────────────────
-    //
-    // Sem isto o painel soma R$ com US$ e produz um faturamento que não
-    // existe em lugar nenhum.
-    //
-    // De onde sai o idioma de cada linha, em ordem de confiança:
-    //
-    //   1. `quiz_responses.locale` — gravado no passo 1 do quiz. É a
-    //      verdade pra lead, música, custo e pedido (todos referenciam o
-    //      quiz_response).
-    //   2. O CAMINHO do page_view, pra quem visitou e nunca começou o quiz.
-    //      Essa gente não tem linha em quiz_responses, e é justamente o topo
-    //      do funil — sem isto, "visitantes" seria sempre o total dos dois.
-    //
-    // Sessão sem nenhum dos dois (evento antigo, sem path gravado) cai em
-    // "pt": todo o histórico é brasileiro, então errar pro lado do português
-    // é errar pro lado certo.
-    const filtro: FunilFiltro = data.funil ?? "todos";
-
-    const localeDoQuiz = new Map<string, string>();
-    for (const l of leadsCru) localeDoQuiz.set(l.id, l.locale === "es" ? "es" : "pt");
-
-    // A regra 2 (idioma pelo caminho do page_view) agora vive dentro de
-    // `admin_eventos_resumo`, junto dos eventos que ela filtra. O mapa que
-    // existia aqui só servia pra isso.
-    const bate = (locale: string | undefined) =>
-      filtro === "todos" || (locale ?? "pt") === filtro;
-    const quizBate = (qid: string | null) => bate(qid ? localeDoQuiz.get(qid) : undefined);
-
-    // Mais recente primeiro, como a listagem do painel espera.
-    const leads = leadsCru
-      .filter((l) => bate(l.locale === "es" ? "es" : "pt"))
-      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-
-    const musicasF = musicas.filter((m) => quizBate(m.quiz_response_id));
-    const custosF = custos.filter((c) => quizBate(c.quiz_response_id));
-    const pedidosF = pedidos.filter((p) => quizBate(p.quiz_response_id));
-
-    // GASTO DE MÍDIA do período, digitado no painel. O recorte é por DIA
-    // (a tabela guarda data, não timestamp), então usa o intervalo em datas.
-    const { data: gastosCru } = await db
-      .from("gastos_ads")
-      .select("dia, origem, valor_brl")
-      .gte("dia", desde.slice(0, 10))
-      .lte("dia", ateISO.slice(0, 10))
-      .order("dia", { ascending: false });
-    const gastos = (gastosCru ?? []).map((g) => ({
-      dia: String(g.dia),
-      origem: String(g.origem),
-      brl: Number(g.valor_brl ?? 0),
-    }));
-    // O gasto NÃO é filtrado por funil: o painel do Google não separa por
-    // idioma, e inventar um rateio daria um CPA que parece preciso e não é.
-    // Com o filtro em BR ou MX o número fica igual, e isso é honesto.
-    const gastoAds = gastos.reduce((s, g) => s + g.brl, 0);
-
-    // Liberação manual sem dinheiro (cortesia, acesso interno, teste) NÃO é
-    // venda. O pedido precisa ficar `pago` pra música chegar no cliente, mas
-    // contar isso como faturamento infla o painel: em 12/08 foram R$ 111 de
-    // receita que nunca entraram em conta nenhuma. `dinheiro_entrou` é null
-    // na venda normal do gateway, e só é `false` quando alguém disse que foi
-    // cortesia — por isso a comparação é explícita contra `false`.
-    const pagos = pedidosF.filter(
-      (p) => p.status === "pago" && p.dinheiro_entrou !== false,
     );
-    // Cobrança gerada e não paga: o Pix que a pessoa mandou criar e abandonou.
-    // Passou a existir em 10/08, quando o webhook parou de descartar o aviso de
-    // "aguardando pagamento" — antes disso esta lista é vazia por falta de
-    // registro, não por não ter acontecido.
-    const pendentes = pedidosF.filter((p) => p.status === "pendente");
-    const gerouCobranca = pagos.length + pendentes.length;
 
-    // A MOEDA de cada pedido vem do idioma da venda: o produto brasileiro da
-    // Perfect Pay cobra em real, o internacional em dólar. Não há coluna de
-    // moeda em `pedidos`, e não precisa haver — o vínculo já existe.
-    const valorDe = (p: Pedido) => (p.valor_centavos ?? 0) / 100;
-    const ehEs = (p: Pedido) => localeDoQuiz.get(p.quiz_response_id ?? "") === "es";
-    /** O valor em real, convertendo dólar ao câmbio dos custos. */
-    const valorEmBrl = (p: Pedido) => valorDe(p) * (ehEs(p) ? PRECOS.cambioUsdBrl : 1);
-    const receitaBrl = pagos.filter((p) => !ehEs(p)).reduce((s, p) => s + valorDe(p), 0);
-    const receitaUsd = pagos.filter(ehEs).reduce((s, p) => s + valorDe(p), 0);
-    // Só pra margem, e com o câmbio na tela: os nossos custos são todos em
-    // real (Claude e kie.ai cobram em dólar mas já entram convertidos).
-    const receita = receitaBrl + receitaUsd * PRECOS.cambioUsdBrl;
-    const custoTotal = custosF.reduce((s, c) => s + Number(c.custo_brl ?? 0), 0);
+  // FUNNEL_EVENTS NÃO ENTRA AQUI, e essa ausência é o conserto.
+  //
+  // Até 17/08 esta lista tinha uma sexta entrada puxando funnel_events
+  // inteiro: 180 mil linhas numa janela de 30 dias, contra 24 mil das
+  // outras quatro somadas. Vinham pro Node só pra virar meia dúzia de
+  // contadores, e o tempo disso crescia junto com o tráfego até estourar o
+  // limite da função na Vercel.
+  //
+  // Agora essa conta é feita no banco, por `admin_eventos_resumo`, e volta
+  // como ~30 linhas de resumo. Chamada mais abaixo, porque ela precisa
+  // saber quais sessões compraram, e isso sai de `pedidos`.
+  const [leadsCru, musicas, custos, pedidos] = await Promise.all([
+    janela<Lead>(
+      "quiz_responses",
+      "id, session_id, respostas, furthest_step, email, attribution, locale, created_at",
+    ),
+    janela<Musica>(
+      "musicas",
+      "id, quiz_response_id, titulo, status, created_at, gerada_em, personalizada_em",
+    ),
+    janela<Custo>("custos", "id, tipo, custo_brl, quiz_response_id, created_at"),
+    janela<Pedido>(
+      "pedidos",
+      "id, quiz_response_id, musica_id, gateway, status, valor_centavos, email, paid_at, created_at, dinheiro_entrou",
+    ),
+  ]);
 
-    // "Começou o quiz" vem da LINHA em quiz_responses, não do evento
-    // `quiz_started`. Medido: 76 sessões tinham linha e só 52 tinham evento —
-    // 27 pessoas somem quando se confia no evento.
+  // ── SEPARAÇÃO DOS DOIS FUNIS ──────────────────────────────────
+  //
+  // Sem isto o painel soma R$ com US$ e produz um faturamento que não
+  // existe em lugar nenhum.
+  //
+  // De onde sai o idioma de cada linha, em ordem de confiança:
+  //
+  //   1. `quiz_responses.locale` — gravado no passo 1 do quiz. É a
+  //      verdade pra lead, música, custo e pedido (todos referenciam o
+  //      quiz_response).
+  //   2. O CAMINHO do page_view, pra quem visitou e nunca começou o quiz.
+  //      Essa gente não tem linha em quiz_responses, e é justamente o topo
+  //      do funil — sem isto, "visitantes" seria sempre o total dos dois.
+  //
+  // Sessão sem nenhum dos dois (evento antigo, sem path gravado) cai em
+  // "pt": todo o histórico é brasileiro, então errar pro lado do português
+  // é errar pro lado certo.
+  const filtro: FunilFiltro = data.funil ?? "todos";
+
+  const localeDoQuiz = new Map<string, string>();
+  for (const l of leadsCru) localeDoQuiz.set(l.id, l.locale === "es" ? "es" : "pt");
+
+  // A regra 2 (idioma pelo caminho do page_view) agora vive dentro de
+  // `admin_eventos_resumo`, junto dos eventos que ela filtra. O mapa que
+  // existia aqui só servia pra isso.
+  const bate = (locale: string | undefined) => filtro === "todos" || (locale ?? "pt") === filtro;
+  const quizBate = (qid: string | null) => bate(qid ? localeDoQuiz.get(qid) : undefined);
+
+  // Mais recente primeiro, como a listagem do painel espera.
+  const leads = leadsCru
+    .filter((l) => bate(l.locale === "es" ? "es" : "pt"))
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+
+  const musicasF = musicas.filter((m) => quizBate(m.quiz_response_id));
+  const custosF = custos.filter((c) => quizBate(c.quiz_response_id));
+  const pedidosF = pedidos.filter((p) => quizBate(p.quiz_response_id));
+
+  // GASTO DE MÍDIA do período, digitado no painel. O recorte é por DIA
+  // (a tabela guarda data, não timestamp), então usa o intervalo em datas.
+  const { data: gastosCru } = await db
+    .from("gastos_ads")
+    .select("dia, origem, valor_brl")
+    .gte("dia", desde.slice(0, 10))
+    .lte("dia", ateISO.slice(0, 10))
+    .order("dia", { ascending: false });
+  const gastos = (gastosCru ?? []).map((g) => ({
+    dia: String(g.dia),
+    origem: String(g.origem),
+    brl: Number(g.valor_brl ?? 0),
+  }));
+  // O gasto NÃO é filtrado por funil: o painel do Google não separa por
+  // idioma, e inventar um rateio daria um CPA que parece preciso e não é.
+  // Com o filtro em BR ou MX o número fica igual, e isso é honesto.
+  const gastoAds = gastos.reduce((s, g) => s + g.brl, 0);
+
+  // Liberação manual sem dinheiro (cortesia, acesso interno, teste) NÃO é
+  // venda. O pedido precisa ficar `pago` pra música chegar no cliente, mas
+  // contar isso como faturamento infla o painel: em 12/08 foram R$ 111 de
+  // receita que nunca entraram em conta nenhuma. `dinheiro_entrou` é null
+  // na venda normal do gateway, e só é `false` quando alguém disse que foi
+  // cortesia — por isso a comparação é explícita contra `false`.
+  const pagos = pedidosF.filter((p) => p.status === "pago" && p.dinheiro_entrou !== false);
+  // Cobrança gerada e não paga: o Pix que a pessoa mandou criar e abandonou.
+  // Passou a existir em 10/08, quando o webhook parou de descartar o aviso de
+  // "aguardando pagamento" — antes disso esta lista é vazia por falta de
+  // registro, não por não ter acontecido.
+  const pendentes = pedidosF.filter((p) => p.status === "pendente");
+  const gerouCobranca = pagos.length + pendentes.length;
+
+  // A MOEDA de cada pedido vem do idioma da venda: o produto brasileiro da
+  // Perfect Pay cobra em real, o internacional em dólar. Não há coluna de
+  // moeda em `pedidos`, e não precisa haver — o vínculo já existe.
+  const valorDe = (p: Pedido) => (p.valor_centavos ?? 0) / 100;
+  const ehEs = (p: Pedido) => localeDoQuiz.get(p.quiz_response_id ?? "") === "es";
+  /** O valor em real, convertendo dólar ao câmbio dos custos. */
+  const valorEmBrl = (p: Pedido) => valorDe(p) * (ehEs(p) ? PRECOS.cambioUsdBrl : 1);
+  const receitaBrl = pagos.filter((p) => !ehEs(p)).reduce((s, p) => s + valorDe(p), 0);
+  const receitaUsd = pagos.filter(ehEs).reduce((s, p) => s + valorDe(p), 0);
+  // Só pra margem, e com o câmbio na tela: os nossos custos são todos em
+  // real (Claude e kie.ai cobram em dólar mas já entram convertidos).
+  const receita = receitaBrl + receitaUsd * PRECOS.cambioUsdBrl;
+  const custoTotal = custosF.reduce((s, c) => s + Number(c.custo_brl ?? 0), 0);
+
+  // "Começou o quiz" vem da LINHA em quiz_responses, não do evento
+  // `quiz_started`. Medido: 76 sessões tinham linha e só 52 tinham evento —
+  // 27 pessoas somem quando se confia no evento.
+  //
+  // A razão é estrutural: o evento é best-effort (bloqueador de anúncio,
+  // aba fechada antes do envio, rede caindo), enquanto a linha é escrita
+  // pela RPC no mesmo caminho que já grava as respostas. Num funil, a fonte
+  // tem que ser a mais confiável das duas, senão o primeiro degrau inventa
+  // uma desistência que não existiu.
+  const quizIniciados = new Set(leads.map((l) => l.session_id ?? l.id)).size;
+  const comEmail = leads.filter((l) => l.email).length;
+
+  // ── OS EVENTOS, SOMADOS NO BANCO ─────────────────────────────
+  //
+  // Uma chamada, ~30 linhas de volta, no lugar das 180 mil que vinham antes.
+  // As sessões que compraram vão JUNTO no pedido, porque a regra de o que
+  // conta como venda (cortesia não conta) mora aqui em cima e duplicá-la no
+  // SQL criaria uma segunda verdade sobre faturamento.
+  const sessoesVenda = [
+    ...new Set(
+      pagos
+        .map((p) => leads.find((l) => l.id === p.quiz_response_id)?.session_id)
+        .filter((s): s is string => Boolean(s)),
+    ),
+  ];
+
+  const { data: resumoCru, error: erroResumo } = await db.rpc("admin_eventos_resumo", {
+    p_desde: desde,
+    p_ate: ateISO,
+    p_filtro: filtro,
+    p_sessoes_venda: sessoesVenda,
+  });
+  // Falhar alto. Resumo vazio aqui pintaria um painel de zeros com cara de
+  // "não vendeu nada hoje", que é pior que erro na tela.
+  if (erroResumo) throw new Error(`resumo de eventos: ${erroResumo.message}`);
+  const resumo = (resumoCru ?? {}) as EventosResumo;
+
+  // O e-mail é agregado à parte porque não compartilha nada com o funil: ele
+  // é por DESTINATÁRIO, não por sessão, e mistura eventos que vêm do Resend
+  // com os nossos. Falha aqui NÃO derruba o painel: não saber a taxa de
+  // abertura é ruim, não ver o faturamento é pior.
+  let emails: Painel["emails"] = {
+    enviadosLetra: 0,
+    enviadosSequencia: 0,
+    entregues: 0,
+    abriram: 0,
+    clicaram: 0,
+    voltaram: 0,
+    porModelo: [],
+  };
+  // `enxuto`: o comparativo não mostra e-mail, então nem pede.
+  if (!opts.enxuto) {
+    try {
+      const { data: e, error } = await db.rpc("admin_emails_resumo", {
+        p_desde: desde,
+        p_ate: ateISO,
+      });
+      if (error) throw new Error(error.message);
+      if (e) emails = e as Painel["emails"];
+    } catch (err) {
+      console.error("[admin] resumo de e-mail não lido:", err);
+    }
+  }
+
+  // Visitante único: sessões distintas com page_view. É o denominador honesto
+  // do funil (o total de page_view contaria a mesma pessoa várias vezes).
+  const visitantes = resumo.visitantes ?? 0;
+  const conta = (nome: string) => resumo.contagens?.[nome] ?? 0;
+
+  // QUEM ABRIU O QUIZ, que desde 17/08 não é mais quem começou a responder.
+  //
+  // A tela de ABERTURA entrou antes da primeira pergunta. Quem cai do
+  // anúncio em /criar vê ela primeiro e só vira linha em `quiz_responses`
+  // quando clica no botão — de propósito, pra não mexer na numeração de
+  // `furthest_step` (ver o comentário no `Quiz.tsx`). O efeito colateral é
+  // no PAINEL: sem este degrau, quem desiste na abertura some dentro de
+  // "Visitou o site → Começou o quiz" e vira queda do site, não da tela.
+  //
+  // O `Math.max` é o piso, e cobre o buraco que a união do SQL não alcança:
+  // lead SEM session_id entra em `quizIniciados` pelo `?? l.id`, mas não
+  // existe pro resumo, que só enxerga sessão. Os dois números são pisos do
+  // mesmo conjunto, então o maior é o mais próximo da verdade — e garante
+  // que o degrau nunca fique abaixo do de baixo.
+  const abriramQuiz = Math.max(resumo.sessoes_abertura ?? 0, quizIniciados);
+
+  // PESSOAS que clicaram em comprar, não CLIQUES.
+  //
+  // Antes isto era `conta("checkout_click") + conta("desbloquear_click")`, e
+  // dava dois erros ao mesmo tempo:
+  //   1. Somava evento bruto: quem clicou 41 vezes (aconteceu) virava 41.
+  //   2. Somava os dois nomes: a mesma pessoa que clica em desbloquear e
+  //      depois em comprar era contada duas vezes.
+  // Resultado medido: 86 no painel para 13 pessoas reais — um degrau MAIOR
+  // que o de visitantes, num funil onde ele só pode encolher.
+  //
+  // Todo passo do funil conta gente distinta; este passou a contar também.
+  // (Este degrau NÃO é separado por idioma, e nunca foi. Ver o comentário na
+  //  migration: manter idêntico foi decisão, não descuido.)
+  const cliquesCheckout = resumo.sessoes_checkout ?? 0;
+
+  // Quem chegou na TELA DE OFERTA (existe desde 02/08). Antes dela, o
+  // clique em comprar levava direto pro gateway; por isso o degrau fica
+  // vazio em qualquer recorte anterior, e não é bug.
+  const sessoesOferta = resumo.sessoes_oferta ?? 0;
+
+  // Músicas que realmente vieram do funil. As de EXEMPLO (as da landing, as
+  // dos testes) nascem de um quiz_response criado por script, com
+  // furthest_step 0 — ninguém respondeu nada. Contá-las fazia "Recebeu a
+  // letra" ficar MAIOR que o passo anterior, e um funil que sobe não é
+  // funil.
+  //
+  // A regra exclui só o que é comprovadamente interno: lead conhecido E
+  // furthest_step 0. Música cujo lead está fora da janela (a pessoa
+  // respondeu ontem, a letra saiu hoje) continua contando.
+  const passoDoLead = new Map(leads.map((l) => [l.id, l.furthest_step ?? 0]));
+  const doFunil = musicasF.filter((m) => {
+    const passo = m.quiz_response_id ? passoDoLead.get(m.quiz_response_id) : undefined;
+    return passo === undefined || passo > 0;
+  });
+
+  // ── FUNIL COMPLETO: do clique à venda ────────────────────────
+  const passosQuiz = QUIZ_FLOW.filter((s) => isQuestion(s) || s.kind === "contact");
+  const bruto: Array<{
+    id: string;
+    rotulo: string;
+    alcancaram: number;
+    etapa: Painel["funil"][0]["etapa"];
+  }> = [
+    // O FUNIL COMEÇA EM /criar, E NÃO NO SITE (18/08).
     //
-    // A razão é estrutural: o evento é best-effort (bloqueador de anúncio,
-    // aba fechada antes do envio, rede caindo), enquanto a linha é escrita
-    // pela RPC no mesmo caminho que já grava as respostas. Num funil, a fonte
-    // tem que ser a mais confiável das duas, senão o primeiro degrau inventa
-    // uma desistência que não existiu.
-    const quizIniciados = new Set(leads.map((l) => l.session_id ?? l.id)).size;
-    const comEmail = leads.filter((l) => l.email).length;
-
-    // ── OS EVENTOS, SOMADOS NO BANCO ─────────────────────────────
+    // O primeiro degrau era "Visitou o site": qualquer sessão com qualquer
+    // `page_view`. Só que o `page_view` dispara no `__root`, ou seja, em
+    // TODAS as rotas — inclusive as quinze que não são funil: a página
+    // presente que o presenteado abre (`/p/<token>`), o editor do comprador,
+    // o quadro, o /obrigado, o /dashboard e até o próprio /admin.
     //
-    // Uma chamada, ~30 linhas de volta, no lugar das 180 mil que vinham antes.
-    // As sessões que compraram vão JUNTO no pedido, porque a regra de o que
-    // conta como venda (cortesia não conta) mora aqui em cima e duplicá-la no
-    // SQL criaria uma segunda verdade sobre faturamento.
-    const sessoesVenda = [
-      ...new Set(
-        pagos
-          .map((p) => leads.find((l) => l.id === p.quiz_response_id)?.session_id)
-          .filter((s): s is string => Boolean(s)),
-      ),
-    ];
+    // Medido em 18/08: 1.071 "visitantes" contra 370 que abriram o quiz. Os
+    // 701 do vão nunca puderam comprar — a maioria é presenteado abrindo o
+    // presente, que é ENTREGA de produto, não topo de funil.
+    //
+    // E o número PIORAVA COM O SUCESSO: cada música entregue vira uma página
+    // presente circulando, e cada abertura dela afundava a conversão geral.
+    // Um degrau que se degrada quando a operação vai bem não mede nada.
+    //
+    // `visitantes` continua existindo pro cartão "Visitantes" e pra tabela
+    // de páginas de entrada, que é onde ele significa alguma coisa.
+    //
+    // Abriu ≠ começou desde 17/08: entre os dois está a tela de abertura.
+    // Em recorte anterior a ela os dois degraus dão igual, e isso é o certo
+    // — a tela não existia, ninguém podia desistir nela.
+    { id: "abertura", rotulo: "Abriu o quiz", alcancaram: abriramQuiz, etapa: "topo" },
+    { id: "quiz_started", rotulo: "Começou o quiz", alcancaram: quizIniciados, etapa: "topo" },
+    ...passosQuiz.map((s, i) => ({
+      id: s.id,
+      rotulo: ROTULOS[s.id] ?? s.id,
+      alcancaram: leads.filter((l) => (l.furthest_step ?? 0) >= i + 1).length,
+      etapa: "quiz" as const,
+    })),
+    { id: "letra", rotulo: "Recebeu a letra", alcancaram: doFunil.length, etapa: "entrega" },
+    {
+      id: "musica",
+      rotulo: "Música ficou pronta",
+      alcancaram: doFunil.filter((m) => m.status === "pronta").length,
+      etapa: "entrega",
+    },
+    // Dois degraus onde antes havia um. "Viu a oferta" x "foi pro
+    // checkout" separa quem desiste ao ver o preço de quem desiste no
+    // formulário de cartão da Perfect Pay — problemas diferentes, e a
+    // solução de um não serve pro outro.
+    { id: "oferta", rotulo: "Viu a oferta", alcancaram: sessoesOferta, etapa: "venda" },
+    { id: "checkout", rotulo: "Foi pro checkout", alcancaram: cliquesCheckout, etapa: "venda" },
+    // O degrau que faltava, e que mudava o diagnóstico inteiro. "6 cliques e
+    // 1 venda" parece atrito no formulário; "6 cliques, 3 cobranças geradas
+    // e 1 paga" é abandono de Pix — a pessoa decidiu comprar, gerou o QR e
+    // não terminou. São problemas diferentes com soluções diferentes, e a
+    // gente ficou cego pra este até 10/08 porque o webhook descartava o
+    // aviso de "aguardando pagamento".
+    //
+    // `gerouCobranca` conta pendentes MAIS pagos: quem pagou também gerou.
+    // Sem somar, o degrau ficaria menor que o de baixo e o funil pareceria
+    // crescer no fim.
+    { id: "cobranca", rotulo: "Gerou cobrança", alcancaram: gerouCobranca, etapa: "venda" },
+    { id: "venda", rotulo: "PAGOU", alcancaram: pagos.length, etapa: "venda" },
+  ];
 
-    const { data: resumoCru, error: erroResumo } = await db.rpc("admin_eventos_resumo", {
-      p_desde: desde,
-      p_ate: ateISO,
-      p_filtro: filtro,
-      p_sessoes_venda: sessoesVenda,
-    });
-    // Falhar alto. Resumo vazio aqui pintaria um painel de zeros com cara de
-    // "não vendeu nada hoje", que é pior que erro na tela.
-    if (erroResumo) throw new Error(`resumo de eventos: ${erroResumo.message}`);
-    const resumo = (resumoCru ?? {}) as EventosResumo;
-
-    // O e-mail é agregado à parte porque não compartilha nada com o funil: ele
-    // é por DESTINATÁRIO, não por sessão, e mistura eventos que vêm do Resend
-    // com os nossos. Falha aqui NÃO derruba o painel: não saber a taxa de
-    // abertura é ruim, não ver o faturamento é pior.
-    let emails: Painel["emails"] = {
-      enviadosLetra: 0, enviadosSequencia: 0, entregues: 0,
-      abriram: 0, clicaram: 0, voltaram: 0, porModelo: [],
+  const funil = bruto.map((p, i) => {
+    const ant = i > 0 ? bruto[i - 1].alcancaram : p.alcancaram;
+    const perdidos = Math.max(0, ant - p.alcancaram);
+    return {
+      ...p,
+      conversao: i === 0 ? 100 : pct(p.alcancaram, ant),
+      perdidos,
+      quedaPct: i === 0 ? 0 : pct(perdidos, ant),
     };
-    // `enxuto`: o comparativo não mostra e-mail, então nem pede.
-    if (!opts.enxuto) {
+  });
+
+  // ── ATRIBUIÇÃO: de onde vem lead e venda ─────────────────────
+  const chaveOrigem = (attr: unknown): { origem: string; campanha: string | null } => {
+    const a = (attr ?? {}) as Record<string, string | undefined>;
+    if (a.utm_source) return { origem: a.utm_source, campanha: a.utm_campaign ?? null };
+    if (a.gclid) return { origem: "google (gclid)", campanha: a.utm_campaign ?? null };
+    if (a.fbclid) return { origem: "meta (fbclid)", campanha: null };
+    if (a.referrer && !String(a.referrer).includes("serenatagift")) {
       try {
-        const { data: e, error } = await db.rpc("admin_emails_resumo", {
-          p_desde: desde,
-          p_ate: ateISO,
-        });
-        if (error) throw new Error(error.message);
-        if (e) emails = e as Painel["emails"];
-      } catch (err) {
-        console.error("[admin] resumo de e-mail não lido:", err);
+        return { origem: new URL(String(a.referrer)).hostname, campanha: null };
+      } catch {
+        return { origem: "referência", campanha: null };
       }
     }
+    return { origem: "direto / orgânico", campanha: null };
+  };
 
-    // Visitante único: sessões distintas com page_view. É o denominador honesto
-    // do funil (o total de page_view contaria a mesma pessoa várias vezes).
-    const visitantes = resumo.visitantes ?? 0;
-    const conta = (nome: string) => resumo.contagens?.[nome] ?? 0;
-
-    // QUEM ABRIU O QUIZ, que desde 17/08 não é mais quem começou a responder.
-    //
-    // A tela de ABERTURA entrou antes da primeira pergunta. Quem cai do
-    // anúncio em /criar vê ela primeiro e só vira linha em `quiz_responses`
-    // quando clica no botão — de propósito, pra não mexer na numeração de
-    // `furthest_step` (ver o comentário no `Quiz.tsx`). O efeito colateral é
-    // no PAINEL: sem este degrau, quem desiste na abertura some dentro de
-    // "Visitou o site → Começou o quiz" e vira queda do site, não da tela.
-    //
-    // O `Math.max` é o piso, e cobre o buraco que a união do SQL não alcança:
-    // lead SEM session_id entra em `quizIniciados` pelo `?? l.id`, mas não
-    // existe pro resumo, que só enxerga sessão. Os dois números são pisos do
-    // mesmo conjunto, então o maior é o mais próximo da verdade — e garante
-    // que o degrau nunca fique abaixo do de baixo.
-    const abriramQuiz = Math.max(resumo.sessoes_abertura ?? 0, quizIniciados);
-
-    // PESSOAS que clicaram em comprar, não CLIQUES.
-    //
-    // Antes isto era `conta("checkout_click") + conta("desbloquear_click")`, e
-    // dava dois erros ao mesmo tempo:
-    //   1. Somava evento bruto: quem clicou 41 vezes (aconteceu) virava 41.
-    //   2. Somava os dois nomes: a mesma pessoa que clica em desbloquear e
-    //      depois em comprar era contada duas vezes.
-    // Resultado medido: 86 no painel para 13 pessoas reais — um degrau MAIOR
-    // que o de visitantes, num funil onde ele só pode encolher.
-    //
-    // Todo passo do funil conta gente distinta; este passou a contar também.
-    // (Este degrau NÃO é separado por idioma, e nunca foi. Ver o comentário na
-    //  migration: manter idêntico foi decisão, não descuido.)
-    const cliquesCheckout = resumo.sessoes_checkout ?? 0;
-
-    // Quem chegou na TELA DE OFERTA (existe desde 02/08). Antes dela, o
-    // clique em comprar levava direto pro gateway; por isso o degrau fica
-    // vazio em qualquer recorte anterior, e não é bug.
-    const sessoesOferta = resumo.sessoes_oferta ?? 0;
-
-    // Músicas que realmente vieram do funil. As de EXEMPLO (as da landing, as
-    // dos testes) nascem de um quiz_response criado por script, com
-    // furthest_step 0 — ninguém respondeu nada. Contá-las fazia "Recebeu a
-    // letra" ficar MAIOR que o passo anterior, e um funil que sobe não é
-    // funil.
-    //
-    // A regra exclui só o que é comprovadamente interno: lead conhecido E
-    // furthest_step 0. Música cujo lead está fora da janela (a pessoa
-    // respondeu ontem, a letra saiu hoje) continua contando.
-    const passoDoLead = new Map(leads.map((l) => [l.id, l.furthest_step ?? 0]));
-    const doFunil = musicasF.filter((m) => {
-      const passo = m.quiz_response_id ? passoDoLead.get(m.quiz_response_id) : undefined;
-      return passo === undefined || passo > 0;
-    });
-
-    // ── FUNIL COMPLETO: do clique à venda ────────────────────────
-    const passosQuiz = QUIZ_FLOW.filter((s) => isQuestion(s) || s.kind === "contact");
-    const bruto: Array<{ id: string; rotulo: string; alcancaram: number; etapa: Painel["funil"][0]["etapa"] }> = [
-      // O FUNIL COMEÇA EM /criar, E NÃO NO SITE (18/08).
-      //
-      // O primeiro degrau era "Visitou o site": qualquer sessão com qualquer
-      // `page_view`. Só que o `page_view` dispara no `__root`, ou seja, em
-      // TODAS as rotas — inclusive as quinze que não são funil: a página
-      // presente que o presenteado abre (`/p/<token>`), o editor do comprador,
-      // o quadro, o /obrigado, o /dashboard e até o próprio /admin.
-      //
-      // Medido em 18/08: 1.071 "visitantes" contra 370 que abriram o quiz. Os
-      // 701 do vão nunca puderam comprar — a maioria é presenteado abrindo o
-      // presente, que é ENTREGA de produto, não topo de funil.
-      //
-      // E o número PIORAVA COM O SUCESSO: cada música entregue vira uma página
-      // presente circulando, e cada abertura dela afundava a conversão geral.
-      // Um degrau que se degrada quando a operação vai bem não mede nada.
-      //
-      // `visitantes` continua existindo pro cartão "Visitantes" e pra tabela
-      // de páginas de entrada, que é onde ele significa alguma coisa.
-      //
-      // Abriu ≠ começou desde 17/08: entre os dois está a tela de abertura.
-      // Em recorte anterior a ela os dois degraus dão igual, e isso é o certo
-      // — a tela não existia, ninguém podia desistir nela.
-      { id: "abertura", rotulo: "Abriu o quiz", alcancaram: abriramQuiz, etapa: "topo" },
-      { id: "quiz_started", rotulo: "Começou o quiz", alcancaram: quizIniciados, etapa: "topo" },
-      ...passosQuiz.map((s, i) => ({
-        id: s.id,
-        rotulo: ROTULOS[s.id] ?? s.id,
-        alcancaram: leads.filter((l) => (l.furthest_step ?? 0) >= i + 1).length,
-        etapa: "quiz" as const,
-      })),
-      { id: "letra", rotulo: "Recebeu a letra", alcancaram: doFunil.length, etapa: "entrega" },
-      {
-        id: "musica",
-        rotulo: "Música ficou pronta",
-        alcancaram: doFunil.filter((m) => m.status === "pronta").length,
-        etapa: "entrega",
-      },
-      // Dois degraus onde antes havia um. "Viu a oferta" x "foi pro
-      // checkout" separa quem desiste ao ver o preço de quem desiste no
-      // formulário de cartão da Perfect Pay — problemas diferentes, e a
-      // solução de um não serve pro outro.
-      { id: "oferta", rotulo: "Viu a oferta", alcancaram: sessoesOferta, etapa: "venda" },
-      { id: "checkout", rotulo: "Foi pro checkout", alcancaram: cliquesCheckout, etapa: "venda" },
-      // O degrau que faltava, e que mudava o diagnóstico inteiro. "6 cliques e
-      // 1 venda" parece atrito no formulário; "6 cliques, 3 cobranças geradas
-      // e 1 paga" é abandono de Pix — a pessoa decidiu comprar, gerou o QR e
-      // não terminou. São problemas diferentes com soluções diferentes, e a
-      // gente ficou cego pra este até 10/08 porque o webhook descartava o
-      // aviso de "aguardando pagamento".
-      //
-      // `gerouCobranca` conta pendentes MAIS pagos: quem pagou também gerou.
-      // Sem somar, o degrau ficaria menor que o de baixo e o funil pareceria
-      // crescer no fim.
-      { id: "cobranca", rotulo: "Gerou cobrança", alcancaram: gerouCobranca, etapa: "venda" },
-      { id: "venda", rotulo: "PAGOU", alcancaram: pagos.length, etapa: "venda" },
-    ];
-
-    const funil = bruto.map((p, i) => {
-      const ant = i > 0 ? bruto[i - 1].alcancaram : p.alcancaram;
-      const perdidos = Math.max(0, ant - p.alcancaram);
-      return {
-        ...p,
-        conversao: i === 0 ? 100 : pct(p.alcancaram, ant),
-        perdidos,
-        quedaPct: i === 0 ? 0 : pct(perdidos, ant),
-      };
-    });
-
-    // ── ATRIBUIÇÃO: de onde vem lead e venda ─────────────────────
-    const chaveOrigem = (attr: unknown): { origem: string; campanha: string | null } => {
-      const a = (attr ?? {}) as Record<string, string | undefined>;
-      if (a.utm_source) return { origem: a.utm_source, campanha: a.utm_campaign ?? null };
-      if (a.gclid) return { origem: "google (gclid)", campanha: a.utm_campaign ?? null };
-      if (a.fbclid) return { origem: "meta (fbclid)", campanha: null };
-      if (a.referrer && !String(a.referrer).includes("serenatagift")) {
-        try {
-          return { origem: new URL(String(a.referrer)).hostname, campanha: null };
-        } catch {
-          return { origem: "referência", campanha: null };
-        }
-      }
-      return { origem: "direto / orgânico", campanha: null };
-    };
-
-    const origemMap = new Map<
-      string,
-      { origem: string; campanha: string | null; leads: number; letras: number; vendas: number; receitaBrl: number }
-    >();
-    for (const l of leads) {
-      const { origem, campanha } = chaveOrigem(l.attribution);
-      const k = `${origem}|${campanha ?? ""}`;
-      const v = origemMap.get(k) ?? { origem, campanha, leads: 0, letras: 0, vendas: 0, receitaBrl: 0 };
-      v.leads++;
-      if (musicas.some((m) => m.quiz_response_id === l.id)) v.letras++;
-      origemMap.set(k, v);
+  const origemMap = new Map<
+    string,
+    {
+      origem: string;
+      campanha: string | null;
+      leads: number;
+      letras: number;
+      vendas: number;
+      receitaBrl: number;
     }
-    const porQuiz = new Map(leads.map((l) => [l.id, l]));
-    for (const p of pagos) {
-      const l = p.quiz_response_id ? porQuiz.get(p.quiz_response_id) : null;
-      const { origem, campanha } = chaveOrigem(l?.attribution);
-      const k = `${origem}|${campanha ?? ""}`;
-      const v = origemMap.get(k) ?? { origem, campanha, leads: 0, letras: 0, vendas: 0, receitaBrl: 0 };
-      v.vendas++;
-      // CONVERTIDO, ao contrário do cartão de receita: aqui o número serve
-      // pra COMPARAR campanhas entre si, e comparar exige unidade única. Uma
-      // venda em dólar contada como real faria a campanha mexicana parecer
-      // 5x pior do que é.
-      v.receitaBrl += valorEmBrl(p);
-      origemMap.set(k, v);
-    }
-    // ── POR PÁGINA DE ENTRADA ────────────────────────────────────
-    // Agrupado no banco (a sessão conta UMA vez, na primeira página que ela
-    // abriu). A taxa fica aqui porque é divisão, não agregação.
-    const porEntrada = (resumo.por_entrada ?? [])
-      .map((e) => ({ ...e, conversaoPct: pct(e.vendas, e.visitantes) }))
-      .sort((a, b) => b.visitantes - a.visitantes);
-
-    const porOrigem = [...origemMap.values()]
-      .map((v) => ({ ...v, conversaoPct: pct(v.vendas, v.leads) }))
-      .sort((a, b) => b.receitaBrl - a.receitaBrl || b.leads - a.leads);
-
-    // ── OS TESTES A/B ────────────────────────────────────────────
-    //
-    // A variante viaja em `attribution.exp` desde que `carimbarExperimentos`
-    // roda no início do quiz, então ela já está em toda linha de lead e em
-    // todo pedido (pelo `quiz_response_id`). Só faltava juntar.
-    //
-    // Um lead SEM `exp` não entra em variante nenhuma, e é o certo: são as
-    // pessoas que chegaram antes do experimento subir, ou com o localStorage
-    // bloqueado. Contá-las no controle inflaria o controle com gente que
-    // nunca foi sorteada.
-    const varianteDoLead = (attribution: Record<string, unknown> | null, exp: string) => {
-      const e = attribution?.exp;
-      if (!e || typeof e !== "object") return null;
-      const v = (e as Record<string, unknown>)[exp];
-      return typeof v === "string" && v ? v : null;
+  >();
+  for (const l of leads) {
+    const { origem, campanha } = chaveOrigem(l.attribution);
+    const k = `${origem}|${campanha ?? ""}`;
+    const v = origemMap.get(k) ?? {
+      origem,
+      campanha,
+      leads: 0,
+      letras: 0,
+      vendas: 0,
+      receitaBrl: 0,
     };
+    v.leads++;
+    if (musicas.some((m) => m.quiz_response_id === l.id)) v.letras++;
+    origemMap.set(k, v);
+  }
+  const porQuiz = new Map(leads.map((l) => [l.id, l]));
+  for (const p of pagos) {
+    const l = p.quiz_response_id ? porQuiz.get(p.quiz_response_id) : null;
+    const { origem, campanha } = chaveOrigem(l?.attribution);
+    const k = `${origem}|${campanha ?? ""}`;
+    const v = origemMap.get(k) ?? {
+      origem,
+      campanha,
+      leads: 0,
+      letras: 0,
+      vendas: 0,
+      receitaBrl: 0,
+    };
+    v.vendas++;
+    // CONVERTIDO, ao contrário do cartão de receita: aqui o número serve
+    // pra COMPARAR campanhas entre si, e comparar exige unidade única. Uma
+    // venda em dólar contada como real faria a campanha mexicana parecer
+    // 5x pior do que é.
+    v.receitaBrl += valorEmBrl(p);
+    origemMap.set(k, v);
+  }
+  // ── POR PÁGINA DE ENTRADA ────────────────────────────────────
+  // Agrupado no banco (a sessão conta UMA vez, na primeira página que ela
+  // abriu). A taxa fica aqui porque é divisão, não agregação.
+  const porEntrada = (resumo.por_entrada ?? [])
+    .map((e) => ({ ...e, conversaoPct: pct(e.vendas, e.visitantes) }))
+    .sort((a, b) => b.visitantes - a.visitantes);
 
-    // A CONFIGURAÇÃO VEM DO BANCO, não do array em código. Sem isto, uma
-    // versão criada pelo painel de testes A/B não teria linha na tabela de
-    // resultado — o painel deixaria criar algo que ele mesmo não sabe mostrar.
-    // É leitura minúscula (poucas linhas, sem os 180 mil eventos que já
-    // estouraram o tempo desta consulta uma vez), então falha não pode
-    // derrubar o resto do painel: sem os testes A/B o dono ainda precisa ver
-    // faturamento, e por isso o catch degrada pra lista vazia em vez de jogar.
-    const { lerConfigFresca, TIMEOUT_PAINEL_MS } = await import("@/lib/experimentos-config.server");
-    const configExp = await lerConfigFresca(TIMEOUT_PAINEL_MS).catch((err) => {
-      console.error("[admin] config de experimentos nao lida:", err);
-      return [] as Awaited<ReturnType<typeof lerConfigFresca>>;
-    });
+  const porOrigem = [...origemMap.values()]
+    .map((v) => ({ ...v, conversaoPct: pct(v.vendas, v.leads) }))
+    .sort((a, b) => b.receitaBrl - a.receitaBrl || b.leads - a.leads);
 
-    const porExperimento = configExp.map((exp) => {
+  // ── OS TESTES A/B ────────────────────────────────────────────
+  //
+  // A variante viaja em `attribution.exp` desde que `carimbarExperimentos`
+  // roda no início do quiz, então ela já está em toda linha de lead e em
+  // todo pedido (pelo `quiz_response_id`). Só faltava juntar.
+  //
+  // Um lead SEM `exp` não entra em variante nenhuma, e é o certo: são as
+  // pessoas que chegaram antes do experimento subir, ou com o localStorage
+  // bloqueado. Contá-las no controle inflaria o controle com gente que
+  // nunca foi sorteada.
+  const varianteDoLead = (attribution: Record<string, unknown> | null, exp: string) => {
+    const e = attribution?.exp;
+    if (!e || typeof e !== "object") return null;
+    const v = (e as Record<string, unknown>)[exp];
+    return typeof v === "string" && v ? v : null;
+  };
+
+  // A CONFIGURAÇÃO VEM DO BANCO, não do array em código. Sem isto, uma
+  // versão criada pelo painel de testes A/B não teria linha na tabela de
+  // resultado — o painel deixaria criar algo que ele mesmo não sabe mostrar.
+  // É leitura minúscula (poucas linhas, sem os 180 mil eventos que já
+  // estouraram o tempo desta consulta uma vez), então falha não pode
+  // derrubar o resto do painel: sem os testes A/B o dono ainda precisa ver
+  // faturamento, e por isso o catch degrada pra lista vazia em vez de jogar.
+  const { lerConfigFresca, TIMEOUT_PAINEL_MS } = await import("@/lib/experimentos-config.server");
+  const configExp = await lerConfigFresca(TIMEOUT_PAINEL_MS).catch((err) => {
+    console.error("[admin] config de experimentos nao lida:", err);
+    return [] as Awaited<ReturnType<typeof lerConfigFresca>>;
+  });
+
+  const porExperimento = configExp
+    .map((exp) => {
       type Linha = { leads: number; letras: number; vendas: number; receitaBrl: number };
       const porVariante = new Map<string, Linha>();
       const linha = (v: string) => {
@@ -962,7 +1121,9 @@ async function montarPainel(
           // o controle não tem lead (rplControle === 0 dividiria por zero e
           // produziria "∞% melhor" — ver o comentário no tipo `Painel`).
           variacaoVsControlePct:
-            ehFora || v === controleNome || !rplControle ? null : ((rpl - rplControle) / rplControle) * 100,
+            ehFora || v === controleNome || !rplControle
+              ? null
+              : ((rpl - rplControle) / rplControle) * 100,
         };
       };
 
@@ -988,191 +1149,216 @@ async function montarPainel(
           ...(porVariante.has(FORA) ? [montar(FORA, true)] : []),
         ],
       };
-    }).filter((e) => e.variantes.length > 0);
+    })
+    .filter((e) => e.variantes.length > 0);
 
-    // ── PRODUÇÃO ─────────────────────────────────────────────────
-    const porStatus: Record<string, number> = {};
-    const tempos: number[] = [];
-    const agora = Date.now();
-    // O SALDO DO PROVEDOR. Falha aqui não derruba o painel: provedor fora do
-    // ar não pode impedir de ver o resto da operação.
-    let creditoKie: number | null = null;
-    // `enxuto`: saldo é estado de AGORA, não do período — comparar não faz
-    // sentido, e são 5s de timeout numa chamada externa.
-    if (!opts.enxuto) {
-      try {
-        const rs = await fetch("https://api.kie.ai/api/v1/chat/credit", {
-          headers: { Authorization: `Bearer ${process.env.KIE_API_KEY ?? ""}` },
-          signal: AbortSignal.timeout(5000),
-        });
-        const j = await rs.json();
-        if (typeof j?.data === "number") creditoKie = j.data;
-      } catch (err) {
-        console.error("[admin] saldo kie.ai não lido:", err);
-      }
+  // ── PRODUÇÃO ─────────────────────────────────────────────────
+  const porStatus: Record<string, number> = {};
+  const tempos: number[] = [];
+  const agora = Date.now();
+  // O SALDO DO PROVEDOR. Falha aqui não derruba o painel: provedor fora do
+  // ar não pode impedir de ver o resto da operação.
+  let creditoKie: number | null = null;
+  // `enxuto`: saldo é estado de AGORA, não do período — comparar não faz
+  // sentido, e são 5s de timeout numa chamada externa.
+  if (!opts.enxuto) {
+    try {
+      const rs = await fetch("https://api.kie.ai/api/v1/chat/credit", {
+        headers: { Authorization: `Bearer ${process.env.KIE_API_KEY ?? ""}` },
+        signal: AbortSignal.timeout(5000),
+      });
+      const j = await rs.json();
+      if (typeof j?.data === "number") creditoKie = j.data;
+    } catch (err) {
+      console.error("[admin] saldo kie.ai não lido:", err);
     }
+  }
 
-    let travadas = 0;
-    for (const m of musicasF) {
-      porStatus[m.status] = (porStatus[m.status] ?? 0) + 1;
-      if (m.gerada_em && m.created_at) {
-        const s = (new Date(m.gerada_em).getTime() - new Date(m.created_at).getTime()) / 1000;
-        if (s > 0 && s < 3600) tempos.push(s);
-      }
-      // "gerando" há muito tempo = provavelmente travou e ninguém viu.
-      if (m.status === "gerando" && agora - new Date(m.created_at).getTime() > 15 * 60000) travadas++;
+  let travadas = 0;
+  for (const m of musicasF) {
+    porStatus[m.status] = (porStatus[m.status] ?? 0) + 1;
+    if (m.gerada_em && m.created_at) {
+      const s = (new Date(m.gerada_em).getTime() - new Date(m.created_at).getTime()) / 1000;
+      if (s > 0 && s < 3600) tempos.push(s);
     }
-    tempos.sort((a, b) => a - b);
-    const p95 = tempos.length ? tempos[Math.min(tempos.length - 1, Math.floor(tempos.length * 0.95))] : null;
-    const medio = tempos.length ? tempos.reduce((a, b) => a + b, 0) / tempos.length : null;
+    // "gerando" há muito tempo = provavelmente travou e ninguém viu.
+    if (m.status === "gerando" && agora - new Date(m.created_at).getTime() > 15 * 60000) travadas++;
+  }
+  tempos.sort((a, b) => a - b);
+  const p95 = tempos.length
+    ? tempos[Math.min(tempos.length - 1, Math.floor(tempos.length * 0.95))]
+    : null;
+  const medio = tempos.length ? tempos.reduce((a, b) => a + b, 0) / tempos.length : null;
 
-    // ── CUSTOS x RECEITA por dia ─────────────────────────────────
-    const porTipoMap = new Map<string, { brl: number; n: number }>();
-    const porDiaMap = new Map<string, { brl: number; receitaBrl: number; vendas: number }>();
-    for (const c of custosF) {
-      const brl = Number(c.custo_brl ?? 0);
-      const t = porTipoMap.get(c.tipo) ?? { brl: 0, n: 0 };
-      porTipoMap.set(c.tipo, { brl: t.brl + brl, n: t.n + 1 });
-      const dia = String(c.created_at).slice(0, 10);
-      const d = porDiaMap.get(dia) ?? { brl: 0, receitaBrl: 0, vendas: 0 };
-      d.brl += brl;
-      porDiaMap.set(dia, d);
+  // ── CUSTOS x RECEITA por dia ─────────────────────────────────
+  const porTipoMap = new Map<string, { brl: number; n: number }>();
+  const porDiaMap = new Map<string, { brl: number; receitaBrl: number; vendas: number }>();
+  for (const c of custosF) {
+    const brl = Number(c.custo_brl ?? 0);
+    const t = porTipoMap.get(c.tipo) ?? { brl: 0, n: 0 };
+    porTipoMap.set(c.tipo, { brl: t.brl + brl, n: t.n + 1 });
+    const dia = String(c.created_at).slice(0, 10);
+    const d = porDiaMap.get(dia) ?? { brl: 0, receitaBrl: 0, vendas: 0 };
+    d.brl += brl;
+    porDiaMap.set(dia, d);
+  }
+  for (const p of pagos) {
+    const dia = String(p.paid_at ?? p.created_at).slice(0, 10);
+    const d = porDiaMap.get(dia) ?? { brl: 0, receitaBrl: 0, vendas: 0 };
+    // Convertido: esta linha é comparada com o CUSTO do dia (que é sempre
+    // em real) pra pintar a margem de vermelho ou verde.
+    d.receitaBrl += valorEmBrl(p);
+    d.vendas++;
+    porDiaMap.set(dia, d);
+  }
+
+  // ── PREFERÊNCIAS (o que o público escolhe) ───────────────────
+  const contarCampo = (campo: string) => {
+    const m = new Map<string, number>();
+    for (const l of leads) {
+      const v = ((l.respostas ?? {}) as Record<string, string>)[campo];
+      if (v) m.set(v, (m.get(v) ?? 0) + 1);
     }
-    for (const p of pagos) {
-      const dia = String(p.paid_at ?? p.created_at).slice(0, 10);
-      const d = porDiaMap.get(dia) ?? { brl: 0, receitaBrl: 0, vendas: 0 };
-      // Convertido: esta linha é comparada com o CUSTO do dia (que é sempre
-      // em real) pra pintar a margem de vermelho ou verde.
-      d.receitaBrl += valorEmBrl(p);
-      d.vendas++;
-      porDiaMap.set(dia, d);
-    }
+    return [...m.entries()].map(([valor, n]) => ({ valor, n })).sort((a, b) => b.n - a.n);
+  };
 
-    // ── PREFERÊNCIAS (o que o público escolhe) ───────────────────
-    const contarCampo = (campo: string) => {
-      const m = new Map<string, number>();
-      for (const l of leads) {
-        const v = ((l.respostas ?? {}) as Record<string, string>)[campo];
-        if (v) m.set(v, (m.get(v) ?? 0) + 1);
-      }
-      return [...m.entries()].map(([valor, n]) => ({ valor, n })).sort((a, b) => b.n - a.n);
-    };
+  const musicaPorId = new Map(musicasF.map((m) => [m.id, m]));
+  const quizComprou = new Set(pagos.map((p) => p.quiz_response_id).filter(Boolean));
 
-    const musicaPorId = new Map(musicasF.map((m) => [m.id, m]));
-    const quizComprou = new Set(pagos.map((p) => p.quiz_response_id).filter(Boolean));
+  return {
+    filtro,
+    periodoDias: dias,
+    de: inicio.toISOString(),
+    ate: fim.toISOString(),
+    geradoEm: new Date().toISOString(),
 
-    return {
-      filtro,
-      periodoDias: dias,
-      de: inicio.toISOString(),
-      ate: fim.toISOString(),
-      geradoEm: new Date().toISOString(),
+    topo: {
+      visitantes,
+      quizIniciados,
+      leads: comEmail,
+      // Mesma base do funil: sem as letras de exemplo/teste.
+      letrasGeradas: doFunil.length,
+      cliquesCheckout,
+      vendas: pagos.length,
+      receitaBrl,
+      receitaUsd,
+      receitaConvertidaBrl: receita,
+      ticketMedioBrl: pagos.length ? receita / pagos.length : 0,
+      custoTotalBrl: custoTotal,
+      margemBrl: receita - custoTotal,
+      taxaAbriuComecou: pct(quizIniciados, abriramQuiz),
+      taxaQuizLetra: pct(doFunil.length, quizIniciados),
+      taxaLetraCheckout: pct(cliquesCheckout, doFunil.length),
+      taxaCheckoutVenda: pct(pagos.length, cliquesCheckout),
+      taxaGeral: pct(pagos.length, abriramQuiz),
+      custoPorVendaBrl: pagos.length ? custoTotal / pagos.length : 0,
+      gastoAdsBrl: gastoAds,
+      cpaBrl: pagos.length ? gastoAds / pagos.length : 0,
+      roas: gastoAds > 0 ? receita / gastoAds : 0,
+      lucroBrl: receita - custoTotal - gastoAds,
+    },
 
-      topo: {
-        visitantes,
-        quizIniciados,
-        leads: comEmail,
-        // Mesma base do funil: sem as letras de exemplo/teste.
-        letrasGeradas: doFunil.length,
-        cliquesCheckout,
-        vendas: pagos.length,
-        receitaBrl,
-        receitaUsd,
-        receitaConvertidaBrl: receita,
-        ticketMedioBrl: pagos.length ? receita / pagos.length : 0,
-        custoTotalBrl: custoTotal,
-        margemBrl: receita - custoTotal,
-        taxaAbriuComecou: pct(quizIniciados, abriramQuiz),
-        taxaQuizLetra: pct(doFunil.length, quizIniciados),
-        taxaLetraCheckout: pct(cliquesCheckout, doFunil.length),
-        taxaCheckoutVenda: pct(pagos.length, cliquesCheckout),
-        taxaGeral: pct(pagos.length, abriramQuiz),
-        custoPorVendaBrl: pagos.length ? custoTotal / pagos.length : 0,
-        gastoAdsBrl: gastoAds,
-        cpaBrl: pagos.length ? gastoAds / pagos.length : 0,
-        roas: gastoAds > 0 ? receita / gastoAds : 0,
-        lucroBrl: receita - custoTotal - gastoAds,
-      },
+    funil,
+    porExperimento,
+    porOrigem,
+    porEntrada,
+    gastos,
 
-      funil,
-      porExperimento,
-      porOrigem,
-      porEntrada,
-      gastos,
+    producao: {
+      creditoKie,
+      musicasQueCabem: creditoKie === null ? null : Math.floor(creditoKie / CREDITO_POR_MUSICA),
+      porStatus,
+      tempoMedioS: medio,
+      tempoP95S: p95,
+      falhas: porStatus["falhou"] ?? 0,
+      travadas,
+    },
 
-      producao: {
-        creditoKie,
-        musicasQueCabem: creditoKie === null ? null : Math.floor(creditoKie / CREDITO_POR_MUSICA),
-        porStatus,
-        tempoMedioS: medio,
-        tempoP95S: p95,
-        falhas: porStatus["falhou"] ?? 0,
-        travadas,
-      },
+    serie: {
+      granularidade: granularidadeDe(dias),
+      // `Date.now()` corta a série em AGORA: o balde que ainda não aconteceu
+      // fica de fora, e a linha para em vez de despencar pro chão. Uma queda
+      // desenhada é uma queda lida, mesmo que ela só signifique "ainda são
+      // três da tarde".
+      pontos: montarSerie(
+        pagos
+          .map((p) => ({ quando: Date.parse(p.paid_at ?? p.created_at), brl: valorEmBrl(p) }))
+          .filter((v) => Number.isFinite(v.quando)),
+        { inicio, fim, dias },
+        granularidadeDe(dias),
+        Date.now(),
+      ),
+    },
 
-      custos: {
-        porTipo: [...porTipoMap.entries()]
-          .map(([tipo, v]) => ({ tipo, brl: v.brl, n: v.n }))
-          .sort((a, b) => b.brl - a.brl),
-        porDia: [...porDiaMap.entries()]
-          .map(([dia, v]) => ({ dia, ...v }))
-          .sort((a, b) => a.dia.localeCompare(b.dia)),
-      },
+    custos: {
+      porTipo: [...porTipoMap.entries()]
+        .map(([tipo, v]) => ({ tipo, brl: v.brl, n: v.n }))
+        .sort((a, b) => b.brl - a.brl),
+      porDia: [...porDiaMap.entries()]
+        .map(([dia, v]) => ({ dia, ...v }))
+        .sort((a, b) => a.dia.localeCompare(b.dia)),
+    },
 
-      emails,
+    emails,
 
-      qualidade: {
-        refacoes: conta("letra_refacao"),
-        aprimorou: conta("letra_aprimorada"),
-        usouAudio: conta("audio_usado"),
-        karaokePlay: conta("karaoke_play") + conta("musica_play"),
-        previewFim: conta("preview_limite"),
-        presentesMontados: musicasF.filter((m) => m.personalizada_em).length,
-      },
+    qualidade: {
+      refacoes: conta("letra_refacao"),
+      aprimorou: conta("letra_aprimorada"),
+      usouAudio: conta("audio_usado"),
+      karaokePlay: conta("karaoke_play") + conta("musica_play"),
+      previewFim: conta("preview_limite"),
+      presentesMontados: musicasF.filter((m) => m.personalizada_em).length,
+    },
 
-      preferencias: {
-        porRelacao: contarCampo("relacao"),
-        porEstilo: contarCampo("estilo"),
-        porOcasiao: contarCampo("ocasiao"),
-      },
+    preferencias: {
+      porRelacao: contarCampo("relacao"),
+      porEstilo: contarCampo("estilo"),
+      porOcasiao: contarCampo("ocasiao"),
+    },
 
-      vendas: pagos
-        .sort((a, b) => String(b.paid_at ?? b.created_at).localeCompare(String(a.paid_at ?? a.created_at)))
-        .slice(0, 30)
-        .map((p) => {
-          const l = p.quiz_response_id ? porQuiz.get(p.quiz_response_id) : null;
-          return {
-            quando: String(p.paid_at ?? p.created_at),
-            email: p.email,
-            valorBrl: (p.valor_centavos ?? 0) / 100,
-            gateway: p.gateway,
-            musica: p.musica_id ? (musicaPorId.get(p.musica_id)?.titulo ?? null) : null,
-            origem: l ? chaveOrigem(l.attribution).origem : null,
-            status: p.status,
-          };
-        }),
-
-      recentes: leads.slice(0, 40).map((l) => {
-        const r = (l.respostas ?? {}) as Record<string, string>;
-        const m = musicas.find((x) => x.quiz_response_id === l.id);
-        const idx = (l.furthest_step ?? 0) - 1;
-        const passoStep = idx >= 0 && idx < passosQuiz.length ? passosQuiz[idx] : null;
+    vendas: pagos
+      .sort((a, b) =>
+        String(b.paid_at ?? b.created_at).localeCompare(String(a.paid_at ?? a.created_at)),
+      )
+      .slice(0, 30)
+      .map((p) => {
+        const l = p.quiz_response_id ? porQuiz.get(p.quiz_response_id) : null;
         return {
-          nome: r.nome ?? null,
-          relacao: r.relacao ?? null,
-          estilo: r.estilo ?? null,
-          passo: l.furthest_step,
-          passoRotulo: passoStep ? (ROTULOS[passoStep.id] ?? passoStep.id) : l.furthest_step ? "Concluiu" : "Só abriu",
-          email: l.email,
-          musica: m?.titulo ?? null,
-          status: m?.status ?? null,
-          origem: chaveOrigem(l.attribution).origem,
-          comprou: quizComprou.has(l.id),
-          quando: l.created_at,
+          quando: String(p.paid_at ?? p.created_at),
+          email: p.email,
+          valorBrl: (p.valor_centavos ?? 0) / 100,
+          gateway: p.gateway,
+          musica: p.musica_id ? (musicaPorId.get(p.musica_id)?.titulo ?? null) : null,
+          origem: l ? chaveOrigem(l.attribution).origem : null,
+          status: p.status,
         };
       }),
-    };
-  }
+
+    recentes: leads.slice(0, 40).map((l) => {
+      const r = (l.respostas ?? {}) as Record<string, string>;
+      const m = musicas.find((x) => x.quiz_response_id === l.id);
+      const idx = (l.furthest_step ?? 0) - 1;
+      const passoStep = idx >= 0 && idx < passosQuiz.length ? passosQuiz[idx] : null;
+      return {
+        nome: r.nome ?? null,
+        relacao: r.relacao ?? null,
+        estilo: r.estilo ?? null,
+        passo: l.furthest_step,
+        passoRotulo: passoStep
+          ? (ROTULOS[passoStep.id] ?? passoStep.id)
+          : l.furthest_step
+            ? "Concluiu"
+            : "Só abriu",
+        email: l.email,
+        musica: m?.titulo ?? null,
+        status: m?.status ?? null,
+        origem: chaveOrigem(l.attribution).origem,
+        comprou: quizComprou.has(l.id),
+        quando: l.created_at,
+      };
+    }),
+  };
+}
 
 /**
  * O PAINEL, COM O PERÍODO ANTERIOR JUNTO.
@@ -1187,6 +1373,77 @@ async function montarPainel(
  * `null` e a tela some com as setinhas. Número de ontem é bom de ter; número
  * de hoje é o que não pode faltar.
  */
+/**
+ * A JANELA ANTERIOR INTEIRA — sem o corte em `agora`.
+ *
+ * `janelaAnterior` corta de propósito, e está certa: é o que faz "hoje até
+ * agora" ser comparado com "ontem até esta hora" em todo cartão do painel. O
+ * gráfico quer o oposto — a linha tracejada precisa mostrar onde ontem FECHOU.
+ */
+function janelaAnteriorCheia(j: Janela): Janela {
+  const d = j.dias * 86400000;
+  return {
+    inicio: new Date(j.inicio.getTime() - d),
+    fim: new Date(j.fim.getTime() - d),
+    dias: j.dias,
+  };
+}
+
+/**
+ * A série do período anterior, por uma consulta PRÓPRIA e pequena.
+ *
+ * Não dá pra reaproveitar o `montarPainel` da janela anterior: ele lê uma
+ * janela cortada em agora, e é justamente o corte que o gráfico não quer.
+ * Rodar um terceiro painel inteiro só por causa disto sairia caro — a consulta
+ * do painel já morreu de lentidão uma vez. Aqui só `pedidos` é lido (algumas
+ * centenas de linhas), mais o idioma dos leads envolvidos, que é o que decide
+ * a moeda.
+ *
+ * Nunca lança: gráfico sem comparativo é um gráfico; painel que não abre não é
+ * nada.
+ */
+async function serieAnterior(j: Janela, filtro: FunilFiltro): Promise<PontoSerie[]> {
+  try {
+    const db = supabaseAdmin();
+    const { data: pedidos } = await db
+      .from("pedidos")
+      .select("quiz_response_id, valor_centavos, paid_at, created_at, status, dinheiro_entrou")
+      .gte("created_at", j.inicio.toISOString())
+      .lt("created_at", j.fim.toISOString())
+      .limit(5000);
+
+    // A MESMA regra de venda do resto do painel: cortesia não é faturamento.
+    const pagos = (pedidos ?? []).filter((p) => p.status === "pago" && p.dinheiro_entrou !== false);
+    if (!pagos.length) return montarSerie([], j, granularidadeDe(j.dias));
+
+    // O idioma decide a moeda, e ele mora no lead — não em `pedidos`.
+    const ids = [...new Set(pagos.map((p) => p.quiz_response_id).filter(Boolean))] as string[];
+    const locales = new Map<string, string>();
+    if (ids.length) {
+      const { data: leads } = await db.from("quiz_responses").select("id, locale").in("id", ids);
+      for (const l of leads ?? []) locales.set(String(l.id), l.locale === "es" ? "es" : "pt");
+    }
+
+    const vendas = pagos
+      .filter(
+        (p) => filtro === "todos" || (locales.get(p.quiz_response_id ?? "") ?? "pt") === filtro,
+      )
+      .map((p) => {
+        const ehEs = locales.get(p.quiz_response_id ?? "") === "es";
+        return {
+          quando: Date.parse(String(p.paid_at ?? p.created_at)),
+          brl: ((p.valor_centavos ?? 0) / 100) * (ehEs ? PRECOS.cambioUsdBrl : 1),
+        };
+      })
+      .filter((v) => Number.isFinite(v.quando));
+
+    return montarSerie(vendas, j, granularidadeDe(j.dias));
+  } catch (err) {
+    console.error("[admin] serie do periodo anterior nao lida:", err);
+    return [];
+  }
+}
+
 export const carregarPainel = createServerFn({ method: "POST" })
   // `de`/`ate` em "YYYY-MM-DD" (hora local BR) têm prioridade sobre `dias`.
   // Com eles dá pra olhar UM dia específico ou qualquer intervalo.
@@ -1199,12 +1456,15 @@ export const carregarPainel = createServerFn({ method: "POST" })
     const janela = janelaDo(data);
     const antes = janelaAnterior(janela);
 
-    const [painel, anterior] = await Promise.all([
+    const [painel, anterior, serieDeAntes] = await Promise.all([
       montarPainel(data, janela),
       montarPainel(data, antes, { enxuto: true }).catch((err) => {
         console.error("[admin] periodo anterior nao lido:", err);
         return null;
       }),
+      // Em paralelo com as outras duas: o tempo de parede fica no mais lento,
+      // não na soma. É a mesma razão de as duas janelas já rodarem juntas.
+      serieAnterior(janelaAnteriorCheia(janela), data.funil ?? "todos"),
     ]);
 
     return {
@@ -1218,6 +1478,7 @@ export const carregarPainel = createServerFn({ method: "POST" })
             // sozinhas a partir daí, e guardar as duas coisas abriria espaço
             // pra elas discordarem.
             funil: Object.fromEntries(anterior.funil.map((f) => [f.id, f.alcancaram])),
+            serie: serieDeAntes,
           }
         : null,
     };
@@ -1250,7 +1511,10 @@ export const lancarGasto = createServerFn({ method: "POST" })
 
     const { error } = await db
       .from("gastos_ads")
-      .upsert({ dia, origem, valor_brl: brl, updated_at: new Date().toISOString() }, { onConflict: "dia,origem" });
+      .upsert(
+        { dia, origem, valor_brl: brl, updated_at: new Date().toISOString() },
+        { onConflict: "dia,origem" },
+      );
     if (error) {
       console.error("[admin] lancarGasto falhou:", error);
       return { ok: false };

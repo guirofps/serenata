@@ -1,153 +1,98 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { PontoSerie } from "@/lib/admin-dados";
 
-// VENDAS POR DIA — o gráfico principal do painel.
+// RECEITA AO LONGO DO TEMPO — o gráfico principal do painel.
 //
-// O topo do painel são sete números que dizem COMO ESTÁ. Nenhum deles diz pra
-// ONDE ESTÁ INDO: 93 vendas no período pode ser um começo forte que morreu na
-// terça, ou uma rampa subindo agora, e a decisão é oposta nos dois casos. A
-// setinha de variação compara com o período anterior inteiro, que é um número
-// a mais — não um formato.
+// Os cartões do topo dizem COMO ESTÁ. Nenhum deles diz pra ONDE ESTÁ INDO:
+// R$ 2.406 no período tem forma de rampa e forma de queda, e a decisão é
+// oposta nos dois casos. A setinha de variação resolve metade — ela compara com
+// o período anterior, mas devolve mais um número, não um formato.
 //
-// ── AS ESCOLHAS DE DESENHO, E POR QUÊ ───────────────────────────
+// ── AS ESCOLHAS, E POR QUÊ ──────────────────────────────────────
 //
-// UMA SÉRIE, UMA COR. Toda barra usa o mesmo acento. A tentação é pintar as
-// maiores mais escuras — fica bonito e é errado: a altura JÁ diz o tamanho, e
-// gastar a cor repetindo isso queima o único canal livre que sobrou.
+// RECEITA, NÃO CONTAGEM. A operação faz poucas vendas por dia. Contagem por
+// hora é uma linha de zeros e uns, que não tem forma nenhuma; a receita
+// desenha a curva. A contagem não some — vai no balão do hover, onde ela
+// responde "foram três vendas ou uma cara?".
 //
-// COLUNA, NÃO LINHA. Venda é evento contável e o dia é um balde fechado. Linha
-// sugere que existe valor contínuo entre segunda e terça, e não existe.
+// LINHA, NÃO COLUNA. Com duas séries sobrepostas, coluna vira barra agrupada e
+// o olho perde a comparação. Linha sólida contra tracejada é a leitura mais
+// direta que existe pra "hoje contra ontem", e é por isso que todo painel de
+// e-commerce faz assim.
 //
-// DIA SEM VENDA APARECE COMO ZERO. `custos.porDia` só traz dia que teve custo
-// ou venda — desenhar só o que veio encosta sexta em segunda e some com o fim
-// de semana fraco, que é justamente o que se quer enxergar.
+// UMA COR, DUAS FORÇAS. O período anterior é CONTEXTO, não um concorrente:
+// mesmo acento, mais apagado e tracejado. Duas cores fortes fariam o olho
+// procurar qual das duas é a boa notícia.
 //
-// UM RÓTULO SÓ, no melhor dia. Número em cima de toda barra é ruído que
-// ninguém lê; o resto sai no hover e na tabela "Custo x receita por dia", que
-// vive nesta mesma aba e é a versão em texto destes mesmos dados.
-//
-// ── POR QUE A LARGURA É MEDIDA, E NÃO EM PORCENTAGEM ────────────
-//
-// A primeira versão desenhava tudo em % com `preserveAspectRatio="none"`. Some
-// a matemática e some o `ResizeObserver`, mas o preço apareceu no teste: com
-// 30 dias a barra saía com 25px e com 7 dias com 152px, porque "largura da
-// banda menos folga" é uma FRAÇÃO — ela não sabe quantos pixels virou. Coluna
-// de 152px não é coluna, é um bloco. Medindo, o teto de 24px vale sempre, e de
-// quebra o canto arredondado deixa de sair esticado e a linha de base deixa de
-// precisar de `vectorEffect`.
-
-/**
- * `receitaBrl` já vem CONVERTIDA pra real em `admin-dados.ts` — a venda em
- * dólar do funil mexicano entra ao câmbio, porque esta linha é comparada com o
- * custo, que é sempre em real. É o oposto do cartão "Receita" do topo, que
- * mostra as duas moedas separadas de propósito.
- */
-export type DiaDeVenda = { dia: string; vendas: number; receitaBrl: number; brl: number };
+// A TRACEJADA VAI ALÉM DA SÓLIDA, de propósito. A sólida para em agora; a
+// tracejada mostra o período anterior INTEIRO. É o que transforma o desenho de
+// placar em meta: dá pra ver quanto falta pra alcançar ontem. Todo o resto do
+// painel compara "até esta mesma hora" — aqui, e só aqui, a régua é outra, e o
+// servidor busca essa janela separado (ver `serieAnterior` em `admin-dados`).
 
 const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-
-/** "2026-08-14" -> "14/08". Fatiado, não `new Date`: a string já é a chave. */
-function diaCurto(iso: string): string {
-  const [, m, d] = iso.split("-");
-  return `${d}/${m}`;
-}
-
-const DIA_SEMANA = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
-function diaDaSemana(iso: string): string {
-  // `T12:00:00Z`, meio do dia: com `T00:00:00Z` o fuso do navegador puxa a data
-  // pro dia anterior e o rótulo sai defasado.
-  return DIA_SEMANA[new Date(`${iso}T12:00:00Z`).getUTCDay()] ?? "";
-}
-
 /**
- * Preenche os dias sem movimento entre a ponta e a outra do recorte.
+ * O rótulo do eixo Y, COMPACTO a partir do milhar.
  *
- * O recorte manda quando existe (`de`/`ate` do painel); sem ele, o intervalo
- * dos próprios dados. Assim um período de 30 dias com venda em 4 mostra 30
- * colunas, 26 delas no chão — que é a informação.
+ * "R$ 1.000" mede 39px e não cabia na calha; "R$ 12.500", de um mês bom, mede
+ * mais ainda. O texto era cortado pela borda esquerda do SVG e saía "I$ 1.000"
+ * — o tipo de defeito que parece fonte estranha e é geometria. Compacto ("R$ 1
+ * mil") resolve a largura sem tirar a moeda, que é o que diz o que o eixo mede.
  */
-function preencherDias(dados: DiaDeVenda[], de?: string, ate?: string): DiaDeVenda[] {
-  const porDia = new Map(dados.map((d) => [d.dia, d]));
-  const chaves = [...porDia.keys()].sort();
-  const inicio = (de ?? chaves[0] ?? "").slice(0, 10);
-  const fim = (ate ?? chaves[chaves.length - 1] ?? "").slice(0, 10);
-  if (!inicio || !fim || inicio > fim) return dados;
+const brlEixo = (n: number) =>
+  n >= 1000
+    ? n.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+        notation: "compact",
+        maximumFractionDigits: 1,
+      })
+    : brl(n);
+const brlExato = (n: number) =>
+  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 });
 
-  const saida: DiaDeVenda[] = [];
-  const t = new Date(`${inicio}T12:00:00Z`).getTime();
-  const tFim = new Date(`${fim}T12:00:00Z`).getTime();
-  // Teto de segurança: um `de` corrompido não pode virar laço infinito.
-  for (let i = 0; t + i * 86400000 <= tFim && i < 400; i++) {
-    const iso = new Date(t + i * 86400000).toISOString().slice(0, 10);
-    saida.push(porDia.get(iso) ?? { dia: iso, vendas: 0, receitaBrl: 0, brl: 0 });
-  }
-  return saida.length ? saida : dados;
-}
-
-/** Teto do eixo em número redondo — 7 vendas vira 8, 23 vira 25. */
+/** Teto do eixo em número redondo, pra a marca do topo ser legível. */
 function tetoRedondo(max: number): number {
-  if (max <= 4) return Math.max(1, max);
-  const passo = max <= 10 ? 2 : max <= 50 ? 5 : max <= 200 ? 25 : 100;
-  return Math.ceil(max / passo) * passo;
+  if (max <= 0) return 1;
+  const escala = 10 ** Math.floor(Math.log10(max));
+  for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10]) {
+    if (max <= m * escala) return m * escala;
+  }
+  return 10 * escala;
 }
 
-/** Coluna com o topo arredondado e a base reta, ancorada na linha de base. */
-function colunaPath(x: number, y: number, w: number, h: number, base: number): string {
-  const r = Math.min(4, w / 2, h);
-  if (r <= 0.5) return `M${x} ${base}h${w}V${y}h${-w}Z`;
-  return `M${x} ${base}V${y + r}a${r} ${r} 0 0 1 ${r} ${-r}h${w - 2 * r}a${r} ${r} 0 0 1 ${r} ${r}V${base}Z`;
-}
-
-const ALTURA = 178;
-/**
- * Onde o desenho termina e começa a faixa das datas.
- *
- * Separado de `ALTURA` porque a primeira versão colocava o rótulo em
- * `ALTURA - 3` com a linha de base em `ALTURA - 1`: as datas ficavam DENTRO do
- * gráfico e as colunas passavam por cima delas. Reservar a faixa é o conserto;
- * empurrar o texto pra baixo sem crescer o `viewBox` só o cortaria.
- */
-const BASE = 140;
-const EIXO_Y = 32;
-/** Teto de espessura da coluna. Acima disso deixa de ser coluna e vira bloco. */
-const BARRA_MAX = 24;
-/**
- * Ar entre duas colunas vizinhas.
- *
- * 2px é o padrão, mas ele NÃO pode ser fixo: 90 dias num celular dão uma banda
- * de 2,9px, e tirar 2 dali deixa a coluna com 0,9 — abaixo do piso de 1px, ou
- * seja, uma tarja de linhas iguais onde a altura some. Quando a banda é
- * minúscula, a folga vira um quarto dela e a coluna fica com o resto.
- */
-const FOLGA_MAX = 2;
+const ALTURA = 190;
+/** Onde o desenho acaba e começa a faixa das datas. */
+const BASE = 150;
+/** Calha do eixo Y. Cabe "R$ 12,5 mil" com folga — medido, não estimado. */
+const EIXO_Y = 54;
+const TOPO = 8;
 
 export function GraficoVendas({
-  porDia,
-  de,
-  ate,
+  serie,
+  anterior,
+  granularidade,
+  rotuloPeriodo,
+  rotuloAnterior,
 }: {
-  porDia: DiaDeVenda[];
-  /** O recorte do painel, pra o eixo cobrir o período pedido e não só o que teve venda. */
-  de?: string;
-  ate?: string;
+  serie: PontoSerie[];
+  /** O mesmo recorte, um período atrás — e INTEIRO, não cortado em agora. */
+  anterior: PontoSerie[];
+  granularidade: "hora" | "dia";
+  rotuloPeriodo: string;
+  rotuloAnterior: string;
 }) {
   const [ativo, setAtivo] = useState<number | null>(null);
   const caixa = useRef<HTMLDivElement>(null);
-  // Sem medida ainda (primeiro render, SSR), desenha num palco de 800: o
-  // `ResizeObserver` corrige no frame seguinte e ninguém vê o meio-termo.
   const [largura, setLargura] = useState(800);
 
   useEffect(() => {
     const el = caixa.current;
     if (!el) return;
-    // MEDE NA MONTAGEM, E NÃO SÓ NO OBSERVER.
-    //
-    // O navegador não entrega callback de `ResizeObserver` pra página oculta —
-    // aba em segundo plano, painel escondido, impressão. Sem esta linha, o
-    // gráfico ficava com a largura de partida (800) e o SVG inteiro era
-    // ESCALADO pra caber: o desenho aparecia certo, mas o teto de 24px da
-    // coluna virava 8px sem ninguém perceber, porque o erro é proporcional e
-    // parece só "um gráfico menor". Descoberto medindo, não olhando.
+    // Mede na montagem também, e não só no observer: o navegador não entrega
+    // callback de `ResizeObserver` pra página oculta (aba em segundo plano,
+    // impressão), e aí o SVG inteiro sairia escalado.
     setLargura(el.getBoundingClientRect().width);
     if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(([e]) => setLargura(e.contentRect.width));
@@ -155,40 +100,76 @@ export function GraficoVendas({
     return () => ro.disconnect();
   }, []);
 
-  const dias = useMemo(() => preencherDias(porDia, de, ate), [porDia, de, ate]);
-  const total = dias.reduce((s, d) => s + d.vendas, 0);
+  // AS DUAS SÉRIES SE ALINHAM POR POSIÇÃO, não por data: o balde 14 de hoje
+  // encosta no balde 14 de ontem. É a única leitura que faz sentido — comparar
+  // por data absoluta seria comparar hoje com hoje.
+  const n = Math.max(serie.length, anterior.length);
+  const totais = useMemo(() => {
+    const soma = (a: PontoSerie[]) => a.reduce((s, p) => s + p.receitaBrl, 0);
+    return { atual: soma(serie), antes: soma(anterior) };
+  }, [serie, anterior]);
 
-  if (!dias.length || total === 0) {
+  if (!n || (totais.atual === 0 && totais.antes === 0)) {
     return (
       <p className="rounded-2xl border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] px-4 py-8 text-center text-sm text-[var(--tinta-suave)]">
-        Nenhuma venda neste recorte.
+        Nenhuma venda neste recorte nem no anterior.
       </p>
     );
   }
 
-  const teto = tetoRedondo(Math.max(...dias.map((d) => d.vendas)));
-  const melhor = dias.reduce((iMax, d, i) => (d.vendas > dias[iMax].vendas ? i : iMax), 0);
-
+  const teto = tetoRedondo(
+    Math.max(...serie.map((p) => p.receitaBrl), ...anterior.map((p) => p.receitaBrl), 0),
+  );
   const plot = Math.max(largura - EIXO_Y, 80);
-  const banda = plot / dias.length;
-  const folga = Math.min(FOLGA_MAX, banda * 0.25);
-  const larguraBarra = Math.max(1, Math.min(BARRA_MAX, banda - folga));
-  const base = BASE;
-  const xDe = (i: number) => EIXO_Y + i * banda + (banda - larguraBarra) / 2;
-  // Uma marca de data a cada N, no máximo seis: noventa datas viram tarja
-  // cinza, e o que se lê num gráfico de tendência é a forma, não cada dia.
-  const passoRotulo = Math.max(1, Math.ceil(dias.length / 6));
+  // Ponto no MEIO do balde: a receita da hora 14 não acontece às 14:00 em
+  // ponto, ela é o intervalo inteiro.
+  const x = (i: number) => EIXO_Y + ((i + 0.5) * plot) / n;
+  const y = (v: number) => BASE - (v / teto) * (BASE - TOPO);
+
+  const caminho = (pts: PontoSerie[]) =>
+    pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(p.receitaBrl).toFixed(1)}`).join("");
+
+  // QUANTAS DATAS CABEM, e não quantas eu acho bonito. Um número fixo de
+  // marcas funciona no desktop e colide no celular, porque a mesma quantidade
+  // de texto tem metade do espaço — medido: 7 marcas de "01/07" em 375px se
+  // sobrepõem duas a duas. "08" ocupa bem menos que "01/07", daí os dois
+  // números.
+  const larguraRotulo = granularidade === "hora" ? 28 : 48;
+  const cabem = Math.max(2, Math.floor(plot / larguraRotulo));
+  const passoRotulo = Math.max(1, Math.ceil(n / cabem));
+  const eixo = serie.length >= anterior.length ? serie : anterior;
+
+  // A ÚLTIMA MARCA SUBSTITUI a anterior quando encosta nela, em vez de se
+  // somar. Forçar o último índice além do passo era o que ainda deixava dois
+  // rótulos colados no fim (28 e 29, num passo de 7). Trocar preserva a data
+  // final — que é o que diz até onde o gráfico vai — sem sobrepor nada.
+  const marcas: number[] = [];
+  for (let i = 0; i < eixo.length; i += passoRotulo) marcas.push(i);
+  const fim = eixo.length - 1;
+  if (fim > 0) {
+    if (fim - marcas[marcas.length - 1] < passoRotulo * 0.7) marcas.pop();
+    marcas.push(fim);
+  }
+
+  const pAtual = ativo !== null ? serie[ativo] : undefined;
+  const pAntes = ativo !== null ? anterior[ativo] : undefined;
 
   return (
     <div className="rounded-2xl border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-4">
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <p className="text-[11px] uppercase tracking-wider text-[var(--tinta-suave)]">
-          Vendas por dia
+          Receita ao longo do tempo
         </p>
         <p className="text-xs text-[var(--tinta-suave)]">
-          {total} no período · melhor dia {diaCurto(dias[melhor].dia)} com {dias[melhor].vendas}
+          {granularidade === "hora" ? "por hora" : "por dia"} · anterior {brl(totais.antes)}
         </p>
       </div>
+      <p
+        className="mb-3 tabular-nums leading-none text-[var(--acento)]"
+        style={{ fontWeight: 600, fontSize: "var(--t-xl)" }}
+      >
+        {brlExato(totais.atual)}
+      </p>
 
       <div ref={caixa} className="relative">
         <svg
@@ -196,123 +177,179 @@ export function GraficoVendas({
           height={ALTURA}
           viewBox={`0 0 ${largura} ${ALTURA}`}
           role="img"
-          aria-label={`Vendas por dia. ${total} vendas no período, melhor dia ${diaCurto(dias[melhor].dia)} com ${dias[melhor].vendas}.`}
+          aria-label={`Receita por ${granularidade}. ${brlExato(totais.atual)} no período contra ${brlExato(totais.antes)} no anterior.`}
           onMouseLeave={() => setAtivo(null)}
+          onMouseMove={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            // A posição do mouse em unidade de viewBox — o SVG pode estar
+            // escalado, e usar o pixel da tela erraria o balde.
+            const px = ((e.clientX - r.left) / r.width) * largura;
+            const i = Math.floor(((px - EIXO_Y) / plot) * n);
+            setAtivo(i >= 0 && i < n ? i : null);
+          }}
         >
-          {/* Grade recessiva: meia-altura e topo, hairline sólida. Tracejado
-              competiria com as colunas. */}
-          {[0, 0.5].map((f) => (
-            <line
-              key={f}
-              x1={EIXO_Y}
-              x2={largura}
-              y1={1 + f * (base - 1)}
-              y2={1 + f * (base - 1)}
-              stroke="var(--tinta-fraca)"
-              strokeOpacity="0.35"
-              strokeWidth="1"
-            />
-          ))}
-          <line
-            x1={EIXO_Y}
-            x2={largura}
-            y1={base}
-            y2={base}
-            stroke="var(--tinta-fraca)"
-            strokeOpacity="0.7"
-            strokeWidth="1"
-          />
-
-          {/* Os números do eixo Y, dentro do SVG agora que ele tem escala 1:1
-              em pixel — não estica mais, então não distorce o texto. */}
-          <text
-            x={EIXO_Y - 6}
-            y={10}
-            textAnchor="end"
-            className="fill-[var(--tinta-suave)] text-[10px] tabular-nums"
-          >
-            {teto}
-          </text>
-          <text
-            x={EIXO_Y - 6}
-            y={base}
-            textAnchor="end"
-            className="fill-[var(--tinta-suave)] text-[10px] tabular-nums"
-          >
-            0
-          </text>
-
-          {dias.map((d, i) => {
-            const altura = (d.vendas / teto) * (base - 1);
-            return (
-              <g key={d.dia}>
-                {/* Alvo de hover da BANDA INTEIRA, não só da coluna: num dia
-                    de zero venda a coluna tem altura nenhuma, e sem isto o dia
-                    fraco — o que mais importa investigar — seria o único
-                    impossível de consultar. */}
-                <rect
-                  x={EIXO_Y + i * banda}
-                  y={0}
-                  width={banda}
-                  height={base}
-                  fill="transparent"
-                  onMouseEnter={() => setAtivo(i)}
-                />
-                {d.vendas > 0 && (
-                  <path
-                    d={colunaPath(xDe(i), base - altura, larguraBarra, altura, base)}
-                    fill="var(--acento)"
-                    fillOpacity={ativo === null || ativo === i ? 1 : 0.4}
-                    className="pointer-events-none transition-opacity"
-                  />
-                )}
-              </g>
-            );
-          })}
-
-          {/* Eixo X. Dentro do SVG pelo mesmo motivo do eixo Y, e com âncora
-              nas pontas pra a primeira e a última data não saírem cortadas. */}
-          {dias.map((d, i) =>
-            i % passoRotulo !== 0 && i !== dias.length - 1 ? null : (
+          {[0, 0.5, 1].map((f) => (
+            <g key={f}>
+              <line
+                x1={EIXO_Y}
+                x2={largura}
+                y1={BASE - f * (BASE - TOPO)}
+                y2={BASE - f * (BASE - TOPO)}
+                stroke="var(--tinta-fraca)"
+                strokeOpacity={f === 0 ? 0.7 : 0.3}
+                strokeWidth="1"
+              />
               <text
-                key={d.dia}
-                x={EIXO_Y + (i + 0.5) * banda}
-                y={BASE + 16}
-                textAnchor={i === 0 ? "start" : i === dias.length - 1 ? "end" : "middle"}
+                x={EIXO_Y - 8}
+                y={BASE - f * (BASE - TOPO) + 3}
+                textAnchor="end"
                 className="fill-[var(--tinta-suave)] text-[10px] tabular-nums"
               >
-                {diaCurto(d.dia)}
+                {brlEixo(teto * f)}
               </text>
-            ),
+            </g>
+          ))}
+
+          {/* O ANTERIOR PRIMEIRO, pra a linha de hoje passar por cima dele
+              onde as duas se cruzam. Quem está sendo lido é o de hoje. */}
+          {anterior.length > 1 && (
+            <path
+              d={caminho(anterior)}
+              fill="none"
+              stroke="var(--acento)"
+              strokeOpacity="0.4"
+              strokeWidth="2"
+              strokeDasharray="5 4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           )}
+          {serie.length > 1 && (
+            <path
+              d={caminho(serie)}
+              fill="none"
+              stroke="var(--acento)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
+          {/* Um ponto só, quando a série tem um balde: linha de um ponto não
+              desenha nada, e "ainda não deu uma hora" viraria gráfico vazio. */}
+          {serie.length === 1 && (
+            <circle cx={x(0)} cy={y(serie[0].receitaBrl)} r="4" fill="var(--acento)" />
+          )}
+
+          {ativo !== null && (
+            <g className="pointer-events-none">
+              <line
+                x1={x(ativo)}
+                x2={x(ativo)}
+                y1={TOPO}
+                y2={BASE}
+                stroke="var(--tinta-fraca)"
+                strokeOpacity="0.8"
+                strokeWidth="1"
+              />
+              {pAntes && (
+                <circle
+                  cx={x(ativo)}
+                  cy={y(pAntes.receitaBrl)}
+                  r="3.5"
+                  fill="var(--acento)"
+                  fillOpacity="0.45"
+                />
+              )}
+              {pAtual && (
+                <circle
+                  cx={x(ativo)}
+                  cy={y(pAtual.receitaBrl)}
+                  r="4.5"
+                  fill="var(--acento)"
+                  stroke="var(--papel-fundo)"
+                  strokeWidth="2"
+                />
+              )}
+            </g>
+          )}
+
+          {marcas.map((i) => (
+            <text
+              key={eixo[i].inicio}
+              x={x(i)}
+              y={ALTURA - 14}
+              // Âncora pra dentro nas pontas, senão a primeira e a última data
+              // saem pela borda do SVG.
+              textAnchor={i === 0 ? "start" : i === eixo.length - 1 ? "end" : "middle"}
+              className="fill-[var(--tinta-suave)] text-[10px] tabular-nums"
+            >
+              {eixo[i].rotulo}
+            </text>
+          ))}
         </svg>
 
-        {/* O balão do dia sob o cursor. Em HTML por cima do SVG: herda a fonte
-            e as bordas arredondadas do painel sem reimplementar nada. */}
-        {ativo !== null && (
+        {/* LEGENDA. Com duas séries ela não é opcional: cor sozinha não pode
+            ser o único jeito de saber qual linha é qual. */}
+        <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-[var(--tinta-suave)]">
+          <span className="inline-flex items-center gap-1.5">
+            <svg width="18" height="6" aria-hidden="true">
+              <line
+                x1="0"
+                y1="3"
+                x2="18"
+                y2="3"
+                stroke="var(--acento)"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+            {rotuloPeriodo}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <svg width="18" height="6" aria-hidden="true">
+              <line
+                x1="0"
+                y1="3"
+                x2="18"
+                y2="3"
+                stroke="var(--acento)"
+                strokeOpacity="0.4"
+                strokeWidth="2"
+                strokeDasharray="5 4"
+                strokeLinecap="round"
+              />
+            </svg>
+            {rotuloAnterior}
+          </span>
+        </div>
+
+        {ativo !== null && (pAtual || pAntes) && (
           <div
-            className="pointer-events-none absolute top-0 z-10 min-w-[8.5rem] rounded-xl border border-[var(--tinta-fraca)]/50 bg-[var(--papel)] px-3 py-2 text-xs shadow-lg"
+            className="pointer-events-none absolute top-0 z-10 min-w-[9rem] rounded-xl border border-[var(--tinta-fraca)]/50 bg-[var(--papel)] px-3 py-2 text-xs shadow-lg"
             style={{
-              left: xDe(ativo) + larguraBarra / 2,
-              // Perto da borda direita o balão abre pra esquerda, senão sai da
-              // caixa; nas outras posições fica centrado na coluna.
-              transform: xDe(ativo) > largura - 160 ? "translateX(-100%)" : "translateX(-50%)",
+              left: x(ativo),
+              transform: x(ativo) > largura - 170 ? "translateX(-100%)" : "translateX(-50%)",
             }}
           >
             <p className="font-medium">
-              {diaCurto(dias[ativo].dia)}{" "}
-              <span className="text-[var(--tinta-suave)]">{diaDaSemana(dias[ativo].dia)}</span>
+              {(pAtual ?? pAntes)!.rotulo}
+              {granularidade === "hora" ? "h" : ""}
             </p>
-            <p className="mt-1 tabular-nums">
-              {dias[ativo].vendas} {dias[ativo].vendas === 1 ? "venda" : "vendas"}
-            </p>
-            {dias[ativo].receitaBrl > 0 && (
-              <p className="tabular-nums text-[var(--tinta-suave)]">
-                {brl(dias[ativo].receitaBrl)}
+            {pAtual && (
+              <p className="mt-1 tabular-nums">
+                {brlExato(pAtual.receitaBrl)}
+                {pAtual.vendas > 0 && (
+                  <span className="text-[var(--tinta-suave)]">
+                    {" "}
+                    · {pAtual.vendas} {pAtual.vendas === 1 ? "venda" : "vendas"}
+                  </span>
+                )}
               </p>
             )}
-            {dias[ativo].brl > 0 && (
-              <p className="tabular-nums text-[var(--tinta-suave)]">custo {brl(dias[ativo].brl)}</p>
+            {pAntes && (
+              <p className="tabular-nums text-[var(--tinta-suave)]">
+                {brlExato(pAntes.receitaBrl)} no anterior
+              </p>
             )}
           </div>
         )}
