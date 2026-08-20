@@ -262,6 +262,10 @@ conserto pontual — desfazer qualquer uma reabre o buraco.
   sozinho mandando `token_edicao` de um cliente pra um estranho.
 - **A resposta automática do suporte confere o endereço em JS**, além do
   `ilike`. É a única rotina que manda token pra quem não provou ser dono.
+- **Endpoint que gasta dinheiro tem teto e tem limite de tamanho de entrada.**
+  As três rotas de letra e o disparo da música passam por `cobrarUso()`
+  (`src/lib/limite-uso.server.ts`, tabela `limites_uso`). O teto falha ABERTO:
+  banco fora do ar não barra venda.
 - **Token do cliente não entra em URL que terceiro lê.** gtag e UTMify só
   carregam fora das rotas de `rotas-sensiveis.ts`. `/obrigado` fica de fora da
   lista de propósito — é onde a conversão dispara.
@@ -276,6 +280,12 @@ conserto pontual — desfazer qualquer uma reabre o buraco.
 - **Em produção, cabeçalho de host não decide destino.** `x-forwarded-host`
   escolhia o `redirectTo` do magic link quando `VITE_APP_URL` faltava, o que é
   tomada de conta completa.
+- **Existe teto de gasto diário do Suno** (`inngest/lib/disjuntor.ts`,
+  `TETO_MUSICAS_DIA`, padrão 300/dia contra os 119/dia reais). Ele NÃO tenta
+  identificar quem abusa, ele limita quanto se perde — é a única linha que
+  nenhum truque do cliente contorna, porque roda dentro do job. Quem já pagou
+  nunca é barrado e não consome o orçamento: um teto que segura comprador
+  troca R$ 0,32 por reembolso, que é o oposto da regra de ouro.
 
 ## Herança de código
 

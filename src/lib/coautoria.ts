@@ -130,6 +130,45 @@ async function quizIdParaCusto(sessionId: string): Promise<string | null> {
   }
 }
 
+// ── O QUE ENTRA NO PROMPT TEM TAMANHO ───────────────────────────
+//
+// Nada aqui limitava o tamanho da entrada, e o preço do Claude é por token de
+// ENTRADA também. `aprimorarLetra` era o pior: recebia `letra` do cliente e
+// mandava inteira pro modelo, então um POST de 2 MB virava uma conta de 2 MB
+// na Anthropic — e a resposta voltava pro remetente, o que faz do endereço um
+// proxy grátis pra API.
+//
+// Os números são folgados de propósito. A história mais longa que o quiz
+// produz não passa de uns 3 mil caracteres, e uma letra fica na casa dos 1,5
+// mil: o teto está uma ordem de grandeza acima do uso real, então ele só
+// aparece pra quem está tentando outra coisa.
+const MAX_RESPOSTAS = 12_000;
+const MAX_LETRA = 12_000;
+const MAX_REFRAO = 2_000;
+
+/**
+ * O TETO DE CHAMADAS, importado só no servidor.
+ *
+ * `import()` dentro do handler, como `admin-auth.server`: o módulo usa
+ * `node:crypto` e o contexto de requisição, e este arquivo é importado por
+ * componente de tela (`RevealStep`, `EditorLetra`).
+ */
+async function cobrarLetra(sessionId: string): Promise<void> {
+  const m = await import("@/lib/limite-uso.server");
+  await m.cobrarUso(m.TETO_LETRA, sessionId);
+}
+
+async function cobrarMusica(sessionId: string): Promise<void> {
+  const m = await import("@/lib/limite-uso.server");
+  await m.cobrarUso(m.TETO_MUSICA, sessionId);
+}
+
+/** Erro de entrada grande demais. Mensagem única: não descreve o teto. */
+function exigirTamanho(valor: unknown, teto: number, campo: string): void {
+  const texto = typeof valor === "string" ? valor : JSON.stringify(valor ?? "");
+  if ((texto?.length ?? 0) > teto) throw new Error(`${campo} grande demais`);
+}
+
 function respostasSanitizadas(respostas: Record<string, unknown>) {
   const nome = sanitizeNome(respostas.nome);
   return { ...respostas, nome: nome || "essa pessoa" };
@@ -177,6 +216,8 @@ export type RefroesGerados = { titulo: string; estiloSuno: string; refroes: [str
 export const gerarRefroes = createServerFn({ method: "POST" })
   .validator((data: { sessionId: string; respostas: Record<string, unknown>; locale?: string }) => data)
   .handler(async ({ data }): Promise<RefroesGerados> => {
+    exigirTamanho(data.respostas, MAX_RESPOSTAS, "respostas");
+    await cobrarLetra(data.sessionId);
     const locale = normalizarLocale(data.locale);
     const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas), locale)}
 
@@ -203,6 +244,9 @@ export const montarLetra = createServerFn({ method: "POST" })
     (data: { sessionId: string; respostas: Record<string, unknown>; refrao: string; locale?: string }) => data,
   )
   .handler(async ({ data }): Promise<LetraGerada> => {
+    exigirTamanho(data.respostas, MAX_RESPOSTAS, "respostas");
+    exigirTamanho(data.refrao, MAX_REFRAO, "refrão");
+    await cobrarLetra(data.sessionId);
     const locale = normalizarLocale(data.locale);
     const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas), locale)}
 
@@ -226,6 +270,8 @@ ${INSTRUCOES[locale].montar(data.refrao)}`;
 export const aprimorarLetra = createServerFn({ method: "POST" })
   .validator((data: { sessionId: string; letra: string; locale?: string }) => data)
   .handler(async ({ data }): Promise<{ letra: string }> => {
+    exigirTamanho(data.letra, MAX_LETRA, "letra");
+    await cobrarLetra(data.sessionId);
     const locale = normalizarLocale(data.locale);
     const userMsg = `${INSTRUCOES[locale].aprimorar}
 
@@ -369,6 +415,11 @@ export const finalizarLetra = createServerFn({ method: "POST" })
     }) => data,
   )
   .handler(async ({ data }): Promise<{ musicaId: string | null; statusMusica: string }> => {
+    exigirTamanho(data.respostas, MAX_RESPOSTAS, "respostas");
+    exigirTamanho(data.letra, MAX_LETRA, "letra");
+    // O teto da MÚSICA, não o da letra: aqui o gasto é o kie.ai. A idempotência
+    // logo abaixo já cobre o duplo-clique honesto; isto cobre o laço.
+    await cobrarMusica(data.sessionId);
     const db = supabaseAdmin();
     const locale = normalizarLocale(data.locale);
     const quizId = await quizIdDaSessao(data.sessionId);

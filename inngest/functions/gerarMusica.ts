@@ -2,6 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { iniciarGeracao, consultarGeracao, obterTimestamps } from "../lib/kie.js";
 import { acharGenero } from "../../src/lib/generos.js";
+import { podeGerar } from "../lib/disjuntor.js";
 
 // Job de geração da música. Portado de scratch/pipeline-completo.mjs, que já
 // rodou de ponta a ponta na mão (3 músicas aprovadas).
@@ -133,6 +134,34 @@ export const gerarMusica = inngest.createFunction(
     });
 
     if (musica.jaPronta) return { pulado: "já estava pronta" };
+
+    // ─── 1.5. O DISJUNTOR DE GASTO ────────────────────────────────
+    //
+    // Aqui, e não na rota que dispara o evento: este é o único ponto por onde
+    // TODO crédito do Suno passa, e é servidor puro — nenhum truque do lado do
+    // cliente (sessionId novo a cada chamada, IP trocado por proxy) chega até
+    // ele. Ver `../lib/disjuntor.ts` pra o raciocínio, inclusive por que quem
+    // já pagou nunca é barrado.
+    //
+    // Depois do `jaPronta` de propósito: música já entregue não consome
+    // orçamento nenhum.
+    const liberado = await step.run("conferir-teto-do-dia", () =>
+      podeGerar(db(), musica.quiz_response_id),
+    );
+    if (!liberado.ok) {
+      // `falhou` e não `aguardando`: o estado tem que ser VISÍVEL. `falhou` é o
+      // que o painel mostra em vermelho e o que o caminho de recuperação
+      // (`temMusicaDaSessao`) sabe refazer — e, se esta pessoa pagar, o webhook
+      // refaz na hora e o disjuntor a deixa passar por ser paga.
+      await db()
+        .from("musicas")
+        .update({
+          status: "falhou",
+          erro: `teto diário de geração atingido (${liberado.teto}/dia) — não gerado antes do pagamento`,
+        })
+        .eq("id", musicaId);
+      return { pulado: "teto diário atingido", teto: liberado.teto };
+    }
 
     // Voz escolhida no quiz (fica nas respostas do lead).
     const voz = await step.run("ler-voz", async () => {

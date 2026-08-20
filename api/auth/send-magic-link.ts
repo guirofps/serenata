@@ -18,6 +18,7 @@
 // para "tem pedido pago" — uma linha.
 
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailAcesso, assuntoAcesso } from "../../emails/acesso.js";
@@ -67,6 +68,61 @@ function origem(req: Req): string {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// ── TETO DE PEDIDOS DE LINK ─────────────────────────────────────
+//
+// Este endereço é público, aceita qualquer e-mail e MANDA E-MAIL. Sem teto,
+// quem souber o endereço de um cliente enche a caixa dele apertando F5 — e o
+// estrago não para no incômodo: volume de disparo pro mesmo destinatário é
+// exatamente o que faz o Gmail marcar o domínio, e o domínio é o que entrega a
+// música de quem pagou. O CLAUDE.md já registra 9 bounces derrubando entrega.
+//
+// Duas chaves, como em `src/lib/limite-uso.server.ts`: por ENDEREÇO (protege a
+// caixa do cliente, mesmo com o atacante trocando de rede) e por ORIGEM
+// (protege contra varrer muitos endereços da mesma máquina).
+//
+// Os números são folgados pra quem perdeu o e-mail de verdade: 5 pedidos por
+// hora pro mesmo endereço é mais do que qualquer pessoa tenta.
+const TETO_POR_EMAIL = 5;
+const TETO_POR_ORIGEM = 20;
+const JANELA_S = 60 * 60;
+
+/**
+ * Soma 1 na chave e diz se ainda cabe.
+ *
+ * FALHA ABERTA: banco fora do ar não pode impedir um comprador de entrar na
+ * conta pra buscar o que já pagou. Mesma escolha do resto do projeto — e o
+ * caso inclui "a migration `20260820000000_limites_uso` ainda não rodou".
+ */
+async function cabe(sb: ReturnType<typeof db>, chave: string, teto: number): Promise<boolean> {
+  try {
+    const { data, error } = await sb.rpc("consumir_limite", {
+      p_chave: chave,
+      p_janela_s: JANELA_S,
+      p_teto: teto,
+    });
+    if (error) {
+      console.error("[magic-link] limite não conferido:", error.message);
+      return true;
+    }
+    return data !== false;
+  } catch (err) {
+    console.error("[magic-link] limite não conferido:", err);
+    return true;
+  }
+}
+
+/** IP de quem chamou, em hash — contar não exige guardar o endereço. */
+function origemHash(req: Req): string | null {
+  const bruto = req.headers["x-forwarded-for"] ?? req.headers["x-real-ip"];
+  const primeiro = Array.isArray(bruto) ? bruto[0] : bruto;
+  const ip = String(primeiro ?? "")
+    .split(",")[0]
+    ?.trim();
+  if (!ip) return null;
+  const sal = process.env.ADMIN_SECRET ?? "sem-sal";
+  return createHash("sha256").update(`${sal}:${ip}`).digest("hex").slice(0, 32);
+}
+
 export default async function handler(req: Req, res: Res) {
   if (req.method !== "POST") return res.status(405).json({ error: "method not allowed" });
 
@@ -76,6 +132,24 @@ export default async function handler(req: Req, res: Res) {
     if (!EMAIL_RE.test(email)) return res.status(400).json({ error: "e-mail inválido" });
 
     const sb = db();
+
+    // ── 1.5. TETO. Antes de qualquer consulta e de qualquer envio ──
+    //
+    // A resposta continua sendo 200 e igual às outras: dizer "você pediu
+    // demais" confirmaria pra um estranho que aquele endereço existe aqui, que
+    // é justamente o que a resposta uniforme deste endpoint existe pra
+    // esconder. Quem estourou o teto simplesmente não recebe e-mail.
+    // `origemChave`, não `origem`: `origem()` já é a função que decide pra
+    // onde o magic link volta, logo acima.
+    const origemChave = origemHash(req);
+    const [cabeEmail, cabeOrigem] = await Promise.all([
+      cabe(sb, `link:${email}`, TETO_POR_EMAIL),
+      origemChave ? cabe(sb, `link-ip:${origemChave}`, TETO_POR_ORIGEM) : Promise.resolve(true),
+    ]);
+    if (!cabeEmail || !cabeOrigem) {
+      console.warn("[magic-link] teto de pedidos atingido");
+      return res.status(200).json({ ok: true });
+    }
 
     // ── 2. Esse e-mail merece um link? ───────────────────────────
     // Duas portas de entrada, e QUALQUER uma serve:
