@@ -10,7 +10,14 @@ import { cn } from "@/lib/utils";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { AbaTestes } from "@/components/admin/AbaTestes";
-import { RefreshCw, LogOut, TrendingDown, AlertTriangle, ExternalLink, Calendar } from "lucide-react";
+import {
+  RefreshCw,
+  LogOut,
+  TrendingDown,
+  AlertTriangle,
+  ExternalLink,
+  Calendar,
+} from "lucide-react";
 
 // PAINEL DA OPERAÇÃO.
 //
@@ -26,7 +33,7 @@ export const Route = createFileRoute("/admin")({
     funil: z.enum(["todos", "pt", "es"]).optional(),
     // A ABA na URL, como os campos acima: reload e botão voltar funcionam, e
     // dá pra mandar o link direto pra alguém já na aba certa.
-    aba: z.enum(["operacao", "testes"]).optional(),
+    aba: z.enum(["operacao", "origem", "vendas", "email", "testes"]).optional(),
   }),
   head: () => ({
     meta: [{ title: `Painel · ${MARCA.nome}` }, { name: "robots", content: "noindex, nofollow" }],
@@ -41,9 +48,15 @@ const brl = (n: number) =>
 const usd = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 const pc = (n: number) => `${n.toFixed(1)}%`;
-const seg = (n: number | null) => (n == null ? "—" : n < 90 ? `${Math.round(n)}s` : `${(n / 60).toFixed(1)}min`);
+const seg = (n: number | null) =>
+  n == null ? "—" : n < 90 ? `${Math.round(n)}s` : `${(n / 60).toFixed(1)}min`;
 const quando = (iso: string) =>
-  new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
 // ── blocos visuais ──────────────────────────────────────────────
 function Cartao({
@@ -130,7 +143,9 @@ function Variacao({
   // Saiu do zero: não existe porcentagem de aumento sobre nada. "novo" é a
   // única leitura honesta, e some quando a base aparecer.
   if (!anterior) {
-    return <span className="ml-2 whitespace-nowrap text-[11px] text-[var(--tinta-suave)]">novo</span>;
+    return (
+      <span className="ml-2 whitespace-nowrap text-[11px] text-[var(--tinta-suave)]">novo</span>
+    );
   }
 
   const delta = unidade === "pontos" ? atual - anterior : ((atual - anterior) / anterior) * 100;
@@ -153,11 +168,21 @@ function pctTxt(parte: number, total: number): string {
   return `${Math.round((parte / total) * 100)}%`;
 }
 
-function Secao({ titulo, sub, children }: { titulo: string; sub?: string; children: React.ReactNode }) {
+function Secao({
+  titulo,
+  sub,
+  children,
+}: {
+  titulo: string;
+  sub?: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="space-y-3">
       <div>
-        <h2 style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-xl)" }}>{titulo}</h2>
+        <h2 style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-xl)" }}>
+          {titulo}
+        </h2>
         {sub && <p className="text-xs text-[var(--tinta-suave)]">{sub}</p>}
       </div>
       {children}
@@ -172,7 +197,13 @@ function Tabela({ cabecalho, children }: { cabecalho: string[]; children: React.
         <thead className="bg-[var(--papel-fundo)] text-[var(--tinta-suave)]">
           <tr>
             {cabecalho.map((c, i) => (
-              <th key={c} className={cn("px-3 py-2.5 text-[11px] font-medium uppercase tracking-wider", i === 0 ? "text-left" : "text-right")}>
+              <th
+                key={c}
+                className={cn(
+                  "px-3 py-2.5 text-[11px] font-medium uppercase tracking-wider",
+                  i === 0 ? "text-left" : "text-right",
+                )}
+              >
                 {c}
               </th>
             ))}
@@ -248,7 +279,10 @@ function Admin() {
 
   if (precisaLogin) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[var(--papel)] px-4" style={TEMA_CLARO}>
+      <div
+        className="grid min-h-screen place-items-center bg-[var(--papel)] px-4"
+        style={TEMA_CLARO}
+      >
         <form
           className="w-full max-w-sm space-y-4"
           onSubmit={async (e) => {
@@ -265,7 +299,13 @@ function Admin() {
             <Logo tamanho="md" />
           </div>
           <p className="text-center text-sm text-[var(--tinta-suave)]">Painel da operação</p>
-          <Input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Senha" autoFocus />
+          <Input
+            type="password"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            placeholder="Senha"
+            autoFocus
+          />
           {erro && <p className="text-sm text-destructive">{erro}</p>}
           <Button type="submit" className="cta w-full rounded-full border-0">
             Entrar
@@ -280,7 +320,10 @@ function Admin() {
   // que é encurtar o período (o custo da consulta é proporcional a ele).
   if (!carregando && falha) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[var(--papel)] px-4" style={TEMA_CLARO}>
+      <div
+        className="grid min-h-screen place-items-center bg-[var(--papel)] px-4"
+        style={TEMA_CLARO}
+      >
         <div className="w-full max-w-sm space-y-4 text-center">
           <div className="flex justify-center">
             <Logo tamanho="md" />
@@ -324,7 +367,9 @@ function Admin() {
   // pessoa é mandada olhar primeiro, apontando pro lugar errado.
   // `[0]` é seguro: o primeiro degrau tem `perdidos` 0 por construção (não há
   // degrau anterior de onde perder), então ele nunca ganha essa ordenação.
-  const maiorQueda = [...dados.funil].filter((f) => f.alcancaram > 0).sort((a, b) => b.perdidos - a.perdidos)[0];
+  const maiorQueda = [...dados.funil]
+    .filter((f) => f.alcancaram > 0)
+    .sort((a, b) => b.perdidos - a.perdidos)[0];
 
   return (
     <div className="min-h-screen bg-[var(--papel)] text-[var(--tinta)]" style={TEMA_CLARO}>
@@ -343,7 +388,13 @@ function Admin() {
               <Link
                 key={a.r}
                 to="/admin"
-                search={{ de: a.de, ate: a.ate }}
+                // FUNÇÃO, não objeto literal. `search={{ de, ate }}` SUBSTITUI
+                // o objeto de busca inteiro, e junto vão embora o `funil` e o
+                // `aba` — o efeito era trocar a data estando em Testes A/B e
+                // ser jogado de volta pra Operação, com o filtro de funil
+                // zerado no caminho. Os botões de 7/30/90 dias e o de funil já
+                // usavam a forma de função; estes dois tinham ficado pra trás.
+                search={(s) => ({ ...s, de: a.de, ate: a.ate, dias: undefined })}
                 className={cn(
                   "rounded-full px-3 py-1.5 text-xs transition-colors",
                   de === a.de && ate === a.ate
@@ -357,11 +408,13 @@ function Admin() {
             {/* QUAL FUNIL. Sem isto o painel soma R$ com US$ e mostra um
                 faturamento que não existe em lugar nenhum. */}
             <div className="mr-1 flex items-center gap-1 rounded-full border border-[var(--tinta-fraca)] p-0.5">
-              {([
-                { v: "todos", r: "os dois" },
-                { v: "pt", r: "🇧🇷 BR" },
-                { v: "es", r: "🇲🇽 MX" },
-              ] as const).map((f) => (
+              {(
+                [
+                  { v: "todos", r: "os dois" },
+                  { v: "pt", r: "🇧🇷 BR" },
+                  { v: "es", r: "🇲🇽 MX" },
+                ] as const
+              ).map((f) => (
                 <Link
                   key={f.v}
                   to="/admin"
@@ -414,14 +467,24 @@ function Admin() {
                 className="w-[110px] bg-transparent text-xs outline-none"
               />
               <button
-                onClick={() => navigate({ to: "/admin", search: { de: rDe, ate: rAte } })}
+                // Mesma correção do Hoje/Ontem: preserva `aba` e `funil`.
+                onClick={() =>
+                  navigate({
+                    to: "/admin",
+                    search: (s) => ({ ...s, de: rDe, ate: rAte, dias: undefined }),
+                  })
+                }
                 className="rounded-full bg-[var(--acento)] px-2.5 py-0.5 text-[11px] font-medium text-white"
               >
                 ver
               </button>
             </div>
 
-            <button onClick={carregar} className="rounded-full border border-[var(--tinta-fraca)] p-1.5 hover:border-[var(--acento)]/50" title="Atualizar">
+            <button
+              onClick={carregar}
+              className="rounded-full border border-[var(--tinta-fraca)] p-1.5 hover:border-[var(--acento)]/50"
+              title="Atualizar"
+            >
               <RefreshCw className="h-3.5 w-3.5" />
             </button>
             <button
@@ -441,10 +504,17 @@ function Admin() {
       <main className="mx-auto max-w-7xl space-y-10 px-4 py-8">
         {/* AS ABAS na URL, como `dias` e `funil` já estão: reload e botão
             voltar funcionam, e dá pra mandar o link direto pra alguém. */}
-        <div className="flex gap-1 rounded-full border border-[var(--tinta-fraca)]/40 p-1 text-sm">
+        {/* ROLA NO CELULAR. Com duas abas cabia em qualquer tela; com cinco,
+            "De onde vem" e "Testes A/B" saíam pela borda num 375px — e o
+            celular é justamente onde este painel é aberto quando chega alerta.
+            `w-fit` mantém a pílula colada no conteúdo no desktop. */}
+        <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-full border border-[var(--tinta-fraca)]/40 p-1 text-sm">
           {(
             [
               ["operacao", "Operação"],
+              ["origem", "De onde vem"],
+              ["vendas", "Vendas"],
+              ["email", "E-mail"],
               ["testes", "Testes A/B"],
             ] as const
           ).map(([id, rotulo]) => (
@@ -452,7 +522,7 @@ function Admin() {
               key={id}
               onClick={() => navigate({ search: (s) => ({ ...s, aba: id }) as never })}
               className={cn(
-                "rounded-full px-4 py-1.5 transition-colors",
+                "shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 transition-colors sm:px-4",
                 (aba ?? "operacao") === id
                   ? "bg-[var(--acento)] text-white"
                   : "text-[var(--tinta-suave)] hover:text-[var(--tinta)]",
@@ -463,310 +533,578 @@ function Admin() {
           ))}
         </div>
 
-      {(aba ?? "operacao") === "operacao" && (
-        <>
-        {/* ── DINHEIRO ─────────────────────────────────────────── */}
-        <Secao
-          titulo="O dinheiro"
-          sub={`Últimos ${dados.periodoDias} dias · ${
-            dados.filtro === "es" ? "funil espanhol" : dados.filtro === "pt" ? "funil português" : "os dois funis"
-          }${
-            // Dizer CONTRA O QUE a setinha compara, com a hora à vista. Sem
-            // isso "↘ 24%" é um número sem régua, e a régua aqui não é óbvia:
-            // "hoje" é comparado com ontem até esta MESMA hora, não com o dia
-            // de ontem fechado.
-            dados.comparativo
-              ? ` · ↗↘ contra ${quando(dados.comparativo.de)} – ${quando(dados.comparativo.ate)}`
-              : ""
-          }`}
-        >
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-            <Cartao rotulo="Vendas" valor={String(t.vendas)} destaque apoio={`${pc(t.taxaGeral)} de quem abriu o quiz`} atual={t.vendas} anterior={a?.vendas} />
-            {/* RECEITA: nunca um número só quando há duas moedas.
+        {(aba ?? "operacao") === "operacao" && (
+          <>
+            {/* ── DINHEIRO ─────────────────────────────────────────── */}
+            <Secao
+              titulo="O dinheiro"
+              sub={`Últimos ${dados.periodoDias} dias · ${
+                dados.filtro === "es"
+                  ? "funil espanhol"
+                  : dados.filtro === "pt"
+                    ? "funil português"
+                    : "os dois funis"
+              }${
+                // Dizer CONTRA O QUE a setinha compara, com a hora à vista. Sem
+                // isso "↘ 24%" é um número sem régua, e a régua aqui não é óbvia:
+                // "hoje" é comparado com ontem até esta MESMA hora, não com o dia
+                // de ontem fechado.
+                dados.comparativo
+                  ? ` · ↗↘ contra ${quando(dados.comparativo.de)} – ${quando(dados.comparativo.ate)}`
+                  : ""
+              }`}
+            >
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+                <Cartao
+                  rotulo="Vendas"
+                  valor={String(t.vendas)}
+                  destaque
+                  apoio={`${pc(t.taxaGeral)} de quem abriu o quiz`}
+                  atual={t.vendas}
+                  anterior={a?.vendas}
+                />
+                {/* RECEITA: nunca um número só quando há duas moedas.
                 O funil brasileiro cobra em real, o espanhol cobra em dólar na
                 Perfect Pay. Somar os dois produz um total que não existe no
                 extrato de lugar nenhum. */}
-            {t.receitaUsd > 0 && t.receitaBrl > 0 ? (
-              <Cartao
-                rotulo="Receita"
-                valor={`${brl(t.receitaBrl)} + ${usd(t.receitaUsd)}`}
-                destaque
-                apoio="duas moedas, não somadas"
-              />
-            ) : t.receitaUsd > 0 ? (
-              <Cartao
-                rotulo="Receita"
-                valor={usd(t.receitaUsd)}
-                destaque
-                atual={t.receitaUsd}
-                anterior={a?.receitaUsd}
-                apoio={`ticket ${usd(t.receitaUsd / Math.max(1, t.vendas))}`}
-              />
-            ) : (
-              <Cartao rotulo="Receita" valor={brl(t.receitaBrl)} destaque apoio={`ticket ${brl(t.ticketMedioBrl)}`} atual={t.receitaBrl} anterior={a?.receitaBrl} />
-            )}
-            <Cartao rotulo="Custo de produção" valor={brl(t.custoTotalBrl)} apoio={`${brl(t.custoPorVendaBrl)} por venda`} atual={t.custoTotalBrl} anterior={a?.custoTotalBrl} />
-            <Cartao
-              rotulo="Margem bruta"
-              valor={brl(t.margemBrl)}
-              alerta={t.margemBrl < 0}
-              atual={t.margemBrl}
-              anterior={a?.margemBrl}
-              apoio={
-                t.receitaConvertidaBrl > 0
-                  ? `${pc((t.margemBrl / t.receitaConvertidaBrl) * 100)} da receita`
-                  : "sem receita ainda"
-              }
-            />
-            <Cartao rotulo="Visitantes" valor={String(t.visitantes)} apoio={`${t.quizIniciados} começaram o quiz`} atual={t.visitantes} anterior={a?.visitantes} />
-            <Cartao rotulo="Letras entregues" valor={String(t.letrasGeradas)} apoio={`${t.leads} deixaram e-mail`} atual={t.letrasGeradas} anterior={a?.letrasGeradas} />
-          </div>
-          {/* ── MÍDIA: a conta que decide se a operação vive ──────
+                {t.receitaUsd > 0 && t.receitaBrl > 0 ? (
+                  <Cartao
+                    rotulo="Receita"
+                    valor={`${brl(t.receitaBrl)} + ${usd(t.receitaUsd)}`}
+                    destaque
+                    apoio="duas moedas, não somadas"
+                  />
+                ) : t.receitaUsd > 0 ? (
+                  <Cartao
+                    rotulo="Receita"
+                    valor={usd(t.receitaUsd)}
+                    destaque
+                    atual={t.receitaUsd}
+                    anterior={a?.receitaUsd}
+                    apoio={`ticket ${usd(t.receitaUsd / Math.max(1, t.vendas))}`}
+                  />
+                ) : (
+                  <Cartao
+                    rotulo="Receita"
+                    valor={brl(t.receitaBrl)}
+                    destaque
+                    apoio={`ticket ${brl(t.ticketMedioBrl)}`}
+                    atual={t.receitaBrl}
+                    anterior={a?.receitaBrl}
+                  />
+                )}
+                <Cartao
+                  rotulo="Custo de produção"
+                  valor={brl(t.custoTotalBrl)}
+                  apoio={`${brl(t.custoPorVendaBrl)} por venda`}
+                  atual={t.custoTotalBrl}
+                  anterior={a?.custoTotalBrl}
+                />
+                <Cartao
+                  rotulo="Margem bruta"
+                  valor={brl(t.margemBrl)}
+                  alerta={t.margemBrl < 0}
+                  atual={t.margemBrl}
+                  anterior={a?.margemBrl}
+                  apoio={
+                    t.receitaConvertidaBrl > 0
+                      ? `${pc((t.margemBrl / t.receitaConvertidaBrl) * 100)} da receita`
+                      : "sem receita ainda"
+                  }
+                />
+                <Cartao
+                  rotulo="Visitantes"
+                  valor={String(t.visitantes)}
+                  apoio={`${t.quizIniciados} começaram o quiz`}
+                  atual={t.visitantes}
+                  anterior={a?.visitantes}
+                />
+                <Cartao
+                  rotulo="Letras entregues"
+                  valor={String(t.letrasGeradas)}
+                  apoio={`${t.leads} deixaram e-mail`}
+                  atual={t.letrasGeradas}
+                  anterior={a?.letrasGeradas}
+                />
+              </div>
+              {/* ── MÍDIA: a conta que decide se a operação vive ──────
               Margem bruta sem CPA não diz nada: R$ 209 pode ser lucro ou
               prejuízo, depende do que se gastou pra trazer as vendas. */}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Cartao
-              rotulo="Gasto em anúncio"
-              valor={t.gastoAdsBrl > 0 ? brl(t.gastoAdsBrl) : "—"}
-              apoio={t.gastoAdsBrl > 0 ? "lançado à mão" : "lance abaixo pra ver o CPA"}
-              atual={t.gastoAdsBrl > 0 ? t.gastoAdsBrl : undefined}
-              anterior={a?.gastoAdsBrl}
-            />
-            <Cartao
-              rotulo="CPA"
-              valor={t.cpaBrl > 0 ? brl(t.cpaBrl) : "—"}
-              destaque={t.cpaBrl > 0}
-              atual={t.cpaBrl > 0 ? t.cpaBrl : undefined}
-              anterior={a?.cpaBrl}
-              alerta={t.cpaBrl > 0 && t.cpaBrl > t.ticketMedioBrl}
-              apoio={t.cpaBrl > 0 ? `ticket ${brl(t.ticketMedioBrl)}` : "precisa do gasto"}
-            />
-            <Cartao
-              rotulo="ROAS"
-              valor={t.roas > 0 ? `${t.roas.toFixed(2)}x` : "—"}
-              alerta={t.roas > 0 && t.roas < 1}
-              atual={t.roas > 0 ? t.roas : undefined}
-              anterior={a?.roas}
-              apoio={t.roas > 0 ? (t.roas < 1 ? "abaixo de 1 é prejuízo" : "receita ÷ gasto") : "precisa do gasto"}
-            />
-            <Cartao
-              rotulo="Lucro"
-              valor={t.gastoAdsBrl > 0 ? brl(t.lucroBrl) : "—"}
-              alerta={t.gastoAdsBrl > 0 && t.lucroBrl < 0}
-              atual={t.gastoAdsBrl > 0 ? t.lucroBrl : undefined}
-              anterior={a?.lucroBrl}
-              apoio="receita − produção − mídia"
-            />
-          </div>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <Cartao
+                  rotulo="Gasto em anúncio"
+                  valor={t.gastoAdsBrl > 0 ? brl(t.gastoAdsBrl) : "—"}
+                  apoio={t.gastoAdsBrl > 0 ? "lançado à mão" : "lance abaixo pra ver o CPA"}
+                  atual={t.gastoAdsBrl > 0 ? t.gastoAdsBrl : undefined}
+                  anterior={a?.gastoAdsBrl}
+                />
+                <Cartao
+                  rotulo="CPA"
+                  valor={t.cpaBrl > 0 ? brl(t.cpaBrl) : "—"}
+                  destaque={t.cpaBrl > 0}
+                  atual={t.cpaBrl > 0 ? t.cpaBrl : undefined}
+                  anterior={a?.cpaBrl}
+                  alerta={t.cpaBrl > 0 && t.cpaBrl > t.ticketMedioBrl}
+                  apoio={t.cpaBrl > 0 ? `ticket ${brl(t.ticketMedioBrl)}` : "precisa do gasto"}
+                />
+                <Cartao
+                  rotulo="ROAS"
+                  valor={t.roas > 0 ? `${t.roas.toFixed(2)}x` : "—"}
+                  alerta={t.roas > 0 && t.roas < 1}
+                  atual={t.roas > 0 ? t.roas : undefined}
+                  anterior={a?.roas}
+                  apoio={
+                    t.roas > 0
+                      ? t.roas < 1
+                        ? "abaixo de 1 é prejuízo"
+                        : "receita ÷ gasto"
+                      : "precisa do gasto"
+                  }
+                />
+                <Cartao
+                  rotulo="Lucro"
+                  valor={t.gastoAdsBrl > 0 ? brl(t.lucroBrl) : "—"}
+                  alerta={t.gastoAdsBrl > 0 && t.lucroBrl < 0}
+                  atual={t.gastoAdsBrl > 0 ? t.lucroBrl : undefined}
+                  anterior={a?.lucroBrl}
+                  apoio="receita − produção − mídia"
+                />
+              </div>
 
-          <LancarGasto aoSalvar={carregar} gastos={dados.gastos} />
+              <LancarGasto aoSalvar={carregar} gastos={dados.gastos} />
 
-          <p className="text-xs text-[var(--tinta-suave)]">
-            Custo de produção é o que a gente gasta pra fazer (Claude + Suno). O gasto de anúncio é digitado por você (o Google Ads exige OAuth aprovado, que leva dias). A taxa do gateway continua fora, no painel deles.
-            {t.receitaUsd > 0 && (
-              <>
-                {" "}A margem converte o dólar a R$ {PRECOS.cambioUsdBrl.toFixed(2)} (o mesmo câmbio dos custos).
-                A receita acima não é convertida.
-              </>
-            )}
-          </p>
-        </Secao>
+              <p className="text-xs text-[var(--tinta-suave)]">
+                Custo de produção é o que a gente gasta pra fazer (Claude + Suno). O gasto de
+                anúncio é digitado por você (o Google Ads exige OAuth aprovado, que leva dias). A
+                taxa do gateway continua fora, no painel deles.
+                {t.receitaUsd > 0 && (
+                  <>
+                    {" "}
+                    A margem converte o dólar a R$ {PRECOS.cambioUsdBrl.toFixed(2)} (o mesmo câmbio
+                    dos custos). A receita acima não é convertida.
+                  </>
+                )}
+              </p>
+            </Secao>
 
-        {/* ── TAXAS DE PASSAGEM ────────────────────────────────── */}
-        <Secao
-          titulo="Onde converte"
-          sub="A passagem de cada etapa pra próxima. A base é quem ABRIU O QUIZ, não quem abriu qualquer página do site — presenteado abrindo o presente é entrega, não visita."
-        >
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-            <Cartao rotulo="Abriu → começou" valor={pc(t.taxaAbriuComecou)} atual={t.taxaAbriuComecou} anterior={a?.taxaAbriuComecou} unidade="pontos" />
-            <Cartao rotulo="Quiz → letra" valor={pc(t.taxaQuizLetra)} atual={t.taxaQuizLetra} anterior={a?.taxaQuizLetra} unidade="pontos" />
-            <Cartao rotulo="Letra → checkout" valor={pc(t.taxaLetraCheckout)} atual={t.taxaLetraCheckout} anterior={a?.taxaLetraCheckout} unidade="pontos" />
-            <Cartao rotulo="Checkout → pagou" valor={pc(t.taxaCheckoutVenda)} destaque atual={t.taxaCheckoutVenda} anterior={a?.taxaCheckoutVenda} unidade="pontos" />
-            <Cartao rotulo="Abriu → venda" valor={pc(t.taxaGeral)} apoio="conversão geral" atual={t.taxaGeral} anterior={a?.taxaGeral} unidade="pontos" />
-          </div>
-        </Secao>
+            {/* ── TAXAS DE PASSAGEM ────────────────────────────────── */}
+            <Secao
+              titulo="Onde converte"
+              sub="A passagem de cada etapa pra próxima. A base é quem ABRIU O QUIZ, não quem abriu qualquer página do site — presenteado abrindo o presente é entrega, não visita."
+            >
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+                <Cartao
+                  rotulo="Abriu → começou"
+                  valor={pc(t.taxaAbriuComecou)}
+                  atual={t.taxaAbriuComecou}
+                  anterior={a?.taxaAbriuComecou}
+                  unidade="pontos"
+                />
+                <Cartao
+                  rotulo="Quiz → letra"
+                  valor={pc(t.taxaQuizLetra)}
+                  atual={t.taxaQuizLetra}
+                  anterior={a?.taxaQuizLetra}
+                  unidade="pontos"
+                />
+                <Cartao
+                  rotulo="Letra → checkout"
+                  valor={pc(t.taxaLetraCheckout)}
+                  atual={t.taxaLetraCheckout}
+                  anterior={a?.taxaLetraCheckout}
+                  unidade="pontos"
+                />
+                <Cartao
+                  rotulo="Checkout → pagou"
+                  valor={pc(t.taxaCheckoutVenda)}
+                  destaque
+                  atual={t.taxaCheckoutVenda}
+                  anterior={a?.taxaCheckoutVenda}
+                  unidade="pontos"
+                />
+                <Cartao
+                  rotulo="Abriu → venda"
+                  valor={pc(t.taxaGeral)}
+                  apoio="conversão geral"
+                  atual={t.taxaGeral}
+                  anterior={a?.taxaGeral}
+                  unidade="pontos"
+                />
+              </div>
+            </Secao>
 
-        {/* ── FUNIL COMPLETO ───────────────────────────────────── */}
-        <Secao
-          titulo="O funil, passo a passo"
-          sub="Onde as pessoas desistem. Começa em quem abriu /criar — quem só abriu a página presente ou o editor não é topo de funil, é entrega. A barra é sobre o primeiro degrau."
-        >
-          {maiorQueda && maiorQueda.perdidos > 0 && (
-            <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
-              <TrendingDown className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-              <span>
-                Maior perda em <strong>{maiorQueda.rotulo}</strong>: {maiorQueda.perdidos} pessoas ({pc(maiorQueda.quedaPct)} de quem chegou lá).
-              </span>
-            </div>
-          )}
-          <div className="space-y-1.5">
-            {dados.funil.map((f) => {
-              // A barra e' sobre o PRIMEIRO DEGRAU, nao sobre os visitantes do
-              // site. Desde 18/08 o funil comeca em "Abriu o quiz"; manter a
-              // escala no total de sessoes deixaria a barra cheia sempre
-              // faltando, medindo contra um numero que saiu da tela.
-              const largura = topoDoFunil > 0 ? Math.max(1.5, (f.alcancaram / topoDoFunil) * 100) : 0;
-              const cor =
-                f.etapa === "venda"
-                  ? "bg-[var(--acento)]"
-                  : f.etapa === "entrega"
-                    ? "bg-[oklch(0.72_0.12_82)]"
-                    : f.etapa === "quiz"
-                      ? "bg-[oklch(0.62_0.06_60)]"
-                      : "bg-[var(--tinta-fraca)]";
-              return (
-                <div key={f.id} className="flex items-center gap-3">
-                  <span className="w-36 shrink-0 truncate text-xs text-[var(--tinta-suave)] sm:w-44">{f.rotulo}</span>
-                  <div className="h-7 flex-1 overflow-hidden rounded-md bg-[var(--tinta-fraca)]/15">
-                    <div
-                      className={cn("flex h-full items-center rounded-md px-2 transition-all", cor)}
-                      style={{ width: `${largura}%` }}
-                    >
-                      <span className="whitespace-nowrap text-[11px] font-medium tabular-nums text-white/95">
-                        {f.alcancaram}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="w-24 shrink-0 text-right text-[11px] tabular-nums text-[var(--tinta-suave)]">
-                    {f.conversao < 100 && <>{pc(f.conversao)}</>}
-                    {f.perdidos > 0 && <span className="ml-1 text-red-600/70">-{f.perdidos}</span>}
+            {/* ── FUNIL COMPLETO ───────────────────────────────────── */}
+            <Secao
+              titulo="O funil, passo a passo"
+              sub="Onde as pessoas desistem. Começa em quem abriu /criar — quem só abriu a página presente ou o editor não é topo de funil, é entrega. A barra é sobre o primeiro degrau."
+            >
+              {maiorQueda && maiorQueda.perdidos > 0 && (
+                <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+                  <TrendingDown className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                  <span>
+                    Maior perda em <strong>{maiorQueda.rotulo}</strong>: {maiorQueda.perdidos}{" "}
+                    pessoas ({pc(maiorQueda.quedaPct)} de quem chegou lá).
                   </span>
-                  {/* A variação de QUANTA GENTE chegou neste degrau, contra o
+                </div>
+              )}
+              <div className="space-y-1.5">
+                {dados.funil.map((f) => {
+                  // A barra e' sobre o PRIMEIRO DEGRAU, nao sobre os visitantes do
+                  // site. Desde 18/08 o funil comeca em "Abriu o quiz"; manter a
+                  // escala no total de sessoes deixaria a barra cheia sempre
+                  // faltando, medindo contra um numero que saiu da tela.
+                  const largura =
+                    topoDoFunil > 0 ? Math.max(1.5, (f.alcancaram / topoDoFunil) * 100) : 0;
+                  const cor =
+                    f.etapa === "venda"
+                      ? "bg-[var(--acento)]"
+                      : f.etapa === "entrega"
+                        ? "bg-[oklch(0.72_0.12_82)]"
+                        : f.etapa === "quiz"
+                          ? "bg-[oklch(0.62_0.06_60)]"
+                          : "bg-[var(--tinta-fraca)]";
+                  return (
+                    <div key={f.id} className="flex items-center gap-3">
+                      <span className="w-36 shrink-0 truncate text-xs text-[var(--tinta-suave)] sm:w-44">
+                        {f.rotulo}
+                      </span>
+                      <div className="h-7 flex-1 overflow-hidden rounded-md bg-[var(--tinta-fraca)]/15">
+                        <div
+                          className={cn(
+                            "flex h-full items-center rounded-md px-2 transition-all",
+                            cor,
+                          )}
+                          style={{ width: `${largura}%` }}
+                        >
+                          <span className="whitespace-nowrap text-[11px] font-medium tabular-nums text-white/95">
+                            {f.alcancaram}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="w-24 shrink-0 text-right text-[11px] tabular-nums text-[var(--tinta-suave)]">
+                        {f.conversao < 100 && <>{pc(f.conversao)}</>}
+                        {f.perdidos > 0 && (
+                          <span className="ml-1 text-red-600/70">-{f.perdidos}</span>
+                        )}
+                      </span>
+                      {/* A variação de QUANTA GENTE chegou neste degrau, contra o
                       mesmo recorte de um período atrás. Coluna própria, e não
                       espremida na de cima, porque ali já convivem a taxa de
                       passagem e os perdidos — três números disputando 24px
                       viram tarja, não informação. */}
-                  <span className="hidden w-16 shrink-0 text-right sm:block">
-                    <Variacao atual={f.alcancaram} anterior={antesDoFunil?.[f.id]} />
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </Secao>
+                      <span className="hidden w-16 shrink-0 text-right sm:block">
+                        <Variacao atual={f.alcancaram} anterior={antesDoFunil?.[f.id]} />
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </Secao>
 
-        {/* ── ATRIBUIÇÃO ───────────────────────────────────────── */}
-        {/* ── QUAL PORTA CONVERTE ──────────────────────────────
-            Agrupa pela PRIMEIRA página da sessão. Hoje o tráfego entra por
-            duas portas diferentes (a home e o quiz direto), e sem isto não dá
-            pra saber qual das duas paga melhor. */}
-        <Secao
-          titulo="Qual página converte"
-          sub="Pela primeira página que a sessão abriu. Cada visitante conta uma vez só."
-        >
-          <Tabela cabecalho={["Página de entrada", "Visitantes", "Quiz", "Letras", "Vendas", "Conv."]}>
-            {dados.porEntrada.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-[var(--tinta-suave)]">
-                  Nenhuma visita no período.
-                </td>
-              </tr>
-            ) : (
-              dados.porEntrada.map((e) => (
-                <tr key={e.caminho} className="border-t border-[var(--tinta-fraca)]/25">
-                  <td className="px-3 py-2.5 font-medium">{e.caminho}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{e.visitantes}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{e.quiz}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{e.letras}</td>
-                  <td className="px-3 py-2.5 text-right font-medium tabular-nums">{e.vendas}</td>
-                  <td
-                    className={cn(
-                      "px-3 py-2.5 text-right tabular-nums",
-                      e.vendas > 0 ? "text-[var(--acento)]" : "text-[var(--tinta-suave)]",
-                    )}
-                  >
-                    {pc(e.conversaoPct)}
-                  </td>
-                </tr>
-              ))
-            )}
-          </Tabela>
-        </Secao>
-
-        <Secao titulo="De onde vêm as vendas" sub="Atribuição pela captura first-touch (utm, gclid, fbclid ou referência)">
-          <Tabela cabecalho={["Origem", "Campanha", "Leads", "Letras", "Vendas", "Receita", "Conv."]}>
-            {dados.porOrigem.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-[var(--tinta-suave)]">
-                  Nenhum lead no período.
-                </td>
-              </tr>
-            ) : (
-              dados.porOrigem.map((o) => (
-                <tr key={`${o.origem}|${o.campanha}`} className={cn(o.vendas > 0 && "bg-[var(--acento)]/5")}>
-                  <td className="px-3 py-2.5 font-medium">{o.origem}</td>
-                  <td className="px-3 py-2.5 text-right text-[var(--tinta-suave)]">{o.campanha ?? "—"}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{o.leads}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{o.letras}</td>
-                  <td className="px-3 py-2.5 text-right font-medium tabular-nums">{o.vendas}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{o.receitaBrl > 0 ? brl(o.receitaBrl) : "—"}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-[var(--tinta-suave)]">{pc(o.conversaoPct)}</td>
-                </tr>
-              ))
-            )}
-          </Tabela>
-        </Secao>
-
-        {/* ── VENDAS ───────────────────────────────────────────── */}
-        <Secao titulo="Vendas" sub="As mais recentes">
-          <Tabela cabecalho={["Quando", "E-mail", "Música", "Origem", "Valor"]}>
-            {dados.vendas.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-[var(--tinta-suave)]">
-                  Nenhuma venda ainda no período.
-                </td>
-              </tr>
-            ) : (
-              dados.vendas.map((v, i) => (
-                <tr key={i}>
-                  <td className="whitespace-nowrap px-3 py-2.5 text-[var(--tinta-suave)]">{quando(v.quando)}</td>
-                  <td className="max-w-[200px] truncate px-3 py-2.5 text-right">{v.email ?? "—"}</td>
-                  <td className="max-w-[180px] truncate px-3 py-2.5 text-right">{v.musica ?? "—"}</td>
-                  <td className="px-3 py-2.5 text-right text-[var(--tinta-suave)]">{v.origem ?? "—"}</td>
-                  <td className="px-3 py-2.5 text-right font-medium tabular-nums text-[var(--acento)]">{brl(v.valorBrl)}</td>
-                </tr>
-              ))
-            )}
-          </Tabela>
-        </Secao>
-
-        {/* ── PRODUÇÃO ─────────────────────────────────────────── */}
-        <Secao titulo="A máquina" sub="Se isto quebrar, a venda vira reembolso">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-            <Cartao rotulo="Tempo médio" valor={seg(dados.producao.tempoMedioS)} apoio="da letra à música" />
-            <Cartao rotulo="Pior caso (p95)" valor={seg(dados.producao.tempoP95S)} />
-            <Cartao rotulo="Prontas" valor={String(dados.producao.porStatus["pronta"] ?? 0)} />
-            <Cartao rotulo="Falharam" valor={String(dados.producao.falhas)} alerta={dados.producao.falhas > 0} />
-            {/* O SALDO DO PROVEDOR. Em 08/08 ele zerou e o pipeline parou 13h em
+            {/* ── PRODUÇÃO ─────────────────────────────────────────── */}
+            <Secao titulo="A máquina" sub="Se isto quebrar, a venda vira reembolso">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+                <Cartao
+                  rotulo="Tempo médio"
+                  valor={seg(dados.producao.tempoMedioS)}
+                  apoio="da letra à música"
+                />
+                <Cartao rotulo="Pior caso (p95)" valor={seg(dados.producao.tempoP95S)} />
+                <Cartao rotulo="Prontas" valor={String(dados.producao.porStatus["pronta"] ?? 0)} />
+                <Cartao
+                  rotulo="Falharam"
+                  valor={String(dados.producao.falhas)}
+                  alerta={dados.producao.falhas > 0}
+                />
+                {/* O SALDO DO PROVEDOR. Em 08/08 ele zerou e o pipeline parou 13h em
                 silêncio — 38 músicas presas, 7 já pagas. O painel mostrava
                 "gerando" como se fosse normal. Agora o número que causa isso
                 fica na mesma tela do sintoma. */}
-            <Cartao
-              rotulo="Crédito kie.ai"
-              valor={
-                dados.producao.creditoKie === null
-                  ? "não li"
-                  : `${dados.producao.musicasQueCabem} músicas`
-              }
-              alerta={(dados.producao.musicasQueCabem ?? 99) < 20}
-              apoio={
-                dados.producao.creditoKie === null
-                  ? "provedor não respondeu"
-                  : `${dados.producao.creditoKie} créditos · recarregue abaixo de 20 músicas`
-              }
-            />
-            <Cartao rotulo="Travadas" valor={String(dados.producao.travadas)} alerta={dados.producao.travadas > 0} apoio="gerando há +15min" />
-            <Cartao rotulo="Presentes montados" valor={String(dados.qualidade.presentesMontados)} apoio="usaram o editor" />
-          </div>
-          {(dados.producao.falhas > 0 || dados.producao.travadas > 0) && (
-            <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-              <span>Tem música que não chegou ao cliente. Verifique antes que vire pedido de reembolso.</span>
-            </div>
-          )}
-        </Secao>
+                <Cartao
+                  rotulo="Crédito kie.ai"
+                  valor={
+                    dados.producao.creditoKie === null
+                      ? "não li"
+                      : `${dados.producao.musicasQueCabem} músicas`
+                  }
+                  alerta={(dados.producao.musicasQueCabem ?? 99) < 20}
+                  apoio={
+                    dados.producao.creditoKie === null
+                      ? "provedor não respondeu"
+                      : `${dados.producao.creditoKie} créditos · recarregue abaixo de 20 músicas`
+                  }
+                />
+                <Cartao
+                  rotulo="Travadas"
+                  valor={String(dados.producao.travadas)}
+                  alerta={dados.producao.travadas > 0}
+                  apoio="gerando há +15min"
+                />
+                <Cartao
+                  rotulo="Presentes montados"
+                  valor={String(dados.qualidade.presentesMontados)}
+                  apoio="usaram o editor"
+                />
+              </div>
+              {(dados.producao.falhas > 0 || dados.producao.travadas > 0) && (
+                <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                  <span>
+                    Tem música que não chegou ao cliente. Verifique antes que vire pedido de
+                    reembolso.
+                  </span>
+                </div>
+              )}
+                </Secao>
 
-        {/* ── E-MAIL ────────────────────────────────────────────────
+            {/* ── PREFERÊNCIAS ─────────────────────────────────────── */}
+            <Secao
+              titulo="O que o público escolhe"
+              sub="Serve pra mirar anúncio e criar exemplo novo"
+            >
+              <div className="grid gap-3 md:grid-cols-3">
+                {[
+                  { titulo: "Pra quem", itens: dados.preferencias.porRelacao },
+                  { titulo: "Estilo", itens: dados.preferencias.porEstilo },
+                  { titulo: "Ocasião", itens: dados.preferencias.porOcasiao },
+                ].map((g) => {
+                  const total = g.itens.reduce((s, i) => s + i.n, 0);
+                  return (
+                    <div
+                      key={g.titulo}
+                      className="rounded-2xl border border-[var(--tinta-fraca)]/40 p-4"
+                    >
+                      <p className="text-[11px] uppercase tracking-wider text-[var(--tinta-suave)]">
+                        {g.titulo}
+                      </p>
+                      <ul className="mt-3 space-y-1.5">
+                        {g.itens.slice(0, 6).map((i) => (
+                          <li key={i.valor} className="flex items-center gap-2 text-sm">
+                            <span className="w-24 shrink-0 truncate">{i.valor}</span>
+                            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--tinta-fraca)]/20">
+                              <div
+                                className="h-full rounded-full bg-[var(--acento)]/60"
+                                style={{ width: `${pct(i.n, total)}%` }}
+                              />
+                            </div>
+                            <span className="w-8 text-right text-xs tabular-nums text-[var(--tinta-suave)]">
+                              {i.n}
+                            </span>
+                          </li>
+                        ))}
+                        {g.itens.length === 0 && (
+                          <li className="text-sm text-[var(--tinta-suave)]">sem dados</li>
+                        )}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            </Secao>
+
+            {/* ── CUSTOS ───────────────────────────────────────────── */}
+            <Secao titulo="Custo x receita por dia">
+              <Tabela cabecalho={["Dia", "Custo", "Vendas", "Receita", "Margem"]}>
+                {dados.custos.porDia
+                  .slice(-14)
+                  .reverse()
+                  .map((d) => (
+                    <tr key={d.dia}>
+                      <td className="px-3 py-2 text-[var(--tinta-suave)]">{d.dia.slice(5)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{brl(d.brl)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{d.vendas || "—"}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {d.receitaBrl ? brl(d.receitaBrl) : "—"}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-3 py-2 text-right font-medium tabular-nums",
+                          d.receitaBrl - d.brl < 0 ? "text-red-600" : "text-[var(--acento)]",
+                        )}
+                      >
+                        {brl(d.receitaBrl - d.brl)}
+                      </td>
+                    </tr>
+                  ))}
+                {dados.custos.porDia.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-6 text-center text-[var(--tinta-suave)]">
+                      Sem movimento no período.
+                    </td>
+                  </tr>
+                )}
+              </Tabela>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {dados.custos.porTipo.map((c) => (
+                  <Cartao
+                    key={c.tipo}
+                    rotulo={c.tipo}
+                    valor={brl(c.brl)}
+                    apoio={`${c.n} chamadas`}
+                  />
+                ))}
+              </div>
+            </Secao>
+          </>
+        )}
+
+        {aba === "origem" && (
+          <>
+            {/* ── ATRIBUIÇÃO ───────────────────────────────────────── */}
+            {/* ── QUAL PORTA CONVERTE ──────────────────────────────
+            Agrupa pela PRIMEIRA página da sessão. Hoje o tráfego entra por
+            duas portas diferentes (a home e o quiz direto), e sem isto não dá
+            pra saber qual das duas paga melhor. */}
+            <Secao
+              titulo="Qual página converte"
+              sub="Pela primeira página que a sessão abriu. Cada visitante conta uma vez só."
+            >
+              <Tabela
+                cabecalho={["Página de entrada", "Visitantes", "Quiz", "Letras", "Vendas", "Conv."]}
+              >
+                {dados.porEntrada.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-6 text-center text-[var(--tinta-suave)]">
+                      Nenhuma visita no período.
+                    </td>
+                  </tr>
+                ) : (
+                  dados.porEntrada.map((e) => (
+                    <tr key={e.caminho} className="border-t border-[var(--tinta-fraca)]/25">
+                      <td className="px-3 py-2.5 font-medium">{e.caminho}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{e.visitantes}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{e.quiz}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{e.letras}</td>
+                      <td className="px-3 py-2.5 text-right font-medium tabular-nums">
+                        {e.vendas}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-3 py-2.5 text-right tabular-nums",
+                          e.vendas > 0 ? "text-[var(--acento)]" : "text-[var(--tinta-suave)]",
+                        )}
+                      >
+                        {pc(e.conversaoPct)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </Tabela>
+            </Secao>
+
+            <Secao
+              titulo="De onde vêm as vendas"
+              sub="Atribuição pela captura first-touch (utm, gclid, fbclid ou referência)"
+            >
+              <Tabela
+                cabecalho={["Origem", "Campanha", "Leads", "Letras", "Vendas", "Receita", "Conv."]}
+              >
+                {dados.porOrigem.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-6 text-center text-[var(--tinta-suave)]">
+                      Nenhum lead no período.
+                    </td>
+                  </tr>
+                ) : (
+                  dados.porOrigem.map((o) => (
+                    <tr
+                      key={`${o.origem}|${o.campanha}`}
+                      className={cn(o.vendas > 0 && "bg-[var(--acento)]/5")}
+                    >
+                      <td className="px-3 py-2.5 font-medium">{o.origem}</td>
+                      <td className="px-3 py-2.5 text-right text-[var(--tinta-suave)]">
+                        {o.campanha ?? "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{o.leads}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{o.letras}</td>
+                      <td className="px-3 py-2.5 text-right font-medium tabular-nums">
+                        {o.vendas}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        {o.receitaBrl > 0 ? brl(o.receitaBrl) : "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-[var(--tinta-suave)]">
+                        {pc(o.conversaoPct)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </Tabela>
+            </Secao>
+          </>
+        )}
+
+        {aba === "vendas" && (
+          <>
+            {/* ── VENDAS ───────────────────────────────────────────── */}
+            <Secao titulo="Vendas" sub="As mais recentes">
+              <Tabela cabecalho={["Quando", "E-mail", "Música", "Origem", "Valor"]}>
+                {dados.vendas.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-6 text-center text-[var(--tinta-suave)]">
+                      Nenhuma venda ainda no período.
+                    </td>
+                  </tr>
+                ) : (
+                  dados.vendas.map((v, i) => (
+                    <tr key={i}>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-[var(--tinta-suave)]">
+                        {quando(v.quando)}
+                      </td>
+                      <td className="max-w-[200px] truncate px-3 py-2.5 text-right">
+                        {v.email ?? "—"}
+                      </td>
+                      <td className="max-w-[180px] truncate px-3 py-2.5 text-right">
+                        {v.musica ?? "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-[var(--tinta-suave)]">
+                        {v.origem ?? "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-medium tabular-nums text-[var(--acento)]">
+                        {brl(v.valorBrl)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </Tabela>
+            </Secao>
+
+            {/* ── QUEM PASSOU ──────────────────────────────────────── */}
+            <Secao titulo="Quem passou por aqui" sub="Os últimos, e até onde cada um foi">
+              <Tabela cabecalho={["Quando", "Pra quem", "Parou em", "Origem", "Música", "Comprou"]}>
+                {dados.recentes.map((r, i) => (
+                  <tr key={i} className={cn(r.comprou && "bg-[var(--acento)]/5")}>
+                    <td className="whitespace-nowrap px-3 py-2 text-[var(--tinta-suave)]">
+                      {quando(r.quando)}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      {r.nome ?? "—"}
+                      {r.relacao && (
+                        <span className="ml-1 text-xs text-[var(--tinta-suave)]">
+                          ({r.relacao})
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right text-[var(--tinta-suave)]">
+                      {r.passoRotulo}
+                    </td>
+                    <td className="px-3 py-2 text-right text-xs text-[var(--tinta-suave)]">
+                      {r.origem}
+                    </td>
+                    <td className="max-w-[160px] truncate px-3 py-2 text-right">
+                      {r.musica ?? "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right">{r.comprou ? "✅" : ""}</td>
+                  </tr>
+                ))}
+              </Tabela>
+            </Secao>
+          </>
+        )}
+
+        {aba === "email" && (
+          <>
+            {/* ── E-MAIL ────────────────────────────────────────────────
             O funil media ate a venda e parava ali. O e-mail, que e o que traz
             de volta quem abandonou, era invisivel: dava pra contar envio e
             nada mais.
@@ -776,153 +1114,85 @@ function Admin() {
             MODELO, nao por assunto, porque o assunto carrega o nome do
             presenteado ("pra Maria") e quebraria o dado em centenas de baldes
             de seis pessoas. */}
-        <Secao
-          titulo="E-mail"
-          sub="Por pessoa, não por evento. Clique pode passar a abertura: quem bloqueia imagem não registra abertura, mas o clique conta."
-        >
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Cartao
-              rotulo="Entregues"
-              valor={String(dados.emails.entregues)}
-              apoio={`${dados.emails.enviadosLetra + dados.emails.enviadosSequencia} disparados`}
-            />
-            <Cartao
-              rotulo="Abriram"
-              valor={`${pctTxt(dados.emails.abriram, dados.emails.entregues)}`}
-              apoio={`${dados.emails.abriram} pessoas`}
-            />
-            <Cartao
-              rotulo="Clicaram"
-              valor={`${pctTxt(dados.emails.clicaram, dados.emails.entregues)}`}
-              apoio={`${dados.emails.clicaram} pessoas`}
-            />
-            <Cartao
-              rotulo="Voltaram"
-              valor={`${pctTxt(dados.emails.voltaram, dados.emails.entregues + dados.emails.voltaram)}`}
-              // Acima de 2% o provedor comeca a punir o dominio inteiro, e o
-              // proximo e-mail bom cai no spam de quem nunca deu problema.
-              alerta={
-                dados.emails.voltaram >
-                (dados.emails.entregues + dados.emails.voltaram) * 0.02
-              }
-              apoio={`${dados.emails.voltaram} endereços ruins`}
-            />
-          </div>
+            <Secao
+              titulo="E-mail"
+              sub="Por pessoa, não por evento. Clique pode passar a abertura: quem bloqueia imagem não registra abertura, mas o clique conta."
+            >
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <Cartao
+                  rotulo="Entregues"
+                  valor={String(dados.emails.entregues)}
+                  apoio={`${dados.emails.enviadosLetra + dados.emails.enviadosSequencia} disparados`}
+                />
+                <Cartao
+                  rotulo="Abriram"
+                  valor={`${pctTxt(dados.emails.abriram, dados.emails.entregues)}`}
+                  apoio={`${dados.emails.abriram} pessoas`}
+                />
+                <Cartao
+                  rotulo="Clicaram"
+                  valor={`${pctTxt(dados.emails.clicaram, dados.emails.entregues)}`}
+                  apoio={`${dados.emails.clicaram} pessoas`}
+                />
+                <Cartao
+                  rotulo="Voltaram"
+                  valor={`${pctTxt(dados.emails.voltaram, dados.emails.entregues + dados.emails.voltaram)}`}
+                  // Acima de 2% o provedor comeca a punir o dominio inteiro, e o
+                  // proximo e-mail bom cai no spam de quem nunca deu problema.
+                  alerta={
+                    dados.emails.voltaram > (dados.emails.entregues + dados.emails.voltaram) * 0.02
+                  }
+                  apoio={`${dados.emails.voltaram} endereços ruins`}
+                />
+              </div>
 
-          <Tabela cabecalho={["Modelo", "Entregues", "Abriram", "Clicaram", "Voltaram"]}>
-            {dados.emails.porModelo.map((m) => (
-              <tr key={m.modelo} className="border-t border-[var(--tinta-fraca)]/30">
-                <td className="p-3">{m.modelo}</td>
-                <td className="p-3 tabular-nums">{m.entregues}</td>
-                <td className="p-3 tabular-nums">
-                  {m.abriram} <span className="text-[var(--tinta-suave)]">{pctTxt(m.abriram, m.entregues)}</span>
-                </td>
-                <td className="p-3 tabular-nums">
-                  {m.clicaram} <span className="text-[var(--tinta-suave)]">{pctTxt(m.clicaram, m.entregues)}</span>
-                </td>
-                <td className={`p-3 tabular-nums ${m.voltaram > m.entregues * 0.02 ? "text-amber-600" : ""}`}>
-                  {m.voltaram}
-                </td>
-              </tr>
-            ))}
-            {dados.emails.porModelo.length === 0 && (
-              <tr>
-                <td colSpan={5} className="p-3 text-[var(--tinta-suave)]">
-                  Nenhum e-mail no período.
-                </td>
-              </tr>
-            )}
-          </Tabela>
-        </Secao>
+              <Tabela cabecalho={["Modelo", "Entregues", "Abriram", "Clicaram", "Voltaram"]}>
+                {dados.emails.porModelo.map((m) => (
+                  <tr key={m.modelo} className="border-t border-[var(--tinta-fraca)]/30">
+                    <td className="p-3">{m.modelo}</td>
+                    <td className="p-3 tabular-nums">{m.entregues}</td>
+                    <td className="p-3 tabular-nums">
+                      {m.abriram}{" "}
+                      <span className="text-[var(--tinta-suave)]">
+                        {pctTxt(m.abriram, m.entregues)}
+                      </span>
+                    </td>
+                    <td className="p-3 tabular-nums">
+                      {m.clicaram}{" "}
+                      <span className="text-[var(--tinta-suave)]">
+                        {pctTxt(m.clicaram, m.entregues)}
+                      </span>
+                    </td>
+                    <td
+                      className={`p-3 tabular-nums ${m.voltaram > m.entregues * 0.02 ? "text-amber-600" : ""}`}
+                    >
+                      {m.voltaram}
+                    </td>
+                  </tr>
+                ))}
+                {dados.emails.porModelo.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-3 text-[var(--tinta-suave)]">
+                      Nenhum e-mail no período.
+                    </td>
+                  </tr>
+                )}
+              </Tabela>
+            </Secao>
+          </>
+        )}
 
-        {/* ── PREFERÊNCIAS ─────────────────────────────────────── */}
-        <Secao titulo="O que o público escolhe" sub="Serve pra mirar anúncio e criar exemplo novo">
-          <div className="grid gap-3 md:grid-cols-3">
-            {[
-              { titulo: "Pra quem", itens: dados.preferencias.porRelacao },
-              { titulo: "Estilo", itens: dados.preferencias.porEstilo },
-              { titulo: "Ocasião", itens: dados.preferencias.porOcasiao },
-            ].map((g) => {
-              const total = g.itens.reduce((s, i) => s + i.n, 0);
-              return (
-                <div key={g.titulo} className="rounded-2xl border border-[var(--tinta-fraca)]/40 p-4">
-                  <p className="text-[11px] uppercase tracking-wider text-[var(--tinta-suave)]">{g.titulo}</p>
-                  <ul className="mt-3 space-y-1.5">
-                    {g.itens.slice(0, 6).map((i) => (
-                      <li key={i.valor} className="flex items-center gap-2 text-sm">
-                        <span className="w-24 shrink-0 truncate">{i.valor}</span>
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--tinta-fraca)]/20">
-                          <div className="h-full rounded-full bg-[var(--acento)]/60" style={{ width: `${pct(i.n, total)}%` }} />
-                        </div>
-                        <span className="w-8 text-right text-xs tabular-nums text-[var(--tinta-suave)]">{i.n}</span>
-                      </li>
-                    ))}
-                    {g.itens.length === 0 && <li className="text-sm text-[var(--tinta-suave)]">sem dados</li>}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
-        </Secao>
+        {aba === "testes" && <AbaTestes resultados={dados.porExperimento} />}
 
-        {/* ── CUSTOS ───────────────────────────────────────────── */}
-        <Secao titulo="Custo x receita por dia">
-          <Tabela cabecalho={["Dia", "Custo", "Vendas", "Receita", "Margem"]}>
-            {dados.custos.porDia.slice(-14).reverse().map((d) => (
-              <tr key={d.dia}>
-                <td className="px-3 py-2 text-[var(--tinta-suave)]">{d.dia.slice(5)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{brl(d.brl)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{d.vendas || "—"}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{d.receitaBrl ? brl(d.receitaBrl) : "—"}</td>
-                <td className={cn("px-3 py-2 text-right font-medium tabular-nums", d.receitaBrl - d.brl < 0 ? "text-red-600" : "text-[var(--acento)]")}>
-                  {brl(d.receitaBrl - d.brl)}
-                </td>
-              </tr>
-            ))}
-            {dados.custos.porDia.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-[var(--tinta-suave)]">
-                  Sem movimento no período.
-                </td>
-              </tr>
-            )}
-          </Tabela>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {dados.custos.porTipo.map((c) => (
-              <Cartao key={c.tipo} rotulo={c.tipo} valor={brl(c.brl)} apoio={`${c.n} chamadas`} />
-            ))}
-          </div>
-        </Secao>
-
-        {/* ── QUEM PASSOU ──────────────────────────────────────── */}
-        <Secao titulo="Quem passou por aqui" sub="Os últimos, e até onde cada um foi">
-          <Tabela cabecalho={["Quando", "Pra quem", "Parou em", "Origem", "Música", "Comprou"]}>
-            {dados.recentes.map((r, i) => (
-              <tr key={i} className={cn(r.comprou && "bg-[var(--acento)]/5")}>
-                <td className="whitespace-nowrap px-3 py-2 text-[var(--tinta-suave)]">{quando(r.quando)}</td>
-                <td className="px-3 py-2 text-right">
-                  {r.nome ?? "—"}
-                  {r.relacao && <span className="ml-1 text-xs text-[var(--tinta-suave)]">({r.relacao})</span>}
-                </td>
-                <td className="px-3 py-2 text-right text-[var(--tinta-suave)]">{r.passoRotulo}</td>
-                <td className="px-3 py-2 text-right text-xs text-[var(--tinta-suave)]">{r.origem}</td>
-                <td className="max-w-[160px] truncate px-3 py-2 text-right">{r.musica ?? "—"}</td>
-                <td className="px-3 py-2 text-right">{r.comprou ? "✅" : ""}</td>
-              </tr>
-            ))}
-          </Tabela>
-        </Secao>
-
+        {/* FORA das abas: "atualizado às" e o link pro site valem em qualquer
+          uma. Enquanto o painel era uma aba só, isto vivia junto do último
+          bloco e ninguém notava a diferença. */}
         <footer className="flex items-center justify-between border-t border-[var(--tinta-fraca)]/30 pt-4 text-xs text-[var(--tinta-suave)]">
           <span>Atualizado {quando(dados.geradoEm)}</span>
           <a href="/" className="inline-flex items-center gap-1 hover:text-[var(--tinta)]">
             ver o site <ExternalLink className="h-3 w-3" />
           </a>
         </footer>
-        </>
-      )}
-
-      {aba === "testes" && <AbaTestes resultados={dados.porExperimento} />}
       </main>
     </div>
   );
@@ -933,13 +1203,7 @@ const pct = (parte: number, total: number) => (total > 0 ? (parte / total) * 100
 // Lançamento do gasto de mídia. Um campo por dia e canal, sobrescrevendo o
 // que já existe — o Google ajusta o gasto retroativamente, e o certo é sempre
 // o último número.
-function LancarGasto({
-  aoSalvar,
-  gastos,
-}: {
-  aoSalvar: () => void;
-  gastos: Painel["gastos"];
-}) {
+function LancarGasto({ aoSalvar, gastos }: { aoSalvar: () => void; gastos: Painel["gastos"] }) {
   const hoje = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
   const [dia, setDia] = useState(hoje);
   const [origem, setOrigem] = useState("google");
@@ -990,9 +1254,7 @@ function LancarGasto({
         >
           {salvando ? "salvando…" : "salvar"}
         </button>
-        <span className="text-[10px] text-[var(--tinta-suave)]">
-          zero apaga o lançamento
-        </span>
+        <span className="text-[10px] text-[var(--tinta-suave)]">zero apaga o lançamento</span>
       </div>
 
       {gastos.length > 0 && (
