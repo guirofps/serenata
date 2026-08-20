@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { AbaTestes } from "@/components/admin/AbaTestes";
+import { GraficoVendas } from "@/components/admin/GraficoVendas";
 import { carregarTeto, salvarTeto, type EstadoDoTeto } from "@/lib/admin-teto";
 import {
   RefreshCw,
@@ -60,6 +61,26 @@ const quando = (iso: string) =>
   });
 
 // ── blocos visuais ──────────────────────────────────────────────
+/**
+ * O TAMANHO DA FONTE SEGUE O COMPRIMENTO DO NÚMERO.
+ *
+ * `--t-2xl` chega a 32px, e num cartão de ~160px isso cabe pra "93" e não cabe
+ * pra "R$ 2.406,10 + US$ 8,74" — foi exatamente o que vazou a borda no painel
+ * de 20/08. Tamanho fixo obriga a escolher entre um número pequeno demais pra
+ * o que ele é (a venda do dia) e um número que não cabe na caixa.
+ *
+ * Os degraus são grossos de propósito: quase todo cartão cai no primeiro ou no
+ * segundo, então a linha continua parecendo uma linha, e só o cartão
+ * genuinamente comprido desce de tamanho.
+ */
+function tamanhoDoValor(valor: string): string {
+  const n = valor.length;
+  if (n <= 6) return "var(--t-2xl)"; // 93 · 2829 · 542
+  if (n <= 11) return "var(--t-xl)"; // R$ 264,75 · R$ 2.188,55
+  if (n <= 18) return "var(--t-lg)";
+  return "var(--t-base)"; // R$ 2.406,10 + US$ 8,74
+}
+
 function Cartao({
   rotulo,
   valor,
@@ -83,7 +104,10 @@ function Cartao({
   return (
     <div
       className={cn(
-        "rounded-2xl border p-4",
+        // `min-w-0`: item de grid tem `min-width:auto` por padrão, e isso o
+        // impede de encolher abaixo do próprio conteúdo — é a razão de fundo
+        // de o número vazar a borda em vez de quebrar linha.
+        "min-w-0 rounded-2xl border p-4",
         destaque
           ? "border-[var(--acento)]/40 bg-[var(--acento)]/5"
           : alerta
@@ -94,11 +118,18 @@ function Cartao({
       <p className="text-[11px] uppercase tracking-wider text-[var(--tinta-suave)]">{rotulo}</p>
       {/* `flex items-baseline`: a variação assenta na linha de base do número
           em vez de centralizar na altura dele, que é o que a deixa parecendo
-          nota de rodapé e não um segundo valor competindo com o primeiro. */}
-      <div className="mt-1 flex items-baseline">
+          nota de rodapé e não um segundo valor competindo com o primeiro.
+
+          `flex-wrap` porque a variação é a primeira coisa que deve descer uma
+          linha quando o número é comprido — antes ela empurrava o número pra
+          fora do cartão e os dois vazavam a borda juntos. */}
+      <div className="mt-1 flex flex-wrap items-baseline gap-x-1">
         <p
-          className={cn("tabular-nums leading-none", destaque && "text-[var(--acento)]")}
-          style={{ fontFamily: FONTES.display, fontWeight: 600, fontSize: "var(--t-2xl)" }}
+          className={cn(
+            "min-w-0 break-words tabular-nums leading-none",
+            destaque && "text-[var(--acento)]",
+          )}
+          style={{ fontFamily: FONTES.display, fontWeight: 600, fontSize: tamanhoDoValor(valor) }}
         >
           {valor}
         </p>
@@ -628,6 +659,11 @@ function Admin() {
                   anterior={a?.letrasGeradas}
                 />
               </div>
+
+              {/* O GRÁFICO PRINCIPAL, logo abaixo da linha de cartões.
+                  Os cartões dizem COMO ESTÁ; nenhum deles diz pra ONDE ESTÁ
+                  INDO, e "93 vendas" tem forma de rampa e forma de queda. */}
+              <GraficoVendas porDia={dados.custos.porDia} de={dados.de} ate={dados.ate} />
               {/* ── MÍDIA: a conta que decide se a operação vive ──────
               Margem bruta sem CPA não diz nada: R$ 209 pode ser lucro ou
               prejuízo, depende do que se gastou pra trazer as vendas. */}
