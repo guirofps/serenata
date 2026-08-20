@@ -15,15 +15,30 @@ import { podeGerar } from "../../inngest/lib/disjuntor";
  * pra ler pedido, e `rpc()` pro contador. Guarda as chamadas pra o teste poder
  * afirmar que o contador NÃO foi consumido no caminho do pago.
  */
-function fakeSb(opts: { pago?: boolean; cabe?: boolean; erroRpc?: string; erroPedido?: boolean }) {
+function fakeSb(opts: {
+  pago?: boolean;
+  cabe?: boolean;
+  erroRpc?: string;
+  erroPedido?: boolean;
+  /** O que `config_operacao` devolve pra `teto_musicas_dia`. */
+  tetoNoBanco?: string;
+  erroConfig?: boolean;
+}) {
   const rpcs: Array<{ chave: string; teto: number }> = [];
   const sb = {
-    from() {
+    // POR TABELA: `podeGerar` consulta duas (`pedidos` e `config_operacao`) e
+    // um falso que responde a mesma coisa pras duas faz o teste passar sem
+    // testar nada — foi o que aconteceu quando o teto virou configurável.
+    from(tabela: string) {
       const cadeia = {
         select: () => cadeia,
         eq: () => cadeia,
         limit: () => cadeia,
         maybeSingle: async () => {
+          if (tabela === "config_operacao") {
+            if (opts.erroConfig) throw new Error("tabela não existe");
+            return { data: opts.tetoNoBanco ? { valor: opts.tetoNoBanco } : null };
+          }
           if (opts.erroPedido) throw new Error("banco fora do ar");
           return { data: opts.pago ? { id: "ped_1" } : null };
         },
@@ -107,6 +122,27 @@ describe("podeGerar — o disjuntor de gasto do Suno", () => {
     const r = await podeGerar(sb, null);
     expect(r.ok).toBe(false);
     expect(rpcs[0].chave.startsWith("musica-dia:")).toBe(true);
+  });
+
+  it("o teto vem do BANCO quando existe, e o banco ganha da env", async () => {
+    process.env.TETO_MUSICAS_DIA = "50";
+    const { sb, rpcs } = fakeSb({ cabe: true, tetoNoBanco: "900" });
+    await podeGerar(sb, null);
+    expect(rpcs[0].teto).toBe(900);
+  });
+
+  it("banco com valor invalido cai pra env, nao pra zero", async () => {
+    process.env.TETO_MUSICAS_DIA = "50";
+    const { sb, rpcs } = fakeSb({ cabe: true, tetoNoBanco: "abacaxi" });
+    await podeGerar(sb, null);
+    expect(rpcs[0].teto).toBe(50);
+  });
+
+  it("tabela de config fora do ar cai pra env — a env é a saída de emergência", async () => {
+    process.env.TETO_MUSICAS_DIA = "77";
+    const { sb, rpcs } = fakeSb({ cabe: true, erroConfig: true });
+    await podeGerar(sb, null);
+    expect(rpcs[0].teto).toBe(77);
   });
 
   it("a chave do contador é o DIA no fuso do Brasil", async () => {

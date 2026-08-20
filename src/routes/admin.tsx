@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { AbaTestes } from "@/components/admin/AbaTestes";
+import { carregarTeto, salvarTeto, type EstadoDoTeto } from "@/lib/admin-teto";
 import {
   RefreshCw,
   LogOut,
@@ -855,7 +856,8 @@ function Admin() {
                   </span>
                 </div>
               )}
-                </Secao>
+              <TetoDiario />
+            </Secao>
 
             {/* ── PREFERÊNCIAS ─────────────────────────────────────── */}
             <Secao
@@ -1194,6 +1196,113 @@ function Admin() {
           </a>
         </footer>
       </main>
+    </div>
+  );
+}
+
+/**
+ * O TETO DIÁRIO DE GERAÇÃO — o botão que desliga a torneira do Suno.
+ *
+ * Mora dentro de "A máquina" porque é a mesma pergunta dos cartões ao lado:
+ * a produção está de pé? O disjuntor (`inngest/lib/disjuntor.ts`) para de
+ * gerar pra quem ainda NÃO pagou quando o dia estoura este número — quem
+ * pagou nunca é barrado.
+ *
+ * O CONSUMO DO DIA fica colado no campo de propósito. "300" sozinho não
+ * responde a única pergunta que importa na hora em que o e-mail do disjuntor
+ * chega: foi pico de tráfego de verdade ou foi robô? Com "hoje: 47 / 300" ao
+ * lado, o número vira decisão.
+ *
+ * Sem autosave, como o painel de testes A/B: baixar este número por acidente
+ * desliga a geração pré-venda, que é o funil inteiro.
+ */
+function TetoDiario() {
+  const [estado, setEstado] = useState<EstadoDoTeto | null>(null);
+  const [rascunho, setRascunho] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  useEffect(() => {
+    carregarTeto()
+      .then((e) => {
+        setEstado(e);
+        setRascunho(String(e.teto));
+      })
+      .catch(() => setAviso("não consegui ler o teto"));
+  }, []);
+
+  async function salvar() {
+    setSalvando(true);
+    setAviso(null);
+    const r = await salvarTeto({ data: { teto: Number(rascunho) } });
+    setSalvando(false);
+    if (!r.ok || !r.estado) {
+      setAviso(r.erro ?? "não deu pra salvar");
+      return;
+    }
+    // O que foi GRAVADO, não o que foi digitado — o servidor arredonda e
+    // valida. Mesmo cuidado do painel de testes A/B.
+    setEstado(r.estado);
+    setRascunho(String(r.estado.teto));
+    setAviso("salvo — vale na próxima música gerada");
+  }
+
+  if (!estado) {
+    return <p className="text-xs text-[var(--tinta-suave)]">{aviso ?? "lendo o teto do dia…"}</p>;
+  }
+
+  const sobrando = estado.teto - estado.usadoHoje;
+  const apertado = sobrando <= 0;
+  // Amarelo antes de estourar: o aviso só serve se chegar ANTES do funil parar.
+  const perto = !apertado && sobrando < estado.teto * 0.2;
+
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border p-3 text-sm",
+        apertado
+          ? "border-amber-500/40 bg-amber-500/5"
+          : "border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)]",
+      )}
+    >
+      <label className="flex items-center gap-2">
+        <span className="text-xs text-[var(--tinta-suave)]">Teto de músicas por dia</span>
+        <Input
+          className="h-8 w-24"
+          type="number"
+          min={1}
+          value={rascunho}
+          onChange={(e) => {
+            setAviso(null);
+            setRascunho(e.target.value);
+          }}
+        />
+      </label>
+
+      <span className={cn("tabular-nums", (apertado || perto) && "font-medium text-amber-700")}>
+        hoje: {estado.usadoHoje} / {estado.teto}
+        {apertado
+          ? " · estourou, só quem pagou está gerando"
+          : perto
+            ? ` · faltam ${sobrando}`
+            : ""}
+      </span>
+
+      <Button size="sm" disabled={salvando} onClick={salvar}>
+        {salvando ? "salvando…" : "Salvar"}
+      </Button>
+
+      {aviso && <span className="text-xs text-[var(--tinta-suave)]">{aviso}</span>}
+
+      <span className="w-full text-[11px] text-[var(--tinta-suave)]">
+        Conta só geração de quem ainda NÃO pagou — comprador nunca é barrado e não gasta este
+        orçamento.{" "}
+        {estado.origem === "banco"
+          ? "Valor definido aqui no painel."
+          : estado.origem === "env"
+            ? "Ainda vindo da variável TETO_MUSICAS_DIA; salvar aqui passa a mandar."
+            : "Ainda no padrão do código; salvar aqui passa a mandar."}
+      </span>
     </div>
   );
 }

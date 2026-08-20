@@ -38,9 +38,39 @@ const TETO_PADRAO = 300;
 const JANELA_S = 60 * 60 * 48;
 const PARA = "guilhermerojasiqueira@gmail.com";
 
-function tetoDoDia(): number {
+/** A chave em `config_operacao`. Mesma string que o painel escreve. */
+export const CHAVE_TETO = "teto_musicas_dia";
+
+/**
+ * O teto de hoje, na ordem BANCO > ENV > PADRÃO.
+ *
+ * O banco vem primeiro porque é o único dos três que o dono alcança do
+ * celular, e a hora de mexer neste número é a hora em que o disjuntor acabou
+ * de desligar o funil.
+ *
+ * A env FICA como segundo lugar, e não como lixo do passado: se o banco
+ * responder errado ou a tabela sumir, ela é a saída de emergência que não
+ * depende de nada além de um redeploy.
+ */
+export async function tetoDoDia(sb: SupabaseClient): Promise<number> {
+  try {
+    const { data } = await sb
+      .from("config_operacao")
+      .select("valor")
+      .eq("chave", CHAVE_TETO)
+      .maybeSingle();
+    const n = Number(data?.valor);
+    if (Number.isFinite(n) && n > 0) return Math.floor(n);
+  } catch (err) {
+    console.error("[disjuntor] teto do banco não lido; caindo pra env:", err);
+  }
   const n = Number(process.env.TETO_MUSICAS_DIA);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : TETO_PADRAO;
+}
+
+/** A chave do contador do dia. Exportada pra o painel poder ler o consumo. */
+export function chaveDoDia(): string {
+  return `musica-dia:${diaBr()}`;
 }
 
 /** O dia no fuso do Brasil (UTC-3). Em UTC, o teto viraria às 21h. */
@@ -109,7 +139,7 @@ export async function podeGerar(
   sb: SupabaseClient,
   quizResponseId: string | null,
 ): Promise<{ ok: true } | { ok: false; teto: number }> {
-  const teto = tetoDoDia();
+  const teto = await tetoDoDia(sb);
 
   // ── 1. Já pagou? Então nem pergunta. ──
   if (quizResponseId) {
@@ -131,7 +161,7 @@ export async function podeGerar(
   }
 
   // ── 2. Ainda cabe no dia? ──
-  if (await cabe(sb, `musica-dia:${diaBr()}`, teto)) return { ok: true };
+  if (await cabe(sb, chaveDoDia(), teto)) return { ok: true };
 
   await avisarUmaVezPorDia(sb, teto);
   return { ok: false, teto };
