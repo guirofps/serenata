@@ -16,6 +16,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto.js";
+import { segredoConfere } from "../lib/segredo.js";
 
 type Req = IncomingMessage & { method?: string; body?: unknown; headers: Record<string, string | string[] | undefined> };
 type Res = ServerResponse & { status: (c: number) => Res; json: (b: unknown) => void };
@@ -76,7 +77,8 @@ export default async function handler(req: Req, res: Res) {
     const recebido = evento.secret ?? (Array.isArray(cab) ? cab[0] : cab);
     const tipo = evento.event ?? evento.type ?? "desconhecido";
 
-    if (recebido !== esperado) {
+    // Comparação de tempo constante — ver `api/lib/segredo.ts`.
+    if (!segredoConfere(recebido, esperado)) {
       await auditar(`cakto_${tipo}_recusado`, { motivo: "segredo inválido" });
       return res.status(401).json({ error: "segredo inválido" });
     }

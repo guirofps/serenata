@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { emailDaSessao } from "@/lib/conta-sessao";
+import { literalLike } from "@/lib/sql-like";
 
 // O SALDO DA CONTA, pro painel mostrar.
 //
@@ -38,7 +39,7 @@ export const meusCreditos = createServerFn({ method: "POST" })
       db
         .from("creditos")
         .select("quantidade, origem, nota, created_at")
-        .ilike("email", email)
+        .ilike("email", literalLike(email))
         .order("created_at", { ascending: false })
         .limit(30),
     ]);
@@ -50,7 +51,7 @@ export const meusCreditos = createServerFn({ method: "POST" })
     const { data: pedidosQuadro } = await db
       .from("pedidos")
       .select("id")
-      .ilike("email", email)
+      .ilike("email", literalLike(email))
       .eq("status", "pago")
       // 24,90 é o preço do quadro. Quando o webhook passar a gravar o produto
       // na linha do pedido, isto vira uma comparação por código.

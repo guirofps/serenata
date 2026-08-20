@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { emailDaSessao } from "@/lib/conta-sessao";
+import { literalLike } from "@/lib/sql-like";
 
 // O PRIMEIRO NOME DE QUEM COMPROU, pra saudação do painel.
 //
@@ -41,7 +42,7 @@ export const nomeDoComprador = createServerFn({ method: "POST" })
     const { data: p } = await supabaseAdmin()
       .from("pedidos")
       .select("nome_pagador")
-      .ilike("email", email)
+      .ilike("email", literalLike(email))
       .not("nome_pagador", "is", null)
       // O mais recente: se ela comprou duas vezes com nomes diferentes
       // (acontece quando alguém compra pra terceiro), vale o último.

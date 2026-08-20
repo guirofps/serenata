@@ -250,6 +250,33 @@ prioridade é vender fumaça, e no Google Ads isso derruba conta.
   Supabase, não rota escondida no front. Foi assim que lemos os custos e o
   provedor da Cantoria.
 
+### Invariantes da varredura de 20/08
+
+Achados numa auditoria do sistema inteiro. Cada um é uma regra, não um
+conserto pontual — desfazer qualquer uma reabre o buraco.
+
+- **E-mail nunca entra cru num `ilike`.** `%` e `_` são curingas do LIKE e
+  são caracteres válidos em endereço de e-mail: quem escolhe o próprio
+  cadastro escolhe o SENTIDO da consulta. Use `literalLike()`
+  (`src/lib/sql-like.ts`). O pior caso era o robô de suporte, que respondia
+  sozinho mandando `token_edicao` de um cliente pra um estranho.
+- **A resposta automática do suporte confere o endereço em JS**, além do
+  `ilike`. É a única rotina que manda token pra quem não provou ser dono.
+- **Token do cliente não entra em URL que terceiro lê.** gtag e UTMify só
+  carregam fora das rotas de `rotas-sensiveis.ts`. `/obrigado` fica de fora da
+  lista de propósito — é onde a conversão dispara.
+- **O que a pessoa manda não decide o ALVO da operação, só o conteúdo.**
+  `removerDaGaleria` confere o caminho contra a galeria da própria música
+  antes de apagar; upload confere os bytes, não a etiqueta `data:`.
+- **Campo livre do painel de teste A/B tem charset.** Nome de versão sai
+  serializado dentro de `<script>` e escrito em seletor de CSS; checkout vira
+  `href`. Travado em `[A-Za-z0-9_-]` e em `https://`, com teste.
+- **Segredo se compara em tempo constante**, inclusive no webhook — não só na
+  senha do painel (`api/lib/segredo.ts`).
+- **Em produção, cabeçalho de host não decide destino.** `x-forwarded-host`
+  escolhia o `redirectTo` do magic link quando `VITE_APP_URL` faltava, o que é
+  tomada de conta completa.
+
 ## Herança de código
 
 Dois repositórios anteriores do mesmo dono servem de base. **São o mesmo

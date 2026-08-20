@@ -5,6 +5,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -24,6 +25,7 @@ import {
   stampVariantIntoAttribution,
 } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
+import { rotaSensivel } from "@/lib/rotas-sensiveis";
 
 function NotFoundComponent() {
   return (
@@ -117,6 +119,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: React.ReactNode }) {
+  // ONDE ESTAMOS, pra decidir se o script do Google entra. Ver
+  // `rotas-sensiveis.ts`: a URL de `/editar/<token_edicao>` É a autorização, e
+  // o gtag manda a URL inteira pro Google em `page_location`.
+  //
+  // Lido aqui, no servidor, e não num efeito do cliente: quem abre o editor
+  // chega DIRETO pelo link do e-mail, então é o primeiro HTML que importa —
+  // gating só no cliente chegaria tarde.
+  const caminho = useRouterState({ select: (s) => s.location.pathname });
+  const podeMedir = !rotaSensivel(caminho);
   // A config isomórfica: no servidor vem do snapshot em memória (mantido
   // fresco pelo middleware, ver `src/start.ts`); no cliente, do
   // `window.__SRN_CFG__` que o <script> logo abaixo planta — ver o comentário
@@ -151,16 +162,24 @@ function RootShell({ children }: { children: React.ReactNode }) {
         {children}
         {/* Google Ads: sem esta tag o algoritmo não sabe quais cliques viraram
             venda e não consegue otimizar a campanha. A conversão em si dispara
-            na /obrigado (src/lib/google-ads.ts). */}
-        <script
-          async
-          src="https://www.googletagmanager.com/gtag/js?id=AW-16919557808"
-        />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','AW-16919557808');`,
-          }}
-        />
+            na /obrigado (src/lib/google-ads.ts).
+
+            FORA das rotas sensíveis (`rotas-sensiveis.ts`). A /obrigado, que é
+            onde a conversão acontece, não está na lista — o funil de medição
+            continua inteiro. */}
+        {podeMedir && (
+          <>
+            <script
+              async
+              src="https://www.googletagmanager.com/gtag/js?id=AW-16919557808"
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','AW-16919557808');`,
+              }}
+            />
+          </>
+        )}
         {/* UTMify NÃO fica aqui. Ver `carregarUtmify` mais abaixo: o script
             reescreve todo <a href> interno, e no HTML do servidor isso quebra
             a hidratação do React. */}
@@ -200,6 +219,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function carregarUtmify() {
   if (typeof document === "undefined") return;
   if (document.getElementById("utmify-utms")) return;
+  // Mesma régua do gtag: a UTMify também vê a URL da página, e o que ela
+  // precisa medir (a origem do clique) acontece no funil, nunca no editor nem
+  // nos painéis. Ver `rotas-sensiveis.ts`.
+  if (rotaSensivel(window.location.pathname)) return;
   // NÃO BASTA ESPERAR O ROOT MONTAR. As rotas são carregadas em `lazy`, então
   // elas hidratam DEPOIS do root: um script que já esteja reescrevendo links
   // pega a próxima rota no meio da hidratação e o problema volta, só que mais

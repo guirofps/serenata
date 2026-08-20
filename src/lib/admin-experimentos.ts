@@ -269,6 +269,46 @@ export function decidirSalvamento(
     return { ok: false, erro: "duas versões com o mesmo nome" };
   }
 
+  // O NOME SAI DAQUI PRO HTML DE TODA VISITA, e é por isso que ele tem
+  // charset. Três destinos, nenhum deles um lugar onde texto livre é inofensivo:
+  //
+  //   1. `scriptExperimentos` serializa dentro de um `<script>` inline. Um
+  //      nome com `</script>` fecharia o bloco e o que viesse depois viraria
+  //      código rodando na home, pra todo mundo. (O escape em `jsonParaScript`
+  //      já fecha isso; aqui é a segunda tranca.)
+  //   2. `cssExperimentos` escreve `[data-v="<id>:<nome>"]`. Uma aspa sai do
+  //      seletor e o resto da string vira regra de CSS.
+  //   3. `?exp=` compara o nome em minúsculas, e `,` e `:` são separadores
+  //      dessa sintaxe.
+  //
+  // Nome de versão é rótulo curto de teste ("A", "B2", "C") — nunca precisou
+  // ser mais que isto, então o charset não tira nada de ninguém.
+  const NOME_OK = /^[A-Za-z0-9_-]{1,24}$/;
+  const nomeTorto = novas.find((v) => !NOME_OK.test(v.nome));
+  if (nomeTorto) {
+    return {
+      ok: false,
+      erro: `nome de versão só aceita letra, número, hífen e sublinhado (até 24): "${nomeTorto.nome}"`,
+    };
+  }
+
+  // O LINK DE CHECKOUT VIRA `href`. Antes bastava ser string não vazia, e
+  // `javascript:...` é string não vazia — o botão de comprar da home passaria
+  // a executar o que estivesse escrito ali. `https://` também garante que o
+  // preço não trafega em claro no caminho do caixa.
+  const linkTorto = novas.find((v) => {
+    const url = v.plano?.checkout?.trim();
+    if (!url) return false; // plano incompleto é problema da Trava 4, não deste
+    try {
+      return new URL(url).protocol !== "https:";
+    } catch {
+      return true;
+    }
+  });
+  if (linkTorto) {
+    return { ok: false, erro: `o link da versão ${linkTorto.nome} precisa ser uma URL https://` };
+  }
+
   // TRAVA 1 — preço e link são só-leitura enquanto o teste está no ar.
   //
   // Quem já foi sorteada pro B tem o preço antigo gravado no navegador. Ela

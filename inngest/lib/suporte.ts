@@ -10,6 +10,7 @@
 // como dar errado. Prometer reembolso, reescrever letra ou discutir cobranca
 // tem, e por isso sobe pro dono.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { literalLike } from "../../src/lib/sql-like.js";
 
 const SITE = "https://www.serenatagift.com";
 const MCP = "https://mcp.mail.hostinger.com/mcp";
@@ -188,21 +189,29 @@ export async function triar(token: string): Promise<{
     );
     const corpo = extrairTexto(typeof src?.body === "string" ? src.body : String(src?.body ?? ""));
 
+    // O `email` volta nos dois selects só pra ser CONFERIDO abaixo. É cinto e
+    // suspensório em cima do `literalLike`: esta é a única rotina do sistema
+    // que manda `token_edicao` pra um endereço que ninguém provou ser dono de
+    // nada, então uma segunda checagem explícita — em JS, à vista de quem lê —
+    // vale mais que confiar que o operador de comparação continue apertado
+    // depois da próxima refatoração.
     const { data: pago } = await sb
       .from("pedidos")
-      .select("quiz_response_id, telefone")
-      .ilike("email", de)
+      .select("quiz_response_id, telefone, email")
+      .ilike("email", literalLike(de))
       .eq("status", "pago")
       .order("paid_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     const { data: q } = await sb
       .from("quiz_responses")
-      .select("id, locale, session_id, whatsapp")
-      .ilike("email", de)
+      .select("id, locale, session_id, whatsapp, email")
+      .ilike("email", literalLike(de))
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    const mesmoEndereco = (achado: string | null | undefined) =>
+      Boolean(achado) && String(achado).trim().toLowerCase() === de;
     const qid = pago?.quiz_response_id ?? q?.id;
     const { data: mus } = qid
       ? await sb
@@ -243,12 +252,20 @@ export async function triar(token: string): Promise<{
     }
 
     const pronta = mus?.status === "pronta";
-    if (caso.pagou && pronta && mus?.token && mus?.token_edicao) {
+    // RESPOSTA AUTOMÁTICA SÓ PRA QUEM É O ENDEREÇO EXATO DO REGISTRO.
+    //
+    // Sem esta linha, "mandar pra alguém o link do que ela já pagou" (a regra
+    // no topo do arquivo) escorregava pra "mandar pra QUALQUER UM o link do
+    // que ALGUÉM pagou" no instante em que o casamento por e-mail deixasse de
+    // ser exato. Não sendo exato, o caso não vira silêncio: cai pra revisão
+    // humana no bloco final, com o dono lendo antes de responder.
+    const ehTitular = mesmoEndereco(pago?.email) || mesmoEndereco(q?.email);
+    if (caso.pagou && pronta && ehTitular && mus?.token && mus?.token_edicao) {
       caso.tipo = "pagou-e-nao-achou";
       caso.texto = TEXTOS[locale].achou(primeiro, caso.musica ?? "sua música", mus.token, mus.token_edicao);
       caso.assuntoResposta = TEXTOS[locale].assunto.achou;
       auto.push(caso);
-    } else if (!caso.pagou && pronta && q?.session_id) {
+    } else if (!caso.pagou && pronta && ehTitular && q?.session_id) {
       caso.tipo = "acha-que-e-gratis";
       caso.texto = TEXTOS[locale].gratis(
         primeiro,

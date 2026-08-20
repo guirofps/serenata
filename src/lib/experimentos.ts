@@ -107,8 +107,7 @@ export const EXPERIMENTOS: Experimento[] = [
     // conta na mesa, e não por descuido.
     peso: [1, 1, 1, 1, 1],
     ativo: true,
-    nota:
-      "Quanto custa a música. O preço vive em `preco.ts` como PLANO (número na tela + produto da Perfect Pay + valor da conversão no mesmo objeto), porque o que estraga teste de preço é a tela dizer um número e o caixa cobrar outro. Fora do teste: o funil espanhol (volume pequeno demais pra dividir) e quem chega com cupom da recuperação (o e-mail já prometeu um número exato).",
+    nota: "Quanto custa a música. O preço vive em `preco.ts` como PLANO (número na tela + produto da Perfect Pay + valor da conversão no mesmo objeto), porque o que estraga teste de preço é a tela dizer um número e o caixa cobrar outro. Fora do teste: o funil espanhol (volume pequeno demais pra dividir) e quem chega com cupom da recuperação (o e-mail já prometeu um número exato).",
   },
 ];
 
@@ -311,12 +310,38 @@ export function configAtual(): ExperimentoConfigPublica[] {
  * pública inteira (`nota` já saiu — ver `configAtual`/`projetarParaPublico`),
  * `Plano` incluído.
  */
-export function scriptConfigGlobal(cfg: ExperimentoConfigPublica[]): string {
-  const seguro = JSON.stringify(cfg).replace(
-    /[<>&]/g,
-    (c) => ({ "<": "\\u003c", ">": "\\u003e", "&": "\\u0026" })[c]!,
+/**
+ * JSON pronto pra viver DENTRO de um `<script>` inline.
+ *
+ * `JSON.stringify` sozinho não serve: ele escapa aspas e barras, mas deixa
+ * `<` passar — e `</script>` dentro de uma string fecha o bloco no parser do
+ * HTML, que não sabe nada de JavaScript. Como o nome de versão virou campo
+ * editável no painel de testes A/B, um nome com `</script><script>` viraria
+ * código rodando em TODA página do site, pra todo visitante.
+ *
+ * `\u003c` e companhia são a mesma string pro JavaScript e nada de especial
+ * pro HTML: o valor chega idêntico do outro lado.
+ *
+ * Estava certo em `scriptConfigGlobal` desde sempre e faltando em
+ * `scriptExperimentos`, que é o mais exposto dos dois — é ele que serializa o
+ * NOME digitado no painel.
+ */
+function jsonParaScript(valor: unknown): string {
+  return JSON.stringify(valor).replace(
+    /[<>&\u2028\u2029]/g,
+    (c) =>
+      ({
+        "<": "\\u003c",
+        ">": "\\u003e",
+        "&": "\\u0026",
+        "\u2028": "\\u2028",
+        "\u2029": "\\u2029",
+      })[c]!,
   );
-  return `window.__SRN_CFG__=${seguro};`;
+}
+
+export function scriptConfigGlobal(cfg: ExperimentoConfigPublica[]): string {
+  return `window.__SRN_CFG__=${jsonParaScript(cfg)};`;
 }
 
 /**
@@ -351,7 +376,7 @@ export function scriptExperimentos(cfg: ExperimentoConfigPublica[]): string {
     x: e.exposicaoPct,
   }));
   return `(function(){try{
-var C=${JSON.stringify(compacto)},D=document.documentElement,U=new URLSearchParams(location.search),F=U.get("exp")||"";
+var C=${jsonParaScript(compacto)},D=document.documentElement,U=new URLSearchParams(location.search),F=U.get("exp")||"";
 for(var i=0;i<C.length;i++){var e=C[i],k="${CHAVE}"+e.id,v=null;
 var m=F.split(",").map(function(s){return s.trim()}).filter(function(s){return s.indexOf(e.id+":")===0});
 if(m.length){var f=m[0].split(":")[1];if(String(f).toLowerCase()==="${FORA}")v="${FORA}";for(var j=0;j<e.v.length;j++){if(e.v[j].toLowerCase()===String(f).toLowerCase())v=e.v[j];}}
@@ -376,6 +401,22 @@ D.setAttribute("data-exp-"+e.id,v);}
  * teste (aparece o controle também); e o experimento DESLIGADO nem chega a
  * gerar as duas regras acima — só a do controle, incondicional.
  */
+/**
+ * Escapa um valor pra dentro de uma string CSS entre aspas.
+ *
+ * `[data-v="${e.id}:${v}"]` monta seletor por concatenação, e uma aspa no
+ * nome sai do seletor e transforma o resto da folha em regra de quem
+ * escreveu. A gravação nova recusa nome fora de `[A-Za-z0-9_-]`
+ * (`admin-experimentos.ts`), mas o banco pode ter linha anterior a essa
+ * trava, e é o CSS de toda página do site que está em jogo.
+ *
+ * A barra invertida vem primeiro pelo motivo de sempre: escapá-la depois
+ * escaparia de novo as que acabaram de ser inseridas.
+ */
+function cssLiteral(valor: string): string {
+  return valor.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
 export function cssExperimentos(cfg: ExperimentoConfigPublica[]): string {
   const linhas: string[] = [];
   // TODOS os experimentos, não só os ativos. Descoberto do jeito ruim em
@@ -385,25 +426,26 @@ export function cssExperimentos(cfg: ExperimentoConfigPublica[]): string {
   // coisa mais segura de fazer com um experimento, não a mais perigosa.
   for (const e of cfg) {
     if (!e.variantes.length) continue;
-    const nomes = e.variantes.map((v) => v.nome);
+    // Escapados na fronteira: daqui pra baixo `id` e `nomes` só entram em
+    // string CSS, e é aqui que eles param de poder sair dela.
+    const id = cssLiteral(e.id);
+    const nomes = e.variantes.map((v) => cssLiteral(v.nome));
     const controle = nomes[0];
-    linhas.push(nomes.map((v) => `[data-v="${e.id}:${v}"]`).join(",") + "{display:none}");
+    linhas.push(nomes.map((v) => `[data-v="${id}:${v}"]`).join(",") + "{display:none}");
 
     if (!e.ativo) {
       // Desligado: só o controle aparece, pra quem tiver escrito conteúdo de
       // controle dentro de um <Variante> não ficar com a tela vazia.
-      linhas.push(`[data-v="${e.id}:${controle}"]{display:contents}`);
+      linhas.push(`[data-v="${id}:${controle}"]{display:contents}`);
       continue;
     }
     for (const v of nomes) {
-      linhas.push(`html[${atributoDe(e.id)}="${v}"] [data-v="${e.id}:${v}"]{display:contents}`);
+      linhas.push(`html[${atributoDe(id)}="${v}"] [data-v="${id}:${v}"]{display:contents}`);
     }
     // Quem ficou de fora do teste vê o CONTROLE. Sem esta regra, a tela dele
     // sairia sem preço nenhum.
-    linhas.push(
-      `html[${atributoDe(e.id)}="${FORA}"] [data-v="${e.id}:${controle}"]{display:contents}`,
-    );
-    linhas.push(`html:not([${atributoDe(e.id)}]) [data-v="${e.id}:${controle}"]{display:contents}`);
+    linhas.push(`html[${atributoDe(id)}="${FORA}"] [data-v="${id}:${controle}"]{display:contents}`);
+    linhas.push(`html:not([${atributoDe(id)}]) [data-v="${id}:${controle}"]{display:contents}`);
   }
   return linhas.join("");
 }

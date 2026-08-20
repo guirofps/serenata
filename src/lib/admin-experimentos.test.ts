@@ -645,3 +645,70 @@ describe("decidirSalvamento — Trava 2", () => {
     expect(trocarPrecoDoB([]).ok).toBe(true);
   });
 });
+
+// ── AS TRAVAS DE SEGURANÇA (varredura de 20/08) ─────────────────
+//
+// Nome de versão e link de checkout são campos LIVRES do painel, e os dois
+// saem daqui direto pro HTML de toda visita: o nome vai serializado dentro do
+// `<script>` do sorteio e escrito no seletor do `<style>`, e o link vira o
+// `href` do botão de comprar. Sem estas duas travas, quem edita um teste A/B
+// edita o JavaScript e o CSS do site inteiro.
+describe("decidirSalvamento — nome de versão e link", () => {
+  const banco = { ativo: false, variantes: [planoA] };
+  const entrada = (variantes: Variante[]) => ({
+    id: "preco",
+    ativo: false,
+    exposicaoPct: 100,
+    nota: "",
+    variantes,
+  });
+
+  it("recusa nome que fecharia o <script> do sorteio", () => {
+    const r = decidirSalvamento(banco, entrada([{ ...planoA, nome: "A</script><script>x" }]));
+    expect(r.ok).toBe(false);
+    expect(r).toHaveProperty("erro");
+  });
+
+  it("recusa nome com aspa, que sairia do seletor de CSS", () => {
+    const r = decidirSalvamento(banco, entrada([{ ...planoA, nome: 'A"]{display:block}[x="' }]));
+    expect(r.ok).toBe(false);
+  });
+
+  it("recusa nome com vírgula ou dois-pontos, que são sintaxe do ?exp=", () => {
+    expect(decidirSalvamento(banco, entrada([{ ...planoA, nome: "A,B" }])).ok).toBe(false);
+    expect(decidirSalvamento(banco, entrada([{ ...planoA, nome: "A:B" }])).ok).toBe(false);
+  });
+
+  it("aceita os nomes que a operação de fato usa", () => {
+    expect(decidirSalvamento(banco, entrada([{ ...planoA, nome: "B2" }])).ok).toBe(true);
+    expect(decidirSalvamento(banco, entrada([{ ...planoA, nome: "preco-alto_2" }])).ok).toBe(true);
+  });
+
+  it("recusa `javascript:` no checkout — o link vira href do botão de comprar", () => {
+    const r = decidirSalvamento(
+      banco,
+      entrada([{ ...planoA, plano: { ...planoA.plano!, checkout: "javascript:alert(1)" } }]),
+    );
+    expect(r.ok).toBe(false);
+  });
+
+  it("recusa http:// e texto que não é URL", () => {
+    const comLink = (checkout: string) =>
+      decidirSalvamento(banco, entrada([{ ...planoA, plano: { ...planoA.plano!, checkout } }]));
+    expect(comLink("http://pay/a").ok).toBe(false);
+    expect(comLink("pay.com/a").ok).toBe(false);
+  });
+
+  it("aceita https://, que é o que a Perfect Pay usa", () => {
+    const r = decidirSalvamento(
+      banco,
+      entrada([
+        {
+          ...planoA,
+          plano: { ...planoA.plano!, checkout: "https://go.perfectpay.com.br/PPU38CQER4D" },
+        },
+      ]),
+    );
+    expect(r.ok).toBe(true);
+  });
+});

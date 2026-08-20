@@ -23,6 +23,7 @@ import { emailPresentePronto, assuntoPresentePronto } from "../../emails/present
 import { enviarVendaUtmify } from "../lib/utmify.js";
 import { pareceTypo, sugerirEmail } from "../../src/lib/email-typo.js";
 import { reconhecerOferta, PRODUTO_PRINCIPAL, OFERTAS } from "../../src/lib/creditos.js";
+import { segredoConfere } from "../lib/segredo.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -189,7 +190,8 @@ export default async function handler(req: Req, res: Res) {
       tokenUrl = null;
     }
     const recebido = body.token ?? tokenUrl;
-    if (recebido !== esperado) {
+    // Comparação de tempo constante — ver `api/lib/segredo.ts`.
+    if (!segredoConfere(recebido, esperado)) {
       // QUAL VENDA FOI RECUSADA, e nunca o token.
       //
       // Em 18/08, no reenvio dos postbacks perdidos, 5 chegaram sem token e

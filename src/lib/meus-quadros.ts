@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { emailDaSessao } from "@/lib/conta-sessao";
+import { literalLike } from "@/lib/sql-like";
 
 // O QUADRO DA PESSOA: o que ela comprou, de qual música é, e o que falta.
 //
@@ -80,7 +81,7 @@ export const meusQuadros = createServerFn({ method: "POST" })
       db
         .from("quadros")
         .select("id, musica_id, titulo, confirmado_em")
-        .ilike("email", email)
+        .ilike("email", literalLike(email))
         .order("created_at", { ascending: true }),
       // As músicas vêm pela CONTA, não pelo e-mail: é `user_id` que amarra
       // música a dono no resto do sistema, e o e-mail da compra às vezes é
@@ -177,7 +178,7 @@ export const confirmarQuadro = createServerFn({ method: "POST" })
       const { data: jaTem } = await db
         .from("quadros")
         .select("id")
-        .ilike("email", email)
+        .ilike("email", literalLike(email))
         .eq("musica_id", musica.id)
         .maybeSingle();
       if (jaTem?.id) return { ok: true, tokenEdicao: musica.token_edicao };
@@ -185,7 +186,7 @@ export const confirmarQuadro = createServerFn({ method: "POST" })
       const { data: direito } = await db
         .from("quadros")
         .select("id")
-        .ilike("email", email)
+        .ilike("email", literalLike(email))
         .is("musica_id", null)
         .order("created_at", { ascending: true })
         .limit(1)
@@ -237,7 +238,7 @@ export const salvarQuadro = createServerFn({ method: "POST" })
     const { error } = await db
       .from("quadros")
       .update(mudanca)
-      .ilike("email", email)
+      .ilike("email", literalLike(email))
       .eq("musica_id", data.musicaId);
     return { ok: !error };
   });
@@ -269,7 +270,7 @@ export const acessoAoQuadro = createServerFn({ method: "POST" })
       const { data: meu } = await db
         .from("quadros")
         .select("id, titulo, dedicatoria, estilo")
-        .ilike("email", email)
+        .ilike("email", literalLike(email))
         .eq("musica_id", data.musicaId)
         .maybeSingle();
       if (meu?.id) {
@@ -284,7 +285,7 @@ export const acessoAoQuadro = createServerFn({ method: "POST" })
       const { count } = await db
         .from("quadros")
         .select("id", { count: "exact", head: true })
-        .ilike("email", email)
+        .ilike("email", literalLike(email))
         .is("musica_id", null);
       return {
         acesso: (count ?? 0) > 0 ? "previa" : "nenhum",

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { emailDaSessao } from "@/lib/conta-sessao";
+import { literalLike } from "@/lib/sql-like";
 
 // O QUADRO: a página presente virando uma folha A4 pra imprimir e emoldurar.
 //
@@ -128,7 +129,7 @@ export const carregarQuadro = createServerFn({ method: "POST" })
       const { data: meu } = await db
         .from("quadros")
         .select("id, musica_id, titulo, dedicatoria")
-        .ilike("email", email)
+        .ilike("email", literalLike(email))
         .eq("musica_id", m.id)
         .maybeSingle();
       if (meu?.id) {
@@ -143,7 +144,7 @@ export const carregarQuadro = createServerFn({ method: "POST" })
         const { count } = await db
           .from("quadros")
           .select("id", { count: "exact", head: true })
-          .ilike("email", email)
+          .ilike("email", literalLike(email))
           .is("musica_id", null);
         if ((count ?? 0) > 0) acesso = "previa";
       }

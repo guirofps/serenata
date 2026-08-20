@@ -39,13 +39,30 @@ function db() {
 // A origem para onde o magic link volta. Em produção é o domínio real; em
 // `vercel dev` é o host da requisição (localhost). Nunca confiar num host
 // arbitrário pra produção, então só aceita o header quando não há env.
+const SITE_CANONICO = "https://www.serenatagift.com";
+
 function origem(req: Req): string {
   const env = process.env.VITE_APP_URL;
   if (env?.startsWith("http")) return env.replace(/\/$/, "");
+
+  // EM PRODUÇÃO, O CABEÇALHO NÃO DECIDE PRA ONDE O LINK VOLTA.
+  //
+  // `x-forwarded-host` é escrito por quem faz a requisição. Este valor vira o
+  // `redirectTo` do magic link: com a env faltando por um deploy mal
+  // configurado, bastava um POST com o host do atacante pra o e-mail de acesso
+  // do cliente levar o código de login direto pra ele. Envenenamento de
+  // magic link é tomada de conta completa, sem senha e sem aviso.
+  //
+  // O comentário anterior dizia "nunca confiar num host arbitrário pra
+  // produção" e confiava assim mesmo quando a env sumia — que é justamente a
+  // hora em que ninguém está olhando. Agora produção cai no domínio fixo, e o
+  // host da requisição só vale em desenvolvimento (`vercel dev`, localhost).
+  if (process.env.NODE_ENV === "production") return SITE_CANONICO;
+
   const proto = (req.headers["x-forwarded-proto"] as string) ?? "https";
   const host = (req.headers["x-forwarded-host"] as string) ?? (req.headers.host as string);
   if (host) return `${proto}://${host}`;
-  return "https://www.serenatagift.com";
+  return SITE_CANONICO;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

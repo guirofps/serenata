@@ -39,9 +39,15 @@ export default async function handler(req: Req, res: Res) {
   const bruto = req.query?.token;
   const token = String(Array.isArray(bruto) ? bruto[0] : (bruto ?? "")).trim();
 
+  // O `origem` vira `Location:` no fallback sem foto. Vindo do cabeçalho, isso
+  // é redirecionamento aberto no nosso domínio — a prévia do link no WhatsApp
+  // apontando pro site de outro. Em produção o valor é fixo; o cabeçalho só
+  // serve pra `vercel dev`. Mesma correção de `send-magic-link.ts`.
   const proto = (req.headers["x-forwarded-proto"] as string) ?? "https";
   const host = (req.headers["x-forwarded-host"] as string) ?? (req.headers.host as string);
-  const origem = process.env.VITE_APP_URL?.replace(/\/$/, "") ?? `${proto}://${host}`;
+  const origem =
+    process.env.VITE_APP_URL?.replace(/\/$/, "") ??
+    (process.env.NODE_ENV === "production" ? "https://www.serenatagift.com" : `${proto}://${host}`);
 
   // Sanidade de formato, não defesa: o caminho do arquivo no bucket vem da
   // LINHA DO BANCO, nunca da URL, então não existe travessia de caminho a

@@ -1,5 +1,6 @@
 ﻿import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { termoParaOr } from "@/lib/sql-like";
 
 // A FILA DE CARRINHO ABANDONADO, e o botão que libera o acesso.
 //
@@ -392,7 +393,12 @@ export const buscarCliente = createServerFn({ method: "POST" })
     // Telefone o operador digita como quiser: com traço, com parêntese, com
     // DDI. A busca compara só os dígitos.
     const digitos = termo.replace(/\D/g, "");
-    const like = `%${termo.toLowerCase()}%`;
+    // `,` e `()` são a SINTAXE do `or` do PostgREST, e `%`/`_` são curingas do
+    // LIKE. Sem tirar os dois grupos, o termo digitado deixa de ser um valor e
+    // vira estrutura da consulta — uma busca por "silva,id.gte.0" acrescenta
+    // condição no lugar de procurar um nome. `listarPagos`, logo abaixo, já
+    // fazia metade dessa limpeza; esta consulta não fazia nenhuma.
+    const like = `%${termoParaOr(termo.toLowerCase())}%`;
 
     const filtros = [`email.ilike.${like}`, `nome_pagador.ilike.${like}`];
     if (digitos.length >= 6) filtros.push(`telefone.ilike.%${digitos}%`);
@@ -426,8 +432,10 @@ export const buscarCliente = createServerFn({ method: "POST" })
     }
     if (!tels.size && !mails.size) return [];
 
+    // Os valores daqui vêm do BANCO, não do formulário — mas um e-mail com
+    // vírgula gravado por um webhook quebraria a consulta do mesmo jeito.
     const ors: string[] = [];
-    for (const m of mails) ors.push(`email.eq.${m}`);
+    for (const m of mails) ors.push(`email.eq.${termoParaOr(m)}`);
     for (const t of tels) if (t.length >= 8) ors.push(`telefone.ilike.%${t.slice(-8)}%`);
     const { data: todos } = await db
       .from("pedidos")
@@ -622,7 +630,7 @@ export const listarPagos = createServerFn({ method: "POST" })
       //
       // Vírgula e parêntese são separadores da sintaxe `or` do PostgREST: um
       // nome com vírgula quebraria a consulta inteira, então saem.
-      const limpo = termo.replace(/[(),]/g, " ").trim();
+      const limpo = termoParaOr(termo);
       q = q
         .or(
           `email.ilike.%${limpo}%,nome_pagador.ilike.%${limpo}%,telefone.ilike.%${limpo}%`,

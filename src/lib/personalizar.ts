@@ -39,6 +39,39 @@ const MAX_DEDICATORIA = 280;
 const MAX_FOTO_BYTES = 5 * 1024 * 1024;
 const TIPOS_OK = ["image/jpeg", "image/png", "image/webp"] as const;
 
+/**
+ * O ARQUIVO É MESMO UMA IMAGEM DO TIPO QUE ELE DIZ SER?
+ *
+ * O `data:image/jpeg;base64,` da frente é escrito pelo cliente — é uma
+ * ETIQUETA, não uma prova. Sem conferir os bytes, o bucket vira hospedagem de
+ * arquivo arbitrário (5 MB por vez, 12 por presente) servido por URL assinada
+ * do nosso domínio, com o `Content-Type` que o remetente escolheu. É o tipo de
+ * coisa que só aparece quando alguém já está usando.
+ *
+ * A assinatura de cada formato é fixa e mora nos primeiros bytes:
+ *   JPEG  FF D8 FF
+ *   PNG   89 50 4E 47 0D 0A 1A 0A
+ *   WEBP  "RIFF" ---- "WEBP"  (o tamanho vai no meio, por isso os dois pedaços)
+ */
+function conferirAssinatura(bytes: Buffer, tipo: string): boolean {
+  if (tipo === "image/jpeg")
+    return bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (tipo === "image/png") {
+    return (
+      bytes.length > 8 &&
+      bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    );
+  }
+  if (tipo === "image/webp") {
+    return (
+      bytes.length > 12 &&
+      bytes.subarray(0, 4).toString("ascii") === "RIFF" &&
+      bytes.subarray(8, 12).toString("ascii") === "WEBP"
+    );
+  }
+  return false;
+}
+
 async function buscarPorTokenEdicao(tokenEdicao: string) {
   const db = supabaseAdmin();
   const { data } = await db
@@ -162,7 +195,11 @@ export const adicionarNaGaleria = createServerFn({ method: "POST" })
   .handler(
     async ({
       data,
-    }): Promise<{ ok: boolean; galeria?: Array<{ caminho: string; url: string }>; erro?: string }> => {
+    }): Promise<{
+      ok: boolean;
+      galeria?: Array<{ caminho: string; url: string }>;
+      erro?: string;
+    }> => {
       const m = await buscarPorTokenEdicao(data.tokenEdicao);
       if (!m) return { ok: false, erro: "não encontrado" };
 
@@ -179,6 +216,9 @@ export const adicionarNaGaleria = createServerFn({ method: "POST" })
         const [, tipo, corpo] = casa;
         const bytes = Buffer.from(corpo, "base64");
         if (bytes.length > MAX_FOTO_BYTES) continue;
+        // A etiqueta `data:` não prova nada; os bytes provam. Ver
+        // `conferirAssinatura`.
+        if (!conferirAssinatura(bytes, tipo)) continue;
 
         // Nome único por posição+tempo: sem isso, subir duas fotos no mesmo
         // segundo sobrescreveria uma com a outra.
@@ -212,15 +252,37 @@ export const adicionarNaGaleria = createServerFn({ method: "POST" })
 /** Remove uma foto da galeria (e do bucket). */
 export const removerDaGaleria = createServerFn({ method: "POST" })
   .validator((data: { tokenEdicao: string; caminho: string }) => data)
-  .handler(async ({ data }): Promise<{ ok: boolean; galeria: Array<{ caminho: string; url: string }> }> => {
-    const m = await buscarPorTokenEdicao(data.tokenEdicao);
-    if (!m) return { ok: false, galeria: [] };
-    const db = supabaseAdmin();
-    const galeria = (m.galeria ?? []).filter((c: string) => c !== data.caminho);
-    await db.storage.from("fotos").remove([data.caminho]);
-    await db.from("musicas").update({ galeria }).eq("id", m.id);
-    return { ok: true, galeria: await assinarGaleria(galeria) };
-  });
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: boolean; galeria: Array<{ caminho: string; url: string }> }> => {
+      const m = await buscarPorTokenEdicao(data.tokenEdicao);
+      if (!m) return { ok: false, galeria: [] };
+      const db = supabaseAdmin();
+
+      // O CAMINHO TEM QUE ESTAR NESTA GALERIA.
+      //
+      // Antes, `data.caminho` ia direto pro `remove()`: o token de edição
+      // provava que a pessoa é dona DESTA música, e a linha seguinte apagava
+      // qualquer arquivo do bucket que ela nomeasse — inclusive `<outra
+      // musica>/capa.jpg`. Autorizar a porta e não conferir a sala é o mesmo
+      // erro do `admin_session=true`, um andar abaixo: o token foi verificado, o
+      // ALVO não.
+      //
+      // A conferência é contra a lista do banco, não contra um prefixo de
+      // caminho: comparar `caminho.startsWith(m.id)` aceitaria um `../` no meio
+      // e dependeria de o storage normalizar o caminho por nós.
+      const atual: string[] = m.galeria ?? [];
+      if (!atual.includes(data.caminho)) {
+        return { ok: false, galeria: await assinarGaleria(atual) };
+      }
+
+      const galeria = atual.filter((c: string) => c !== data.caminho);
+      await db.storage.from("fotos").remove([data.caminho]);
+      await db.from("musicas").update({ galeria }).eq("id", m.id);
+      return { ok: true, galeria: await assinarGaleria(galeria) };
+    },
+  );
 
 /**
  * Salva foto e/ou dedicatória.
@@ -264,6 +326,9 @@ export const salvarPersonalizacao = createServerFn({ method: "POST" })
       const bytes = Buffer.from(b64, "base64");
       if (bytes.length > MAX_FOTO_BYTES) {
         return { ok: false, erro: "A imagem é grande demais." };
+      }
+      if (!conferirAssinatura(bytes, tipo)) {
+        return { ok: false, erro: "Formato de imagem não aceito." };
       }
 
       // Caminho fixo por música: republicar SUBSTITUI em vez de acumular
