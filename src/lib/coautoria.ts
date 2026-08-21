@@ -1,7 +1,7 @@
 ﻿import { createServerFn } from "@tanstack/react-start";
 import { type Locale, normalizarLocale } from "@/lib/i18n";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { registrarCustoLetra, type UsoClaude } from "@/lib/custos";
+import { MODELO_LETRA, registrarCustoLetra, type UsoClaude } from "@/lib/custos";
 import { dispararGeracaoMusica } from "@/lib/gerar-letra";
 import {
   systemDaLetra,
@@ -27,7 +27,9 @@ import {
 // dispara só no FINALIZAR, porque a letra não é final até a coautoria
 // terminar. Continua ANTES do pagamento — a regra do CLAUDE.md se mantém.
 
-const MODEL = "claude-sonnet-5";
+// A string vive em `custos.ts`, colada na tabela de preço: trocar o modelo sem
+// trocar o preço faz o painel contabilizar errado sem avisar.
+const MODEL = MODELO_LETRA;
 
 type RespClaude = { texto: string; uso: UsoClaude; stopReason: string | null };
 
@@ -48,7 +50,15 @@ async function chamarClaude(userMsg: string, maxTokens: number, locale: Locale =
     body: JSON.stringify({
       model: MODEL,
       max_tokens: maxTokens,
-      output_config: { effort: "medium" },
+      // SEM `output_config.effort`: o Haiku 4.5 REJEITA esse campo com 400, e
+      // como toda letra passa por aqui isso derrubaria o funil inteiro, não um
+      // caso de borda. Se um dia voltar pra um modelo Opus/Sonnet, vale repor —
+      // lá ele controla profundidade e gasto.
+      //
+      // O `cache_control` abaixo fica, e hoje não faz efeito: o Haiku 4.5 só
+      // cria entrada de cache com 4.096 tokens de prefixo e este system tem
+      // ~1.200 (ver `custos.ts`). Mantido porque volta a valer sozinho se o
+      // modelo mudar, e porque tirar esconderia a intenção.
       system: [{ type: "text", text: systemDaLetra(locale), cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: userMsg }],
     }),

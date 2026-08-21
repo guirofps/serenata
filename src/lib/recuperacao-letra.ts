@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { registrarCustoLetra, type UsoClaude } from "@/lib/custos";
+import { MODELO_LETRA, registrarCustoLetra, type UsoClaude } from "@/lib/custos";
 import { dispararGeracaoMusica } from "@/lib/gerar-letra";
 
 // AJUSTE DE LETRA E REGRAVAÇÃO, na mão de quem está falando com o cliente.
@@ -18,7 +18,7 @@ import { dispararGeracaoMusica } from "@/lib/gerar-letra";
 // A conta é ridícula: reescrever a letra custa centavos de Claude e regravar
 // custa R$ 0,32 de kie.ai, contra R$ 38 de venda que já estava perdida.
 
-const MODEL = "claude-sonnet-5";
+const MODEL = MODELO_LETRA;
 
 // System próprio, e curto de propósito. O `systemDaLetra` da coautoria ensina
 // a ESCREVER do zero a partir do quiz; aqui o trabalho é o oposto, mexer o
@@ -59,7 +59,7 @@ async function chamarClaude(userMsg: string): Promise<{ texto: string; uso: UsoC
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 4000,
-      output_config: { effort: "medium" },
+      // Sem `output_config.effort` — 400 no Haiku 4.5. Ver `coautoria.ts`.
       system: [{ type: "text", text: SYSTEM_AJUSTE, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: userMsg }],
     }),
