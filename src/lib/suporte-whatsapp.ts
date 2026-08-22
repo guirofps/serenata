@@ -20,7 +20,7 @@
  *
  * VAZIO DESLIGA O BOTÃO: `linkSuporte` devolve null e nada é renderizado.
  */
-const NUMERO = "5511950557212";
+const NUMERO = "5545991355912";
 
 /**
  * Só dígitos e tamanho plausível de celular com DDI.
