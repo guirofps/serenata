@@ -6,6 +6,13 @@ import {
   assuntoSequencia,
   type NumeroDaSequencia,
 } from "../../emails/sequencia.js";
+import {
+  assuntoEscada,
+  emailEscada,
+  linkDeCompra,
+  ESPERA_H as ESPERA_ESCADA,
+  type DegrauEscada,
+} from "../../emails/escada.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
 import { cupomAtivo } from "../../src/lib/cupom.js";
@@ -30,11 +37,27 @@ const SITE = "https://www.serenatagift.com";
 // Não é intervalo fixo desde o quiz: quem recebeu o 1 atrasado (a fila drena a
 // 10 por rodada) receberia o 2 quase junto, e dois e-mails no mesmo dia é o
 // tipo de coisa que faz a pessoa marcar spam mesmo gostando do produto.
-const ESPERA_H: Record<NumeroDaSequencia, number> = {
+const ESPERA_H: Record<number, number> = {
   2: 24, // no dia seguinte: a gravação ficou pronta depois que ela saiu
   3: 72, // três dias depois do 2
   4: 120, // cinco dias depois do 3 — e aí para
 };
+
+/**
+ * Quanto esperar antes do próximo e-mail desta pessoa.
+ *
+ * O PORTUGUÊS roda a escada de dez degraus (`emails/escada.ts`); o ESPANHOL
+ * continua na régua curta daqui. Não é esquecimento: são 507 leads e uma venda
+ * em três dias naquele funil, volume que não sustenta dez disparos, e a copy da
+ * escada é escrita em português — traduzir seria outro trabalho, não uma
+ * passada de tradutor.
+ */
+function esperaDe(numero: number, locale: "pt" | "es"): number {
+  if (locale === "pt" && numero in ESPERA_ESCADA) {
+    return ESPERA_ESCADA[numero as DegrauEscada];
+  }
+  return ESPERA_H[numero] ?? 24;
+}
 
 // ATÉ ONDE A RÉGUA VAI. Medido em 16/08, com a conversão de cada etapa:
 //
@@ -55,11 +78,31 @@ const ESPERA_H: Record<NumeroDaSequencia, number> = {
 //
 // Fica em 2. Subir de novo é mudar este número, e os dados dos e-mails 3 e 4
 // continuam no banco pra comparar se um dia isso for revisto.
-const ULTIMO_EMAIL = 2;
+// ── ATÉ ONDE A RÉGUA VAI ────────────────────────────────────────
+//
+// Era 2, travado pelo número acima. Foi pra 11 (a letra é o 1, mais dez
+// degraus) por decisão do dono em 20/08, com aquele número à vista: a aposta é
+// que o que faltava era PREÇO, e a régua antiga nunca ofereceu nenhum — ela
+// mandava todo mundo de volta ao funil no valor cheio.
+//
+// O ESPANHOL FICA EM 2. A escada é copy em português e o volume de lá não
+// sustenta dez disparos.
+//
+// COMO SABER SE FOI ERRO: o painel de e-mail quebra por `template`, e cada
+// degrau sai como `recuperacao_<n>`. Se descadastro ou reclamação de spam
+// subirem num degrau, baixe este número — não precisa deploy nenhum pra ler,
+// e baixar é uma linha.
+function ultimoEmailDe(locale: "pt" | "es"): number {
+  return locale === "es" ? 2 : 11;
+}
 
 // Janela de entrada. Mais velho que isso não entra na sequência: e-mail sobre
 // uma letra de mês passado chega como cobrança, não como lembrança.
-const OLHAR_ATE_DIAS = 30;
+// Subiu de 30 pra 45 quando a escada entrou: os dez degraus somam 720h (30
+// dias) e a fila é montada a partir dos leads desta janela. Com 30, a pessoa
+// saía da lista no meio da régua e os últimos degraus simplesmente nunca
+// saíam — sem erro, sem log, só silêncio.
+const OLHAR_ATE_DIAS = 45;
 
 // Teto por rodada, pelo mesmo motivo do `mandarLetra`: `envio.serenatagift.com`
 // é domínio novo, e pico de volume em remetente sem histórico é a assinatura
@@ -169,7 +212,8 @@ export const sequenciaRecuperacao = inngest.createFunction(
         sessao: string;
         email: string;
         nome: string;
-        numero: NumeroDaSequencia;
+        /** Degrau da régua. Até 4 no espanhol, até 11 no português. */
+        numero: number;
         locale: "pt" | "es";
         /** Um trecho da letra QUE ELA ESCREVEU, pra ir dentro do e-mail. */
         verso: string | null;
@@ -177,8 +221,6 @@ export const sequenciaRecuperacao = inngest.createFunction(
 
       for (const [quizId, { quando, numero }] of ultimo) {
         if (out.length >= MAX_POR_RODADA) break;
-        if (numero >= ULTIMO_EMAIL) continue; // a régua acabou (ver ULTIMO_EMAIL)
-        const proximo = (numero + 1) as NumeroDaSequencia;
 
         const l = porId.get(quizId);
         if (!l?.email) continue;
@@ -190,10 +232,16 @@ export const sequenciaRecuperacao = inngest.createFunction(
         // caro que existe, e a trava é a mesma do `mandarLetra`.
         if (pareceTypo(l.email)) continue;
 
-        const horas = (agora - quando) / 3600000;
-        if (horas < ESPERA_H[proximo]) continue;
-
+        // O IDIOMA SOBE PRA CÁ porque agora ele DECIDE os dois portões abaixo:
+        // o português vai até o degrau 11 com a espera da escada, o espanhol
+        // para no 2 com a espera antiga. Enquanto ele era lido depois, os dois
+        // funis eram medidos pela mesma régua.
         const locale = l.locale === "es" ? "es" : "pt";
+        if (numero >= ultimoEmailDe(locale)) continue; // a régua acabou
+        const proximo = numero + 1;
+
+        const horas = (agora - quando) / 3600000;
+        if (horas < esperaDe(proximo, locale)) continue;
         const r = (l.respostas ?? {}) as Record<string, string>;
         out.push({
           quizId,
@@ -296,27 +344,52 @@ export const sequenciaRecuperacao = inngest.createFunction(
         // era o obstáculo, e mantê-lo era pagar 26% pra quem compraria do
         // mesmo jeito. O que entra no lugar é a letra dela, logo acima.
 
-        const link = `${SITE}/retomar?s=${encodeURIComponent(p.sessao)}`;
         const linkDescadastro = `${SITE}/descadastrar?s=${encodeURIComponent(p.sessao)}&lang=${p.locale}`;
 
+        // ── PARA ONDE O BOTÃO LEVA, e a diferença importa ──
+        //
+        // A régua antiga (e o espanhol) manda pro `/retomar`, que restaura a
+        // sessão e devolve a pessoa ao funil no preço da variante dela.
+        //
+        // A escada manda DIRETO pro checkout do degrau, porque o preço é o
+        // argumento do e-mail: passar pelo funil primeiro mostraria de novo o
+        // valor cheio e desmentiria o assunto que a pessoa acabou de abrir.
+        // `linkDeCompra` carrega o `src` — é ele que casa o pagamento com a
+        // música já gravada no webhook, e sem ele a compra vira "pago sem
+        // música casada".
+        const naEscada = p.locale === "pt" && p.numero >= 2 && p.numero <= 11;
+        const link = naEscada
+          ? linkDeCompra(p.numero as DegrauEscada, p.sessao, p.email)
+          : `${SITE}/retomar?s=${encodeURIComponent(p.sessao)}`;
+
         const { error } = await resend.emails.send({
-      // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
-      // (entregue, aberto, clicado, devolvido), e e o unico jeito de
-      // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
-      // pessoa e nem sempre vem no evento.
-      tags: [{ name: "template", value: `recuperacao_${p.numero}` }],
+          // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
+          // (entregue, aberto, clicado, devolvido), e e o unico jeito de
+          // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
+          // pessoa e nem sempre vem no evento.
+          tags: [{ name: "template", value: `recuperacao_${p.numero}` }],
           from: REMETENTE_RECUPERACAO,
           replyTo: RESPONDER_PARA,
           to: [p.email],
-          subject: assuntoSequencia(p.numero, p.nome, p.locale),
-          html: emailSequencia({
-            numero: p.numero,
-            nome: p.nome,
-            link,
-            linkDescadastro,
-            locale: p.locale,
-            verso: p.verso,
-          }),
+          subject: naEscada
+            ? assuntoEscada(p.numero as DegrauEscada, p.nome)
+            : assuntoSequencia(p.numero as NumeroDaSequencia, p.nome, p.locale),
+          html: naEscada
+            ? emailEscada({
+                numero: p.numero as DegrauEscada,
+                nome: p.nome,
+                link,
+                linkDescadastro,
+                verso: p.verso,
+              })
+            : emailSequencia({
+                numero: p.numero as NumeroDaSequencia,
+                nome: p.nome,
+                link,
+                linkDescadastro,
+                locale: p.locale,
+                verso: p.verso,
+              }),
           headers: {
             "List-Unsubscribe": `<${linkDescadastro}>`,
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",

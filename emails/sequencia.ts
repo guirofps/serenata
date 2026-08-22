@@ -145,7 +145,7 @@ export function assuntoSequencia(
  * em atributo. Não é preguiça de escrever CSS moderno — cliente de e-mail
  * ignora folha de estilo, e Outlook ignora quase tudo que não seja tabela.
  */
-function moldura(args: {
+export function moldura(args: {
   locale: IdiomaEmail;
   preheader: string;
   titulo: string;
