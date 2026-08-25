@@ -25,6 +25,7 @@ import { tp } from "@/lib/textos-presente";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
 import { ImagePlus, Trash2, Check, Copy, ExternalLink, Loader2, X, Play, Pause, MessageCircle } from "lucide-react";
+import { PedirRefacao } from "@/components/presente/PedirRefacao";
 
 // A ÁREA DO COMPRADOR — onde o presente deixa de ser um render e vira o
 // documento dela.
@@ -851,6 +852,14 @@ function Editor() {
             É também onde o comprador passa mais tempo (61% dos que compram
             chegam aqui) e onde ele descobre que quer ajuda: subir a foto,
             baixar o MP3, mandar o link. */}
+        {/* O AJUSTE, no fim da página e fechado por padrão.
+            A ação daqui é montar o presente; perguntar "o que você não
+            gostou?" no meio disso planta dúvida em quem estava satisfeito. */}
+        <PedirRefacao
+          tokenEdicao={tokenEdicao}
+          locale={p?.locale === "es" ? "es" : "pt"}
+        />
+
         {linkZap && (
           <div className="mx-auto mt-12 max-w-md text-center">
             <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
