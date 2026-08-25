@@ -62,6 +62,15 @@ export const TETO_LETRA: Teto = { nome: "ia", porSessao: 24, porOrigem: 120 };
  */
 export const TETO_MUSICA: Teto = { nome: "musica", porSessao: 6, porOrigem: 40 };
 
+/**
+ * A REFAÇÃO do cliente, no pós-compra.
+ *
+ * Números baixos porque o direito já é de UM ajuste por música: este teto não
+ * é a regra de negócio, é a rede contra repetição de clique e contra alguém
+ * varrendo tokens de edição. Quem tem direito legítimo nunca encosta nele.
+ */
+export const TETO_REFACAO: Teto = { nome: "refacao", porSessao: 4, porOrigem: 20 };
+
 /** Erro que a tela sabe distinguir de "o modelo falhou". */
 export class LimiteEstourado extends Error {
   constructor() {

@@ -25,7 +25,7 @@ const MODEL = MODELO_LETRA;
 // mínimo numa letra que a pessoa já leu e já aprovou quase inteira. Usar o
 // prompt de criação aqui devolveria uma letra nova, e a cliente perderia
 // justamente os versos de que gostou.
-const SYSTEM_AJUSTE = `Você ajusta letras de música já escritas, em português do Brasil.
+export const SYSTEM_AJUSTE = `Você ajusta letras de música já escritas, em português do Brasil.
 
 Recebe uma letra pronta e um pedido de mudança feito pelo cliente. Sua tarefa é
 aplicar EXATAMENTE o que foi pedido e mais nada.
@@ -46,7 +46,7 @@ Regras:
 Responda SÓ com JSON:
 {"letra": "a letra inteira, com as marcações", "mudou": ["o que foi alterado, 1 linha cada"], "aviso": "vazio, ou o que faltou para aplicar o pedido"}`;
 
-async function chamarClaude(userMsg: string): Promise<{ texto: string; uso: UsoClaude }> {
+export async function chamarClaude(userMsg: string): Promise<{ texto: string; uso: UsoClaude }> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error("ANTHROPIC_API_KEY ausente no servidor");
   const r = await fetch("https://api.anthropic.com/v1/messages", {
