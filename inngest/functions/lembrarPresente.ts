@@ -2,6 +2,7 @@ import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailLembretePresente, assuntoLembrete } from "../../emails/lembrete-presente.js";
+import { registrarEnvio } from "../../src/lib/registro-email.js";
 
 // LEMBRETE de quem pagou e não montou o presente.
 //
@@ -131,7 +132,7 @@ export const lembrarPresente = inngest.createFunction(
         // agora, e nada é pior que cobrar quem já fez.
         if (await jaLembrado(sb, c.musicaId)) return false;
 
-        const { error } = await new Resend(chave).emails.send({
+        const { data: enviado, error } = await new Resend(chave).emails.send({
       // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
       // (entregue, aberto, clicado, devolvido), e e o unico jeito de
       // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
@@ -150,6 +151,11 @@ export const lembrarPresente = inngest.createFunction(
           console.error("[lembrete] envio falhou:", error.message);
           return false;
         }
+        await registrarEnvio(sb, {
+          emailId: enviado?.id,
+          template: "lembrar_presente",
+          para: c.email,
+        });
 
         await sb.from("funnel_events").insert({
           event_name: "lembrete_presente_enviado",

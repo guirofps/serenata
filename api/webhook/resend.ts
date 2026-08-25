@@ -117,6 +117,26 @@ export default async function handler(req: Req, res: Res) {
     return res.status(400).json({ error: "json invalido" });
   }
 
+  // Resolve o template pelo id do envio. Devolve null quando não acha, que é o
+  // caso dos e-mails disparados antes desta tabela existir: relatório com
+  // buraco é melhor que webhook que quebra.
+  async function templateDoEnvio(emailId: string | null): Promise<string | null> {
+    if (!emailId) return null;
+    try {
+      const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!url || !key) return null;
+      const { data } = await createClient(url, key, { auth: { persistSession: false } })
+        .from("emails_enviados")
+        .select("template")
+        .eq("email_id", emailId)
+        .maybeSingle();
+      return (data as { template?: string } | null)?.template ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   const tipo = ev.type ?? "desconhecido"; // "email.opened"
   const d = ev.data ?? {};
   const para = Array.isArray(d.to) ? d.to[0] : d.to;
@@ -147,10 +167,16 @@ export default async function handler(req: Req, res: Res) {
           // vida, exatamente pra isso. Sem ele, abertura e clique da
           // recuperação 1, 2 e 3 caem num balaio só e não dá pra saber qual
           // e-mail vale a pena.
-          template:
-            (Array.isArray(d.tags)
-              ? d.tags.find((t) => t?.name === "template")?.value
-              : null) ?? null,
+          // O TEMPLATE VEM DA TABELA, não das tags.
+          //
+          // Eu apostei nas `tags` em 19/08 e o Resend não as ecoa nos eventos:
+          // 10.172 seguidos com `template: null`. O que ele ecoa em TODO evento
+          // é o `email_id`, que é o mesmo do envio, então a ligação foi gravada
+          // lá (`registrarEnvio`) e é resolvida aqui.
+          //
+          // As tags continuam saindo no envio: elas aparecem no painel do
+          // Resend e não custam nada. Só não servem pra isto.
+          template: await templateDoEnvio(d.email_id ?? null),
           para: para ?? null,
           link: d.click?.link ?? null,
           bounce: d.bounce?.type ?? null,

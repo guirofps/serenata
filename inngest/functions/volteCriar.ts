@@ -2,6 +2,7 @@ import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailVolteCriar, assuntoVolteCriar } from "../../emails/volte-criar.js";
+import { registrarEnvio } from "../../src/lib/registro-email.js";
 
 // RECOMPRA: convida quem já comprou a criar a próxima música.
 //
@@ -168,7 +169,7 @@ export const volteCriar = inngest.createFunction(
         // dela aparece se comprar. Mandar direto pro quiz pularia a oferta.
         const linkCriar = `${SITE}/dashboard`;
 
-        const { error } = await new Resend(chave).emails.send({
+        const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "volte_criar" }],
           from: "Serenata <contato@serenatagift.com>",
           replyTo: "contato@serenatagift.com",
@@ -189,6 +190,11 @@ export const volteCriar = inngest.createFunction(
           console.error("[volte-criar] envio falhou:", c.email, error.message);
           return false;
         }
+        await registrarEnvio(sb, {
+          emailId: enviado?.id,
+          template: "volte_criar",
+          para: c.email,
+        });
 
         await sb.from("funnel_events").insert({
           event_name: "volte_criar_enviado",

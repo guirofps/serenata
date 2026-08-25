@@ -131,6 +131,42 @@ async function avisarUmaVezPorDia(sb: SupabaseClient, teto: number): Promise<voi
 }
 
 /**
+ * O AVISO DE 80%, uma vez por dia.
+ *
+ * Falha em silêncio de propósito: um aviso que derruba a geração é pior que
+ * aviso nenhum.
+ */
+async function avisarPerto(sb: SupabaseClient, teto: number): Promise<void> {
+  try {
+    const alerta = Math.floor(teto * 0.8);
+    if (alerta < 1) return;
+    // Enquanto couber nos 80%, não há o que avisar.
+    if (await cabe(sb, `perto-teto-musica:${diaBr()}`, alerta)) return;
+    // Cruzou. A trava do e-mail é a mesma dos outros: contador de teto 1.
+    if (!(await cabe(sb, `alerta-perto-musica:${diaBr()}`, 1))) return;
+
+    const chave = process.env.RESEND_API_KEY;
+    if (!chave) return;
+    await new Resend(chave).emails.send({
+      from: "Serenata <contato@serenatagift.com>",
+      to: [PARA],
+      subject: `⚠️ 80% do teto de músicas usado hoje (${alerta} de ${teto})`,
+      html:
+        `<p><strong>Já foram ${alerta} das ${teto} músicas do dia.</strong> ` +
+        `Ainda está gerando normal, mas no ritmo de hoje o disjuntor desarma antes ` +
+        `da virada.</p>` +
+        `<p>Quando desarmar, quem pagar continua recebendo (o webhook refaz na hora), ` +
+        `mas passa a esperar uns 90 segundos em vez de receber pronto — e a regra de ` +
+        `nunca cobrar por algo que ainda não existe fica invertida.</p>` +
+        `<p>Se o dia está bom de verdade, suba o teto agora, no painel ou em ` +
+        `<code>TETO_MUSICAS_DIA</code> na Vercel. Não precisa de deploy e vale na hora.</p>`,
+    });
+  } catch (err) {
+    console.error("[disjuntor] aviso de 80% falhou:", err);
+  }
+}
+
+/**
  * Esta música pode gastar crédito do Suno agora?
  *
  * Chamada UMA vez por geração, imediatamente antes do primeiro gasto.
@@ -161,7 +197,20 @@ export async function podeGerar(
   }
 
   // ── 2. Ainda cabe no dia? ──
-  if (await cabe(sb, chaveDoDia(), teto)) return { ok: true };
+  if (await cabe(sb, chaveDoDia(), teto)) {
+    // O AVISO CHEGA ANTES DE MORDER.
+    //
+    // Em 21/08 o teto desarmou às 13:11 e o dono descobriu pelo funil, não
+    // pelo e-mail: o alerta existia, mas só saía DEPOIS que a geração já
+    // estava bloqueada, e a essa altura o estrago do dia já está feito.
+    //
+    // Este aqui avisa aos 80%, que é quando ainda dá pra subir o teto sem
+    // ninguém sentir. O truque é um SEGUNDO contador com teto menor: ele
+    // incrementa junto com o principal, então o instante em que ele recusa é
+    // exatamente o instante em que 80% foram usados.
+    await avisarPerto(sb, teto);
+    return { ok: true };
+  }
 
   await avisarUmaVezPorDia(sb, teto);
   return { ok: false, teto };

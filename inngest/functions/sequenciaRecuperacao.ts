@@ -16,6 +16,7 @@ import {
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
 import { cupomAtivo } from "../../src/lib/cupom.js";
+import { registrarEnvio } from "../../src/lib/registro-email.js";
 
 // A SEQUENCIA DE RECUPERACAO: hoje so o e-mail 2 (ver ULTIMO_EMAIL).
 //
@@ -362,7 +363,7 @@ export const sequenciaRecuperacao = inngest.createFunction(
           ? linkDeCompra(p.numero as DegrauEscada, p.sessao, p.email)
           : `${SITE}/retomar?s=${encodeURIComponent(p.sessao)}`;
 
-        const { error } = await resend.emails.send({
+        const { data: enviado, error } = await resend.emails.send({
           // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
           // (entregue, aberto, clicado, devolvido), e e o unico jeito de
           // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
@@ -399,6 +400,15 @@ export const sequenciaRecuperacao = inngest.createFunction(
           console.error("[sequencia] envio falhou:", p.email, p.numero, error.message);
           continue;
         }
+        // A PONTE PRA MEDIÇÃO. O Resend não devolve as tags nos eventos, então
+        // o par (id, template) é gravado aqui e o webhook resolve por ele.
+        // Ver src/lib/registro-email.ts.
+        await registrarEnvio(sb, {
+          emailId: enviado?.id,
+          template: `escada_${p.numero}`,
+          para: p.email,
+          quizResponseId: p.quizId ?? null,
+        });
         n++;
         // O `numero` aqui é o que faz a régua andar: a próxima rodada lê este
         // evento pra saber em que degrau a pessoa está. Sem ele, todo mundo

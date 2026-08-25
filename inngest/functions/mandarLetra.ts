@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { emailLetraPronta, assuntoLetraPronta } from "../../emails/letra-pronta.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
+import { registrarEnvio } from "../../src/lib/registro-email.js";
 
 // MANDA A LETRA por e-mail — a promessa que o quiz faz e que nunca foi
 // cumprida ("o e-mail é só pra você não perder").
@@ -173,7 +174,7 @@ export const mandarLetra = inngest.createFunction(
         const linkPrevia = `${SITE}/retomar?s=${encodeURIComponent(p.sessao)}`;
         const linkDescadastro = `${SITE}/descadastrar?s=${encodeURIComponent(p.sessao)}&lang=${p.locale}`;
 
-        const { error } = await resend.emails.send({
+        const { data: enviado, error } = await resend.emails.send({
       // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
       // (entregue, aberto, clicado, devolvido), e e o unico jeito de
       // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
@@ -202,6 +203,11 @@ export const mandarLetra = inngest.createFunction(
           console.error("[letra] envio falhou:", p.email, error.message);
           continue;
         }
+        await registrarEnvio(sb, {
+          emailId: enviado?.id,
+          template: "letra_pronta",
+          para: p.email,
+        });
         n++;
         await sb.from("funnel_events").insert({
           session_id: p.sessao || null,

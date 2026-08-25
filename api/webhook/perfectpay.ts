@@ -23,6 +23,7 @@ import { emailPresentePronto, assuntoPresentePronto } from "../../emails/present
 import { enviarVendaUtmify } from "../lib/utmify.js";
 import { pareceTypo, sugerirEmail } from "../../src/lib/email-typo.js";
 import { reconhecerOferta, PRODUTO_PRINCIPAL, OFERTAS } from "../../src/lib/creditos.js";
+import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { segredoConfere } from "../lib/segredo.js";
 
 type Req = IncomingMessage & {
@@ -835,7 +836,7 @@ export default async function handler(req: Req, res: Res) {
 
         const linkEditor = `${SITE}/editar/${musica.token_edicao}`;
         const linkPresente = `${SITE}/p/${musica.token}`;
-        const { error } = await new Resend(chave).emails.send({
+        const { data: enviado, error } = await new Resend(chave).emails.send({
           // A ETIQUETA DO ENVIO, que o Resend devolve em todo evento. E o
           // unico jeito de medir DEPOIS qual e-mail performou: o assunto
           // carrega o nome da pessoa e nem sempre vem no evento.
@@ -853,6 +854,12 @@ export default async function handler(req: Req, res: Res) {
           text: `A música de ${nome} está pronta.\n\nMonte o presente (coloque uma foto e uma frase):\n${linkEditor}\n\nO presente já funciona do jeito que está:\n${linkPresente}\n\nGuarde este e-mail: o link do editor é seu e só ele deixa editar a página.`,
         });
         if (error) throw new Error(error.message);
+        await registrarEnvio(sb, {
+          emailId: enviado?.id,
+          template: "entrega",
+          para: email,
+          quizResponseId: musica.quiz_response_id ?? null,
+        });
         await auditar("perfectpay_email_enviado", { paymentId, email });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
