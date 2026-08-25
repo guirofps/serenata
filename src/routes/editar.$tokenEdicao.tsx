@@ -18,7 +18,7 @@ import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { marcarDono } from "@/lib/dono-presente";
 import { marcarSessaoGasta } from "@/lib/session-context";
 import { linkSuporte, TEXTO_SUPORTE } from "@/lib/suporte-whatsapp";
-import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
+import { OfertaQuadroEditor } from "@/components/presente/OfertaQuadroEditor";
 import { trackEvent } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE, nomeCor } from "@/lib/marca";
 import { tp } from "@/lib/textos-presente";
@@ -914,7 +914,14 @@ function Editor() {
             resultado na mão. É onde a pergunta "quem mais merece uma?" cai em
             pé. Depois do bloco de ajuda ela viraria rodapé. */}
         <div className="mx-auto max-w-md">
-          <ConviteOutraMusica locale={p?.locale === "es" ? "es" : "pt"} origem="editor" />
+          {/* TROCA, não soma: o convite de criar outra saiu e o quadro entrou.
+              O editor já tinha três blocos depois da tarefa, e um quarto viraria
+              bagunça. O quadro vende 4,6x mais (23 contra 5) e faz sentido aqui,
+              onde ela acabou de escolher a foto e ler a letra.
+
+              A "mais uma música" continua nos e-mails de entrega e recompra,
+              onde não compete com nada. */}
+          <OfertaQuadroEditor locale={p?.locale === "es" ? "es" : "pt"} />
         </div>
 
         {/* SUPORTE POR WHATSAPP, e só aqui dentro.

@@ -43,6 +43,16 @@ export type Oferta = {
   /** Link de checkout da Perfect Pay. */
   checkout: string;
   /**
+   * Fora da vitrine, mas ainda reconhecida no webhook.
+   *
+   * Esconder e REMOVER são coisas diferentes: se uma venda dessas chegar
+   * (link antigo, bump, alguém que guardou a URL), o webhook precisa continuar
+   * sabendo creditar. Tirar do array faria o pagamento cair no ramo de
+   * "produto desconhecido", que alerta em vez de entregar.
+   */
+  oculta?: boolean;
+
+  /**
    * `product.code` da Perfect Pay (formato PPPB...). É o jeito CERTO de
    * reconhecer a compra no webhook: sobrevive a mudança de preço, promoção e
    * cupom, que o valor não sobrevive.
@@ -87,6 +97,11 @@ export const OFERTAS: Oferta[] = [
   },
   {
     id: "tres",
+    // ESCONDIDO EM 25/08. Zero vendas em sete dias, e o CLAUDE.md já explicava
+    // por quê: dos 290 compradores, 279 fizeram UMA música e 11 fizeram duas.
+    // Ninguém fez três. R$ 67 pede um comportamento que este público não tem,
+    // e ocupava espaço numa vitrine que já é pequena demais.
+    oculta: true,
     creditos: 3,
     precoBrl: 67,
     checkout: "https://go.perfectpay.com.br/PPU38CQFE9J",

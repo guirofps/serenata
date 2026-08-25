@@ -468,7 +468,6 @@ function Dashboard() {
                       alt=""
                       className="block"
                       style={{ width: 34, height: 48, objectFit: "cover" }}
-                      loading="lazy"
                     />
                   </span>
                 </span>

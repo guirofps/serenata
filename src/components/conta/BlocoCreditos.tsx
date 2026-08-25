@@ -93,7 +93,9 @@ export function BlocoCreditos({
   const t = TXT[locale] ?? TXT.pt;
   const o = TEXTO_OFERTA[locale] ?? TEXTO_OFERTA.pt;
   const reset = useQuizStore((s) => s.reset);
-  const musica = OFERTAS.filter((x) => x.creditos > 0);
+  // `oculta` fica de fora da vitrine e continua valendo no webhook: ver o
+  // comentário do campo em creditos.ts.
+  const musica = OFERTAS.filter((x) => x.creditos > 0 && !x.oculta);
   // A ancora so vale no BR: no ES a compra foi em dolar e o upsell e cobrado
   // em real, entao riscar "R$ 114" compararia duas moedas diferentes.
   const comAncora = locale === "pt";
