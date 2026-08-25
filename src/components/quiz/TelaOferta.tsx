@@ -17,7 +17,7 @@ import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
 import {
   Music, Images, Sparkles, QrCode, Download, Infinity as InfinityIcon,
-  Pencil, ShieldCheck, ChevronLeft, ChevronDown, Check,
+  Pencil, ShieldCheck, ChevronLeft, ChevronDown, Check, RefreshCw,
 } from "lucide-react";
 
 // A OFERTA, entre a letra e o gateway.
@@ -57,6 +57,20 @@ const ENTREGAVEIS_PT = [
     Icone: Download,
     titulo: "O MP3 pra baixar e guardar",
     detalhe: "A música fica no seu celular, pra ouvir quando quiser, com ou sem internet.",
+  },
+  {
+    // O AJUSTE DA MÚSICA, e ele fica DEPOIS do pagamento de propósito.
+    //
+    // A vontade de mexer aparece na hora que a pessoa ouve, e é onde ela mais
+    // desiste ("gostei, mas aquele trecho..."). Prometer aqui que dá pra
+    // ajustar tira o medo de comprar algo quase certo.
+    //
+    // Antes do pagamento não tem: cada regeração custa R$ 0,32 de alguém que
+    // ainda não pagou nada, e a decisão do dono é que isso vira produto do
+    // pós-compra, no painel.
+    Icone: RefreshCw,
+    titulo: "Não ficou do seu jeito? A gente refaz",
+    detalhe: "Depois de comprar, você pede um ajuste na sua conta: trocar um trecho da letra, mudar o estilo ou a voz. A gente regrava e te manda a nova versão.",
   },
   {
     Icone: Pencil,
@@ -104,6 +118,8 @@ const ENTREGAVEIS_ES = [
     detalhe: "Mandas el link por WhatsApp, o imprimes el código QR y lo pegas en una caja de chocolates. El regalo digital se vuelve regalo de mano." },
   { Icone: Download, titulo: "El MP3 para descargar y guardar",
     detalhe: "La canción queda en tu celular, para escucharla cuando quieras, con o sin internet." },
+  { Icone: RefreshCw, titulo: "¿No quedó a tu gusto? La rehacemos",
+    detalhe: "Después de comprar, pides un ajuste en tu cuenta: cambiar una parte de la letra, el estilo o la voz. La volvemos a grabar y te mandamos la nueva versión." },
   { Icone: Pencil, titulo: "Armas el regalo a tu manera",
     detalhe: "Eliges el color de la página, el efecto en pantalla y escribes una frase tuya. Puedes cambiarlo las veces que quieras." },
   { Icone: InfinityIcon, titulo: "Es tuya para siempre",

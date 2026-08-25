@@ -15,6 +15,7 @@ import { QrCode } from "lucide-react";
 import { type Locale, caminho } from "@/lib/i18n";
 import { APartirDe } from "@/components/quiz/PrecoDaOferta";
 import { t } from "@/lib/textos";
+import { varianteDe } from "@/lib/experimentos";
 
 // A REVELAÇÃO — agora é COAUTORIA, não letra pronta.
 //
@@ -69,6 +70,41 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
   const temHistoria = (r: Record<string, unknown>) =>
     Boolean(String(r.historia1 ?? "").trim() || String(r.historia2 ?? "").trim());
 
+  // ── A VARIANTE B: DIRETO AO PONTO ─────────────────────────────
+  //
+  // Mesmas funções do A, sem as perguntas. Escolhe o primeiro refrão sozinho,
+  // monta a letra e finaliza: a pessoa sai do quiz e a próxima coisa que vê é
+  // a música dela.
+  //
+  // O primeiro refrão não é sorteio: `gerarRefroes` devolve a lista na ordem
+  // que o modelo escreveu, e a primeira é a que ele considerou melhor. É a
+  // mesma que 84% das pessoas escolhem quando são perguntadas.
+  //
+  // Erro aqui cai na MESMA tela de erro do A, com "tentar de novo": o teste é
+  // sobre atrito, não sobre robustez, e uma variante que falha diferente
+  // mediria outra coisa.
+  async function caminhoDireto() {
+    setFase({ t: "carregando", msg: T.loadingLetra[0] });
+    try {
+      const dados = await gerarRefroes({
+        data: { sessionId: getOrCreateSessionId(), respostas: vivas(), locale },
+      });
+      const letra = await montarLetra({
+        data: {
+          sessionId: getOrCreateSessionId(),
+          respostas: vivas(),
+          refrao: dados.refroes[0],
+          locale,
+        },
+      });
+      trackEventOnce("fluxo_direto", "v1");
+      await finalizar(letra.letra, letra);
+    } catch (err) {
+      console.error("[fluxo-direto] falhou:", err);
+      setFase({ t: "erro", msg: T.naoConsegui, tentar: () => caminhoDireto() });
+    }
+  }
+
   async function carregarRefroes(regen = false) {
     if (regen) setRegerando(true);
     else setFase({ t: "carregando", msg: T.loadingLetra[0] });
@@ -100,10 +136,12 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
     }
   }
 
-  async function finalizar(letraEditada: string) {
-    if (fase.t !== "editando") return;
+  // `baseDireta` existe pro caminho B, que finaliza sem nunca ter passado
+  // pela fase "editando" (e portanto sem `fase.letra` pra ler).
+  async function finalizar(letraEditada: string, baseDireta?: LetraGerada) {
+    const base = baseDireta ?? (fase.t === "editando" ? fase.letra : null);
+    if (!base) return;
     setFinalizando(true);
-    const base = fase.letra;
     try {
       await finalizarLetra({
         data: {
@@ -163,7 +201,10 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
       return; // sem marcar jaComecou: se a história chegar, começa.
     }
     jaComecou.current = true;
-    carregarRefroes();
+    // A ESCOLHA DO CAMINHO, uma vez só. `varianteDe` lê o atributo que o
+    // <head> já carimbou, então não pisca nem sorteia de novo.
+    if (varianteDe("fluxo") === "B") caminhoDireto();
+    else carregarRefroes();
   }, [hidratada]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Frases de loading só na carga inicial dos refrões.

@@ -91,6 +91,40 @@ export type ExperimentoConfig = {
  */
 export const EXPERIMENTOS: Experimento[] = [
   {
+    id: "fluxo",
+    // A = coautoria (o funil de hoje) · B = direto (sem escolher refrão nem
+    // editar a letra; a música aparece assim que a letra sai).
+    //
+    // ── A TESE ─────────────────────────────────────────────────
+    //
+    // A coautoria veio da LoveTune e nunca foi testada. O que dá pra medir
+    // hoje não a favorece: quem troca de refrão converte 9,57%, quem usa o
+    // "aprimorar com IA" 10,91%, e quem simplesmente aceita o primeiro
+    // converte 12,52%. Nenhuma leitura sugere que mexer na letra ajuda.
+    //
+    // E ela custa gente: em 7 dias, 742 pessoas atravessaram 11 passos do
+    // quiz e sumiram DENTRO da coautoria (206 sem escolher refrão, 536 na
+    // tela de edição). É o segundo maior vazamento do funil, atrás só da
+    // abertura.
+    //
+    // ── POR QUE O B NÃO ECONOMIZA API ──────────────────────────
+    //
+    // O B chama exatamente as mesmas funções (`gerarRefroes` e `montarLetra`)
+    // e só deixa de PERGUNTAR: escolhe o primeiro refrão sozinho e segue. Não
+    // é economia, é atrito a menos, e é de propósito — trocar o motor junto
+    // com a interface faria o teste medir duas coisas ao mesmo tempo.
+    //
+    // ── O QUE O B NÃO FAZ ──────────────────────────────────────
+    //
+    // Não oferece refazer a música antes do pagamento. Regeração pré-venda
+    // custa R$ 0,32 por pedido de alguém que ainda não pagou nada, e a
+    // decisão do dono é que o ajuste vira produto do PÓS-compra, no painel.
+    variantes: ["A", "B"],
+    peso: [1, 1],
+    ativo: true,
+    nota: "Com ou sem a coautoria (escolher refrão + editar a letra). O B chama as mesmas funções e só não pergunta. Medir por RECEITA MENOS CUSTO DE API por sessão, nunca por conversão: as duas variantes gastam parecido, mas quem decide é o dinheiro que sobra.",
+  },
+  {
     id: "preco",
     // A=38 (controle) · B=19 · C=9 · D=29 · E=54,90.
     //
