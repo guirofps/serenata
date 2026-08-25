@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft } from "lucide-react";
+import { SugestoesDominio } from "@/components/quiz/SugestoesDominio";
 
 // PASSOS QUE NÃO EXISTEM SEM UMA LETRA ANTES.
 //
@@ -499,6 +500,11 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
               className="mx-auto max-w-md text-center"
               autoFocus
             />
+
+            {/* Os domínios a um toque. Vêm ANTES da correção de typo porque
+                agem antes do erro: a correção conserta o que saiu torto, isto
+                impede que saia. */}
+            <SugestoesDominio valor={email ?? ""} onEscolher={setEmail} />
 
             {/*
               E-MAIL DIGITADO ERRADO, corrigido a um toque.

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Loader2, Mail, Check } from "lucide-react";
 import { type Locale, caminho } from "@/lib/i18n";
 import { OfereceIdioma } from "@/components/OfereceIdioma";
+import { SugestoesDominio } from "@/components/quiz/SugestoesDominio";
 
 // Entrada na conta do comprador. Sem senha: só o e-mail que ele usou no
 // funil. O link mágico chega por e-mail e entra logado.
@@ -246,6 +247,13 @@ export function Login({ locale = "pt" }: { locale?: Locale }) {
                   className="w-full rounded-full border border-[var(--tinta-fraca)] bg-[var(--papel-fundo)] px-5 outline-none transition-colors focus:border-[var(--acento)]"
                   style={{ fontSize: "var(--t-base)", height: "3.25rem" }}
                 />
+                {/* O mesmo auxílio do funil: quem volta pra conta digita o
+                    e-mail outra vez, e errar aqui é ficar sem o link de
+                    acesso. Vai numa div própria pra não herdar o `pl-5` do
+                    aviso de typo. */}
+                <div className="mt-2">
+                  <SugestoesDominio valor={email} onEscolher={setEmail} />
+                </div>
                 {sugestao && (
                   <button
                     type="button"
