@@ -29,6 +29,26 @@ export type PresenteEditavel = {
   efeito: string | null;
   tokenPublico: string;
   publicada: boolean;
+  /**
+   * Quantas refações esta música já teve. Zero na imensa maioria, e quando é
+   * maior que zero as gravações atuais ganham o selo de "nova versão".
+   */
+  refacoes: number;
+  /**
+   * As gravações ARQUIVADAS, da mais recente pra mais antiga.
+   *
+   * Elas existem porque a refação SOMA em vez de substituir: o custo da
+   * primeira gravação já foi pago e não volta, então guardar transforma o
+   * mesmo gasto em mais produto e cobre quem pede o ajuste, ouve, e prefere o
+   * original.
+   */
+  anteriores: Array<{
+    ordem: number;
+    titulo: string | null;
+    audioUrlV1: string | null;
+    audioUrlV2: string | null;
+    pedido: string | null;
+  }>;
 };
 
 export const MAX_GALERIA = 12;
@@ -77,7 +97,7 @@ async function buscarPorTokenEdicao(tokenEdicao: string) {
   const { data } = await db
     .from("musicas")
     .select(
-      "id, token, titulo, foto_path, galeria, dedicatoria, personalizada_em, quiz_response_id, audio_path, audio_path_v2, versao_preferida, cor_destaque, efeito",
+      "id, token, titulo, foto_path, galeria, dedicatoria, personalizada_em, quiz_response_id, audio_path, audio_path_v2, versao_preferida, cor_destaque, efeito, refacoes_usadas",
     )
     .eq("token_edicao", tokenEdicao)
     .maybeSingle();
@@ -147,8 +167,35 @@ export const carregarParaEditar = createServerFn({ method: "GET" })
       efeito: m.efeito ?? null,
       tokenPublico: m.token,
       publicada: Boolean(m.personalizada_em),
+      refacoes: m.refacoes_usadas ?? 0,
+      anteriores: await versoesAnteriores(m.id),
     };
   });
+
+/**
+ * As gravações que a refação arquivou, prontas pra tocar.
+ *
+ * Consulta separada e não um join: são zero linhas pra quase todo mundo, e
+ * assinar URL de áudio custa uma chamada cada — não vale pagar isso na carga
+ * de quem nunca pediu ajuste.
+ */
+async function versoesAnteriores(musicaId: string) {
+  const { data } = await supabaseAdmin()
+    .from("versoes_musica")
+    .select("ordem, titulo, audio_path, audio_path_v2, pedido")
+    .eq("musica_id", musicaId)
+    .order("ordem", { ascending: false });
+  if (!data?.length) return [];
+  return Promise.all(
+    data.map(async (v) => ({
+      ordem: v.ordem as number,
+      titulo: (v.titulo as string | null) ?? null,
+      audioUrlV1: await urlDoAudio(v.audio_path as string | null),
+      audioUrlV2: await urlDoAudio(v.audio_path_v2 as string | null),
+      pedido: (v.pedido as string | null) ?? null,
+    })),
+  );
+}
 
 /** Salva a versão preferida (1 ou 2) — a que abre por padrão no presente. */
 export const definirVersaoPreferida = createServerFn({ method: "POST" })

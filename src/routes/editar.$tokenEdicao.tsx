@@ -388,8 +388,18 @@ function Editor() {
                           )}
                         </button>
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium" style={{ fontSize: "var(--t-sm)" }}>
+                          <p className="flex items-center gap-2 font-medium" style={{ fontSize: "var(--t-sm)" }}>
                             {T.versaoN(v)}
+                            {/* Só depois de uma refação. Sem ela o selo seria
+                                ruído: "nova" em relação a quê? */}
+                            {(p?.refacoes ?? 0) > 0 && (
+                              <span
+                                className="rounded-full bg-[var(--acento)]/12 px-2 py-0.5 font-semibold text-[var(--acento)]"
+                                style={{ fontSize: "10px" }}
+                              >
+                                {T.seloNova}
+                              </span>
+                            )}
                           </p>
                           <button
                             type="button"
@@ -417,6 +427,50 @@ function Editor() {
                     );
                   })}
                 </div>
+
+                {/* ── AS GRAVAÇÕES DE ANTES ────────────────────────
+                    Fechadas por padrão: a decisão desta tela é escolher entre
+                    as versões ATUAIS, e mostrar quatro gravações de uma vez
+                    transforma uma escolha simples numa comparação.
+
+                    Existem porque a refação SOMA. O custo da primeira já foi
+                    pago e não volta, então guardar cobre quem pede o ajuste,
+                    ouve, e prefere o original. */}
+                {(p?.anteriores?.length ?? 0) > 0 && (
+                  <details className="mt-4 rounded-[var(--raio)] border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)]">
+                    <summary
+                      className="flex h-11 cursor-pointer list-none items-center px-4 text-[var(--tinta-suave)]"
+                      style={{ fontSize: "var(--t-sm)" }}
+                    >
+                      {T.anterioresVer}
+                    </summary>
+                    <div className="border-t border-[var(--tinta-fraca)]/30 p-4">
+                      <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)", lineHeight: 1.5 }}>
+                        {T.anterioresTexto}
+                      </p>
+                      {(p?.anteriores ?? []).map((a) => (
+                        <div key={a.ordem} className="mt-4">
+                          {a.pedido && (
+                            <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)", lineHeight: 1.45 }}>
+                              <strong>{T.anterioresPedido}</strong> {a.pedido}
+                            </p>
+                          )}
+                          <div className="mt-2 space-y-2">
+                            {[a.audioUrlV1, a.audioUrlV2].filter(Boolean).map((url, i) => (
+                              <audio
+                                key={i}
+                                src={url as string}
+                                controls
+                                preload="none"
+                                className="w-full"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
               </section>
             )}
 
@@ -589,12 +643,30 @@ function Editor() {
                       <span className="absolute left-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-[var(--tinta)]/70 text-[10px] font-medium text-[var(--papel)]">
                         {i + 1}
                       </span>
+                      {/* APAGAR FOTO: alvo de 44px, botão de 28px.
+                          O botão tinha 24px de altura, abaixo do mínimo pra
+                          dedo, e fica encavalado num canto de miniatura, que é
+                          o pior lugar possível pra errar.
+
+                          Mas ele APAGA, e num destrutivo engordar o alvo tem
+                          um custo: quanto maior, mais fácil acertar sem
+                          querer. Por isso a área de toque cresce pra 44 e o
+                          desenho cresce só pra 28, e a confirmação entra
+                          junto: quem toca sem querer diz não e não perde nada.
+
+                          O `-m-2` devolve o espaço que o padding tomou, então
+                          a miniatura não muda de tamanho. */}
                       <button
-                        onClick={() => tirarDaGaleria(g.caminho)}
+                        onClick={() => {
+                          if (!window.confirm(T.removerFotoConfirma)) return;
+                          tirarDaGaleria(g.caminho);
+                        }}
                         aria-label={`Remover foto ${i + 1}`}
-                        className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-[var(--tinta)]/70 text-[var(--papel)] transition-colors duration-150 hover:bg-[var(--acento)]"
+                        className="absolute right-0 top-0 -m-2 grid h-11 w-11 place-items-center p-2"
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <span className="grid h-7 w-7 place-items-center rounded-full bg-[var(--tinta)]/70 text-[var(--papel)] transition-colors duration-150 hover:bg-[var(--acento)]">
+                          <X className="h-4 w-4" />
+                        </span>
                       </button>
                     </li>
                   ))}
