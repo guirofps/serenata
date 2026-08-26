@@ -2,6 +2,7 @@
 import { Link } from "@tanstack/react-router";
 import { FONTES } from "@/lib/marca";
 import { cn } from "@/lib/utils";
+import { type Locale } from "@/lib/i18n";
 import { Check, ChevronDown, Gift, Clock, Sparkles, Link2, ArrowRight } from "lucide-react";
 
 // Blocos da página de venda, na ordem do playbook Movify §2.
@@ -10,12 +11,32 @@ import { Check, ChevronDown, Gift, Clock, Sparkles, Link2, ArrowRight } from "lu
 // ── 02 · PROVA IMEDIATA ── objeção: "isso é sério?"
 // Sem cliente real ainda, então NADA de depoimento inventado (§3.5).
 // Usamos fatos verificáveis do produto: são todos medidos por nós.
-export function ProvaImediata() {
-  const fatos = [
-    { valor: "~6s", label: "pra letra ficar pronta" },
-    { valor: "~2min", label: "pra música ser gravada" },
-    { valor: "100%", label: "feita da sua história" },
-  ];
+// ── ELA NÃO SABIA QUE EXISTIA ESPANHOL ───────────────────────────
+//
+// Medido em 26/08: a abertura do quiz ES converte 17,1% contra 40,4% da
+// portuguesa, e este componente é um dos motivos. Ele renderiza LOGO ABAIXO do
+// botão, e as três linhas saíam em português na página espanhola:
+//
+//   ~6s  "pra letra ficar pronta"
+//   ~2min "pra música ser gravada"
+//   100% "feita da sua história"
+//
+// Numa tela cuja única função é responder "isso é sério?", texto em língua
+// estrangeira responde que não. Não é falha de tradução, é a assinatura de
+// site clonado — e o mexicano lê isso no segundo em que decide se confia.
+export function ProvaImediata({ locale = "pt" }: { locale?: Locale }) {
+  const fatos =
+    locale === "es"
+      ? [
+          { valor: "~6s", label: "para tener la letra" },
+          { valor: "~2min", label: "para grabar la canción" },
+          { valor: "100%", label: "hecha de tu historia" },
+        ]
+      : [
+          { valor: "~6s", label: "pra letra ficar pronta" },
+          { valor: "~2min", label: "pra música ser gravada" },
+          { valor: "100%", label: "feita da sua história" },
+        ];
   return (
     <section className="border-y border-[var(--tinta-fraca)]/25 bg-[var(--papel-fundo)]">
       <div className="mx-auto grid max-w-4xl grid-cols-3 gap-4 px-6 py-8 sm:py-10">

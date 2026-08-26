@@ -62,11 +62,12 @@ const prog = (t: number, inicio: number, dur: number) =>
 // Os versos e as fotos NÃO são inventados: saem de presentes reais gerados por
 // este funil, os mesmos que a home oferece pra ouvir. O português vem de
 // "Desde a Escola, Isabela" (esposa, sertanejo universitário) e o espanhol de
-// "El Mandil Azul", uma das três músicas da validação de 07/08.
+// "El Pedazo de Pastel" (esposa, banda).
 //
-// O espanhol segue na MÃE porque não existe verso nem capa do exemplo de
-// esposa espanhol ("El Café de las Cinco") em lugar nenhum do repositório, e
-// escrever letra pra ilustrar seria fabricar prova.
+// O espanhol vinha da MÃE ("El Mandil Azul") por se acreditar que não existia
+// exemplo de esposa em espanhol no repositório. Existia, com outro título, e a
+// tela mostrava a relação de 3,7% do público em vez da de 48%. Trocado em
+// 26/08; o porquê está no bloco `es` logo abaixo.
 const COPY: Record<
   Locale,
   {
@@ -121,17 +122,38 @@ const COPY: Record<
     tituloAntes: "Una canción hecha de la ",
     tituloOuro: "historia",
     tituloDepois: " de quien amas",
-    explicacao:
-      "Tú cuentas la historia. La letra queda lista al instante, gratis — y escuchas un pedazo cantado antes de decidir nada.",
+    // MESMO PESO DA PORTUGUESA, e isso é conserto medido, não gosto.
+    //
+    // A frase anterior tinha 118 caracteres contra 66 da portuguesa, prometia
+    // a LETRA (não a música), e terminava numa ressalva ("antes de decidir
+    // nada") na tela cujo único trabalho é fazer a pessoa começar. Resultado
+    // medido em 26/08: a abertura ES convertia 17,1% contra 40,4% da PT.
+    //
+    // A portuguesa é deliberadamente mais larga que a fronteira do paywall
+    // (ver o comentário dela acima). Esta agora diz a mesma coisa, com o mesmo
+    // tamanho e sem ressalva. Se um dia a PT for ajustada pra caber na
+    // fronteira, esta tem que ser ajustada JUNTO — as duas são a mesma
+    // promessa em dois idiomas, e foi a divergência entre elas que criou o
+    // buraco.
+    explicacao: "Tú cuentas la historia. La canción queda lista en 2 minutos, gratis.",
     cta: "CREAR MI CANCIÓN GRATIS",
     rotulo: "una canción para",
-    nome: "Lupita",
-    foto: "/img/exemplos/mae.webp",
+    // ESPOSA e não mãe, pelo mesmo motivo do português — e agora com o dado
+    // do próprio mercado: no quiz ES, cônjuge é 48,2% (esposa 27,0% + marido
+    // 21,2%) e MÃE É 3,7%. A tela mostrava o quinto caso mais provável.
+    //
+    // "El Pedazo de Pastel" é o exemplo de esposa que já existia no banco
+    // (token `exesesposa5c63ba27`, com capa `ex-capa.jpg` própria de exemplo,
+    // não foto de cliente). Os versos são literais dele: nada aqui é escrito
+    // pra ilustrar. Isso derruba a ressalva do comentário antigo, que dizia
+    // não existir exemplo de esposa em espanhol — existia, com outro título.
+    nome: "Ceci",
+    foto: "/img/exemplos/ceci.webp",
     versos: [
-      "Hoy le canto a mi Lupita",
-      "la que nunca se quejó",
-      "Desde las cinco en el mercado",
-      "ya se oía tu voz",
+      "En una boda en Culiacán te vi,",
+      "sirviendo el pastel de gente que ni conocí,",
+      "se te cayó un pedazo en mi camisa entera",
+      "y en vez de disculpas te reíste como fiera.",
     ],
   },
 };
@@ -385,7 +407,7 @@ export function AberturaPresente({
         {/* `-mx-3` desfaz o respiro do `main` pra faixa encostar nas bordas,
             que é como ela existe na home. */}
         <div className="-mx-3 mt-8">
-          <ProvaImediata />
+          <ProvaImediata locale={locale} />
         </div>
       </div>
     </div>
