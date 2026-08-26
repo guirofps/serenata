@@ -1,23 +1,63 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 /**
- * O MODELO QUE ESCREVE AS LETRAS — as do funil e as do ajuste pelo suporte.
+ * OS DOIS MODELOS QUE ESCREVEM AS LETRAS.
  *
- * Mora aqui, junto do preço, porque a string do modelo e a tabela de preço são
- * a mesma decisão: trocar uma sem a outra faz o painel contabilizar errado em
- * silêncio (o `registrarCustoLetra` abaixo cai no preço do Sonnet quando não
- * conhece o modelo). Antes a constante estava duplicada em `coautoria.ts` e em
+ * Moram aqui, junto do preço, porque a string do modelo e a tabela de preço
+ * são a mesma decisão: trocar uma sem a outra faz o painel contabilizar errado
+ * em silêncio (o `registrarCustoLetra` abaixo cai no modelo ATIVO quando não
+ * conhece o nome). Antes a constante estava duplicada em `coautoria.ts` e em
  * `recuperacao-letra.ts`, onde podia divergir.
  *
- * ── POR QUE HAIKU 4.5, EM 20/08 ─────────────────────────────────
+ * ── POR QUE DOIS, EM 26/08 ──────────────────────────────────────
  *
- * Volume. Com ~820 letras/dia, o Sonnet 5 sai R$ 181/dia e o Haiku R$ 90 —
- * e a tarifa introdutória do Sonnet ($2/$10) acaba em 31/08, quando essa
- * diferença dobra. Decisão do dono, com a ressalva registrada: a letra é o que
- * o Suno canta com 95% de fidelidade, então qualidade de letra é qualidade de
- * música. Se as letras piorarem, o caminho de volta é uma linha.
+ * Em 20/08 tudo passou pro Haiku 4.5, por volume: com ~820 letras/dia o
+ * Sonnet 5 saía R$ 181/dia contra R$ 90 do Haiku. A ressalva ficou escrita:
+ * "se as letras piorarem, o caminho de volta é uma linha".
+ *
+ * Pioraram. Medição de 26/08 sobre 5.322 letras reais, 2.595 do Sonnet contra
+ * 2.727 do Haiku, contra as regras do próprio `letra-prompt.ts`:
+ *
+ *   detalhes concretos por letra   4,93 -> 3,89   (-21%)
+ *   palavras por letra              290  -> 235    (-19%)
+ *   clichê da lista proibida       2,6% -> 5,0%   (z=4,6, p<0,00001)
+ *   estrutura / refrão / marcações        idênticos
+ *
+ * O Haiku obedece o formato e escreve mais raso: o MESMO número de versos com
+ * 55 palavras a menos. E perde justo na métrica que o prompt elegeu como
+ * definição de qualidade ("a única coisa que separa uma letra boa de uma
+ * genérica é o uso de detalhes concretos").
+ *
+ * A conversão NÃO mudou (10,64% -> 10,05% dentro do mesmo preço, p≈0,71), e
+ * é por isso que a volta é parcial e não total: não há prova de que a letra
+ * rasa esteja custando venda, então não se paga o preço cheio por ela.
+ *
+ * ── ONDE CADA UM ENTRA ──────────────────────────────────────────
+ *
+ * As chamadas de letra se dividem em duas, e foram medidas separadas:
+ *
+ *   opções de refrão   5.062 chamadas, saída ~210 tokens, 45% do custo
+ *   letra inteira      3.386 chamadas, saída ~610 tokens, 55% do custo
+ *
+ * A letra inteira é o que o cliente LÊ na prévia e o que o Suno CANTA com 95%
+ * de fidelidade: vai de Sonnet. As opções de refrão são uma escolha entre três
+ * frases curtas, onde a diferença entre os modelos vale muito menos que os
+ * R$ 36/dia que ela custaria: ficam no Haiku.
+ *
+ * Conta: voltar tudo custaria R$ 79/dia; só a letra final custa R$ 43/dia,
+ * uns R$ 0,38 por venda. E a tarifa introdutória do Sonnet ($2/$10) acaba em
+ * 31/08 — depois disso estes números praticamente dobram, e vale remedir.
  */
-export const MODELO_LETRA = "claude-haiku-4-5";
+export const MODELO_LETRA = "claude-sonnet-5";
+
+/**
+ * O modelo das etapas CURTAS (as opções de refrão da coautoria).
+ *
+ * Separado de `MODELO_LETRA` de propósito: quando alguém for mexer no modelo
+ * da letra, tem que ver que existem dois e que a escolha entre eles foi
+ * medida, não herdada.
+ */
+export const MODELO_LETRA_CURTA = "claude-haiku-4-5";
 
 // Preços dos provedores, num lugar só. Quando mudarem, muda aqui — o
 // histórico não se reescreve porque o custo em BRL fica congelado na linha.

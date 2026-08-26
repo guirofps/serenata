@@ -1,7 +1,7 @@
 ﻿import { createServerFn } from "@tanstack/react-start";
 import { type Locale, normalizarLocale } from "@/lib/i18n";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { MODELO_LETRA, registrarCustoLetra, type UsoClaude } from "@/lib/custos";
+import { MODELO_LETRA, MODELO_LETRA_CURTA, registrarCustoLetra, type UsoClaude } from "@/lib/custos";
 import { dispararGeracaoMusica } from "@/lib/gerar-letra";
 import {
   systemDaLetra,
@@ -27,16 +27,29 @@ import {
 // dispara só no FINALIZAR, porque a letra não é final até a coautoria
 // terminar. Continua ANTES do pagamento — a regra do CLAUDE.md se mantém.
 
-// A string vive em `custos.ts`, colada na tabela de preço: trocar o modelo sem
-// trocar o preço faz o painel contabilizar errado sem avisar.
+// As strings vivem em `custos.ts`, coladas na tabela de preço: trocar o modelo
+// sem trocar o preço faz o painel contabilizar errado sem avisar.
+//
+// SÃO DOIS, e a divisão foi medida (ver o comentário longo em `custos.ts`):
+// a letra inteira, que o cliente lê e o Suno canta, vai no modelo bom; as três
+// opções de refrão vão no barato. Cada chamador diz qual usa, e passa o MESMO
+// valor pro `registrarCustoLetra` — é o único jeito de o painel não mentir.
 const MODEL = MODELO_LETRA;
+const MODEL_CURTO = MODELO_LETRA_CURTA;
 
 type RespClaude = { texto: string; uso: UsoClaude; stopReason: string | null };
 
 // Uma chamada ao Claude, no formato já validado (medir-custo-letra.mjs):
 // system cacheável + pedido de JSON no fim. Devolve o texto cru; cada
 // chamador parseia o que precisa.
-async function chamarClaude(userMsg: string, maxTokens: number, locale: Locale = "pt"): Promise<RespClaude> {
+async function chamarClaude(
+  userMsg: string,
+  maxTokens: number,
+  locale: Locale = "pt",
+  // O padrão é o modelo BOM. Etapa nova que esquecer de escolher cai no caro e
+  // certo, nunca no barato e raso — o erro que ninguém percebe olhando a tela.
+  modelo: string = MODEL,
+): Promise<RespClaude> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error("ANTHROPIC_API_KEY ausente no servidor");
 
@@ -48,17 +61,17 @@ async function chamarClaude(userMsg: string, maxTokens: number, locale: Locale =
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: MODEL,
+      model: modelo,
       max_tokens: maxTokens,
       // SEM `output_config.effort`: o Haiku 4.5 REJEITA esse campo com 400, e
-      // como toda letra passa por aqui isso derrubaria o funil inteiro, não um
-      // caso de borda. Se um dia voltar pra um modelo Opus/Sonnet, vale repor —
-      // lá ele controla profundidade e gasto.
+      // como as opções de refrão ainda passam por ele isso derrubaria o funil
+      // inteiro, não um caso de borda. Só voltaria a ser opção se as DUAS
+      // etapas saíssem do Haiku.
       //
-      // O `cache_control` abaixo fica, e hoje não faz efeito: o Haiku 4.5 só
-      // cria entrada de cache com 4.096 tokens de prefixo e este system tem
-      // ~1.200 (ver `custos.ts`). Mantido porque volta a valer sozinho se o
-      // modelo mudar, e porque tirar esconderia a intenção.
+      // O `cache_control` abaixo agora VALE de novo na letra inteira: o Sonnet
+      // cria entrada de cache a partir de 1.024 tokens de prefixo e este
+      // system tem ~1.200. Nas opções de refrão continua sem efeito, porque o
+      // Haiku 4.5 exige 4.096 (ver `custos.ts`).
       system: [{ type: "text", text: systemDaLetra(locale), cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: userMsg }],
     }),
@@ -233,11 +246,21 @@ export const gerarRefroes = createServerFn({ method: "POST" })
 
 ${INSTRUCOES[locale].refroes}`;
 
-    const { texto, uso } = await chamarClaude(userMsg, 1500, locale);
+    // A ÚNICA ETAPA NO MODELO BARATO. Aqui o pedido é escolher entre três
+    // frases curtas, e a medição de 26/08 mostrou que o Haiku perde na letra
+    // LONGA (menos detalhe concreto, versos mais rasos), não em escolher.
+    // Vale 45% do custo da letra e não é o que o Suno canta.
+    const { texto, uso } = await chamarClaude(userMsg, 1500, locale, MODEL_CURTO);
     const p = extrairJson<{ titulo: string; estilo_suno: string; refroes: string[] }>(texto);
 
-    // Custo atribuído à sessão (musicaId ainda não existe).
-    await registrarCustoLetra({ quizResponseId: await quizIdParaCusto(data.sessionId), modelo: MODEL, uso });
+    // Custo atribuído à sessão (musicaId ainda não existe). O modelo passado
+    // aqui é o MESMO da chamada acima: se divergir, o painel cobra a etapa no
+    // preço do outro modelo e o erro só aparece na fatura.
+    await registrarCustoLetra({
+      quizResponseId: await quizIdParaCusto(data.sessionId),
+      modelo: MODEL_CURTO,
+      uso,
+    });
 
     const refroes = (p.refroes ?? []).map((s) => String(s).trim()).filter(Boolean);
     if (refroes.length < 2) throw new Error("modelo não devolveu dois refrões");
