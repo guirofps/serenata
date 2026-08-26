@@ -229,7 +229,7 @@ export default async function handler(req: Req, res: Res) {
             locale,
           }),
           // Versão texto: melhora a entrega (multipart/alternative).
-          text: `A música de ${nome} está pronta.\n\nMonte o presente (coloque uma foto e uma frase):\n${linkEditor}\n\nO presente já funciona do jeito que está:\n${linkPresente}\n\nGuarde este e-mail: o link do editor é seu e só ele deixa editar a página.`,
+          text: `A música de ${nome} está pronta.\n\nSEU LINK (monte o presente e baixe o MP3):\n${linkEditor}\n\nO LINK QUE VOCÊ MANDA PRA ELA:\n${linkPresente}\n\nGuarde este e-mail: o primeiro link é seu e só ele deixa editar a página e baixar a música.`,
         });
         if (error) throw new Error(error.message);
         await auditar("cakto_email_enviado", { paymentId, email });

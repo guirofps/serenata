@@ -82,7 +82,12 @@ describe("podeGerar — o disjuntor de gasto do Suno", () => {
   it("quem não pagou passa enquanto cabe no dia, e consome o contador", async () => {
     const { sb, rpcs } = fakeSb({ pago: false, cabe: true });
     await expect(podeGerar(sb, "quiz_1")).resolves.toEqual({ ok: true });
-    expect(rpcs.map((r) => r.chave.split(":")[0])).toEqual(["musica-dia"]);
+    const chaves = rpcs.map((r) => r.chave.split(":")[0]);
+    // O que importa é que o ORÇAMENTO DO DIA foi consumido, uma vez só.
+    // A lista não é comparada inteira porque `avisarPerto` sonda o contador
+    // de 80% na mesma passagem, e essa sonda é diagnóstico: ela pode entrar,
+    // sair ou mudar de nome sem que a regra testada aqui mude.
+    expect(chaves.filter((c) => c === "musica-dia")).toEqual(["musica-dia"]);
   });
 
   it("quem não pagou é barrado quando o dia estourou", async () => {

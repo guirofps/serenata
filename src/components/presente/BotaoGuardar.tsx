@@ -29,13 +29,21 @@ function suportaCompartilharArquivo(): boolean {
 
 export function BotaoGuardar({
   audioUrl,
+  obterUrl,
   titulo,
   nome,
   comDica = false,
   escuro = false,
   locale = "pt",
 }: {
-  audioUrl: string;
+  /** A URL assinada, quando quem chama já a tem (editor e página presente). */
+  audioUrl?: string;
+  /**
+   * Busca a URL no CLIQUE. É o caminho do painel, que lista N músicas e não
+   * pode assinar todas na carga só porque uma pode ser baixada.
+   * Um dos dois é obrigatório; `audioUrl` ganha quando os dois vêm.
+   */
+  obterUrl?: () => Promise<string | null>;
   titulo: string;
   nome: string;
   /** Mostra embaixo a explicação do que acontece no celular. */
@@ -62,20 +70,37 @@ export function BotaoGuardar({
   async function guardar() {
     const suporta = suportaCompartilharArquivo();
 
+    // A busca da URL entra ANTES dos dois caminhos e com o estado já em
+    // "preparando": no painel ela é uma ida ao servidor, e botão que fica
+    // parado depois do toque faz a pessoa tocar de novo.
+    setEstado("preparando");
+    let url = audioUrl ?? null;
+    if (!url && obterUrl) {
+      try {
+        url = await obterUrl();
+      } catch {
+        url = null;
+      }
+    }
+    if (!url) {
+      setEstado("parado");
+      return;
+    }
+
     if (!suporta) {
       // Desktop e navegador antigo: download normal.
       const a = document.createElement("a");
-      a.href = audioUrl;
+      a.href = url;
       a.download = `${arquivo}.mp3`;
       document.body.appendChild(a);
       a.click();
       a.remove();
+      setEstado("parado");
       return;
     }
 
-    setEstado("preparando");
     try {
-      const resp = await fetch(audioUrl);
+      const resp = await fetch(url);
       if (!resp.ok) throw new Error(`download falhou: ${resp.status}`);
       const blob = await resp.blob();
       const file = new File([blob], `${arquivo}.mp3`, { type: "audio/mpeg" });
@@ -95,7 +120,7 @@ export function BotaoGuardar({
       }
       console.error("[presente] compartilhar falhou:", err);
       // Último recurso: abre o arquivo, que é melhor que não fazer nada.
-      window.open(audioUrl, "_blank", "noopener");
+      window.open(url, "_blank", "noopener");
       setEstado("parado");
     }
   }

@@ -14,6 +14,8 @@ import { meusCreditos } from "@/lib/meus-creditos";
 import { meusQuadros } from "@/lib/meus-quadros";
 import { BlocoCreditos } from "@/components/conta/BlocoCreditos";
 import { BlocoQuadro } from "@/components/conta/BlocoQuadro";
+import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
+import { urlDaMusica } from "@/lib/personalizar";
 import {
   Loader2, Pencil, ExternalLink, Plus, LogOut, Music, Sparkles, Frame, Lock, ChevronRight,
 } from "lucide-react";
@@ -538,6 +540,23 @@ function Dashboard() {
                         >
                           <Pencil className="h-4 w-4" /> {T.montarBotao}
                         </Link>
+                        {/* BAIXAR, no cartão e não só dentro do editor.
+                            Em 26/08 dois tickets no mesmo dia foram isto: um
+                            comprador ENTROU NO PAINEL, viu "Montar o presente"
+                            e "Ver página", não achou a música e ficou quatro
+                            dias sem ela. Nenhum dos dois botões tem a palavra
+                            que ele estava procurando.
+                            A URL é assinada no clique (`urlDaMusica`), não na
+                            carga: a lista tem N músicas e quase ninguém baixa
+                            todas. */}
+                        <BotaoGuardar
+                          obterUrl={async () =>
+                            (await urlDaMusica({ data: { tokenEdicao: m.token_edicao } })).url
+                          }
+                          titulo={m.titulo ?? "musica"}
+                          nome=""
+                          locale={m.locale === "es" ? "es" : "pt"}
+                        />
                         <a
                           href={`/p/${m.token}`}
                           target="_blank"

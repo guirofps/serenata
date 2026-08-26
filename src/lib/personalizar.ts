@@ -417,3 +417,50 @@ export const removerFoto = createServerFn({ method: "POST" })
     await db.from("musicas").update({ foto_path: null }).eq("id", m.id);
     return { ok: true };
   });
+
+/**
+ * A URL assinada do MP3, sozinha.
+ *
+ * Existe pro botão "Baixar a música" do PAINEL. O `carregarParaEditar` já
+ * devolve o áudio, mas junto com foto, galeria e versões anteriores — cinco a
+ * dez assinaturas de Storage. Pra desenhar um botão no cartão da lista isso
+ * seria caro por música e por carregamento, e a lista tem N delas.
+ *
+ * Chamado no CLIQUE, não na carga: quem abre o painel pra ver o link não paga
+ * pela assinatura de quem vai baixar.
+ *
+ * A credencial é o `token_edicao`, igual ao editor e à refação. O painel exige
+ * login, mas o token é o que ele já tem em mãos na linha da música, e usar a
+ * mesma porta em todo lugar é o que evita ter duas regras de acesso.
+ */
+export const urlDaMusica = createServerFn({ method: "POST" })
+  .validator((data: { tokenEdicao: string }) => data)
+  .handler(
+    async ({ data }): Promise<{ url: string | null; titulo: string; nome: string }> => {
+      const vazio = { url: null, titulo: "Sua música", nome: "você" };
+      const m = await buscarPorTokenEdicao(data.tokenEdicao);
+      if (!m) return vazio;
+
+      // A versão que ela escolheu, com a outra como reserva: quem nunca abriu
+      // o editor tem `versao_preferida = 1` por padrão, e em música antiga o
+      // v2 pode não existir.
+      const caminho =
+        (m.versao_preferida === 2 ? m.audio_path_v2 : m.audio_path) ??
+        m.audio_path ??
+        m.audio_path_v2;
+      if (!caminho) return vazio;
+
+      const { data: q } = await supabaseAdmin()
+        .from("quiz_responses")
+        .select("respostas")
+        .eq("id", m.quiz_response_id)
+        .maybeSingle();
+      const r = (q?.respostas ?? {}) as Record<string, string>;
+
+      return {
+        url: await urlDoAudio(caminho),
+        titulo: m.titulo ?? "Sua música",
+        nome: r.nome?.trim() || "você",
+      };
+    },
+  );

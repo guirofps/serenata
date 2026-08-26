@@ -36,17 +36,19 @@ const COPY: Record<IdiomaEmail, {
     titulo: (n) => `A música de <em style="color:#7d2b3a;">${n}</em> está pronta.`,
     faltaSo: "Falta só uma coisa:", montar: "montar o presente",
     coloque:
-      "Coloque uma foto e escreva uma frase sua. É o que transforma a página em algo que só vocês dois entendem.",
-    botao: "MONTAR O PRESENTE →",
-    guarde: "Guarde este e-mail: este link é seu e só ele deixa editar a página.",
+      "Coloque uma foto e escreva uma frase sua. É o que transforma a página em algo que só vocês dois entendem. <strong style=\"color:#2a1518;\">É aqui também que você baixa o MP3 da música.</strong>",
+    botao: "MONTAR O PRESENTE E BAIXAR O MP3 →",
+    guarde:
+      "Este é o SEU link, guarde ele. É por aqui que você edita a página e baixa a música, sempre que quiser.",
     ajuda: "Não conseguiu abrir sua música? Fale com a gente no WhatsApp.",
     ajudaBotao: "Chamar no WhatsApp",
     quadroTitulo: "E se essa música também ficasse na parede?",
     quadroTexto:
       "O quadro é a letra dela e a foto de vocês numa folha A4, com o QR Code que toca a música. Você salva o PDF, manda imprimir, põe numa moldura e pendura. Quem passar na frente aponta a câmera e ouve.",
     quadroBotao: "VER O QUADRO DA MINHA MÚSICA",
-    comPressa: "Com pressa? O presente já funciona do jeito que está:",
-    verPresente: "VER A PÁGINA DO PRESENTE",
+    comPressa:
+      "E este é o link <strong style=\"color:#2a1518;\">que você manda pra ela</strong>. O presente já funciona do jeito que está, mesmo sem a foto:",
+    verPresente: "ABRIR A PÁGINA QUE EU VOU MANDAR",
     rodape: "Serenata · uma música feita da história de quem você ama",
   },
   es: {
@@ -54,11 +56,13 @@ const COPY: Record<IdiomaEmail, {
     titulo: (n) => `La canción de <em style="color:#7d2b3a;">${n}</em> ya está lista.`,
     faltaSo: "Falta solo una cosa:", montar: "armar el regalo",
     coloque:
-      "Pon una foto y escribe una frase tuya. Es lo que convierte la página en algo que solo ustedes dos entienden.",
-    botao: "ARMAR EL REGALO →",
-    guarde: "Guarda este correo: este link es tuyo y solo él permite editar la página.",
-    comPressa: "¿Con prisa? El regalo ya funciona tal como está:",
-    verPresente: "VER LA PÁGINA DEL REGALO",
+      "Pon una foto y escribe una frase tuya. Es lo que convierte la página en algo que solo ustedes dos entienden. <strong style=\"color:#2a1518;\">Aquí también descargas el MP3 de la canción.</strong>",
+    botao: "ARMAR EL REGALO Y DESCARGAR EL MP3 →",
+    guarde:
+      "Este es TU link, guárdalo. Por aquí editas la página y descargas la canción, cuando quieras.",
+    comPressa:
+      "Y este es el link <strong style=\"color:#2a1518;\">que le envías a ella</strong>. El regalo ya funciona tal como está, aunque todavía no pongas la foto:",
+    verPresente: "ABRIR LA PÁGINA QUE VOY A ENVIAR",
     ajuda: "¿No pudiste abrir tu canción? Habla con nosotros por WhatsApp.",
     ajudaBotao: "Escribir por WhatsApp",
     quadroTitulo: "",
