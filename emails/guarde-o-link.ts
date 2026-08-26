@@ -111,7 +111,11 @@ export function emailGuardeOLink(args: {
             <tr><td style="padding:18px 20px;">
               <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#7d2b3a;font-weight:bold;">${t}</p>
               <p style="margin:8px 0 0;color:rgba(42,21,24,0.75);font-size:14px;line-height:1.6;font-family:Helvetica,Arial,sans-serif;">${texto}</p>
-              <a href="${href}" style="display:inline-block;margin-top:14px;padding:12px 22px;border-radius:999px;background:#7d2b3a;color:#faf5ee;text-decoration:none;font-weight:bold;font-size:13px;font-family:Helvetica,Arial,sans-serif;">${botao}</a>
+              <!-- 14px de padding e não 12: com 12 o botão de uma linha só
+                   media 40px de altura, abaixo dos 44 de alvo de toque. O
+                   outro passava porque o texto quebrava em duas linhas, o que
+                   é sorte, não desenho. -->
+              <a href="${href}" style="display:inline-block;margin-top:14px;padding:14px 22px;border-radius:999px;background:#7d2b3a;color:#faf5ee;text-decoration:none;font-weight:bold;font-size:13px;font-family:Helvetica,Arial,sans-serif;">${botao}</a>
             </td></tr>
           </table>
         </td></tr>`;
