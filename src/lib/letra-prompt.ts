@@ -1,6 +1,13 @@
 import { type Locale, LOCALE_PADRAO } from "@/lib/i18n";
 import { acharGenero } from "@/lib/generos";
-import { LETRA_SYSTEM_ES, RELACAO_ES, OCASIAO_ES, VOZ_ES } from "@/lib/letra-prompt-es";
+import {
+  LETRA_SYSTEM_ES,
+  LETRA_SYSTEM_ES_ESPANHA,
+  RELACAO_ES,
+  OCASIAO_ES,
+  VOZ_ES,
+} from "@/lib/letra-prompt-es";
+import { ehEspanha } from "@/lib/mercado-es";
 
 // Prompt de geração de letra (de prompts/letra.md). System estável e cacheável;
 // respostas do quiz vão por último (cache é casamento de prefixo — nada de
@@ -230,9 +237,17 @@ ${L.recado}:
 ${recado}`;
 }
 
-/** O system prompt do idioma. Cacheável: nada de nome ou id aqui dentro. */
+/**
+ * O system prompt do idioma. Cacheável: nada de nome ou id aqui dentro.
+ *
+ * O espanhol tem DOIS, e qual sai depende do mercado que a mídia está
+ * comprando (`mercado-es.ts`). Não é a mesma letra com sotaque: a lista de
+ * clichês, o vocabulário e a conjugação mudam inteiros, e o prompt latino
+ * proíbe por escrito exatamente as formas que a Espanha exige.
+ */
 export function systemDaLetra(locale: Locale): string {
-  return locale === "es" ? LETRA_SYSTEM_ES : LETRA_SYSTEM;
+  if (locale === "es") return ehEspanha() ? LETRA_SYSTEM_ES_ESPANHA : LETRA_SYSTEM_ES;
+  return LETRA_SYSTEM;
 }
 
 // Schema de saída (structured output).

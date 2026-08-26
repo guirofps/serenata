@@ -147,13 +147,29 @@ const COPY: Record<
     // não foto de cliente). Os versos são literais dele: nada aqui é escrito
     // pra ilustrar. Isso derruba a ressalva do comentário antigo, que dizia
     // não existir exemplo de esposa em espanhol — existia, com outro título.
-    nome: "Ceci",
+    // ESPANHA, e a troca aconteceu duas vezes no mesmo dia por um motivo que
+    // vale registrar: a primeira correção trocou a mãe ("El Mandil Azul") por
+    // uma esposa MEXICANA ("El Pedazo de Pastel", que abre com "una boda en
+    // Culiacán"). Estava certo o parentesco e errado o país — o dado de que a
+    // campanha rodava México veio do nosso próprio campo de WhatsApp, que tem
+    // +52 de padrão e por isso mostrava México pra todo mundo.
+    //
+    // Esta letra foi gerada pelo nosso pipeline com o prompt novo da Espanha
+    // (`LETRA_SYSTEM_ES_ESPANHA`), a partir de uma história de Valência. Ela
+    // ainda NÃO tem página publicada como a portuguesa tem — é a única
+    // diferença entre os dois lados, e ela se fecha quando a Espanha virar
+    // campanha de verdade e houver exemplo real com áudio pra oferecer.
+    //
+    // A capa é reaproveitada do exemplo anterior: foto de casal não carrega
+    // afirmação de país, e gerar imagem nova seria inventar o que a letra já
+    // diz melhor.
+    nome: "Marta",
     foto: "/img/exemplos/ceci.webp",
     versos: [
-      "En una boda en Culiacán te vi,",
-      "sirviendo el pastel de gente que ni conocí,",
-      "se te cayó un pedazo en mi camisa entera",
-      "y en vez de disculpas te reíste como fiera.",
+      "Un sábado en el mercado central,",
+      "tú te colaste sin querer delante de mí,",
+      "te pusiste roja como un pimiento,",
+      "y me invitaste a un café para pedir perdón.",
     ],
   },
 };

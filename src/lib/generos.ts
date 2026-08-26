@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n";
+import { ehEspanha } from "@/lib/mercado-es";
 
 // OS GÊNEROS, num lugar só.
 //
@@ -179,10 +180,75 @@ const ES: Genero[] = [
     estiloSuno: "canción infantil suave, caja de música, ukulele, clima dulce" },
 ];
 
-const POR_IDIOMA: Record<Locale, Genero[]> = { pt: PT, es: ES };
+// ── ESPANHA (Europa), que não é a mesma coisa que a LatAm ────────
+//
+// Vallenato, tango, cumbia, huayno, cueca, mariachi, banda, norteño e corrido
+// tumbado são de LÁ. Um espanhol de Madrid abre esse seletor e não reconhece
+// dois terços da lista — e o dado diz o que acontece nesse caso: 45,6% dos
+// visitantes ES escolheram "balada", que é o chip que sobra quando a pessoa
+// não acha o gênero dela.
+//
+// A ordem aqui é por probabilidade de compra num presente romântico, não por
+// prestígio musical: balada e pop primeiro, o folclórico depois. Copla e
+// flamenco ficam no meio de propósito — vendem muito bem em homenagem a mãe e
+// avó, que é onde a idade do público sobe.
+//
+// `cristiana` cai pro fim (era 11,8% na LatAm; a Espanha é bem mais laica) e
+// `infantil_es` fica, porque é o mesmo caso de uso em qualquer país.
+const ES_ESPANHA: Genero[] = [
+  { value: "balada_esp", label: "Balada romántica", emoji: "💕",
+    rotuloPrompt: "balada romántica española",
+    estiloSuno: "balada romántica española, piano, cuerdas suaves, voz emotiva y cercana, clima cinematográfico e íntimo" },
+  { value: "pop_esp", label: "Pop español", emoji: "✨",
+    rotuloPrompt: "pop español",
+    estiloSuno: "pop español moderno, guitarra acústica, percusión suave, producción limpia y luminosa, voz cercana" },
+  { value: "cantautor", label: "Cantautor / voz y guitarra", emoji: "🎙️",
+    rotuloPrompt: "cantautor (voz y guitarra)",
+    estiloSuno: "cantautor español intimista, guitarra acústica arpegiada, tempo lento, arreglo mínimo, voz susurrada y narrativa" },
+  { value: "rumba", label: "Rumba / flamenco pop", emoji: "🌺",
+    rotuloPrompt: "rumba flamenca",
+    estiloSuno: "rumba flamenca alegre, guitarra española rasgueada, palmas y cajón, ritmo festivo y cálido, voz con quejío suave" },
+  { value: "bachata_es", label: "Bachata", emoji: "💃",
+    rotuloPrompt: "bachata",
+    estiloSuno: "bachata romántica, guitarra requinto con síncopa, bongó y güira, ritmo sensual y cadencioso, voz dulce" },
+  { value: "reggaeton_es", label: "Reggaetón romántico", emoji: "🔥",
+    rotuloPrompt: "reggaetón romántico",
+    estiloSuno: "reggaetón romántico melódico, ritmo dembow suave, sintetizadores cálidos, voz cantada y cercana" },
+  { value: "copla", label: "Copla / canción española", emoji: "🌹",
+    rotuloPrompt: "copla española",
+    estiloSuno: "copla española clásica, guitarra española y cuerdas, tempo lento y dramático, voz con mucho sentimiento" },
+  { value: "flamenco", label: "Flamenco", emoji: "🎸",
+    rotuloPrompt: "flamenco",
+    estiloSuno: "flamenco romántico, guitarra flamenca, palmas y cajón, compás de bulería lenta, voz con quejío" },
+  { value: "rock_espanha", label: "Rock español", emoji: "🤘",
+    rotuloPrompt: "rock español romántico",
+    estiloSuno: "rock español romántico, guitarra eléctrica con distorsión suave, batería marcada, voz emotiva, clima de balada rock" },
+  { value: "indie_esp", label: "Indie español", emoji: "🌙",
+    rotuloPrompt: "indie español",
+    estiloSuno: "indie pop español, guitarras limpias con reverb, batería suave, producción atmosférica, voz cercana y melancólica" },
+  { value: "bolero_es", label: "Bolero", emoji: "🕯️",
+    rotuloPrompt: "bolero",
+    estiloSuno: "bolero clásico, guitarra de nylon arpegiada, contrabajo, voz aterciopelada, clima nocturno y romántico" },
+  { value: "sevillanas", label: "Sevillanas", emoji: "💃",
+    rotuloPrompt: "sevillanas",
+    estiloSuno: "sevillanas alegres, guitarra española, palmas y castañuelas, compás de tres por cuatro, voz festiva" },
+  { value: "cristiana_es", label: "Música cristiana", emoji: "📖",
+    rotuloPrompt: "música cristiana",
+    estiloSuno: "música cristiana, piano y cuerdas, coro suave, clima reverente e inspirador" },
+  { value: "infantil_es", label: "Infantil", emoji: "⭐",
+    rotuloPrompt: "infantil",
+    estiloSuno: "canción infantil suave, caja de música, ukulele, clima dulce" },
+];
+
+// O `acharGenero` varre ESTE objeto, então as duas listas espanholas precisam
+// estar aqui dentro mesmo quando só uma está no ar. Uma música gerada na
+// campanha LatAm é aberta meses depois; se o valor dela sumisse do mapa, a
+// página presente cairia no fallback genérico em silêncio.
+const TODAS: Record<string, Genero[]> = { pt: PT, es: ES, es_espanha: ES_ESPANHA };
 
 export function generos(locale: Locale): Genero[] {
-  return POR_IDIOMA[locale] ?? PT;
+  if (locale === "es") return ehEspanha() ? ES_ESPANHA : ES;
+  return TODAS[locale] ?? PT;
 }
 
 /**
@@ -195,7 +261,7 @@ export function generos(locale: Locale): Genero[] {
  */
 export function acharGenero(value: string | null | undefined): Genero | null {
   if (!value) return null;
-  for (const lista of Object.values(POR_IDIOMA)) {
+  for (const lista of Object.values(TODAS)) {
     const g = lista.find((x) => x.value === value);
     if (g) return g;
   }
