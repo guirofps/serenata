@@ -183,7 +183,17 @@ const COPY = {
     creditoValor: "R$ 0",
     creditoIndo: "Desbloqueando...",
     abrindo: "Abrindo o pagamento…", abrindoCurto: "Abrindo…",
-    gateway: "PIX ou cartão, processado pela Perfect Pay",
+    // SEM CITAR PROCESSADOR, e não por preguiça de atualizar.
+    //
+    // Até 27/08 dizia "processado pela Perfect Pay", e isso virou mentira no
+    // minuto em que o PIX passou pra Woovi — mentira num SELO DE CONFIANÇA,
+    // que é o pior lugar possível pra ela estar.
+    //
+    // Nomear os dois ("PIX pela Woovi, cartão pela Perfect Pay") seria
+    // verdade e seria pior: são dois nomes que o comprador nunca ouviu, na
+    // linha logo abaixo do botão de pagar. O que tranquiliza ali não é QUEM
+    // processa, é que o dinheiro é rastreável e o pagamento é único.
+    gateway: "PIX ou cartão. Pagamento único, em ambiente seguro",
     antesDePagar: "Antes de pagar",
     suporte: "Qualquer dúvida, escreva pra",
     respondemos: ". A gente responde de verdade.",
