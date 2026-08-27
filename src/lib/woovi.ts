@@ -75,6 +75,27 @@ type ChargeWoovi = {
   transactionID?: string;
 };
 
+/**
+ * O 400 de "já existe cobrança com este correlationID".
+ *
+ * Casado pelo TEXTO porque é o que eles dão: o corpo é
+ * `{"error":"Já existe uma cobrança com este Correlação ID"}`, sem código
+ * nenhum pra distinguir de qualquer outro 400. Por isso o teste cobre as
+ * duas grafias (com e sem acento) e o inglês: um dia eles arrumam a mensagem
+ * e este caminho não pode virar erro na cara de quem ia pagar.
+ */
+export function jaExiste(mensagem: string): boolean {
+  const t = mensagem
+    .toLowerCase()
+    .normalize("NFD")
+    // `\p{M}` e não um intervalo de acentos combinantes escrito à mão: o
+    // intervalo literal fica invisível no editor e é a primeira coisa a
+    // sumir quando um arquivo passa por uma conversão de encoding errada.
+    .replace(/\p{M}/gu, "");
+  if (!t.startsWith("400")) return false;
+  return /ja existe|already exists|duplicate/.test(t) && /correla/.test(t);
+}
+
 /** `COMPLETED` é pago. `ACTIVE` é esperando, `EXPIRED` venceu. */
 function pagou(status: string | undefined): boolean {
   return String(status ?? "").toUpperCase() === "COMPLETED";
@@ -84,27 +105,70 @@ export const woovi: GatewayPix = {
   nome: "woovi",
 
   async criar(args): Promise<CobrancaPix> {
-    // O `correlationID` É a chave de idempotência da Woovi: repetir com o
-    // mesmo valor devolve a MESMA cobrança em vez de criar outra. É o que
-    // faz duplo-clique e reload não virarem dois PIX na conta da pessoa.
-    const r = await chamar<{ charge?: ChargeWoovi; brCode?: string }>("/charge", {
-      method: "POST",
-      body: JSON.stringify({
-        correlationID: args.referencia,
-        value: args.valorCentavos,
-        comment: args.descricao.slice(0, 140),
-        // Uma hora. Tempo de sobra pra quem vai pagar agora, e curto o
-        // bastante pra não encher a conta de cobrança morta. Quem some e
-        // volta depois gera outra.
-        expiresIn: 3600,
-        ...(args.nome || args.email
-          ? { customer: { name: args.nome ?? undefined, email: args.email ?? undefined } }
-          : {}),
-      }),
+    // ── A WOOVI NÃO É IDEMPOTENTE, E ISSO CUSTA CARO ───────────
+    //
+    // A documentação chama o `correlationID` de "identificador único da
+    // cobrança", o que se lê como idempotência. Não é. Medido em 27/08,
+    // repetindo o mesmo id:
+    //
+    //   HTTP 400 {"error":"Já existe uma cobrança com este Correlação ID"}
+    //
+    // Descoberto no teste de ponta a ponta, fechando e reabrindo a folha do
+    // PIX: a primeira vez mostrava o QR, a segunda mostrava "não consegui
+    // gerar o PIX agora". Em produção isso seria a pessoa que trocou de aba,
+    // voltou, e encontrou um erro em cima de uma cobrança que EXISTE.
+    //
+    // O conserto é reler: `GET /charge/{correlationID}` devolve a cobrança
+    // inteira, `brCode` incluído. Então a idempotência passa a ser nossa, e
+    // não dela.
+    const corpo = JSON.stringify({
+      correlationID: args.referencia,
+      value: args.valorCentavos,
+      comment: args.descricao.slice(0, 140),
+      // Uma hora. Tempo de sobra pra quem vai pagar agora, e curto o
+      // bastante pra não encher a conta de cobrança morta. Quem some e
+      // volta depois gera outra.
+      expiresIn: 3600,
+      ...(args.nome || args.email
+        ? { customer: { name: args.nome ?? undefined, email: args.email ?? undefined } }
+        : {}),
     });
 
-    const c = r.charge ?? {};
-    const copiaECola = c.brCode ?? r.brCode;
+    let c: ChargeWoovi;
+    let brCodeSolto: string | undefined;
+    try {
+      const r = await chamar<{ charge?: ChargeWoovi; brCode?: string }>("/charge", {
+        method: "POST",
+        body: corpo,
+      });
+      c = r.charge ?? {};
+      brCodeSolto = r.brCode;
+    } catch (err) {
+      if (!(err instanceof ErroGateway) || !jaExiste(err.message)) throw err;
+      // Já existe: devolve a MESMA cobrança, com o MESMO QR. Não é uma
+      // segunda tentativa, é a resposta certa pra segunda pergunta.
+      const r = await chamar<{ charge?: ChargeWoovi }>(
+        `/charge/${encodeURIComponent(args.referencia)}`,
+      );
+      c = r.charge ?? {};
+      // O VALOR TEM QUE BATER. Se a cobrança viva é de outro valor (o preço
+      // mudou entre as duas aberturas, ou o braço de preço foi trocado), a
+      // pessoa veria um número na tela e pagaria outro. Falha alto.
+      if (typeof c.value === "number" && c.value !== args.valorCentavos) {
+        throw new ErroGateway(
+          `cobrança existente é de ${c.value}, esperado ${args.valorCentavos}`,
+          "woovi",
+          false,
+        );
+      }
+      // E se ela já foi paga ou expirou, não dá pra reaproveitar o QR.
+      const st = String(c.status ?? "").toUpperCase();
+      if (st && st !== "ACTIVE") {
+        throw new ErroGateway(`cobrança existente está ${st}`, "woovi", false);
+      }
+    }
+
+    const copiaECola = c.brCode ?? brCodeSolto;
     if (!copiaECola) {
       // Sem o copia-e-cola não existe cobrança útil: a tela não tem o que
       // mostrar. Falha alto pra cair no outro gateway.
