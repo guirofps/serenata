@@ -548,7 +548,17 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       !cupom &&
       varianteDe("checkout_pix") === "B"
     ) {
-      trackEventOnce("pix_transparente_abriu", "v1", { valor: plano.valor });
+      // `trackEvent`, NÃO `trackEventOnce`.
+      //
+      // O `Once` deduplica por navegador, e aqui isso apagava o funil: quem
+      // fecha a folha e clica em comprar de novo gera um `checkout_click`
+      // novo (que é evento normal) e NENHUM `abriu`. A razão click→folha,
+      // que é o número que esta migração existe pra mover, saía menor que a
+      // realidade e piorando a cada reabertura.
+      //
+      // Visto ao vivo às 19:04, na primeira hora: três cliques em comprar e
+      // um `abriu` só.
+      trackEvent("pix_transparente_abriu", { valor: plano.valor });
       setPagandoComPix(plano.texto);
       setIndo(false);
       return;

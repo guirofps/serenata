@@ -106,6 +106,9 @@ export function PixPagamento({
       campo?.select();
     }
     setCopiado(true);
+    // Este FICA com `Once`, e o motivo é o oposto dos outros: copiar duas
+    // vezes é gesto de quem está pagando (colou errado, voltou, copiou de
+    // novo), não etapa nova do funil. Contar cada toque inflaria o degrau.
     trackEventOnce("pix_transparente_copiou", "v1");
     setTimeout(() => setCopiado(false), 2500);
   }

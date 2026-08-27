@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { criarPix, type ResultadoPix } from "@/lib/criar-pix";
 import { getOrCreateSessionId } from "@/lib/session-context";
-import { trackEvent, trackEventOnce } from "@/lib/track";
+import { trackEvent } from "@/lib/track";
 import { PixPagamento } from "@/components/quiz/PixPagamento";
 import { Button } from "@/components/ui/button";
 
@@ -54,7 +54,11 @@ export function PixTransparente({
           setFase({ t: "erro", motivo: r.erro });
           return;
         }
-        trackEventOnce("pix_transparente_gerado", "v1", { valor: r.valorCentavos });
+        // Sem `Once` pelo mesmo motivo do `abriu` (ver `TelaOferta`): a
+        // dedupe por navegador some com a segunda abertura, e é justamente a
+        // segunda abertura que prova se o conserto de idempotência funciona
+        // em gente de verdade.
+        trackEvent("pix_transparente_gerado", { valor: r.valorCentavos });
         setFase({ t: "pronto", dados: r });
       } catch (err) {
         console.error("[pix] criar falhou:", err);
