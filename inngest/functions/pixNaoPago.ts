@@ -16,12 +16,36 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 // pagamento e parou no último centímetro. É o lead mais quente do funil, e era
 // o único sem e-mail dedicado.
 //
-// ── POR QUE 40 MINUTOS ───────────────────────────────────────────
+// ── POR QUE 20 MINUTOS, E NÃO 40 NEM 10 ──────────────────────────
 //
-// Antes disso a pessoa ainda pode estar com o app do banco aberto, e o e-mail
-// chega como cobrança de quem está pagando agora. Depois de umas horas a
-// intenção esfria e o e-mail vira propaganda. Quarenta minutos é logo depois
-// do código vencer, que é o momento em que ela descobre que não deu certo.
+// Medido em 27/08, sobre os PIX pendentes que VIRARAM pagamento — a curva de
+// quanto tempo depois o dinheiro cai:
+//
+//   até 5 min    34,5%   (acumulado 34,5%)
+//   5 a 10 min   23,6%   (58,2%)
+//   10 a 20 min   7,3%   (65,5%)
+//   20 a 40 min  10,9%   (76,4%)
+//   40 a 60 min   3,6%   (80,0%)
+//   depois        20,0%
+//
+// A intenção decai rápido, então esperar 40 minutos é esperar demais. Mas
+// disparar aos 10 alcançaria 42% de quem AINDA VAI PAGAR, muitos com o app do
+// banco aberto naquele instante.
+//
+// Aos 20 minutos, dois terços de quem paga já pagou. Quem sobra é quase todo
+// gente que não volta sozinha, que é exatamente o alvo.
+//
+// ── E O CÓDIGO NÃO VENCEU ────────────────────────────────────────
+//
+// O primeiro texto deste e-mail dizia "o código anterior pode ter vencido".
+// Era falso: medido, o PIX da Perfect Pay vale ~55 HORAS (mínimo 45, máximo
+// 71). O código que a pessoa gerou continua bom por dois dias.
+//
+// Isso muda o e-mail de "gere um novo" para "ele está te esperando", que é
+// uma promessa melhor e verdadeira. E muda o link: em vez de mandar pro
+// checkout começar de novo, manda pro `pix_url`, a tela do PIX que ela já
+// abriu, com o código dela. Um toque, sem redigitar nada, e o pagamento cai
+// no MESMO pedido — o webhook já sabe o que fazer com ele.
 //
 // ── PREÇO CHEIO, SEM EXCEÇÃO ─────────────────────────────────────
 //
@@ -42,7 +66,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 // pra sustentar régua própria, e o checkout de lá é outro gateway com outra
 // moeda. Quando o volume justificar, é uma variante a mais aqui.
 
-const MIN_MIN = 40;
+const MIN_MIN = 20;
 // Janela de 24h: PIX de ontem ainda é intenção; de anteontem é cobrança.
 const MAX_H = 24;
 // Teto por rodada, pelo mesmo motivo do `volteCriar`: `serenatagift.com` é
@@ -111,7 +135,7 @@ export const pixNaoPago = inngest.createFunction(
 
       const { data: pendentes } = await sb
         .from("pedidos")
-        .select("id, email, quiz_response_id, valor_centavos, created_at")
+        .select("id, email, quiz_response_id, valor_centavos, created_at, pix_url")
         .eq("status", "pendente")
         .gte("created_at", new Date(agora - MAX_H * 3600000).toISOString())
         .lte("created_at", new Date(agora - MIN_MIN * 60000).toISOString())
@@ -166,15 +190,26 @@ export const pixNaoPago = inngest.createFunction(
         const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
         if (locale === "es") continue; // ver o cabeçalho
 
-        const checkout = await checkoutDoValor(sb, (p.valor_centavos ?? 0) / 100);
-        if (!checkout) continue;
-
-        // `src` é o session_id e NÃO é enfeite: é por ele que o webhook casa o
-        // pagamento com a música já gerada. Sem ele a compra entra como "pago
-        // sem música casada" e alguém entrega à mão.
-        const u = new URL(checkout);
-        u.searchParams.set("src", p.quiz_response_id);
-        u.searchParams.set("email", p.email);
+        // ── O LINK: o PIX DELA primeiro ──────────────────────────
+        //
+        // `pix_url` é a tela do PIX que ela já abriu, com o código dela, válido
+        // por ~55h. Um toque e ela paga, sem redigitar nada, e o dinheiro cai
+        // no MESMO pedido — o webhook já sabe casar aquele `payment_id` com a
+        // música. Voltar pro checkout seria fazê-la refazer tudo por nada.
+        //
+        // O checkout fica de RESERVA, pra pedido antigo que não guardou a URL.
+        // Aí sim precisa do `src`, que é o session_id: é por ele que o webhook
+        // casa o pagamento com a música já gerada. Sem ele a compra entra como
+        // "pago sem música casada" e alguém entrega à mão.
+        let link = p.pix_url as string | null;
+        if (!link) {
+          const checkout = await checkoutDoValor(sb, (p.valor_centavos ?? 0) / 100);
+          if (!checkout) continue;
+          const u = new URL(checkout);
+          u.searchParams.set("src", p.quiz_response_id);
+          u.searchParams.set("email", p.email);
+          link = u.toString();
+        }
 
         out.push({
           email: p.email,
@@ -183,7 +218,7 @@ export const pixNaoPago = inngest.createFunction(
           // assunto sairia com espaço duplo.
           nome: ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() || "quem você ama",
           titulo: m.titulo ?? "Sua música",
-          linkCheckout: u.toString(),
+          linkCheckout: link,
           quizId: p.quiz_response_id,
         });
       }
@@ -226,8 +261,8 @@ export const pixNaoPago = inngest.createFunction(
           }),
           text:
             `A música de ${c.nome} ficou pronta, mas o pagamento não chegou a cair.\n\n` +
-            `Nada se perdeu: a música está gravada e esperando.\n\n` +
-            `Gere um PIX novo aqui:\n${c.linkCheckout}\n\n` +
+            `Nada se perdeu: a música está gravada e o seu código PIX continua valendo.\n\n` +
+            `Pague com o seu PIX aqui:\n${c.linkCheckout}\n\n` +
             `Se preferir cartão, a opção aparece na mesma tela.`,
         });
         if (error) {

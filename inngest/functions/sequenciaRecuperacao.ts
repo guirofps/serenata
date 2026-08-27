@@ -93,8 +93,24 @@ function esperaDe(numero: number, locale: "pt" | "es"): number {
 // degrau sai como `recuperacao_<n>`. Se descadastro ou reclamação de spam
 // subirem num degrau, baixe este número — não precisa deploy nenhum pra ler,
 // e baixar é uma linha.
+// ── CORTADA EM 3, POR MEDIÇÃO (27/08) ────────────────────────────
+//
+//   degrau 2   2.931 envios   27 compras   0,92%   R$ 928,81
+//   degrau 3     966 envios    2 compras   0,21%   R$  64,11
+//   degrau 4     218 envios    0 compras   0,00%   —
+//   degrau 5      27 envios    0 compras   0,00%   —
+//
+// O 4 e o 5 somam 245 envios sem uma venda. Isso não é neutro: cada disparo
+// inútil gasta reputação do domínio, e é o Gmail que decide se o e-mail de
+// ENTREGA — o único que carrega produto pago — cai na caixa ou no spam. Era
+// apostar o canal que funciona pra sustentar degraus que não funcionam.
+//
+// O QUE ISSO CUSTA, e o dono decidiu com o número à vista: a escada de preço
+// (degraus 5 a 11, R$ 29 → R$ 19 → R$ 9) tinha acabado de começar a sair, com
+// 27 envios. Cortar em 3 mata esse teste antes de ele rodar. Voltar é trocar
+// o 3 por 6 aqui: são dois degraus de R$ 29 e nada mais.
 function ultimoEmailDe(locale: "pt" | "es"): number {
-  return locale === "es" ? 2 : 11;
+  return locale === "es" ? 2 : 3;
 }
 
 // Janela de entrada. Mais velho que isso não entra na sequência: e-mail sobre

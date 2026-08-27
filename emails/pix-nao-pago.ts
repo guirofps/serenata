@@ -41,10 +41,13 @@ const COPY: Record<
     assunto: (n) => `A música de ${n} ficou pronta e o pagamento não entrou`,
     titulo: (n) => `A música de <em style="color:#7d2b3a;">${n}</em> está pronta e esperando você.`,
     corpo:
-      "Vi que você chegou até o PIX e o pagamento não chegou a cair. Acontece: o código vence rápido, o aplicativo do banco fecha, alguém chama. Nada se perdeu. A música ficou gravada e é a mesma que você vai receber.",
-    botao: "GERAR UM PIX NOVO →",
+      "Vi que você chegou até o PIX e o pagamento não chegou a cair. Acontece: o aplicativo do banco fecha, alguém chama, o dia atropela. Nada se perdeu. A música ficou gravada e é a mesma que você vai receber.",
+    botao: "PAGAR COM O MEU PIX →",
+    // MEDIDO: o PIX da Perfect Pay vale ~55h (mín. 45, máx. 71). O texto
+    // anterior dizia que o código podia ter vencido, e era falso — além de
+    // pedir à pessoa que refizesse um trabalho que ela já tinha feito.
     rodapeAviso:
-      "O código anterior pode ter vencido, então esse botão gera um novo, com o mesmo valor.<br>Se preferir pagar no cartão, a opção aparece na mesma tela.",
+      "O seu código continua valendo, é o mesmo que você gerou.<br>Se preferir pagar no cartão, a opção aparece na mesma tela.",
     rodape: "Serenata · uma música feita da história de quem você ama",
   },
   es: {
