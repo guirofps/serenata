@@ -70,7 +70,7 @@ export type ResultadoPix =
   | { ok: false; erro: "sem-sessao" | "sem-musica" | "sem-preco" | "gateway" };
 
 export const criarPix = createServerFn({ method: "POST" })
-  .validator((data: { sessionId: string }) => data)
+  .validator((data: { sessionId: string; email?: string }) => data)
   .handler(async ({ data }): Promise<ResultadoPix> => {
     const db = supabaseAdmin();
 
@@ -103,6 +103,34 @@ export const criarPix = createServerFn({ method: "POST" })
     const referencia = `serenata:${quiz.id}`;
     const nome = ((quiz.respostas ?? {}) as Record<string, string>).nome?.trim();
 
+    // ── O E-MAIL CONFERIDO NA TELA DE RESUMO ─────────────────────
+    //
+    // A pessoa acabou de ver pra onde a música vai, e pôde corrigir. Se ela
+    // corrigiu, o endereço novo vale — e vale ANTES do pagamento, que é a
+    // diferença entre um toque e uma conversa com o suporte.
+    //
+    // O suporte já mostrou qual é o gargalo desta operação: quase nunca é
+    // defeito de produto, é comprador que não achou o caminho de volta. E a
+    // origem mais comum disso é endereço digitado errado no quiz.
+    //
+    // Valida aqui também, e não só na tela: server function é rota HTTP, e o
+    // que chega dela não é promessa de nada. Endereço inválido é ignorado em
+    // silêncio — melhor manter o antigo que gravar lixo por cima.
+    const emailNovo = data.email?.trim().toLowerCase();
+    const emailVale =
+      !!emailNovo &&
+      emailNovo.length <= 254 &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailNovo) &&
+      emailNovo !== (quiz.email as string | null);
+    if (emailVale) {
+      const { error } = await db
+        .from("quiz_responses")
+        .update({ email: emailNovo })
+        .eq("id", quiz.id);
+      if (error) console.error("[criar-pix] trocar e-mail falhou:", error.message);
+    }
+    const emailDaVenda = emailVale ? emailNovo! : ((quiz.email as string | null) ?? null);
+
     let cobranca;
     try {
       cobranca = await woovi.criar({
@@ -110,7 +138,7 @@ export const criarPix = createServerFn({ method: "POST" })
         valorCentavos,
         descricao: `Serenata · ${musica.titulo ?? "sua música"}`,
         nome: nome || null,
-        email: (quiz.email as string | null) ?? null,
+        email: emailDaVenda,
       });
     } catch (err) {
       // Aqui entra o failover quando houver segundo gateway de PIX. Por ora,
@@ -131,7 +159,7 @@ export const criarPix = createServerFn({ method: "POST" })
         payment_id: `woovi:${referencia}`,
         gateway: "woovi",
         status: "pendente",
-        email: (quiz.email as string | null) ?? null,
+        email: emailDaVenda,
         nome_pagador: nome || null,
         valor_centavos: valorCentavos,
         taxa_centavos: cobranca.taxaCentavos,

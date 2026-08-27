@@ -380,50 +380,60 @@ Sua conta guarda a música, a página presente, o QR Code e o arquivo pra baixar
 
 ---
 
-## 7. Conversão: o furo do Pix precisa ser tapado antes de escalar
+## 7. Conversão: o sinal precisa estar certo antes de escalar
 
 Isto não bloqueia ligar a campanha, mas decide se o número dela vai ser
 verdade.
 
-Hoje existe **uma** conversão, disparada na `/obrigado`
-(`src/lib/google-ads.ts`). O próprio comentário do arquivo registra a
-limitação: **quem paga no Pix e não volta pro site não é contado**. Numa
-campanha de marca, com volume baixo, essa subcontagem é a diferença entre
-"CPA de R$ 6" e "essa campanha não converte nada".
+**O exportador já existe**: `api/conversoes.ts`, escrito em 27/08. Ele
+serve as vendas pagas em CSV pra importação agendada por URL, com dedup
+por `Order ID`, moeda pelo `locale` do lead, resgate de crédito de fora
+(não é dinheiro novo) e leitura paginada. O número medido lá: em 7 dias,
+591 vendas reais contra 436 que a `/obrigado` viu. **O sinal que o Google
+recebe está 26% abaixo do real**, e Smart Bidding dá lance em cima do que
+recebe.
 
-O conserto já está com os dados na mesa e não precisa de OAuth:
+Falta só o lado do Google Ads:
 
-1. Criar no Google Ads uma conversão nova, origem **Importar > Cliques**,
-   nome `Compra confirmada (offline)`, contagem "uma", valor variável.
-2. Marcar essa como **principal** e rebaixar a da `/obrigado` para
-   **secundária**. Se as duas ficarem principais, toda venda no cartão
-   conta duas vezes.
-3. Uma vez por semana, exportar o CSV e subir em Metas > Uploads. O
-   `gclid` já está no banco, dentro de `quiz_responses.attribution`:
+1. Criar a ação: Objetivos > Conversões > Nova > **Importar > De
+   cliques**, com o nome **igual letra por letra** ao de
+   `GOOGLE_ADS_CONVERSAO_NOME` (padrão `Compra Serenata (importada)`).
+2. Conversões > Uploads > Agendar > HTTPS, apontando pra
+   `https://www.serenatagift.com/api/conversoes?k=<CONVERSOES_SECRET>`,
+   diário.
+3. **Rebaixar a conversão da `/obrigado` para secundária**, deixando a
+   importada como a única principal.
 
-```sql
-select
-  q.attribution->>'gclid' as "Google Click ID",
-  to_char(p.paid_at at time zone 'America/Sao_Paulo',
-          'YYYY-MM-DD HH24:MI:SS') as "Conversion Time",
-  'Compra confirmada (offline)' as "Conversion Name",
-  round(p.valor_centavos / 100.0, 2) as "Conversion Value",
-  'BRL' as "Conversion Currency"
-from pedidos p
-join quiz_responses q on q.id = p.quiz_response_id
-where p.status = 'pago'
-  and p.paid_at > now() - interval '8 days'
-  and q.attribution->>'gclid' is not null;
-```
+### Por que a rebaixada é a da `/obrigado`, e não a outra
 
-O arquivo precisa de uma linha antes do cabeçalho, declarando o fuso:
+Porque **quem paga no cartão gera um Pix antes de decidir**. O botão
+"Pagar com cartão" vive dentro da folha do Pix, então o comprador de
+cartão passa pelo Pix, vai pra Perfect Pay e volta pela `/obrigado`. Isso
+tem três consequências, e as três apontam pro mesmo lado:
 
-```
-Parameters:TimeZone=America/Sao_Paulo
-```
+- **A venda no cartão está nas DUAS fontes.** Enquanto as duas forem
+  principais, ela conta duas vezes e o ROAS sobe sem ter subido.
+- **As duas fontes não têm como se deduplicar.** O `transaction_id` do
+  gtag é o `code` da Perfect Pay ou a referência `serenata:<quiz_id>`; o
+  `Order ID` do CSV é o `pedidos.id`. São espaços de identificador
+  diferentes, então o Google não tem por onde casar. A escolha de qual é
+  principal é o único controle que existe.
+- **O valor da importada é mais certo.** O gtag manda o preço do plano
+  (`meuPlano`), que ignora o desconto do cupom; o CSV manda
+  `pedidos.valor_centavos`, que é o que entrou de verdade.
 
-Janelas do Google: o clique precisa ter no máximo 90 dias, e o upload tem
-que acontecer em até 90 dias da conversão. Semanal está folgado.
+Ou seja: a importada não é só mais completa, é mais correta. A da
+`/obrigado` fica como secundária pra continuar servindo de leitura
+imediata no dia, sem entrar em lance nenhum.
+
+### O que NÃO fazer
+
+Não criar conversão de "gerou Pix" pra alimentar o Smart Bidding com
+volume. É tentador porque, pelo mesmo motivo acima, ela pegaria 100% dos
+compradores, dos dois meios de pagamento. Mas 70% de quem clica em
+comprar não gera pedido nenhum, e das que geram muitas não pagam:
+ensinar o Google a comprar "gerou Pix" é ensinar a comprar quase-venda.
+A importada entrega 100% da venda real, que é o sinal que se quer.
 
 Quando isso estiver rodando por 30 dias e a campanha tiver 15 ou mais
 conversões, aí vale trocar o lance por **CPA desejado de R$ 10**. Antes
@@ -461,9 +471,9 @@ campanha errada.
 | Quando | O quê |
 |---|---|
 | Dia 0 | Criar lista de negativas, campanha, G1 a G5, anúncios e recursos. Conferir que ampliação automática e recomendações automáticas estão desligadas |
+| Dia 0 | Ligar a importação agendada de `api/conversoes.ts` e rebaixar a conversão da `/obrigado` para secundária (seção 7). Vale pra conta inteira, não só pra esta campanha |
 | Dia 3 | Ler termos de busca. Negativar o que apareceu |
 | Dia 7 | Idem. Decidir sobre `[serenata musica]` |
-| Dia 14 | Montar a importação offline por gclid (seção 7) |
 | Dia 30 | Com 15+ conversões, avaliar CPA desejado. Checar tamanho da lista de visitantes: passou de 1.000, entram públicos em observação |
 
 ---

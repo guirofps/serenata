@@ -1,80 +1,86 @@
-import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useState } from "react";
 import { criarPix, type ResultadoPix } from "@/lib/criar-pix";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
 import { PixPagamento } from "@/components/quiz/PixPagamento";
+import { ResumoDoPedido } from "@/components/quiz/ResumoDoPedido";
 import { Button } from "@/components/ui/button";
 
 // O CHECKOUT DE PIX NA NOSSA PRÓPRIA PÁGINA.
 //
-// Este arquivo só CRIA a cobrança. Quem desenha o QR, copia o código e espera
-// o dinheiro é o `PixPagamento`, compartilhado com a rota `/pix/$referencia`.
+// Dois passos, e o primeiro foi acrescentado depois de a coisa estar no ar:
 //
-// ── O QUE ELE EXISTE PRA CONSERTAR ───────────────────────────────
+//   1. RESUMO  — o que é, quanto custa, pra onde vai, garantia
+//   2. QR      — o pagamento em si (`PixPagamento`, compartilhado com /pix)
 //
-// Medido em 27/08: 70% de quem clica em comprar NÃO gera pedido nenhum, uns
-// 250 por dia. Parte disso é a troca de domínio: a pessoa sai de
-// serenatagift.com, cai num checkout de outra marca, e desiste.
+// ── POR QUE O RESUMO ENTROU ──────────────────────────────────────
 //
-// Aqui ela não sai. O QR aparece na mesma tela onde ela ouviu a música.
+// A primeira versão ia do botão direto pro QR, e isso estava errado de dois
+// jeitos que só ficaram visíveis com o painel do gateway aberto:
 //
-// ── E A OUTRA METADE DO GANHO É TAXA ─────────────────────────────
+//   - CREDIBILIDADE. Um QR sozinho não diz o que está sendo comprado. O
+//     checkout hospedado dizia tudo isso de graça, porque tinha uma página
+//     inteira pra isso; ao trazer o pagamento pra cá eu trouxe o QR e deixei
+//     a página pra trás.
 //
-// Woovi cobra R$ 0,50; a Perfect Pay cobrou 11,39% nas vendas medidas (R$
-// 4,63 de média). Sobre as ~55 vendas de PIX por dia, são uns R$ 5.500 por
-// mês, e isso não depende de a conversão melhorar um ponto sequer.
+//   - COBRANÇA NASCIDA DE UM TOQUE. Em 28 minutos nasceram 11 cobranças na
+//     Woovi, quase todas de quem só foi ver o preço. Não custa dinheiro, mas
+//     destrói a comparação: na Perfect Pay o PIX só nascia DEPOIS do
+//     formulário do gateway, então "PIX gerado" lá e aqui não eram a mesma
+//     coisa, e o número novo parecia catastrófico sem ser.
+//
+// ── O QUE EXISTE PRA CONSERTAR ───────────────────────────────────
+//
+// 70% de quem clica em comprar não gera pedido nenhum, uns 250 por dia.
+// Parte disso é a troca de domínio: a pessoa sai de serenatagift.com, cai num
+// checkout de outra marca, e desiste. Aqui ela não sai.
+//
+// E a taxa cai de 11,39% (R$ 4,63 de média, medido) pra R$ 0,50 — uns
+// R$ 5.500 por mês que não dependem de a conversão melhorar um ponto.
 
 type Fase =
-  | { t: "criando" }
+  | { t: "resumo" }
+  | { t: "gerando" }
   | { t: "pronto"; dados: Extract<ResultadoPix, { ok: true }> }
-  | { t: "erro"; motivo: string };
+  | { t: "erro" };
 
 export function PixTransparente({
+  nome,
+  titulo,
   valorTexto,
+  ancora,
+  email,
   aoDesistir,
 }: {
-  /** O preço como a pessoa viu na oferta, só pra confirmar na tela. */
+  nome: string;
+  titulo: string | null;
+  /** O preço como a pessoa viu na oferta. Quem manda de verdade é o servidor. */
   valorTexto: string;
-  /** Volta pro checkout hospedado: é por onde sai o cartão. */
+  ancora?: string;
+  email: string;
+  /** Vai pro checkout hospedado: é por onde sai o cartão. */
   aoDesistir: () => void;
 }) {
-  const [fase, setFase] = useState<Fase>({ t: "criando" });
-  const jaPediu = useRef(false);
+  const [fase, setFase] = useState<Fase>({ t: "resumo" });
 
-  // CRIA A COBRANÇA, uma vez só.
-  useEffect(() => {
-    if (jaPediu.current) return;
-    jaPediu.current = true;
-    (async () => {
-      try {
-        const r = await criarPix({ data: { sessionId: getOrCreateSessionId() } });
-        if (!r.ok) {
-          trackEvent("pix_transparente_falhou", { erro: r.erro });
-          setFase({ t: "erro", motivo: r.erro });
-          return;
-        }
-        // Sem `Once` pelo mesmo motivo do `abriu` (ver `TelaOferta`): a
-        // dedupe por navegador some com a segunda abertura, e é justamente a
-        // segunda abertura que prova se o conserto de idempotência funciona
-        // em gente de verdade.
-        trackEvent("pix_transparente_gerado", { valor: r.valorCentavos });
-        setFase({ t: "pronto", dados: r });
-      } catch (err) {
-        console.error("[pix] criar falhou:", err);
-        trackEvent("pix_transparente_falhou", { erro: "excecao" });
-        setFase({ t: "erro", motivo: "excecao" });
+  async function gerar(emailFinal: string) {
+    setFase({ t: "gerando" });
+    try {
+      const r = await criarPix({
+        data: { sessionId: getOrCreateSessionId(), email: emailFinal },
+      });
+      if (!r.ok) {
+        trackEvent("pix_transparente_falhou", { erro: r.erro });
+        setFase({ t: "erro" });
+        return;
       }
-    })();
-  }, []);
-
-  if (fase.t === "criando") {
-    return (
-      <div className="flex flex-col items-center gap-3 py-10 text-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Gerando o seu PIX...</p>
-      </div>
-    );
+      trackEvent("pix_transparente_gerado", { valor: r.valorCentavos });
+      setFase({ t: "pronto", dados: r });
+    } catch (err) {
+      console.error("[pix] criar falhou:", err);
+      trackEvent("pix_transparente_falhou", { erro: "excecao" });
+      setFase({ t: "erro" });
+    }
   }
 
   if (fase.t === "erro") {
@@ -96,16 +102,31 @@ export function PixTransparente({
     );
   }
 
+  if (fase.t === "pronto") {
+    return (
+      <PixPagamento
+        copiaECola={fase.dados.copiaECola}
+        valorTexto={valorTexto}
+        referencia={fase.dados.referencia}
+        // A tela de obrigado é a mesma de quem pagou pelo checkout antigo: um
+        // só lugar decide o que acontece depois da compra.
+        aoPagar={() => {
+          window.location.href = "/obrigado";
+        }}
+        aoEscolherCartao={aoDesistir}
+      />
+    );
+  }
+
   return (
-    <PixPagamento
-      copiaECola={fase.dados.copiaECola}
-      valorTexto={valorTexto}
-      referencia={fase.dados.referencia}
-      // A tela de obrigado é a mesma de quem pagou pelo checkout antigo: um só
-      // lugar decide o que acontece depois da compra.
-      aoPagar={() => {
-        window.location.href = "/obrigado";
-      }}
+    <ResumoDoPedido
+      nome={nome}
+      titulo={titulo}
+      precoTexto={valorTexto}
+      ancora={ancora}
+      email={email}
+      gerando={fase.t === "gerando"}
+      aoConfirmar={gerar}
       aoEscolherCartao={aoDesistir}
     />
   );

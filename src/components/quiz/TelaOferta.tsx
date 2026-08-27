@@ -306,7 +306,9 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   // O PIX na própria página. Guarda o preço JÁ formatado, porque a folha só
   // repete o que a pessoa acabou de ler na oferta: quem decide o valor de
   // verdade é o servidor, em `criar-pix.ts`, e nunca este componente.
-  const [pagandoComPix, setPagandoComPix] = useState<string | null>(null);
+  const [pagandoComPix, setPagandoComPix] = useState<{ texto: string; ancora?: string } | null>(
+    null,
+  );
   const [aberta, setAberta] = useState<number | null>(null);
   const nome = (respostas.nome as string)?.trim() || (locale === "es" ? "quien vos querés" : "quem você ama");
   // Só mostra desconto se o cupom da store for MESMO o da recuperação: um
@@ -559,7 +561,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       // Visto ao vivo às 19:04, na primeira hora: três cliques em comprar e
       // um `abriu` só.
       trackEvent("pix_transparente_abriu", { valor: plano.valor });
-      setPagandoComPix(plano.texto);
+      setPagandoComPix({ texto: plano.texto, ancora: plano.ancora });
       setIndo(false);
       return;
     }
@@ -594,7 +596,11 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           <div className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-primary/10 bg-background px-5 pb-8 pt-4 shadow-2xl sm:rounded-3xl">
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted-foreground/25 sm:hidden" />
             <PixTransparente
-              valorTexto={pagandoComPix}
+              nome={nome}
+              titulo={letraFinal?.titulo ?? null}
+              valorTexto={pagandoComPix.texto}
+              ancora={pagandoComPix.ancora}
+              email={email ?? ""}
               // A SAÍDA DE EMERGÊNCIA. Fecha a folha e vai pro checkout de
               // sempre: cartão, e o caminho de volta se o nosso PIX falhar.
               aoDesistir={() => {
