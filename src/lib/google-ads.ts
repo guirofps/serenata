@@ -29,6 +29,39 @@ declare global {
  * gente está tentando descobrir se vale a pena — e otimiza em cima do que
  * recebe, não do que aconteceu.
  */
+// ── O ID DA TRANSAÇÃO QUANDO O GATEWAY NÃO DEVOLVE UM ────────────
+//
+// A Perfect Pay mandava `?code=` no redirect, e era ele que impedia um F5 na
+// página de obrigado de contar a venda duas vezes. No checkout transparente
+// não existe redirect de gateway nenhum: a própria tela manda a pessoa pro
+// `/obrigado` quando o webhook confirma. Sem substituto, `transaction_id`
+// ficava vazio e toda recarga virava conversão nova — conversão inflada
+// estraga o lance da campanha, que é o defeito mais caro dessa mesa.
+//
+// `sessionStorage` e NÃO a URL, de propósito: `/obrigado` fica fora de
+// `rotas-sensiveis` pra que o gtag carregue lá, e o gtag manda a URL inteira
+// pro Google. Pôr a referência no endereço seria copiar a chave da cobrança
+// pra dentro do Analytics por conveniência de três caracteres.
+const CHAVE_TX = "mp_tx";
+
+/** Guarda o id desta compra, na hora em que o pagamento é confirmado. */
+export function guardarTransacao(id: string): void {
+  try {
+    sessionStorage.setItem(CHAVE_TX, id);
+  } catch {
+    // Modo anônimo: perde a dedupe, não perde a venda.
+  }
+}
+
+/** O id guardado, se houver. Some quando a aba fecha, que é o tempo certo. */
+export function transacaoGuardada(): string | undefined {
+  try {
+    return sessionStorage.getItem(CHAVE_TX) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function conversaoCompra(args: {
   valor?: number;
   moeda?: "BRL" | "USD";

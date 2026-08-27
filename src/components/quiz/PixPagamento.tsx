@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { Check, Copy, CreditCard, Loader2 } from "lucide-react";
 import { pixFoiPago } from "@/lib/criar-pix";
 import { trackEvent, trackEventOnce } from "@/lib/track";
+import { guardarTransacao } from "@/lib/google-ads";
 import { CORES } from "@/lib/marca";
 import { Button } from "@/components/ui/button";
 
@@ -80,6 +81,10 @@ export function PixPagamento({
         clearInterval(sonda);
         clearInterval(relogio);
         trackEvent("pix_transparente_pago", { segundos: Math.round((Date.now() - t0) / 1000) });
+        // O ID DA VENDA, guardado antes de sair da tela. É o que faz um F5 no
+        // `/obrigado` não contar a conversão duas vezes pro Google — papel
+        // que era do `?code=` da Perfect Pay e ficou vago no transparente.
+        guardarTransacao(referencia);
         setPago(true);
         aoPagar();
       } catch {

@@ -1,7 +1,7 @@
 ﻿import { type Locale } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { conversaoCompra } from "@/lib/google-ads";
+import { conversaoCompra, transacaoGuardada } from "@/lib/google-ads";
 import { meuPlano } from "@/lib/preco";
 import { useQuizStore } from "@/lib/quiz-store";
 import { buscarPresenteDaCompra, type PresenteDaCompra } from "@/lib/pos-compra";
@@ -121,7 +121,11 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
     conversaoCompra({
       valor: plano.valor,
       moeda: locale === "es" ? "USD" : "BRL",
-      transactionId: code,
+      // `code` é o que a Perfect Pay devolve no redirect. No checkout
+      // transparente não existe redirect de gateway, então a própria tela do
+      // PIX guarda a referência antes de mandar a pessoa pra cá. Sem um dos
+      // dois, `transaction_id` sai vazio e um F5 conta a venda de novo.
+      transactionId: code ?? transacaoGuardada(),
     });
     // Esta sessão já virou venda. Quem voltar ao /criar por qualquer caminho
     // ganha uma sessão nova lá, senão a segunda música sobrescreve a primeira.
