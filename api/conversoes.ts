@@ -94,16 +94,23 @@ function csv(valor: string): string {
 }
 
 /**
- * `2026-08-27 13:36:00+00:00`, que é um dos formatos que o Google aceita.
+ * `2026-08-27 13:36:00+0000`, no formato que o Google aceita de verdade.
  *
- * COM O DESLOCAMENTO EXPLÍCITO, sempre. A alternativa documentada é declarar
- * `Parameters:TimeZone=` no topo e mandar hora local, e ela depende de duas
- * partes concordarem sobre qual é o fuso. Em 27/08 eu perdi tempo nesta mesma
- * sessão porque uma consulta devolvia UTC e eu li como horário de Brasília;
- * num arquivo que decide lance de campanha, esse erro sairia caro e mudo.
+ * ── O DESLOCAMENTO NÃO LEVA DOIS-PONTOS ──────────────────────────
+ *
+ * A primeira versão escrevia `+00:00`, que é ISO 8601 e é o que qualquer
+ * linguagem produz sozinha. O Google recusou as 1.089 linhas com a mesma
+ * mensagem: "The value '2026-08-27 16:31:11+00:00' in column 'Conversion
+ * Time' is invalid". Ele quer os quatro dígitos colados: `+0000`.
+ *
+ * COM O DESLOCAMENTO EXPLÍCITO, e não com `Parameters:TimeZone=` no topo do
+ * arquivo mandando hora local. As duas formas são documentadas, e esta não
+ * depende de duas partes concordarem sobre qual é o fuso. Em 27/08 eu li um
+ * horário UTC como se fosse de Brasília nesta mesma sessão; num arquivo que
+ * decide lance de campanha, esse erro sairia caro e mudo.
  */
-function horaGoogle(iso: string): string {
-  return `${new Date(iso).toISOString().slice(0, 19).replace("T", " ")}+00:00`;
+export function horaGoogle(iso: string): string {
+  return `${new Date(iso).toISOString().slice(0, 19).replace("T", " ")}+0000`;
 }
 
 type PedidoComLead = {
