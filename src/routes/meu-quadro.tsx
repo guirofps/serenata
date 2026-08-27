@@ -5,6 +5,7 @@ import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { meusQuadros, confirmarQuadro, type MeusQuadros } from "@/lib/meus-quadros";
 import { OFERTAS, TEXTO_OFERTA } from "@/lib/creditos";
+import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
 import { trackEvent } from "@/lib/track";
 import {
   Loader2, Check, Printer, Frame, Eye, ArrowLeft, ArrowRight, AlertCircle,
@@ -151,6 +152,7 @@ function MeuQuadro() {
   // da Perfect Pay na hora chega aqui ANTES do direito existir, e lia "você
   // ainda não tem um quadro" logo depois de pagar por um.
   const [confirmandoPix, setConfirmandoPix] = useState(false);
+  const [pixAberto, setPixAberto] = useState(false);
   const oferta = OFERTAS.find((o) => o.id === "quadro");
   const locale = dados?.locale === "es" ? ("es" as const) : ("pt" as const);
   const t = TXT[locale];
@@ -453,13 +455,31 @@ function MeuQuadro() {
                 <p className="mt-4 font-semibold text-[var(--acento)]" style={{ fontSize: "var(--t-2xl)" }}>
                   R$ {oferta.precoBrl.toFixed(2).replace(".", ",")}
                 </p>
-                <a
-                  href={oferta.checkout}
-                  onClick={() => trackEvent("credito_oferta_click", { oferta: "quadro", origem: "meu-quadro" })}
+                {/* Esta tela é de quem está LOGADO, então usa a porta da
+                    sessão (não a do token do editor). Ver `criar-pix-upsell`. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    trackEvent("credito_oferta_click", {
+                      oferta: "quadro",
+                      origem: "meu-quadro",
+                      via: "pix",
+                    });
+                    setPixAberto(true);
+                  }}
                   className="cta mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border-0 font-medium"
                 >
                   {txt.cta} <ArrowRight className="h-4 w-4" />
-                </a>
+                </button>
+                {pixAberto && (
+                  <FolhaPixUpsell
+                    ofertaId="quadro"
+                    titulo={txt.titulo ?? "Quadro para imprimir"}
+                    precoTexto={`R$ ${oferta.precoBrl.toFixed(2).replace(".", ",")}`}
+                    checkoutCartao={oferta.checkout}
+                    aoFechar={() => setPixAberto(false)}
+                  />
+                )}
               </section>
             )}
           </>

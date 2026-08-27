@@ -921,7 +921,10 @@ function Editor() {
 
               A "mais uma música" continua nos e-mails de entrega e recompra,
               onde não compete com nada. */}
-          <OfertaQuadroEditor locale={p?.locale === "es" ? "es" : "pt"} />
+          <OfertaQuadroEditor
+            locale={p?.locale === "es" ? "es" : "pt"}
+            tokenEdicao={tokenEdicao}
+          />
         </div>
 
         {/* SUPORTE POR WHATSAPP, e só aqui dentro.

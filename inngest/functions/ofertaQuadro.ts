@@ -37,7 +37,22 @@ import { literalLike } from "../../src/lib/sql-like.js";
 // objeto montado a partir de algo que a pessoa não montou é vender um
 // trabalho que ela ainda não fez.
 
-const CHECKOUT = "https://go.perfectpay.com.br/PPU38CQFE9O";
+// ── O LINK LEVA PRO EDITOR, NÃO PRO CHECKOUT ─────────────────────
+//
+// Até 27/08 era a URL da Perfect Pay direto. Agora é o editor do presente
+// dela, onde a oferta do quadro vive e onde o PIX nasce na própria página —
+// R$ 0,50 de taxa em vez de 11,4%.
+//
+// E é melhor mesmo se a taxa fosse igual: o quadro usa a FOTO e a LETRA da
+// página presente. Mandar pro checkout é vender uma peça sem mostrar a peça;
+// mandar pro editor é abrir a oferta em cima do que ela já montou.
+//
+// O token de edição é o mesmo do e-mail de entrega, e é o que autoriza gerar
+// a cobrança lá dentro sem pedir login.
+const SITE = process.env.VITE_APP_URL?.startsWith("http")
+  ? process.env.VITE_APP_URL
+  : "https://www.serenatagift.com";
+const linkDoQuadro = (tokenEdicao: string) => `${SITE}/editar/${tokenEdicao}?de=quadro`;
 
 const MIN_DIAS = 7;
 // Janela de 30 dias: mais velho vira e-mail de vendas pra quem esqueceu de
@@ -156,7 +171,7 @@ export const ofertaQuadro = inngest.createFunction(
           nome:
             ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() || "quem você ama",
           titulo: m.titulo ?? "Sua música",
-          link: CHECKOUT,
+          link: linkDoQuadro(m.token_edicao as string),
           musicaId: m.id,
         });
       }

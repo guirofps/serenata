@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { OFERTAS, TEXTO_OFERTA } from "@/lib/creditos";
+import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
 import { trackEvent } from "@/lib/track";
 
 // O QUADRO, no fim do editor.
@@ -30,19 +32,50 @@ import { trackEvent } from "@/lib/track";
 // A "mais uma música" continua nos e-mails de entrega e de recompra, que é
 // onde ela já está e onde não compete com nada.
 
-export function OfertaQuadroEditor({ locale = "pt" }: { locale?: "pt" | "es" }) {
-  // O quadro só existe na Perfect Pay BR: oferecer em espanhol mostraria preço
-  // em real pra quem comprou em dólar e levaria a um checkout que não é dela.
+export function OfertaQuadroEditor({
+  locale = "pt",
+  tokenEdicao,
+}: {
+  locale?: "pt" | "es";
+  /**
+   * O token do link do editor. É ele que prova a posse da música e permite
+   * gerar o PIX aqui dentro, sem login.
+   *
+   * Sem ele o botão cai no checkout hospedado, como antes: melhor uma venda
+   * a 11,4% de taxa que uma tela que não vende.
+   */
+  tokenEdicao?: string;
+}) {
+  // O quadro só existe em real: oferecer em espanhol mostraria preço em real
+  // pra quem comprou em dólar e levaria a um checkout que não é dela.
+  const [pixAberto, setPixAberto] = useState(false);
   if (locale === "es") return null;
 
   const oferta = OFERTAS.find((o) => o.id === "quadro");
   if (!oferta) return null;
   const t = TEXTO_OFERTA.pt.quadro;
 
+  // ── ERA AQUI QUE O PIX VAZAVA PRA PERFECT PAY ────────────────
+  //
+  // O quadro é vendido em quatro telas e eu só tinha convertido as duas que
+  // ficam atrás de login. Esta abre por token, e foi dela que saiu a primeira
+  // venda de quadro depois da migração — R$ 24,90 pagando 11,4% de taxa onde
+  // pagaria R$ 0,50.
+  const comPix = Boolean(tokenEdicao);
+  const Tag = comPix ? "button" : "a";
+
   return (
-    <a
-      href={oferta.checkout}
-      onClick={() => trackEvent("credito_oferta_click", { oferta: "quadro", origem: "editor" })}
+    <>
+    <Tag
+      {...(comPix ? { type: "button" as const } : { href: oferta.checkout })}
+      onClick={() => {
+        trackEvent("credito_oferta_click", {
+          oferta: "quadro",
+          origem: "editor",
+          via: comPix ? "pix" : "checkout",
+        });
+        if (comPix) setPixAberto(true);
+      }}
       className="mx-auto mt-12 flex max-w-md items-center gap-3 rounded-[var(--raio-lg)] border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-4 transition-colors hover:border-[var(--acento)]/50"
     >
       {/* A moldura em miniatura. "Folha A4 com a letra" não desenha nada na
@@ -85,6 +118,22 @@ export function OfertaQuadroEditor({ locale = "pt" }: { locale?: "pt" | "es" }) 
       </span>
 
       <ArrowRight className="h-5 w-5 shrink-0 text-[var(--acento)]" />
-    </a>
+    </Tag>
+
+    {pixAberto && tokenEdicao && (
+      <FolhaPixUpsell
+        ofertaId="quadro"
+        tokenEdicao={tokenEdicao}
+        titulo={t.titulo}
+        precoTexto={`R$ ${oferta.precoBrl.toFixed(2).replace(".", ",")}`}
+        checkoutCartao={oferta.checkout}
+        // Depois de pagar ela CONTINUA no editor, montando o presente. Não
+        // tem pra onde mandar: ela já está no lugar certo, e o recarregar
+        // traz o direito ao quadro que o webhook acabou de criar.
+        aoPagar={() => window.location.reload()}
+        aoFechar={() => setPixAberto(false)}
+      />
+    )}
+    </>
   );
 }

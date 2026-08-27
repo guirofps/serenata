@@ -67,16 +67,17 @@ export type ResultadoPixUpsell =
     }
   | { ok: false; erro: "sem-sessao" | "oferta-invalida" | "gateway" };
 
-export const criarPixUpsell = createServerFn({ method: "POST" })
-  // O TOKEN, não o e-mail. Server function é rota HTTP: aceitar o e-mail
-  // deixaria qualquer um gerar cobrança (e crédito) no nome de outro. Mesma
-  // regra de `meusCreditos`.
-  .validator((data: { token: string; ofertaId: string }) => data)
-  .handler(async ({ data }): Promise<ResultadoPixUpsell> => {
-    const email = await emailDaSessao(data.token);
-    if (!email) return { ok: false, erro: "sem-sessao" };
-
-    const oferta = ofertaValida(data.ofertaId);
+/**
+ * O MIOLO, compartilhado pelas DUAS portas de entrada.
+ *
+ * Quem chama aqui já provou quem é — por sessão do Supabase (painel) ou por
+ * `token_edicao` (editor). Daqui pra frente o caminho é idêntico, e é
+ * idêntico de propósito: duas cópias disto divergiriam na primeira correção,
+ * e o que elas guardam é a regra de o cliente nunca escolher o preço.
+ */
+async function gerarCobranca(email: string, ofertaId: string): Promise<ResultadoPixUpsell> {
+  {
+    const oferta = ofertaValida(ofertaId);
     if (!oferta) return { ok: false, erro: "oferta-invalida" };
 
     const db = supabaseAdmin();
@@ -146,4 +147,61 @@ export const criarPixUpsell = createServerFn({ method: "POST" })
     }
 
     return { ok: true, copiaECola: cobranca.copiaECola, valorCentavos, referencia, reaproveitado: false };
+  }
+}
+
+/**
+ * PORTA 1: quem está LOGADO no painel.
+ *
+ * O TOKEN, não o e-mail. Server function é rota HTTP: aceitar o e-mail
+ * deixaria qualquer um gerar cobrança (e crédito) no nome de outro. Mesma
+ * regra de `meusCreditos`.
+ */
+export const criarPixUpsell = createServerFn({ method: "POST" })
+  .validator((data: { token: string; ofertaId: string }) => data)
+  .handler(async ({ data }): Promise<ResultadoPixUpsell> => {
+    const email = await emailDaSessao(data.token);
+    if (!email) return { ok: false, erro: "sem-sessao" };
+    return gerarCobranca(email, data.ofertaId);
+  });
+
+/**
+ * PORTA 2: quem chegou pelo LINK, não pelo login.
+ *
+ * O quadro é vendido em quatro lugares, e só dois ficam atrás de conta: o
+ * painel de créditos e a aba do quadro. Os outros dois — o editor do presente
+ * (`/editar/<token_edicao>`) e `/meu-quadro` — abrem por TOKEN. E foi por ali
+ * que saiu a primeira venda de quadro depois da migração, ainda pela Perfect
+ * Pay: R$ 24,90 pagando 11,4% de taxa onde pagaria R$ 0,50.
+ *
+ * ── O TOKEN DE EDIÇÃO É PROVA SUFICIENTE ─────────────────────────
+ *
+ * Ele já autoriza baixar o MP3, editar o presente e publicar a página: quem
+ * tem o token é dono daquela música. Exigir login aqui seria inventar, no
+ * meio de uma compra, uma barreira que o resto do editor não tem.
+ *
+ * E o e-mail NÃO vem do cliente: sai do quiz daquela música. É o mesmo
+ * endereço que já recebeu a entrega, e é ele que o webhook vai creditar.
+ */
+export const criarPixUpsellPorToken = createServerFn({ method: "POST" })
+  .validator((data: { tokenEdicao: string; ofertaId: string }) => data)
+  .handler(async ({ data }): Promise<ResultadoPixUpsell> => {
+    if (!data.tokenEdicao) return { ok: false, erro: "sem-sessao" };
+    const db = supabaseAdmin();
+    const { data: m } = await db
+      .from("musicas")
+      .select("quiz_response_id")
+      .eq("token_edicao", data.tokenEdicao)
+      .maybeSingle();
+    if (!m?.quiz_response_id) return { ok: false, erro: "sem-sessao" };
+
+    const { data: q } = await db
+      .from("quiz_responses")
+      .select("email")
+      .eq("id", m.quiz_response_id)
+      .maybeSingle();
+    const email = (q?.email as string | null)?.trim().toLowerCase();
+    if (!email) return { ok: false, erro: "sem-sessao" };
+
+    return gerarCobranca(email, data.ofertaId);
   });

@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { criarPixUpsell, type ResultadoPixUpsell } from "@/lib/criar-pix-upsell";
+import {
+  criarPixUpsell,
+  criarPixUpsellPorToken,
+  type ResultadoPixUpsell,
+} from "@/lib/criar-pix-upsell";
 import { supabase } from "@/lib/supabase-client";
 import { PixPagamento } from "@/components/quiz/PixPagamento";
 import { trackEvent } from "@/lib/track";
@@ -32,9 +36,15 @@ export function FolhaPixUpsell({
   titulo,
   precoTexto,
   checkoutCartao,
+  tokenEdicao,
+  aoPagar,
   aoFechar,
 }: {
   ofertaId: string;
+  /** Presente: quem chegou pelo link do editor, sem login. */
+  tokenEdicao?: string;
+  /** O que fazer depois de pagar. Por padrão, recarrega a tela. */
+  aoPagar?: () => void;
   /** "Música extra", "Quadro para imprimir" — só pra pessoa se situar. */
   titulo: string;
   precoTexto: string;
@@ -50,16 +60,22 @@ export function FolhaPixUpsell({
     jaPediu.current = true;
     (async () => {
       try {
-        // O TOKEN, não o e-mail: é ele que prova quem está comprando. Ver
-        // `conta-sessao.ts` — aceitar e-mail deixaria qualquer um creditar
-        // no nome de outro.
-        const { data: sess } = await supabase.auth.getSession();
-        const token = sess.session?.access_token;
-        if (!token) {
-          setFase({ t: "erro" });
-          return;
-        }
-        const r = await criarPixUpsell({ data: { token, ofertaId } });
+        // ── DUAS PORTAS, PORQUE SÃO DUAS TELAS DIFERENTES ────
+        //
+        // O painel exige login (Supabase Auth). O editor do presente é aberto
+        // pelo TOKEN do link, e não tem login nenhum — foi por lá que saiu a
+        // primeira venda de quadro depois da migração, ainda pela Perfect Pay.
+        //
+        // Nenhuma das duas aceita e-mail vindo do navegador: o que prova quem
+        // está comprando é a sessão assinada ou a posse do token.
+        const r = tokenEdicao
+          ? await criarPixUpsellPorToken({ data: { tokenEdicao, ofertaId } })
+          : await (async () => {
+              const { data: sess } = await supabase.auth.getSession();
+              const token = sess.session?.access_token;
+              if (!token) return { ok: false, erro: "sem-sessao" } as const;
+              return criarPixUpsell({ data: { token, ofertaId } });
+            })();
         if (!r.ok) {
           trackEvent("pix_upsell_falhou", { oferta: ofertaId, erro: r.erro });
           setFase({ t: "erro" });
@@ -126,7 +142,11 @@ export function FolhaPixUpsell({
             // extrato, quadros) venha do servidor já atualizado.
             aoPagar={() => {
               trackEvent("pix_upsell_pago", { oferta: ofertaId });
-              window.location.reload();
+              // Recarregar é o padrão porque é o jeito honesto de garantir
+              // que saldo, extrato e quadros venham do servidor já
+              // atualizados — nenhum estado local finge que a compra entrou.
+              if (aoPagar) aoPagar();
+              else window.location.reload();
             }}
             aoEscolherCartao={() => {
               trackEvent("pix_upsell_cartao", { oferta: ofertaId });

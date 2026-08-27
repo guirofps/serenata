@@ -18,6 +18,7 @@ import { Printer, Lock, Check, ChevronLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase-client";
 import { acessoAoQuadro, salvarQuadro } from "@/lib/meus-quadros";
 import { OFERTAS } from "@/lib/creditos";
+import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
 import { trackEvent } from "@/lib/track";
 
 // A FOLHA A4 PRA EMOLDURAR.
@@ -159,8 +160,10 @@ function corpoQueCabe(
 
 function Pagina() {
   const q = Route.useLoaderData() as Quadro;
+  const { tokenEdicao } = Route.useParams();
   const t = T[q.locale] ?? T.pt;
   const token = q.linkPresente.split("/p/")[1] ?? "";
+  const [pixAberto, setPixAberto] = useState(false);
 
   const [estilo, setEstilo] = useState<Estilo>(ESTILO_PADRAO);
   const [qr, setQr] = useState<string | null>(null);
@@ -568,14 +571,38 @@ function Pagina() {
                   a um checkout que não é dela. */}
               {q.locale === "pt" && (
                 <>
-                  <a
-                    href={OFERTAS.find((o) => o.id === "quadro")?.checkout ?? "/dashboard"}
-                    onClick={() => trackEvent("credito_oferta_click", { oferta: "quadro", origem: "quadro" })}
+                  {/* Esta tela abre pelo TOKEN, sem login — então usa a porta
+                      2 do upsell, a que prova posse pelo `token_edicao`. */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      trackEvent("credito_oferta_click", {
+                        oferta: "quadro",
+                        origem: "quadro",
+                        via: "pix",
+                      });
+                      setPixAberto(true);
+                    }}
                     className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-7 font-medium"
                     style={{ fontSize: 15, background: "#f0b95f", color: "#0d0a08" }}
                   >
                     <Lock className="h-4 w-4" /> {t.ofertaCta}
-                  </a>
+                  </button>
+                  {pixAberto && (
+                    <FolhaPixUpsell
+                      ofertaId="quadro"
+                      tokenEdicao={tokenEdicao}
+                      titulo={t.ofertaCta}
+                      precoTexto={`R$ ${(OFERTAS.find((o) => o.id === "quadro")?.precoBrl ?? 24.9)
+                        .toFixed(2)
+                        .replace(".", ",")}`}
+                      checkoutCartao={
+                        OFERTAS.find((o) => o.id === "quadro")?.checkout ?? "/dashboard"
+                      }
+                      aoPagar={() => window.location.reload()}
+                      aoFechar={() => setPixAberto(false)}
+                    />
+                  )}
                   <p className="mt-2 text-[12px] text-white/40">{t.ofertaNota}</p>
                 </>
               )}
