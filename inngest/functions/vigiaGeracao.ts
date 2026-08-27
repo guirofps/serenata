@@ -41,6 +41,15 @@ const PARA = "guilhermerojasiqueira@gmail.com";
 const JANELA_MIN = 20;
 /** Presa há mais que isso é candidata a redisparo. */
 const PRESA_MIN = 12;
+/**
+ * Quanto tempo em `gerando` já é travamento, e não geração normal.
+ *
+ * O pipeline real leva 84s a 110s do pedido ao arquivo (medido em 23/07).
+ * 25 minutos são 13x isso: qualquer coisa parada além disso não está
+ * gerando, está morta — e redisparar antes seria pagar R$ 0,32 duas vezes
+ * por uma música que ia sair sozinha.
+ */
+const GERANDO_MIN = 25;
 /** Teto por rodada: numa queda longa a fila engorda, e despejar tudo de uma
  *  vez quando o provedor volta é a melhor forma de derrubá-lo de novo. */
 const MAX_REDISPARO = 25;
@@ -80,15 +89,48 @@ export const vigiaGeracao = inngest.createFunction(
         .gte("gerada_em", desde);
 
       // O QUE ESTÁ PRESO, com quem pagou na frente.
-      const { data: presas } = await sb
-        .from("musicas")
-        .select("id, titulo, quiz_response_id, created_at")
-        .eq("status", "aguardando")
-        .not("letra", "is", null)
-        .lte("created_at", new Date(agora - PRESA_MIN * 60000).toISOString())
-        .gte("created_at", new Date(agora - 12 * 3600000).toISOString())
-        .order("created_at", { ascending: true })
-        .limit(MAX_REDISPARO * 3);
+      //
+      // ── DOIS ESTADOS, NÃO UM ─────────────────────────────────
+      //
+      // A primeira versão só olhava `aguardando`, porque foi escrita olhando
+      // pras 65 músicas da queda de 26/08, que pararam todas ali. Em 27/08
+      // às 02h apareceu uma parada em `gerando` HÁ UMA HORA, com
+      // `provider_job_id` nulo — o job morreu ANTES de falar com o provedor,
+      // que é exatamente o formato da queda do `/api/inngest`. O vigia
+      // construído pra pegar aquilo não a via.
+      //
+      // `aguardando` é "o evento se perdeu". `gerando` velha é "o job
+      // começou e morreu". As duas se consertam do mesmo jeito, e nenhuma se
+      // conserta sozinha.
+      //
+      // Os prazos são diferentes de propósito: `aguardando` nunca deveria
+      // durar, `gerando` dura ~2 minutos por natureza. Ver `GERANDO_MIN`.
+      const janelaLonga = new Date(agora - 12 * 3600000).toISOString();
+      const [{ data: aguardando }, { data: gerandoVelhas }] = await Promise.all([
+        sb
+          .from("musicas")
+          .select("id, titulo, quiz_response_id, created_at")
+          .eq("status", "aguardando")
+          .not("letra", "is", null)
+          .lte("created_at", new Date(agora - PRESA_MIN * 60000).toISOString())
+          .gte("created_at", janelaLonga)
+          .order("created_at", { ascending: true })
+          .limit(MAX_REDISPARO * 3),
+        sb
+          .from("musicas")
+          .select("id, titulo, quiz_response_id, created_at")
+          .eq("status", "gerando")
+          .not("letra", "is", null)
+          // `gerada_em` nulo: se ela já tem hora de geração, o arquivo saiu e
+          // o status é que ficou pra trás — redisparar aí seria gerar de novo
+          // uma música que já existe.
+          .is("gerada_em", null)
+          .lte("created_at", new Date(agora - GERANDO_MIN * 60000).toISOString())
+          .gte("created_at", janelaLonga)
+          .order("created_at", { ascending: true })
+          .limit(MAX_REDISPARO * 3),
+      ]);
+      const presas = [...(aguardando ?? []), ...(gerandoVelhas ?? [])];
 
       const lista: Array<{ id: string; titulo: string | null; pago: boolean }> = [];
       for (const m of presas ?? []) {
