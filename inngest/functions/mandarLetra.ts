@@ -85,26 +85,48 @@ export const mandarLetra = inngest.createFunction(
 
       // As quatro travas, nesta ordem: descadastrados, excluídos, endereços
       // que já voltaram, e quem já comprou. Nenhuma é opcional.
-      const [{ data: fora }, { data: excl }, { data: mortos }, { data: pagos }] = await Promise.all([
+      const [{ data: fora }, { data: excl }, { data: mortos }] = await Promise.all([
         sb.from("descadastros").select("email"),
         sb.from("excluidos_email").select("email"),
         // JÁ VOLTOU UMA VEZ, NÃO TENTA DE NOVO. O `pareceTypo` logo abaixo pega
         // o endereço errado pela cara; este pega o que o provedor já RECUSOU na
         // prática, que é informação melhor que qualquer heurística.
         sb.from("emails_mortos").select("email").is("liberado_em", null),
-        sb.from("pedidos").select("quiz_response_id, email").eq("status", "pago"),
       ]);
       const bloqueado = new Set([
         ...(fora ?? []).map((x) => x.email.toLowerCase()),
         ...(excl ?? []).map((x) => x.email.toLowerCase()),
         ...(mortos ?? []).map((x) => x.email.toLowerCase()),
-        // QUEM COMPROU. Recebe a música inteira pelo e-mail de entrega;
-        // mandar "ouça um trecho" depois disso é ofensivo de tão errado.
-        // Por e-mail E por quiz_response: a compra pode ter sido feita com
-        // outro endereço, e aí só o vínculo do pedido pega.
-        ...(pagos ?? []).map((x) => (x.email ?? "").toLowerCase()).filter(Boolean),
       ]);
-      const quizComprou = new Set((pagos ?? []).map((x) => x.quiz_response_id).filter(Boolean));
+
+      // ── QUEM COMPROU: PERGUNTA POR PESSOA, NÃO LISTA INTEIRA ──────
+      //
+      // Aqui havia `.from("pedidos").select(...).eq("status","pago")` sem
+      // paginação, e o PostgREST corta em 1000 linhas. Em 27/08 existiam
+      // 1.151 pedidos pagos: 151 compradores (13%) eram INVISÍVEIS pra esta
+      // trava, e a fatia invisível cresce todo dia.
+      //
+      // A conta apareceu na caixa de entrada. Paulo pagou R$ 38 às 10:36,
+      // recebeu a entrega às 10:36, e às 10:45 recebeu "A letra que você
+      // escreveu está pronta" — o e-mail de quem NÃO comprou. Ele escreveu
+      // dizendo que a música não tinha chegado.
+      //
+      // Paginar consertaria o corte, mas continuaria carregando a tabela
+      // inteira de vendas a cada rodada pra usar 10 nomes. A pergunta certa
+      // é por candidato: são no máximo `MAX_POR_RODADA` consultas, as duas
+      // por índice, e a resposta não depende do tamanho da tabela — hoje nem
+      // no dia em que forem 100 mil pedidos.
+      async function jaComprou(quizId: string, email: string): Promise<boolean> {
+        const [porQuiz, porEmail] = await Promise.all([
+          sb.from("pedidos").select("id").eq("quiz_response_id", quizId).eq("status", "pago").limit(1),
+          // Por E-MAIL também: a compra pode ter sido feita com outro
+          // endereço de cadastro, e aí só este vínculo pega. `eq` e não
+          // `ilike`: `%` e `_` são curingas do LIKE e são caracteres válidos
+          // em endereço de e-mail.
+          sb.from("pedidos").select("id").eq("email", email).eq("status", "pago").limit(1),
+        ]);
+        return (porQuiz.data ?? []).length > 0 || (porEmail.data ?? []).length > 0;
+      }
 
       const out: Array<{
         quizId: string; sessao: string; email: string; nome: string;
@@ -114,7 +136,7 @@ export const mandarLetra = inngest.createFunction(
       for (const l of leads ?? []) {
         if (out.length >= MAX_POR_RODADA) break;
         if (!l.email || bloqueado.has(l.email.toLowerCase())) continue;
-        if (quizComprou.has(l.id)) continue;
+        if (await jaComprou(l.id, l.email)) continue;
 
         // E-MAIL DIGITADO ERRADO. `gmail.comm` bateu de volta no primeiro
         // disparo pelo subdomínio, e bounce é o dano mais caro que existe num
