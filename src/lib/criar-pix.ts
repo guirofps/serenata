@@ -18,11 +18,15 @@ import { ErroGateway } from "@/lib/gateway";
 // algo que ainda não foi produzido. Aqui ela vale ainda mais, porque no
 // transparente a cobrança nasce do nosso lado.
 
-/** Onde o postback da Woovi deve chegar. */
-function urlWebhook(): string {
-  const site = process.env.SITE_URL ?? "https://www.serenatagift.com";
-  return `${site}/api/webhook/woovi`;
-}
+// ── O WEBHOOK NÃO SE ESCOLHE AQUI ────────────────────────────────
+//
+// Na MillionsPay a URL do postback ia no corpo de cada cobrança, e por isso
+// dava pra apontar um teste pro preview sem tocar em produção. Na Woovi não:
+// o webhook é UM, registrado na conta, e vale pra todas as cobranças.
+//
+// Consequência prática pra testar: ou o webhook da conta aponta pro preview
+// (e aí produção fica sem receber), ou aponta pra produção. Não dá os dois ao
+// mesmo tempo com uma conta só.
 
 /**
  * O preço DAQUELA pessoa, do jeito que ela viu na tela.
