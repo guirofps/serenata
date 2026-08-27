@@ -620,6 +620,18 @@ export default async function handler(req: Req, res: Res) {
         telefone,
         nome_pagador: nomeCliente,
         valor_centavos: Number.isFinite(reais) ? Math.round(reais * 100) : null,
+        // A TAXA, guardada AQUI e não só mandada pra Utmify.
+        //
+        // `taxaCentavos` já era extraída do `commission` desde 20/08, mas só
+        // viajava pro relatório de terceiro. Em `pedidos` ficava só o valor
+        // BRUTO, então toda conta de resultado feita no nosso banco somava o
+        // que o cliente pagou e não o que entrou. Num ticket de R$ 33 com
+        // taxa perto de 11%, isso é a diferença entre achar que sobra e não
+        // sobrar.
+        //
+        // Virou urgente quando a Utmify foi cancelada: ela era o único lugar
+        // onde este número existia.
+        taxa_centavos: taxaCentavos || null,
         quiz_response_id: quiz?.id ?? null,
         musica_id: musica?.id ?? null,
         paid_at: new Date().toISOString(),
