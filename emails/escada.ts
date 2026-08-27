@@ -133,6 +133,36 @@ type Passo = {
   botao: string;
 };
 
+// ── O DEGRAU 2 TEM DUAS VERSÕES, E ISSO É CONSERTO DE UMA MENTIRA ──
+//
+// O texto do degrau 2 diz, com todas as letras: "você foi embora antes da
+// última parte" e "a gravação ficou pronta depois que você saiu".
+//
+// Isso é falso pra 81% de quem o recebe. Medido em 7 dias: 4.858 pessoas
+// chegaram na letra e 3.947 delas TOCARAM a música (`musica_play`) — e
+// praticamente todas bateram no corte da prévia (`preview_limite`). Elas não
+// foram embora antes: elas ouviram, o áudio parou no refrão, e elas saíram.
+//
+// Contar pra alguém uma história que ela sabe que não aconteceu é o jeito
+// mais barato de perder a única coisa que este e-mail tem — ser verdadeiro
+// sobre algo que ela viveu dez minutos antes.
+//
+// A versão de baixo fala do que ELA de fato viveu: o corte. E o argumento
+// deixa de ser "ficou pronta" (que ela já sabe) e passa a ser o que ela ainda
+// não ouviu — o fim da música, e a segunda gravação, que ela nem sabia que
+// existia.
+const PASSO_2_OUVIU: Passo = {
+  assunto: (n) => `O resto da música de ${n}`,
+  preheader: "Você ouviu até o refrão. Ela não termina ali.",
+  titulo: (n) => `Você parou no melhor pedaço da música de ${n}`,
+  corpo: [
+    "A prévia corta no refrão de propósito, e é uma escolha meio cruel: é exatamente onde a música começa a virar o que ela é.",
+    "O que vem depois você ainda não ouviu — o segundo verso, a parte em que o nome de {nome} volta, e o fim.",
+    "E tem uma coisa que a prévia não mostra: existem DUAS gravações da sua letra, com interpretações diferentes. Você escolhe qual delas vai tocar quando {nome} abrir o link.",
+  ],
+  botao: "Ouvir a música inteira",
+};
+
 const PASSOS: Record<DegrauEscada, Passo> = {
   // ── R$ 38 · o preço cheio segura três e-mails ──
   2: {
@@ -256,8 +286,14 @@ const PASSOS: Record<DegrauEscada, Passo> = {
 const trocar = (t: string, nome: string, preco: string) =>
   t.replaceAll("{nome}", nome).replaceAll("{preco}", preco);
 
-export function assuntoEscada(numero: DegrauEscada, nome: string): string {
-  return trocar(PASSOS[numero].assunto(nome), nome, OFERTA[numero].texto);
+/** O passo do degrau, já escolhendo a versão certa do 2. */
+function passoDe(numero: DegrauEscada, ouviu?: boolean): Passo {
+  if (numero === 2 && ouviu) return PASSO_2_OUVIU;
+  return PASSOS[numero];
+}
+
+export function assuntoEscada(numero: DegrauEscada, nome: string, ouviu?: boolean): string {
+  return trocar(passoDe(numero, ouviu).assunto(nome), nome, OFERTA[numero].texto);
 }
 
 export function emailEscada(args: {
@@ -268,8 +304,10 @@ export function emailEscada(args: {
   linkDescadastro: string;
   /** Duas linhas da letra dela. Só o degrau 4 usa; sem elas, ele cai no genérico. */
   verso?: string | null;
+  /** Esta pessoa TOCOU a prévia? Só o degrau 2 usa. Ver `PASSO_2_OUVIU`. */
+  ouviu?: boolean;
 }): string {
-  const passo = PASSOS[args.numero];
+  const passo = passoDe(args.numero, args.ouviu);
   const preco = OFERTA[args.numero].texto;
   const nome = args.nome || "essa pessoa";
 

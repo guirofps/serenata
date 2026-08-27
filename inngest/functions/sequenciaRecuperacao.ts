@@ -261,6 +261,8 @@ export const sequenciaRecuperacao = inngest.createFunction(
         locale: "pt" | "es";
         /** Um trecho da letra QUE ELA ESCREVEU, pra ir dentro do e-mail. */
         verso: string | null;
+        /** Tocou a prévia? Decide qual das duas versões do degrau 2 sai. */
+        ouviu: boolean;
       }> = [];
 
       for (const [quizId, { quando, numero }] of ultimo) {
@@ -295,6 +297,7 @@ export const sequenciaRecuperacao = inngest.createFunction(
           numero: proximo,
           locale,
           verso: null,
+          ouviu: false,
         });
       }
       // ── A LETRA DELA, DENTRO DO E-MAIL ────────────────────
@@ -327,6 +330,29 @@ export const sequenciaRecuperacao = inngest.createFunction(
             .slice(0, 2);
           item.verso = linhas.length ? linhas.join(String.fromCharCode(10)) : null;
         }
+      }
+
+      // ── QUEM OUVIU, E POR QUE ISSO MUDA O TEXTO ──────────
+      //
+      // O degrau 2 padrão conta que a gravação ficou pronta DEPOIS que a
+      // pessoa saiu. Pra quem tocou a prévia isso é falso — e é falso pra 81%
+      // deles (7 dias: 4.858 chegaram na letra, 3.947 tocaram a música).
+      //
+      // Com este sinal, quem ouviu recebe `PASSO_2_OUVIU`, que fala do corte
+      // no refrão e da segunda gravação; quem não ouviu continua recebendo o
+      // texto de sempre, que pra ele é verdadeiro.
+      //
+      // Uma consulta só pra fila inteira, e só pra quem vai receber o 2:
+      // fora dele o sinal não muda nada e não vale a ida ao banco.
+      const doDois = out.filter((o) => o.numero === 2 && o.sessao);
+      if (doDois.length) {
+        const { data: tocaram } = await sb
+          .from("funnel_events")
+          .select("session_id")
+          .in("event_name", ["musica_play", "preview_limite"])
+          .in("session_id", doDois.map((o) => o.sessao));
+        const ouviram = new Set((tocaram ?? []).map((t) => t.session_id));
+        for (const item of doDois) item.ouviu = ouviram.has(item.sessao);
       }
 
       return out;
@@ -411,12 +437,22 @@ export const sequenciaRecuperacao = inngest.createFunction(
           // (entregue, aberto, clicado, devolvido), e e o unico jeito de
           // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
           // pessoa e nem sempre vem no evento.
-          tags: [{ name: "template", value: `recuperacao_${p.numero}` }],
+          // ETIQUETA SEPARADA PRAS DUAS VERSÕES DO 2.
+          //
+          // Sem isso os dois textos somariam no mesmo `recuperacao_2` e não
+          // haveria como saber qual converte — que é a única razão de existir
+          // um segundo texto. `recuperacao_2ouviu` aparece sozinho no painel.
+          tags: [
+            {
+              name: "template",
+              value: p.numero === 2 && p.ouviu ? "recuperacao_2ouviu" : `recuperacao_${p.numero}`,
+            },
+          ],
           from: REMETENTE_RECUPERACAO,
           replyTo: RESPONDER_PARA,
           to: [p.email],
           subject: naEscada
-            ? assuntoEscada(p.numero as DegrauEscada, p.nome)
+            ? assuntoEscada(p.numero as DegrauEscada, p.nome, p.ouviu)
             : assuntoSequencia(p.numero as NumeroDaSequencia, p.nome, p.locale),
           html: naEscada
             ? emailEscada({
@@ -425,6 +461,7 @@ export const sequenciaRecuperacao = inngest.createFunction(
                 link,
                 linkDescadastro,
                 verso: p.verso,
+                ouviu: p.ouviu,
               })
             : emailSequencia({
                 numero: p.numero as NumeroDaSequencia,
@@ -448,7 +485,10 @@ export const sequenciaRecuperacao = inngest.createFunction(
         // Ver src/lib/registro-email.ts.
         await registrarEnvio(sb, {
           emailId: enviado?.id,
-          template: `escada_${p.numero}`,
+          // Mesma separação da etiqueta do Resend: os dois textos do degrau
+          // 2 têm que aparecer em linhas diferentes do painel, senão o teste
+          // não existe.
+          template: p.numero === 2 && p.ouviu ? "escada_2ouviu" : `escada_${p.numero}`,
           para: p.email,
           quizResponseId: p.quizId ?? null,
         });
