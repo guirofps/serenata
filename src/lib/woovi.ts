@@ -121,51 +121,104 @@ export const woovi: GatewayPix = {
     // O conserto é reler: `GET /charge/{correlationID}` devolve a cobrança
     // inteira, `brCode` incluído. Então a idempotência passa a ser nossa, e
     // não dela.
-    const corpo = JSON.stringify({
-      correlationID: args.referencia,
+    const corpo = (referencia: string) => JSON.stringify({
+      correlationID: referencia,
       value: args.valorCentavos,
       comment: args.descricao.slice(0, 140),
-      // Uma hora. Tempo de sobra pra quem vai pagar agora, e curto o
-      // bastante pra não encher a conta de cobrança morta. Quem some e
-      // volta depois gera outra.
-      expiresIn: 3600,
+      // ── SETE DIAS, E ISTO SOBREPÕE O PAINEL ────────────────
+      //
+      // ATENÇÃO: este campo VENCE a configuração de validade do painel da
+      // Woovi. O dono tinha configurado 7 dias lá, e o `3600` que ficou aqui
+      // fez os primeiros PIX de produção morrerem em UMA HORA. Quem mexer
+      // nisto no painel e não vir efeito, é por causa desta linha.
+      //
+      // Uma hora veio de um raciocínio errado ("tempo de sobra pra quem vai
+      // pagar agora, e curto pra não encher a conta de cobrança morta"). Duas
+      // coisas o derrubam:
+      //
+      //   - o e-mail de PIX abandonado toca DE NOVO em 48 horas e promete,
+      //     com todas as letras, "o seu código continua valendo, é o mesmo
+      //     que você gerou". Aquele texto foi escrito porque o PIX da Perfect
+      //     Pay durava ~55h (medido: mínimo 45, máximo 71). Com 1h, o segundo
+      //     toque mandaria pra um código morto e o e-mail cometeria
+      //     exatamente o erro que ele existe pra corrigir;
+      //
+      //   - cobrança morta NÃO CUSTA NADA. Taxa só existe em cobrança paga. O
+      //     medo de encher a conta custava venda de verdade.
+      //
+      // 168h é o que o dono configurou e é o que a API aceita (medido em
+      // 27/08: `expiresIn` de 259200 e 604800 voltam com a validade exata).
+      expiresIn: 604800,
       ...(args.nome || args.email
         ? { customer: { name: args.nome ?? undefined, email: args.email ?? undefined } }
         : {}),
     });
 
-    let c: ChargeWoovi;
+    // ── A REFERÊNCIA PODE GANHAR SUFIXO, E ISSO É ESSENCIAL ────
+    //
+    // No funil a referência é o id do quiz, de propósito: duplo-clique e
+    // reload devolvem a MESMA cobrança. Só que isso criava um beco sem saída
+    // permanente — cobrança vencida, a Woovi responde "já existe", e a trava
+    // de status abaixo recusava PRA SEMPRE. Aquela pessoa nunca mais
+    // conseguiria pagar por PIX, e nada na tela explicaria por quê.
+    //
+    // Apareceu de verdade em 27/08, quando os primeiros PIX de produção
+    // venceram em 1 hora por causa de um `expiresIn` errado (ver acima).
+    //
+    // A saída: cobrança vencida ou cancelada ganha uma referência NOVA, com
+    // sufixo. Quem chamou precisa usar `idExterno` (e não a referência que
+    // mandou) pra gravar o pedido, senão o webhook e a tela ficam olhando
+    // chaves diferentes.
+    let c: ChargeWoovi = {};
     let brCodeSolto: string | undefined;
-    try {
-      const r = await chamar<{ charge?: ChargeWoovi; brCode?: string }>("/charge", {
-        method: "POST",
-        body: corpo,
-      });
-      c = r.charge ?? {};
-      brCodeSolto = r.brCode;
-    } catch (err) {
-      if (!(err instanceof ErroGateway) || !jaExiste(err.message)) throw err;
-      // Já existe: devolve a MESMA cobrança, com o MESMO QR. Não é uma
-      // segunda tentativa, é a resposta certa pra segunda pergunta.
-      const r = await chamar<{ charge?: ChargeWoovi }>(
-        `/charge/${encodeURIComponent(args.referencia)}`,
-      );
-      c = r.charge ?? {};
-      // O VALOR TEM QUE BATER. Se a cobrança viva é de outro valor (o preço
-      // mudou entre as duas aberturas, ou o braço de preço foi trocado), a
-      // pessoa veria um número na tela e pagaria outro. Falha alto.
-      if (typeof c.value === "number" && c.value !== args.valorCentavos) {
-        throw new ErroGateway(
-          `cobrança existente é de ${c.value}, esperado ${args.valorCentavos}`,
-          "woovi",
-          false,
-        );
+    let usada = args.referencia;
+
+    for (let tentativa = 0; ; tentativa++) {
+      try {
+        const r = await chamar<{ charge?: ChargeWoovi; brCode?: string }>("/charge", {
+          method: "POST",
+          body: corpo(usada),
+        });
+        c = r.charge ?? {};
+        brCodeSolto = r.brCode;
+        break;
+      } catch (err) {
+        if (!(err instanceof ErroGateway) || !jaExiste(err.message)) throw err;
       }
-      // E se ela já foi paga ou expirou, não dá pra reaproveitar o QR.
+
+      // Já existe: lê a que está lá.
+      const r = await chamar<{ charge?: ChargeWoovi }>(`/charge/${encodeURIComponent(usada)}`);
+      c = r.charge ?? {};
       const st = String(c.status ?? "").toUpperCase();
-      if (st && st !== "ACTIVE") {
-        throw new ErroGateway(`cobrança existente está ${st}`, "woovi", false);
+
+      if (st === "ACTIVE") {
+        // A resposta certa pra segunda pergunta: o MESMO QR.
+        //
+        // O VALOR TEM QUE BATER. Se a cobrança viva é de outro valor (o preço
+        // mudou entre as duas aberturas), a pessoa veria um número na tela e
+        // pagaria outro. Falha alto.
+        if (typeof c.value === "number" && c.value !== args.valorCentavos) {
+          throw new ErroGateway(
+            `cobrança existente é de ${c.value}, esperado ${args.valorCentavos}`,
+            "woovi",
+            false,
+          );
+        }
+        break;
       }
+
+      if (st === "COMPLETED") {
+        // Já foi paga. Gerar outra seria cobrar duas vezes pela mesma coisa.
+        throw new ErroGateway("cobrança existente já foi paga", "woovi", false);
+      }
+
+      // Vencida, cancelada ou qualquer outro estado morto: tenta de novo com
+      // referência nova. Três tentativas bastam — quatro cobranças mortas
+      // seguidas pra mesma pessoa é outro problema, e não é aqui.
+      if (tentativa >= 3) {
+        throw new ErroGateway(`cobrança existente está ${st}, e não consegui outra`, "woovi", false);
+      }
+      usada = `${args.referencia}:r${tentativa + 2}`;
     }
 
     const copiaECola = c.brCode ?? brCodeSolto;
@@ -176,7 +229,10 @@ export const woovi: GatewayPix = {
     }
     return {
       gateway: "woovi",
-      idExterno: String(c.correlationID ?? args.referencia),
+      // A REFERÊNCIA QUE VALE é esta, não a que quem chamou mandou: ela pode
+      // ter ganhado sufixo se a anterior tinha vencido. Gravar o pedido com a
+      // original deixaria o webhook e a tela olhando chaves diferentes.
+      idExterno: String(c.correlationID ?? usada),
       copiaECola,
       valorCentavos: c.value ?? args.valorCentavos,
       taxaCentavos: typeof c.fee === "number" ? c.fee : null,

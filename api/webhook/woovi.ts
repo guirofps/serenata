@@ -265,8 +265,14 @@ export default async function handler(req: Req, res: Res) {
   // A referência que a gente mandou é `serenata:<quiz_response_id>`. Sai
   // dela, sem adivinhação: SEM fallback por "quiz mais recente", que sob
   // concorrência entrega a música da pessoa errada.
+  //
+  // O `.split(":")[0]` NÃO é paranoia: quando a cobrança anterior daquele
+  // quiz venceu, a Woovi recusa reaproveitar o id e a nova nasce como
+  // `serenata:<quizId>:r2`. Sem cortar no primeiro dois-pontos, o id do quiz
+  // sairia com o sufixo colado e a busca não acharia música nenhuma — a
+  // pessoa pagaria e o webhook registraria "pago sem música".
   const quizId = correlationID.startsWith("serenata:")
-    ? correlationID.slice("serenata:".length)
+    ? (correlationID.slice("serenata:".length).split(":")[0] ?? null)
     : null;
 
   const musica = quizId ? await musicaDoQuiz(sb, quizId) : null;

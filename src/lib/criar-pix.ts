@@ -148,6 +148,13 @@ export const criarPix = createServerFn({ method: "POST" })
       return { ok: false, erro: "gateway" };
     }
 
+    // A REFERÊNCIA QUE VALE É A QUE VOLTOU, não a que mandamos: quando a
+    // cobrança anterior daquele quiz venceu, a Woovi recusa reaproveitar o id
+    // e `woovi.criar` gera outra com sufixo (`serenata:<id>:r2`). Gravar o
+    // pedido com a original faria o webhook escrever numa linha e a tela
+    // esperar em outra — a pessoa pagaria e a tela ficaria girando.
+    const refFinal = cobranca.idExterno;
+
     // ── O PEDIDO PENDENTE NASCE AQUI ─────────────────────────────
     //
     // Não é burocracia: é o que faz o `pixNaoPago` existir (recuperação em 10
@@ -156,7 +163,7 @@ export const criarPix = createServerFn({ method: "POST" })
     // invisível, como era na Perfect Pay até 10/08.
     const { error } = await db.from("pedidos").upsert(
       {
-        payment_id: `woovi:${referencia}`,
+        payment_id: `woovi:${refFinal}`,
         gateway: "woovi",
         status: "pendente",
         email: emailDaVenda,
@@ -177,7 +184,7 @@ export const criarPix = createServerFn({ method: "POST" })
         //
         // Serve pro caso mais comum também: quem abriu o PIX, foi no
         // aplicativo do banco, e voltou pra aba fechada.
-        pix_url: `${urlDoSite()}/pix/${referencia}`,
+        pix_url: `${urlDoSite()}/pix/${refFinal}`,
       },
       { onConflict: "payment_id" },
     );
@@ -190,10 +197,12 @@ export const criarPix = createServerFn({ method: "POST" })
 
     return {
       ok: true,
+      // `refFinal` também aqui: é por esta chave que a tela pergunta "já
+      // caiu?", e ela tem que ser a mesma que o pedido gravou.
       copiaECola: cobranca.copiaECola,
       valorCentavos,
       expiraEm: cobranca.expiraEm,
-      referencia,
+      referencia: refFinal,
     };
   });
 
