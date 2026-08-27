@@ -123,6 +123,17 @@ export function AvisarWhatsApp({ locale = "pt" }: { locale?: Locale }) {
               {T.zapDispensar}
             </button>
           </div>
+
+          {/* O AVISO DE SPAM, aqui e não no fim.
+              Esta é a única tela do funil onde a pessoa está PARADA, olhando
+              uma barra por dois minutos, e é a tela onde a gente acabou de
+              dizer que a entrega é por e-mail. É o momento em que ela lê.
+              Em 26/08, cinco dos sete tickets do dia eram gente esperando a
+              música chegar sozinha. Uma linha aqui é mais barata que sete
+              atendimentos. */}
+          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+            {T.zapSpam}
+          </p>
         </div>
       </div>
     </form>

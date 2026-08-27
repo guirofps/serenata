@@ -141,14 +141,33 @@ const PT = {
   // embora justo antes da prévia, que é a peça que mais vende.
   //
   // Agora é EXTRA, não saída: recebe no WhatsApp ALÉM do que já vai ver aqui.
-  zapTitulo: "Quer receber sua música no WhatsApp também?",
+  // ── O WHATSAPP É RESERVA, NÃO É CANAL DE ENTREGA (27/08) ────────
+  //
+  // A copy anterior prometia: "mando o link no seu WhatsApp também". Duas
+  // coisas quebravam nisso.
+  //
+  // 1. A GENTE NÃO CUMPRE. Os números de WhatsApp do atendimento caem toda
+  //    hora, e promessa que depende de canal instável é promessa que vira
+  //    reclamação. Prometer menos e entregar é melhor negócio que o inverso.
+  //
+  // 2. ENSINAVA A ESPERAR A COISA ERRADA. Em 26/08, CINCO dos sete tickets do
+  //    dia eram gente esperando a música chegar por WhatsApp ou anexa no
+  //    e-mail. A entrega é por LINK, e o funil inteiro dizia o contrário aqui.
+  //
+  // A troca é de enquadramento, não de campo: o telefone continua sendo
+  // pedido, e como SEGURO. "Se o e-mail falhar, a gente te acha" é motivo
+  // melhor pra dar o número do que "receba em dois lugares" — protege ela em
+  // vez de encher a caixa. E o aviso de spam vai junto, porque é onde a
+  // música chega de verdade.
+  zapTitulo: "Deixa um WhatsApp de reserva?",
   zapTexto:
-    "Ela fica pronta em uns 2 minutos, aqui mesmo nesta tela. Se quiser, mando o link no seu WhatsApp também, pra ficar guardado.",
+    "A sua música vai pro e-mail que você deixou. O WhatsApp é só garantia: se o e-mail voltar ou sumir, a gente te procura por lá pra você não ficar sem nada.",
   zapCampo: "Seu WhatsApp (opcional)",
-  zapBotao: "Quero receber",
+  zapBotao: "Deixar meu WhatsApp",
   zapDispensar: "Não precisa",
   zapInvalido: "Confere o número, parece faltar um dígito.",
-  zapPronto: "Combinado! Mando no seu WhatsApp também.",
+  zapPronto: "Guardado. Só usamos se o e-mail falhar.",
+  zapSpam: "A música chega sempre por e-mail. Vale conferir a caixa de spam e a aba Promoções.",
   umaMusicaPra: "uma música pra",
   linkEQr: "link + QR Code pra compartilhar",
   queroCantada: (n: string) => `Quero a música de ${n} cantada`,
@@ -273,14 +292,17 @@ const ES: Textos = {
   ],
   popupCta: "Quiero la canción completa",
   popupDepois: "Ahora no",
-  zapTitulo: "¿Quieres recibir tu canción por WhatsApp también?",
+  // Mesmo enquadramento do português: reserva, não canal de entrega. Ver o
+  // comentário longo no bloco `pt`.
+  zapTitulo: "¿Nos dejás un WhatsApp de respaldo?",
   zapTexto:
-    "Queda lista en unos 2 minutos, aquí mismo en esta pantalla. Si quieres, te mando el link por WhatsApp también, para que lo tengas guardado.",
+    "Tu canción va al e-mail que dejaste. El WhatsApp es solo garantía: si el e-mail rebota o se pierde, te buscamos por ahí para que no te quedes sin nada.",
   zapCampo: "Tu WhatsApp (opcional)",
-  zapBotao: "Quiero recibirla",
+  zapBotao: "Dejar mi WhatsApp",
   zapDispensar: "No hace falta",
   zapInvalido: "Revisa el número, parece que falta un dígito.",
-  zapPronto: "¡Listo! Te la mando por WhatsApp también.",
+  zapPronto: "Guardado. Solo lo usamos si el e-mail falla.",
+  zapSpam: "La canción llega siempre por e-mail. Conviene revisar la carpeta de spam y la pestaña Promociones.",
   umaMusicaPra: "una canción para",
   linkEQr: "link + código QR para compartir",
   queroCantada: (n: string) => `Quiero la canción de ${n} cantada`,
