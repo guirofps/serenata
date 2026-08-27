@@ -33,6 +33,7 @@ const COPY: Record<
     titulo: (n: string) => string;
     corpo: string;
     botao: string;
+    ouCopie: string;
     rodapeAviso: string;
     rodape: string;
   }
@@ -43,6 +44,10 @@ const COPY: Record<
     corpo:
       "Vi que você chegou até o PIX e o pagamento não chegou a cair. Acontece: o aplicativo do banco fecha, alguém chama, o dia atropela. Nada se perdeu. A música ficou gravada e é a mesma que você vai receber.",
     botao: "PAGAR COM O MEU PIX →",
+    // O CÓDIGO COPIÁVEL. Abrir link, esperar carregar e achar botão é
+    // trabalho; copiar e colar no app do banco é o gesto que a pessoa já
+    // domina. É o caminho mais curto entre o e-mail e o dinheiro.
+    ouCopie: "Ou copie o código e cole no app do seu banco:",
     // MEDIDO: o PIX da Perfect Pay vale ~55h (mín. 45, máx. 71). O texto
     // anterior dizia que o código podia ter vencido, e era falso — além de
     // pedir à pessoa que refizesse um trabalho que ela já tinha feito.
@@ -54,10 +59,11 @@ const COPY: Record<
     assunto: (n) => `La canción de ${n} está lista y el pago no entró`,
     titulo: (n) => `La canción de <em style="color:#7d2b3a;">${n}</em> ya está lista y te espera.`,
     corpo:
-      "Vi que llegaste hasta el pago y no alcanzó a acreditarse. Pasa: el código vence rápido, la app del banco se cierra, alguien te llama. No se perdió nada. La canción quedó grabada y es la misma que vas a recibir.",
-    botao: "VOLVER AL PAGO →",
+      "Vi que llegaste hasta el pago y no alcanzó a acreditarse. Pasa: la app del banco se cierra, alguien te llama, el día atropella. No se perdió nada. La canción quedó grabada y es la misma que vas a recibir.",
+    botao: "PAGAR CON MI PIX →",
+    ouCopie: "O copia el código y pégalo en la app de tu banco:",
     rodapeAviso:
-      "El código anterior puede haber vencido, así que este botón abre uno nuevo, con el mismo valor.<br>Si prefieres tarjeta, la opción aparece en la misma pantalla.",
+      "Tu código sigue siendo válido, es el mismo que generaste.<br>Si prefieres tarjeta, la opción aparece en la misma pantalla.",
     rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
   },
 };
@@ -71,10 +77,12 @@ export function emailPixNaoPago(args: {
   nome: string;
   titulo: string;
   linkCheckout: string;
+  /** O código copia-e-cola do PIX dela. Ausente em pedido antigo sem URL. */
+  codigo?: string | null;
   locale?: IdiomaEmail;
 }): string {
   const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
-  const { nome, titulo, linkCheckout } = args;
+  const { nome, titulo, linkCheckout, codigo } = args;
   return `<!DOCTYPE html>
 <html lang="${args.locale === "es" ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>
 <body style="margin:0;padding:0;background-color:#f2e9dc;font-family:Georgia,'Times New Roman',serif;">
@@ -107,7 +115,19 @@ export function emailPixNaoPago(args: {
           </a>
         </td></tr>
 
-        <tr><td style="padding:10px 36px 30px;text-align:center;color:rgba(42,21,24,0.5);font-size:13px;font-family:Helvetica,Arial,sans-serif;line-height:1.7;">
+        ${
+          codigo
+            ? `<tr><td style="padding:14px 36px 0;text-align:center;">
+          <p style="margin:0 0 8px;color:rgba(42,21,24,0.55);font-size:12px;font-family:Helvetica,Arial,sans-serif;">${C.ouCopie}</p>
+          <!-- word-break porque o codigo tem 200+ caracteres sem espaco: sem
+               isso ele estoura a largura em qualquer cliente de e-mail. E
+               fonte monoespacada porque a pessoa precisa CONFERIR o que colou. -->
+          <p style="margin:0;padding:12px;border-radius:8px;background:#f2e9dc;border:1px solid rgba(42,21,24,0.12);color:#2a1518;font-family:Courier,monospace;font-size:11px;line-height:1.5;word-break:break-all;text-align:left;">${codigo}</p>
+        </td></tr>`
+            : ""
+        }
+
+        <tr><td style="padding:14px 36px 30px;text-align:center;color:rgba(42,21,24,0.5);font-size:13px;font-family:Helvetica,Arial,sans-serif;line-height:1.7;">
           ${C.rodapeAviso}
         </td></tr>
       </table>

@@ -16,7 +16,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 // pagamento e parou no último centímetro. É o lead mais quente do funil, e era
 // o único sem e-mail dedicado.
 //
-// ── POR QUE 20 MINUTOS, E NÃO 40 NEM 10 ──────────────────────────
+// ── POR QUE 10 MINUTOS ───────────────────────────────────────────
 //
 // Medido em 27/08, sobre os PIX pendentes que VIRARAM pagamento — a curva de
 // quanto tempo depois o dinheiro cai:
@@ -28,12 +28,18 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 //   40 a 60 min   3,6%   (80,0%)
 //   depois        20,0%
 //
-// A intenção decai rápido, então esperar 40 minutos é esperar demais. Mas
-// disparar aos 10 alcançaria 42% de quem AINDA VAI PAGAR, muitos com o app do
-// banco aberto naquele instante.
+// A intenção decai rápido: 58% de quem paga já pagou aos 10 minutos, e a
+// curva achata daí em diante. Esperar 40 era esperar a intenção esfriar.
 //
-// Aos 20 minutos, dois terços de quem paga já pagou. Quem sobra é quase todo
-// gente que não volta sozinha, que é exatamente o alvo.
+// Foi 40 → 20 → 10, e a última descida veio de um argumento que muda o cálculo:
+// aos 10 minutos, 42% de quem AINDA VAI PAGAR recebe o e-mail. Isso era um
+// problema ENQUANTO o texto dizia "seu pagamento não entrou" — soa a cobrança
+// pra quem está com o app do banco aberto naquele instante.
+//
+// Só que o texto mudou junto (ver abaixo): ele agora diz que o código dela
+// continua valendo e entrega o código. Pra quem está no meio do pagamento,
+// isso é ajuda, não cobrança. Removida a ofensa, sobra só o ganho de falar
+// enquanto a intenção está quente.
 //
 // ── E O CÓDIGO NÃO VENCEU ────────────────────────────────────────
 //
@@ -66,7 +72,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 // pra sustentar régua própria, e o checkout de lá é outro gateway com outra
 // moeda. Quando o volume justificar, é uma variante a mais aqui.
 
-const MIN_MIN = 20;
+const MIN_MIN = 10;
 /** Quantos toques no máximo, e quanto tempo entre eles. Ver `podeMandar`. */
 const MAX_TOQUES = 2;
 const SEGUNDO_TOQUE_H = 48;
@@ -163,7 +169,7 @@ export const pixNaoPago = inngest.createFunction(
 
       const { data: pendentes } = await sb
         .from("pedidos")
-        .select("id, email, quiz_response_id, valor_centavos, created_at, pix_url")
+        .select("id, email, quiz_response_id, valor_centavos, created_at, pix_url, pix_codigo")
         .eq("status", "pendente")
         .gte("created_at", new Date(agora - MAX_H * 3600000).toISOString())
         .lte("created_at", new Date(agora - MIN_MIN * 60000).toISOString())
@@ -171,7 +177,8 @@ export const pixNaoPago = inngest.createFunction(
 
       const out: Array<{
         email: string; nome: string; titulo: string;
-        linkCheckout: string; quizId: string; locale: "pt" | "es";
+        linkCheckout: string; codigo: string | null;
+        quizId: string; locale: "pt" | "es";
       }> = [];
       const vistos = new Set<string>();
 
@@ -247,6 +254,16 @@ export const pixNaoPago = inngest.createFunction(
           nome: ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() || "quem você ama",
           titulo: m.titulo ?? "Sua música",
           linkCheckout: link,
+          // O CÓDIGO COPIÁVEL, e não só o link.
+          //
+          // Abrir link, esperar carregar e achar o botão é trabalho. Copiar e
+          // colar no app do banco é o gesto que a pessoa já domina, e é o
+          // caminho mais curto entre o e-mail e o dinheiro.
+          //
+          // Só sai quando veio junto do `pix_url`: o código pertence AQUELE
+          // pedido, e misturar código de um com link de outro cobraria errado.
+          // Pedido antigo sem URL guardada vai só com o checkout.
+          codigo: p.pix_url ? ((p.pix_codigo as string | null) ?? null) : null,
           quizId: p.quiz_response_id,
         });
       }
@@ -291,6 +308,7 @@ export const pixNaoPago = inngest.createFunction(
             `A música de ${c.nome} ficou pronta, mas o pagamento não chegou a cair.\n\n` +
             `Nada se perdeu: a música está gravada e o seu código PIX continua valendo.\n\n` +
             `Pague com o seu PIX aqui:\n${c.linkCheckout}\n\n` +
+            (c.codigo ? `Ou copie o código e cole no app do seu banco:\n${c.codigo}\n\n` : "") +
             `Se preferir cartão, a opção aparece na mesma tela.`,
         });
         if (error) {
