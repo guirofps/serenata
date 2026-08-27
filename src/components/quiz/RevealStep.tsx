@@ -143,17 +143,38 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
     if (!base) return;
     setFinalizando(true);
     try {
-      await finalizarLetra({
-        data: {
-          sessionId: getOrCreateSessionId(),
-          respostas: vivas(),
-          letra: letraEditada,
-          titulo: base.titulo,
-          estiloSuno: base.estilo_suno,
-          versoDestaque: base.verso_destaque,
-          locale,
-        },
-      });
+      const pedido = {
+        sessionId: getOrCreateSessionId(),
+        respostas: vivas(),
+        letra: letraEditada,
+        titulo: base.titulo,
+        estiloSuno: base.estilo_suno,
+        versoDestaque: base.verso_destaque,
+        locale,
+      };
+      let r = await finalizarLetra({ data: pedido });
+
+      // ── `musicaId` NULO NÃO É SUCESSO ─────────────────────────
+      //
+      // `finalizarLetra` resolve normalmente mesmo quando não conseguiu criar
+      // a música, e este código tratava isso como se tudo tivesse dado certo:
+      // gravava `letra_finalizada`, mostrava a letra e mandava a pessoa pra
+      // oferta, onde ela era barrada por falta de música. Doze casos em 7
+      // dias, todos com a letra escrita e nenhum com música.
+      //
+      // A causa principal está consertada no servidor (a linha do quiz agora
+      // é criada em vez de faltar). Esta é a segunda camada, pra qualquer
+      // OUTRA causa: uma tentativa a mais, que é grátis — sem música criada
+      // não há Suno gasto, e a idempotência do servidor impede duplicar se a
+      // primeira tiver funcionado no meio do caminho.
+      if (!r?.musicaId) {
+        trackEvent("finalizar_sem_musica", { tentativa: 1 });
+        r = await finalizarLetra({ data: pedido });
+        // Ainda nada: registra alto. Não dá pra consertar da tela, mas o
+        // `vigiaGeracao` varre o banco de 10 em 10 minutos e este evento é o
+        // que permite saber que existiu.
+        if (!r?.musicaId) trackEvent("finalizar_sem_musica", { tentativa: 2 });
+      }
       trackEventOnce("letra_finalizada", "v1", { titulo: base.titulo });
       // Guarda a letra final ANTES de revelar: é o que permite voltar pra
       // esta tela depois sem recomeçar a coautoria.

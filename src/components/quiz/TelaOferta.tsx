@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuizStore } from "@/lib/quiz-store";
 import { irParaCheckout } from "@/lib/checkout";
-import { temMusicaDaSessao } from "@/lib/coautoria";
+import { temMusicaDaSessao, finalizarLetra } from "@/lib/coautoria";
 import { meusCreditos } from "@/lib/meus-creditos";
 import { usarCredito } from "@/lib/usar-credito";
 import { supabase } from "@/lib/supabase-client";
@@ -395,10 +395,52 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   // carregando, que é exatamente o que está acontecendo. Desligar faria a
   // pessoa clicar de novo, que é o que os 205 cliques de 40 sessões eram.
   const TETO_ESPERA = 240;
+
+  /**
+   * TENTA CRIAR A MÚSICA QUE NUNCA FOI CRIADA.
+   *
+   * Existe um estado em que a pessoa tem a letra pronta no navegador e o banco
+   * não tem música nenhuma: `finalizarLetra` rodou antes de a linha do quiz
+   * existir e desistiu em silêncio. Foram 12 casos em 7 dias, e o desfecho de
+   * todos foi este botão barrando alguém que queria pagar.
+   *
+   * A causa está consertada nos dois lados (o servidor cria o lead que falta,
+   * o `RevealStep` tenta de novo). Isto aqui é pra quem JÁ está nesse estado:
+   * a letra dela está no `letraFinal` da store, e é tudo que falta pra criar a
+   * música. Sem isto, a espera abaixo giraria quatro minutos esperando algo
+   * que ninguém pediu.
+   *
+   * Não gasta Suno à toa: se a música existir, o servidor devolve a existente
+   * pela idempotência e não gera nada.
+   */
+  async function tentarRecriarMusica() {
+    const letra = useQuizStore.getState().letraFinal;
+    if (!letra?.letra || !letra.titulo) return;
+    try {
+      trackEvent("oferta_recriou_musica", { locale });
+      await finalizarLetra({
+        data: {
+          sessionId: getOrCreateSessionId(),
+          respostas: useQuizStore.getState().respostas,
+          letra: letra.letra,
+          titulo: letra.titulo,
+          estiloSuno: letra.estiloSuno,
+          versoDestaque: letra.versoDestaque ?? "",
+          locale,
+        },
+      });
+    } catch (err) {
+      console.error("[oferta] recriar música falhou:", err);
+    }
+  }
+
   function esperarMusica(origem: "checkout" | "credito") {
     setIndo(true);
     setSemMusica("esperando");
     setEsperaSeg(0);
+    // Dispara antes do relógio: quem chegou aqui sem música ou está gerando
+    // (e o poll resolve) ou nunca foi criada (e só isto resolve).
+    void tentarRecriarMusica();
     const t0 = Date.now();
     const relogio = setInterval(() => {
       setEsperaSeg(Math.round((Date.now() - t0) / 1000));

@@ -461,7 +461,44 @@ export const finalizarLetra = createServerFn({ method: "POST" })
     await cobrarMusica(data.sessionId);
     const db = supabaseAdmin();
     const locale = normalizarLocale(data.locale);
-    const quizId = await quizIdDaSessao(data.sessionId);
+    // ── A LINHA DO QUIZ PODE AINDA NÃO TER CHEGADO ────────────────
+    //
+    // Isto desistia em silêncio, e a conta do silêncio estava no banco: em 7
+    // dias, 12 pessoas finalizaram a letra e ficaram SEM MÚSICA NENHUMA. Duas
+    // por dia, número constante independente do volume — o formato de uma
+    // corrida, não de sobrecarga.
+    //
+    // A corrida é esta: `captureLeadProgress` é fire-and-forget no cliente e
+    // é ele quem cria a linha de `quiz_responses`. Em 8 dos 12 casos a linha
+    // nasceu 16 a 74 segundos DEPOIS de `letra_finalizada` — sempre depois,
+    // nunca antes. Nos outros 4 ela nunca nasceu.
+    //
+    // O que acontecia com essas pessoas: a letra ficava pronta na tela, elas
+    // liam, chegavam na oferta, clicavam em comprar, e o funil barrava por
+    // falta de música. Uma delas hoje, às 13h16. É a pior perda possível —
+    // alguém com a letra escrita e o dedo no botão.
+    //
+    // Desistir aqui nunca foi certo: `sessionId` e `respostas` estão em mãos,
+    // que é tudo que a linha precisa. Então CRIA. Pela mesma RPC que o funil
+    // usa, pra não haver dois jeitos de nascer um lead: ela é `SECURITY
+    // DEFINER`, faz `GREATEST` no `furthest_step` e não apaga resposta, então
+    // a captura verdadeira chegando 17 segundos depois completa a linha em
+    // vez de brigar com ela.
+    //
+    // Os passos vão NULOS de propósito: quem sabe em que passo a pessoa está
+    // é o cliente, e chutar daqui um número alto estragaria o funil do painel.
+    let quizId = await quizIdDaSessao(data.sessionId);
+    if (!quizId) {
+      const { error: erroLead } = await db.rpc("upsert_quiz_response", {
+        p_session_id: data.sessionId,
+        p_respostas: data.respostas,
+        p_locale: locale,
+      });
+      if (erroLead) {
+        console.error("[coautoria] não deu pra criar o lead da sessão:", erroLead);
+      }
+      quizId = await quizIdDaSessao(data.sessionId);
+    }
     if (!quizId) {
       console.error("[coautoria] sessão sem quiz_response; letra não persistida", data.sessionId);
       return { musicaId: null, statusMusica: "aguardando" };
