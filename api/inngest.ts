@@ -18,6 +18,7 @@ import { repescarFalhadas } from "../inngest/functions/repescarFalhadas.js";
 import { vigiaEntrega } from "../inngest/functions/vigiaEntrega.js";
 import { ofertaQuadro } from "../inngest/functions/ofertaQuadro.js";
 import { vigiaGeracao } from "../inngest/functions/vigiaGeracao.js";
+import { quaseComprou } from "../inngest/functions/quaseComprou.js";
 
 // Adapter "inngest/node" (req/res nativo), não "inngest/next": no Inngest v4 o
 // adapter next virou web-style (Request -> Response) e nunca escreve no res de
@@ -41,5 +42,6 @@ export default serve({
     vigiaEntrega,
     ofertaQuadro,
     vigiaGeracao,
+    quaseComprou,
   ],
 });
