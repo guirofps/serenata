@@ -35,7 +35,18 @@
 
 export type MercadoEs = "latam" | "espanha";
 
-/** O mercado que a rota `/es` atende hoje. */
-export const MERCADO_ES: MercadoEs = "espanha";
+/**
+ * O mercado que a rota `/es` atende hoje. **É esta linha que se troca.**
+ *
+ * FUNÇÃO e não `const`, e a razão é chata mas real: com `const MERCADO_ES =
+ * "latam"` o TypeScript estreita o valor pro literal e passa a acusar
+ * `MERCADO_ES === "espanha"` como comparação impossível — ou seja, o código
+ * PARA DE COMPILAR dependendo de qual mercado está ativo. O tipo de retorno
+ * declarado impede esse estreitamento, e as duas posições da chave compilam
+ * igual.
+ */
+export function mercadoEs(): MercadoEs {
+  return "latam";
+}
 
-export const ehEspanha = () => MERCADO_ES === "espanha";
+export const ehEspanha = () => mercadoEs() === "espanha";

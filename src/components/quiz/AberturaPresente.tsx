@@ -7,6 +7,7 @@ import { ProvaImediata } from "@/components/landing/Secoes";
 import { Button } from "@/components/ui/button";
 import { CORES, FONTES, TEMA_CLARO } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
+import { ehEspanha } from "@/lib/mercado-es";
 
 // A PRIMEIRA TELA DO FUNIL — o que a pessoa ganha, antes do que a gente pede.
 //
@@ -142,29 +143,44 @@ const COPY: Record<
     // do próprio mercado: no quiz ES, cônjuge é 48,2% (esposa 27,0% + marido
     // 21,2%) e MÃE É 3,7%. A tela mostrava o quinto caso mais provável.
     //
+    // Os versos e a capa são substituídos por `EXEMPLO_ES` logo abaixo, que
+    // escolhe o exemplo do MERCADO ativo. Estes aqui são o padrão LatAm.
+    //
     // "El Pedazo de Pastel" é o exemplo de esposa que já existia no banco
     // (token `exesesposa5c63ba27`, com capa `ex-capa.jpg` própria de exemplo,
-    // não foto de cliente). Os versos são literais dele: nada aqui é escrito
-    // pra ilustrar. Isso derruba a ressalva do comentário antigo, que dizia
-    // não existir exemplo de esposa em espanhol — existia, com outro título.
-    // ESPANHA, e a troca aconteceu duas vezes no mesmo dia por um motivo que
-    // vale registrar: a primeira correção trocou a mãe ("El Mandil Azul") por
-    // uma esposa MEXICANA ("El Pedazo de Pastel", que abre com "una boda en
-    // Culiacán"). Estava certo o parentesco e errado o país — o dado de que a
-    // campanha rodava México veio do nosso próprio campo de WhatsApp, que tem
-    // +52 de padrão e por isso mostrava México pra todo mundo.
-    //
-    // Esta letra foi gerada pelo nosso pipeline com o prompt novo da Espanha
-    // (`LETRA_SYSTEM_ES_ESPANHA`), a partir de uma história de Valência. Ela
-    // ainda NÃO tem página publicada como a portuguesa tem — é a única
-    // diferença entre os dois lados, e ela se fecha quando a Espanha virar
-    // campanha de verdade e houver exemplo real com áudio pra oferecer.
-    //
-    // A capa é reaproveitada do exemplo anterior: foto de casal não carrega
-    // afirmação de país, e gerar imagem nova seria inventar o que a letra já
-    // diz melhor.
-    nome: "Marta",
+    // não foto de cliente). Os versos são literais dele.
+    nome: "Ceci",
     foto: "/img/exemplos/ceci.webp",
+    versos: [
+      "En una boda en Culiacán te vi,",
+      "sirviendo el pastel de gente que ni conocí,",
+      "se te cayó un pedazo en mi camisa entera",
+      "y en vez de disculpas te reíste como fiera.",
+    ],
+  },
+};
+
+// ── O EXEMPLO SEGUE O MERCADO, e isso é um buraco que eu deixei ──
+//
+// O interruptor de `mercado-es.ts` já trocava prompt e gêneros, mas esta tela
+// ficou com o exemplo da Espanha CRAVADO. Voltar a chave pra LatAm entregaria
+// gêneros e letra latinos com uma abertura falando de Valência e do mercado
+// central — o mesmo defeito que a gente passou o dia consertando, só que ao
+// contrário.
+//
+// Um interruptor que troca três coisas e esquece a quarta é pior que nenhum,
+// porque quem virar a chave vai acreditar que virou tudo.
+//
+// ESPANHA: letra gerada pelo nosso pipeline com `LETRA_SYSTEM_ES_ESPANHA`, a
+// partir de uma história de Valência. Ainda sem página publicada, ao contrário
+// da portuguesa — a diferença se fecha quando a Espanha virar campanha real.
+//
+// LATAM: "El Pedazo de Pastel", do banco, com capa própria de exemplo.
+//
+// A capa é a mesma nos dois: foto de casal não carrega afirmação de país.
+const EXEMPLO_ES = {
+  espanha: {
+    nome: "Marta",
     versos: [
       "Un sábado en el mercado central,",
       "tú te colaste sin querer delante de mí,",
@@ -172,7 +188,11 @@ const COPY: Record<
       "y me invitaste a un café para pedir perdón.",
     ],
   },
-};
+  latam: {
+    nome: COPY.es.nome,
+    versos: COPY.es.versos,
+  },
+} as const;
 
 export function AberturaPresente({
   locale = "pt",
@@ -181,7 +201,14 @@ export function AberturaPresente({
   locale?: Locale;
   aoComecar: () => void;
 }) {
-  const C = COPY[locale] ?? COPY.pt;
+  // O espanhol troca o EXEMPLO conforme o mercado que a mídia está comprando.
+  // O resto da copy (título, promessa, CTA) serve os dois: a diferença entre
+  // Espanha e LatAm mora no exemplo, no prompt e nos gêneros, não na promessa.
+  const base = COPY[locale] ?? COPY.pt;
+  const C =
+    locale === "es"
+      ? { ...base, ...EXEMPLO_ES[ehEspanha() ? "espanha" : "latam"] }
+      : base;
   const [t, setT] = useState(0);
 
   useEffect(() => {
