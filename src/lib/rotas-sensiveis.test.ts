@@ -8,6 +8,10 @@ describe("rotaSensivel — onde script de terceiro não entra", () => {
     expect(rotaSensivel("/editar/abc123def456")).toBe(true);
     expect(rotaSensivel("/quadro/abc123")).toBe(true);
     expect(rotaSensivel("/retomar")).toBe(true);
+    // A tela que reabre um PIX pendente: o caminho carrega a referência da
+    // cobrança e a tela mostra o copia-e-cola. Nenhum dos dois tem por que
+    // ser copiado pro servidor do Google.
+    expect(rotaSensivel("/pix/serenata:45669d37-3985-45d8-9193-a16683c8e821")).toBe(true);
     expect(rotaSensivel("/auth/callback")).toBe(true);
   });
 

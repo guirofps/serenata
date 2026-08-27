@@ -826,6 +826,16 @@ export default async function handler(req: Req, res: Res) {
     // ── 8. E-MAIL COM O LINK DO EDITOR ───────────────────────
     // Falha de e-mail NÃO derruba o webhook (senão a Perfect Pay reenvia o
     // evento e o comprador recebe duplicado). Vira evento de auditoria.
+    //
+    // ATENÇÃO: ESTE BLOCO TEM UM GÊMEO em `api/lib/entrega.ts`, que é quem o
+    // webhook da Woovi usa. Foram extraídos idênticos em 27/08; esta cópia
+    // ficou de pé de propósito, porque reescrever o caminho que processa ~100
+    // vendas por dia no mesmo dia em que se estreia um gateway novo é trocar
+    // um risco pequeno por um grande.
+    //
+    // CONSERTO AQUI TEM QUE IR PRA LÁ TAMBÉM, até a migração — que é quando
+    // este bloco vira uma chamada a `mandarEmailDeEntrega` e a duplicata
+    // deixa de existir.
     if (email) {
       try {
         const chave = process.env.RESEND_API_KEY;

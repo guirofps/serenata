@@ -15,6 +15,8 @@ import { PrecoCurto, PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
 import { cupomAtivo } from "@/lib/cupom";
 import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
+import { varianteDe } from "@/lib/experimentos";
+import { PixTransparente } from "@/components/quiz/PixTransparente";
 import {
   Music, Images, Sparkles, QrCode, Download, Infinity as InfinityIcon,
   Pencil, ShieldCheck, ChevronLeft, ChevronDown, Check, RefreshCw,
@@ -291,6 +293,10 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   const cupom = useQuizStore((s) => s.cupom);
   const letraFinal = useQuizStore((s) => s.letraFinal);
   const [indo, setIndo] = useState(false);
+  // O PIX na própria página. Guarda o preço JÁ formatado, porque a folha só
+  // repete o que a pessoa acabou de ler na oferta: quem decide o valor de
+  // verdade é o servidor, em `criar-pix.ts`, e nunca este componente.
+  const [pagandoComPix, setPagandoComPix] = useState<string | null>(null);
   const [aberta, setAberta] = useState<number | null>(null);
   const nome = (respostas.nome as string)?.trim() || (locale === "es" ? "quien vos querés" : "quem você ama");
   // Só mostra desconto se o cupom da store for MESMO o da recuperação: um
@@ -507,6 +513,37 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     // de preço tem que ser lido.
     const plano = meuPlano(locale, { temCupom: Boolean(cupom && descontado) });
     trackEvent("checkout_click", { valor: plano.valor, locale, preco: plano.texto });
+
+    // ── O CHECKOUT TRANSPARENTE ──────────────────────────────────
+    //
+    // O QR do PIX aparece AQUI, sem a pessoa sair do site. Dois ganhos
+    // medidos: 70% de quem clica em comprar não gera pedido nenhum (~250 por
+    // dia), e a taxa cai de 11,39% (R$ 4,63 de média) pra R$ 0,50 por venda.
+    //
+    // Cartão NÃO se perde: é 12,8% das vendas (uns R$ 8.000/mês) e sai pelo
+    // botão "Pagar com cartão" da folha, que cai no `aoDesistir` logo abaixo
+    // e vai pro checkout da Perfect Pay de sempre.
+    //
+    // DUAS EXCEÇÕES, e as duas por moeda/produto e não por gosto:
+    //   - o funil espanhol cobra em DÓLAR na Perfect Pay, e a Woovi só faz
+    //     PIX brasileiro;
+    //   - quem chega com cupom da recuperação: o desconto existe como PRODUTO
+    //     da Perfect Pay, e o e-mail já prometeu aquele número exato.
+    //
+    // `checkout_pix` é interruptor, não teste (ver a nota em experimentos.ts):
+    // desligar o `ativo` no painel devolve TODO MUNDO pro checkout antigo no
+    // próximo carregamento, inclusive quem já tinha a variante guardada.
+    if (
+      locale === "pt" &&
+      !cupom &&
+      varianteDe("checkout_pix") === "B"
+    ) {
+      trackEventOnce("pix_transparente_abriu", "v1", { valor: plano.valor });
+      setPagandoComPix(plano.texto);
+      setIndo(false);
+      return;
+    }
+
     irParaCheckout({
       email: email || undefined,
       telefone: whatsapp || undefined,
@@ -517,6 +554,44 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
 
   return (
     <div className="space-y-8 pb-28">
+      {/* ── A FOLHA DO PIX ──────────────────────────────────────
+          POR CIMA da oferta, não no lugar dela. A pessoa acabou de ouvir a
+          música nesta tela; tirar isso de baixo dela na hora de pagar seria
+          jogar fora o motivo pelo qual ela clicou.
+
+          Folha de baixo pra cima porque 99% é celular: é onde o polegar
+          alcança, e é o gesto que o aplicativo do banco já ensinou. */}
+      {pagandoComPix && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <button
+            aria-label="Fechar"
+            onClick={() => {
+              trackEvent("pix_transparente_fechou");
+              setPagandoComPix(null);
+            }}
+            className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]"
+          />
+          <div className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-primary/10 bg-background px-5 pb-8 pt-4 shadow-2xl sm:rounded-3xl">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted-foreground/25 sm:hidden" />
+            <PixTransparente
+              valorTexto={pagandoComPix}
+              // A SAÍDA DE EMERGÊNCIA. Fecha a folha e vai pro checkout de
+              // sempre: cartão, e o caminho de volta se o nosso PIX falhar.
+              aoDesistir={() => {
+                trackEvent("pix_transparente_desistiu");
+                setPagandoComPix(null);
+                irParaCheckout({
+                  email: email || undefined,
+                  telefone: whatsapp || undefined,
+                  cupom: cupom || undefined,
+                  locale,
+                });
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       <button
         onClick={aoVoltar}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"

@@ -143,6 +143,58 @@ export const EXPERIMENTOS: Experimento[] = [
     ativo: true,
     nota: "Quanto custa a música. O preço vive em `preco.ts` como PLANO (número na tela + produto da Perfect Pay + valor da conversão no mesmo objeto), porque o que estraga teste de preço é a tela dizer um número e o caixa cobrar outro. Fora do teste: o funil espanhol (volume pequeno demais pra dividir) e quem chega com cupom da recuperação (o e-mail já prometeu um número exato).",
   },
+  {
+    id: "checkout_pix",
+    // A = Perfect Pay hospedado (o antigo) · B = PIX transparente pela Woovi,
+    // numa folha por cima da própria oferta.
+    //
+    // ── ISTO NÃO É UM TESTE, É UM INTERRUPTOR ──────────────────
+    //
+    // Nasce com peso [0, 1]: TODO MUNDO no B. A decisão do dono em 27/08 foi
+    // migrar de uma vez, e ela se defende — a 10% seriam ~5 vendas por dia, e
+    // eu já tinha medido que nesse volume um teste desses leva dias pra dizer
+    // qualquer coisa. Comparar com a semana anterior é a leitura mais rápida
+    // que existe aqui.
+    //
+    // O nome mudou de `checkout` pra `checkout_pix` de propósito: o id velho
+    // já tinha sido sorteado como "A" pra quem visitou o site enquanto ele
+    // estava com peso 0 no B, e essa escolha fica GRAVADA no navegador da
+    // pessoa. Reaproveitar o id deixaria essas pessoas no checkout antigo pra
+    // sempre, e ainda gravaria "A" na atribuição de quem viu o B.
+    //
+    // ── COMO SE DESLIGA ────────────────────────────────────────
+    //
+    // Pelo `ativo` no painel, não pelo peso. É a única alavanca que vence o
+    // sorteio guardado: `scriptExperimentos` só carimba experimento ATIVO, e
+    // `varianteDe` lê o carimbo do `<html>` — sem carimbo, ela devolve o
+    // controle. Ou seja, desligar leva TODO MUNDO de volta pra Perfect Pay no
+    // próximo carregamento, inclusive quem já tinha B guardado.
+    //
+    // Mexer no peso NÃO faz isso: quem já sorteou B continua em B.
+    //
+    // ── O QUE ESTÁ SENDO MEDIDO ────────────────────────────────
+    //
+    // 70% de quem clica em comprar não gera pedido nenhum (~250 pessoas por
+    // dia). Boa parte disso é a troca de domínio: a pessoa sai de
+    // serenatagift.com e cai num checkout com outra marca, que ela nunca viu.
+    //
+    // ── O GANHO QUE NÃO DEPENDE DO TESTE ───────────────────────
+    //
+    // A taxa. Woovi cobra 0,8% com piso de R$ 0,50; num ticket de R$ 38 a
+    // Perfect Pay leva ~R$ 4,41. No volume de agosto isso são ~R$ 3.800 por
+    // mês, e existe mesmo que a conversão fique idêntica. Por isso o teste
+    // pode ser lido por EMPATE: empatou, migra.
+    //
+    // ── SÓ PT, SÓ SEM CUPOM ────────────────────────────────────
+    //
+    // A Woovi é PIX brasileiro; o funil espanhol cobra em dólar. E o cupom da
+    // recuperação vive como produto da Perfect Pay, então quem chega com ele
+    // fica fora — os dois filtros estão no `TelaOferta`, não aqui.
+    variantes: ["A", "B"],
+    peso: [0, 1],
+    ativo: false,
+    nota: "Onde a pessoa paga. B (todo mundo) = PIX transparente da Woovi numa folha sobre a oferta, sem trocar de domínio e sem pedir CPF. A = checkout hospedado da Perfect Pay, que continua sendo o caminho do CARTÃO (12,8% das vendas) pelo botão da folha, e do cupom, e do funil espanhol. DESLIGA PELO `ativo`, nunca pelo peso: só o `ativo` vence o sorteio já guardado no navegador da pessoa. Ler por RECEITA LÍQUIDA, não por conversão: a taxa cai de 11,39% (R$ 4,63 medidos) pra R$ 0,50, então empate na conversão já é vitória.",
+  },
 ];
 
 const CHAVE = "mp_exp:";

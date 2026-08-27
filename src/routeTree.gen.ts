@@ -29,6 +29,7 @@ import { Route as EsCriarRouteImport } from './routes/es.criar'
 import { Route as EsGraciasRouteImport } from './routes/es.gracias'
 import { Route as EsLoginRouteImport } from './routes/es.login'
 import { Route as PTokenRouteImport } from './routes/p.$token'
+import { Route as PixReferenciaRouteImport } from './routes/pix.$referencia'
 import { Route as QuadroTokenEdicaoRouteImport } from './routes/quadro.$tokenEdicao'
 
 const IndexRoute = IndexRouteImport.update({
@@ -132,6 +133,11 @@ const PTokenRoute = PTokenRouteImport.update({
   path: '/p/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PixReferenciaRoute = PixReferenciaRouteImport.update({
+  id: '/pix/$referencia',
+  path: '/pix/$referencia',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const QuadroTokenEdicaoRoute = QuadroTokenEdicaoRouteImport.update({
   id: '/quadro/$tokenEdicao',
   path: '/quadro/$tokenEdicao',
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/es/gracias': typeof EsGraciasRoute
   '/es/login': typeof EsLoginRoute
   '/p/$token': typeof PTokenRoute
+  '/pix/$referencia': typeof PixReferenciaRoute
   '/quadro/$tokenEdicao': typeof QuadroTokenEdicaoRoute
   '/es/': typeof EsIndexRoute
 }
@@ -181,6 +188,7 @@ export interface FileRoutesByTo {
   '/es/gracias': typeof EsGraciasRoute
   '/es/login': typeof EsLoginRoute
   '/p/$token': typeof PTokenRoute
+  '/pix/$referencia': typeof PixReferenciaRoute
   '/quadro/$tokenEdicao': typeof QuadroTokenEdicaoRoute
   '/es': typeof EsIndexRoute
 }
@@ -205,6 +213,7 @@ export interface FileRoutesById {
   '/es/gracias': typeof EsGraciasRoute
   '/es/login': typeof EsLoginRoute
   '/p/$token': typeof PTokenRoute
+  '/pix/$referencia': typeof PixReferenciaRoute
   '/quadro/$tokenEdicao': typeof QuadroTokenEdicaoRoute
   '/es/': typeof EsIndexRoute
 }
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
     | '/es/gracias'
     | '/es/login'
     | '/p/$token'
+    | '/pix/$referencia'
     | '/quadro/$tokenEdicao'
     | '/es/'
   fileRoutesByTo: FileRoutesByTo
@@ -253,6 +263,7 @@ export interface FileRouteTypes {
     | '/es/gracias'
     | '/es/login'
     | '/p/$token'
+    | '/pix/$referencia'
     | '/quadro/$tokenEdicao'
     | '/es'
   id:
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/es/gracias'
     | '/es/login'
     | '/p/$token'
+    | '/pix/$referencia'
     | '/quadro/$tokenEdicao'
     | '/es/'
   fileRoutesById: FileRoutesById
@@ -300,6 +312,7 @@ export interface RootRouteChildren {
   EsGraciasRoute: typeof EsGraciasRoute
   EsLoginRoute: typeof EsLoginRoute
   PTokenRoute: typeof PTokenRoute
+  PixReferenciaRoute: typeof PixReferenciaRoute
   QuadroTokenEdicaoRoute: typeof QuadroTokenEdicaoRoute
   EsIndexRoute: typeof EsIndexRoute
 }
@@ -446,6 +459,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pix/$referencia': {
+      id: '/pix/$referencia'
+      path: '/pix/$referencia'
+      fullPath: '/pix/$referencia'
+      preLoaderRoute: typeof PixReferenciaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/quadro/$tokenEdicao': {
       id: '/quadro/$tokenEdicao'
       path: '/quadro/$tokenEdicao'
@@ -476,6 +496,7 @@ const rootRouteChildren: RootRouteChildren = {
   EsGraciasRoute: EsGraciasRoute,
   EsLoginRoute: EsLoginRoute,
   PTokenRoute: PTokenRoute,
+  PixReferenciaRoute: PixReferenciaRoute,
   QuadroTokenEdicaoRoute: QuadroTokenEdicaoRoute,
   EsIndexRoute: EsIndexRoute,
 }
