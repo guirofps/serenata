@@ -1084,8 +1084,37 @@ function Admin() {
                       className={cn(o.vendas > 0 && "bg-[var(--acento)]/5")}
                     >
                       <td className="px-3 py-2.5 font-medium">{o.origem}</td>
+                      {/* O NOME NA FRENTE, o ID em letra pequena.
+                          `utm_campaign` guarda o ID (`24116713654`) porque o
+                          Google não oferece `{campaignname}` em ValueTrack. O
+                          nome vem da tabela `campanhas`. Sem nome, mostra o ID
+                          com aviso: é campanha que entrou depois da última
+                          carga do relatório. */}
                       <td className="px-3 py-2.5 text-right text-[var(--tinta-suave)]">
-                        {o.campanha ?? "—"}
+                        {o.campanha ? (
+                          o.campanhaNome ? (
+                            <>
+                              <span className="text-[var(--tinta)]">{o.campanhaNome}</span>
+                              {o.campanhaStatus === "Pausada" && (
+                                <span className="ml-1.5 text-[10px] uppercase tracking-wide opacity-60">
+                                  pausada
+                                </span>
+                              )}
+                              <span className="block text-[10px] tabular-nums opacity-50">
+                                {o.campanha}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="tabular-nums">{o.campanha}</span>
+                              <span className="block text-[10px] uppercase tracking-wide text-amber-600">
+                                sem nome
+                              </span>
+                            </>
+                          )
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-right tabular-nums">{o.leads}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums">{o.letras}</td>

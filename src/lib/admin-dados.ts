@@ -198,7 +198,21 @@ export type Painel = {
   /** Atribuição: de onde vêm os leads e as VENDAS. */
   porOrigem: Array<{
     origem: string;
+    /** O ID cru que veio em `utm_campaign`. É a chave, e continua à vista. */
     campanha: string | null;
+    /**
+     * O NOME da campanha, quando conhecido.
+     *
+     * O Google só manda o ID no `utm_campaign` (não existe `{campaignname}`),
+     * e comparar `24116713654` com `24109054263` não é otimizar, é adivinhar.
+     * O nome vem da tabela `campanhas`, carregada do relatório do Google.
+     *
+     * Nulo quando é campanha nova que ainda não foi carregada. A tela mostra
+     * o ID nesse caso, sinalizando que falta nomear.
+     */
+    campanhaNome: string | null;
+    /** Ativada / Pausada na última carga. Separa o que gasta do histórico. */
+    campanhaStatus: string | null;
     leads: number;
     letras: number;
     vendas: number;
@@ -1039,8 +1053,40 @@ async function montarPainel(
     .map((e) => ({ ...e, conversaoPct: pct(e.vendas, e.visitantes) }))
     .sort((a, b) => b.visitantes - a.visitantes);
 
+  // ── O NOME DA CAMPANHA, no lugar do número ───────────────────
+  //
+  // `utm_campaign` guarda o ID (`24116713654`), porque é só isso que o Google
+  // sabe pôr na URL: não existe `{campaignname}` em ValueTrack. O painel
+  // mostrava o número, e ninguém decide nada olhando pra ele.
+  //
+  // Uma consulta só, com os IDs que apareceram no período. A tabela tem 83
+  // linhas hoje, mas o `in` deixa isso continuar barato se um dia forem mil.
+  const idsCampanha = [...new Set(
+    [...origemMap.values()].map((v) => v.campanha).filter((c): c is string => Boolean(c)),
+  )];
+  const nomeCampanha = new Map<string, { nome: string; status: string | null }>();
+  if (idsCampanha.length) {
+    const { data: nomes } = await db
+      .from("campanhas")
+      .select("id, nome, status")
+      .in("id", idsCampanha);
+    for (const c of nomes ?? []) {
+      nomeCampanha.set(String(c.id), { nome: String(c.nome), status: c.status ?? null });
+    }
+  }
+
   const porOrigem = [...origemMap.values()]
-    .map((v) => ({ ...v, conversaoPct: pct(v.vendas, v.leads) }))
+    .map((v) => {
+      const c = v.campanha ? nomeCampanha.get(v.campanha) : undefined;
+      return {
+        ...v,
+        // Nulo quando a campanha é nova e ainda não foi carregada. A tela
+        // cai no ID, que é melhor que mostrar vazio.
+        campanhaNome: c?.nome ?? null,
+        campanhaStatus: c?.status ?? null,
+        conversaoPct: pct(v.vendas, v.leads),
+      };
+    })
     .sort((a, b) => b.receitaBrl - a.receitaBrl || b.leads - a.leads);
 
   // ── OS TESTES A/B ────────────────────────────────────────────
