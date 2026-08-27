@@ -226,6 +226,69 @@ prioridade é vender fumaça, e no Google Ads isso derruba conta.
 - **Sazonalidade:** alicerce em aniversário e homenagem (não sazonais), datas
   comemorativas tratadas como janela de escala, não como o negócio.
 
+## Checkout transparente (27/08/2026)
+
+O PIX brasileiro saiu do checkout hospedado da Perfect Pay e passou a nascer
+na nossa própria página, pela **Woovi**. Migrado de uma vez, 100%, na mesma
+noite em que foi construído.
+
+**Por que de uma vez.** A 10% seriam ~5 vendas/dia, e nesse volume um teste
+leva dias pra dizer qualquer coisa (a conta é a mesma que matou a ideia de
+failover por conversão). Comparar com a semana anterior é a leitura mais
+rápida disponível. Decisão do dono, com a conta na mesa.
+
+**Os dois ganhos, medidos:**
+
+| | |
+|---|---|
+| Taxa Perfect Pay | 11,39% (R$ 4,63 de média, n=6 com dado real) |
+| Taxa Woovi | 0,8% com piso de R$ 0,50 → **R$ 0,50** no ticket de hoje |
+| Volume de PIX | ~55/dia → economia de **~R$ 5.500/mês** |
+| Quem clica em comprar e não gera pedido | **70%**, uns 250/dia — é o que a troca de domínio ataca |
+
+**Cartão continua na Perfect Pay**, e não é detalhe: 12,8% das vendas, R$ 4.498
+em 17 dias, uns **R$ 8.000/mês**. Sai pelo botão "Pagar com cartão" da folha
+do PIX, que é botão de verdade e não link de rodapé — o dinheiro que ele
+carrega não cabe num rodapé. Quando o Asaas aprovar, o cartão vira
+transparente também, por um contrato `GatewayCartao` separado.
+
+**Fora do transparente, por moeda e não por gosto:** o funil espanhol (cobra
+em dólar) e quem chega com cupom da recuperação (o desconto existe como
+produto da Perfect Pay, e o e-mail já prometeu aquele número).
+
+### Invariantes deste caminho
+
+- **O preço NUNCA vem do cliente.** Sai do braço de `preco` que aquela sessão
+  sorteou, lido no servidor (`criar-pix.ts`). Se viesse do navegador, o
+  DevTools levaria um produto de R$ 54,90 por R$ 1.
+- **A Woovi NÃO é idempotente no `POST /charge`**, apesar de chamar o
+  `correlationID` de identificador único: repetir devolve
+  `400 Já existe uma cobrança com este Correlação ID`. A idempotência é
+  NOSSA — o 400 de duplicata cai num `GET /charge/{id}`, com trava de valor e
+  de status. Sem isso, fechar e reabrir a folha dava erro em cima de uma
+  cobrança que existia (`woovi-idempotencia.test.ts` segura a mensagem deles).
+- **Duas travas no webhook, e não é redundância.** A assinatura RSA-SHA256
+  prova ORIGEM; só a reconsulta na API prova PAGAMENTO. Um postback legítimo
+  pode chegar por um evento que não é pagamento.
+- **O webhook é UM, registrado na conta**, não por cobrança. Consequência:
+  não dá pra ter preview e produção recebendo ao mesmo tempo com uma conta só.
+- **A entrega mora em `api/lib/entrega.ts`**, não copiada. O bloco gêmeo
+  dentro do webhook da Perfect Pay ficou de pé com aviso escrito, e vira
+  chamada ao módulo quando o cartão migrar. Conserto num tem que ir no outro.
+- **`checkout_pix` é interruptor, não teste.** Desliga pelo `ativo` no painel,
+  NUNCA pelo peso: só o `ativo` vence o sorteio já guardado no navegador da
+  pessoa, porque sem experimento ativo o `<html>` não recebe carimbo e
+  `varianteDe` devolve o controle.
+- **`/pix/<referência>` existe pra o e-mail não mentir.** O e-mail de PIX
+  abandonado (39/dia) promete "o seu código continua valendo, é o mesmo que
+  você gerou"; sem essa rota ele mandaria a pessoa gerar um código novo. A
+  rota só LÊ pedido pendente — rota pública que cria cobrança seria um jeito
+  de encher a conta da Woovi de PIX morto.
+- **A home é pré-renderizada e nasce inerte**, então `page_view` de lá sai sem
+  carimbo de experimento. O carimbo entra no `Quiz` (`carimbarExperimentos`),
+  que é antes do checkout. Ver isso e concluir "o experimento não está
+  pegando" é um falso alarme já cometido.
+
 ## Riscos conhecidos
 
 1. **Dependência de revendedor não oficial do Suno.** Zona cinzenta nos termos
