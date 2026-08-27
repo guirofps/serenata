@@ -851,7 +851,7 @@ export default async function handler(req: Req, res: Res) {
             linkPresente,
             locale,
           }),
-          text: `A música de ${nome} está pronta.\n\nSEU LINK (monte o presente e baixe o MP3):\n${linkEditor}\n\nO LINK QUE VOCÊ MANDA PRA ELA:\n${linkPresente}\n\nGuarde este e-mail: o primeiro link é seu e só ele deixa editar a página e baixar a música.`,
+          text: `A música de ${nome} está pronta.\n\nSEU LINK (monte o presente e baixe o MP3):\n${linkEditor}\n\nO LINK QUE VOCÊ MANDA PRA ELA:\n${linkPresente}\n\nSão DUAS gravações da mesma letra: ouça as duas no primeiro link e escolha a que vai tocar pra ela.\n\nA música não vai anexada e não mandamos por WhatsApp: ela mora nesses links, e eles são seus pra sempre.`,
         });
         if (error) throw new Error(error.message);
         await registrarEnvio(sb, {

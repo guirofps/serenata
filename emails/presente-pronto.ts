@@ -27,7 +27,8 @@ const COPY: Record<IdiomaEmail, {
   assunto: (n: string) => string;
   titulo: (n: string) => string;
   faltaSo: string; montar: string; coloque: string;
-  botao: string; guarde: string; comPressa: string; verPresente: string; rodape: string;
+  botao: string; guarde: string; duasVersoes: string; semAnexo: string;
+  comPressa: string; verPresente: string; rodape: string;
   ajuda: string; ajudaBotao: string;
   quadroTitulo: string; quadroTexto: string; quadroBotao: string;
 }> = {
@@ -40,6 +41,16 @@ const COPY: Record<IdiomaEmail, {
     botao: "MONTAR O PRESENTE E BAIXAR O MP3 →",
     guarde:
       "Este é o SEU link, guarde ele. É por aqui que você edita a página e baixa a música, sempre que quiser.",
+    // DUAS GRAVAÇÕES, dito no e-mail. A oferta promete duas versões e o
+    // seletor mora no editor: quem não abre não descobre. Virou ticket em
+    // 27/08 ("entendi que seriam duas músicas e veio só uma") de uma cliente
+    // que tinha as duas prontas, com karaokê, esperando.
+    duasVersoes:
+      "São DUAS gravações da mesma letra. Ouça as duas no link acima e escolha a que vai tocar pra ela.",
+    // A ENTREGA É POR LINK. Cinco dos sete tickets de 26/08 eram gente
+    // esperando arquivo chegar sozinho, por WhatsApp ou anexo.
+    semAnexo:
+      "A música não vai anexada neste e-mail e não mandamos por WhatsApp: ela mora nesses links, e eles são seus pra sempre.",
     ajuda: "Não conseguiu abrir sua música? Fale com a gente no WhatsApp.",
     ajudaBotao: "Chamar no WhatsApp",
     quadroTitulo: "E se essa música também ficasse na parede?",
@@ -60,6 +71,10 @@ const COPY: Record<IdiomaEmail, {
     botao: "ARMAR EL REGALO Y DESCARGAR EL MP3 →",
     guarde:
       "Este es TU link, guárdalo. Por aquí editas la página y descargas la canción, cuando quieras.",
+    duasVersoes:
+      "Son DOS grabaciones de la misma letra. Escucha las dos en el link de arriba y elige la que va a sonar para ella.",
+    semAnexo:
+      "La canción no va adjunta en este correo y no la mandamos por WhatsApp: vive en estos links, y son tuyos para siempre.",
     comPressa:
       "Y este es el link <strong style=\"color:#2a1518;\">que le envías a ella</strong>. El regalo ya funciona tal como está, aunque todavía no pongas la foto:",
     verPresente: "ABRIR LA PÁGINA QUE VOY A ENVIAR",
@@ -131,8 +146,17 @@ export function emailPresentePronto(args: {
           </a>
         </td></tr>
 
-        <tr><td style="padding:6px 36px 26px;text-align:center;color:rgba(42,21,24,0.45);font-size:12px;font-family:Helvetica,Arial,sans-serif;line-height:1.6;">
+        <tr><td style="padding:6px 36px 4px;text-align:center;color:rgba(42,21,24,0.45);font-size:12px;font-family:Helvetica,Arial,sans-serif;line-height:1.6;">
           ${C.guarde}
+        </td></tr>
+
+        <!-- AS DUAS GRAVACOES, colado no botao que leva ate elas. A oferta
+             promete duas versoes, o seletor mora no editor, e quem nao abre o
+             editor nunca descobre. -->
+        <tr><td style="padding:0 36px 26px;text-align:center;">
+          <p style="margin:0;display:inline-block;padding:9px 14px;border-radius:8px;background:rgba(125,43,58,0.06);color:#7d2b3a;font-size:12px;line-height:1.55;font-family:Helvetica,Arial,sans-serif;">
+            ${C.duasVersoes}
+          </p>
         </td></tr>
 
         <tr><td style="padding:0 36px;"><div style="height:1px;background:rgba(42,21,24,0.12);"></div></td></tr>
@@ -151,6 +175,9 @@ export function emailPresentePronto(args: {
                Como botão, o destino vive só no href e nunca é lido, cortado
                ou reescrito por quem renderiza o e-mail. -->
           <a href="${linkPresente}" style="display:inline-block;margin-top:8px;padding:10px 20px;border-radius:999px;border:1px solid rgba(125,43,58,0.35);color:#7d2b3a;text-decoration:none;font-weight:600;">${C.verPresente}</a>
+          <p style="margin:16px 0 0;color:rgba(42,21,24,0.5);font-size:12px;line-height:1.55;">
+            ${C.semAnexo}
+          </p>
         </td></tr>
       </table>
 

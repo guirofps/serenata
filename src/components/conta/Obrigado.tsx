@@ -36,6 +36,13 @@ const COPY = {
     proximoPasso: "o próximo passo",
     monteOPresente: (n?: string | null) => `Monte o presente${n ? ` de ${n}` : ""}`,
     escolhaGravacao: "Escolha a gravação, ponha as fotos de vocês e uma frase sua. Leva dois minutos.",
+    // A ENTREGA É POR LINK, e isso precisa estar escrito.
+    // Em 26/08, cinco dos sete tickets do dia eram gente esperando a música
+    // chegar sozinha — por WhatsApp ou anexa no e-mail. O produto estava
+    // pronto e funcionando nos cinco. O que faltava era ninguém ter dito que
+    // não existe arquivo a caminho.
+    entregaPorLink:
+      "A sua música não chega sozinha: ela está neste botão. Não mandamos arquivo por WhatsApp nem anexo no e-mail.",
     montarBotao: "Montar o presente",
     aindaSaindo: "A gravação ainda está saindo do forno. Pode ir montando: ela aparece sozinha quando ficar pronta.",
     tambemMandamos: "Também mandamos esse link para",
@@ -61,6 +68,8 @@ const COPY = {
     proximoPasso: "el siguiente paso",
     monteOPresente: (n?: string | null) => `Arma el regalo${n ? ` de ${n}` : ""}`,
     escolhaGravacao: "Elige la grabación, pon las fotos de ustedes y una frase tuya. Toma dos minutos.",
+    entregaPorLink:
+      "Tu canción no llega sola: está en este botón. No mandamos archivos por WhatsApp ni adjuntos por correo.",
     montarBotao: "Armar el regalo",
     aindaSaindo: "La grabación todavía se está terminando. Puedes ir armando: aparece sola cuando esté lista.",
     tambemMandamos: "También mandamos ese link a",
@@ -270,6 +279,14 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
                 {C.aindaSaindo}
               </p>
             )}
+            {/* Logo abaixo do botão, e não no rodapé: é aqui que a pessoa
+                decide se clica agora ou "espera chegar". Ver `entregaPorLink`. */}
+            <p
+              className="mx-auto mt-4 max-w-xs text-[var(--tinta-suave)]"
+              style={{ fontSize: "var(--t-xs)", lineHeight: 1.55 }}
+            >
+              {C.entregaPorLink}
+            </p>
           </div>
         )}
 
