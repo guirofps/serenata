@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { emailDaSessao } from "@/lib/conta-sessao";
 import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto";
+import { registrarEnvio } from "@/lib/registro-email";
 
 // O RESGATE DO CRÉDITO: a única porta que entrega uma música sem cobrar.
 //
@@ -170,7 +171,7 @@ export const usarCredito = createServerFn({ method: "POST" })
         const site = process.env.SITE_URL ?? "https://www.serenatagift.com";
         const linkEditor = `${site}/editar/${musica.token_edicao}`;
         const linkPresente = `${site}/p/${musica.token}`;
-        await new Resend(chave).emails.send({
+        const { data: enviado, error: erroEnvio } = await new Resend(chave).emails.send({
       // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
       // (entregue, aberto, clicado, devolvido), e e o unico jeito de
       // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
@@ -187,6 +188,34 @@ export const usarCredito = createServerFn({ method: "POST" })
             locale,
           }),
           text: `A música de ${nome} está pronta.\n\nMonte o presente (coloque uma foto e uma frase):\n${linkEditor}\n\nO presente já funciona do jeito que está:\n${linkPresente}`,
+        });
+
+        // ── O ERRO DO RESEND NÃO LANÇA ───────────────────────────
+        //
+        // `emails.send` devolve `{ data, error }` em vez de estourar. O
+        // `catch` embaixo só pega falha de rede, então uma recusa da API
+        // (endereço bloqueado, domínio suspenso, cota) passava calada e o
+        // resgate terminava "com sucesso" sem ninguém receber nada.
+        if (erroEnvio) {
+          console.error("[credito] e-mail recusado pelo Resend:", erroEnvio.message);
+        }
+
+        // ── E O ENVIO NÃO ERA REGISTRADO ─────────────────────────
+        //
+        // Sem isto, `emails_enviados` não tem linha nenhuma pro resgate e
+        // não há como responder "esse cliente recebeu?". Foi o que aconteceu
+        // em 27/08: um comprador com 3 músicas escreveu dizendo que não
+        // recebeu o áudio, e os 4 resgates dos últimos dias apareciam como
+        // "(nada registrado)" — o e-mail podia ter saído ou não, e não havia
+        // como saber qual dos dois.
+        //
+        // Fica FORA do `if (erroEnvio)`: registrar só o sucesso deixaria o
+        // mesmo buraco na hora em que ele mais importa.
+        await registrarEnvio(db, {
+          emailId: enviado?.id,
+          template: "entrega_credito",
+          para: email,
+          quizResponseId: quiz.id,
         });
       }
     } catch (err) {
