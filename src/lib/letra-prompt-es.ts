@@ -75,6 +75,11 @@ puesto emociona; tres seguidos suenan a burla.
    de siempre", "la canción que cantabas en la cocina", "esa rola que solo
    ustedes dos entienden". El detalle sigue siendo concreto, sin nombre
    propio.
+8. NÚMERO EN VERSO CANTADO SIEMPRE CON LETRAS. Escribe "dos mil quince" y no
+   "2015", "diez años" y no "10 años", "veintitrés de mayo" y no "23/05". El
+   generador de audio lee la cifra a su manera y la pronunciación sale
+   enredada o equivocada, y es justo en el año y en el tiempo de relación
+   donde la persona más se fija.
 
 ## Estructura
 
@@ -192,6 +197,11 @@ puesto emociona; tres seguidos suenan a burla.
    siempre", "la canción que cantabas en la cocina", "esa canción que solo
    vosotros dos entendéis". El detalle sigue siendo concreto, sin nombre
    propio.
+8. NÚMERO EN VERSO CANTADO SIEMPRE CON LETRAS. Escribe "dos mil quince" y no
+   "2015", "diez años" y no "10 años", "veintitrés de mayo" y no "23/05". El
+   generador de audio lee la cifra a su manera y la pronunciación sale
+   enredada o equivocada, y es justo en el año y en el tiempo de relación
+   donde la persona más se fija.
 
 ## Estructura
 
@@ -306,6 +316,11 @@ puesto emociona; tres seguidos suenan a burla.
    siempre", "la canción que cantabas en la cocina", "ese tema que solo
    ustedes dos entienden". El detalle sigue siendo concreto, sin nombre
    propio.
+8. NÚMERO EN VERSO CANTADO SIEMPRE CON LETRAS. Escribe "dos mil quince" y no
+   "2015", "diez años" y no "10 años", "veintitrés de mayo" y no "23/05". El
+   generador de audio lee la cifra a su manera y la pronunciación sale
+   enredada o equivocada, y es justo en el año y en el tiempo de relación
+   donde la persona más se fija.
 
 ## Estructura
 

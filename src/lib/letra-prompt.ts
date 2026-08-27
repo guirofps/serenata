@@ -74,6 +74,11 @@ A letra tem que ser lida.
    Pagodinho", fale do gesto, não do nome: "a nossa playlist de sempre",
    "o samba que ela canta na cozinha", "aquela música que só vocês dois
    entendem". O detalhe continua concreto, sem citar o nome próprio.
+7. NÚMERO EM VERSO CANTADO SEMPRE POR EXTENSO. Escreva "dois mil e quinze"
+   e não "2015", "dez anos" e não "10 anos", "vinte e três de maio" e não
+   "23/05". O gerador de áudio lê o algarismo do jeito dele e a pronúncia
+   sai embolada ou errada, e é justamente em cima de ano de casamento e
+   tempo de relação que a pessoa mais presta atenção.
 
 ## Estrutura
 
