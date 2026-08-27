@@ -4,6 +4,7 @@ import { Check, Copy, CreditCard, Loader2 } from "lucide-react";
 import { pixFoiPago } from "@/lib/criar-pix";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { guardarTransacao } from "@/lib/google-ads";
+import { IdentificacaoDoVendedor } from "@/components/quiz/IdentificacaoDoVendedor";
 import { CORES } from "@/lib/marca";
 import { Button } from "@/components/ui/button";
 
@@ -211,6 +212,11 @@ export function PixPagamento({
           <CreditCard className="mr-2 h-4 w-4" /> Pagar com cartão
         </Button>
       </div>
+
+      {/* Também aqui, e não só no resumo: esta é a tela onde a pessoa está
+          com o app do banco aberto pra transferir. É o momento exato em que
+          "pra quem estou mandando isso?" passa pela cabeça. */}
+      <IdentificacaoDoVendedor />
     </div>
   );
 }

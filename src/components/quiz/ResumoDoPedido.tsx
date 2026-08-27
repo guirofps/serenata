@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, CreditCard, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GARANTIA } from "@/lib/garantia";
+import { IdentificacaoDoVendedor } from "@/components/quiz/IdentificacaoDoVendedor";
 
 // O PASSO ANTES DO QR.
 //
@@ -162,6 +163,8 @@ export function ResumoDoPedido({
           <CreditCard className="mr-2 h-4 w-4" /> Pagar com cartão
         </Button>
       </div>
+
+      <IdentificacaoDoVendedor />
     </div>
   );
 }
