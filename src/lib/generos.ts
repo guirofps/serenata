@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/i18n";
-import { ehEspanha, ehArgentina } from "@/lib/mercado-es";
+import { ehEspanha, ehArgentina } from "./mercado-es.js";
 
 // OS GÊNEROS, num lugar só.
 //

@@ -8,7 +8,7 @@ import {
   OCASIAO_ES,
   VOZ_ES,
 } from "@/lib/letra-prompt-es";
-import { ehEspanha, ehArgentina } from "@/lib/mercado-es";
+import { ehEspanha, ehArgentina } from "./mercado-es.js";
 
 // Prompt de geração de letra (de prompts/letra.md). System estável e cacheável;
 // respostas do quiz vão por último (cache é casamento de prefixo — nada de
