@@ -514,22 +514,29 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     const plano = meuPlano(locale, { temCupom: Boolean(cupom && descontado) });
     trackEvent("checkout_click", { valor: plano.valor, locale, preco: plano.texto });
 
-    // ── O CHECKOUT TRANSPARENTE, quando sorteado ─────────────────
+    // ── O CHECKOUT TRANSPARENTE ──────────────────────────────────
     //
     // O QR do PIX aparece AQUI, sem a pessoa sair do site. Dois ganhos
     // medidos: 70% de quem clica em comprar não gera pedido nenhum (~250 por
-    // dia), e a taxa cai de ~R$ 4,41 pra R$ 0,50 por venda.
+    // dia), e a taxa cai de 11,39% (R$ 4,63 de média) pra R$ 0,50 por venda.
     //
-    // Só em português: o funil ES cobra em dólar pela Perfect Pay, e a Woovi
-    // é PIX brasileiro. E não entra pra quem tem cupom, porque o desconto
-    // vive no produto da Perfect Pay.
+    // Cartão NÃO se perde: é 12,8% das vendas (uns R$ 8.000/mês) e sai pelo
+    // botão "Pagar com cartão" da folha, que cai no `aoDesistir` logo abaixo
+    // e vai pro checkout da Perfect Pay de sempre.
     //
-    // Fica atrás do experimento `checkout` com peso 0 no controle: se eu
-    // estiver errado, o erro custa a fatia sorteada, não o funil inteiro.
+    // DUAS EXCEÇÕES, e as duas por moeda/produto e não por gosto:
+    //   - o funil espanhol cobra em DÓLAR na Perfect Pay, e a Woovi só faz
+    //     PIX brasileiro;
+    //   - quem chega com cupom da recuperação: o desconto existe como PRODUTO
+    //     da Perfect Pay, e o e-mail já prometeu aquele número exato.
+    //
+    // `checkout_pix` é interruptor, não teste (ver a nota em experimentos.ts):
+    // desligar o `ativo` no painel devolve TODO MUNDO pro checkout antigo no
+    // próximo carregamento, inclusive quem já tinha a variante guardada.
     if (
       locale === "pt" &&
       !cupom &&
-      varianteDe("checkout") === "B"
+      varianteDe("checkout_pix") === "B"
     ) {
       trackEventOnce("pix_transparente_abriu", "v1", { valor: plano.valor });
       setPagandoComPix(plano.texto);

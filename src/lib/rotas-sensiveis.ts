@@ -8,6 +8,7 @@
 //   /p/<token>               abre o presente
 //   /quadro/<token_edicao>   idem
 //   /retomar?s=<session_id>  restaura a sessão do quiz
+//   /pix/<referencia>        abre um PIX pendente com o código copiável dentro
 //   /auth/callback?code=...  troca por sessão de login do Supabase
 //
 // Ou seja: o token que É a autorização estava sendo copiado pra dentro do
@@ -35,6 +36,7 @@ const PREFIXOS = [
   "/admin",
   "/recuperar",
   "/retomar",
+  "/pix/",
   "/descadastrar",
   "/auth/",
 ];

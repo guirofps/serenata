@@ -28,6 +28,12 @@ import { ErroGateway } from "@/lib/gateway";
 // (e aí produção fica sem receber), ou aponta pra produção. Não dá os dois ao
 // mesmo tempo com uma conta só.
 
+/** O domínio do site, pro link que a pessoa recebe por e-mail. */
+function urlDoSite(): string {
+  const u = process.env.VITE_APP_URL;
+  return u?.startsWith("http") ? u : "https://www.serenatagift.com";
+}
+
 /**
  * O preço DAQUELA pessoa, do jeito que ela viu na tela.
  *
@@ -133,6 +139,17 @@ export const criarPix = createServerFn({ method: "POST" })
         musica_id: musica.id,
         pix_codigo: cobranca.copiaECola,
         pix_expira: cobranca.expiraEm,
+        // ── A URL PRA VOLTAR ─────────────────────────────────
+        //
+        // É o que o e-mail de PIX abandonado usa (39 pessoas por dia). Ele
+        // promete "o seu código continua valendo, é o mesmo que você gerou",
+        // e sem isto aqui o `pixNaoPago` cai no fallback e manda a pessoa pro
+        // checkout gerar um código NOVO — a frase vira mentira e a venda
+        // volta a custar 11,39% em vez de R$ 0,50.
+        //
+        // Serve pro caso mais comum também: quem abriu o PIX, foi no
+        // aplicativo do banco, e voltou pra aba fechada.
+        pix_url: `${urlDoSite()}/pix/${referencia}`,
       },
       { onConflict: "payment_id" },
     );
