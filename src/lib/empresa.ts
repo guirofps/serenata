@@ -20,9 +20,9 @@
 
 export const EMPRESA = {
   /** Razão social ou nome fantasia, como aparece no comprovante do PIX. */
-  nome: "",
+  nome: "Serenata",
   /** Só dígitos. A formatação é feita na hora de mostrar. */
-  cnpj: "",
+  cnpj: "45835258000146",
 } as const;
 
 /** `12345678000190` -> `12.345.678/0001-90`. Vazio devolve vazio. */
