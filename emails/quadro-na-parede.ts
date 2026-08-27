@@ -69,7 +69,7 @@ const COPY: Record<
     botao: "VER EL CUADRO DE MI CANCIÓN",
     rodapeAviso:
       "Pago único, sin suscripción. El cuadro usa la misma canción y la misma foto que ya armaste.",
-    rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
+    rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
 };
 

@@ -36,7 +36,7 @@ const COPY: Record<IdiomaEmail, {
     botao: "ARMAR EL REGALO →",
     rodapeAviso:
       "Sin prisa: la canción es tuya y el link no expira.<br>¿Te atoraste en algo? Responde este correo y lo resolvemos.",
-    rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
+    rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
 };
 

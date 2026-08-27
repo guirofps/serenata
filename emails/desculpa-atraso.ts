@@ -52,7 +52,7 @@ const COPY: Record<IdiomaEmail, {
     botao: "ESCUCHAR Y ARMAR EL REGALO →",
     seNaoGostar:
       "Si aun así quedó algo mal resuelto, responde este correo. Quien lee es una persona, y lo resolvemos.",
-    rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
+    rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
 };
 

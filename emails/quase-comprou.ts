@@ -63,7 +63,7 @@ const COPY: Record<
     botao: "ESCUCHAR Y LIBERAR MI CANCIÓN",
     rodapeAviso:
       "La letra sigue siendo tuya igual, y el link no expira.<br>Si algo se trabó al pagar, respondé este correo.",
-    rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
+    rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
 };
 

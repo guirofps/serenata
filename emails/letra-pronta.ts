@@ -45,7 +45,7 @@ const COPY: Record<IdiomaEmail, {
     depois:
       "La grabación con esta letra ya está lista, esperándote. Puedes escuchar un pedazo sin pagar nada.",
     descadastrar: "ya no quiero recibir",
-    rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
+    rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
 };
 

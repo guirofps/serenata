@@ -81,7 +81,7 @@ const COPY: Record<
     quadroTitulo: "",
     quadroTexto: "",
     quadroBotao: "",
-    rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
+    rodape: "Serenata · una canción hecha de la historia de quien vos querés",
     sair: "no quiero recibir más",
   },
 };

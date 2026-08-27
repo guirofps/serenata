@@ -70,7 +70,7 @@ const COPY: Record<
   },
   es: {
     assunto: (n) => `Tus links de la canción de ${n} (guarda este correo)`,
-    titulo: "Guarda este correo.",
+    titulo: "Guardá este correo.",
     corpo:
       "Es solo para que no pierdas el camino de vuelta. Tu canción no expira y la página sigue en línea, pero el correo de la compra se pierde rápido en la bandeja. Son dos links, y cada uno sirve para algo distinto.",
     seuLinkTitulo: "1 · El link que es TUYO",
@@ -82,8 +82,8 @@ const COPY: Record<
       "Es el regalo en sí. Quien lo abra ve el homenaje con la foto y la canción sonando. Este es el que va por WhatsApp.",
     delaBotao: "ABRIR LA PÁGINA DEL REGALO",
     rodapeAviso:
-      "Consejo: en el celular, el botón de descargar abre la pantalla de compartir y mandas el audio directo por WhatsApp.<br>¿Perdiste algo? Responde este correo y lo resolvemos.",
-    rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
+      "Consejo: en el celu, el botón de descargar abre la pantalla de compartir y mandás el audio directo por WhatsApp.<br>¿Perdiste algo? Respondé este correo y lo resolvemos.",
+    rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
 };
 

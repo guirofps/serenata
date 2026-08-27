@@ -72,7 +72,7 @@ const COPY: Record<IdiomaEmail, {
     guarde:
       "Este es TU link, guárdalo. Por aquí editas la página y descargas la canción, cuando quieras.",
     duasVersoes:
-      "Son DOS grabaciones de la misma letra. Escucha las dos en el link de arriba y elige la que va a sonar para ella.",
+      "Son DOS grabaciones de la misma letra. Escuchá las dos en el link de arriba y elegí la que va a sonar para ella.",
     semAnexo:
       "La canción no va adjunta en este correo y no la mandamos por WhatsApp: vive en estos links, y son tuyos para siempre.",
     comPressa:
@@ -83,7 +83,7 @@ const COPY: Record<IdiomaEmail, {
     quadroTitulo: "",
     quadroTexto: "",
     quadroBotao: "",
-    rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
+    rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
 };
 

@@ -55,11 +55,11 @@ export const Route = createFileRoute("/es/")({
   component: HomeEs,
   head: () => ({
     meta: [
-      { title: "Una canción hecha de la historia de quien tú quieres | Serenata" },
+      { title: "Una canción hecha de la historia de quien vos querés | Serenata" },
       {
         name: "description",
         content:
-          "Cuenta su historia y recibe la letra al instante, gratis. Después la canción cantada y una página regalo con link y código QR para enviarla.",
+          "Contá su historia y recibí la letra al instante, gratis. Después la canción cantada y una página regalo con link y código QR para enviarla.",
       },
       { property: "og:title", content: "Una canción hecha de su historia" },
       { property: "og:locale", content: "es_MX" },
@@ -74,7 +74,7 @@ export const Route = createFileRoute("/es/")({
 const PASOS = [
   {
     n: "01",
-    titulo: "Cuenta la historia",
+    titulo: "Contá la historia",
     texto:
       "Quién es la persona, qué han vivido, ese detalle que solo ustedes dos saben. Puedes escribirlo o decirlo hablando.",
   },
@@ -109,7 +109,7 @@ const BENEFICIOS = [
     icone: Clock,
     titulo: "No necesitas saber nada",
     texto:
-      "No necesitas escribir bonito, ni cantar, ni tener idea. Cuentas la historia a tu manera. Hasta puedes hablar en vez de escribir.",
+      "No necesitás escribir lindo, ni cantar, ni tener idea. Contás la historia a tu manera. Hasta podés hablar en vez de escribir.",
   },
   {
     icone: Link2,
@@ -132,11 +132,11 @@ const INCLUYE = [
 const PREGUNTAS = [
   {
     q: "¿Y si la letra no queda bien?",
-    a: "La lees antes de pagar nada. Si no te gusta, puedes pedir que se reescriba gratis. Y si aun así no es la cara de la persona, simplemente no sigues. No pagas nada por la letra.",
+    a: "La leés antes de pagar nada. Si no te gusta, podés pedir que se reescriba gratis. Y si aun así no es la cara de la persona, simplemente no seguís. No pagás nada por la letra.",
   },
   {
     q: "¿Cuánto tarda?",
-    a: "La letra queda lista en segundos. La canción grabada tarda unos 2 minutos. No tienes que esperar frente a la pantalla: si te sales, te avisamos por correo cuando esté lista.",
+    a: "La letra queda lista en segundos. La canción grabada tarda unos 2 minutos. No tenés que esperar frente a la pantalla: si te vas, te avisamos por mail cuando esté lista.",
   },
   {
     q: "¿La canción es realmente solo mía?",
@@ -144,15 +144,15 @@ const PREGUNTAS = [
   },
   {
     q: "¿Necesito escribir bonito para que quede bien?",
-    a: "No. Mientras más simple y verdadero, mejor. Un detalle pequeño (el apodo, el platillo del domingo, su manía) vale más que un texto bonito. Y puedes hablar en vez de escribir, si prefieres.",
+    a: "No. Mientras más simple y verdadero, mejor. Un detalle chiquito (el apodo, el plato del domingo, su maña) vale más que un texto lindo. Y podés hablar en vez de escribir, si preferís.",
   },
   {
     q: "¿Cómo se lo entrego a la persona?",
-    a: "Recibes un link con una página lista: la canción sonando, la letra encendiéndose al ritmo y su nombre en la portada. La mandas por WhatsApp, o imprimes el código QR y lo pegas en un regalo. Quien la entrega eres tú.",
+    a: "Recibís un link con una página lista: la canción sonando, la letra encendiéndose al ritmo y su nombre en la portada. La mandás por WhatsApp, o imprimís el código QR y lo pegás en un regalo. El que la entrega sos vos.",
   },
   {
     q: "¿Y si no le gusta?",
-    a: "Tú eres quien conoce a la persona. Por eso la letra va primero: la lees y decides si eso es ella. Es el mismo cuidado de escoger un regalo, solo que aquí lo revisas antes.",
+    a: "Vos sos quien conoce a la persona. Por eso la letra va primero: la leés y decidís si eso es ella. Es el mismo cuidado de elegir un regalo, solo que acá lo revisás antes.",
   },
 ];
 

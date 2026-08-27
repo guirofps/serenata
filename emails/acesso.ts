@@ -41,16 +41,16 @@ const COPY: Record<IdiomaEmail, {
     assunto: "Tu acceso a Serenata",
     titulo: "Entra a tu cuenta",
     corpo:
-      "Solo toca el botón de abajo. Entras directo, sin contraseña, a tu área: las canciones que creaste, el editor de cada regalo y la descarga de cada una.",
+      "Solo tocá el botón de abajo. Entrás directo, sin contraseña, a tu área: las canciones que creaste, el editor de cada regalo y la descarga de cada una.",
     botao: "ENTRAR →",
     aviso: (m) =>
       `Este link es de un solo uso y expira en ${m} minutos. Si no fuiste tú quien lo pidió, puedes ignorar este correo sin problema.`,
-    rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
+    rodape: "Serenata · una canción hecha de la historia de quien vos querés",
     soUltimo:
       "¿Pediste el link más de una vez? Usa siempre el correo MÁS RECIENTE. Al pedir uno nuevo, los anteriores dejan de funcionar de inmediato.",
     atalhoTitulo: "O entra directo, sin cuenta:",
     atalhoCorpo:
-      "Estos links son tuyos y no expiran. Guarda este correo.",
+      "Estos links son tuyos y no expiran. Guardá este correo.",
     semTitulo: "Tu canción",
   },
 };

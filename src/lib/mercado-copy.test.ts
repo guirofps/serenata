@@ -13,12 +13,25 @@ import { mercadoEs } from "@/lib/mercado-es";
 // alguém virar a chave pra México ou Espanha, a suíte quebra aqui e diz o que
 // falta fazer, em vez de a pessoa descobrir por um mexicano lendo "elegís".
 describe("acoplamento entre o mercado ES e a copy da oferta", () => {
-  const oferta = readFileSync("src/components/quiz/TelaOferta.tsx", "utf8");
+  // A oferta e os E-MAILS. Os dois foram reescritos direto, e os dois têm que
+  // ser revisitados juntos quando o mercado mudar: quem recebe "Guardá este
+  // correo" sendo mexicano lê um site estrangeiro na caixa de entrada.
+  const arquivos = [
+    "src/components/quiz/TelaOferta.tsx",
+    "emails/presente-pronto.ts",
+    "emails/acesso.ts",
+    "emails/guarde-o-link.ts",
+    "emails/letra-pronta.ts",
+  ];
+  const oferta = arquivos.map((f) => readFileSync(f, "utf8")).join(" ");
   // Formas que SÓ existem em voseo. Possessivo (`tuya`, `tu cuenta`) fica de
   // fora: é igual nos dois espanhóis e não prova nada.
-  const voseo = ["mandás", "elegís", "podés", "pedís", "recibís", "sos vos", "escribís"];
+  const voseo = [
+    "mandás", "elegís", "podés", "pedís", "recibís", "sos vos", "escribís",
+    "vos querés", "Escuchá", "Guardá", "Entrás",
+  ];
 
-  it("a oferta ES está em voseo, como o mercado argentino pede", () => {
+  it("a copy ES escrita direto está em voseo, como o mercado argentino pede", () => {
     const achadas = voseo.filter((v) => oferta.includes(v));
     if (mercadoEs() === "argentina") {
       // Se isto falhar, alguém desfez a adaptação argentina sem querer.

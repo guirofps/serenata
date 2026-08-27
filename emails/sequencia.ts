@@ -108,7 +108,7 @@ const COPY: Record<
       "La canción suena sola cuando abre el link.",
       "La letra se enciende palabra por palabra, al ritmo de lo que se está cantando.",
       "Las fotos de ustedes pasan de fondo, cambiando en los quiebres de la canción.",
-      "Un código QR para imprimir y pegar en una caja de chocolates, si prefieres entregarlo en mano.",
+      "Un código QR para imprimir y pegar en una caja de bombones, si preferís entregarlo en mano.",
     ],
     a3Botao: "VER CÓMO QUEDA →",
 
@@ -123,7 +123,7 @@ const COPY: Record<
       `Y va junto con algo: te separé <strong>${t} de descuento</strong> para que termines esa canción. El botón de aquí abajo ya lleva el descuento aplicado, te queda en <strong>${por}</strong> en vez del precio completo.`,
     a4CupomBotao: "TERMINAR CON DESCUENTO →",
 
-    rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
+    rodape: "Serenata · una canción hecha de la historia de quien vos querés",
     sair: "ya no quiero recibir",
   },
 };

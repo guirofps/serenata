@@ -64,7 +64,7 @@ const COPY: Record<
     ouCopie: "O copia el código y pégalo en la app de tu banco:",
     rodapeAviso:
       "Tu código sigue siendo válido, es el mismo que generaste.<br>Si prefieres tarjeta, la opción aparece en la misma pantalla.",
-    rodape: "Serenata · una canción hecha de la historia de quien tú quieres",
+    rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
 };
 
