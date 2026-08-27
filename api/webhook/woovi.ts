@@ -24,6 +24,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { woovi, assinaturaWooviConfere } from "../../src/lib/woovi.js";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../lib/entrega.js";
+import { creditarUpsell } from "../lib/creditar-upsell.js";
+import { OFERTAS } from "../../src/lib/creditos.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -61,6 +63,107 @@ async function auditar(sb: ReturnType<typeof db>, evento: string, dados: unknown
   } catch (err) {
     console.error("[woovi] auditoria falhou:", err);
   }
+}
+
+/**
+ * O UPSELL PAGO: grava o pedido e DÁ o que foi comprado.
+ *
+ * Sai cedo do fluxo principal porque quase nada dele se aplica: não há quiz,
+ * não há música, não há e-mail de entrega. O que há é um direito a criar.
+ *
+ * O e-mail vem do PEDIDO PENDENTE, que nasceu de uma sessão autenticada em
+ * `criar-pix-upsell.ts`. Não vem do que a Woovi ecoa: creditar pelo e-mail
+ * que o gateway devolve seria confiar num campo que não é a nossa prova de
+ * identidade.
+ */
+async function pagarUpsell(
+  sb: ReturnType<typeof db>,
+  res: Res,
+  args: {
+    correlationID: string;
+    paymentId: string;
+    status: { statusCru: string; valorCentavos: number | null; taxaCentavos: number | null };
+  },
+) {
+  const { correlationID, paymentId, status } = args;
+  const ofertaId = correlationID.split(":")[1] ?? "";
+  const oferta = OFERTAS.find((o) => o.id === ofertaId);
+  if (!oferta) {
+    // Referência com oferta que não existe no catálogo. Não inventa nada:
+    // grita e deixa o dinheiro registrado pra alguém olhar.
+    await auditar(sb, "woovi_upsell_desconhecido", { correlationID, ofertaId });
+    console.error("[woovi] upsell desconhecido:", ofertaId);
+    return res.status(200).json({ ok: true, nota: "oferta desconhecida" });
+  }
+
+  // O VALOR TEM QUE BATER com o catálogo, e não só com o pedido pendente:
+  // é a segunda trava contra alguém pagar R$ 1 num crédito de R$ 28.
+  const esperado = Math.round(oferta.precoBrl * 100);
+  if (status.valorCentavos && status.valorCentavos !== esperado) {
+    await auditar(sb, "woovi_upsell_valor_divergente", {
+      correlationID,
+      esperado,
+      recebido: status.valorCentavos,
+    });
+    return res.status(200).json({ ok: true, nota: "valor divergente, não creditado" });
+  }
+
+  const { data: pendente } = await sb
+    .from("pedidos")
+    .select("id, email, status")
+    .eq("payment_id", paymentId)
+    .maybeSingle();
+  const email = (pendente?.email as string | null) ?? null;
+  if (!email) {
+    await auditar(sb, "woovi_upsell_sem_email", { correlationID });
+    console.error("[woovi] upsell pago sem e-mail:", correlationID);
+    return res.status(200).json({ ok: true, nota: "sem e-mail do comprador" });
+  }
+
+  const { data: pedido, error: erroPedido } = await sb
+    .from("pedidos")
+    .upsert(
+      {
+        payment_id: paymentId,
+        gateway: "woovi",
+        status: "pago",
+        status_gateway: status.statusCru,
+        valor_centavos: status.valorCentavos,
+        taxa_centavos: status.taxaCentavos,
+        paid_at: new Date().toISOString(),
+      },
+      { onConflict: "payment_id" },
+    )
+    // O ID É O QUE SEGURA O REENVIO: os índices únicos que impedem crédito
+    // duplicado são por `pedido_id`. Sem ele, cada reenvio creditaria de novo.
+    .select("id")
+    .maybeSingle();
+  if (erroPedido) {
+    console.error("[woovi] gravar pedido de upsell falhou:", erroPedido.message);
+    return res.status(500).json({ error: "falha ao gravar pedido" });
+  }
+
+  const r = await creditarUpsell(sb, {
+    oferta,
+    email,
+    pedidoId: pedido?.id ?? null,
+    nota: { gateway: "woovi", correlationID },
+  });
+
+  await auditar(sb, r.erro ? "woovi_upsell_falhou" : "woovi_upsell", {
+    correlationID,
+    email,
+    oferta: oferta.id,
+    creditos: oferta.creditos,
+    ...(r.erro ? { erro: r.erro } : {}),
+  });
+  if (r.erro) {
+    // Pagou e não recebeu: o pior desfecho. Sai no log e no evento, e o
+    // pedido fica pago pra o dono liberar à mão pelo painel.
+    console.error("[woovi] upsell pago e NÃO creditado:", r.erro);
+  }
+
+  return res.status(200).json({ ok: true, upsell: oferta.id, creditou: r.creditou, quadro: r.quadro });
 }
 
 export default async function handler(req: Req, res: Res) {
@@ -142,6 +245,19 @@ export default async function handler(req: Req, res: Res) {
       recebido: status.valorCentavos,
     });
     return res.status(200).json({ ok: true, nota: "valor divergente, não liberado" });
+  }
+
+  // ── UPSELL? ──────────────────────────────────────────────────
+  //
+  // `up:<oferta>:<uuid>` é compra de crédito ou de quadro, feita por alguém
+  // logado no painel. Caminho inteiro diferente do funil: não tem música pra
+  // entregar, tem direito pra dar.
+  //
+  // A oferta é conferida contra o CATÁLOGO, nunca aceita como veio: o texto
+  // chega dentro de uma referência que nós criamos, mas quem valida no fim é
+  // o servidor, e é barato manter assim.
+  if (correlationID.startsWith("up:")) {
+    return await pagarUpsell(sb, res, { correlationID, paymentId, status });
   }
 
   // ── DE QUEM É ────────────────────────────────────────────────

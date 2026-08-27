@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Frame, ArrowRight, Printer, Check } from "lucide-react";
 import { OFERTAS, TEXTO_OFERTA } from "@/lib/creditos";
+import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
 import { trackEvent } from "@/lib/track";
 
 // A ABA DO QUADRO.
@@ -59,6 +61,8 @@ export function BlocoQuadro({
   const t = TXT[locale] ?? TXT.pt;
   const o = (TEXTO_OFERTA[locale] ?? TEXTO_OFERTA.pt).quadro;
   const oferta = OFERTAS.find((x) => x.id === "quadro");
+  const comPix = locale === "pt";
+  const [pixAberto, setPixAberto] = useState(false);
 
   return (
     <section className="mt-6">
@@ -164,13 +168,38 @@ export function BlocoQuadro({
               <p className="mt-5 text-center font-semibold text-[var(--acento)]" style={{ fontSize: "var(--t-2xl)" }}>
                 R$ {oferta.precoBrl.toFixed(2).replace(".", ",")}
               </p>
-              <a
-                href={`${oferta.checkout}?email=${encodeURIComponent(email)}`}
-                onClick={() => trackEvent("credito_oferta_click", { oferta: "quadro", origem: "aba" })}
-                className="cta mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border-0 font-medium"
-              >
-                {o.cta} <ArrowRight className="h-4 w-4" />
-              </a>
+              {/* PIX na própria página em pt; no ES segue no checkout
+                  hospedado, porque lá a compra foi em dólar e a Woovi só faz
+                  PIX brasileiro. Ver `FolhaPixUpsell`. */}
+              {comPix ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    trackEvent("credito_oferta_click", { oferta: "quadro", origem: "aba", via: "pix" });
+                    setPixAberto(true);
+                  }}
+                  className="cta mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border-0 font-medium"
+                >
+                  {o.cta} <ArrowRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <a
+                  href={`${oferta.checkout}?email=${encodeURIComponent(email)}`}
+                  onClick={() => trackEvent("credito_oferta_click", { oferta: "quadro", origem: "aba" })}
+                  className="cta mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border-0 font-medium"
+                >
+                  {o.cta} <ArrowRight className="h-4 w-4" />
+                </a>
+              )}
+              {pixAberto && (
+                <FolhaPixUpsell
+                  ofertaId="quadro"
+                  titulo={o.titulo}
+                  precoTexto={`R$ ${oferta.precoBrl.toFixed(2).replace(".", ",")}`}
+                  checkoutCartao={`${oferta.checkout}?email=${encodeURIComponent(email)}`}
+                  aoFechar={() => setPixAberto(false)}
+                />
+              )}
               <p
                 className="mt-3 flex items-center justify-center gap-1.5 text-center text-[var(--tinta-suave)]"
                 style={{ fontSize: "var(--t-xs)" }}

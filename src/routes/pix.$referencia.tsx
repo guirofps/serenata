@@ -39,26 +39,39 @@ import { Button } from "@/components/ui/button";
 // mínimo — código, valor e título — e nunca e-mail, nome ou a letra.
 
 type Dados =
-  | { ok: true; copiaECola: string; valorTexto: string; titulo: string | null }
-  | { ok: false; motivo: "nao-achei" | "ja-pago" | "vencido" };
+  | {
+      ok: true;
+      copiaECola: string;
+      valorTexto: string;
+      titulo: string | null;
+      /** Upsell do painel (crédito, quadro) em vez da música do funil. */
+      upsell: boolean;
+    }
+  | { ok: false; motivo: "nao-achei" | "ja-pago" | "vencido"; upsell: boolean };
 
 const buscarPix = createServerFn({ method: "POST" })
   .validator((data: { referencia: string }) => data)
   .handler(async ({ data }): Promise<Dados> => {
+    // `up:<oferta>:<uuid>` é upsell do painel; `serenata:<quizId>` é o funil.
+    // Muda o texto e muda pra onde o botão de saída leva: mandar quem estava
+    // comprando um quadro pro início do quiz seria fazê-la refazer uma música
+    // que ela já tem.
+    const upsell = data.referencia.startsWith("up:");
+
     const { data: p } = await supabaseAdmin()
       .from("pedidos")
       .select("status, pix_codigo, pix_expira, valor_centavos, musica_id")
       .eq("payment_id", `woovi:${data.referencia}`)
       .maybeSingle();
 
-    if (!p) return { ok: false, motivo: "nao-achei" };
-    if (p.status === "pago") return { ok: false, motivo: "ja-pago" };
-    if (!p.pix_codigo) return { ok: false, motivo: "nao-achei" };
+    if (!p) return { ok: false, motivo: "nao-achei", upsell };
+    if (p.status === "pago") return { ok: false, motivo: "ja-pago", upsell };
+    if (!p.pix_codigo) return { ok: false, motivo: "nao-achei", upsell };
     // O código da Woovi vale 1 hora. Passou disso, o QR não paga mais nada e
     // mostrar ele seria pior que não mostrar: a pessoa tentaria, o banco
     // recusaria, e ela concluiria que o problema é a nossa loja.
     if (p.pix_expira && Date.parse(p.pix_expira as string) < Date.now()) {
-      return { ok: false, motivo: "vencido" };
+      return { ok: false, motivo: "vencido", upsell };
     }
 
     let titulo: string | null = null;
@@ -77,6 +90,7 @@ const buscarPix = createServerFn({ method: "POST" })
       copiaECola: p.pix_codigo as string,
       valorTexto: `R$ ${(centavos / 100).toFixed(2).replace(".", ",").replace(",00", "")}`,
       titulo,
+      upsell,
     };
   });
 
@@ -95,7 +109,9 @@ function Pagina() {
     trackEvent("pix_retomado_aberto", { referencia });
     buscarPix({ data: { referencia } })
       .then(setDados)
-      .catch(() => setDados({ ok: false, motivo: "nao-achei" }));
+      .catch(() =>
+        setDados({ ok: false, motivo: "nao-achei", upsell: referencia.startsWith("up:") }),
+      );
   }, [referencia]);
 
   return (
@@ -114,25 +130,34 @@ function Pagina() {
 
         {dados?.ok && (
           <>
-            {dados.titulo && (
+            {dados.upsell ? (
               <p className="mb-5 text-center text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{dados.titulo}</span>{" "}
-                está gravada e esperando.
+                Termine aqui a sua compra. Assim que cair, ela aparece no seu painel.
               </p>
+            ) : (
+              dados.titulo && (
+                <p className="mb-5 text-center text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">{dados.titulo}</span>{" "}
+                  está gravada e esperando.
+                </p>
+              )
             )}
             <PixPagamento
               copiaECola={dados.copiaECola}
               valorTexto={dados.valorTexto}
               referencia={referencia}
+              // Upsell vai pro PAINEL, não pro `/obrigado`: quem comprou um
+              // crédito já é cliente, e a tela de "obrigado pela sua compra"
+              // com o passo a passo de montar o presente é a conversa errada.
               aoPagar={() => {
-                window.location.href = "/obrigado";
+                window.location.href = dados.upsell ? "/dashboard" : "/obrigado";
               }}
-              // Aqui o cartão vai pro checkout da Perfect Pay direto, sem
-              // passar pelo funil: quem chegou por este link já decidiu
-              // comprar, e fazer ela reler a oferta seria atrito puro.
+              // Cartão vai pro checkout direto, sem passar pelo funil: quem
+              // chegou por este link já decidiu comprar, e fazer ela reler a
+              // oferta seria atrito puro.
               aoEscolherCartao={() => {
-                trackEvent("pix_retomado_cartao", { referencia });
-                window.location.href = `/criar?checkout=1`;
+                trackEvent("pix_retomado_cartao", { referencia, upsell: dados.upsell });
+                window.location.href = dados.upsell ? "/dashboard" : "/criar?checkout=1";
               }}
             />
           </>
@@ -149,7 +174,9 @@ function Pagina() {
             </p>
             <p className="text-sm leading-snug text-muted-foreground">
               {dados.motivo === "ja-pago"
-                ? "A sua música já está liberada. O link pra montar o presente foi pro seu e-mail."
+                ? dados.upsell
+                  ? "Já está liberado no seu painel."
+                  : "A sua música já está liberada. O link pra montar o presente foi pro seu e-mail."
                 : dados.motivo === "vencido"
                   ? "Nada foi cobrado. Dá pra gerar outro em um toque, com o mesmo preço."
                   : "O link pode ter sido cortado pelo aplicativo de e-mail. Dá pra continuar por aqui."}
@@ -158,10 +185,18 @@ function Pagina() {
               size="lg"
               className="w-full"
               onClick={() => {
-                window.location.href = dados.motivo === "ja-pago" ? "/obrigado" : "/criar";
+                window.location.href = dados.upsell
+                  ? "/dashboard"
+                  : dados.motivo === "ja-pago"
+                    ? "/obrigado"
+                    : "/criar";
               }}
             >
-              {dados.motivo === "ja-pago" ? "Abrir a minha música" : "Continuar a compra"}
+              {dados.upsell
+                ? "Ir pro meu painel"
+                : dados.motivo === "ja-pago"
+                  ? "Abrir a minha música"
+                  : "Continuar a compra"}
             </Button>
           </div>
         )}

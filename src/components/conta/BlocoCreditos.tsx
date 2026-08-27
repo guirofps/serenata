@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Sparkles, Frame, ArrowRight } from "lucide-react";
 import { OFERTAS, TEXTO_OFERTA, PRECO_CHEIO } from "@/lib/creditos";
+import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
 import { novaSessao } from "@/lib/session-context";
 import { useQuizStore } from "@/lib/quiz-store";
 import { trackEvent } from "@/lib/track";
@@ -93,6 +95,11 @@ export function BlocoCreditos({
   const t = TXT[locale] ?? TXT.pt;
   const o = TEXTO_OFERTA[locale] ?? TEXTO_OFERTA.pt;
   const reset = useQuizStore((s) => s.reset);
+  // PIX transparente só em pt: no ES a compra foi em dólar e a Woovi só faz
+  // PIX brasileiro. Lá o upsell segue no checkout hospedado.
+  const comPix = locale === "pt";
+  const [pixAberto, setPixAberto] = useState<string | null>(null);
+  const aberta = OFERTAS.find((x) => x.id === pixAberto) ?? null;
   // `oculta` fica de fora da vitrine e continua valendo no webhook: ver o
   // comentário do campo em creditos.ts.
   const musica = OFERTAS.filter((x) => x.creditos > 0 && !x.oculta);
@@ -203,11 +210,25 @@ export function BlocoCreditos({
             const de = PRECO_CHEIO * of.creditos;
             const off = Math.round((1 - of.precoBrl / de) * 100);
             const destaque = of.id === "tres";
+            // ── PIX AQUI, CHECKOUT SÓ COMO RESERVA ──────────────
+            //
+            // Em pt o cartão vira `<button>` e abre a folha do PIX na própria
+            // página, como no funil: mesma economia de taxa (R$ 0,50 contra
+            // 11,39%) e mesma tese, que trocar de domínio derruba compra.
+            //
+            // No ES continua `<a>` pro checkout hospedado: lá a compra foi em
+            // dólar e a Woovi só faz PIX brasileiro.
+            const Tag = comPix ? "button" : "a";
             return (
-              <a
+              <Tag
                 key={of.id}
-                href={`${of.checkout}?email=${encodeURIComponent(email)}`}
-                onClick={() => trackEvent("credito_oferta_click", { oferta: of.id })}
+                {...(comPix
+                  ? { type: "button" as const }
+                  : { href: `${of.checkout}?email=${encodeURIComponent(email)}` })}
+                onClick={() => {
+                  trackEvent("credito_oferta_click", { oferta: of.id, via: comPix ? "pix" : "checkout" });
+                  if (comPix) setPixAberto(of.id);
+                }}
                 className={
                   "relative flex flex-col rounded-[var(--raio)] border p-4 transition-colors " +
                   (destaque
@@ -256,10 +277,20 @@ export function BlocoCreditos({
                 >
                   {txt.cta} <ArrowRight className="h-4 w-4" />
                 </span>
-              </a>
+              </Tag>
             );
           })}
         </div>
+
+        {aberta && (
+          <FolhaPixUpsell
+            ofertaId={aberta.id}
+            titulo={o[aberta.id]?.titulo ?? "Música extra"}
+            precoTexto={brl(aberta.precoBrl)}
+            checkoutCartao={`${aberta.checkout}?email=${encodeURIComponent(email)}`}
+            aoFechar={() => setPixAberto(null)}
+          />
+        )}
 
         {/* ── O QUE É UM CRÉDITO ────────────────────────────────
           Vai no fim de propósito: quem já entendeu compra antes de chegar
