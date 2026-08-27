@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -139,7 +139,20 @@ function RootShell({ children }: { children: React.ReactNode }) {
   // <style> descreveriam experimentos diferentes.
   const cfgExperimentos = configAtual();
   return (
-    <html lang="pt-BR">
+    // `suppressHydrationWarning` é a declaração de que o `<html>` é do
+    // CLIENTE, não do servidor.
+    //
+    // O script de experimentos roda bloqueando, antes da pintura, e carimba
+    // `data-exp-preco` e `data-exp-fluxo` na raiz. O servidor não pode
+    // carimbá-los (a variante é sorteio por visitante mais localStorage), então
+    // toda visita gerava um "tree hydrated but some attributes... didn't
+    // match" — seis vezes na mesma página.
+    //
+    // O aviso sempre foi inofensivo AQUI (o atributo é intencionalmente do
+    // cliente, e o CSS tem o `:not([data-exp-...])` como rede). O que não é
+    // inofensivo é o console cheio: erro de verdade some no meio do barulho, e
+    // foi assim que a queda de 4 horas do `/api/inngest` passou despercebida.
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
         <HeadContent />
         {/* TESTE A/B — os três <script>/<style> abaixo precisam ser a

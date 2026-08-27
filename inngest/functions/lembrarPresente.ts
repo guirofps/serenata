@@ -108,7 +108,7 @@ export const lembrarPresente = inngest.createFunction(
           // e o assunto sairia com espaço duplo.
           nome:
             ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-            (locale === "es" ? "quien tú quieres" : "quem você ama"),
+            (locale === "es" ? "quien vos querés" : "quem você ama"),
           titulo: m.titulo ?? "Sua música",
           linkEditor: `${SITE}/editar/${m.token_edicao}`,
           musicaId: m.id,

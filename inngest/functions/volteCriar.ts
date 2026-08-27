@@ -139,7 +139,7 @@ export const volteCriar = inngest.createFunction(
           // com espaço duplo.
           nome:
             ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-            (locale === "es" ? "quien tú quieres" : "quem você ama"),
+            (locale === "es" ? "quien vos querés" : "quem você ama"),
           sessao: q?.session_id ?? "",
           quizId: p.quiz_response_id,
         });

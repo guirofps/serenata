@@ -1,4 +1,4 @@
-﻿import { createServerFn } from "@tanstack/react-start";
+import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { termoParaOr } from "@/lib/sql-like";
 
@@ -911,7 +911,7 @@ export const liberarAcesso = createServerFn({ method: "POST" })
     const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
     const nome =
       ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-      (locale === "es" ? "quien tú quieres" : "quem você ama");
+      (locale === "es" ? "quien vos querés" : "quem você ama");
 
     const { error: erroPedido } = await db
       .from("pedidos")

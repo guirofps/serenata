@@ -76,7 +76,13 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
   // nome nos passos seguintes aumenta o compromisso). Fallback "essa pessoa"
   // cobre navegação direta por URL sem ter passado pelo passo do nome — e o
   // nome ainda resolve o gênero (ela/ele) de brinde.
-  const nomePessoa = (respostas.nome as string)?.trim() || "essa pessoa";
+  // O FALLBACK TEM IDIOMA. Estava cravado em "essa pessoa", e ele entra em
+  // TODO enunciado que usa `{nome}` — "Contame una pavada de essa pessoa" foi
+  // o que apareceu na tela ao abrir `/es/criar?step=historia2` direto. É o
+  // caminho de quem volta pelo histórico ou por link, exatamente a pessoa que
+  // menos pode ver o site tropeçar.
+  const nomePessoa =
+    (respostas.nome as string)?.trim() || (locale === "es" ? "esa persona" : "essa pessoa");
   const preencher = (s?: string) => s?.replace(/\{nome\}/g, nomePessoa);
   const qNum = questionNumber(QUIZ_FLOW, idx);
   // Posição no FUNIL (não é o mesmo que o número da pergunta): o passo de

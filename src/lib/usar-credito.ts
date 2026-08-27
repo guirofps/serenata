@@ -166,7 +166,7 @@ export const usarCredito = createServerFn({ method: "POST" })
         const locale = quiz.locale === "es" ? "es" : "pt";
         const nome =
           ((quiz.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-          (locale === "es" ? "quien tú quieres" : "quem você ama");
+          (locale === "es" ? "quien vos querés" : "quem você ama");
         const site = process.env.SITE_URL ?? "https://www.serenatagift.com";
         const linkEditor = `${site}/editar/${musica.token_edicao}`;
         const linkPresente = `${site}/p/${musica.token}`;

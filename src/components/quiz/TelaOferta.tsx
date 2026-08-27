@@ -292,7 +292,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   const letraFinal = useQuizStore((s) => s.letraFinal);
   const [indo, setIndo] = useState(false);
   const [aberta, setAberta] = useState<number | null>(null);
-  const nome = (respostas.nome as string)?.trim() || (locale === "es" ? "quien tú quieres" : "quem você ama");
+  const nome = (respostas.nome as string)?.trim() || (locale === "es" ? "quien vos querés" : "quem você ama");
   // Só mostra desconto se o cupom da store for MESMO o da recuperação: um
   // código digitado na URL por curiosidade não pode reescrever o preço da tela.
   const doFunil = cupomAtivo(locale);

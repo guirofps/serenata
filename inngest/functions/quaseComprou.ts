@@ -171,7 +171,7 @@ export const quaseComprou = inngest.createFunction(
           // `.trim()`: o nome do quiz vem com espaço sobrando ("Cardoso ").
           nome:
             ((q.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-            (locale === "es" ? "quien tú quieres" : "quem você ama"),
+            (locale === "es" ? "quien vos querés" : "quem você ama"),
           titulo: m.titulo ?? "Sua música",
           link: u.toString(),
           quizId: q.id as string,

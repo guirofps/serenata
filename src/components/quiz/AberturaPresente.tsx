@@ -122,7 +122,17 @@ const COPY: Record<
   es: {
     tituloAntes: "Una canción hecha de la ",
     tituloOuro: "historia",
-    tituloDepois: " de quien amas",
+    // `de quien amas` é tuteo, e esta é a PRIMEIRA linha que a pessoa lê.
+    //
+    // A tela vale mais que qualquer outra do funil: a abertura ES converte
+    // 15,4% contra 39,2% da portuguesa, e é o único degrau onde os dois
+    // funis divergem (depois dela o espanhol até fecha MELHOR, 59,2% contra
+    // 57,5% da oferta pro checkout). Tudo que faz um argentino sentir que o
+    // site é de outro país custa aqui, no primeiro segundo.
+    //
+    // `de quien querés` serve os dois: é voseo pra quem vosea e continua
+    // legível pra quem não vosea. `amas` não tinha essa propriedade.
+    tituloDepois: " de quien querés",
     // MESMO PESO DA PORTUGUESA, e isso é conserto medido, não gosto.
     //
     // A frase anterior tinha 118 caracteres contra 66 da portuguesa, prometia
@@ -136,7 +146,7 @@ const COPY: Record<
     // fronteira, esta tem que ser ajustada JUNTO — as duas são a mesma
     // promessa em dois idiomas, e foi a divergência entre elas que criou o
     // buraco.
-    explicacao: "Tú cuentas la historia. La canción queda lista en 2 minutos, gratis.",
+    explicacao: "Vos contás la historia. La canción queda lista en 2 minutos, gratis.",
     cta: "CREAR MI CANCIÓN GRATIS",
     rotulo: "una canción para",
     // ESPOSA e não mãe, pelo mesmo motivo do português — e agora com o dado

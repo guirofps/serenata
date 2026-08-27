@@ -192,9 +192,15 @@ function exigirTamanho(valor: unknown, teto: number, campo: string): void {
   if ((texto?.length ?? 0) > teto) throw new Error(`${campo} grande demais`);
 }
 
-function respostasSanitizadas(respostas: Record<string, unknown>) {
+function respostasSanitizadas(respostas: Record<string, unknown>, locale: Locale = "pt") {
   const nome = sanitizeNome(respostas.nome);
-  return { ...respostas, nome: nome || "essa pessoa" };
+  // O FALLBACK TEM IDIOMA, e este aqui é o mais caro dos dois: ele não vai
+  // pra tela, vai pro PROMPT. Sem o idioma, uma letra espanhola sem nome
+  // recebia "essa pessoa" em português e o modelo cantava isso.
+  //
+  // `letra-prompt.ts` já tinha `fallbackNome` por idioma; ele nunca era usado
+  // porque esta função preenchia antes.
+  return { ...respostas, nome: nome || (locale === "es" ? "esa persona" : "essa pessoa") };
 }
 
 // ── ETAPA 1: dois refrões ────────────────────────────────────────
@@ -242,7 +248,7 @@ export const gerarRefroes = createServerFn({ method: "POST" })
     exigirTamanho(data.respostas, MAX_RESPOSTAS, "respostas");
     await cobrarLetra(data.sessionId);
     const locale = normalizarLocale(data.locale);
-    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas), locale)}
+    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas, locale), locale)}
 
 ${INSTRUCOES[locale].refroes}`;
 
@@ -281,7 +287,7 @@ export const montarLetra = createServerFn({ method: "POST" })
     exigirTamanho(data.refrao, MAX_REFRAO, "refrão");
     await cobrarLetra(data.sessionId);
     const locale = normalizarLocale(data.locale);
-    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas), locale)}
+    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas, locale), locale)}
 
 ${INSTRUCOES[locale].montar(data.refrao)}`;
 
