@@ -3,11 +3,12 @@ import { acharGenero } from "@/lib/generos";
 import {
   LETRA_SYSTEM_ES,
   LETRA_SYSTEM_ES_ESPANHA,
+  LETRA_SYSTEM_ES_AR,
   RELACAO_ES,
   OCASIAO_ES,
   VOZ_ES,
 } from "@/lib/letra-prompt-es";
-import { ehEspanha } from "@/lib/mercado-es";
+import { ehEspanha, ehArgentina } from "@/lib/mercado-es";
 
 // Prompt de geração de letra (de prompts/letra.md). System estável e cacheável;
 // respostas do quiz vão por último (cache é casamento de prefixo — nada de
@@ -246,8 +247,10 @@ ${recado}`;
  * proíbe por escrito exatamente as formas que a Espanha exige.
  */
 export function systemDaLetra(locale: Locale): string {
-  if (locale === "es") return ehEspanha() ? LETRA_SYSTEM_ES_ESPANHA : LETRA_SYSTEM_ES;
-  return LETRA_SYSTEM;
+  if (locale !== "es") return LETRA_SYSTEM;
+  if (ehEspanha()) return LETRA_SYSTEM_ES_ESPANHA;
+  if (ehArgentina()) return LETRA_SYSTEM_ES_AR;
+  return LETRA_SYSTEM_ES;
 }
 
 // Schema de saída (structured output).

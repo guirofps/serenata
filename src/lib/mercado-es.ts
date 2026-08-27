@@ -33,7 +33,20 @@
 // que é pior pra ele do que estava antes. Trocar aqui e não trocar no Google
 // Ads é o único jeito de esta mudança piorar as duas pontas ao mesmo tempo.
 
-export type MercadoEs = "latam" | "espanha";
+// ── POR QUE A ARGENTINA É UMA POSIÇÃO PRÓPRIA ────────────────────
+//
+// `latam` é espanhol NEUTRO, desenhado pra atender Argentina, Chile, Peru e
+// Colômbia na mesma verba. Neutro é o certo quando a verba é dividida — e é
+// o errado quando ela vai inteira pra um país só.
+//
+// O prompt neutro proíbe o voseo POR ESCRITO ("usa tú, nunca vos"). Só que
+// nenhum argentino diz "tú eres mi": diz "vos sos". Uma canção de amor em
+// `tú` pra um argentino soa como novela mexicana dublada — entendível e
+// estrangeira, que é o pior lugar pra um presente.
+//
+// Muda também o clichê ("mariposas en la panza", não "en el estómago") e o
+// gênero: rock nacional e cuarteto são de lá e não existem na lista neutra.
+export type MercadoEs = "latam" | "espanha" | "argentina";
 
 /**
  * O mercado que a rota `/es` atende hoje. **É esta linha que se troca.**
@@ -46,7 +59,8 @@ export type MercadoEs = "latam" | "espanha";
  * igual.
  */
 export function mercadoEs(): MercadoEs {
-  return "latam";
+  return "argentina";
 }
 
 export const ehEspanha = () => mercadoEs() === "espanha";
+export const ehArgentina = () => mercadoEs() === "argentina";

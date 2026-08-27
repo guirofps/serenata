@@ -7,7 +7,7 @@ import { ProvaImediata } from "@/components/landing/Secoes";
 import { Button } from "@/components/ui/button";
 import { CORES, FONTES, TEMA_CLARO } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
-import { ehEspanha } from "@/lib/mercado-es";
+import { ehEspanha, ehArgentina } from "@/lib/mercado-es";
 
 // A PRIMEIRA TELA DO FUNIL — o que a pessoa ganha, antes do que a gente pede.
 //
@@ -188,6 +188,19 @@ const EXEMPLO_ES = {
       "y me invitaste a un café para pedir perdón.",
     ],
   },
+  // ARGENTINA: letra gerada pelo nosso pipeline com `LETRA_SYSTEM_ES_AR`, a
+  // partir de uma história de Rosario. São os versos do REFRÃO e não os da
+  // abertura, porque é onde estão os três detalhes que um argentino reconhece
+  // de imediato: o mate, a yerba lavada e o balcão.
+  argentina: {
+    nome: "Sole",
+    versos: [
+      "Doce años de mate en el balcón de la mañana,",
+      "vos con la yerba lavada, yo protestando por las ganas.",
+      "Sole, ahí está todo, en esa taza compartida,",
+      "en ese ritual chiquito que arma nuestra vida.",
+    ],
+  },
   latam: {
     nome: COPY.es.nome,
     versos: COPY.es.versos,
@@ -207,7 +220,7 @@ export function AberturaPresente({
   const base = COPY[locale] ?? COPY.pt;
   const C =
     locale === "es"
-      ? { ...base, ...EXEMPLO_ES[ehEspanha() ? "espanha" : "latam"] }
+      ? { ...base, ...EXEMPLO_ES[ehEspanha() ? "espanha" : ehArgentina() ? "argentina" : "latam"] }
       : base;
   const [t, setT] = useState(0);
 

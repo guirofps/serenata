@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/i18n";
-import { ehEspanha } from "@/lib/mercado-es";
+import { ehEspanha, ehArgentina } from "@/lib/mercado-es";
 
 // OS GÊNEROS, num lugar só.
 //
@@ -240,14 +240,73 @@ const ES_ESPANHA: Genero[] = [
     estiloSuno: "canción infantil suave, caja de música, ukulele, clima dulce" },
 ];
 
-// O `acharGenero` varre ESTE objeto, então as duas listas espanholas precisam
+// ── ARGENTINA ────────────────────────────────────────────────────
+//
+// A lista neutra atende quatro países ao mesmo tempo, e por isso não tem os
+// dois gêneros mais argentinos que existem: ROCK NACIONAL, que é a identidade
+// musical do país, e CUARTETO, que é Córdoba inteira. Também não tem folclore
+// (zamba, chacarera), que é o que se canta pra mãe e pra avó no interior.
+//
+// Tango entra, mas não em primeiro: é o cartão-postal do país lá fora e um
+// gênero que quase ninguém escolhe pra presentear alguém vivo. Cumbia vem
+// alto porque na Argentina ela é música popular de verdade, não folclore.
+//
+// `tango` e `bolero` reaproveitam o `value` da lista neutra porque o
+// `estiloSuno` é IDÊNTICO — o teste de colisão exige isso. O resto ganha
+// sufixo `_ar` justamente porque soa diferente e não pode se confundir.
+const ES_AR: Genero[] = [
+  { value: "balada_ar", label: "Balada romántica", emoji: "💕",
+    rotuloPrompt: "balada romántica argentina",
+    estiloSuno: "balada romántica argentina, piano, cuerdas suaves, voz emotiva y cercana, clima intimista" },
+  { value: "rock_nacional", label: "Rock nacional", emoji: "🤘",
+    rotuloPrompt: "rock nacional argentino romántico",
+    estiloSuno: "rock nacional argentino romántico, guitarra eléctrica cálida, batería marcada, piano, voz rasposa y emotiva" },
+  { value: "cumbia_ar", label: "Cumbia", emoji: "🥁",
+    rotuloPrompt: "cumbia romántica argentina",
+    estiloSuno: "cumbia romántica argentina, teclado melódico, güira y timbales, ritmo bailable y cadencioso, voz sentida" },
+  { value: "pop_ar", label: "Pop argentino", emoji: "✨",
+    rotuloPrompt: "pop argentino",
+    estiloSuno: "pop argentino moderno, guitarra acústica, percusión suave, producción limpia, voz cercana y emotiva" },
+  { value: "cuarteto", label: "Cuarteto", emoji: "🎉",
+    rotuloPrompt: "cuarteto cordobés",
+    estiloSuno: "cuarteto cordobés, piano y acordeón con tumbadora, ritmo alegre y saltarín, voz festiva" },
+  { value: "folklore_ar", label: "Folclore / zamba", emoji: "🌄",
+    rotuloPrompt: "folclore argentino (zamba)",
+    estiloSuno: "folclore argentino, guitarra criolla y bombo legüero, ritmo de zamba lenta, voz cálida y nostálgica" },
+  { value: "tango", label: "Tango", emoji: "🌹",
+    rotuloPrompt: "tango romántico",
+    estiloSuno: "tango argentino romántico, bandoneón, piano y cuerdas, tempo lento y dramático, voz grave y sentida" },
+  { value: "bolero", label: "Bolero", emoji: "🌙",
+    rotuloPrompt: "bolero",
+    estiloSuno: "bolero clásico latinoamericano, guitarra de nylon arpegiada, contrabajo, voz aterciopelada, clima nocturno y romántico" },
+  { value: "trap_ar", label: "Trap / reggaetón", emoji: "🔥",
+    rotuloPrompt: "trap romántico argentino",
+    estiloSuno: "trap romántico argentino melódico, base suave, sintetizadores cálidos, voz cantada con autotune leve" },
+  { value: "cristiana_ar", label: "Música cristiana", emoji: "📖",
+    rotuloPrompt: "música cristiana",
+    estiloSuno: "música cristiana, piano y cuerdas, coro suave, clima reverente e inspirador" },
+  { value: "infantil_es", label: "Infantil", emoji: "⭐",
+    rotuloPrompt: "infantil",
+    estiloSuno: "canción infantil suave, caja de música, ukulele, clima dulce" },
+];
+
+// O `acharGenero` varre ESTE objeto, então as TRÊS listas espanholas precisam
 // estar aqui dentro mesmo quando só uma está no ar. Uma música gerada na
 // campanha LatAm é aberta meses depois; se o valor dela sumisse do mapa, a
 // página presente cairia no fallback genérico em silêncio.
-const TODAS: Record<string, Genero[]> = { pt: PT, es: ES, es_espanha: ES_ESPANHA };
+const TODAS: Record<string, Genero[]> = {
+  pt: PT,
+  es: ES,
+  es_espanha: ES_ESPANHA,
+  es_ar: ES_AR,
+};
 
 export function generos(locale: Locale): Genero[] {
-  if (locale === "es") return ehEspanha() ? ES_ESPANHA : ES;
+  if (locale === "es") {
+    if (ehEspanha()) return ES_ESPANHA;
+    if (ehArgentina()) return ES_AR;
+    return ES;
+  }
   return TODAS[locale] ?? PT;
 }
 
