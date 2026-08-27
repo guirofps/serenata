@@ -23,6 +23,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { woovi, assinaturaWooviConfere } from "../../src/lib/woovi.js";
+import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../lib/entrega.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -152,6 +153,8 @@ export default async function handler(req: Req, res: Res) {
     ? correlationID.slice("serenata:".length)
     : null;
 
+  const musica = quizId ? await musicaDoQuiz(sb, quizId) : null;
+
   const { error: erroPedido } = await sb.from("pedidos").upsert(
     {
       payment_id: paymentId,
@@ -161,6 +164,7 @@ export default async function handler(req: Req, res: Res) {
       valor_centavos: status.valorCentavos,
       taxa_centavos: status.taxaCentavos,
       quiz_response_id: quizId,
+      musica_id: musica?.id ?? null,
       paid_at: new Date().toISOString(),
     },
     { onConflict: "payment_id" },
@@ -177,8 +181,57 @@ export default async function handler(req: Req, res: Res) {
     quiz_response_id: quizId,
   });
 
-  // A ENTREGA ainda não sai daqui. Enquanto isto for preview, gravar o
-  // pedido basta pra provar o caminho, e mandar e-mail de produto a partir
-  // de um ambiente de teste seria pior que não testar.
-  return res.status(200).json({ ok: true, pedido: paymentId, quiz: quizId });
+  // ── A ENTREGA ────────────────────────────────────────────────
+  //
+  // DEPOIS de gravar o pedido, de propósito. Se o e-mail estourasse antes, a
+  // pessoa teria pagado e o pagamento não existiria em lugar nenhum; nesta
+  // ordem, o pior caso é uma venda registrada sem e-mail, que dá pra reenviar
+  // olhando o painel.
+  //
+  // NÃO devolve erro se a entrega falhar: 500 faria a Woovi reenviar o
+  // evento, e o comprador receberia o mesmo e-mail de novo.
+  if (!musica) {
+    // Pagou e não achamos a música. Grita no log e no banco: não existe
+    // caminho automático daqui, alguém tem que olhar.
+    await auditar(sb, "woovi_pago_sem_musica", { correlationID, quiz_response_id: quizId });
+    console.error("[woovi] PAGO SEM MÚSICA:", correlationID);
+    return res.status(200).json({ ok: true, pedido: paymentId, entrega: "sem-musica" });
+  }
+
+  if (await refazerSeFaltou(sb, musica)) {
+    await auditar(sb, "compra_sem_musica_refeita", {
+      musica: musica.id,
+      gateway: "woovi",
+      statusAnterior: musica.status,
+    });
+  }
+
+  // O e-mail do PEDIDO, que é o do quiz: a Woovi não pede e-mail pra pagar
+  // um PIX, então o que ela ecoa é o que nós mandamos na criação da cobrança.
+  const { data: pedido } = await sb
+    .from("pedidos")
+    .select("email, nome_pagador")
+    .eq("payment_id", paymentId)
+    .maybeSingle();
+
+  const email = (pedido?.email as string | null) ?? null;
+  if (!email) {
+    await auditar(sb, "woovi_pago_sem_email", { correlationID, quiz_response_id: quizId });
+    return res.status(200).json({ ok: true, pedido: paymentId, entrega: "sem-email" });
+  }
+
+  const entrega = await mandarEmailDeEntrega(sb, {
+    email,
+    musica,
+    nomePagador: (pedido?.nome_pagador as string | null) ?? null,
+  });
+  await auditar(sb, entrega.ok ? "woovi_email_enviado" : "woovi_email_falhou", {
+    correlationID,
+    email,
+    ...(entrega.ok ? {} : { erro: entrega.erro }),
+  });
+  if (!entrega.ok) console.error("[woovi] e-mail falhou:", entrega.erro);
+
+  console.log("[woovi] liberado:", { paymentId, musica: musica.id });
+  return res.status(200).json({ ok: true, pedido: paymentId, quiz: quizId, entrega: entrega.ok });
 }
