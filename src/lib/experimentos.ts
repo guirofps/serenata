@@ -143,6 +143,36 @@ export const EXPERIMENTOS: Experimento[] = [
     ativo: true,
     nota: "Quanto custa a música. O preço vive em `preco.ts` como PLANO (número na tela + produto da Perfect Pay + valor da conversão no mesmo objeto), porque o que estraga teste de preço é a tela dizer um número e o caixa cobrar outro. Fora do teste: o funil espanhol (volume pequeno demais pra dividir) e quem chega com cupom da recuperação (o e-mail já prometeu um número exato).",
   },
+  {
+    id: "checkout",
+    // A = Perfect Pay hospedado (o de hoje) · B = PIX transparente pela Woovi,
+    // numa folha por cima da própria oferta.
+    //
+    // ── O QUE ESTÁ SENDO MEDIDO ────────────────────────────────
+    //
+    // 70% de quem clica em comprar não gera pedido nenhum (~250 pessoas por
+    // dia). Boa parte disso é a troca de domínio: a pessoa sai de
+    // serenatagift.com e cai num checkout com outra marca, que ela nunca viu.
+    //
+    // ── O GANHO QUE NÃO DEPENDE DO TESTE ───────────────────────
+    //
+    // A taxa. Woovi cobra 0,8% com piso de R$ 0,50; num ticket de R$ 38 a
+    // Perfect Pay leva ~R$ 4,41. No volume de agosto isso são ~R$ 3.800 por
+    // mês, e existe mesmo que a conversão fique idêntica. Por isso o teste
+    // pode ser lido por EMPATE: empatou, migra.
+    //
+    // ── SÓ PT, SÓ SEM CUPOM ────────────────────────────────────
+    //
+    // A Woovi é PIX brasileiro; o funil espanhol cobra em dólar. E o cupom da
+    // recuperação vive como produto da Perfect Pay, então quem chega com ele
+    // fica fora — os dois filtros estão no `TelaOferta`, não aqui.
+    variantes: ["A", "B"],
+    // COMEÇA EM 10%. O gateway é novo, o webhook é novo, e o dinheiro é real:
+    // se eu estiver errado, o erro custa uma fatia, não o funil.
+    peso: [9, 1],
+    ativo: false,
+    nota: "Onde a pessoa paga. A = checkout hospedado da Perfect Pay (sai do site). B = PIX transparente da Woovi numa folha sobre a oferta, sem trocar de domínio e sem pedir CPF. Ler por RECEITA LÍQUIDA por clique em comprar, não por conversão: o B cobra ~R$ 3,90 menos de taxa por venda, então empate na conversão já é vitória. Cartão continua só na Perfect Pay, pelo botão de desistência da folha.",
+  },
 ];
 
 const CHAVE = "mp_exp:";
