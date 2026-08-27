@@ -67,8 +67,13 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 // moeda. Quando o volume justificar, é uma variante a mais aqui.
 
 const MIN_MIN = 20;
-// Janela de 24h: PIX de ontem ainda é intenção; de anteontem é cobrança.
-const MAX_H = 24;
+/** Quantos toques no máximo, e quanto tempo entre eles. Ver `podeMandar`. */
+const MAX_TOQUES = 2;
+const SEGUNDO_TOQUE_H = 48;
+// Janela de 72h, e não mais 24: o segundo toque sai 48h depois do primeiro,
+// então a pessoa precisa continuar visível na busca até lá. O que impede o
+// e-mail de virar cobrança não é mais a janela, é o teto de dois toques.
+const MAX_H = 72;
 // Teto por rodada, pelo mesmo motivo do `volteCriar`: `serenatagift.com` é
 // domínio novo, e pico de volume em remetente sem histórico é a assinatura de
 // lista comprada. A 12 por rodada de meia hora, a fila de ~39/dia se esvazia
@@ -90,14 +95,37 @@ function db() {
  * o `quiz_response_id` e não o pedido: quem tenta pagar três vezes gera três
  * pedidos pendentes e não pode receber três e-mails.
  */
-async function jaAvisado(sb: ReturnType<typeof db>, quizId: string) {
+async function toquesJaDados(sb: ReturnType<typeof db>, quizId: string) {
   const { data } = await sb
     .from("funnel_events")
-    .select("id")
+    .select("created_at")
     .eq("event_name", "pix_nao_pago_enviado")
     .contains("event_data", { quiz_response_id: quizId })
-    .limit(1);
-  return (data ?? []).length > 0;
+    .order("created_at", { ascending: false })
+    .limit(5);
+  return {
+    quantos: (data ?? []).length,
+    ultimo: data?.[0]?.created_at ? new Date(data[0].created_at as string).getTime() : 0,
+  };
+}
+
+/**
+ * Pode mandar agora? Um toque, e um segundo 48h depois — e nada além disso.
+ *
+ * O SEGUNDO EXISTE porque o primeiro sai 20 minutos depois do abandono, e
+ * quem estava no meio de outra coisa naquele minuto pode nunca ter aberto.
+ * Quarenta e oito horas cai no dia seguinte, num horário provavelmente
+ * diferente, e ainda dentro da validade do código PIX (~55h) — que é o que
+ * torna o segundo toque uma continuação e não um recomeço.
+ *
+ * O TERCEIRO NÃO EXISTE. Quem não voltou em dois toques não vai voltar por
+ * insistência, e a diferença entre lembrete e perseguição é exatamente essa.
+ * Depois disso a pessoa segue na escada, que é outro assunto e outro texto.
+ */
+function podeMandar(toques: { quantos: number; ultimo: number }, agora: number) {
+  if (toques.quantos === 0) return true;
+  if (toques.quantos >= MAX_TOQUES) return false;
+  return agora - toques.ultimo >= SEGUNDO_TOQUE_H * 3600000;
 }
 
 /**
@@ -167,7 +195,7 @@ export const pixNaoPago = inngest.createFunction(
           .maybeSingle();
         if (pago?.id) continue;
 
-        if (await jaAvisado(sb, p.quiz_response_id)) continue;
+        if (!podeMandar(await toquesJaDados(sb, p.quiz_response_id), agora)) continue;
 
         // A MÚSICA PRECISA EXISTIR. O e-mail promete "está pronta esperando",
         // e prometer isso sem arquivo é a única mentira que este texto pode
@@ -246,7 +274,7 @@ export const pixNaoPago = inngest.createFunction(
           .limit(1)
           .maybeSingle();
         if (pago?.id) return false;
-        if (await jaAvisado(sb, c.quizId)) return false;
+        if (!podeMandar(await toquesJaDados(sb, c.quizId), Date.now())) return false;
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "pix_nao_pago" }],
