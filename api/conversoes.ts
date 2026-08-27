@@ -153,6 +153,30 @@ function autorizado(req: Req, url: URL, esperado: string): boolean {
 }
 
 export default async function handler(req: Req, res: Res) {
+  // ── QUEM BATEU AQUI, E COM O QUÊ ─────────────────────────────
+  //
+  // Em 27/08 a importação do Google falhou com "Arquivo não encontrado"
+  // DEPOIS de ter lido o mesmo arquivo com sucesso na configuração, e o
+  // `curl` continuava respondendo 200 em 0,5s. Sem ver a requisição dele não
+  // dá pra passar de palpite.
+  //
+  // Só metadado: método, caminho, agente, e se veio credencial. NUNCA o
+  // conteúdo do `Authorization` nem o `k` da query — log de produção é lido
+  // por mais gente que o banco.
+  const cru = req.headers["authorization"];
+  const temBasic = typeof cru === "string" && cru.toLowerCase().startsWith("basic ");
+  const agente = req.headers["user-agent"];
+  console.log(
+    "[conversoes] req",
+    JSON.stringify({
+      metodo: req.method ?? "?",
+      caminho: (req.url ?? "").split("?")[0],
+      temQuery: (req.url ?? "").includes("?"),
+      temBasic,
+      agente: typeof agente === "string" ? agente.slice(0, 120) : null,
+    }),
+  );
+
   const esperado = process.env.CONVERSOES_SECRET;
   if (!esperado) {
     // FECHA. Sem segredo configurado isto serviria a receita da operação pra
