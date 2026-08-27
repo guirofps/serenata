@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailPixNaoPago, assuntoPixNaoPago } from "../../emails/pix-nao-pago.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { pareceTypo } from "../../src/lib/email-typo.js";
 
 // O PIX GERADO QUE NÃO FOI PAGO.
 //
@@ -185,6 +186,9 @@ export const pixNaoPago = inngest.createFunction(
       for (const p of pendentes ?? []) {
         if (out.length >= MAX_POR_RODADA) break;
         if (!p.email || !p.quiz_response_id) continue;
+        // Endereço com typo de provedor não entra: bounce em domínio novo é o
+        // dano mais caro que existe. Mesma trava do `mandarLetra` e da escada.
+        if (pareceTypo(p.email)) continue;
         // Uma tentativa por pessoa nesta rodada: três pedidos pendentes da
         // mesma sessão são três tentativas do mesmo pagamento.
         if (vistos.has(p.quiz_response_id)) continue;

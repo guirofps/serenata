@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { emailVolteCriar, assuntoVolteCriar } from "../../emails/volte-criar.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 
@@ -107,7 +108,10 @@ export const volteCriar = inngest.createFunction(
       }
 
       const vistos = new Set<string>();
-      const out: Array<{ email: string; nome: string; locale: "pt" | "es"; sessao: string }> = [];
+      const out: Array<{
+        email: string; nome: string; locale: "pt" | "es"; sessao: string;
+        quizId: string;
+      }> = [];
 
       for (const p of pedidos ?? []) {
         if (out.length >= MAX_POR_RODADA) break;
@@ -137,6 +141,7 @@ export const volteCriar = inngest.createFunction(
             ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
             (locale === "es" ? "quien tú quieres" : "quem você ama"),
           sessao: q?.session_id ?? "",
+          quizId: p.quiz_response_id,
         });
       }
       return out;
@@ -171,8 +176,17 @@ export const volteCriar = inngest.createFunction(
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "volte_criar" }],
-          from: "Serenata <contato@serenatagift.com>",
-          replyTo: "contato@serenatagift.com",
+          // REMETENTE DE RECUPERAÇÃO, não o transacional.
+          //
+          // A doutrina está em `emails/remetentes.ts`: o domínio raiz carrega
+          // o que a pessoa PAGOU pra receber, o subdomínio carrega o que ela
+          // não pediu. Este e-mail é oferta, não entrega — mandá-lo pelo raiz
+          // aposta a caixa de entrada do comprador (o único e-mail que não
+          // pode falhar) pra sustentar um disparo de marketing.
+          //
+          // `reply_to` é obrigatório: o subdomínio só manda, não recebe.
+          from: REMETENTE_RECUPERACAO,
+          replyTo: RESPONDER_PARA,
           to: [c.email],
           subject: assuntoVolteCriar(c.nome, c.locale),
           html: emailVolteCriar({
@@ -194,6 +208,11 @@ export const volteCriar = inngest.createFunction(
           emailId: enviado?.id,
           template: "volte_criar",
           para: c.email,
+          // O ID DO QUIZ, que faltava. Sem ele a linha de `emails_enviados`
+          // grava QUE saiu e não PRA QUEM, e nenhuma pergunta sobre receita
+          // por e-mail tem resposta — era o caso dos 978 `letra_pronta`
+          // registrados em dois dias, todos com `quiz_response_id` nulo.
+          quizResponseId: c.quizId,
         });
 
         await sb.from("funnel_events").insert({

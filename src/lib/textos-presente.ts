@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n";
+import { ehArgentina } from "@/lib/mercado-es";
 
 // Textos da PÁGINA-PRESENTE e do EDITOR.
 //
@@ -234,8 +235,37 @@ ${link}`,
 
 };
 
+// A PÁGINA PRESENTE EM RIOPLATENSE. Mesmo desenho de `textos.ts` e
+// `quiz-flow-ar.ts`: sobreposição do que diverge, nada de dicionário paralelo.
+//
+// Aqui a aposta é maior do que no quiz. Esta é a tela que o PRESENTEADO abre,
+// e que ele manda pra outras pessoas — é o único ativo do funil que circula
+// sozinho. Um "solo tú ves esto" numa tela que uma argentina mostra pra irmã
+// é a diferença entre "isto é um presente" e "isto é um site estrangeiro".
+//
+// Possessivo (`tu ajuste`, `una frase tuya`) NÃO muda: é igual nos dois
+// espanhóis. Ver a nota longa em `textos.ts`.
+const AR: Partial<TextosPresente> = {
+  descricao: (n?: string) =>
+    n ? `Una canción hecha solo para ${n}.` : "Una canción hecha solo para vos.",
+  soVoceVe: "solo vos ves esto",
+  anterioresTexto:
+    "Las grabaciones de antes de tu ajuste. Quedan guardadas: si preferís alguna, avisanos nomás.",
+  ajudaCelular:
+    "En el celu abrí las opciones del teléfono: elegí “Guardar en Archivos” para guardarla, o WhatsApp para mandarla directo.",
+  ajudaDesktop: "Descargá el MP3 en tu compu.",
+  qualGravacao: "¿Cuál grabación preferís?",
+  fizemosDuas:
+    "Hicimos dos. Escuchá las dos y elegí la que más te emocione. Es la que se va a abrir cuando la reciba.",
+  umaFraseTexto: "Aparece debajo del play. Es lo único de la página escrito por vos.",
+  copieEMande: "Copiá y mandá por WhatsApp. El que entrega el regalo sos vos.",
+  quadroProntoSub: "Elegí la canción y guardá el PDF para imprimir",
+  semMusicas: "Todavía no tenés ninguna canción.",
+};
+
 const POR_IDIOMA: Record<Locale, TextosPresente> = { pt: PT, es: ES };
 
 export function tp(locale: Locale): TextosPresente {
+  if (locale === "es" && ehArgentina()) return { ...ES, ...AR };
   return POR_IDIOMA[locale] ?? PT;
 }

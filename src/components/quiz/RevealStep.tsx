@@ -201,6 +201,15 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
       return; // sem marcar jaComecou: se a história chegar, começa.
     }
     jaComecou.current = true;
+    // A ENTRADA NA TELA, que não era medida.
+    //
+    // Entre o último passo do quiz (`recado`) e o primeiro sinal desta tela
+    // (`coautoria_refroes`, que só dispara com a letra JÁ escrita) somem 23%
+    // das pessoas — 1.446 em 7 dias, com 127s de média e 240s no p90. Sem um
+    // evento aqui não dá pra saber se elas desistem digitando o recado ou
+    // esperando o modelo, e as duas causas pedem conserto oposto: uma é copy,
+    // a outra é latência.
+    trackEventOnce("coautoria_pedida", "v1", { fluxo: varianteDe("fluxo") ?? "A" });
     // A ESCOLHA DO CAMINHO, uma vez só. `varianteDe` lê o atributo que o
     // <head> já carimbou, então não pisca nem sorteia de novo.
     if (varianteDe("fluxo") === "B") caminhoDireto();

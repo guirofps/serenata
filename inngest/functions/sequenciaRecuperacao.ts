@@ -171,9 +171,27 @@ export const sequenciaRecuperacao = inngest.createFunction(
       // Quem recebeu o e-mail 1. É o único jeito de entrar na sequência: sem
       // ele a pessoa receberia o "a música ficou pronta" sem nunca ter recebido
       // a letra, e a conversa começaria pelo meio.
-      type Ev = { event_data: Record<string, unknown> | null; created_at: string };
-      const enviados = await paginado<Ev>(sb, "funnel_events", "id, event_data, created_at", (q) =>
-        q.in("event_name", ["email_letra_enviado", "email_sequencia_enviado"]),
+      type Ev = { event_name: string; event_data: Record<string, unknown> | null; created_at: string };
+      // ── OS DISPAROS DIRIGIDOS CONTAM COMO DEGRAU ─────────────────
+      //
+      // `quase_comprou` (30 min depois de clicar em comprar sem gerar pedido)
+      // e `pix_nao_pago` (10 min depois do PIX) são OFERTA, escritos pra uma
+      // pessoa específica num momento específico. A escada é oferta genérica.
+      //
+      // Enquanto eles não entravam nesta conta, quem clicava em comprar e
+      // sumia recebia três e-mails em 24 horas: a letra aos 20 min, o
+      // `quase_comprou` aos 30 min e o degrau 2 no dia seguinte — os dois
+      // últimos dizendo a mesma coisa com palavras diferentes.
+      //
+      // Contando como degrau 2, a escada retoma no 3, no prazo do 3. A pessoa
+      // recebe a oferta BOA no lugar da genérica, e uma só.
+      const enviados = await paginado<Ev>(sb, "funnel_events", "id, event_name, event_data, created_at", (q) =>
+        q.in("event_name", [
+          "email_letra_enviado",
+          "email_sequencia_enviado",
+          "quase_comprou_enviado",
+          "pix_nao_pago_enviado",
+        ]),
       );
 
       // Última correspondência de cada pessoa, e até onde ela já foi na régua.
@@ -181,7 +199,16 @@ export const sequenciaRecuperacao = inngest.createFunction(
       for (const e of enviados) {
         const id = String(e.event_data?.quiz_response_id ?? "");
         if (!id) continue;
-        const numero = Number(e.event_data?.numero ?? 1);
+        // O degrau sai do NOME do evento, não de adivinhação sobre o formato
+        // do `event_data`: a escada carimba `numero`, a letra é o 1, e os dois
+        // disparos dirigidos valem 2 — o degrau que eles substituem.
+        const numero =
+          e.event_data?.numero !== undefined
+            ? Number(e.event_data.numero)
+            : e.event_name === "quase_comprou_enviado" ||
+                e.event_name === "pix_nao_pago_enviado"
+              ? 2
+              : 1;
         const quando = new Date(e.created_at).getTime();
         const atual = ultimo.get(id);
         if (!atual || numero > atual.numero) ultimo.set(id, { quando, numero });

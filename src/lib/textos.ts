@@ -1,4 +1,5 @@
-﻿import type { Locale } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n";
+import { ehArgentina } from "@/lib/mercado-es";
 
 // O DICIONÁRIO da interface.
 //
@@ -325,9 +326,46 @@ const ES: Textos = {
   },
 };
 
+// ── A MOLDURA EM RIOPLATENSE ──────────────────────────────────────
+//
+// O ES acima é espanhol neutro-mexicano, escrito quando o alvo era o México.
+// Isto é o que muda pra ARGENTINA, e é o mesmo desenho da camada do quiz
+// (`quiz-flow-ar.ts`): sobreposição só do que diverge, nunca um dicionário
+// paralelo que sai de sincronia na primeira melhoria.
+//
+// ── O QUE É E O QUE NÃO É DIFERENÇA ───────────────────────────────
+//
+// Nem todo `tu` é tuteo. O POSSESSIVO é idêntico nos dois espanhóis: "tu
+// canción", "es tuya", "tu WhatsApp" estão certos na Argentina e não entram
+// aqui. O que muda é o pronome sujeito (`tú` → `vos`), o preposicional
+// (`para ti` → `para vos`, `contigo` → `con vos`) e a CONJUGAÇÃO —
+// `dices/querés`, `puedes/podés`, `escucha/escuchá`, `elige/elegí`.
+//
+// Trocar possessivo por engano seria pior que não trocar nada: viraria um
+// espanhol que não existe em lugar nenhum.
+//
+// `aquí` → `acá` entra junto. Não é gramática, é sotaque, e é exatamente o
+// tipo de palavra que faz um argentino sentir que o site é daqui.
+const AR: Partial<Textos> = {
+  quemVoceAma: "quien vos querés",
+  frasesDeVerdade: "Escribí con frases de verdad, por lo menos 3 palabras.",
+  avisoComposto: (primeiro: string) =>
+    `El nombre y el apellido se van a cantar completos. Si le decís ${primeiro}, queda mejor en la canción.`,
+  refraoSub:
+    "Es la parte que más se canta. Elegí la que te mueva; todo se puede ajustar después.",
+  esperaOuvirOutras: "mientras tanto, escuchá otras",
+  levaDoisMinutos:
+    "Tarda unos 2 minutos. Podés ir escuchando otras acá abajo mientras la tuya queda lista.",
+  prontaEmBreve: "En cuanto la grabación esté lista, escuchás un pedazo acá.",
+  desbloqueieCompleta:
+    "Ya está grabada entera, con la letra que escribiste vos. Acá escuchaste solo el comienzo.",
+  zapInvalido: "Revisá el número, parece que falta un dígito.",
+};
+
 const POR_IDIOMA: Record<Locale, Textos> = { pt: PT, es: ES };
 
 /** Os textos da moldura no idioma dado. Idioma desconhecido cai em português. */
 export function t(locale: Locale): Textos {
+  if (locale === "es" && ehArgentina()) return { ...ES, ...AR };
   return POR_IDIOMA[locale] ?? PT;
 }

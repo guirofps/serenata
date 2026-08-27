@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { emailQuadro, assuntoQuadro } from "../../emails/quadro-na-parede.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { literalLike } from "../../src/lib/sql-like.js";
@@ -174,7 +175,17 @@ export const ofertaQuadro = inngest.createFunction(
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "oferta_quadro" }],
-          from: "Serenata <contato@serenatagift.com>",
+          // REMETENTE DE RECUPERAÇÃO, não o transacional.
+          //
+          // A doutrina está em `emails/remetentes.ts`: o domínio raiz carrega
+          // o que a pessoa PAGOU pra receber, o subdomínio carrega o que ela
+          // não pediu. Este e-mail é oferta, não entrega — mandá-lo pelo raiz
+          // aposta a caixa de entrada do comprador (o único e-mail que não
+          // pode falhar) pra sustentar um disparo de marketing.
+          //
+          // `reply_to` é obrigatório: o subdomínio só manda, não recebe.
+          from: REMETENTE_RECUPERACAO,
+          replyTo: RESPONDER_PARA,
           to: [c.email],
           subject: assuntoQuadro(c.nome, c.locale),
           html: emailQuadro({

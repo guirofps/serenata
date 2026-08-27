@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuizStore } from "@/lib/quiz-store";
 import { irParaCheckout } from "@/lib/checkout";
 import { temMusicaDaSessao } from "@/lib/coautoria";
@@ -107,36 +107,54 @@ const DUVIDAS_PT = [
   },
 ];
 
+// ── ATENÇÃO: ESTA COPY ESTÁ EM RIOPLATENSE ────────────────────────
+//
+// O entregável e o FAQ em espanhol foram reescritos pro mercado ARGENTINO —
+// voseo (`mandás`, `elegís`, `podés`, `sos vos`) e vocabulário local (`celu`,
+// `bombones`). Não é o espanhol neutro-mexicano em que o resto do funil
+// nasceu.
+//
+// Diferente de `textos.ts`, `textos-presente.ts` e `quiz-flow-ar.ts`, aqui a
+// troca é DIRETA e não uma sobreposição por mercado: são arrays de objetos
+// com ícone, e duplicá-los inteiros criaria o irmão que o CLAUDE.md manda
+// evitar.
+//
+// O preço disso é um acoplamento: virar `mercado-es.ts` de volta pra `latam`
+// ou `espanha` entrega voseo a quem não fala voseo. Pra esse acoplamento não
+// ser silencioso, existe `src/lib/mercado-copy.test.ts`, que FALHA se o
+// interruptor sair de `argentina` sem esta copy ser revisitada. Se o teste te
+// trouxe até aqui: reescreva as duas listas abaixo no espanhol do mercado
+// novo, e só então mude a lista do teste.
 const ENTREGAVEIS_ES = [
   { Icone: Music, titulo: "La canción completa, cantada",
     detalhe: "De principio a fin, sin cortes. Y en dos grabaciones distintas de la misma letra, para que elijas la que más te emocione." },
   { Icone: Images, titulo: "La página regalo, con las fotos de ustedes",
-    detalhe: "Hasta 12 fotos, que pasan solas en los cambios de la canción. Es esa página la que mandas, no un archivo suelto." },
+    detalhe: "Hasta 12 fotos, que pasan solas en los cambios de la canción. Es esa página la que mandás, no un archivo suelto." },
   { Icone: Sparkles, titulo: "El karaoke, palabra por palabra",
-    detalhe: "Cada palabra se enciende justo cuando se canta. Quien la recibe la sigue y canta contigo." },
+    detalhe: "Cada palabra se enciende justo cuando se canta. Quien la recibe la sigue y canta con vos." },
   { Icone: QrCode, titulo: "Link y código QR para regalar",
-    detalhe: "Mandas el link por WhatsApp, o imprimes el código QR y lo pegas en una caja de chocolates. El regalo digital se vuelve regalo de mano." },
+    detalhe: "Mandás el link por WhatsApp, o imprimís el código QR y lo pegás en una caja de bombones. El regalo digital se vuelve regalo de mano." },
   { Icone: Download, titulo: "El MP3 para descargar y guardar",
-    detalhe: "La canción queda en tu celular, para escucharla cuando quieras, con o sin internet." },
+    detalhe: "La canción queda en tu celu, para escucharla cuando quieras, con o sin internet." },
   { Icone: RefreshCw, titulo: "¿No quedó a tu gusto? La rehacemos",
-    detalhe: "Después de comprar, pides un ajuste en tu cuenta: cambiar una parte de la letra, el estilo o la voz. La volvemos a grabar y te mandamos la nueva versión." },
-  { Icone: Pencil, titulo: "Armas el regalo a tu manera",
-    detalhe: "Eliges el color de la página, el efecto en pantalla y escribes una frase tuya. Puedes cambiarlo las veces que quieras." },
+    detalhe: "Después de comprar, pedís un ajuste en tu cuenta: cambiar una parte de la letra, el estilo o la voz. La volvemos a grabar y te mandamos la nueva versión." },
+  { Icone: Pencil, titulo: "Armás el regalo a tu manera",
+    detalhe: "Elegís el color de la página, el efecto en pantalla y escribís una frase tuya. Podés cambiarlo las veces que quieras." },
   { Icone: InfinityIcon, titulo: "Es tuya para siempre",
     detalhe: "La página no expira y el link no deja de funcionar. Pago único, sin mensualidad." },
 ];
 
 const DUVIDAS_ES = [
   { p: "¿Es un pago único o una suscripción?",
-    r: "Único. Pagas una vez y la canción es tuya para siempre. No hay mensualidad, no hay renovación automática, no guardamos tu tarjeta." },
+    r: "Único. Pagás una vez y la canción es tuya para siempre. No hay mensualidad, no hay renovación automática, no guardamos tu tarjeta." },
   { p: "¿Cuánto tarda?",
-    r: "Hasta 30 minutos, y normalmente menos de 5. Te avisamos por correo en cuanto esté lista, y también puedes armar el regalo ahí mismo, en la pantalla." },
+    r: "Hasta 30 minutos, y normalmente menos de 5. Te avisamos por correo en cuanto esté lista, y también podés armar el regalo ahí mismo, en la pantalla." },
   { p: "¿La canción va a ser igual a la letra que leí?",
     r: "Sí. Es exactamente esa letra la que se va a cantar, palabra por palabra. Nada de cambiarla por otra cosa después del pago." },
   { p: "¿Y si no me gusta la grabación?",
-    r: "Recibes dos versiones de la misma letra, con interpretaciones distintas, y eliges cuál se abre cuando la persona la reciba. Si ninguna te sirve, responde el correo y lo resolvemos." },
+    r: "Recibís dos versiones de la misma letra, con interpretaciones distintas, y elegís cuál se abre cuando la persona la reciba. Si ninguna te sirve, respondé el correo y lo resolvemos." },
   { p: "¿Cómo entrego el regalo?",
-    r: "Después de armarlo te damos el link listo y un mensaje para copiar y pegar en WhatsApp. Quien lo entrega eres tú." },
+    r: "Después de armarlo te damos el link listo y un mensaje para copiar y pegar en WhatsApp. El que lo entrega sos vos." },
 ];
 
 const COPY = {
@@ -174,7 +192,7 @@ const COPY = {
     voltar: "Regresar a mi canción",
     eyebrow: "falta un paso",
     titulo: (n: string) => `La canción de ${n} ya está grabada.`,
-    sub: "Escuchaste un pedazo. Sigue, y termina justo como tú la escribiste.",
+    sub: "Escuchaste un pedazo. Sigue, y termina justo como la escribiste vos.",
     daLetra: (n: string) => `de la letra que escribiste para ${n}`,
     oQueLeva: "Lo que te llevas",
     provaLegenda: "reacciones de quien escuchó una canción hecha por nosotros",
@@ -228,7 +246,27 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   // preço que vira DINHEIRO sai de `meuPlano` dentro do handler, depois da
   // hidratação, junto do link do checkout. Uma variável só aqui em cima
   // convidaria a usar o número do controle num dos dois lugares errados.
-  const [semMusica, setSemMusica] = useState(false);
+  // ── O BARRAMENTO NÃO MANDA MAIS EMBORA ────────────────────────
+  //
+  // Medido em 3 dias: 40 sessões clicaram em comprar e foram barradas por
+  // falta de música, 205 cliques no total (a mesma pessoa insistindo 5 vezes).
+  // A tela dizia "volte pra sua letra e ouça daqui a dois minutinhos", e a
+  // medição de 11/08 já dizia o que acontece depois: NENHUMA volta.
+  //
+  // É o pior lugar do funil pra mandar alguém embora — o dedo já estava no
+  // botão. E o motivo do barramento é sempre o mesmo: a música ainda está
+  // gravando, ou falhou e acabou de ser recolocada na fila por
+  // `temMusicaDaSessao`. Nos dois casos ela existe em ~90 segundos.
+  //
+  // Então a pessoa fica AQUI. A tela passa a esperar junto com ela e, quando
+  // o arquivo aparece, segue pro pagamento sozinha. Zero clique a mais.
+  //
+  // `semMusica` virou máquina de 3 estados em vez de booleano:
+  //   null       -> nada aconteceu
+  //   "esperando"-> gravando, o relógio corre na tela
+  //   "demorou"  -> passou o teto, aí sim oferece a saída manual
+  const [semMusica, setSemMusica] = useState<null | "esperando" | "demorou">(null);
+  const [esperaSeg, setEsperaSeg] = useState(0);
   // ── O MODO CRÉDITO ────────────────────────────────────────────
   //
   // Quem já pagou por um crédito não pode ser cobrado de novo. Esta tela é o
@@ -319,8 +357,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
         // Mesma tela do barramento normal: não entrega o que não existe, e o
         // crédito continua intocado porque o servidor confere antes de debitar.
         trackEvent("credito_barrado_sem_musica");
-        setSemMusica(true);
-        setIndo(false);
+        esperarMusica("credito");
         return;
       }
       if (r.erro === "sem-saldo" || r.erro === "sem-conta") {
@@ -348,6 +385,60 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     }
   }
 
+  // ESPERA A MÚSICA NA PRÓPRIA TELA, e segue sozinha quando ela chega.
+  //
+  // Teto de 4 minutos: a medição real do pipeline é 84s a 110s do pedido ao
+  // arquivo, e uma repescagem inteira cabe folgada em 240s. Passou disso, o
+  // problema não é tempo — é falha — e aí a saída manual é honesta.
+  //
+  // O `setIndo(true)` FICA LIGADO de propósito: o botão continua em estado de
+  // carregando, que é exatamente o que está acontecendo. Desligar faria a
+  // pessoa clicar de novo, que é o que os 205 cliques de 40 sessões eram.
+  const TETO_ESPERA = 240;
+  function esperarMusica(origem: "checkout" | "credito") {
+    setIndo(true);
+    setSemMusica("esperando");
+    setEsperaSeg(0);
+    const t0 = Date.now();
+    const relogio = setInterval(() => {
+      setEsperaSeg(Math.round((Date.now() - t0) / 1000));
+    }, 1000);
+    const parar = () => {
+      clearInterval(relogio);
+      clearInterval(sonda);
+    };
+    const sonda = setInterval(async () => {
+      const decorrido = (Date.now() - t0) / 1000;
+      if (decorrido > TETO_ESPERA) {
+        parar();
+        trackEvent("espera_musica_estourou", { origem, locale });
+        setSemMusica("demorou");
+        setIndo(false);
+        return;
+      }
+      try {
+        const { existe } = await temMusicaDaSessao({
+          data: { sessionId: getOrCreateSessionId() },
+        });
+        if (!existe) return;
+        parar();
+        trackEvent("espera_musica_resolvida", {
+          origem,
+          locale,
+          segundos: Math.round(decorrido),
+        });
+        setSemMusica(null);
+        // Segue o caminho que ela tinha escolhido. `pagar` é declaração de
+        // função e está içada, então dá pra chamar daqui de cima.
+        if (origem === "credito" && credito) void resgatar(credito.token);
+        else void pagar();
+      } catch {
+        // Consulta caiu: tenta de novo no próximo tique. Não desiste por uma
+        // falha de rede em cima de alguém que quer pagar.
+      }
+    }, 5000);
+  }
+
   async function pagar() {
     if (credito) {
       await resgatar(credito.token);
@@ -360,8 +451,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       });
       if (!existe) {
         trackEvent("checkout_barrado_sem_musica", { locale });
-        setSemMusica(true);
-        setIndo(false);
+        esperarMusica("checkout");
         return;
       }
     } catch {
@@ -511,17 +601,40 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
         {/* Só aparece se a trava barrar. Manda de volta pra revelação, que é
             onde a letra e a música nascem — e não deixa a pessoa presa numa
             tela que não explica nada. */}
-        {semMusica && (
+        {/* ESPERANDO: a pessoa não sai da tela, e o pagamento abre sozinho.
+            O texto conta a verdade (está gravando) e mostra o relógio, que é
+            o oposto da barra que trava em 99% da Cantoria. */}
+        {semMusica === "esperando" && (
+          <div className="mt-5 rounded-2xl border border-primary/25 bg-secondary/50 px-4 py-3 text-left">
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+              {locale === "es"
+                ? "Estamos terminando de grabar tu canción"
+                : "Estamos terminando de gravar a sua música"}
+            </p>
+            <p className="mt-1 text-xs leading-snug text-muted-foreground">
+              {locale === "es"
+                ? "No te cobramos por algo que todavía no existe. Quédate aquí: en cuanto esté, el pago se abre solo."
+                : "A gente não cobra por algo que ainda não existe. Fica aqui: assim que ficar pronta, o pagamento abre sozinho."}
+            </p>
+            <p className="mt-2 text-xs font-medium tabular-nums text-primary">
+              {Math.floor(esperaSeg / 60)}:{String(esperaSeg % 60).padStart(2, "0")}
+            </p>
+          </div>
+        )}
+
+        {/* DEMOROU DEMAIS: aí sim é falha, e a saída manual é honesta. */}
+        {semMusica === "demorou" && (
           <div className="mt-5 rounded-2xl border border-amber-500/30 bg-amber-50 px-4 py-3 text-left">
             <p className="text-sm font-semibold text-amber-900">
               {locale === "es"
-                ? "Tu canción todavía no está lista"
-                : "A sua música ainda não está pronta"}
+                ? "La grabación está tardando más de lo normal"
+                : "A gravação está demorando mais que o normal"}
             </p>
             <p className="mt-1 text-xs leading-snug text-amber-800/80">
               {locale === "es"
-                ? "No te vamos a cobrar por algo que aún no existe. Ya la pusimos a grabar de nuevo: vuelve a tu letra y escúchala en un par de minutos."
-                : "A gente não cobra por algo que ainda não existe. Já colocamos pra gravar de novo: volte pra sua letra e ouça daqui a dois minutinhos."}
+                ? "Tu letra está guardada y la canción sigue en la fila. Te la mandamos por correo en cuanto salga, y no pagas nada hasta escucharla."
+                : "A sua letra está guardada e a música continua na fila. Mandamos por e-mail assim que sair, e você não paga nada antes de ouvir."}
             </p>
             <button
               onClick={aoVoltar}

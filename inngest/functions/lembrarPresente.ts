@@ -68,7 +68,7 @@ export const lembrarPresente = inngest.createFunction(
 
       const out: Array<{
         email: string; nome: string; titulo: string; linkEditor: string;
-        musicaId: string; locale: "pt" | "es";
+        musicaId: string; locale: "pt" | "es"; quizId: string | null;
       }> = [];
 
       for (const p of pedidos ?? []) {
@@ -112,6 +112,7 @@ export const lembrarPresente = inngest.createFunction(
           titulo: m.titulo ?? "Sua música",
           linkEditor: `${SITE}/editar/${m.token_edicao}`,
           musicaId: m.id,
+          quizId: p.quiz_response_id ?? null,
         });
       }
       return out;
@@ -155,6 +156,11 @@ export const lembrarPresente = inngest.createFunction(
           emailId: enviado?.id,
           template: "lembrar_presente",
           para: c.email,
+          // O ID DO QUIZ, que faltava. Sem ele a linha de `emails_enviados`
+          // grava QUE saiu e não PRA QUEM, e nenhuma pergunta sobre receita
+          // por e-mail tem resposta — era o caso dos 978 `letra_pronta`
+          // registrados em dois dias, todos com `quiz_response_id` nulo.
+          quizResponseId: c.quizId ?? undefined,
         });
 
         await sb.from("funnel_events").insert({

@@ -24,8 +24,28 @@ const OLHAR_ATE_DIAS = 30;
 // RECÉM-CRIADO, com zero histórico. Provedor não distingue "remetente novo"
 // de "remetente comprometido" — os dois aparecem do nada mandando volume. A
 // única forma de construir reputação é subir devagar.
-// A 10 por rodada (de 20 em 20 min), 100 pendentes drenam em ~3,5h. Dá pra
-// subir depois de ver a taxa de entrega estabilizar.
+//
+// ── O TETO CONTINUA 10. O QUE MUDA É A FREQUÊNCIA ────────────────
+//
+// De 20 em 20 minutos, 10 por rodada é um teto de 720 por dia — e a demanda
+// real é MAIOR que isso: 6.262 pessoas terminaram o quiz em 7 dias, ~895 por
+// dia. A fila nunca drenava, ela só crescia, e o efeito estava medido em
+// 27/08 (4 dias):
+//
+//   mediana 19,9 min · p90 189 min (3h09) · pior caso 23,2h
+//   16% de quem terminou a letra NUNCA recebeu o e-mail
+//
+// Um e-mail chamado "A letra que você escreveu pra Fulana" que chega três
+// horas depois não é lembrança, é lixo — e o número que sobra disso é a taxa
+// de abertura de 10,5%, a pior de todos os templates (o de entrega faz 49,3%
+// com o mesmo domínio e o mesmo desenho).
+//
+// A RODADA NÃO CRESCEU, o INTERVALO ENCOLHEU: 10 por rodada de 5 em 5 minutos.
+// O que assusta provedor é o TAMANHO do pico, e o pico continua idêntico; o
+// que muda é que a fila drena 4x mais rápido e o volume diário passa a ser
+// ditado pela demanda real em vez de por um estrangulamento nosso.
+//
+// Se a entrega piorar, o conserto é uma linha: volte o cron pra `*/10`.
 const MAX_POR_RODADA = 10;
 
 function db() {
@@ -48,7 +68,7 @@ async function jaMandou(sb: ReturnType<typeof db>, quizId: string) {
 }
 
 export const mandarLetra = inngest.createFunction(
-  { id: "mandar-letra", retries: 1, triggers: [{ cron: "*/20 * * * *" }] },
+  { id: "mandar-letra", retries: 1, triggers: [{ cron: "*/5 * * * *" }] },
   async ({ step }) => {
     const fila = await step.run("montar-fila", async () => {
       const sb = db();
@@ -207,6 +227,11 @@ export const mandarLetra = inngest.createFunction(
           emailId: enviado?.id,
           template: "letra_pronta",
           para: p.email,
+          // O ID DO QUIZ, que faltava. Sem ele a linha de `emails_enviados`
+          // grava QUE saiu e não PRA QUEM, e nenhuma pergunta sobre receita
+          // por e-mail tem resposta — era o caso dos 978 `letra_pronta`
+          // registrados em dois dias, todos com `quiz_response_id` nulo.
+          quizResponseId: p.quizId,
         });
         n++;
         await sb.from("funnel_events").insert({

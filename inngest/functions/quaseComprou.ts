@@ -1,8 +1,10 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { emailQuaseComprou, assuntoQuaseComprou } from "../../emails/quase-comprou.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { pareceTypo } from "../../src/lib/email-typo.js";
 
 // CLICOU EM COMPRAR E NÃO GEROU PEDIDO NENHUM.
 //
@@ -123,6 +125,11 @@ export const quaseComprou = inngest.createFunction(
           .eq("session_id", sid)
           .maybeSingle();
         if (!q?.id || !q.email) continue;
+        // ENDEREÇO QUEBRADO NÃO ENTRA. Saiu um disparo pra
+        // `sp.paulista2020@wotlook.com` (outlook com typo) na primeira rodada:
+        // bounce garantido, e bounce em domínio de 20 dias é o dano mais caro
+        // que existe. Mesma trava do `mandarLetra` e da escada.
+        if (pareceTypo(q.email as string)) continue;
 
         // TEM PEDIDO? Pago é venda feita; pendente é do `pixNaoPago`. Nos dois
         // casos esta mensagem seria a errada.
@@ -195,7 +202,17 @@ export const quaseComprou = inngest.createFunction(
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "quase_comprou" }],
-          from: "Serenata <contato@serenatagift.com>",
+          // REMETENTE DE RECUPERAÇÃO, não o transacional.
+          //
+          // A doutrina está em `emails/remetentes.ts`: o domínio raiz carrega
+          // o que a pessoa PAGOU pra receber, o subdomínio carrega o que ela
+          // não pediu. Este e-mail é oferta, não entrega — mandá-lo pelo raiz
+          // aposta a caixa de entrada do comprador (o único e-mail que não
+          // pode falhar) pra sustentar um disparo de marketing.
+          //
+          // `reply_to` é obrigatório: o subdomínio só manda, não recebe.
+          from: REMETENTE_RECUPERACAO,
+          replyTo: RESPONDER_PARA,
           to: [c.email],
           subject: assuntoQuaseComprou(c.nome, c.locale),
           html: emailQuaseComprou({
