@@ -20,8 +20,10 @@ import { Route as MarcaRouteImport } from './routes/marca'
 import { Route as MeuQuadroRouteImport } from './routes/meu-quadro'
 import { Route as MusicaPersonalizadaParaEsposaRouteImport } from './routes/musica-personalizada-para-esposa'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as RecuperarRouteImport } from './routes/recuperar'
 import { Route as RetomarRouteImport } from './routes/retomar'
+import { Route as TermosRouteImport } from './routes/termos'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as EditarTokenEdicaoRouteImport } from './routes/editar.$tokenEdicao'
 import { Route as EsIndexRouteImport } from './routes/es.index'
@@ -89,6 +91,11 @@ const ObrigadoRoute = ObrigadoRouteImport.update({
   path: '/obrigado',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacidadeRoute = PrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecuperarRoute = RecuperarRouteImport.update({
   id: '/recuperar',
   path: '/recuperar',
@@ -97,6 +104,11 @@ const RecuperarRoute = RecuperarRouteImport.update({
 const RetomarRoute = RetomarRouteImport.update({
   id: '/retomar',
   path: '/retomar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermosRoute = TermosRouteImport.update({
+  id: '/termos',
+  path: '/termos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -162,8 +174,10 @@ export interface FileRoutesByFullPath {
   '/meu-quadro': typeof MeuQuadroRoute
   '/musica-personalizada-para-esposa': typeof MusicaPersonalizadaParaEsposaRoute
   '/obrigado': typeof ObrigadoRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
+  '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
@@ -187,8 +201,10 @@ export interface FileRoutesByTo {
   '/meu-quadro': typeof MeuQuadroRoute
   '/musica-personalizada-para-esposa': typeof MusicaPersonalizadaParaEsposaRoute
   '/obrigado': typeof ObrigadoRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
+  '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
@@ -213,8 +229,10 @@ export interface FileRoutesById {
   '/meu-quadro': typeof MeuQuadroRoute
   '/musica-personalizada-para-esposa': typeof MusicaPersonalizadaParaEsposaRoute
   '/obrigado': typeof ObrigadoRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
+  '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
@@ -240,8 +258,10 @@ export interface FileRouteTypes {
     | '/meu-quadro'
     | '/musica-personalizada-para-esposa'
     | '/obrigado'
+    | '/privacidade'
     | '/recuperar'
     | '/retomar'
+    | '/termos'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/es/criar'
@@ -265,8 +285,10 @@ export interface FileRouteTypes {
     | '/meu-quadro'
     | '/musica-personalizada-para-esposa'
     | '/obrigado'
+    | '/privacidade'
     | '/recuperar'
     | '/retomar'
+    | '/termos'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/es/criar'
@@ -290,8 +312,10 @@ export interface FileRouteTypes {
     | '/meu-quadro'
     | '/musica-personalizada-para-esposa'
     | '/obrigado'
+    | '/privacidade'
     | '/recuperar'
     | '/retomar'
+    | '/termos'
     | '/auth/callback'
     | '/editar/$tokenEdicao'
     | '/es/criar'
@@ -316,8 +340,10 @@ export interface RootRouteChildren {
   MeuQuadroRoute: typeof MeuQuadroRoute
   MusicaPersonalizadaParaEsposaRoute: typeof MusicaPersonalizadaParaEsposaRoute
   ObrigadoRoute: typeof ObrigadoRoute
+  PrivacidadeRoute: typeof PrivacidadeRoute
   RecuperarRoute: typeof RecuperarRoute
   RetomarRoute: typeof RetomarRoute
+  TermosRoute: typeof TermosRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   EditarTokenEdicaoRoute: typeof EditarTokenEdicaoRoute
   EsCriarRoute: typeof EsCriarRoute
@@ -409,6 +435,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ObrigadoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacidade': {
+      id: '/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recuperar': {
       id: '/recuperar'
       path: '/recuperar'
@@ -421,6 +454,13 @@ declare module '@tanstack/react-router' {
       path: '/retomar'
       fullPath: '/retomar'
       preLoaderRoute: typeof RetomarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/termos': {
+      id: '/termos'
+      path: '/termos'
+      fullPath: '/termos'
+      preLoaderRoute: typeof TermosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -508,8 +548,10 @@ const rootRouteChildren: RootRouteChildren = {
   MeuQuadroRoute: MeuQuadroRoute,
   MusicaPersonalizadaParaEsposaRoute: MusicaPersonalizadaParaEsposaRoute,
   ObrigadoRoute: ObrigadoRoute,
+  PrivacidadeRoute: PrivacidadeRoute,
   RecuperarRoute: RecuperarRoute,
   RetomarRoute: RetomarRoute,
+  TermosRoute: TermosRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   EditarTokenEdicaoRoute: EditarTokenEdicaoRoute,
   EsCriarRoute: EsCriarRoute,
