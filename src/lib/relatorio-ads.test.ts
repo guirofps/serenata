@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { lerRelatorioCampanhas, linhaCsv, numeroBr, diaIso } from "./relatorio-ads";
+import {
+  lerRelatorioCampanhas,
+  linhaCsv,
+  numeroBr,
+  diaIso,
+  periodoDoPreambulo,
+} from "./relatorio-ads";
 
 // O QUE ESTE TESTE SEGURA
 //
@@ -145,5 +151,73 @@ describe("lerRelatorioCampanhas", () => {
     const r = lerRelatorioCampanhas(csv);
     expect(r.metricas).toHaveLength(0);
     expect(r.avisos.some((a) => a.includes("Campanha estranha"))).toBe(true);
+  });
+});
+
+// ── O RELATÓRIO SEM COLUNA "Dia" ─────────────────────────────────
+//
+// O export padrão do Google não segmenta por dia: a data vive só no preâmbulo,
+// na segunda linha ("25 de agosto de 2026 - 25 de agosto de 2026"). Recusar
+// isso cegamente rejeitava um arquivo perfeitamente importável — quando as
+// duas pontas são o MESMO dia, o total agregado É o daquele dia.
+//
+// O que estes testes protegem é a fronteira: um dia entra, vários dias NÃO,
+// nem com data escolhida à mão, porque aí a soma é real e nenhuma escolha do
+// usuário desfaz isso.
+const CAB = "Status da campanha,Campanha,Custo,ID da campanha";
+const LINHA = 'Ativada,GD | Serenata | CAMPEÃO 1,"204,60",24116713654';
+const umDia = (de: string, ate = de) =>
+  `Relatório de campanha
+${de} - ${ate}
+${CAB}
+${LINHA}
+`;
+
+describe("relatório sem coluna Dia", () => {
+  it("lê o período do preâmbulo, com mês por extenso", () => {
+    expect(periodoDoPreambulo(["Relatório", "25 de agosto de 2026 - 25 de agosto de 2026"]))
+      .toEqual({ de: "2026-08-25", ate: "2026-08-25" });
+  });
+
+  it("importa quando o período é um dia só, sem precisar escolher nada", () => {
+    const r = lerRelatorioCampanhas(umDia("25 de agosto de 2026"));
+    expect(r.metricas).toHaveLength(1);
+    expect(r.metricas[0].dia).toBe("2026-08-25");
+    expect(r.metricas[0].custoBrl).toBe(204.6);
+    // O aviso existe pra a origem da data ficar VISÍVEL, nunca silenciosa.
+    expect(r.avisos.join(" ")).toContain("2026-08-25");
+  });
+
+  it("RECUSA período de vários dias — o custo diário sairia inventado", () => {
+    const r = lerRelatorioCampanhas(umDia("20 de agosto de 2026", "25 de agosto de 2026"));
+    expect(r.metricas).toHaveLength(0);
+    expect(r.avisos.join(" ")).toMatch(/somado|2026-08-20/);
+  });
+
+  it("e a data escolhida à mão NÃO vence um período de vários dias", () => {
+    const r = lerRelatorioCampanhas(umDia("20 de agosto de 2026", "25 de agosto de 2026"), {
+      dia: "2026-08-25",
+    });
+    expect(r.metricas).toHaveLength(0);
+  });
+
+  it("a data escolhida à mão vale quando o arquivo não diz nada", () => {
+    const r = lerRelatorioCampanhas(`Relatório de campanha
+${CAB}
+${LINHA}
+`, {
+      dia: "2026-08-28",
+    });
+    expect(r.metricas).toHaveLength(1);
+    expect(r.metricas[0].dia).toBe("2026-08-28");
+  });
+
+  it("sem coluna, sem preâmbulo e sem escolha, recusa e explica", () => {
+    const r = lerRelatorioCampanhas(`Relatório de campanha
+${CAB}
+${LINHA}
+`);
+    expect(r.metricas).toHaveLength(0);
+    expect(r.avisos.join(" ")).toContain("Escolha o dia");
   });
 });

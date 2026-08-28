@@ -33,7 +33,7 @@ export type ResultadoImportacao = {
 const MAX_CHARS = 4_000_000;
 
 export const importarRelatorioAds = createServerFn({ method: "POST" })
-  .validator((data: { csv: string }) => data)
+  .validator((data: { csv: string; dia?: string | null }) => data)
   .handler(async ({ data }): Promise<ResultadoImportacao> => {
     const { exigirAdmin } = await import("@/lib/admin-auth.server");
     exigirAdmin();
@@ -43,7 +43,10 @@ export const importarRelatorioAds = createServerFn({ method: "POST" })
       return { ok: false, linhas: 0, campanhas: 0, dias: [], custoBrl: 0, avisos: ["Arquivo grande demais."] };
     }
 
-    const { metricas, avisos } = lerRelatorioCampanhas(csv);
+    // `dia` só é usado quando o arquivo não tem coluna de dia. Ver o bloco
+    // "SEM COLUNA DE DIA" em `relatorio-ads.ts`: ele NUNCA sobrepõe um
+    // preâmbulo que declara várias datas.
+    const { metricas, avisos } = lerRelatorioCampanhas(csv, { dia: data.dia ?? null });
     if (!metricas.length) {
       return { ok: false, linhas: 0, campanhas: 0, dias: [], custoBrl: 0, avisos };
     }

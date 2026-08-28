@@ -23,6 +23,9 @@ import { importarRelatorioAds, type ResultadoImportacao } from "@/lib/admin-rela
 
 export function ImportarRelatorioAds() {
   const [csv, setCsv] = useState("");
+  // Só entra em jogo quando o arquivo não tem coluna de dia E o cabeçalho
+  // dele não diz o período. Vazio é o normal.
+  const [dia, setDia] = useState("");
   const [indo, setIndo] = useState(false);
   const [r, setR] = useState<ResultadoImportacao | null>(null);
 
@@ -30,7 +33,7 @@ export function ImportarRelatorioAds() {
     setIndo(true);
     setR(null);
     try {
-      setR(await importarRelatorioAds({ data: { csv } }));
+      setR(await importarRelatorioAds({ data: { csv, dia: dia || null } }));
     } catch (err) {
       setR({
         ok: false,
@@ -54,10 +57,23 @@ export function ImportarRelatorioAds() {
         incluir <strong>ID da campanha</strong> e <strong>Custo</strong>. Baixe o CSV,
         abra, e cole aqui.
       </p>
-      <p className="mt-1 text-[13px] leading-snug text-amber-700">
-        Sem segmentar por dia o relatório vem somado no período, e o custo diário
-        sairia inventado. Nesse caso a importação recusa e explica.
+      <p className="mt-1 text-[13px] leading-snug text-[var(--tinta-suave)]">
+        Se o relatório for de <strong>um dia só</strong>, não precisa segmentar: a data
+        é lida do cabeçalho do próprio arquivo.
       </p>
+      <p className="mt-1 text-[13px] leading-snug text-amber-700">
+        Relatório somado em VÁRIOS dias é recusado, mesmo com data escolhida abaixo:
+        o custo diário sairia inventado.
+      </p>
+      <label className="mt-3 flex items-center gap-2 text-[13px] text-[var(--tinta-suave)]">
+        <span>Dia (só se o arquivo não disser)</span>
+        <input
+          type="date"
+          value={dia}
+          onChange={(e) => setDia(e.target.value)}
+          className="rounded-md border border-[var(--tinta-fraca)]/40 px-2 py-1 text-[13px]"
+        />
+      </label>
 
       <textarea
         value={csv}

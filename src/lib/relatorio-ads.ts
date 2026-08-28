@@ -125,8 +125,35 @@ export function diaIso(cru: string): string | null {
     jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06",
     jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12",
   };
-  const ext = t.toLowerCase().match(/^(\d{1,2})\s*de\s*([a-zç]{3})\.?\s*de\s*(\d{4})$/);
-  if (ext && MES[ext[2]]) return `${ext[3]}-${MES[ext[2]]}-${ext[1].padStart(2, "0")}`;
+  // MÊS ABREVIADO **E** POR EXTENSO. A coluna "Dia" do Google vem como
+  // "25 de ago. de 2026", mas o PREÂMBULO do mesmo arquivo escreve por
+  // extenso ("25 de agosto de 2026") — e é dele que a data sai quando o
+  // relatório não tem a coluna. Casar só o abreviado fazia a mesma data ser
+  // lida num lugar e recusada no outro.
+  const ext = t.toLowerCase().match(/^(\d{1,2})\s*de\s*([a-zç]+)\.?\s*de\s*(\d{4})$/);
+  const mes = ext ? MES[ext[2].slice(0, 3)] : undefined;
+  if (ext && mes) return `${ext[3]}-${mes}-${ext[1].padStart(2, "0")}`;
+  return null;
+}
+
+/**
+ * O período que o Google escreve ANTES do cabeçalho, na segunda linha:
+ * `25 de agosto de 2026 - 25 de agosto de 2026`.
+ *
+ * Serve pro caso em que o relatório não foi segmentado por dia. Se as duas
+ * pontas forem O MESMO DIA, o total agregado É o daquele dia, e importar é
+ * seguro. Se forem dias diferentes, continua sendo soma de período e o
+ * arquivo tem que ser recusado — ver `lerRelatorioCampanhas`.
+ */
+export function periodoDoPreambulo(linhas: string[]): { de: string; ate: string } | null {
+  // Só as primeiras linhas: o preâmbulo vive antes do cabeçalho.
+  for (const linha of linhas.slice(0, 5)) {
+    const m = linha.match(/^\s*"?(.+?)\s+[-–]\s+(.+?)"?\s*$/);
+    if (!m) continue;
+    const de = diaIso(m[1].trim());
+    const ate = diaIso(m[2].trim());
+    if (de && ate) return { de, ate };
+  }
   return null;
 }
 
@@ -156,7 +183,10 @@ function acharColuna(cabecalho: string[], nomes: string[]): number {
  * existiu — o número ficaria bonito e errado. Sem a coluna, recusa e explica
  * que é pra segmentar por dia na exportação.
  */
-export function lerRelatorioCampanhas(csv: string): LeituraRelatorio {
+export function lerRelatorioCampanhas(
+  csv: string,
+  opcoes?: { dia?: string | null },
+): LeituraRelatorio {
   const avisos: string[] = [];
   const linhas = (csv ?? "").split(/\r?\n/).filter((l) => l.trim() !== "");
   if (!linhas.length) return { metricas: [], avisos: ["Arquivo vazio."] };
@@ -190,15 +220,49 @@ export function lerRelatorioCampanhas(csv: string): LeituraRelatorio {
       ],
     };
   }
+  // ── SEM COLUNA DE DIA: TRÊS DESFECHOS, NÃO UM ────────────────────
+  //
+  // A recusa cega custava caro: o relatório de UM DIA SÓ, que o Google exporta
+  // sem a coluna, era rejeitado mesmo sendo perfeitamente importável — o total
+  // agregado de um dia É o daquele dia.
+  //
+  // O que NÃO pode mudar é a proteção original: relatório somado em VÁRIOS
+  // dias, importado como um, inventa um custo diário que nunca existiu e
+  // produz o pior tipo de número, o que parece certo.
+  //
+  // Então: período de um dia no preâmbulo, vale. Dia escolhido à mão, vale —
+  // mas NUNCA por cima de um preâmbulo que diz várias datas, porque aí a soma
+  // é de verdade e nenhuma escolha do usuário desfaz isso.
+  let diaFixo: string | null = null;
   if (cDia < 0) {
-    return {
-      metricas: [],
-      avisos: [
-        "Falta a coluna 'Dia'. O relatório veio somado no período, e importar isso " +
-          "como um dia só inventaria um custo diário que nunca existiu. " +
-          "Na exportação, segmente por dia.",
-      ],
-    };
+    const periodo = periodoDoPreambulo(linhas.slice(0, iCab));
+    const escolhido = opcoes?.dia ? diaIso(opcoes.dia) : null;
+
+    if (periodo && periodo.de !== periodo.ate) {
+      return {
+        metricas: [],
+        avisos: [
+          `O relatório é de ${periodo.de} a ${periodo.ate}, somado, e não tem coluna 'Dia'. ` +
+            "Importar isso como um dia só inventaria um custo diário que nunca existiu. " +
+            "Na exportação, use Segmentar › Dia, ou exporte um dia de cada vez.",
+        ],
+      };
+    }
+    diaFixo = escolhido ?? periodo?.de ?? null;
+    if (!diaFixo) {
+      return {
+        metricas: [],
+        avisos: [
+          "Falta a coluna 'Dia' e não consegui ler a data no cabeçalho do arquivo. " +
+            "Escolha o dia no campo ao lado, ou exporte com Segmentar › Dia.",
+        ],
+      };
+    }
+    avisos.push(
+      escolhido
+        ? `Sem coluna 'Dia': tudo lançado em ${diaFixo}, como você escolheu.`
+        : `Sem coluna 'Dia': usei ${diaFixo}, que é o período no cabeçalho do arquivo.`,
+    );
   }
   if (cCusto < 0) avisos.push("Sem coluna de Custo: as linhas entram com custo zero.");
 
@@ -207,7 +271,7 @@ export function lerRelatorioCampanhas(csv: string): LeituraRelatorio {
     const col = linhaCsv(linha);
     const id = (col[cId] ?? "").replace(/\D/g, "");
     const nome = col[cNome] ?? "";
-    const dia = diaIso(col[cDia] ?? "");
+    const dia = cDia >= 0 ? diaIso(col[cDia] ?? "") : diaFixo;
 
     // A LINHA DE TOTAL não é campanha. O Google fecha o arquivo com
     // "Total: contas", "Total: campanhas" etc., sem id e sem dia — e somá-la
