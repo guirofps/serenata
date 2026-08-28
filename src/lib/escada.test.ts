@@ -41,11 +41,37 @@ describe("a escada de preço", () => {
     }
   });
 
-  it("o preço cheio segura os primeiros e-mails — descontar no dia seguinte ensina a esperar", () => {
+  // A REGRA MUDOU EM 28/08, e o teste muda com ela.
+  //
+  // Antes: preço cheio até o degrau 4, porque descontar no dia seguinte ensina
+  // a esperar. Isso valia enquanto a régua ia até o 11 e havia "depois".
+  //
+  // Com a régua cortada no 3, não há depois: os degraus 2 e 3 cobravam os dois
+  // R$ 38 e a escada de preço nunca acontecia (1.420 disparos, 1 venda). O
+  // degrau 2 continua cheio — é ele que impede "abandonar dá desconto" de
+  // virar o caminho óbvio. O 3 é a única oferta diferente que existe.
+  it("o degrau 2 é cheio e o 3 desconta — a régua para no 3, então é lá que a oferta muda", () => {
     expect(dinheiro(OFERTA[2].texto)).toBe(38);
-    expect(dinheiro(OFERTA[3].texto)).toBe(38);
-    expect(dinheiro(OFERTA[4].texto)).toBe(38);
-    expect(dinheiro(OFERTA[5].texto)).toBeLessThan(38);
+    expect(dinheiro(OFERTA[3].texto)).toBeLessThan(38);
+  });
+
+  // O DESCONTO PRECISA APARECER PRA QUEM RECEBE.
+  //
+  // Um degrau que cobra menos e não diz que cobra menos é o pior dos dois
+  // mundos: perde a margem e não ganha o argumento. Foi exatamente o que teria
+  // acontecido se eu só tivesse trocado o número na tabela — a copy antiga do
+  // degrau 3 não falava de preço em lugar nenhum.
+  it("o degrau com desconto mostra o preço no assunto E no corpo", () => {
+    expect(assuntoEscada(3, "Camila")).toContain(OFERTA[3].texto);
+    const html = emailEscada({
+      numero: 3,
+      nome: "Camila",
+      link: linkDeCompra(3, "s1", "a@b.com"),
+      linkDescadastro: "https://x/descadastrar?s=s1",
+    });
+    expect(html).toContain(OFERTA[3].texto);
+    // E diz de onde veio o desconto: "R$ 29" sozinho não é oferta, é preço.
+    expect(html).toContain("R$ 38");
   });
 
   it("todo degrau tem link https da Perfect Pay", () => {

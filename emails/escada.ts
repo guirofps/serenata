@@ -88,10 +88,31 @@ const VINTE_NOVE: Oferta = { texto: "R$ 29", checkout: "https://go.perfectpay.co
 const DEZENOVE: Oferta = { texto: "R$ 19", checkout: "https://go.perfectpay.com.br/PPU38CQFF7H" };
 const NOVE: Oferta = { texto: "R$ 9", checkout: "https://go.perfectpay.com.br/PPU38CQFF7I" };
 
+// ── O DESCONTO SUBIU PRO DEGRAU 3 (28/08) ───────────────────────
+//
+// A regra antiga segurava o preço cheio até o degrau 4, pelo motivo certo:
+// descontar no dia seguinte ao abandono ensina que basta esperar.
+//
+// Só que a régua foi CORTADA no 3 em 27/08 (ver `ultimoEmailDe`), e com isso
+// a escada de preço deixou de existir na prática: os degraus 2 e 3 cobravam
+// os dois R$ 38, e os degraus com desconto ficaram depois do corte, sem nunca
+// disparar. O resultado medido de 21 a 28/08 foi 1.420 disparos e UMA venda.
+//
+// Ou seja: a régua mandava o MESMO preço duas vezes com palavras diferentes,
+// e chamava isso de escada. Com o degrau 3 em R$ 29 ela volta a ter a única
+// coisa que a fazia valer a pena — uma segunda oferta que é de fato outra.
+//
+// O QUE ISSO CUSTA, e é uma aposta de verdade: o desconto agora chega ~48h
+// depois do abandono, não dias depois. Se o funil de preço cheio começar a
+// converter pior, é aqui que se olha primeiro.
+//
+// SE A RÉGUA FOR REABERTA além do 3: os degraus 5 e 6 carregam hoje o mesmo
+// argumento de preço que o 3 passou a carregar, e precisam ser reescritos
+// antes, senão a pessoa recebe a mesma conversa três vezes.
 export const OFERTA: Record<DegrauEscada, Oferta> = {
   2: CHEIO,
-  3: CHEIO,
-  4: CHEIO,
+  3: VINTE_NOVE,
+  4: VINTE_NOVE,
   5: VINTE_NOVE,
   6: VINTE_NOVE,
   7: DEZENOVE,
@@ -183,7 +204,7 @@ const PASSO_2_OUVIU: Passo = {
   titulo: (n) => `Você parou no melhor pedaço da música de ${n}`,
   corpo: [
     "A prévia corta no refrão de propósito, e é uma escolha meio cruel: é exatamente onde a música começa a virar o que ela é.",
-    "O que vem depois você ainda não ouviu — o segundo verso, a parte em que o nome de {nome} volta, e o fim.",
+    "O que vem depois você ainda não ouviu: o segundo verso, a parte em que o nome de {nome} volta, e o fim.",
     "E tem uma coisa que a prévia não mostra: existem DUAS gravações da sua letra, com interpretações diferentes. Você escolhe qual delas vai tocar quando {nome} abrir o link.",
   ],
   botao: "Ouvir a música inteira",
@@ -196,22 +217,31 @@ const PASSOS: Record<DegrauEscada, Passo> = {
     preheader: "A gravação ficou pronta depois que você saiu.",
     titulo: (n) => `A música de ${n} terminou de ser gravada`,
     corpo: [
-      "Você escreveu a história, escolheu o refrão e foi embora antes da última parte — a hora em que aquilo vira música de verdade, com voz, violão e o nome de {nome} sendo cantado.",
+      "Você escreveu a história, escolheu o refrão e foi embora antes da última parte, a hora em que aquilo vira música de verdade, com voz, violão e o nome de {nome} sendo cantado.",
       "Ela ficou pronta alguns minutos depois. Está guardada, do jeito que você deixou.",
       "É a mesma letra que você leu. Nada foi trocado.",
     ],
     botao: "Ouvir a música de {nome}",
   },
+  // ── R$ 29 · o último e-mail da régua, e o único com desconto ──
+  //
+  // O preço vai no ASSUNTO de propósito: é o assunto que decide se alguém
+  // abre, e aqui o preço É o argumento. Escondê-lo no corpo seria dar o
+  // desconto pra quem já ia abrir de qualquer jeito.
+  //
+  // O texto não finge saber por que a pessoa parou. Ele oferece as duas
+  // saídas e deixa ela escolher — inclusive a de ignorar, escrita com todas
+  // as letras. É o que separa uma segunda oferta de uma cobrança.
   3: {
-    assunto: (n) => `O que acontece quando ${n} ouvir`,
-    preheader: "O presente não é o arquivo. É o momento.",
-    titulo: () => "Presente que ninguém mais deu",
+    assunto: (n) => `R$ 29 pela música de ${n}`,
+    preheader: "Se o que travou foi o preço, isso está resolvido.",
+    titulo: () => "Se foi o preço, resolve assim",
     corpo: [
-      "Toda pessoa já ganhou perfume, chocolate, uma caneca. Ninguém nunca ganhou uma música em que a própria história é cantada — com o detalhe que só você sabia contar.",
-      "O que {nome} vai receber é um link. Ela abre no celular, aparece o nome dela, e a música começa.",
-      "Os primeiros dez segundos são a parte que a gente mais ouve falar. É quando a pessoa entende que aquilo é sobre ela.",
+      "Você chegou até o fim, ouviu o trecho e parou. Pode ter sido o momento, pode ter sido o valor, daqui eu não tenho como saber.",
+      "Se foi o valor: <strong>{preco}</strong> em vez de R$ 38, pelo mesmo presente. A gravação é a mesma, já está pronta, e nada da letra foi trocado.",
+      "Se foi o momento, ignora este e-mail. A música de {nome} continua guardada do jeito que você deixou.",
     ],
-    botao: "Terminar o presente de {nome}",
+    botao: "Levar por {preco}",
   },
   4: {
     assunto: (n) => `Duas linhas da música de ${n}`,
@@ -225,13 +255,13 @@ const PASSOS: Record<DegrauEscada, Passo> = {
     botao: "Ouvir a música inteira",
   },
 
-  // ── R$ 29 · o primeiro degrau ──
+  // ── R$ 29 · repete o preco do degrau 3 (ver a nota na OFERTA) ──
   5: {
     assunto: () => "Não quero que o preço seja o motivo",
     preheader: "R$ 29 em vez de R$ 38.",
     titulo: () => "Se foi o preço, resolve assim",
     corpo: [
-      "Você chegou até o fim e parou. Pode ter sido o momento, pode ter sido o valor — daqui eu não tenho como saber.",
+      "Você chegou até o fim e parou. Pode ter sido o momento, pode ter sido o valor, daqui eu não tenho como saber.",
       "Se foi o valor: <strong>{preco}</strong>, pelo mesmo presente. A música já está gravada, é a mesma.",
       "Se foi o momento, ignora este e-mail. Ela continua guardada.",
     ],
@@ -255,7 +285,7 @@ const PASSOS: Record<DegrauEscada, Passo> = {
     preheader: "Menos que um lanche.",
     titulo: () => "Menos que um lanche de sexta",
     corpo: [
-      "Não vou fingir que este é o preço normal — não é. É o que eu consigo fazer pra essa música não ficar parada num servidor pra sempre.",
+      "Não vou fingir que este é o preço normal. Não é. É o que eu consigo fazer pra essa música não ficar parada num servidor pra sempre.",
       "<strong>{preco}</strong>, e o link de {nome} sai hoje.",
       "A gravação, a página com o nome dela e o arquivo pra baixar. Tudo que estava lá desde o começo.",
     ],
@@ -266,7 +296,7 @@ const PASSOS: Record<DegrauEscada, Passo> = {
     preheader: "Você é a única pessoa que pode.",
     titulo: () => "Ninguém mais sabe essa história",
     corpo: [
-      "Essa música existe porque você sentou e contou uma coisa que só você sabia. Se ela não for entregue, ninguém mais vai escrever de novo — nem você daqui a seis meses, porque a gente esquece o detalhe.",
+      "Essa música existe porque você sentou e contou uma coisa que só você sabia. Se ela não for entregue, ninguém mais vai escrever de novo, nem você daqui a seis meses, porque a gente esquece o detalhe.",
       "É por isso que eu insisto. Não é pelo valor, que a essa altura é <strong>{preco}</strong>.",
       "É porque {nome} não vai ganhar isso de mais ninguém.",
     ],
@@ -281,7 +311,7 @@ const PASSOS: Record<DegrauEscada, Passo> = {
     corpo: [
       "<strong>{preco}</strong>. Abaixo disso a taxa do cartão come o que sobra, então é honestamente onde acaba.",
       "A música de {nome} está gravada desde o dia em que você escreveu a letra. Só falta alguém apertar o botão.",
-      "Se ainda assim não for a hora, tudo bem — é só ignorar.",
+      "Se ainda assim não for a hora, tudo bem, é só ignorar.",
     ],
     botao: "Levar por {preco}",
   },
@@ -291,7 +321,7 @@ const PASSOS: Record<DegrauEscada, Passo> = {
     titulo: () => "Não precisa entregar hoje",
     corpo: [
       "Aniversário, Dia das Mães, um domingo qualquer em que ela estiver pra baixo. O link não expira, e você escolhe o dia de mandar.",
-      "Muita gente compra semanas antes e guarda. Funciona melhor assim, inclusive — presente entregue na data certa acerta mais forte.",
+      "Muita gente compra semanas antes e guarda. Funciona melhor assim, inclusive: presente entregue na data certa acerta mais forte.",
       "Continua <strong>{preco}</strong>.",
     ],
     botao: "Garantir por {preco}",
@@ -301,7 +331,7 @@ const PASSOS: Record<DegrauEscada, Passo> = {
     preheader: "Depois deste eu paro de escrever.",
     titulo: () => "É o último que eu mando",
     corpo: [
-      "Este é o décimo e último e-mail sobre a música de {nome}. Depois dele eu paro — você não precisa fazer nada pra isso acontecer.",
+      "Este é o décimo e último e-mail sobre a música de {nome}. Depois dele eu paro, e você não precisa fazer nada pra isso acontecer.",
       "A letra continua sendo sua. Se um dia quiser, o link abaixo funciona por <strong>{preco}</strong>.",
       "Obrigado por ter escrito a história. Ela ficou boa mesmo que ninguém nunca ouça.",
     ],
