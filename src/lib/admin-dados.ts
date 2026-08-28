@@ -35,6 +35,16 @@ export type Painel = {
   /** Qual funil este recorte está olhando. */
   filtro: FunilFiltro;
   periodoDias: number;
+  /**
+   * O que NÃO carregou, em português, pra tela mostrar.
+   *
+   * Existe porque o painel pendurou por horas em 27/08 sem dizer nada: a
+   * agregação do funil estourava o tempo no banco e o código fazia `throw`
+   * numa chamada que a tela não trata. Número ausente tem que ser VISÍVEL —
+   * ausente e mudo é o que faz alguém tomar decisão com meia informação
+   * achando que tem a informação inteira.
+   */
+  aviso: string | null;
   /** Início e fim reais do recorte (ISO), pra o painel exibir. */
   de: string;
   ate: string;
@@ -559,7 +569,18 @@ function janelaDo(data: ArgsPainel): Janela {
       dias: Math.max(1, Math.round((fim.getTime() - inicio.getTime()) / 86400000)),
     };
   }
-  const dias = data.dias && data.dias > 0 ? data.dias : 30;
+  // ── SETE DIAS, E NÃO TRINTA ──────────────────────────────────
+  //
+  // Era 30. Com `funnel_events` em 883 mil linhas (era 183 mil quando o 30 foi
+  // escolhido), a agregação do funil em 30 dias é cancelada pelo banco e o
+  // painel inteiro pendurava. Medido em 28/08: 3,3s em 1 dia, 4,7s em 3,
+  // 22s em 7, e cancelado em 14.
+  //
+  // Sete dias também é a janela que se usa de verdade pra operar: ninguém
+  // decide matar campanha olhando a média de um mês. Trinta continua
+  // disponível pelo seletor — e se estourar, agora o painel abre com aviso em
+  // vez de travar.
+  const dias = data.dias && data.dias > 0 ? data.dias : 7;
   return { inicio: new Date(Date.now() - dias * 86400000), fim: new Date(), dias };
 }
 
@@ -702,6 +723,18 @@ async function montarPainel(
   // Agora essa conta é feita no banco, por `admin_eventos_resumo`, e volta
   // como ~30 linhas de resumo. Chamada mais abaixo, porque ela precisa
   // saber quais sessões compraram, e isso sai de `pedidos`.
+  // O RESUMO DE E-MAIL SAI NA FRENTE, sem `await`.
+  //
+  // Ele custa 13,6s e não depende de nada daqui — é por destinatário, não por
+  // sessão. Disparado agora, ele corre junto das leituras abaixo e já está
+  // pronto quando alguém for buscá-lo lá embaixo.
+  //
+  // A promessa é guardada, não aguardada: `await` aqui devolveria a serialização
+  // que este comentário existe pra evitar.
+  const emailsEmVoo = opts.enxuto
+    ? null
+    : db.rpc("admin_emails_resumo", { p_desde: desde, p_ate: ateISO });
+
   const [leadsCru, musicas, custos, pedidos] = await Promise.all([
     janela<Lead>(
       "quiz_responses",
@@ -833,9 +866,34 @@ async function montarPainel(
     p_filtro: filtro,
     p_sessoes_venda: sessoesVenda,
   });
-  // Falhar alto. Resumo vazio aqui pintaria um painel de zeros com cara de
-  // "não vendeu nada hoje", que é pior que erro na tela.
-  if (erroResumo) throw new Error(`resumo de eventos: ${erroResumo.message}`);
+
+  // ── QUANDO O RESUMO NÃO VEM ──────────────────────────────────
+  //
+  // A versão anterior fazia `throw`, com o argumento de que zeros mentiriam
+  // ("não vendeu nada hoje"). O argumento está certo e a conclusão estava
+  // errada: quem chama isto é a tela, que não trata a exceção — então o
+  // painel simplesmente PENDURAVA em "carregando", e ficou assim por horas
+  // em 27/08 sem ninguém saber por quê. Tela pendurada é pior que zeros E
+  // pior que erro: não diz nada e não deixa usar o resto.
+  //
+  // Agora o painel abre com o que TEM (faturamento, vendas, custo, campanha
+  // — tudo isso vem de `pedidos`, não daqui) e carrega um aviso dizendo qual
+  // parte falta. O número que sumiu fica visivelmente ausente, não fingido.
+  //
+  // Por que ele falha: `funnel_events` passou de 183 mil para 883 mil linhas
+  // em 30 dias (607 MB), e a janela de 30 dias é praticamente a tabela
+  // inteira — nenhum índice ajuda quando se lê tudo. Medido em 28/08: 3,3s em
+  // 1 dia, 22s em 7 dias, e o banco cancela em 14. O conserto de verdade é
+  // uma tabela de resumo por dia, alimentada por cron; isto aqui é a rede
+  // que impede o painel de cair enquanto ela não existe.
+  let avisoResumo: string | null = null;
+  if (erroResumo) {
+    console.error("[admin] resumo de eventos falhou:", erroResumo.message);
+    avisoResumo =
+      `Os números de FUNIL (visitantes, passos, taxas) não carregaram nesta janela ` +
+      `de ${dias} dias: a consulta passou do tempo no banco. Faturamento, vendas e ` +
+      `campanhas abaixo estão corretos. Escolha um período menor para ver o funil.`;
+  }
   const resumo = (resumoCru ?? {}) as EventosResumo;
 
   // O e-mail é agregado à parte porque não compartilha nada com o funil: ele
@@ -852,15 +910,19 @@ async function montarPainel(
     porModelo: [],
   };
   // `enxuto`: o comparativo não mostra e-mail, então nem pede.
-  if (!opts.enxuto) {
+  //
+  // A CHAMADA FOI DISPARADA LÁ EM CIMA, junto das leituras, e só é esperada
+  // aqui. Ela leva 13,6s (medido em 28/08) e não depende de NADA do que veio
+  // antes — deixá-la em série era somar esses 13,6s ao total pelo simples
+  // fato de estar escrita depois. Com o limite de 60s da função, isso era um
+  // quarto do orçamento gasto à toa.
+  if (emailsEmVoo) {
     try {
-      const { data: e, error } = await db.rpc("admin_emails_resumo", {
-        p_desde: desde,
-        p_ate: ateISO,
-      });
+      const { data: e, error } = await emailsEmVoo;
       if (error) throw new Error(error.message);
       if (e) emails = e as Painel["emails"];
     } catch (err) {
+      // Não saber a taxa de abertura é ruim; não ver o faturamento é pior.
       console.error("[admin] resumo de e-mail não lido:", err);
     }
   }
@@ -1325,6 +1387,7 @@ async function montarPainel(
   return {
     filtro,
     periodoDias: dias,
+    aviso: avisoResumo,
     de: inicio.toISOString(),
     ate: fim.toISOString(),
     geradoEm: new Date().toISOString(),

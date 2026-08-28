@@ -583,6 +583,19 @@ function Admin() {
           ))}
         </div>
 
+        {/* ── O QUE NÃO CARREGOU ───────────────────────────────────
+            Fica ACIMA de tudo e em qualquer aba. O painel pendurou por horas
+            em 27/08 sem dizer nada, porque a agregação do funil estourava o
+            tempo no banco e o código estourava junto. Agora ele abre com o
+            que tem e diz em português o que falta — número ausente e mudo é
+            o que faz alguém decidir com meia informação achando que tem a
+            informação inteira. */}
+        {dados.aviso && (
+          <div className="mb-5 rounded-[var(--raio)] border border-amber-500/40 bg-amber-50 px-4 py-3 text-[13px] leading-snug text-amber-900">
+            {dados.aviso}
+          </div>
+        )}
+
         {(aba ?? "operacao") === "operacao" && (
           <>
             {/* ── DINHEIRO ─────────────────────────────────────────── */}
