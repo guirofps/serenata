@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import {
   DEGRAUS,
   ESPERA_H,
@@ -64,6 +64,56 @@ describe("a escada de preço", () => {
     for (let i = 1; i < DEGRAUS.length; i++) {
       expect(ESPERA_H[DEGRAUS[i]]).toBeGreaterThanOrEqual(ESPERA_H[DEGRAUS[i - 1]]);
     }
+  });
+});
+
+// ── O CAMINHO NOVO: nosso checkout, com o degrau assinado ────────
+//
+// Os testes abaixo (o bloco antigo) rodam SEM `RECUPERACAO_SECRET`, e é por
+// isso que continuam passando: sem chave, `linkDeCompra` cai no checkout
+// hospedado de propósito. Uma venda a 11,4% de taxa é muito melhor que um
+// e-mail que leva a lugar nenhum.
+//
+// Este bloco liga a chave e cobre o que passou a ser o caminho normal — que
+// de outro modo estaria no ar sem teste nenhum, exatamente por passar
+// despercebido no verde dos outros.
+describe("linkDeCompra COM chave — vai pro nosso checkout", () => {
+  const SEM = process.env.RECUPERACAO_SECRET;
+  beforeAll(() => {
+    process.env.RECUPERACAO_SECRET = "chave-de-teste";
+  });
+  afterAll(() => {
+    if (SEM === undefined) delete process.env.RECUPERACAO_SECRET;
+    else process.env.RECUPERACAO_SECRET = SEM;
+  });
+
+  it("aponta pra /oferta e NÃO pro gateway", () => {
+    for (const n of DEGRAUS) {
+      const l = linkDeCompra(n, "sessao-abc", "a@b.com");
+      expect(l, `degrau ${n}`).toContain("/oferta/");
+      expect(l, `degrau ${n}`).not.toContain("perfectpay");
+    }
+  });
+
+  it("o degrau viaja assinado, e o link de um não vira o do outro", () => {
+    // Se dois degraus com preços diferentes gerassem o mesmo token, o
+    // desconto seria escolhido pelo comprador.
+    const barato = linkDeCompra(11, "s1", "");
+    const caro = linkDeCompra(2, "s1", "");
+    expect(barato).not.toBe(caro);
+  });
+
+  it("o e-mail NÃO viaja mais na URL", () => {
+    // No checkout hospedado ele existia pra pré-preencher um formulário que
+    // não é nosso. Na nossa tela o endereço sai do banco, e mandá-lo na URL
+    // seria vazar PII pra qualquer coisa que leia o link.
+    expect(linkDeCompra(5, "s1", "maria@gmail.com")).not.toContain("maria");
+  });
+
+  it("sessão com caractere estranho sai escapada", () => {
+    const l = linkDeCompra(2, "a b&c=d", "");
+    expect(l).not.toContain(" ");
+    expect(l).not.toContain("&");
   });
 });
 

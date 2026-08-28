@@ -1,4 +1,10 @@
 import { moldura } from "./sequencia.js";
+import { assinarOferta } from "../src/lib/oferta-assinada.js";
+
+/** O domínio do site. O e-mail sai de cron, sem requisição de onde deduzir. */
+const SITE = process.env.VITE_APP_URL?.startsWith("http")
+  ? process.env.VITE_APP_URL
+  : "https://www.serenatagift.com";
 
 // A ESCADA DE RECUPERAÇÃO — dez e-mails, quatro preços descendo.
 //
@@ -107,6 +113,26 @@ export const OFERTA: Record<DegrauEscada, Oferta> = {
  * gente já perde muita gente (223 cliques em comprar produziram 86 pedidos).
  */
 export function linkDeCompra(numero: DegrauEscada, sessao: string, email: string): string {
+  // ── LEVA PRO NOSSO CHECKOUT, quando dá pra assinar ───────────
+  //
+  // Enquanto o pagamento era hospedado, cada degrau tinha que ser um PRODUTO
+  // cadastrado na Perfect Pay com aquele preço — o desconto morava lá. Com o
+  // checkout próprio a Woovi cobra qualquer valor, então o degrau vira só um
+  // número, e a economia de taxa (11,39% contra R$ 0,50) passa a valer também
+  // na recuperação. Que é onde ela mais importa: a margem aqui já está fina
+  // por causa do desconto.
+  //
+  // O token é ASSINADO porque o degrau decide o preço. Cru na URL, a primeira
+  // pessoa que reparasse compraria tudo a R$ 9 — e contaria pros outros.
+  //
+  // SEM CHAVE, CAI NO CHECKOUT ANTIGO. Uma venda a 11,4% de taxa é muito
+  // melhor que um e-mail que leva a lugar nenhum, e é o único jeito de este
+  // caminho falhar sem sumir com a receita junto.
+  const assinado = assinarOferta(sessao, numero);
+  if (assinado) {
+    return `${SITE}/oferta/${encodeURIComponent(assinado)}`;
+  }
+
   const u = new URL(OFERTA[numero].checkout);
   u.searchParams.set("src", sessao);
   if (email) u.searchParams.set("email", email);
