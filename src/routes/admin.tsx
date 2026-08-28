@@ -11,6 +11,7 @@ import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { AbaTestes } from "@/components/admin/AbaTestes";
 import { GraficoVendas } from "@/components/admin/GraficoVendas";
+import { ImportarRelatorioAds } from "@/components/admin/ImportarRelatorioAds";
 import { carregarTeto, salvarTeto, type EstadoDoTeto } from "@/lib/admin-teto";
 import {
   RefreshCw,
@@ -1069,11 +1070,22 @@ function Admin() {
               sub="Atribuição pela captura first-touch (utm, gclid, fbclid ou referência)"
             >
               <Tabela
-                cabecalho={["Origem", "Campanha", "Leads", "Letras", "Vendas", "Receita", "Conv."]}
+                cabecalho={[
+                  "Origem",
+                  "Campanha",
+                  "Leads",
+                  "Letras",
+                  "Vendas",
+                  "Receita",
+                  "Custo",
+                  "ROAS",
+                  "CPA",
+                  "Conv.",
+                ]}
               >
                 {dados.porOrigem.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-3 py-6 text-center text-[var(--tinta-suave)]">
+                    <td colSpan={10} className="px-3 py-6 text-center text-[var(--tinta-suave)]">
                       Nenhum lead no período.
                     </td>
                   </tr>
@@ -1124,6 +1136,29 @@ function Admin() {
                       <td className="px-3 py-2.5 text-right tabular-nums">
                         {o.receitaBrl > 0 ? brl(o.receitaBrl) : "—"}
                       </td>
+                      {/* CUSTO, ROAS e CPA vêm do relatório do Google, carregado
+                          logo abaixo. Traço quando não há relatório do período:
+                          "não sei o que gastou" e "gastou zero" são coisas
+                          diferentes, e mostrar zero faria toda campanha parecer
+                          lucro puro. */}
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        {o.custoBrl != null ? brl(o.custoBrl) : "—"}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-3 py-2.5 text-right font-medium tabular-nums",
+                          o.roas == null
+                            ? "text-[var(--tinta-suave)]"
+                            : o.roas >= 1
+                              ? "text-emerald-600"
+                              : "text-red-600",
+                        )}
+                      >
+                        {o.roas != null ? `${o.roas.toFixed(2)}x` : "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-[var(--tinta-suave)]">
+                        {o.cpaBrl != null ? brl(o.cpaBrl) : "—"}
+                      </td>
                       <td className="px-3 py-2.5 text-right tabular-nums text-[var(--tinta-suave)]">
                         {pc(o.conversaoPct)}
                       </td>
@@ -1132,6 +1167,8 @@ function Admin() {
                 )}
               </Tabela>
             </Secao>
+
+            <ImportarRelatorioAds />
           </>
         )}
 

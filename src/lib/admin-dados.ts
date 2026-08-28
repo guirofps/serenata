@@ -218,6 +218,20 @@ export type Painel = {
     vendas: number;
     receitaBrl: number;
     conversaoPct: number;
+    /**
+     * O que a campanha CUSTOU no período, do relatório do Google.
+     *
+     * NULO quando não há relatório carregado, e não zero. A diferença é o
+     * que separa "esta campanha não gastou nada" de "eu não sei o que ela
+     * gastou" — e zero faria toda campanha parecer lucro puro.
+     */
+    custoBrl: number | null;
+    cliquesAds: number | null;
+    impressoesAds: number | null;
+    /** Receita dividida pelo custo. Nulo sem custo conhecido. */
+    roas: number | null;
+    /** Custo por venda NOSSA, não pela conversão que o Google conta. */
+    cpaBrl: number | null;
   }>;
 
   /**
@@ -1075,9 +1089,36 @@ async function montarPainel(
     }
   }
 
+  // ── O CUSTO DE CADA CAMPANHA, NO MESMO PERÍODO ────────────────
+  //
+  // Vem de `metricas_campanha`, carregada do relatório do Google. É o que
+  // transforma esta tabela de "faturamento por campanha" em ROAS — e ROAS é o
+  // que decide o que matar. R$ 437 de receita é ótimo ou péssimo dependendo
+  // de ter custado R$ 200 ou R$ 900, e sem esta consulta a tela não sabia
+  // dizer qual dos dois.
+  const custoCampanha = new Map<string, { custo: number; cliques: number; impressoes: number }>();
+  if (idsCampanha.length) {
+    const { data: mets } = await db
+      .from("metricas_campanha")
+      .select("campanha_id, custo_brl, cliques, impressoes")
+      .in("campanha_id", idsCampanha)
+      .gte("dia", desde.slice(0, 10))
+      .lte("dia", ateISO.slice(0, 10));
+    for (const m of mets ?? []) {
+      const k = String(m.campanha_id);
+      const a = custoCampanha.get(k) ?? { custo: 0, cliques: 0, impressoes: 0 };
+      a.custo += Number(m.custo_brl ?? 0);
+      a.cliques += Number(m.cliques ?? 0);
+      a.impressoes += Number(m.impressoes ?? 0);
+      custoCampanha.set(k, a);
+    }
+  }
+
   const porOrigem = [...origemMap.values()]
     .map((v) => {
       const c = v.campanha ? nomeCampanha.get(v.campanha) : undefined;
+      const m = v.campanha ? custoCampanha.get(v.campanha) : undefined;
+      const custo = m?.custo ?? null;
       return {
         ...v,
         // Nulo quando a campanha é nova e ainda não foi carregada. A tela
@@ -1085,6 +1126,16 @@ async function montarPainel(
         campanhaNome: c?.nome ?? null,
         campanhaStatus: c?.status ?? null,
         conversaoPct: pct(v.vendas, v.leads),
+        // NULO quando não há relatório carregado pro período, e não zero:
+        // custo zero e custo desconhecido são coisas MUITO diferentes numa
+        // tela de ROAS, e zero faria toda campanha parecer lucro puro.
+        custoBrl: custo,
+        cliquesAds: m?.cliques ?? null,
+        impressoesAds: m?.impressoes ?? null,
+        /** Quanto voltou por real gasto. */
+        roas: custo && custo > 0 ? Math.round((v.receitaBrl / custo) * 100) / 100 : null,
+        /** Custo por venda NOSSA, não a conversão que o Google conta. */
+        cpaBrl: custo && v.vendas > 0 ? Math.round((custo / v.vendas) * 100) / 100 : null,
       };
     })
     .sort((a, b) => b.receitaBrl - a.receitaBrl || b.leads - a.leads);
