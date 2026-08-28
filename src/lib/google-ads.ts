@@ -62,12 +62,62 @@ export function transacaoGuardada(): string | undefined {
   }
 }
 
+/**
+ * O ID DA TRANSAÇÃO, e ele NUNCA pode sair vazio.
+ *
+ * ── O BUG QUE ISTO CONSERTA, E ELE CUSTOU CARO ───────────────────
+ *
+ * O Google DEDUPLICA conversão por `transaction_id`. Duas conversões com o
+ * mesmo id são a mesma venda — e string vazia é um id como outro qualquer.
+ * Ou seja: com o campo vazio, o Google guarda UMA e descarta todas as
+ * outras, em silêncio, sem erro em lugar nenhum.
+ *
+ * A versão anterior fazia `args.transactionId ?? ""`. O id vinha do `?code=`
+ * que a Perfect Pay devolvia no redirect, e ele NEM SEMPRE VINHA — o próprio
+ * `Obrigado.tsx` já documentava isso desde que 33 compradores em 10 dias
+ * caíram na tela sem botão pelo mesmo motivo. Quando não vinha, a venda
+ * simplesmente não era contada.
+ *
+ * Medido em 28/08: 23 vendas num dia, 8 contadas pelo Google. Dois terços
+ * jogados fora — e a campanha otimizando em cima do terço que sobrou.
+ *
+ * Com o checkout transparente virou 100% do problema, porque ali não existe
+ * redirect de gateway e o `code` nunca vem.
+ *
+ * ── A ESCADA DE FALLBACK ─────────────────────────────────────────
+ *
+ * 1. o id que o chamador passou (o `code`, ou a referência do PIX guardada);
+ * 2. a REFERÊNCIA guardada em `sessionStorage` pela tela do PIX;
+ * 3. o id da SESSÃO, que é único por comprador e sobrevive ao F5 — então a
+ *    dedupe contra recarga continua funcionando, que era o motivo do campo
+ *    existir.
+ *
+ * Se as três falharem (modo anônimo com storage bloqueado), o campo é
+ * OMITIDO. Sem id, o Google conta a conversão como única; com id vazio, ele
+ * a joga fora. Omitir erra pra cima, e errar pra cima aqui é muito melhor.
+ */
+function idDaTransacao(passado?: string): string | undefined {
+  const candidato = passado?.trim() || transacaoGuardada()?.trim();
+  if (candidato) return candidato;
+  try {
+    // Import dinâmico não dá: isto roda dentro do gtag. `mp_session_id` é a
+    // mesma chave que `session-context.ts` usa, lida direto pra não arrastar
+    // aquele módulo pra cá.
+    const s = localStorage.getItem("mp_session_id")?.trim();
+    if (s) return s;
+  } catch {
+    // storage bloqueado
+  }
+  return undefined;
+}
+
 export function conversaoCompra(args: {
   valor?: number;
   moeda?: "BRL" | "USD";
   transactionId?: string;
 }) {
   if (typeof window === "undefined" || !window.gtag) return;
+  const id = idDaTransacao(args.transactionId);
   window.gtag("event", "conversion", {
     send_to: CONVERSAO,
     // Sem default mágico: o valor vem do catálogo de moeda pelo chamador.
@@ -75,7 +125,7 @@ export function conversaoCompra(args: {
     // a otimizar em cima de um número que não existe mais.
     value: args.valor ?? 38,
     currency: args.moeda ?? "BRL",
-    // Sem isto, um F5 na página de obrigado contaria a venda de novo.
-    transaction_id: args.transactionId ?? "",
+    // Presente quando existe, AUSENTE quando não existe. Nunca vazio.
+    ...(id ? { transaction_id: id } : {}),
   });
 }
