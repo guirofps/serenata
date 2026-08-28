@@ -25,6 +25,7 @@ import { createClient } from "@supabase/supabase-js";
 import { woovi, assinaturaWooviConfere } from "../../src/lib/woovi.js";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../lib/entrega.js";
 import { creditarUpsell } from "../lib/creditar-upsell.js";
+import { enviarVendaUtmify } from "../lib/utmify.js";
 import { OFERTAS } from "../../src/lib/creditos.js";
 
 type Req = IncomingMessage & {
@@ -353,6 +354,40 @@ export default async function handler(req: Req, res: Res) {
     ...(entrega.ok ? {} : { erro: entrega.erro }),
   });
   if (!entrega.ok) console.error("[woovi] e-mail falhou:", entrega.erro);
+
+  // ── A VENDA VAI PRA UTMIFY ───────────────────────────────────
+  //
+  // DEPOIS da entrega, de propósito: relatório nunca pode atrasar (nem
+  // arriscar) o que a pessoa pagou pra receber.
+  //
+  // Faltava, e o buraco era grande: com o PIX inteiro na Woovi, a UTMify
+  // passou a ver 1 venda a cada 9. Um painel que mostra 11% do faturamento é
+  // pior que painel nenhum — ele parece uma queda.
+  //
+  // Os UTMs saem do NOSSO banco (captura first-touch), não do que o gateway
+  // ecoa: é o dado mais confiável que temos da origem do clique.
+  try {
+    const { data: q } = await sb
+      .from("quiz_responses")
+      .select("session_id, attribution")
+      .eq("id", quizId)
+      .maybeSingle();
+    await enviarVendaUtmify({
+      orderId: paymentId,
+      status: "paid",
+      valorCentavos: status.valorCentavos ?? 0,
+      email,
+      nome: (pedido?.nome_pagador as string | null) ?? null,
+      src: (q?.session_id as string | null) ?? null,
+      attribution: (q?.attribution as Record<string, string | undefined> | null) ?? null,
+      moeda: "BRL",
+      taxaCentavos: status.taxaCentavos ?? 0,
+      aprovadoEm: new Date(),
+    });
+  } catch (err) {
+    // Relatório que falha não derruba entrega já feita.
+    console.error("[woovi] utmify falhou:", err);
+  }
 
   console.log("[woovi] liberado:", { paymentId, musica: musica.id });
   return res.status(200).json({ ok: true, pedido: paymentId, quiz: quizId, entrega: entrega.ok });
