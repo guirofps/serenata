@@ -288,7 +288,18 @@ function Admin() {
   const [rDe, setRDe] = useState(de ?? hojeBr(-6));
   const [rAte, setRAte] = useState(ate ?? hojeBr());
 
-  const periodo = dias ?? 30;
+  // ── ESTE PADRÃO TEM QUE BATER COM O DO SERVIDOR ──────────────
+  //
+  // Aqui mora um erro que custou uma hora em 28/08. O servidor também tem um
+  // padrão (`admin-dados.ts`), e eu baixei ele de 30 pra 3 pra o painel parar
+  // de estourar o tempo do banco. Não adiantou nada: a TELA manda `dias`
+  // sempre preenchido, então o padrão do servidor é código morto e o painel
+  // continuou pedindo 30 dias.
+  //
+  // Dois padrões pra mesma coisa, em arquivos diferentes, e só um manda. Quem
+  // mexer num tem que mexer no outro — ou, melhor, parar de mandar o
+  // parâmetro quando ele não foi escolhido.
+  const periodo = dias ?? 3;
   const filtro: FunilFiltro = funil ?? "todos";
   const usandoDatas = Boolean(de);
 
