@@ -576,11 +576,14 @@ function janelaDo(data: ArgsPainel): Janela {
   // painel inteiro pendurava. Medido em 28/08: 3,3s em 1 dia, 4,7s em 3,
   // 22s em 7, e cancelado em 14.
   //
-  // Sete dias também é a janela que se usa de verdade pra operar: ninguém
-  // decide matar campanha olhando a média de um mês. Trinta continua
-  // disponível pelo seletor — e se estourar, agora o painel abre com aviso em
-  // vez de travar.
-  const dias = data.dias && data.dias > 0 ? data.dias : 7;
+  // TRÊS, e não sete. Sete foi a primeira tentativa desta noite e estava
+  // errada: medi 22s e achei que passava, mas era cache — repetido, dá 34s e
+  // o banco cancela. Três dias dá 5,7s com folga.
+  //
+  // Três dias é curto pra tendência e é o que HÁ. Sete e trinta continuam no
+  // seletor, e agora avisam em vez de travar. O que devolve as janelas
+  // grandes é a tabela de resumo por dia, que ainda não existe.
+  const dias = data.dias && data.dias > 0 ? data.dias : 3;
   return { inicio: new Date(Date.now() - dias * 86400000), fim: new Date(), dias };
 }
 
