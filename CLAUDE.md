@@ -226,6 +226,40 @@ prioridade é vender fumaça, e no Google Ads isso derruba conta.
 - **Sazonalidade:** alicerce em aniversário e homenagem (não sazonais), datas
   comemorativas tratadas como janela de escala, não como o negócio.
 
+## Preço: R$ 38 venceu R$ 54,90 (28/08/2026)
+
+O braço E (R$ 54,90) rodou de 23 a 27/08 com metade do tráfego e foi **zerado
+pelo peso** em 28/08. Não foi opinião:
+
+| braço | leads na oferta | vendas | conversão | ticket | receita/lead |
+|---|---|---|---|---|---|
+| A · R$ 38 | 842 | 106 | 12,6% | R$ 37,66 | **R$ 4,74** |
+| E · R$ 54,90 | 816 | 52 | 6,4% | R$ 54,90 | R$ 3,50 |
+
+`z = 4,31` — não é sorte. O preço maior **derruba a conversão pela metade** e o
+ticket não compensa: R$ 1,24 a menos por lead, uns **R$ 200/dia** com ~163
+leads/dia caindo no braço E.
+
+**A leitura que interessa é receita por lead, não conversão.** Preço maior
+converte pior por definição; o que decide é se o ticket cobre a queda. Aqui não
+cobriu, e nem perto.
+
+**Zerado pelo PESO, não pelo `ativo`.** Desligar o experimento publicaria o
+controle pra todo mundo de uma vez, e em 10/08 fazer exatamente isso publicou o
+braço ERRADO pra 100% do tráfego. Consequência aceita: quem já tinha `E`
+gravado no navegador continua vendo R$ 54,90 até trocar de aparelho, porque o
+sorteio nunca reclassifica quem já foi sorteado. A cauda seca sozinha.
+
+**Efeito colateral que contaminou a leitura de mídia:** durante esses cinco
+dias metade do tráfego pagou um preço que converte na metade. O CPA que o Smart
+Bidding aprendeu no período mistura os dois preços — campanha analisada com
+dados de 23 a 27/08 carrega esse ruído.
+
+**O próximo candidato NÃO é o R$ 29 por causa deste número.** O braço D marcou
+R$ 4,95/lead, acima do A, mas está com peso 0 e só recebe visitante antigo
+grudado: é coorte diferente, não comparação. Se for testar, testar com peso de
+verdade contra o A.
+
 ## Checkout transparente (27/08/2026)
 
 O PIX brasileiro saiu do checkout hospedado da Perfect Pay e passou a nascer
