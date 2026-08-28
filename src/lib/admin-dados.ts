@@ -406,6 +406,12 @@ const pct = (parte: number, total: number) => (total > 0 ? (parte / total) * 100
 type Lead = {
   id: string;
   session_id: string | null;
+  /**
+   * REMONTADO a partir de quatro campos extraídos no banco, e não o jsonb
+   * inteiro. Só tem `nome`, `relacao`, `estilo` e `ocasiao` — que é tudo o
+   * que o painel lê. A história que a pessoa escreveu NÃO vem, e é ela que
+   * fazia esta consulta custar 5 segundos.
+   */
   respostas: Record<string, unknown> | null;
   furthest_step: number | null;
   email: string | null;
@@ -739,9 +745,25 @@ async function montarPainel(
     : db.rpc("admin_emails_resumo", { p_desde: desde, p_ate: ateISO });
 
   const [leadsCru, musicas, custos, pedidos] = await Promise.all([
+    // ── SÓ OS QUATRO CAMPOS QUE O PAINEL LÊ ────────────────────
+    //
+    // Puxava `respostas` INTEIRO, e ali dentro mora a HISTÓRIA que a pessoa
+    // escreveu: dois campos de texto livre que são de longe o maior dado do
+    // sistema. Vinham por cima do fio a cada abertura do painel, pra alimentar
+    // três contadores e uma lista de 40 linhas.
+    //
+    // Medido em 28/08: 4,9 SEGUNDOS pra 2.143 linhas numa janela de 3 dias.
+    // Não é o banco, é o tamanho do que trafega — 2ms por linha só de carregar
+    // texto que ninguém lê.
+    //
+    // O painel usa `relacao`, `estilo`, `ocasiao` (contadores) e `nome` (a
+    // lista dos recentes). Mais nada. Então extrai os quatro no banco e
+    // remonta o objeto aqui, com a mesma forma de antes.
     janela<Lead>(
       "quiz_responses",
-      "id, session_id, respostas, furthest_step, email, attribution, locale, created_at",
+      "id, session_id, furthest_step, email, attribution, locale, created_at," +
+        "r_nome:respostas->>nome, r_relacao:respostas->>relacao," +
+        "r_estilo:respostas->>estilo, r_ocasiao:respostas->>ocasiao",
     ),
     janela<Musica>(
       "musicas",
@@ -783,8 +805,24 @@ async function montarPainel(
   const quizBate = (qid: string | null) => bate(qid ? localeDoQuiz.get(qid) : undefined);
 
   // Mais recente primeiro, como a listagem do painel espera.
+  //
+  // `respostas` é REMONTADO aqui: o banco devolve os quatro campos soltos
+  // (`r_nome`, `r_relacao`...) e o resto do arquivo continua lendo
+  // `l.respostas.nome` como sempre leu. A troca fica contida nestas linhas.
   const leads = leadsCru
     .filter((l) => bate(l.locale === "es" ? "es" : "pt"))
+    .map((l) => {
+      const c = l as unknown as Record<string, string | null>;
+      return {
+        ...l,
+        respostas: {
+          nome: c.r_nome ?? undefined,
+          relacao: c.r_relacao ?? undefined,
+          estilo: c.r_estilo ?? undefined,
+          ocasiao: c.r_ocasiao ?? undefined,
+        } as Record<string, unknown>,
+      };
+    })
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 
   const musicasF = musicas.filter((m) => quizBate(m.quiz_response_id));
