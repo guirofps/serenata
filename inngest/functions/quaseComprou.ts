@@ -65,16 +65,39 @@ async function jaAvisado(sb: ReturnType<typeof db>, quizId: string) {
 }
 
 /**
+ * O CHECKOUT DO FUNIL ESPANHOL, que cobra em DÓLAR.
+ *
+ * Ele existe aqui como constante, e não vindo da config de `preco`, porque o
+ * teste de preço é BRASILEIRO de propósito (ver `preco.ts`: "O ESPANHOL FICA
+ * DE FORA DO TESTE"). A config só tem link em reais, e era exatamente daí que
+ * vinha o defeito abaixo.
+ */
+const CHECKOUT_ES = "https://go.centerpag.com/PPU38CQF4HJ";
+
+/**
  * O checkout do braço em que a pessoa foi sorteada, lido da config viva.
  *
  * Não é o preço "atual" nem o padrão: é o que ELA VIU na tela de oferta. Mandar
  * outro valor seria trocar o preço depois de ela ter decidido, que é o jeito
  * mais rápido de transformar uma recuperação numa reclamação.
+ *
+ * ── O IDIOMA DECIDE ANTES DO BRAÇO (conserto de 30/08) ───────────
+ *
+ * A versão anterior lia o `locale` pra escolher o TEXTO e ignorava ele pro
+ * LINK. O resultado era a pior combinação possível: e-mail em espanhol
+ * perfeito levando a um checkout em REAIS. Parece certo e cobra na moeda
+ * errada.
+ *
+ * Medido: 17 disparos pra 16 pessoas do funil espanhol entre 27 e 30/08, e
+ * ZERO compras — contra 2,3% do mesmo e-mail no funil português. Um deles
+ * escreveu pro suporte dizendo que o banco travava o pagamento.
  */
 async function checkoutDoBraco(
   sb: ReturnType<typeof db>,
   braco: string | null,
+  locale: "pt" | "es",
 ): Promise<string | null> {
+  if (locale === "es") return CHECKOUT_ES;
   const { data } = await sb.from("experimentos").select("variantes").eq("id", "preco").maybeSingle();
   const variantes = (data?.variantes ?? []) as Array<{
     nome?: string;
@@ -158,7 +181,7 @@ export const quaseComprou = inngest.createFunction(
 
         const braco =
           ((q.attribution as { exp?: Record<string, string> } | null)?.exp?.preco as string) ?? null;
-        const checkout = await checkoutDoBraco(sb, braco);
+        const checkout = await checkoutDoBraco(sb, braco, locale);
         if (!checkout) continue;
 
         const u = new URL(checkout);
