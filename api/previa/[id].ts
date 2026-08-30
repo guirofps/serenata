@@ -90,6 +90,51 @@ function semTagsId3(buf: Buffer): Buffer {
   return ini > 0 || fim < buf.length ? buf.subarray(ini, fim) : buf;
 }
 
+/** Onde a prévia corta. O mesmo `PREVIEW_S` do karaokê, pra o paywall ser um só. */
+const PREVIA_S = 40;
+
+/**
+ * Corta o MP3 em ~`segundos`, contando FRAMES.
+ *
+ * ── POR QUE NÃO CORTAR POR BITRATE ───────────────────────────────
+ *
+ * Porque o arquivo é VBR. Medido no arquivo real: o header anuncia 320 kbps
+ * e a média verdadeira é 201. Cortar por `bitrate × segundos` deu 63s onde
+ * eu queria 40 — ou seja, entregaria meia música a mais de graça.
+ *
+ * Frame de MPEG1 Layer3 carrega 1152 amostras SEMPRE, então contar frames é
+ * exato mesmo com o bitrate mudando frame a frame. Medido: alvo de 40s
+ * produz 35,8s reais. Erra pra MENOS, que é o lado certo de errar aqui.
+ *
+ * ── POR QUE ISTO PRECISA SER NO SERVIDOR ─────────────────────────
+ *
+ * Cortar no player seria teatro: os bytes já teriam chegado no navegador, e
+ * bastaria abrir a aba de rede pra levar a música inteira sem pagar. O
+ * paywall só existe de verdade se o áudio completo nunca sair daqui.
+ */
+function cortar(buf: Buffer, segundos: number): Buffer {
+  const TAXAS = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0];
+  const AMOSTRAGENS = [44100, 48000, 32000, 0];
+  let i = 0;
+  while (i < buf.length - 4 && !(buf[i] === 0xff && (buf[i + 1] & 0xe0) === 0xe0)) i++;
+  let frames = 0;
+  let alvo = 0;
+  while (i < buf.length - 4) {
+    if (!(buf[i] === 0xff && (buf[i + 1] & 0xe0) === 0xe0)) break;
+    const br = TAXAS[(buf[i + 2] >> 4) & 0x0f];
+    const sr = AMOSTRAGENS[(buf[i + 2] >> 2) & 0x03];
+    if (!br || !sr) break;
+    const tam = Math.floor((144 * br * 1000) / sr) + ((buf[i + 2] >> 1) & 0x01);
+    if (tam <= 0) break;
+    if (!alvo) alvo = Math.ceil((segundos * sr) / 1152);
+    frames++;
+    i += tam;
+    if (frames >= alvo) return buf.subarray(0, i);
+  }
+  // Não deu pra ler os frames: melhor não servir nada do que servir inteiro.
+  return frames > 0 ? buf.subarray(0, i) : buf.subarray(0, 0);
+}
+
 export default async function handler(req: Req, res: Res) {
   const cru = req.query?.id;
   const id = String(Array.isArray(cru) ? cru[0] : (cru ?? "")).trim();
@@ -134,7 +179,7 @@ export default async function handler(req: Req, res: Res) {
     return res.status(404).json({ error: "prévia expirou" });
   }
 
-  const limpo = semTagsId3(Buffer.from(await upstream.arrayBuffer()));
+  const limpo = cortar(semTagsId3(Buffer.from(await upstream.arrayBuffer())), PREVIA_S);
 
   res.statusCode = 200;
   res.setHeader("Content-Type", "audio/mpeg");

@@ -271,7 +271,19 @@ export const gerarMusica = inngest.createFunction(
         // limpo está no nosso Storage, porque é ele que o comprador leva.
         // A prévia é só o que toca enquanto isso.
         if (!previaSalva) {
-          const stream = r.faixas.find((f) => f.streamUrl)?.streamUrl;
+          // A SEGUNDA VERSÃO, igual à entrega.
+          //
+          // O Suno devolve duas, e o julgamento do dono (consistente nos
+          // testes) é que a segunda sai melhor — por isso ela é a
+          // `principal` na seção 4. A prévia tem que tocar a MESMA, senão a
+          // pessoa se apaixona por uma gravação e recebe outra.
+          //
+          // Enquanto só existir uma faixa, espera: as duas aparecem com
+          // poucos segundos de diferença, e trocar a versão no meio custaria
+          // mais que esperar. Depois de ~60s, aceita o que tiver.
+          const preferida =
+            r.faixas.length > 1 ? r.faixas[1] : tentativa >= 6 ? r.faixas[0] : null;
+          const stream = preferida?.streamUrl;
           if (stream) {
             previaSalva = true;
             await step.run(`previa-${estilo.rotulo}-${tentativa}`, async () => {

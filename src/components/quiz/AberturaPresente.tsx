@@ -96,9 +96,9 @@ const COPY: Record<
     // Esta redação diz que a MÚSICA fica pronta de graça. Foi pedida assim
     // (17/08) e está no ar; fica o registro de que ela é mais larga que a
     // fronteira documentada, pra ninguém "corrigir" um dos dois lados sem
-    // saber que o outro existe. Os "2 minutos" batem com o medido e com a
-    // faixa logo abaixo (`ProvaImediata`: ~2min pra música ser gravada).
-    explicacao: "Você conta a história. A música fica pronta em 2 minutos, de graça.",
+    // saber que o outro existe. O "1 minuto" (era 2 até 30/08) bate com a
+    // prévia tocando aos ~30s e com a faixa logo abaixo (`ProvaImediata`).
+    explicacao: "Você conta a história. A música fica pronta em 1 minuto, de graça.",
     cta: "CRIAR MINHA MÚSICA GRÁTIS",
     rotulo: "uma música para",
     // ESPOSA e não pai: é a relação que mais vende, e a primeira tela tem que
@@ -146,7 +146,7 @@ const COPY: Record<
     // fronteira, esta tem que ser ajustada JUNTO — as duas são a mesma
     // promessa em dois idiomas, e foi a divergência entre elas que criou o
     // buraco.
-    explicacao: "Vos contás la historia. La canción queda lista en 2 minutos, gratis.",
+    explicacao: "Vos contás la historia. La canción queda lista en 1 minuto, gratis.",
     cta: "CREAR MI CANCIÓN GRATIS",
     rotulo: "una canción para",
     // ESPOSA e não mãe, pelo mesmo motivo do português — e agora com o dado

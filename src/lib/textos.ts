@@ -39,7 +39,7 @@ const PT = {
   // Sem ponto final: o rótulo é renderizado em caixa alta com `tracking`, onde
   // ponto vira sujeira. A chave continua `oQueVaiMontar` de propósito, pra não
   // espalhar renomeação por um texto que muda de novo no próximo teste.
-  oQueVaiMontar: "o que você vai receber em 2 minutos",
+  oQueVaiMontar: "o que você vai receber em 1 minuto",
   musicaCantada: "música cantada",
   paginaComFotos: "página com fotos",
   karaoke: "karaokê",
@@ -96,7 +96,7 @@ const PT = {
   ajustandoDetalhes: "ajustando os detalhes",
   completa: "completa",
   esperaOuvirOutras: "enquanto isso, ouça outras",
-  levaDoisMinutos: "Leva cerca de 2 minutos. Pode ir ouvindo outras aqui embaixo enquanto a sua fica pronta.",
+  levaDoisMinutos: "Leva cerca de 1 minuto. Pode ir ouvindo outras aqui embaixo enquanto a sua fica pronta.",
   isSoQueVaiEnviar: "é isso que você vai enviar",
   comoVaiChegar: "Você manda o link no WhatsApp. A pessoa toca, e a letra acende no ritmo da música, com as fotos de vocês.",
   prontaEmBreve: "Assim que a gravação ficar pronta, você ouve um trecho aqui.",
@@ -267,7 +267,7 @@ const ES: Textos = {
   ajustandoDetalhes: "ajustando los detalles",
   completa: "completa",
   esperaOuvirOutras: "mientras tanto, escucha otras",
-  levaDoisMinutos: "Tarda unos 2 minutos. Puedes ir escuchando otras aquí abajo mientras la tuya queda lista.",
+  levaDoisMinutos: "Tarda cerca de 1 minuto. Puedes ir escuchando otras aquí abajo mientras la tuya queda lista.",
   isSoQueVaiEnviar: "esto es lo que vas a enviar",
   comoVaiChegar: "Le mandas el link por WhatsApp. La persona lo toca, y la letra se enciende al ritmo de la canción, con las fotos de ustedes.",
   prontaEmBreve: "En cuanto la grabación esté lista, escuchas un pedazo aquí.",
@@ -355,7 +355,7 @@ const AR: Partial<Textos> = {
     "Es la parte que más se canta. Elegí la que te mueva; todo se puede ajustar después.",
   esperaOuvirOutras: "mientras tanto, escuchá otras",
   levaDoisMinutos:
-    "Tarda unos 2 minutos. Podés ir escuchando otras acá abajo mientras la tuya queda lista.",
+    "Tarda cerca de 1 minuto. Podés ir escuchando otras acá abajo mientras la tuya queda lista.",
   prontaEmBreve: "En cuanto la grabación esté lista, escuchás un pedazo acá.",
   desbloqueieCompleta:
     "Ya está grabada entera, con la letra que escribiste vos. Acá escuchaste solo el comienzo.",

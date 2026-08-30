@@ -18,7 +18,7 @@ import { Check, ChevronDown, Gift, Clock, Sparkles, Link2, ArrowRight } from "lu
 // botão, e as três linhas saíam em português na página espanhola:
 //
 //   ~6s  "pra letra ficar pronta"
-//   ~2min "pra música ser gravada"
+//   ~1min "pra música ser gravada"
 //   100% "feita da sua história"
 //
 // Numa tela cuja única função é responder "isso é sério?", texto em língua
@@ -29,12 +29,12 @@ export function ProvaImediata({ locale = "pt" }: { locale?: Locale }) {
     locale === "es"
       ? [
           { valor: "~6s", label: "para tener la letra" },
-          { valor: "~2min", label: "para grabar la canción" },
+          { valor: "~1min", label: "para grabar la canción" },
           { valor: "100%", label: "hecha de tu historia" },
         ]
       : [
           { valor: "~6s", label: "pra letra ficar pronta" },
-          { valor: "~2min", label: "pra música ser gravada" },
+          { valor: "~1min", label: "pra música ser gravada" },
           { valor: "100%", label: "feita da sua história" },
         ];
   return (
@@ -271,7 +271,7 @@ const PERGUNTAS = [
   },
   {
     q: "Quanto tempo demora?",
-    a: "A letra fica pronta em segundos. A música gravada leva cerca de 2 minutos. Você não precisa esperar numa tela: se sair, avisamos no seu e-mail quando estiver pronta.",
+    a: "A letra fica pronta em segundos. A música gravada leva cerca de 1 minuto. Você não precisa esperar numa tela: se sair, avisamos no seu e-mail quando estiver pronta.",
   },
   {
     q: "A música é realmente só minha?",
