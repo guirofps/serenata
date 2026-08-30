@@ -179,7 +179,25 @@ export default async function handler(req: Req, res: Res) {
     return res.status(404).json({ error: "prévia expirou" });
   }
 
-  const limpo = cortar(semTagsId3(Buffer.from(await upstream.arrayBuffer())), PREVIA_S);
+  const bruto = Buffer.from(await upstream.arrayBuffer());
+
+  // ── STREAM EXPIRADO DEVOLVE 200 COM ZERO BYTE ────────────────
+  //
+  // Não é 404 nem erro: o provedor responde 200, `audio/mp3`, e corpo
+  // vazio. Medido — a mesma URL que servia 4,4 MB passou a devolver 0 assim
+  // que a faixa terminou de renderizar.
+  //
+  // Sem esta guarda a rota entregava um arquivo vazio com cara de sucesso, e
+  // o player mostrava uma faixa quebrada em vez de continuar esperando o
+  // arquivo final. Um MP3 de verdade não cabe em 1 KB.
+  if (bruto.length < 1024) {
+    return res.status(404).json({ error: "prévia expirou" });
+  }
+
+  const limpo = cortar(semTagsId3(bruto), PREVIA_S);
+  if (!limpo.length) {
+    return res.status(404).json({ error: "prévia ilegível" });
+  }
 
   res.statusCode = 200;
   res.setHeader("Content-Type", "audio/mpeg");
