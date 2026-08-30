@@ -323,6 +323,47 @@ produto da Perfect Pay, e o e-mail já prometeu aquele número).
   que é antes do checkout. Ver isso e concluir "o experimento não está
   pegando" é um falso alarme já cometido.
 
+## A prévia sai aos 30s, não aos 120s (30/08/2026)
+
+O provedor devolve **duas** URLs de áudio e a gente só usava a segunda.
+Medido com duas gerações reais pela kie.ai:
+
+| | |
+|---|---|
+| `streamAudioUrl` aparece | **22s a 32s**, e já serve áudio tocável |
+| `audioUrl` (o MP3 final) aparece | 57s a 74s |
+| espera média que o cliente via | 93s a 122s |
+
+O concorrente entrega prévia em 30 a 40 segundos. A diferença **nunca foi
+fornecedor, crédito nem infraestrutura**: era qual das duas URLs se usa. As
+duas vêm na mesma resposta que a gente já recebia. Descartada a ideia de
+testar outro revendedor por causa disso.
+
+**O que NÃO mudou, de propósito:**
+
+- O status só vira `pronta` quando o arquivo LIMPO está no nosso Storage. É
+  ele que o comprador leva e é ele que libera o checkout.
+- A revelação do karaokê continua no fim, com os timestamps que só existem
+  depois do arquivo final. Nada de player trocando de `src` no meio da
+  escuta.
+- A prévia entra ACIMA do WhatsApp e das músicas dos outros: se o próprio
+  presente já toca, não faz sentido oferecer distração antes dele.
+
+**A prévia passa por `/api/previa/<id>`, nunca pela URL do provedor**, e a
+rota **corta a tag ID3** antes de entregar. As duas coisas pelo mesmo motivo,
+e a segunda quase passou batido: o MP3 do stream vem com
+`comment = made with suno; id=...` dentro. É exatamente a tag que denunciou o
+ForeverSongs. Esconder a URL e servir o arquivo cru não esconderia nada.
+
+Sem `ffmpeg` (não existe naquela função, e invocá-lo comeria o ganho de
+tempo): ID3 é cabeçalho no começo e rodapé de 128 bytes no fim, e cortar os
+dois é aritmética de buffer. Medido no arquivo real: 4.458.486 → 4.458.336
+bytes, zero tags, áudio íntegro (177,08s antes e depois).
+
+Consequência: a rota não aceita `Range` (`Accept-Ranges: none`). Cortar bytes
+do começo desloca todo offset, e o pedaço que o navegador pede deixaria de ser
+o que ele recebe.
+
 ## Riscos conhecidos
 
 1. **Dependência de revendedor não oficial do Suno.** Zona cinzenta nos termos
