@@ -53,6 +53,17 @@ export function MusicaDaSessao({
   const navigate = useNavigate();
   const [status, setStatus] = useState<string>("aguardando");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  // ── A PRÉVIA, QUE CHEGA ~90 SEGUNDOS ANTES ────────────────────
+  //
+  // O provedor libera um stream tocável aos 22-32s; o arquivo final só aos
+  // 57-74s, e ainda passa por download, ffmpeg e upload antes de virar
+  // "pronta". Medido em 30/08 com duas gerações reais.
+  //
+  // Ela NÃO substitui a revelação: o karaokê continua sendo o momento do
+  // fim, com os timestamps que só existem depois. O que ela faz é deixar a
+  // pessoa ouvir a MÚSICA DELA enquanto espera, no lugar de ouvir a dos
+  // outros (que é o que `OuvirEnquantoEspera` oferecia sozinho até agora).
+  const [previaUrl, setPreviaUrl] = useState<string | null>(null);
   const [words, setWords] = useState<PalavraAlinhada[] | null>(null);
   const [desistiu, setDesistiu] = useState(false);
   // A música existe, mas ainda estamos na animação de "Pronta!". Separa o
@@ -76,6 +87,9 @@ export function MusicaDaSessao({
           trackEventOnce("musica_pronta", "v1");
           return; // para o polling
         }
+        // Guarda e SEGUE: a prévia é ganho de espera, não fim de polling.
+        // O laço só para quando o arquivo final existe.
+        if (r.previaUrl) setPreviaUrl(r.previaUrl);
         if (r.status === "falhou") return;
       } catch (err) {
         console.error("[musica] polling falhou:", err);
@@ -167,6 +181,22 @@ export function MusicaDaSessao({
   return (
     <div className="space-y-5">
       <ProgressoGeracao pronta={pronta} locale={locale} />
+      {/* A MÚSICA DELA, assim que der pra ouvir. Vem ANTES do WhatsApp e das
+          músicas dos outros de propósito: se o próprio presente já toca, não
+          faz sentido oferecer distração antes dele. */}
+      {!pronta && previaUrl && (
+        <div className="rounded-2xl border border-primary/25 bg-secondary/30 px-4 py-3">
+          <p className="text-sm font-medium">
+            {locale === "es" ? "Ya podés escucharla" : "Já dá pra ouvir"}
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {locale === "es"
+              ? "Esta es tu canción. Todavía se está terminando de grabar, así que puede cortar."
+              : "Esta é a sua música. Ela ainda está terminando de gravar, então pode cortar."}
+          </p>
+          <audio controls src={previaUrl} className="mt-3 w-full" />
+        </div>
+      )}
       {/* Logo abaixo da barra, e só ENQUANTO grava: é o único momento do
           funil em que deixar o telefone é vantagem pra ela (não ficar
           olhando a barra) em vez de pedágio. Some quando a música chega. */}

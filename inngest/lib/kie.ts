@@ -32,6 +32,8 @@ export type FaixaGerada = {
   id: string;
   audioUrl: string;
   duration?: number;
+  /** Stream tocável, disponível ~30s ANTES do `audioUrl`. Ver `consultarGeracao`. */
+  streamUrl?: string | null;
 };
 
 /** Dispara a geração. Devolve o taskId pra fazer polling. */
@@ -76,12 +78,29 @@ export async function consultarGeracao(
     status: string;
     errorCode?: number | string | null;
     errorMessage?: string | null;
-    response?: { sunoData?: Array<{ id: string; audioUrl: string; duration?: number }> };
+    response?: {
+      sunoData?: Array<{
+        id: string;
+        audioUrl: string;
+        duration?: number;
+        // ── A URL QUE CHEGA PRIMEIRO ─────────────────────────────
+        //
+        // Medido em 30/08: `streamAudioUrl` aparece aos 22-32s e JÁ serve
+        // áudio tocável (118s de música baixados no instante); `audioUrl`, o
+        // MP3 final, só aos 57-74s. Ignorar este campo era o motivo de a
+        // nossa espera ser 4x a do concorrente.
+        streamAudioUrl?: string;
+        sourceStreamAudioUrl?: string;
+      }>;
+    };
   }>(`/api/v1/generate/record-info?taskId=${taskId}`);
   const faixas = (data.response?.sunoData ?? []).map((f) => ({
     id: f.id,
     audioUrl: f.audioUrl,
     duration: f.duration,
+    // O da kie.ai primeiro: o do Suno (`sourceStreamAudioUrl`) às vezes
+    // recusa requisição sem navegador, e os dois entregam o mesmo áudio.
+    streamUrl: f.streamAudioUrl ?? f.sourceStreamAudioUrl ?? null,
   }));
   const motivo = [data.errorCode, data.errorMessage].filter(Boolean).join(" · ") || null;
   return { status: data.status, faixas, motivo };

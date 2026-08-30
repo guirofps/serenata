@@ -45,6 +45,7 @@
     { "source": "/api/inngest", "destination": "/api/inngest" },
     { "source": "/api/conversoes.csv", "destination": "/api/conversoes" },
     { "source": "/api/og/:token", "destination": "/api/og/[token]" },
+    { "source": "/api/previa/:id", "destination": "/api/previa/[id]" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/api/ssr" }
   ]

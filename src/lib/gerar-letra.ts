@@ -41,6 +41,14 @@ export const statusMusica = createServerFn({ method: "POST" })
     }): Promise<{
       status: string;
       audioUrl: string | null;
+      /**
+       * A PRÉVIA, que fica pronta ~30s antes do arquivo final.
+       *
+       * É um caminho do NOSSO domínio (`/api/previa/<id>`), nunca a URL do
+       * provedor: entregar `audiopipe.suno.ai` cru diria a qualquer
+       * concorrente com DevTools qual gerador a gente usa. Ver a rota.
+       */
+      previaUrl: string | null;
       timestamps: Array<{ word: string; start: number; end: number }> | null;
       titulo: string | null;
     }> => {
@@ -50,16 +58,18 @@ export const statusMusica = createServerFn({ method: "POST" })
         .select("id")
         .eq("session_id", data.sessionId)
         .maybeSingle();
-      if (!qr?.id) return { status: "aguardando", audioUrl: null, timestamps: null, titulo: null };
+      if (!qr?.id)
+        return { status: "aguardando", audioUrl: null, previaUrl: null, timestamps: null, titulo: null };
 
       const { data: m } = await db
         .from("musicas")
-        .select("status, audio_path, timestamps, titulo")
+        .select("id, status, audio_path, timestamps, titulo, previa_url")
         .eq("quiz_response_id", qr.id)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (!m) return { status: "aguardando", audioUrl: null, timestamps: null, titulo: null };
+      if (!m)
+        return { status: "aguardando", audioUrl: null, previaUrl: null, timestamps: null, titulo: null };
 
       // Bucket é privado: a URL é assinada e temporária, gerada no servidor.
       let audioUrl: string | null = null;
@@ -72,6 +82,10 @@ export const statusMusica = createServerFn({ method: "POST" })
       return {
         status: m.status,
         audioUrl,
+        // Só enquanto o arquivo final não existe. Depois dele a prévia não
+        // serve mais pra nada, e o stream do provedor já morreu de qualquer
+        // jeito (ele é temporário).
+        previaUrl: !audioUrl && m.previa_url ? `/api/previa/${m.id}` : null,
         timestamps: (m.timestamps as Array<{ word: string; start: number; end: number }>) ?? null,
         titulo: m.titulo,
       };

@@ -215,6 +215,10 @@ export const gerarMusica = inngest.createFunction(
       { rotulo: "ultima-chance", valor: musica.estilo_suno ?? musica.genero ?? "", esperaAntes: "10m" },
     ];
 
+    // Uma vez por música, não por estilo: se a primeira tentativa já deu
+    // prévia, as retentativas não precisam regravar.
+    let previaSalva = false;
+
     for (const [n, estilo] of estilos.entries()) {
       // Timeout (não recusa) é outro problema: insistir só queima crédito.
       if (n > 0 && !recusou) break;
@@ -255,6 +259,34 @@ export const gerarMusica = inngest.createFunction(
         const r = await step.run(`consultar-${estilo.rotulo}-${tentativa}`, () =>
           consultarGeracao(taskId),
         );
+
+        // ── A PRÉVIA SAI ANTES DO ARQUIVO ────────────────────────
+        //
+        // O provedor devolve `streamAudioUrl` MUITO antes do MP3 final.
+        // Medido em 30/08, duas gerações reais: stream aos 22-32s (tocável,
+        // 118s de música baixados na hora), arquivo final aos 57-74s.
+        //
+        // Gravar aqui é o que corta a espera de ~2 minutos pra ~30 segundos.
+        // NÃO mexe no `status`: a música só vira "pronta" quando o arquivo
+        // limpo está no nosso Storage, porque é ele que o comprador leva.
+        // A prévia é só o que toca enquanto isso.
+        if (!previaSalva) {
+          const stream = r.faixas.find((f) => f.streamUrl)?.streamUrl;
+          if (stream) {
+            previaSalva = true;
+            await step.run(`previa-${estilo.rotulo}-${tentativa}`, async () => {
+              const { error } = await db()
+                .from("musicas")
+                .update({ previa_url: stream })
+                .eq("id", musicaId);
+              // Falhar aqui não pode derrubar a geração: a prévia é ganho de
+              // velocidade, o arquivo final é o produto.
+              if (error) console.error("[musica] prévia não gravou:", error.message);
+              return true;
+            });
+          }
+        }
+
         if (r.status === "SUCCESS" && r.faixas.length) {
           faixas = r.faixas;
           break;
