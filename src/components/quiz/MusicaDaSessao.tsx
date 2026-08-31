@@ -112,7 +112,22 @@ export function MusicaDaSessao({
   // Ficou pronta: deixa a barra completar em "Pronta! 100%" por um instante,
   // e só então revela o player. É o que faz a barra parecer que ACELEROU até
   // o fim, em vez de sumir no meio quando a música chega.
-  const pronta = audioUrl !== null;
+  // ── O QUE FAZ A TELA VIRAR PLAYER ────────────────────────────
+  //
+  // Era só o arquivo final. Agora é ele OU a prévia, o que chegar primeiro.
+  //
+  // Motivo (dono, 30/08, testando no celular): com a barra ainda contando
+  // porcentagem E um player embaixo, a tela dizia duas coisas ao mesmo tempo.
+  // Se já dá pra ouvir, a espera acabou — contar 49% embaixo de uma música
+  // tocando é contradição, não informação.
+  //
+  // CONSEQUÊNCIA ACEITA: quem revela pela prévia não vê o karaokê, porque os
+  // timestamps só nascem com o arquivo final. Cai no player simples com a
+  // letra ao lado, que é o mesmo caminho que já existia quando os timestamps
+  // falhavam. Troca palavra acendendo em sincronia por 60 segundos a menos
+  // de espera.
+  const tocavel = audioUrl ?? previaUrl;
+  const pronta = tocavel !== null;
   useEffect(() => {
     if (!pronta) return;
     const t = setTimeout(() => setRevelar(true), COMPLETAR_MS);
@@ -124,12 +139,12 @@ export function MusicaDaSessao({
   const falhouAgora = status === "falhou" || desistiu;
   useEffect(() => {
     aoMudarEstado?.(
-      revelar && audioUrl ? "pronta" : falhouAgora ? "falhou" : "gerando",
+      revelar && tocavel ? "pronta" : falhouAgora ? "falhou" : "gerando",
     );
-  }, [revelar, audioUrl, falhouAgora, aoMudarEstado]);
+  }, [revelar, tocavel, falhouAgora, aoMudarEstado]);
 
   // Já revelou: mostra o player.
-  if (revelar && audioUrl) {
+  if (revelar && tocavel) {
     // Com timestamps: karaokê real, destaque palavra a palavra + trava no
     // preview. Sem (falha tolerada no job): toca do mesmo jeito.
     return words ? (
@@ -143,14 +158,23 @@ export function MusicaDaSessao({
       // os outros do funil marcam). Era gente ouvindo a música cortar e
       // socando um botão morto.
       <MusicaKaraoke
-        audioUrl={audioUrl}
+        audioUrl={tocavel}
         words={words}
         onDesbloquear={() => navigate({ to: caminho("/criar", locale), search: { step: "oferta" } } as never)}
         locale={locale}
       />
     ) : (
       <div className="space-y-4">
-        <audio controls src={audioUrl} className="w-full" />
+        {/* `onPlay` aqui e não só na prévia: depois da revelação este é o
+            player de todo mundo, e sem o evento a prévia ficaria sem régua.
+            `trackEventOnce` porque o navegador dispara `play` a cada pausa e
+            retomada — o mesmo defeito que falseou a contagem do paywall. */}
+        <audio
+          controls
+          src={tocavel}
+          className="w-full"
+          onPlay={() => trackEventOnce("previa_tocou", "v1")}
+        />
         <KaraokePlayer letra={letra} />
       </div>
     );
@@ -181,31 +205,6 @@ export function MusicaDaSessao({
   return (
     <div className="space-y-5">
       <ProgressoGeracao pronta={pronta} locale={locale} />
-      {/* A MÚSICA DELA, assim que der pra ouvir. Vem ANTES do WhatsApp e das
-          músicas dos outros de propósito: se o próprio presente já toca, não
-          faz sentido oferecer distração antes dele. */}
-      {!pronta && previaUrl && (
-        <div className="rounded-2xl border border-primary/25 bg-secondary/30 px-4 py-3">
-          <p className="text-sm font-medium">
-            {locale === "es" ? "Ya podés escucharla" : "Já dá pra ouvir"}
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {locale === "es"
-              ? "Esta es tu canción. Todavía se está terminando de grabar, así que puede cortar."
-              : "Esta é a sua música. Ela ainda está terminando de gravar, então pode cortar."}
-          </p>
-          {/* `trackEventOnce` e não `trackEvent`: o navegador dispara `play`
-              de novo a cada pausa e retomada, e sem a trava uma pessoa
-              indecisa viraria dez "prévias tocadas" no painel. É o mesmo
-              defeito que já falseou a contagem do botão do paywall. */}
-          <audio
-            controls
-            src={previaUrl}
-            className="mt-3 w-full"
-            onPlay={() => trackEventOnce("previa_tocou", "v1")}
-          />
-        </div>
-      )}
       {/* Logo abaixo da barra, e só ENQUANTO grava: é o único momento do
           funil em que deixar o telefone é vantagem pra ela (não ficar
           olhando a barra) em vez de pedágio. Some quando a música chega. */}

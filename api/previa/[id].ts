@@ -156,18 +156,24 @@ export default async function handler(req: Req, res: Res) {
     return res.status(404).json({ error: "prévia ainda não disponível" });
   }
 
-  // ── O REPASSE, SEMPRE INTEIRO ────────────────────────────────
+  // ── SÓ O PEDAÇO QUE VAI SER SERVIDO ──────────────────────────
   //
-  // Sem `Range`, de propósito. Cortar a tag ID3 tira bytes do COMEÇO do
-  // arquivo, e aí todo offset se desloca: o pedaço que o navegador pede
-  // deixa de ser o pedaço que ele recebe, e o player toca lixo ou nada.
+  // A primeira versão buscava os 4,4 MB inteiros do provedor pra devolver
+  // 900 KB. O dono cronometrou o resultado no celular: ~10 segundos entre
+  // apertar o play e a música começar. Buscar quatro vezes mais bytes do
+  // que se entrega é o tipo de desperdício que só aparece em rede ruim.
   //
-  // O preço é buscar o arquivo inteiro (~4 MB) a cada requisição. Custa
-  // um ou dois segundos contra os ~90 que a rota economiza, e some assim
-  // que o arquivo final entra no lugar.
+  // O provedor aceita `Range` (medido: devolve 206). 1,5 MB cobre com folga
+  // os 40s a ~200 kbps (que dariam ~1,0 MB) e ainda sobra pro cabeçalho ID3
+  // e pra variação do VBR.
+  //
+  // O `Range` do NAVEGADOR continua ignorado, e isso não mudou: cortar a tag
+  // desloca os offsets, então prometer range pra quem chama seria prometer o
+  // que os bytes não sustentam.
+  const PEDIR_BYTES = 1_500_000;
   let upstream: Response;
   try {
-    upstream = await fetch(m.previa_url);
+    upstream = await fetch(m.previa_url, { headers: { Range: `bytes=0-${PEDIR_BYTES}` } });
   } catch (err) {
     console.error("[previa] provedor não respondeu:", err);
     return res.status(502).json({ error: "prévia indisponível" });
