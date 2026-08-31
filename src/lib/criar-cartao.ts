@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { asaas } from "@/lib/asaas";
 import { ErroGateway, type DadosCartao, type TitularCartao } from "@/lib/gateway-cartao";
 import { valorComBump } from "@/lib/criar-pix";
+import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../../api/lib/entrega";
 
 // A COBRANÇA NO CARTÃO, transparente.
 //
@@ -208,6 +209,37 @@ export const cobrarCartao = createServerFn({ method: "POST" })
       // não registrar — o pior desfecho possível. Grita no log e devolve o
       // sucesso; o webhook conserta a linha depois.
       console.error("[cartao] gravar pedido falhou:", error.message);
+    }
+
+    // ── A ENTREGA, NA HORA ───────────────────────────────────
+    //
+    // Diferente do PIX. Lá o pagamento é assíncrono e o webhook é o único
+    // sinal que existe; aqui a autorização é SÍNCRONA — a gente acabou de
+    // saber que pagou. Esperar um webhook pra mandar o e-mail seria escolher
+    // o caminho mais lento e mais frágil de propósito, ainda mais com uma
+    // fila que a documentação do Asaas diz que PARA depois de 15 falhas.
+    //
+    // O webhook continua entregando também, e isso não duplica: o
+    // `mandarEmailDeEntrega` é o mesmo módulo nos dois, e o webhook sai cedo
+    // quando o pedido já está pago.
+    //
+    // A entrega NUNCA derruba a resposta: se o e-mail falhar, a pessoa pagou e
+    // precisa ver a confirmação mesmo assim. O erro vira log e o webhook (ou o
+    // painel) reenvia.
+    if (r.confirmado) {
+      try {
+        const musicaPronta = await musicaDoQuiz(db, quiz.id);
+        if (musicaPronta) {
+          await refazerSeFaltou(db, quiz.id);
+          await mandarEmailDeEntrega(db, {
+            email: (quiz.email as string | null) ?? data.titular.email,
+            musica: musicaPronta,
+            nomePagador: data.titular.nome,
+          });
+        }
+      } catch (err) {
+        console.error("[cartao] entrega falhou:", (err as Error).message);
+      }
     }
 
     return { ok: true, pago: r.confirmado, idExterno: r.idExterno };

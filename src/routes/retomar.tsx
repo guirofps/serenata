@@ -40,7 +40,7 @@ const buscarSessao = createServerFn({ method: "POST" })
     const db = supabaseAdmin();
     const { data: lead } = await db
       .from("quiz_responses")
-      .select("id, respostas, locale")
+      .select("id, respostas, locale, email, whatsapp")
       .eq("session_id", data.sessao)
       .maybeSingle();
     if (!lead) return { erro: "sessao_nao_achada" as Falha };
@@ -69,6 +69,18 @@ const buscarSessao = createServerFn({ method: "POST" })
 
     return {
       respostas: (lead.respostas ?? {}) as Record<string, string>,
+      // O E-MAIL E O WHATSAPP VOLTAM JUNTO.
+      //
+      // Sem isto, quem chega pelo link do e-mail de recuperacao cai no
+      // checkout com os campos vazios e precisa digitar de novo o que ja
+      // deu. Descoberto em 31/08 testando o formulario de cartao: o
+      // `/retomar` repunha respostas e letra, mas o `reset()` da store
+      // apagava contato, e nada devolvia.
+      //
+      // Custa caro justamente em quem menos pode custar: essa pessoa clicou
+      // num e-mail nosso, ou seja, e a mais interessada que existe.
+      email: (lead.email as string | null) ?? null,
+      whatsapp: (lead.whatsapp as string | null) ?? null,
       locale,
       pago: Boolean(pedido),
       token: m.token ?? null,
@@ -177,6 +189,8 @@ function Retomar() {
         // DESTA sessão — sem o carimbo, quem chega pelo e-mail de recuperação
         // seria mandado a refazer a coautoria inteira.
         store.setLetraFinal({ ...r.letra, sessionId: s });
+        if (r.email) store.setEmail(r.email);
+        if (r.whatsapp) store.setWhatsapp(r.whatsapp);
         // Guarda ANTES de navegar: a partir daqui a pessoa anda pelo funil e
         // o código precisa sobreviver até o botão de pagar.
         if (cupom) store.setCupom(cupom);
