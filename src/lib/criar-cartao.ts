@@ -230,28 +230,16 @@ export const cobrarCartao = createServerFn({ method: "POST" })
 
     if (!r.ok) return { ok: false, erro: "recusado", motivo: r.motivo };
 
-    // ── A TAXA, QUE A COBRANÇA NÃO DEVOLVE ───────────────────────
+    // A TAXA NÃO É LIDA AQUI, DE PROPÓSITO.
     //
-    // Descoberto olhando a PRIMEIRA venda real de cartão: `taxa_centavos`
-    // estava null nos 3 pedidos do Asaas, contra 13/13 gravadas na Woovi. Com
-    // a taxa em branco o painel lê a venda de cartão como se o gateway fosse
-    // de graça, e o lucro do dia sai inflado.
+    // Ela precisa de uma segunda pergunta ao gateway (`value - netValue`; a
+    // resposta da cobrança não traz `netValue`, porque a cobrança nasce
+    // naquele instante). Fazer essa pergunta aqui põe uma ida à API entre o
+    // "Autorizando…" e a resposta, na única tela do funil em que a pessoa
+    // está parada com o cartão na mão.
     //
-    // A resposta da cobrança não traz `netValue` — ela nasce no mesmo
-    // instante e o líquido ainda não foi calculado. Por isso é uma segunda
-    // pergunta, e ela só acontece em venda CONFIRMADA: é uma chamada a mais
-    // num caminho que acabou de dar certo, nunca no caminho de recusa.
-    //
-    // Falha aqui não pode custar a entrega: sem taxa o pedido continua pago e
-    // o número entra depois pelo webhook. Perder a venda por causa de um dado
-    // contábil seria a troca errada.
-    let taxaCentavos: number | null = null;
-    try {
-      taxaCentavos = (await asaas.consultar(r.idExterno)).taxaCentavos;
-    } catch (err) {
-      console.error("[cartao] taxa nao lida:", (err as Error).message);
-    }
-
+    // Não vale: é número contábil, não é entrega. Quem preenche é o job
+    // `taxasFaltando`, de hora em hora, sobre tudo que estiver em branco.
     // ── O PEDIDO ─────────────────────────────────────────────
     //
     // `payment_id` no mesmo formato do resto (`gateway:id`) pra o painel e a
@@ -292,7 +280,6 @@ export const cobrarCartao = createServerFn({ method: "POST" })
         telefone: (quiz.whatsapp as string | null) || data.titular.telefone,
         valor_centavos: valorCentavos,
         bump_quadro: data.quadro === true,
-        ...(taxaCentavos != null ? { taxa_centavos: taxaCentavos } : {}),
         quiz_response_id: quiz.id,
         musica_id: musica.id,
         // `paid_at` SÓ NA PRIMEIRA VEZ. Ver o bloco abaixo.
