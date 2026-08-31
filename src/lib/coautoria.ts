@@ -370,6 +370,134 @@ ${INSTRUCOES[locale].montar(data.refrao)}`;
     };
   });
 
+// ── ETAPA 2, EM STREAMING: a letra nascendo na frente da pessoa ──
+//
+// Medido em 30/08: a chamada leva 13,5s pra 835 tokens. Esse tempo NÃO cai —
+// escrever uma letra custa isso. O que muda é o que a pessoa vê enquanto
+// acontece: hoje é uma frase parada ("Escrevendo a letra em volta do seu
+// refrão…") por treze segundos; aqui é a letra dela aparecendo, verso a
+// verso, no ritmo em que é escrita.
+//
+// REAPROVEITA TUDO de `montarLetra`: mesmo prompt, mesma cobrança de uso,
+// mesmo registro de custo, mesmo formato de saída. Duplicar qualquer um deles
+// criaria a segunda cópia que sempre diverge.
+//
+// O CANAL é uma linha de JSON por vez (`{"parcial":"..."}` várias vezes, e um
+// `{"final":{...}}` no fim). Não é SSE: não há reconexão nem eventos
+// nomeados pra justificar o protocolo, e uma linha por mensagem é o que o
+// cliente lê com menos código.
+export const montarLetraStream = createServerFn({ method: "POST" })
+  .validator(
+    (data: { sessionId: string; respostas: Record<string, unknown>; refrao: string; locale?: string }) => data,
+  )
+  .handler(async ({ data }) => {
+    exigirTamanho(data.respostas, MAX_RESPOSTAS, "respostas");
+    exigirTamanho(data.refrao, MAX_REFRAO, "refrão");
+    await cobrarLetra(data.sessionId);
+    const locale = normalizarLocale(data.locale);
+    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas, locale), locale)}
+
+${INSTRUCOES[locale].montar(data.refrao)}`;
+
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) throw new Error("ANTHROPIC_API_KEY ausente no servidor");
+
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 4000,
+        stream: true,
+        system: [{ type: "text", text: systemDaLetra(locale), cache_control: { type: "ephemeral" } }],
+        messages: [{ role: "user", content: userMsg }],
+      }),
+    });
+    if (!r.ok || !r.body) {
+      throw new Error(`Anthropic ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    }
+
+    const enc = new TextEncoder();
+    const dec = new TextDecoder();
+    const fonte = r.body;
+
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        let bruto = "";
+        let enviado = "";
+        let uso: UsoClaude = {} as UsoClaude;
+        let sobra = "";
+        const leitor = fonte.getReader();
+        try {
+          for (;;) {
+            const { done, value } = await leitor.read();
+            if (done) break;
+            sobra += dec.decode(value, { stream: true });
+            const linhas = sobra.split("\n");
+            sobra = linhas.pop() ?? "";
+            for (const linha of linhas) {
+              if (!linha.startsWith("data:")) continue;
+              const corpo = linha.slice(5).trim();
+              if (!corpo || corpo === "[DONE]") continue;
+              let ev: Record<string, unknown>;
+              try {
+                ev = JSON.parse(corpo);
+              } catch {
+                continue; // pedaço de SSE malformado não derruba o stream
+              }
+              const delta = (ev.delta ?? {}) as { text?: string };
+              if (typeof delta.text === "string") bruto += delta.text;
+              const u = (ev.usage ?? (ev.message as { usage?: UsoClaude } | undefined)?.usage) as
+                | UsoClaude
+                | undefined;
+              if (u) uso = { ...uso, ...u };
+
+              // Só manda o que CRESCEU. Reenviar a letra inteira a cada token
+              // gastaria banda proporcional ao quadrado do tamanho dela.
+              const agora = letraParcial(bruto);
+              if (agora.length > enviado.length) {
+                controller.enqueue(
+                  enc.encode(JSON.stringify({ parcial: agora.slice(enviado.length) }) + "\n"),
+                );
+                enviado = agora;
+              }
+            }
+          }
+
+          const p = extrairJson<LetraGerada>(bruto);
+          const final: LetraGerada = {
+            titulo: String(p.titulo ?? "Sua música"),
+            letra: String(p.letra ?? ""),
+            estilo_suno: String(p.estilo_suno ?? ""),
+            verso_destaque: String(p.verso_destaque ?? ""),
+          };
+          controller.enqueue(enc.encode(JSON.stringify({ final }) + "\n"));
+
+          // Custo por último e sem `await` bloqueando o fechamento: a letra já
+          // está na tela, e contabilidade nunca pode atrasar entrega.
+          void registrarCustoLetra({
+            quizResponseId: await quizIdParaCusto(data.sessionId),
+            modelo: MODEL,
+            uso,
+          });
+        } catch (err) {
+          // O cliente distingue erro de fim: sem `final`, ele refaz pelo
+          // caminho antigo (`montarLetra`), que continua existindo intacto.
+          controller.enqueue(
+            enc.encode(JSON.stringify({ erro: err instanceof Error ? err.message : "falhou" }) + "\n"),
+          );
+        } finally {
+          leitor.releaseLock();
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" },
+    });
+  });
+
 // ── ETAPA 2b (opcional): aprimorar a letra editada ───────────────
 export const aprimorarLetra = createServerFn({ method: "POST" })
   .validator((data: { sessionId: string; letra: string; locale?: string }) => data)
@@ -617,3 +745,39 @@ export const finalizarLetra = createServerFn({ method: "POST" })
     await dispararGeracaoMusica(inserida.id);
     return { musicaId: inserida.id, statusMusica: "aguardando" };
   });
+
+// ── A LETRA DE DENTRO DE UM JSON PELA METADE ─────────────────────
+//
+// O modelo devolve `{"titulo": "...", "letra": "...", ...}`. Em streaming,
+// os pedaços chegam como JSON INVÁLIDO — `{"titulo": "Vira`, depois
+// `{"titulo": "Viradinho", "letra": "Você chegou dev` — e nada disso pode
+// ir pra tela do jeito que está.
+//
+// Esta função lê o que já existe do campo `letra` e devolve só isso, com as
+// escapadas desfeitas. É o que permite mostrar a letra NASCENDO sem trocar o
+// formato de saída do modelo — o que mexeria em música, karaokê e e-mails.
+//
+// Ela é deliberadamente tolerante: string sem fechar, escapada cortada no
+// meio, campo ainda inexistente. Tudo isso é estado NORMAL no meio de um
+// stream, não erro.
+export function letraParcial(bruto: string): string {
+  const m = bruto.match(/"letra"\s*:\s*"/);
+  if (!m || m.index === undefined) return "";
+  let i = m.index + m[0].length;
+  let saida = "";
+  while (i < bruto.length) {
+    const c = bruto[i];
+    if (c === "\\") {
+      // Escapada cortada no fim do pedaço: para aqui e espera o resto chegar.
+      if (i + 1 >= bruto.length) break;
+      const p = bruto[i + 1];
+      saida += p === "n" ? "\n" : p === "t" ? "\t" : p === "r" ? "" : p;
+      i += 2;
+      continue;
+    }
+    if (c === '"') break; // fim do campo
+    saida += c;
+    i += 1;
+  }
+  return saida;
+}
