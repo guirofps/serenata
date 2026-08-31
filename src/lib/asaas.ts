@@ -235,4 +235,24 @@ export const asaas: GatewayCartao = {
       taxaCentavos: bruto && liquido ? Math.round((bruto - liquido) * 100) : null,
     };
   },
+
+  async existeCobranca(referencia) {
+    // `limit=1` porque a pergunta é de existência, não de listagem: qualquer
+    // cobrança com esta referência já proíbe o failover, e a primeira basta.
+    try {
+      const r = await chamar<{ totalCount?: number; data?: unknown[] }>(
+        `/payments?limit=1&externalReference=${encodeURIComponent(referencia)}`,
+      );
+      return Number(r?.totalCount ?? (r?.data?.length ?? 0)) > 0;
+    } catch (err) {
+      // FALHA FECHADA PRA VENDA, ABERTA PRO CLIENTE. Se a consulta que existe
+      // pra impedir a cobrança dupla também está fora do ar, a única resposta
+      // defensável é "pode ter nascido" — e o failover não acontece.
+      console.error(
+        "[asaas] existeCobranca falhou, bloqueando failover:",
+        err instanceof ErroGateway ? err.message : "erro desconhecido",
+      );
+      return true;
+    }
+  },
 };

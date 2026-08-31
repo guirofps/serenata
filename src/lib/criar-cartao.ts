@@ -32,10 +32,41 @@ import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../../api/l
  * gateway de PIX. O que os dois compartilham de verdade — a soma do bump — vem
  * de `valorComBump`, que é testada.
  */
+/**
+ * O checkout hospedado da Perfect Pay do braço de preço desta sessão.
+ *
+ * ── POR QUE ELE VOLTA A EXISTIR ──────────────────────────────
+ *
+ * O cartão saiu da Perfect Pay e virou nosso, transparente, a 100%. Mas o
+ * checkout dela continua de pé (ele atende o funil espanhol e quem chega com
+ * cupom), e continua sendo o único outro lugar onde uma pessoa consegue pagar
+ * com cartão hoje. Se o Asaas não responde, é isso ou nada.
+ *
+ * NUNCA confia no que está gravado: o campo é editável pelo painel de teste
+ * A/B, e mandar a pessoa pra uma URL vinda do banco sem conferir é redirect
+ * aberto. A distância entre "failover" e "phishing hospedado por nós" é essa
+ * validação.
+ */
+export function checkoutAntigoDoBraco(variantes: unknown, braco: string): string | null {
+  const lista = (variantes ?? []) as Array<{ nome?: string; plano?: { checkout?: unknown } }>;
+  const achado = lista.find((v) => v.nome === braco) ?? lista.find((v) => v.nome === "A");
+  const url = achado?.plano?.checkout;
+  if (typeof url !== "string") return null;
+  try {
+    const u = new URL(url);
+    // Só HTTPS e só o domínio que a gente conhece.
+    if (u.protocol !== "https:") return null;
+    if (u.hostname !== "go.perfectpay.com.br") return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
 async function valorCentavosDaSessao(
   db: ReturnType<typeof supabaseAdmin>,
   attribution: unknown,
-): Promise<number | null> {
+): Promise<{ centavos: number | null; checkoutAntigo: string | null }> {
   const braco = (attribution as { exp?: Record<string, string> } | null)?.exp?.preco ?? "A";
   const { data } = await db.from("experimentos").select("variantes").eq("id", "preco").maybeSingle();
   const variantes = (data?.variantes ?? []) as Array<{
@@ -44,8 +75,12 @@ async function valorCentavosDaSessao(
   }>;
   const achado = variantes.find((v) => v.nome === braco) ?? variantes.find((v) => v.nome === "A");
   const valor = Number(achado?.plano?.valor);
-  if (!Number.isFinite(valor) || valor <= 0) return null;
-  return Math.round(valor * 100);
+  return {
+    centavos: Number.isFinite(valor) && valor > 0 ? Math.round(valor * 100) : null,
+    // Sai da MESMA leitura: o failover não pode custar outra ida ao banco
+    // dentro de um caminho que já está acontecendo porque algo caiu.
+    checkoutAntigo: checkoutAntigoDoBraco(data?.variantes, braco),
+  };
 }
 
 /**
@@ -90,7 +125,18 @@ function ipDoPagador(): string | null {
 
 export type ResultadoCartao =
   | { ok: true; pago: boolean; idExterno: string }
-  | { ok: false; erro: "sem-sessao" | "sem-musica" | "sem-preco" | "sem-ip" | "gateway" }
+  | {
+      ok: false;
+      erro: "sem-sessao" | "sem-musica" | "sem-preco" | "sem-ip" | "gateway";
+      /**
+       * Pra onde mandar quem ficou sem caminho, quando houver.
+       *
+       * Só vem preenchido no `gateway`, e só depois das três travas abaixo.
+       * `null` significa "não tem volta segura" — a tela então mostra o erro
+       * e o PIX, que é o que ela já fazia.
+       */
+      outroCaminho?: string | null;
+    }
   | { ok: false; erro: "recusado"; motivo: string };
 
 export const cobrarCartao = createServerFn({ method: "POST" })
@@ -125,7 +171,7 @@ export const cobrarCartao = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!musica?.id) return { ok: false, erro: "sem-musica" };
 
-    const base = await valorCentavosDaSessao(db, quiz.attribution);
+    const { centavos: base, checkoutAntigo } = await valorCentavosDaSessao(db, quiz.attribution);
     if (!base) return { ok: false, erro: "sem-preco" };
     const valorCentavos = valorComBump(base, data.quadro === true);
 
@@ -135,12 +181,39 @@ export const cobrarCartao = createServerFn({ method: "POST" })
     // da mesma origem.
     if (!ip) return { ok: false, erro: "sem-ip" };
 
+    // ── A VOLTA PRO CHECKOUT ANTIGO, E AS TRÊS TRAVAS ────────────
+    //
+    // Se o Asaas não responde, o cartão morre num beco: a pessoa fica com a
+    // mensagem de erro e nenhum outro lugar pra pagar. Cartão é ~10% das
+    // vendas, uns R$ 8.000/mês, então o beco custa dinheiro de verdade.
+    //
+    // Mas failover largo aqui COBRA DUAS VEZES, então ele é estreito:
+    //
+    // 1. Só quando o erro é de INFRA. Recusa do banco jamais: mandar um cartão
+    //    recusado pra outro gateway é segunda recusa e marca no antifraude.
+    //    Falta de música, preço ou sessão também não — ali a pré-condição
+    //    nossa falhou, e cobrar seria vender o que não foi produzido.
+    // 2. Só depois de PERGUNTAR ao Asaas se a cobrança nasceu. Timeout diz que
+    //    a gente não recebeu resposta, não que nada aconteceu. Se apareceu
+    //    cobrança com a nossa referência, a volta está proibida.
+    // 3. Só SEM o quadro. O checkout hospedado cobra o preço do plano e não
+    //    conhece o order bump; mandar pra lá quem escolheu o quadro cobraria
+    //    valor diferente do que ela marcou na tela. Com quadro, o caminho
+    //    continua sendo o PIX, que carrega o bump certo.
+    const referencia = `serenata:${quiz.id}`;
+    const voltaSegura = async (): Promise<string | null> => {
+      if (!checkoutAntigo) return null;
+      if (data.quadro === true) return null;
+      if (await asaas.existeCobranca(referencia)) return null;
+      return checkoutAntigo;
+    };
+
     let r;
     try {
       r = await asaas.cobrar({
         valorCentavos,
         descricao: `Serenata · ${musica.titulo ?? "sua música"}`,
-        referencia: `serenata:${quiz.id}`,
+        referencia,
         cartao: data.cartao,
         titular: data.titular,
         ipDoPagador: ip,
@@ -152,10 +225,32 @@ export const cobrarCartao = createServerFn({ method: "POST" })
         "[cartao] asaas falhou:",
         err instanceof ErroGateway ? err.message : "erro desconhecido",
       );
-      return { ok: false, erro: "gateway" };
+      return { ok: false, erro: "gateway", outroCaminho: await voltaSegura() };
     }
 
     if (!r.ok) return { ok: false, erro: "recusado", motivo: r.motivo };
+
+    // ── A TAXA, QUE A COBRANÇA NÃO DEVOLVE ───────────────────────
+    //
+    // Descoberto olhando a PRIMEIRA venda real de cartão: `taxa_centavos`
+    // estava null nos 3 pedidos do Asaas, contra 13/13 gravadas na Woovi. Com
+    // a taxa em branco o painel lê a venda de cartão como se o gateway fosse
+    // de graça, e o lucro do dia sai inflado.
+    //
+    // A resposta da cobrança não traz `netValue` — ela nasce no mesmo
+    // instante e o líquido ainda não foi calculado. Por isso é uma segunda
+    // pergunta, e ela só acontece em venda CONFIRMADA: é uma chamada a mais
+    // num caminho que acabou de dar certo, nunca no caminho de recusa.
+    //
+    // Falha aqui não pode custar a entrega: sem taxa o pedido continua pago e
+    // o número entra depois pelo webhook. Perder a venda por causa de um dado
+    // contábil seria a troca errada.
+    let taxaCentavos: number | null = null;
+    try {
+      taxaCentavos = (await asaas.consultar(r.idExterno)).taxaCentavos;
+    } catch (err) {
+      console.error("[cartao] taxa nao lida:", (err as Error).message);
+    }
 
     // ── O PEDIDO ─────────────────────────────────────────────
     //
@@ -197,6 +292,7 @@ export const cobrarCartao = createServerFn({ method: "POST" })
         telefone: (quiz.whatsapp as string | null) || data.titular.telefone,
         valor_centavos: valorCentavos,
         bump_quadro: data.quadro === true,
+        ...(taxaCentavos != null ? { taxa_centavos: taxaCentavos } : {}),
         quiz_response_id: quiz.id,
         musica_id: musica.id,
         // `paid_at` SÓ NA PRIMEIRA VEZ. Ver o bloco abaixo.

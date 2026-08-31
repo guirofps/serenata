@@ -123,4 +123,24 @@ export type GatewayCartao = {
     valorCentavos: number | null;
     taxaCentavos: number | null;
   }>;
+
+  /**
+   * Já existe alguma cobrança com esta referência?
+   *
+   * ── ESTA PERGUNTA É O QUE TORNA O FAILOVER HONESTO ───────────
+   *
+   * Quando a chamada de cobrança estoura por rede ou timeout, a gente sabe
+   * que NÃO recebeu resposta. Não sabe se o gateway processou. São coisas
+   * diferentes, e tratá-las como iguais é o jeito clássico de cobrar duas
+   * vezes: manda pro checkout antigo quem já tinha sido debitado aqui.
+   *
+   * Como a referência é nossa (`serenata:<quiz>`) e viaja como
+   * `externalReference`, dá pra perguntar de fora: se apareceu qualquer
+   * cobrança com ela, houve processamento e o failover está proibido.
+   *
+   * Falha ABERTA pro lado seguro: se nem esta consulta responder, a resposta
+   * é `true` ("pode ter nascido"), o que BLOQUEIA o failover. Entre perder uma
+   * venda e cobrar a pessoa duas vezes, perde-se a venda.
+   */
+  existeCobranca(referencia: string): Promise<boolean>;
 };

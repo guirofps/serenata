@@ -123,6 +123,14 @@ export function PixTransparente({
   const cartaoAqui = bracoCartao !== "A" && bracoCartao !== FORA;
   const [cobrando, setCobrando] = useState(false);
   const [erroCartao, setErroCartao] = useState<string | null>(null);
+  /**
+   * Saindo pro checkout antigo.
+   *
+   * Estado separado porque o `finally` abaixo devolve o botão ao normal, e
+   * durante os 1,8s do aviso ele voltaria a aceitar clique: a pessoa mandaria
+   * um segundo cartão pra um gateway que acabou de não responder.
+   */
+  const [saindo, setSaindo] = useState(false);
 
   async function pagarNoCartao(dados: {
     cartao: { numero: string; titular: string; validadeMes: string; validadeAno: string; cvv: string };
@@ -137,6 +145,24 @@ export function PixTransparente({
       if (r.ok) {
         trackEvent("cartao_pago", { pago: r.pago });
         window.location.href = "/obrigado";
+        return;
+      }
+      // ── A VOLTA PRO CHECKOUT ANTIGO ────────────────────────
+      //
+      // `outroCaminho` só vem preenchido quando o servidor já passou pelas
+      // três travas (erro de infra, nenhuma cobrança nascida, sem quadro).
+      // A tela não decide nada disso: se veio, é seguro ir.
+      //
+      // Com aviso e um respiro antes de sair. Um redirecionamento seco no meio
+      // de um pagamento parece falha do site — e a pessoa que não entende o
+      // que houve não paga no destino.
+      if (r.erro === "gateway" && r.outroCaminho) {
+        trackEvent("cartao_failover", { destino: "perfectpay" });
+        setSaindo(true);
+        setErroCartao("O cartão não respondeu agora. Te levando pro outro checkout, um instante.");
+        window.setTimeout(() => {
+          window.location.href = r.outroCaminho as string;
+        }, 1800);
         return;
       }
       // Recusa do banco é caminho normal: a pessoa continua com o cartão na
@@ -184,7 +210,7 @@ export function PixTransparente({
         precoTexto={quadro ? reaisTotal(valorBase + CENTAVOS_QUADRO / 100) : valorTexto}
         emailDoQuiz={email}
         telefoneDoQuiz={useQuizStore.getState().whatsapp}
-        cobrando={cobrando}
+        cobrando={cobrando || saindo}
         erro={erroCartao}
         aoPagar={pagarNoCartao}
         aoVoltar={() => {
