@@ -194,7 +194,16 @@ export function MusicaDaSessao({
               ? "Esta es tu canción. Todavía se está terminando de grabar, así que puede cortar."
               : "Esta é a sua música. Ela ainda está terminando de gravar, então pode cortar."}
           </p>
-          <audio controls src={previaUrl} className="mt-3 w-full" />
+          {/* `trackEventOnce` e não `trackEvent`: o navegador dispara `play`
+              de novo a cada pausa e retomada, e sem a trava uma pessoa
+              indecisa viraria dez "prévias tocadas" no painel. É o mesmo
+              defeito que já falseou a contagem do botão do paywall. */}
+          <audio
+            controls
+            src={previaUrl}
+            className="mt-3 w-full"
+            onPlay={() => trackEventOnce("previa_tocou", "v1")}
+          />
         </div>
       )}
       {/* Logo abaixo da barra, e só ENQUANTO grava: é o único momento do

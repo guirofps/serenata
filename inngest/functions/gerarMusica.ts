@@ -289,7 +289,10 @@ export const gerarMusica = inngest.createFunction(
             await step.run(`previa-${estilo.rotulo}-${tentativa}`, async () => {
               const { error } = await db()
                 .from("musicas")
-                .update({ previa_url: stream })
+                // `previa_em` junto: sem ele a mudança que corta a espera de
+                // ~97s pra ~30s não teria régua nenhuma, e a tabela só sabe
+                // dizer quando o ARQUIVO FINAL ficou pronto.
+                .update({ previa_url: stream, previa_em: new Date().toISOString() })
                 .eq("id", musicaId);
               // Falhar aqui não pode derrubar a geração: a prévia é ganho de
               // velocidade, o arquivo final é o produto.
