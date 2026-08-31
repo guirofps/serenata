@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { criarPix, type ResultadoPix } from "@/lib/criar-pix";
 import { varianteDe } from "@/lib/experimentos";
+
+// Mesmo formato do resumo: "R$ 38" quando e redondo, "R$ 62,90" quando nao e.
+const reais = (v: number) =>
+  `R$ ${v.toFixed(2).replace(".", ",").replace(/,00$/, "")}`;
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
 import { PixPagamento } from "@/components/quiz/PixPagamento";
@@ -126,7 +130,17 @@ export function PixTransparente({
     return (
       <PixPagamento
         copiaECola={fase.dados.copiaECola}
-        valorTexto={valorTexto}
+        // O VALOR AQUI SAI DA COBRANCA, NAO DA OFERTA.
+        //
+        // `valorTexto` e o preco do braco ("R$ 38"), e com o quadro marcado a
+        // cobranca e de R$ 62,90. A tela do QR mostrava 38 em cima de um
+        // codigo que cobra 62,90 — a pessoa le um numero, o banco mostra
+        // outro, e isso vira reclamacao mesmo tendo ela mesma marcado a
+        // caixinha. Pego no primeiro PIX real do bump.
+        //
+        // `dados.valorCentavos` e o que o SERVIDOR compos e mandou pro
+        // gateway: e a unica fonte que nao pode divergir do codigo na tela.
+        valorTexto={reais(fase.dados.valorCentavos / 100)}
         referencia={fase.dados.referencia}
         // A tela de obrigado é a mesma de quem pagou pelo checkout antigo: um
         // só lugar decide o que acontece depois da compra.
