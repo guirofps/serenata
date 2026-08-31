@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Play } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Pause, Play } from "lucide-react";
 import { Efeitos } from "@/components/presente/Efeitos";
 import { Logo } from "@/components/marca/Logo";
 import { ProvaSocial } from "@/components/landing/ProvaSocial";
@@ -8,6 +8,11 @@ import { Button } from "@/components/ui/button";
 import { CORES, FONTES, TEMA_CLARO } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
 import { ehEspanha, ehArgentina } from "@/lib/mercado-es";
+import { trackEvent } from "@/lib/track";
+
+// O mesmo bucket publico que a landing usa em `ExemplosReais`: trechos de 45s.
+const AUDIO_BASE =
+  "https://ouwijepgctgtfzrrwpvt.supabase.co/storage/v1/object/public/exemplos";
 
 // A PRIMEIRA TELA DO FUNIL — o que a pessoa ganha, antes do que a gente pede.
 //
@@ -78,6 +83,9 @@ const COPY: Record<
     explicacao: string;
     cta: string;
     rotulo: string;
+    /** Nome acessivel do botao de play. Nao aparece na tela, so pro leitor. */
+    ouvir: string;
+    pausar: string;
     nome: string;
     foto: string;
     versos: string[];
@@ -101,6 +109,8 @@ const COPY: Record<
     explicacao: "Você conta a história. A música fica pronta em 1 minuto, de graça.",
     cta: "CRIAR MINHA MÚSICA GRÁTIS",
     rotulo: "uma música para",
+    ouvir: "Ouvir um trecho desta música",
+    pausar: "Pausar",
     // ESPOSA e não pai: é a relação que mais vende, e a primeira tela tem que
     // mostrar o caso mais provável de quem está chegando. O cartão da home
     // (`PresenteNoTopo`) continua no Antônio — lá a pessoa já rolou até um
@@ -149,6 +159,8 @@ const COPY: Record<
     explicacao: "Vos contás la historia. La canción queda lista en 1 minuto, gratis.",
     cta: "CREAR MI CANCIÓN GRATIS",
     rotulo: "una canción para",
+    ouvir: "Escuchar un fragmento",
+    pausar: "Pausar",
     // ESPOSA e não mãe, pelo mesmo motivo do português — e agora com o dado
     // do próprio mercado: no quiz ES, cônjuge é 48,2% (esposa 27,0% + marido
     // 21,2%) e MÃE É 3,7%. A tela mostrava o quinto caso mais provável.
@@ -233,6 +245,63 @@ export function AberturaPresente({
       ? { ...base, ...EXEMPLO_ES[ehEspanha() ? "espanha" : ehArgentina() ? "argentina" : "latam"] }
       : base;
   const [t, setT] = useState(0);
+
+  // ── O PLAY PASSA A TOCAR ─────────────────────────────────────────
+  //
+  // Ele era decorativo: um ícone dentro de um `span`, ali "pra dizer que isto
+  // TOCA". Só que num cartão de música o play é a coisa mais tocável da tela,
+  // e tocar nele não fazia nada.
+  //
+  // É o defeito que este projeto já tem escrito em dois lugares como o pior
+  // possível: no `Quiz`, "chip visível que não responde ao toque... a pessoa
+  // toca, nada acontece, e conclui que o site quebrou"; e no CLAUDE.md, onde
+  // o player de exemplo que não toca está anotado como FALHA do ForeverSongs.
+  //
+  // O tamanho disso, medido em 29 a 31/08: 2317 sessões chegam nesta tela e
+  // 956 clicam em começar (41%). Depois daqui o quiz segura 78% ao longo das
+  // oito perguntas. A abertura sozinha perde mais que todo o resto somado, e
+  // cada sessão que começa vale R$ 4,53.
+  //
+  // O arquivo já existia: é o mesmo trecho de 45s que a landing toca em
+  // `ExemplosReais`, e é o MESMO exemplo que este cartão mostra (Isabela,
+  // token e406f9b4356f4a5a9e7d8e). Não é gravação nova, é ligar o que está lá.
+  //
+  // ES fica de fora de propósito: o cartão espanhol mostra três exemplos por
+  // mercado (Ceci, Marta, Argentina) e o bucket só tem `es-bolero`, que é
+  // outra música. Áudio errado embaixo do nome certo é pior que play mudo.
+  const slug = locale === "es" ? null : "isabela";
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [tocando, setTocando] = useState(false);
+  const [ouviu, setOuviu] = useState(false);
+  const [andado, setAndado] = useState(0);
+
+  // Sai da tela com a música parada. Sem isto o trecho continua tocando por
+  // cima do quiz, e o próximo passo é uma pergunta, não um show.
+  useEffect(() => () => audioRef.current?.pause(), []);
+
+  async function alternarAudio() {
+    const a = audioRef.current;
+    if (!a || !slug) return;
+    if (tocando) {
+      a.pause();
+      setTocando(false);
+      return;
+    }
+    if (!a.src) a.src = `${AUDIO_BASE}/${slug}.mp3`;
+    try {
+      await a.play();
+      setTocando(true);
+      if (!ouviu) {
+        setOuviu(true);
+        trackEvent("abertura_play", { locale });
+      }
+    } catch {
+      // Bloqueio de autoplay, rede caída, arquivo fora: a tela continua de pé
+      // e o CTA logo abaixo continua sendo o caminho. O evento existe pra essa
+      // falha não ser silenciosa como a anterior foi.
+      trackEvent("abertura_play_erro", { locale });
+    }
+  }
 
   useEffect(() => {
     // "Reduzir movimento" ligado: vai direto pro presente montado e fica
@@ -395,34 +464,73 @@ export function AberturaPresente({
               })}
             </div>
 
-            {/* O player: existe pra dizer "isto TOCA". Acende primeiro, antes
-                da letra, porque é ele que promete a música. */}
+            {/* O player TOCA. Acende primeiro, antes da letra, porque é ele
+                que promete a música — e agora ele cumpre.
+
+                `<button>` e não `<span>`: além do toque, é o que dá foco de
+                teclado e nome acessível a um controle que já parecia um
+                controle. Alvo de 44px (`p-2` em volta dos 28 do círculo), que
+                é o mínimo de toque confortável; o círculo em si continua com
+                o mesmo tamanho e a mesma animação de acender. */}
             <div className="flex items-center gap-2">
-              <span
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-transform"
-                style={{
-                  background: "oklch(0.86 0.13 78)",
-                  opacity: 0.25 + prog(t, PLAY.inicio, PLAY.dur) * 0.75,
-                  transform: `scale(${0.86 + prog(t, PLAY.inicio, PLAY.dur) * 0.14})`,
-                }}
+              <button
+                type="button"
+                onClick={alternarAudio}
+                disabled={!slug}
+                aria-label={tocando ? C.pausar : C.ouvir}
+                className="-m-2 flex shrink-0 items-center justify-center p-2"
               >
-                <Play className="h-3 w-3 fill-current text-[#22120f]" />
-              </span>
+                <span
+                  className="flex h-7 w-7 items-center justify-center rounded-full transition-transform"
+                  style={{
+                    background: "oklch(0.86 0.13 78)",
+                    opacity: 0.25 + prog(t, PLAY.inicio, PLAY.dur) * 0.75,
+                    transform: `scale(${0.86 + prog(t, PLAY.inicio, PLAY.dur) * 0.14})`,
+                  }}
+                >
+                  {tocando ? (
+                    <Pause className="h-3 w-3 fill-current text-[#22120f]" />
+                  ) : (
+                    <Play className="h-3 w-3 fill-current text-[#22120f]" />
+                  )}
+                </span>
+              </button>
               <span
                 className="h-[3px] flex-1 rounded-full"
                 style={{ background: "rgba(247,240,232,0.25)" }}
               >
-                {/* A barra anda só depois de montado: antes ela competiria
-                    com os versos pela atenção. */}
+                {/* Antes de tocar, a barra anda sozinha (e só depois de
+                    montado, senão competiria com os versos). Depois do
+                    primeiro play ela passa a ser a POSIÇÃO REAL da música:
+                    barra decorativa em cima de áudio de verdade seria mentira
+                    visível, que é pior do que não ter barra. */}
                 <span
                   className="block h-full rounded-full"
                   style={{
-                    width: montado ? `${((t - FIM) * 4) % 100}%` : "0%",
+                    width: ouviu
+                      ? `${andado * 100}%`
+                      : montado
+                        ? `${((t - FIM) * 4) % 100}%`
+                        : "0%",
                     background: "oklch(0.86 0.13 78 / 0.75)",
                   }}
                 />
               </span>
             </div>
+            <audio
+              ref={audioRef}
+              preload="none"
+              onTimeUpdate={(e) => {
+                const a = e.currentTarget;
+                if (a.duration) setAndado(a.currentTime / a.duration);
+              }}
+              onEnded={() => {
+                setTocando(false);
+                setAndado(1);
+                trackEvent("abertura_play_fim", { locale });
+              }}
+              className="hidden"
+            />
           </div>
 
           {/* O SELO, no canto — um QR que se desenha sozinho.
