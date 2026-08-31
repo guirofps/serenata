@@ -90,8 +90,25 @@ function semTagsId3(buf: Buffer): Buffer {
   return ini > 0 || fim < buf.length ? buf.subarray(ini, fim) : buf;
 }
 
-/** Onde a prévia corta. O mesmo `PREVIEW_S` do karaokê, pra o paywall ser um só. */
-const PREVIA_S = 40;
+/**
+ * Quanto do áudio o arquivo carrega. MAIOR que os 40s do karaokê, de propósito.
+ *
+ * ── POR QUE NÃO 40 ───────────────────────────────────────────────
+ *
+ * O paywall do `MusicaKaraoke` dispara em `currentTime >= PREVIEW_S` (40s).
+ * Se o ARQUIVO acabar em 37s, a reprodução termina antes do gatilho: a música
+ * simplesmente para, o popup de desbloqueio nunca sobe e `preview_limite`
+ * nunca é registrado. Some o momento mais caro do funil, em silêncio.
+ *
+ * Foi o que aconteceu quando eu cortei em 40: a contagem por frames erra pra
+ * MENOS (medido: alvo de 40s entregou 35,8s e 39,4s em dois arquivos), e a
+ * proporção de quem batia no limite caiu de 99% pra 88%.
+ *
+ * Com 48, o arquivo chega em ~44-46s e o gatilho de 40s sempre acontece. Os
+ * segundos a mais nunca são ouvidos — o player pausa antes deles. Eles
+ * existem só pra a trava ter onde disparar.
+ */
+const PREVIA_S = 48;
 
 /**
  * Corta o MP3 em ~`segundos`, contando FRAMES.
