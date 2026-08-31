@@ -42,18 +42,18 @@ type RespClaude = { texto: string; uso: UsoClaude; stopReason: string | null };
 // Uma chamada ao Claude, no formato já validado (medir-custo-letra.mjs):
 // system cacheável + pedido de JSON no fim. Devolve o texto cru; cada
 // chamador parseia o que precisa.
-async function chamarClaude(
-  userMsg: string,
+/**
+ * Monta e dispara a requisição. Separada de `chamarClaude` só pra o laço de
+ * retentativa poder repetir a chamada sem duplicar o corpo.
+ */
+function fetchClaude(
+  key: string,
+  modelo: string,
   maxTokens: number,
-  locale: Locale = "pt",
-  // O padrão é o modelo BOM. Etapa nova que esquecer de escolher cai no caro e
-  // certo, nunca no barato e raso — o erro que ninguém percebe olhando a tela.
-  modelo: string = MODEL,
-): Promise<RespClaude> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY ausente no servidor");
-
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
+  locale: Locale,
+  userMsg: string,
+): Promise<Response> {
+  return fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "x-api-key": key,
@@ -68,14 +68,79 @@ async function chamarClaude(
       // inteiro, não um caso de borda. Só voltaria a ser opção se as DUAS
       // etapas saíssem do Haiku.
       //
-      // O `cache_control` abaixo agora VALE de novo na letra inteira: o Sonnet
-      // cria entrada de cache a partir de 1.024 tokens de prefixo e este
-      // system tem ~1.200. Nas opções de refrão continua sem efeito, porque o
-      // Haiku 4.5 exige 4.096 (ver `custos.ts`).
+      // O `cache_control` abaixo VALE na letra inteira: o Sonnet cria entrada
+      // de cache a partir de 1.024 tokens de prefixo e este system tem ~1.200.
+      // Nas opções de refrão continua sem efeito, porque o Haiku 4.5 exige
+      // 4.096 (ver `custos.ts`).
       system: [{ type: "text", text: systemDaLetra(locale), cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: userMsg }],
     }),
   });
+}
+
+async function chamarClaude(
+  userMsg: string,
+  maxTokens: number,
+  locale: Locale = "pt",
+  // O padrão é o modelo BOM. Etapa nova que esquecer de escolher cai no caro e
+  // certo, nunca no barato e raso — o erro que ninguém percebe olhando a tela.
+  modelo: string = MODEL,
+): Promise<RespClaude> {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error("ANTHROPIC_API_KEY ausente no servidor");
+
+  // ── TENTA DE NOVO QUANDO O ERRO É PASSAGEIRO ─────────────────
+  //
+  // Medido em 30/08: de 213 pessoas que escolheram o refrão, 19 (9%) nunca
+  // chegaram na letra. Elas viram "Não consegui montar a letra. Tente de
+  // novo." — e o "de novo" era trabalho DELAS, porque aqui não havia
+  // nenhuma segunda tentativa: uma resposta não-ok estourava direto.
+  //
+  // A causa provável é sobrecarga do provedor (529) em horário de pico, que
+  // por definição passa em segundos. Insistir duas vezes converte a maior
+  // parte disso em letra entregue.
+  //
+  // NÃO tenta de novo em 400/401/403: chave errada, saldo acabado ou pedido
+  // inválido falham igual na segunda vez, e repetir só atrasa o usuário e
+  // esconde o defeito real.
+  const PASSAGEIRO = new Set([408, 409, 429, 500, 502, 503, 504, 529]);
+  const ESPERAS = [700, 2000];
+  let r: Response | null = null;
+  let ultimoErro: unknown = null;
+  let ultimoStatus: number | null = null;
+  for (let tentativa = 0; tentativa <= ESPERAS.length; tentativa++) {
+    if (tentativa > 0) await new Promise((s) => setTimeout(s, ESPERAS[tentativa - 1]));
+    try {
+      r = await fetchClaude(key, modelo, maxTokens, locale, userMsg);
+    } catch (err) {
+      // Rede caiu no meio: é o caso mais passageiro de todos.
+      ultimoErro = err;
+      r = null;
+      continue;
+    }
+    if (r.ok || !PASSAGEIRO.has(r.status)) break;
+    ultimoStatus = r.status;
+    console.warn(`[coautoria] Anthropic ${r.status}, tentando de novo (${tentativa + 1})`);
+    r = null;
+  }
+  if (!r) {
+    // ── O ALERTA TAMBÉM VALE AQUI ────────────────────────────
+    //
+    // Sem isto, a retentativa criava um silêncio novo: erro passageiro que
+    // se repete TRÊS vezes não é passageiro, é queda — e era exatamente o
+    // caso que precisava acordar alguém, agora escondido atrás do laço.
+    const motivo =
+      ultimoStatus !== null
+        ? `${ultimoStatus} em ${ESPERAS.length + 1} tentativas`
+        : `rede: ${ultimoErro instanceof Error ? ultimoErro.message : "desconhecido"}`;
+    void import("@/lib/alerta-operacao")
+      .then((m) =>
+        m.alertarFalhaClaude({ status: ultimoStatus ?? 0, corpo: motivo, onde: "coautoria (esgotou retentativas)" }),
+      )
+      .catch(() => {});
+    throw new Error(`Anthropic indisponível — ${motivo}`);
+  }
+
   if (!r.ok) {
     // O CORPO É LIDO UMA VEZ SÓ. `r.text()` consome o stream: ler de novo pra
     // montar a mensagem do throw devolveria string vazia, e o erro chegaria
