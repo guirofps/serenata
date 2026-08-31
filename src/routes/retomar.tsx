@@ -172,7 +172,11 @@ function Retomar() {
         const store = useQuizStore.getState();
         store.reset();
         for (const [k, v] of Object.entries(r.respostas)) store.setResposta(k, v);
-        store.setLetraFinal(r.letra);
+        // CARIMBA A SESSÃO ADOTADA, logo acima. A letra vem do servidor sem
+        // dono, e o atalho da revelação (`RevealStep`) agora só aceita letra
+        // DESTA sessão — sem o carimbo, quem chega pelo e-mail de recuperação
+        // seria mandado a refazer a coautoria inteira.
+        store.setLetraFinal({ ...r.letra, sessionId: s });
         // Guarda ANTES de navegar: a partir daqui a pessoa anda pelo funil e
         // o código precisa sobreviver até o botão de pagar.
         if (cupom) store.setCupom(cupom);

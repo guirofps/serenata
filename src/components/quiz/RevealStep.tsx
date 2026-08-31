@@ -183,6 +183,10 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
         letra: letraEditada,
         estiloSuno: base.estilo_suno,
         versoDestaque: base.verso_destaque,
+        // De QUAL sessão é esta letra. Sem isso ela valia pra sempre, e quem
+        // voltava pra escrever outra caía na revelação da anterior. Ver o
+        // comentário do campo em `quiz-store.ts`.
+        sessionId: getOrCreateSessionId(),
       });
       setFase({ t: "revelando", letra: { ...base, letra: letraEditada } });
     } catch (err) {
@@ -202,7 +206,20 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
     // É o conserto de quem sai desta tela (pra ver a oferta, ou tocando em
     // voltar sem querer) e tenta retornar: antes caía em "Qual refrão fica
     // melhor?", perdia a letra escolhida e queimava outra chamada de IA.
-    const jaEscrita = useQuizStore.getState().letraFinal;
+    // SÓ SE A LETRA FOR DESTA SESSÃO.
+    //
+    // O atalho existe pra quem sai desta tela e volta (ver acima). Sem a
+    // conferência de sessão ele pegava também quem começou um quiz NOVO com
+    // uma letra velha guardada no navegador: a tela abria a revelação da
+    // música anterior, com o título antigo, e a barra parava em ~93% pra
+    // sempre — porque a checagem procura a música da sessão nova, que ainda
+    // não existe.
+    //
+    // Reproduzido em 31/08 às 23:53, com o título de uma sessão das 21:36 na
+    // tela. Letra sem `sessionId` (gravada antes desta versão) conta como de
+    // outra sessão: o pior caso vira refazer a coautoria, que é o certo.
+    const guardada = useQuizStore.getState().letraFinal;
+    const jaEscrita = guardada?.sessionId === getOrCreateSessionId() ? guardada : null;
     if (jaEscrita) {
       jaComecou.current = true;
       setFase({

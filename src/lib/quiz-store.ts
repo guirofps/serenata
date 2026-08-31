@@ -22,6 +22,24 @@ export type LetraFinal = {
   letra: string;
   estiloSuno: string;
   versoDestaque: string;
+  /**
+   * DE QUAL SESSÃO esta letra é.
+   *
+   * Sem isto, a letra guardada valia pra sempre e pra qualquer sessão. Quem
+   * escrevia uma letra, NÃO comprava, e voltava depois pra fazer outra caía
+   * numa tela de revelação da música ANTIGA — com o título velho e uma barra
+   * de progresso que subia até ~93% e parava pra sempre, porque a checagem
+   * procurava a música da sessão NOVA, que não existe.
+   *
+   * O `reset()` existia, mas só rodava pra quem já tinha COMPRADO
+   * (`sessaoGasta()`), e é justamente quem não comprou que volta pra tentar
+   * de novo. Reproduzido em 31/08: sessão nova às 23:53, tela mostrando o
+   * título das 21:36.
+   *
+   * Opcional porque letra gravada antes desta versão não tem o campo — e
+   * letra sem dono é tratada como de outra sessão, que é o lado seguro.
+   */
+  sessionId?: string;
 };
 
 type QuizState = {
