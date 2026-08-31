@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   isIntro,
   isQuestion,
@@ -213,6 +213,7 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
         locale,
       });
       trackEvent("quiz_step", { step_id: step.id, q: qNum });
+      setAvisoBloqueio(false);
     }
     // A ABERTURA é medida, mas NÃO grava lead.
     //
@@ -237,6 +238,22 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
     goTo(n);
   };
   const goPrev = () => goTo(prevVisibleIndex(QUIZ_FLOW, idx, respostas, QUIZ_SKIP));
+
+  // ── POR QUE O BOTAO NAO AVANCOU ───────────────────────────────
+  //
+  // O dono relatou em 31/08 que o "continuar" as vezes exige dois, tres,
+  // quatro toques, de forma aleatoria. O botao era `disabled` quando a
+  // resposta ainda nao valia — e botao desabilitado nao dispara evento
+  // nenhum: o toque some sem deixar rastro, no navegador e no painel.
+  //
+  // Duas mudancas, uma de produto e uma de medicao:
+  //   - ele para de ser `disabled` e passa a EXPLICAR. Continua com cara de
+  //     inativo, mas responde ao toque dizendo o que falta.
+  //   - todo toque que nao avanca vira `continuar_bloqueado`, com o passo.
+  //     Sem isso a gente continua adivinhando; com isso, uma hora de trafego
+  //     responde se e validacao, se e um passo especifico, ou se e outra
+  //     coisa.
+  const [avisoBloqueio, setAvisoBloqueio] = useState(false);
 
   // "Continuar" habilitado?
   const canAdvance = (() => {
@@ -599,9 +616,16 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
           <Button
             size="lg"
             className="cta w-full rounded-full border-0"
-            disabled={!canAdvance}
+            // NAO usa `disabled`: ver o bloco "POR QUE O BOTAO NAO AVANCOU".
+            // O visual continua o de inativo; o que muda e ele responder.
+            aria-disabled={!canAdvance}
             onClick={
-              isContact(step)
+              !canAdvance
+                ? () => {
+                    setAvisoBloqueio(true);
+                    trackEvent("continuar_bloqueado", { step_id: step.id, q: qNum });
+                  }
+                : isContact(step)
                 ? () => {
                     // O E-MAIL SÓ EXISTE AQUI.
                     //
@@ -630,6 +654,9 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
           >
             {isContact(step) ? T.verMinhaLetra : T.continuar}
           </Button>
+          {avisoBloqueio && !canAdvance && (
+            <p className="mt-2 text-center text-xs text-destructive">{T.faltaResponder}</p>
+          )}
         </div>
       )}
     </main>

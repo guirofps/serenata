@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FONTES } from "@/lib/marca";
 import { aprimorarLetra } from "@/lib/coautoria";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEventOnce } from "@/lib/track";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type Locale } from "@/lib/i18n";
 import { t } from "@/lib/textos";
@@ -35,6 +35,23 @@ export function EditorLetra({
   const [aprimorando, setAprimorando] = useState(false);
   const [jaAprimorou, setJaAprimorou] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  // ── A LETRA CONTINUA ABAIXO, E ISSO PRECISA APARECER ──────────
+  //
+  // A caixa rola, mas a barra de rolagem do celular é invisível enquanto
+  // ninguém rola — e quem não sabe que dá pra rolar não rola. O dono viu
+  // isso em 31/08: a letra corta no meio de um verso e a pessoa pode achar
+  // que acabou ali, e confirmar sem ter lido metade.
+  //
+  // O sinal não pode depender da barra do sistema (o iOS ignora estilo de
+  // scrollbar). Então é desenhado por nós: um degradê no pé da caixa mais
+  // uma seta, que somem quando ela chega no fim.
+  const areaRef = useRef<HTMLTextAreaElement>(null);
+  const [temMais, setTemMais] = useState(false);
+  function conferirFim(el: HTMLTextAreaElement) {
+    // 8px de folga: arredondamento de subpixel faz a conta nunca fechar
+    // exata, e sem a folga o aviso ficaria aceso pra sempre no fim.
+    setTemMais(el.scrollHeight - el.scrollTop - el.clientHeight > 8);
+  }
 
   async function melhorar() {
     setAprimorando(true);
@@ -71,17 +88,44 @@ export function EditorLetra({
         </p>
       </div>
 
-      <textarea
-        value={letra}
-        onChange={(e) => setLetra(e.target.value)}
-        disabled={ocupado}
-        spellCheck={false}
-        rows={16}
-        className={cn(
-          "w-full rounded-2xl border border-border bg-card p-4 leading-relaxed outline-none transition-colors focus:border-primary disabled:opacity-60",
+      <div className="relative">
+        <textarea
+          ref={areaRef}
+          value={letra}
+          onChange={(e) => {
+            setLetra(e.target.value);
+            conferirFim(e.currentTarget);
+          }}
+          onScroll={(e) => conferirFim(e.currentTarget)}
+          // Mede na montagem: a letra ja chega maior que a caixa, entao o
+          // aviso precisa nascer aceso, sem esperar interacao nenhuma.
+          disabled={ocupado}
+          spellCheck={false}
+          rows={16}
+          className={cn(
+            "w-full rounded-2xl border border-border bg-card p-4 leading-relaxed outline-none transition-colors focus:border-primary disabled:opacity-60",
+          )}
+          style={{ fontFamily: FONTES.display, fontSize: "var(--t-base)" }}
+        />
+        {temMais && (
+          <>
+            {/* Degrade no pe da caixa: o texto "some" em vez de ser cortado
+                em linha reta, que e o que faz o olho entender que continua. */}
+            <div className="pointer-events-none absolute inset-x-[1px] bottom-[1px] h-16 rounded-b-2xl bg-gradient-to-t from-card via-card/80 to-transparent" />
+            <button
+              type="button"
+              onClick={() => {
+                const el = areaRef.current;
+                if (el) el.scrollBy({ top: el.clientHeight * 0.8, behavior: "smooth" });
+              }}
+              className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground shadow-sm"
+            >
+              {T.temMaisLetra}
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+          </>
         )}
-        style={{ fontFamily: FONTES.display, fontSize: "var(--t-base)" }}
-      />
+      </div>
 
       {erro && <p className="text-center text-sm text-destructive">{erro}</p>}
 

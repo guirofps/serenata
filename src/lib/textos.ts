@@ -160,6 +160,10 @@ const PT = {
   // melhor pra dar o número do que "receba em dois lugares" — protege ela em
   // vez de encher a caixa. E o aviso de spam vai junto, porque é onde a
   // música chega de verdade.
+  /** Aviso de que a caixa da letra rola. Ver `EditorLetra`. */
+  temMaisLetra: "tem mais letra",
+  /** Por que o "Continuar" nao avancou. Ver `Quiz`. */
+  faltaResponder: "Responde essa pra continuar",
   zapTitulo: "Deixa um WhatsApp de reserva?",
   zapTexto:
     "A sua música vai pro e-mail que você deixou. O WhatsApp é só garantia: se o e-mail voltar ou sumir, a gente te procura por lá pra você não ficar sem nada.",
@@ -295,6 +299,8 @@ const ES: Textos = {
   popupDepois: "Ahora no",
   // Mesmo enquadramento do português: reserva, não canal de entrega. Ver o
   // comentário longo no bloco `pt`.
+  temMaisLetra: "hay más letra",
+  faltaResponder: "Respondé esta para continuar",
   zapTitulo: "¿Nos dejás un WhatsApp de respaldo?",
   zapTexto:
     "Tu canción va al e-mail que dejaste. El WhatsApp es solo garantía: si el e-mail rebota o se pierde, te buscamos por ahí para que no te quedes sin nada.",
