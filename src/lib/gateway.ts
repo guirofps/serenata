@@ -55,6 +55,17 @@ export type StatusCobranca = {
   statusCru: string;
   valorCentavos: number | null;
   taxaCentavos: number | null;
+  /**
+   * Nome do TITULAR DA CONTA que pagou, quando o gateway informa.
+   *
+   * Nao confundir com `pedidos.nome_pagador`, que apesar do nome guarda a
+   * pessoa HOMENAGEADA (e o `customer.name` que mandamos na cobranca). Foi
+   * essa confusao que deixou um pedido de reembolso da Woovi, em 31/08, sem
+   * nenhum pedido correspondente encontravel no nosso banco.
+   *
+   * Opcional porque nem todo gateway informa. So o nome, nunca o documento.
+   */
+  titularPix?: string | null;
 };
 
 export type GatewayPix = {

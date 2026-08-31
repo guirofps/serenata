@@ -65,6 +65,8 @@ async function chamar<T>(caminho: string, init?: RequestInit): Promise<T> {
 }
 
 type ChargeWoovi = {
+  /** Quem PAGOU, segundo o banco. Ver `titularPix` em `StatusCobranca`. */
+  payer?: { name?: string };
   correlationID?: string;
   status?: string;
   value?: number;
@@ -250,6 +252,10 @@ export const woovi: GatewayPix = {
       statusCru: String(c.status ?? "desconhecido"),
       valorCentavos: typeof c.value === "number" ? c.value : null,
       taxaCentavos: typeof c.fee === "number" ? c.fee : null,
+      // O `payer` sempre veio nesta resposta e era descartado. Só o nome: o
+      // `taxID` (CPF) tambem vem, e guardar documento sem necessidade so
+      // aumenta o estrago de um vazamento futuro.
+      titularPix: c.payer?.name ?? null,
     };
   },
 };

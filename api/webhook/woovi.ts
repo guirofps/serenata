@@ -332,6 +332,10 @@ export default async function handler(req: Req, res: Res) {
           taxa_centavos: status.taxaCentavos,
           quiz_response_id: quizId,
           paid_at: new Date().toISOString(),
+          // QUEM PAGOU. Ver o comentario da coluna: `nome_pagador` guarda a
+          // pessoa HOMENAGEADA, nao o pagador, e foi isso que deixou um
+          // pedido de reembolso sem pedido correspondente achavel.
+          titular_pix: status.titularPix ?? null,
         },
         { onConflict: "payment_id" },
       );
@@ -371,6 +375,10 @@ export default async function handler(req: Req, res: Res) {
         quiz_response_id: quizId,
         musica_id: musica?.id ?? null,
         paid_at: new Date().toISOString(),
+        // QUEM PAGOU. Ver o comentario da coluna: `nome_pagador` guarda a
+        // pessoa HOMENAGEADA, nao o pagador, e foi isso que deixou um
+        // pedido de reembolso sem pedido correspondente achavel.
+        titular_pix: status.titularPix ?? null,
       },
       { onConflict: "payment_id" },
     )
