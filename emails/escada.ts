@@ -123,6 +123,20 @@ export const OFERTA: Record<DegrauEscada, Oferta> = {
 };
 
 /**
+ * ESTE DEGRAU CARREGA DESCONTO?
+ *
+ * Serve o gate de engajamento da `sequenciaRecuperacao`: degrau com preco
+ * cheio pode ir pra qualquer nao-comprador (e lembrete, e a pessoa pediu a
+ * letra); degrau com desconto so vai pra quem ABRIU ou CLICOU algum e-mail.
+ *
+ * Compara com o CHEIO em vez de listar numeros: quando alguem mexer na tabela
+ * `OFERTA` acima, o gate acompanha sozinho em vez de ficar desatualizado.
+ */
+export function temDesconto(numero: DegrauEscada): boolean {
+  return OFERTA[numero].texto !== CHEIO.texto;
+}
+
+/**
  * O link de compra do degrau, com a ponte pro webhook.
  *
  * `src` é o `session_id`, e ele NÃO é enfeite: é por ele que

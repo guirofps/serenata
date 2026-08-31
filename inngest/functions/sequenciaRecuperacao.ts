@@ -10,6 +10,7 @@ import {
   assuntoEscada,
   emailEscada,
   linkDeCompra,
+  temDesconto,
   ESPERA_H as ESPERA_ESCADA,
   type DegrauEscada,
 } from "../../emails/escada.js";
@@ -125,6 +126,79 @@ const OLHAR_ATE_DIAS = 45;
 // é domínio novo, e pico de volume em remetente sem histórico é a assinatura
 // de lista comprada.
 const MAX_POR_RODADA = 10;
+
+/**
+ * ESTA PESSOA ABRIU OU CLICOU ALGUM E-MAIL NOSSO?
+ *
+ * ── POR QUE ISTO DECIDE QUEM RECEBE DESCONTO ─────────────────────
+ *
+ * Medido em 31/08, no `letra_pronta` (14 dias):
+ *
+ *   nao abriu   898 pessoas    3,0% compraram
+ *   abriu        55 pessoas   18,2% compraram
+ *   clicou       81 pessoas   19,8% compraram
+ *
+ * Quem abre converte SEIS VEZES mais, e 87% nunca abrem. Sao esses 87% que
+ * recebiam a escada inteira: 1.700 disparos do `escada_3` que produziram 5
+ * vendas (0,6% de clique). Nao e so desperdicio — volume alto sem engajamento
+ * e o que rebaixa remetente, e a conta cai no `letra_pronta`, que vende R$ 1,95
+ * por envio e esta preso em 13,7% de abertura no mesmo dominio onde o
+ * `quase_comprou` abre 37,4%.
+ *
+ * E resolve o incomodo do dono com desconto: mandar R$ 29 pra quem nunca abriu
+ * um e-mail e prostituir o preco sem nem ter uma conversa. Quem abriu, clicou
+ * e mesmo assim nao comprou e o unico caso em que preco e objecao plausivel.
+ *
+ * ── COMO ────────────────────────────────────────────────────────
+ *
+ * O evento do Resend guarda `event_data.email_id`, nao o quiz. Entao sao dois
+ * saltos: quiz -> email_ids (`emails_enviados`) -> eventos. O indice parcial
+ * `funnel_events_email_id_engajamento` existe pra isso caber nos 8s do
+ * PostgREST.
+ *
+ * FALHA FECHADA de proposito: banco fora do ar devolve conjunto vazio, e
+ * conjunto vazio significa "ninguem engajou", ou seja, NINGUEM recebe
+ * desconto. Aqui o lado seguro e nao mandar — o oposto do `cobrarUso`, onde
+ * falhar fechado barraria venda.
+ */
+async function quemEngajou(
+  sb: ReturnType<typeof db>,
+  quizIds: string[],
+): Promise<Set<string>> {
+  const engajou = new Set<string>();
+  if (!quizIds.length) return engajou;
+  try {
+    const { data: enviados, error: e1 } = await sb
+      .from("emails_enviados")
+      .select("email_id, quiz_response_id")
+      .in("quiz_response_id", quizIds);
+    if (e1 || !enviados?.length) return engajou;
+
+    const doEmail = new Map<string, string>();
+    for (const e of enviados as Array<{ email_id: string; quiz_response_id: string }>) {
+      if (e.email_id && e.quiz_response_id) doEmail.set(e.email_id, e.quiz_response_id);
+    }
+    const ids = [...doEmail.keys()];
+    if (!ids.length) return engajou;
+
+    const { data: eventos, error: e2 } = await sb
+      .from("funnel_events")
+      .select("event_data")
+      .in("event_name", ["email_opened", "email_clicked"])
+      .in("event_data->>email_id", ids);
+    if (e2) {
+      console.error("[escada] consulta de engajamento falhou:", e2.message);
+      return engajou;
+    }
+    for (const ev of (eventos ?? []) as Array<{ event_data?: { email_id?: string } }>) {
+      const q = doEmail.get(ev.event_data?.email_id ?? "");
+      if (q) engajou.add(q);
+    }
+  } catch (err) {
+    console.error("[escada] engajamento indisponivel:", err);
+  }
+  return engajou;
+}
 
 function db() {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -251,7 +325,7 @@ export const sequenciaRecuperacao = inngest.createFunction(
       const comprou = new Set(pagos.map((x) => x.quiz_response_id).filter(Boolean));
       const porId = new Map(leads.map((l) => [l.id, l]));
 
-      const out: Array<{
+      let out: Array<{
         quizId: string;
         sessao: string;
         email: string;
@@ -266,7 +340,13 @@ export const sequenciaRecuperacao = inngest.createFunction(
       }> = [];
 
       for (const [quizId, { quando, numero }] of ultimo) {
-        if (out.length >= MAX_POR_RODADA) break;
+        // JUNTA MAIS DO QUE VAI MANDAR, de proposito.
+        //
+        // O gate de engajamento roda DEPOIS deste laco (precisa de consulta em
+        // lote), e ele derruba ~87% dos candidatos a degrau com desconto. Com
+        // o corte em MAX_POR_RODADA aqui, quase toda rodada sairia vazia e a
+        // fila de quem PODE receber nunca andaria.
+        if (out.length >= MAX_POR_RODADA * 6) break;
 
         const l = porId.get(quizId);
         if (!l?.email) continue;
@@ -300,6 +380,35 @@ export const sequenciaRecuperacao = inngest.createFunction(
           ouviu: false,
         });
       }
+      // ── O GATE DE ENGAJAMENTO ─────────────────────────────
+      //
+      // Degrau de preco CHEIO vai pra qualquer nao-comprador: e lembrete, e a
+      // pessoa pediu a letra. Degrau com DESCONTO so vai pra quem abriu ou
+      // clicou algum e-mail nosso.
+      //
+      // Nao e refinamento, e o conserto do maior desperdicio da recuperacao:
+      // 1.700 disparos do `escada_3` produziram 5 vendas, enquanto quem abre
+      // converte a 18-20% e quem nao abre a 3%. E o volume morto que rebaixa o
+      // dominio inteiro, e quem paga a conta e o `letra_pronta`.
+      //
+      // Tambem responde ao que o dono pediu: parar de descontar no automatico.
+      // Preco menor deixa de ser reflexo e passa a ser resposta a alguem que
+      // demonstrou interesse e mesmo assim nao comprou.
+      const comDesconto = out.filter((o) => temDesconto(o.numero as DegrauEscada));
+      if (comDesconto.length) {
+        const engajou = await quemEngajou(sb, comDesconto.map((o) => o.quizId));
+        const antes = out.length;
+        out = out.filter(
+          (o) => !temDesconto(o.numero as DegrauEscada) || engajou.has(o.quizId),
+        );
+        console.log(
+          `[escada] gate: ${comDesconto.length} candidatos a desconto, ${engajou.size} engajaram, ${antes - out.length} barrados`,
+        );
+      }
+      // So agora corta no teto da rodada: o teto existe pra proteger a
+      // reputacao do remetente, e o que conta pra isso e o que SAI.
+      if (out.length > MAX_POR_RODADA) out.length = MAX_POR_RODADA;
+
       // ── A LETRA DELA, DENTRO DO E-MAIL ────────────────────
       //
       // O cupom saiu daqui e isto entrou no lugar. Motivo medido em 18/08:
