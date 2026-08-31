@@ -88,7 +88,34 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      // `interactive-widget=resizes-content` EXISTE POR CAUSA DO BOTÃO CONTINUAR.
+      //
+      // O rodapé do quiz é `sticky bottom-0`, e sticky se ancora no viewport de
+      // LAYOUT. O teclado do celular, por padrão (`resizes-visual`), encolhe só
+      // o viewport VISUAL — o de layout continua com a altura inteira. Resultado
+      // nos passos de digitar (nome, historia1, historia2, recado, contato): a
+      // barra fica grudada num rodapé que está ATRÁS do teclado.
+      //
+      // O sintoma que isso produz é o relatado: "às vezes clico e vai, às vezes
+      // preciso clicar 2 ou 3 vezes". O primeiro toque fecha o teclado, o layout
+      // se refaz, e só o segundo alcança o botão. É aleatório porque depende de
+      // o teclado estar aberto, ou seja, do passo e de onde a pessoa tocou.
+      //
+      // O que descartou as outras hipóteses: `continuar_bloqueado` (disparado
+      // quando o toque CHEGA num botão sem resposta) marcou ZERO numa hora com
+      // 18 pessoas finalizando. Toque que chega registra; o que não registra é
+      // toque que não chega. E localmente, com clique sintético, os passos
+      // avançaram sempre de primeira, inclusive sem espera nenhuma — o que
+      // elimina estado atrasado e elimina o `disabled`.
+      //
+      // Com `resizes-content` o viewport de layout encolhe junto com o teclado
+      // e a barra passa a parar em cima dele. Vale no Chrome Android (a maior
+      // parte do tráfego BR); o iOS ignora e é medido pelo evento
+      // `botao_atras_do_teclado`, no Quiz.
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1, interactive-widget=resizes-content",
+      },
       { title: "Uma música feita da sua história" },
       {
         name: "description",

@@ -23,6 +23,7 @@ dist-ssr
 .claude/
 .vercel
 scratch/
+!scratch/testar-rota.mjs
 
 # Backup com PII do projeto angelical — nunca comitar
 backup-angelical/

@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   isIntro,
   isQuestion,
@@ -254,6 +254,47 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
   //     responde se e validacao, se e um passo especifico, ou se e outra
   //     coisa.
   const [avisoBloqueio, setAvisoBloqueio] = useState(false);
+
+  // O TECLADO ESTÁ COBRINDO O BOTÃO?
+  //
+  // A barra do rodapé é `sticky bottom-0`, e sticky se ancora no viewport de
+  // LAYOUT. O teclado encolhe só o VISUAL. Nos passos de digitar, isso deixa o
+  // botão embaixo do teclado: o primeiro toque fecha o teclado e só o segundo
+  // alcança o botão. É a explicação que sobrou depois que `continuar_bloqueado`
+  // deu zero (toque que chega registra) e que o clique sintético local avançou
+  // sempre de primeira (não é estado atrasado nem `disabled`).
+  //
+  // O `interactive-widget=resizes-content` do `__root` resolve no Chrome
+  // Android encolhendo o layout junto. O iOS ignora esse atributo, e é por isso
+  // que a medição fica: sem ela, "consertei" seria palpite pra metade do
+  // tráfego. Se este evento continuar aparecendo depois do deploy, o que sobra
+  // é iOS e o conserto é outro (reposicionar pelo `visualViewport`).
+  const barraRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const conferir = () => {
+      const barra = barraRef.current;
+      if (!barra) return;
+      // Sem teclado aberto não há o que medir: 1px de folga absorve o
+      // arredondamento de zoom que alguns aparelhos reportam.
+      if (vv.height >= window.innerHeight - 1) return;
+      const r = barra.getBoundingClientRect();
+      const fimVisivel = vv.offsetTop + vv.height;
+      if (r.bottom > fimVisivel + 1) {
+        trackEventOnce("botao_atras_do_teclado", step.id, {
+          step_id: step.id,
+          coberto_px: Math.round(r.bottom - fimVisivel),
+        });
+      }
+    };
+    vv.addEventListener("resize", conferir);
+    vv.addEventListener("scroll", conferir);
+    return () => {
+      vv.removeEventListener("resize", conferir);
+      vv.removeEventListener("scroll", conferir);
+    };
+  }, [step.id]);
 
   // "Continuar" habilitado?
   const canAdvance = (() => {
@@ -612,7 +653,7 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
           no `py-6`. Foi o pacote que não deixou ninguém saber de quem era a
           culpa da última vez. */}
       {!isIntro(step) && !isReview(step) && !isReveal(step) && !isOferta(step) && (
-        <div className="sticky bottom-0 z-10 -mx-3 mt-6 border-t border-border/40 bg-background px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+        <div ref={barraRef} className="sticky bottom-0 z-10 -mx-3 mt-6 border-t border-border/40 bg-background px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
           <Button
             size="lg"
             className="cta w-full rounded-full border-0"
