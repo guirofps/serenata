@@ -191,12 +191,14 @@ export function FormularioCartao({
         {campo("CPF do titular", cpf, setCpf, regras.cpf, {
           inputMode: "numeric", placeholder: "000.000.000-00",
         }, mascaraCpf)}
-        <div className="grid grid-cols-[1fr_auto] gap-3">
+        {/* 2fr/1fr, e nao `auto`: com `auto` a coluna e dimensionada pelo
+            ROTULO ("Numero"), e o CEP fica espremido mostrando "000". */}
+        <div className="grid grid-cols-[2fr_1fr] gap-3">
           {campo("CEP", cep, setCep, regras.cep, {
             inputMode: "numeric", autoComplete: "postal-code", placeholder: "00000-000",
           }, mascaraCep)}
           {campo("Número", numEnd, setNumEnd, regras.numEnd, {
-            inputMode: "numeric", placeholder: "123", className: "w-24",
+            inputMode: "numeric", placeholder: "123",
           })}
         </div>
         {lugar && <p className="-mt-1 text-xs text-muted-foreground">{lugar}</p>}

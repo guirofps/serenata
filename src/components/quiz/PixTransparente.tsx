@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { criarPix, type ResultadoPix } from "@/lib/criar-pix";
+import { criarPix, CENTAVOS_QUADRO, type ResultadoPix } from "@/lib/criar-pix";
 import { varianteDe, FORA } from "@/lib/experimentos";
+import { cobrarCartao } from "@/lib/criar-cartao";
+import { FormularioCartao } from "@/components/quiz/FormularioCartao";
 
 // Mesmo formato do resumo: "R$ 38" quando e redondo, "R$ 62,90" quando nao e.
 const reais = (v: number) =>
   `R$ ${v.toFixed(2).replace(".", ",").replace(/,00$/, "")}`;
 import { getOrCreateSessionId } from "@/lib/session-context";
+import { useQuizStore } from "@/lib/quiz-store";
 import { trackEvent } from "@/lib/track";
 import { PixPagamento } from "@/components/quiz/PixPagamento";
 import { ResumoDoPedido } from "@/components/quiz/ResumoDoPedido";
@@ -47,7 +50,9 @@ type Fase =
   | { t: "resumo" }
   | { t: "gerando" }
   | { t: "pronto"; dados: Extract<ResultadoPix, { ok: true }> }
-  | { t: "erro" };
+  | { t: "erro" }
+  /** O cartão na NOSSA tela, em vez do redirect. Ver `cartaoAqui`. */
+  | { t: "cartao" };
 
 export function PixTransparente({
   nome,
@@ -96,6 +101,59 @@ export function PixTransparente({
   // quem a exposição tirou do teste.
   const bracoBump = varianteDe("bump_quadro");
   const bumpLigado = bracoBump !== "A" && bracoBump !== FORA;
+
+  // ── O CARTÃO NA NOSSA TELA ───────────────────────────────────────
+  //
+  // Atrás de experimento com peso 0: em produção ninguém cai aqui, e o botão
+  // "Pagar com cartão" continua indo pro checkout de sempre. Só `?exp=` abre.
+  //
+  // Não é excesso de zelo — é a lição de 31/08, quando o order bump foi a 100%
+  // sem malha e custou 50 minutos de vendas. Um caminho que cobra cartão pela
+  // primeira vez não estreia em todo mundo.
+  //
+  // A comparação é com o CONTROLE e não com o nome do braço: renomear variante
+  // é o único jeito de desgrudar quem já foi sorteado, e com `=== "B"` cravado
+  // renomear desligaria o experimento em silêncio.
+  // O preço que o formulário do cartão mostra é o TOTAL, com o quadro quando
+  // ela marcou. Mostrar o preço base ali e cobrar outro repetiria o defeito
+  // que a folha do PIX teve em 31/08 — "R$ 38" impresso em cima de um código
+  // de R$ 62,90.
+  const reaisTotal = (v: number) => `R$ ${v.toFixed(2).replace(".", ",").replace(/,00$/, "")}`;
+  const bracoCartao = varianteDe("cartao_asaas");
+  const cartaoAqui = bracoCartao !== "A" && bracoCartao !== FORA;
+  const [cobrando, setCobrando] = useState(false);
+  const [erroCartao, setErroCartao] = useState<string | null>(null);
+
+  async function pagarNoCartao(dados: {
+    cartao: { numero: string; titular: string; validadeMes: string; validadeAno: string; cvv: string };
+    titular: { nome: string; email: string; cpf: string; cep: string; numeroEndereco: string; telefone: string };
+  }) {
+    setCobrando(true);
+    setErroCartao(null);
+    try {
+      const r = await cobrarCartao({
+        data: { sessionId: getOrCreateSessionId(), quadro, cartao: dados.cartao, titular: dados.titular },
+      });
+      if (r.ok) {
+        trackEvent("cartao_pago", { pago: r.pago });
+        window.location.href = "/obrigado";
+        return;
+      }
+      // Recusa do banco é caminho normal: a pessoa continua com o cartão na
+      // mão e pode tentar outro. Erro nosso vira mensagem genérica.
+      const msg =
+        r.erro === "recusado"
+          ? r.motivo
+          : "Não consegui processar agora. Tenta o PIX, que cai na hora.";
+      trackEvent("cartao_recusado", { erro: r.erro });
+      setErroCartao(msg);
+    } catch {
+      trackEvent("cartao_recusado", { erro: "excecao" });
+      setErroCartao("Não consegui processar agora. Tenta o PIX, que cai na hora.");
+    } finally {
+      setCobrando(false);
+    }
+  }
   const [quadro, setQuadro] = useState(false);
 
   async function gerar(emailFinal: string) {
@@ -118,6 +176,23 @@ export function PixTransparente({
       trackEvent("pix_transparente_falhou", { erro: "excecao" });
       setFase({ t: "erro" });
     }
+  }
+
+  if (fase.t === "cartao") {
+    return (
+      <FormularioCartao
+        precoTexto={quadro ? reaisTotal(valorBase + CENTAVOS_QUADRO / 100) : valorTexto}
+        emailDoQuiz={email}
+        telefoneDoQuiz={useQuizStore.getState().whatsapp}
+        cobrando={cobrando}
+        erro={erroCartao}
+        aoPagar={pagarNoCartao}
+        aoVoltar={() => {
+          setErroCartao(null);
+          setFase({ t: "resumo" });
+        }}
+      />
+    );
   }
 
   if (fase.t === "erro") {
@@ -160,7 +235,7 @@ export function PixTransparente({
         aoPagar={() => {
           window.location.href = "/obrigado";
         }}
-        aoEscolherCartao={aoDesistir}
+        aoEscolherCartao={cartaoAqui ? () => setFase({ t: "cartao" }) : aoDesistir}
       />
     );
   }
@@ -180,7 +255,7 @@ export function PixTransparente({
         trackEvent("bump_quadro_marcou", { marcado: v });
       }}
       aoConfirmar={gerar}
-      aoEscolherCartao={aoDesistir}
+      aoEscolherCartao={cartaoAqui ? () => setFase({ t: "cartao" }) : aoDesistir}
     />
   );
 }

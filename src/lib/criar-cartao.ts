@@ -71,7 +71,17 @@ function ipDoPagador(): string | null {
     const ip = String(bruto ?? "")
       .split(",")[0]
       ?.trim();
-    return ip || null;
+    if (ip) return ip;
+    // ── SÓ EM DESENVOLVIMENTO ──────────────────────────────
+    //
+    // Em `vite dev` não existe `x-forwarded-for`, então a trava abaixo barrava
+    // toda tentativa e o formulário nunca chegava a falar com o Asaas — o
+    // sintoma era "não consegui processar agora" sem nenhuma linha de log.
+    //
+    // `import.meta.env.DEV` é falso no build da Vercel, então em produção a
+    // regra continua inteira: sem IP do pagador, não cobra.
+    if (import.meta.env?.DEV) return "127.0.0.1";
+    return null;
   } catch {
     return null;
   }
