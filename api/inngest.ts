@@ -15,6 +15,8 @@ import { triarSuporte } from "../inngest/functions/triarSuporte.js";
 import { pixNaoPago } from "../inngest/functions/pixNaoPago.js";
 import { guardeOLink } from "../inngest/functions/guardeOLink.js";
 import { repescarFalhadas } from "../inngest/functions/repescarFalhadas.js";
+import { vigiaExperimento } from "../inngest/functions/vigiaExperimento.js";
+import { taxasFaltando } from "../inngest/functions/taxasFaltando.js";
 import { vigiaEntrega } from "../inngest/functions/vigiaEntrega.js";
 import { ofertaQuadro } from "../inngest/functions/ofertaQuadro.js";
 import { vigiaGeracao } from "../inngest/functions/vigiaGeracao.js";
@@ -40,6 +42,8 @@ export default serve({
     guardeOLink,
     repescarFalhadas,
     vigiaEntrega,
+    vigiaExperimento,
+    taxasFaltando,
     ofertaQuadro,
     vigiaGeracao,
     quaseComprou,
