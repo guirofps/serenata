@@ -20,7 +20,10 @@
  *
  * VAZIO DESLIGA O BOTÃO: `linkSuporte` devolve null e nada é renderizado.
  */
-const NUMERO = "5545991355912";
+// Trocado em 31/08 (era 5545991355912, DDD 45). O DDI vem cravado aqui e nao
+// no que o dono digita: numero sem `55` monta um `wa.me` que abre conversa
+// vazia, e o botao pareceria funcionar.
+const NUMERO = "5511951311499";
 
 /**
  * Só dígitos e tamanho plausível de celular com DDI.
