@@ -27,6 +27,13 @@ export async function captureLeadProgress(args: {
    */
   whatsapp?: string | null;
   whatsappOrigem?: string | null;
+  /**
+   * O nome de QUEM COMPRA. Diferente de `respostas.nome`, que e a pessoa
+   * homenageada — 80% dos pedidos tinham a homenageada no campo do comprador
+   * ate 31/08, e foi isso que deixou uma contestacao no Banco Central sem
+   * pedido correspondente achavel.
+   */
+  nomeComprador?: string | null;
 }): Promise<void> {
   if (typeof window === "undefined") return;
   const sessionId = getOrCreateSessionId();
@@ -55,6 +62,7 @@ export async function captureLeadProgress(args: {
       p_attribution: getStoredAttribution(),
       p_locale: args.locale ?? "pt",
       p_whatsapp_origem: args.whatsappOrigem ?? null,
+      p_nome_comprador: args.nomeComprador ?? null,
     });
     // Falha NÃO é silenciosa (erro herdado a não repetir: catch {} vazio):
     if (error) console.error("[lead] upsert_quiz_response falhou:", error);

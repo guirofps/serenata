@@ -39,6 +39,22 @@ export function AvisarWhatsApp({ locale = "pt" }: { locale?: Locale }) {
   const respostas = useQuizStore((s) => s.respostas);
   const guardarWhatsapp = useQuizStore((s) => s.setWhatsapp);
   const [valor, setValor] = useState("");
+  // ── O NOME DE QUEM COMPRA ──────────────────────────────────
+  //
+  // Medido em 31/08: 80% dos pedidos tinham a pessoa HOMENAGEADA gravada no
+  // campo do comprador ("Roseli / Roseli", "Xuru eder / Xuru eder"), porque a
+  // folha de PIX nao pergunta o nome e o `criar-pix` caia em `respostas.nome`.
+  // Foi isso que fez uma contestacao no Banco Central em nome de "ANTONIO DOS
+  // SANTOS LIMA" levar uma hora pra ser encontrada: o pedido dizia "Manuela".
+  //
+  // Aqui e o lugar certo por dois motivos: e o unico momento do funil em que a
+  // pessoa esta PARADA esperando, e o campo ja existe ao lado. Vai junto do
+  // WhatsApp e nao numa etapa nova.
+  //
+  // OPCIONAL de verdade: o botao envia so com o telefone. Nome vazio nao
+  // bloqueia nada — o que nao pode e um campo a mais custar o telefone, que
+  // hoje 76% de quem ve a tela preenche.
+  const [nome, setNome] = useState("");
   const [estado, setEstado] = useState<"aberto" | "salvo" | "dispensado">("aberto");
   const [erro, setErro] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -69,10 +85,11 @@ export function AvisarWhatsApp({ locale = "pt" }: { locale?: Locale }) {
       respostas,
       whatsapp: paraE164(valor, locale),
       whatsappOrigem: "espera",
+      nomeComprador: nome.trim() || null,
     });
     // Guarda também na store: é o que pré-preenche o telefone no checkout.
     guardarWhatsapp(paraE164(valor, locale));
-    trackEvent("whatsapp_deixado", { origem: "espera" });
+    trackEvent("whatsapp_deixado", { origem: "espera", com_nome: Boolean(nome.trim()) });
     setSalvando(false);
     setEstado("salvo");
   }
@@ -89,6 +106,16 @@ export function AvisarWhatsApp({ locale = "pt" }: { locale?: Locale }) {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{T.zapTitulo}</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{T.zapTexto}</p>
+
+          <Input
+            type="text"
+            autoComplete="name"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            placeholder={T.compradorPlaceholder}
+            aria-label={T.compradorCampo}
+            className="mt-3 bg-white"
+          />
 
           <Input
             type="tel"

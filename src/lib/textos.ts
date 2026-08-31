@@ -174,9 +174,12 @@ const PT = {
   bloqueioEmailErrado: "Esse e-mail tem algo errado. Falta o @ ou o ponto?",
   bloqueioChips: "Toca numa das opções acima",
   bloqueioTexto: "Preenche esse campo pra continuar",
+  /** Rótulo do campo de nome de QUEM COMPRA, na tela de espera. */
+  compradorCampo: "Seu nome",
+  compradorPlaceholder: "como você se chama",
   zapTitulo: "Deixa um WhatsApp de reserva?",
   zapTexto:
-    "A sua música vai pro e-mail que você deixou. O WhatsApp é só garantia: se o e-mail voltar ou sumir, a gente te procura por lá pra você não ficar sem nada.",
+    "A sua música vai pro e-mail que você deixou. Diz o seu nome pra gente saber com quem fala, e o WhatsApp é só garantia: se o e-mail voltar ou sumir, a gente te procura por lá pra você não ficar sem nada.",
   zapCampo: "Seu WhatsApp (opcional)",
   zapBotao: "Deixar meu WhatsApp",
   zapDispensar: "Não precisa",
@@ -315,9 +318,11 @@ const ES: Textos = {
   bloqueioEmailErrado: "Ese correo tiene algo raro. ¿Falta la arroba o el punto?",
   bloqueioChips: "Tocá una de las opciones de arriba",
   bloqueioTexto: "Completá ese campo para continuar",
+  compradorCampo: "Tu nombre",
+  compradorPlaceholder: "cómo te llamás",
   zapTitulo: "¿Nos dejás un WhatsApp de respaldo?",
   zapTexto:
-    "Tu canción va al e-mail que dejaste. El WhatsApp es solo garantía: si el e-mail rebota o se pierde, te buscamos por ahí para que no te quedes sin nada.",
+    "Tu canción va al e-mail que dejaste. Decinos tu nombre para saber con quién hablamos, y el WhatsApp es solo garantía: si el e-mail rebota o se pierde, te buscamos por ahí para que no te quedes sin nada.",
   zapCampo: "Tu WhatsApp (opcional)",
   zapBotao: "Dejar mi WhatsApp",
   zapDispensar: "No hace falta",

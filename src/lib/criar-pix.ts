@@ -131,7 +131,7 @@ export const criarPix = createServerFn({ method: "POST" })
 
     const { data: quiz } = await db
       .from("quiz_responses")
-      .select("id, email, respostas, attribution, whatsapp")
+      .select("id, email, respostas, attribution, whatsapp, nome_comprador")
       .eq("session_id", data.sessionId)
       .maybeSingle();
     if (!quiz?.id) return { ok: false, erro: "sem-sessao" };
@@ -172,7 +172,19 @@ export const criarPix = createServerFn({ method: "POST" })
     // avisa o dono pra devolver, em vez de mandar dois presentes e a pessoa
     // descobrir a cobranca dobrada no extrato.
     const referencia = referenciaDoPix(String(quiz.id), comQuadro);
-    const nome = ((quiz.respostas ?? {}) as Record<string, string>).nome?.trim();
+    // O NOME DO COMPRADOR, quando ele existe.
+    //
+    // `respostas.nome` e a pessoa HOMENAGEADA, e mandar ela como `customer.name`
+    // e o que encheu `pedidos.nome_pagador` de "Amorzao" e "MINHA NEGA" — 80%
+    // dos pedidos com o nome errado, e uma contestacao que levou uma hora pra
+    // ser achada porque o pedido estava gravado como "Manuela".
+    //
+    // Continua caindo na homenageada quando o comprador nao disse o nome dele:
+    // e melhor que vazio pra quem olha o painel, e o `titular_pix` guarda o
+    // pagador de verdade assim que o pagamento entra.
+    const nome =
+      (quiz.nome_comprador as string | null)?.trim() ||
+      ((quiz.respostas ?? {}) as Record<string, string>).nome?.trim();
 
     // ── O E-MAIL CONFERIDO NA TELA DE RESUMO ─────────────────────
     //
