@@ -58,6 +58,7 @@ function montarLinhas(words: PalavraAlinhada[]): Linha[] {
 export function MusicaKaraoke({
   audioUrl,
   words,
+  letra,
   onDesbloquear,
   // `completo` libera a música inteira (sem a trava do preview). Usado nas
   // demos que mandamos pra alguém ouvir; o funil real nunca passa isso.
@@ -65,7 +66,18 @@ export function MusicaKaraoke({
   locale = "pt",
 }: {
   audioUrl: string;
-  words: PalavraAlinhada[];
+  /**
+   * Timestamps pra acender palavra por palavra. `null` quando a musica ainda
+   * esta na PREVIA: eles so nascem com o arquivo final, uns 60s depois.
+   *
+   * Sem eles o player continua o mesmo — o que muda e a letra aparecer
+   * estatica em vez de sincronizada. Antes esse caso caia num `<audio
+   * controls>` cru do navegador, e a tela mais emocionante do funil ficava
+   * com cara de anexo de e-mail.
+   */
+  words: PalavraAlinhada[] | null;
+  /** A letra crua, usada quando `words` ainda nao existe. */
+  letra?: string;
   completo?: boolean;
   /**
    * O que fazer quando a prévia corta e a pessoa toca em "Desbloquear".
@@ -106,7 +118,7 @@ export function MusicaKaraoke({
     setPopup(false);
   }
 
-  const linhas = useMemo(() => montarLinhas(words), [words]);
+  const linhas = useMemo(() => montarLinhas(words ?? []), [words]);
 
   // Destaque visual: rAF (~60fps; timeupdate dispara ~4x/s e atrasaria o
   // acendimento). Só cosmético — a trava NÃO vive aqui.
@@ -237,8 +249,26 @@ export function MusicaKaraoke({
         </span>
       </div>
 
-      {/* Letra com destaque palavra a palavra */}
+      {/* Letra: sincronizada quando ha timestamps, estatica enquanto e previa */}
       <div className="space-y-1">
+        {!linhas.length && letra
+          ? letra
+              .split(String.fromCharCode(10))
+              .map((linha, i) =>
+                /^\[.*\]$/.test(linha.trim()) ? (
+                  <p
+                    key={i}
+                    className="pt-3 text-[11px] uppercase tracking-widest text-muted-foreground/60"
+                  >
+                    {linha.trim().replace(/[[\]]/g, "")}
+                  </p>
+                ) : (
+                  <p key={i} className="text-[15px] leading-relaxed">
+                    {linha}
+                  </p>
+                ),
+              )
+          : null}
         {linhas.map((l, i) =>
           l.tipo === "marcador" ? (
             <p

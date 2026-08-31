@@ -147,36 +147,32 @@ export function MusicaDaSessao({
   if (revelar && tocavel) {
     // Com timestamps: karaokê real, destaque palavra a palavra + trava no
     // preview. Sem (falha tolerada no job): toca do mesmo jeito.
-    return words ? (
-      // `onDesbloquear` é OBRIGATÓRIO aqui, mesmo sendo opcional no tipo.
-      // Sem ele o botão do paywall — o que aparece quando a prévia corta aos
-      // 40s, no pico emocional do funil — chamava `onDesbloquear?.()` e o
-      // `?.` engolia em silêncio: o botão não fazia nada.
-      //
-      // Medido em 04/08: 242 cliques em 28 sessões, 8,6 por pessoa, uma
-      // delas clicou 40 vezes. Botão que funciona leva ~1,2 clique (é o que
-      // os outros do funil marcam). Era gente ouvindo a música cortar e
-      // socando um botão morto.
+    // ── O MESMO PLAYER, COM OU SEM TIMESTAMPS ─────────────────
+    //
+    // Antes: com timestamps, karaoke; sem, um `<audio controls>` cru do
+    // navegador. Como a previa chega ~60s ANTES dos timestamps, a revelacao
+    // passou a cair sempre no player cru — e a tela mais emocionante do funil
+    // ficou com cara de anexo de e-mail. O dono viu na tela em 31/08.
+    //
+    // Agora o `MusicaKaraoke` aguenta `words: null`: mesmo player, mesma
+    // trava de previa aos 40s, mesmo paywall. O que falta sem timestamps e so
+    // a palavra acendendo — a letra aparece estatica no lugar.
+    //
+    // `onDesbloquear` e OBRIGATORIO aqui, mesmo sendo opcional no tipo. Sem
+    // ele o botao do paywall — o que aparece quando a previa corta aos 40s,
+    // no pico emocional — chamava `onDesbloquear?.()` e o `?.` engolia em
+    // silencio: o botao nao fazia nada. Medido em 04/08: 242 cliques em 28
+    // sessoes, 8,6 por pessoa, uma delas 40 vezes.
+    return (
       <MusicaKaraoke
         audioUrl={tocavel}
         words={words}
-        onDesbloquear={() => navigate({ to: caminho("/criar", locale), search: { step: "oferta" } } as never)}
+        letra={letra}
+        onDesbloquear={() =>
+          navigate({ to: caminho("/criar", locale), search: { step: "oferta" } } as never)
+        }
         locale={locale}
       />
-    ) : (
-      <div className="space-y-4">
-        {/* `onPlay` aqui e não só na prévia: depois da revelação este é o
-            player de todo mundo, e sem o evento a prévia ficaria sem régua.
-            `trackEventOnce` porque o navegador dispara `play` a cada pausa e
-            retomada — o mesmo defeito que falseou a contagem do paywall. */}
-        <audio
-          controls
-          src={tocavel}
-          className="w-full"
-          onPlay={() => trackEventOnce("previa_tocou", "v1")}
-        />
-        <KaraokePlayer letra={letra} />
-      </div>
     );
   }
 
