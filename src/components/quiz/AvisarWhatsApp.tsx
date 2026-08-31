@@ -34,10 +34,38 @@ import { mascaraTelefone, telefoneValido, paraE164, exemploTelefone } from "@/li
 // as fotos quem monta é o comprador, e prometer entrega pronta aqui venderia
 // um trabalho que a gente não faz.
 
-export function AvisarWhatsApp({ locale = "pt" }: { locale?: Locale }) {
+export function AvisarWhatsApp({
+  locale = "pt",
+  origem = "espera",
+}: {
+  locale?: Locale;
+  /**
+   * Em que tela o pedido apareceu. Vai no evento e na gravação.
+   *
+   * `espera` é a barra de progresso; `previa` é embaixo do player, onde ele
+   * continua vivo enquanto a música toca. Sem isso os dois momentos entram na
+   * mesma conta e o experimento não teria o que comparar.
+   */
+  origem?: "espera" | "previa";
+}) {
   const T = t(locale);
   const respostas = useQuizStore((s) => s.respostas);
   const guardarWhatsapp = useQuizStore((s) => s.setWhatsapp);
+  // ── NUNCA PERGUNTAR DUAS VEZES ─────────────────────────────
+  //
+  // Na espera e na prévia são duas montagens diferentes do componente, então o
+  // estado interno nasce zerado nas duas. Sem esta linha, quem deixou o número
+  // durante a barra veria o mesmo formulário de novo assim que a música
+  // aparecesse — e pedir de novo o que a pessoa acabou de dar é pior do que
+  // não ter pedido.
+  //
+  // A store também é o que o `/retomar` repõe, então quem volta por e-mail de
+  // recuperação com telefone já gravado também não é perguntado.
+  //
+  // Lido UMA VEZ, na montagem, e não como assinatura da store: o próprio envio
+  // grava o telefone lá, e uma assinatura faria o "Guardado" desaparecer no
+  // mesmo instante em que ela clica — a pessoa não veria confirmação nenhuma.
+  const [jaTinha] = useState(() => Boolean(useQuizStore.getState().whatsapp));
   const [valor, setValor] = useState("");
   // ── O NOME DE QUEM COMPRA ──────────────────────────────────
   //
@@ -59,7 +87,7 @@ export function AvisarWhatsApp({ locale = "pt" }: { locale?: Locale }) {
   const [erro, setErro] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
-  if (estado === "dispensado") return null;
+  if (estado === "dispensado" || jaTinha) return null;
 
   if (estado === "salvo") {
     return (
@@ -84,12 +112,12 @@ export function AvisarWhatsApp({ locale = "pt" }: { locale?: Locale }) {
       locale,
       respostas,
       whatsapp: paraE164(valor, locale),
-      whatsappOrigem: "espera",
+      whatsappOrigem: origem,
       nomeComprador: nome.trim() || null,
     });
     // Guarda também na store: é o que pré-preenche o telefone no checkout.
     guardarWhatsapp(paraE164(valor, locale));
-    trackEvent("whatsapp_deixado", { origem: "espera", com_nome: Boolean(nome.trim()) });
+    trackEvent("whatsapp_deixado", { origem, com_nome: Boolean(nome.trim()) });
     setSalvando(false);
     setEstado("salvo");
   }
@@ -142,7 +170,7 @@ export function AvisarWhatsApp({ locale = "pt" }: { locale?: Locale }) {
             <button
               type="button"
               onClick={() => {
-                trackEvent("whatsapp_dispensado", { origem: "espera" });
+                trackEvent("whatsapp_dispensado", { origem });
                 setEstado("dispensado");
               }}
               className="text-xs text-muted-foreground underline-offset-4 hover:underline"

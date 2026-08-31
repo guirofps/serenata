@@ -14,6 +14,7 @@ import { trackEvent, trackEventOnce } from "@/lib/track";
 import { irParaCheckout } from "@/lib/checkout";
 import { Button } from "@/components/ui/button";
 import { MusicaDaSessao, type EstadoMusica } from "@/components/quiz/MusicaDaSessao";
+import { AvisarWhatsApp } from "@/components/quiz/AvisarWhatsApp";
 import { PreviaPresente } from "@/components/quiz/PreviaPresente";
 import { EscolherRefrao } from "@/components/quiz/coautoria/EscolherRefrao";
 import { EditorLetra } from "@/components/quiz/coautoria/EditorLetra";
@@ -21,7 +22,7 @@ import { QrCode } from "lucide-react";
 import { type Locale, caminho } from "@/lib/i18n";
 import { APartirDe } from "@/components/quiz/PrecoDaOferta";
 import { t } from "@/lib/textos";
-import { varianteDe } from "@/lib/experimentos";
+import { varianteDe, FORA } from "@/lib/experimentos";
 
 // A REVELAÇÃO — agora é COAUTORIA, não letra pronta.
 //
@@ -69,6 +70,8 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
   const [regerando, setRegerando] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [estadoMusica, setEstadoMusica] = useState<EstadoMusica>("gerando");
+  /** A prévia cortou aos 40s e o paywall subiu. Recolhe o pedido de WhatsApp. */
+  const [paywallSubiu, setPaywallSubiu] = useState(false);
   const jaComecou = useRef(false);
 
   // respostas VIVAS (pós-hidratação), nunca o snapshot do render.
@@ -418,6 +421,8 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
   // fase "revelando" — a música já está sendo gerada; mostra o presente.
   const letra = fase.letra;
   const nome = (respostas.nome as string) || "você";
+  const bracoZap = varianteDe("zap_previa");
+  const zapNaPrevia = bracoZap !== "A" && bracoZap !== FORA;
 
   return (
     <div className="space-y-6">
@@ -432,13 +437,46 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
         </div>
 
         <div className="px-6 pb-6">
-          <MusicaDaSessao letra={letra.letra} aoMudarEstado={setEstadoMusica} locale={locale} />
+          <MusicaDaSessao
+            letra={letra.letra}
+            aoMudarEstado={setEstadoMusica}
+            aoTravarPrevia={() => setPaywallSubiu(true)}
+            locale={locale}
+          />
         </div>
 
         <div className="flex items-center justify-center gap-2 border-t bg-secondary/30 py-3 text-xs text-muted-foreground">
           <QrCode className="h-4 w-4" /> {T.linkEQr}
         </div>
       </div>
+
+      {/* ── O PEDIDO DE WHATSAPP ACOMPANHA A PRÉVIA ─────────────────
+         
+          Ele só existia enquanto a música gerava. Em 30/08 a prévia passou a sair
+          aos ~30s em vez de ~120s, e a janela encolheu junto, sem ninguém notar.
+         
+          Medido em 31/08: a mediana pra digitar e enviar é de 28 SEGUNDOS. Em 30s
+          só 55% conseguem; em 45s, 74%. E a taxa caiu de ~65% pra ~42% na mesma
+          semana em que a prévia acelerou.
+         
+          Os 28s também dizem outra coisa: digitar um telefone com máscara leva uns
+          10s. O resto é DECIDIR se dá o número. Não falta tempo de digitação,
+          falta tempo de decisão — e é isso que a janela maior compra.
+         
+          Agora ele vive também enquanto a prévia toca (mais ~40s de atenção
+          ociosa: a pessoa está ouvindo, não lendo) e sai quando o paywall sobe.
+          Pedir telefone por cima do momento de decidir a compra seria trocar a
+          venda pelo insumo do atendimento.
+         
+          ATRÁS DE EXPERIMENTO, a 50%: esta é a tela do pico emocional do funil e
+          não havia baseline por braço. O controle continua rodando pra comparar.
+
+          FORA do cartão de propósito. Ali dentro é o mockup da PÁGINA
+          PRESENTE, que é o produto aparecendo na tela; um formulário de
+          captura dentro dele faz o presente parecer um cadastro. */}
+      {estadoMusica === "pronta" && zapNaPrevia && !paywallSubiu && (
+        <AvisarWhatsApp locale={locale} origem="previa" />
+      )}
 
       {/* O CTA só existe DEPOIS que a prévia toca (ou falha).
           Antes ele ficava na tela durante os ~2min de geração: quem tocava

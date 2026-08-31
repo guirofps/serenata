@@ -36,6 +36,7 @@ export type EstadoMusica = "gerando" | "pronta" | "falhou";
 export function MusicaDaSessao({
   letra,
   aoMudarEstado,
+  aoTravarPrevia,
   locale = "pt",
 }: {
   letra: string;
@@ -47,6 +48,15 @@ export function MusicaDaSessao({
    * sem nunca ter ouvido nada, e voltar recomeçava o quiz.
    */
   aoMudarEstado?: (e: EstadoMusica) => void;
+  /**
+   * A prévia acabou e o paywall subiu.
+   *
+   * Sobe pro `RevealStep` porque quem reage a isso mora FORA do cartão da
+   * página presente. Canal próprio e não mais um valor de `EstadoMusica`: o
+   * efeito acima reescreve aquele estado, e "paywall" viraria "pronta" de
+   * volta no primeiro re-render.
+   */
+  aoTravarPrevia?: () => void;
   locale?: Locale;
 }) {
   const T = t(locale);
@@ -171,6 +181,7 @@ export function MusicaDaSessao({
         onDesbloquear={() =>
           navigate({ to: caminho("/criar", locale), search: { step: "oferta" } } as never)
         }
+        aoTravar={aoTravarPrevia}
         locale={locale}
       />
     );
@@ -201,9 +212,12 @@ export function MusicaDaSessao({
   return (
     <div className="space-y-5">
       <ProgressoGeracao pronta={pronta} locale={locale} />
-      {/* Logo abaixo da barra, e só ENQUANTO grava: é o único momento do
-          funil em que deixar o telefone é vantagem pra ela (não ficar
-          olhando a barra) em vez de pedágio. Some quando a música chega. */}
+      {/* Logo abaixo da barra, e só ENQUANTO grava: aqui deixar o telefone é
+          vantagem pra ela (não ficar olhando a barra) em vez de pedágio.
+          Some quando a música chega — e, no braço B do `zap_previa`, o
+          `RevealStep` recoloca o mesmo bloco embaixo do player, porque desde
+          30/08 a prévia chega aos ~30s e essa janela sozinha virou curta
+          demais pra uma mediana de 28s de preenchimento. */}
       {!pronta && <AvisarWhatsApp locale={locale} />}
       {/* Entre a barra e as músicas de propósito: enquanto espera, a pessoa
           vê o ENTREGÁVEL (o que ela vai enviar) antes de se distrair ouvindo

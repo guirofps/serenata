@@ -60,6 +60,7 @@ export function MusicaKaraoke({
   words,
   letra,
   onDesbloquear,
+  aoTravar,
   // `completo` libera a música inteira (sem a trava do preview). Usado nas
   // demos que mandamos pra alguém ouvir; o funil real nunca passa isso.
   completo = false,
@@ -91,6 +92,15 @@ export function MusicaKaraoke({
    * Com a prop obrigatória, o compilador não deixa isso acontecer de novo.
    */
   onDesbloquear: () => void;
+  /**
+   * Avisa o pai que a previa acabou e o paywall subiu.
+   *
+   * Existe pra a tela de espera saber a hora de recolher o pedido de WhatsApp:
+   * ele acompanha a musica tocando, mas some quando o paywall aparece — pedir
+   * telefone por cima do momento de decidir a compra e trocar a venda pelo
+   * insumo do atendimento.
+   */
+  aoTravar?: () => void;
   locale?: Locale;
 }) {
   const T = textos(locale);
@@ -150,6 +160,7 @@ export function MusicaKaraoke({
         setT(PREVIEW_S);
         setTocando(false);
         setTravou(true);
+        aoTravar?.();
         trackEventOnce("preview_limite", "v1");
       }
     };
