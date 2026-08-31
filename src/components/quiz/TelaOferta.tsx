@@ -506,6 +506,20 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   }
 
   async function pagar() {
+    // O TOQUE, ANTES DE QUALQUER ESPERA.
+    //
+    // Em 31/08 o `checkout_click` caiu de 15 pra 4 numa janela em que
+    // `oferta_vista` ficou igual (16 contra 18) e o funil inteiro a montante
+    // nao mudou (musica_pronta 11x11, preview_limite 15x15). Ficou impossivel
+    // saber o que tinha acontecido, porque o primeiro evento desta funcao so
+    // dispara DEPOIS de um `await` a uma server function — se ela travar, nao
+    // sai evento nenhum e o sintoma e indistinguivel de "ninguem clicou".
+    //
+    // Este evento separa as duas coisas. `botao_comprar` sem `checkout_click`
+    // logo em seguida significa que a pessoa TOCOU e a tela engasgou; sem os
+    // dois, ela nao tocou. Custa um evento e transforma o proximo incidente
+    // de mistério em leitura.
+    trackEvent("botao_comprar", { locale, braco_bump: varianteDe("bump_quadro") });
     if (credito) {
       await resgatar(credito.token);
       return;
