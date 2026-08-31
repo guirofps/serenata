@@ -131,7 +131,7 @@ export const criarPix = createServerFn({ method: "POST" })
 
     const { data: quiz } = await db
       .from("quiz_responses")
-      .select("id, email, respostas, attribution")
+      .select("id, email, respostas, attribution, whatsapp")
       .eq("session_id", data.sessionId)
       .maybeSingle();
     if (!quiz?.id) return { ok: false, erro: "sem-sessao" };
@@ -239,6 +239,22 @@ export const criarPix = createServerFn({ method: "POST" })
         status: "pendente",
         email: emailDaVenda,
         nome_pagador: nome || null,
+        // O TELEFONE, QUE A MIGRACAO TINHA PERDIDO SEM NINGUEM VER.
+        //
+        // O checkout da Perfect Pay pedia telefone e o webhook dela gravava
+        // aqui: 100% dos pedidos deles tem o campo, todo dia. A nossa folha de
+        // PIX nao pede — e ninguem preenchia isto. Medido em 31/08: dos
+        // pedidos pela Woovi, de 27/08 em diante, ZERO tinham telefone.
+        //
+        // O efeito aparece no painel de recuperacao: uma das listas de la monta
+        // o botao de WhatsApp a partir de `pedidos.telefone`, entao o botao
+        // sumiu pra ~85% dos pedidos. Nao foi o publico que parou de deixar o
+        // numero (33,8% das sessoes ainda deixam) — era o dado existindo no
+        // quiz e nao chegando no pedido.
+        //
+        // Vem do `whatsapp` do quiz, que a pessoa deixou na tela de espera. Nao
+        // e coleta nova: e parar de jogar fora o que ela ja deu.
+        telefone: (quiz.whatsapp as string | null) || null,
         valor_centavos: valorCentavos,
         bump_quadro: comQuadro,
         taxa_centavos: cobranca.taxaCentavos,
