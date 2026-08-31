@@ -35,7 +35,7 @@ import { ChipsStep } from "@/components/quiz/ChipsStep";
 import { FaixaPresente } from "@/components/quiz/FaixaPresente";
 import { CampoNome } from "@/components/quiz/CampoNome";
 import { TelaOferta } from "@/components/quiz/TelaOferta";
-import { StoryStep, storyIsValid } from "@/components/quiz/StoryStep";
+import { StoryStep, storyIsValid, validateStory } from "@/components/quiz/StoryStep";
 import { RevealStep } from "@/components/quiz/RevealStep";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -270,6 +270,7 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
   // tráfego. Se este evento continuar aparecendo depois do deploy, o que sobra
   // é iOS e o conserto é outro (reposicionar pelo `visualViewport`).
   const barraRef = useRef<HTMLDivElement | null>(null);
+  const corpoRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
@@ -281,7 +282,12 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
       if (vv.height >= window.innerHeight - 1) return;
       const r = barra.getBoundingClientRect();
       const fimVisivel = vv.offsetTop + vv.height;
-      if (r.bottom > fimVisivel + 1) {
+      // 24px e nao 1: a primeira versao disparava com 1, 4 e 5 pixels, que e
+      // arredondamento do `visualViewport` e nao teclado. Das 8 leituras da
+      // primeira hora, SETE eram esse ruido e uma era real (330px, no
+      // historia2). Um limiar que acende com sub-pixel nao mede nada — 24px e
+      // meia altura de dedo, abaixo disso ninguem erra o alvo por causa disso.
+      if (r.bottom > fimVisivel + 24) {
         trackEventOnce("botao_atras_do_teclado", step.id, {
           step_id: step.id,
           coberto_px: Math.round(r.bottom - fimVisivel),
@@ -295,6 +301,40 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
       vv.removeEventListener("scroll", conferir);
     };
   }, [step.id]);
+
+  // POR QUE ELE NAO AVANCOU, com nome.
+  //
+  // Medido em 31/08, na primeira hora do evento `continuar_bloqueado`: cinco
+  // toques em SEIS segundos no passo do contato, mais dois no historia2 e dois
+  // no ocasiao. E o "botao esquisito, as vezes preciso clicar 2 ou 3 vezes".
+  //
+  // Nao e o botao: e a validacao recusando sem dizer o motivo. No contato e
+  // pior que mudo, e enganoso — a pessoa RESPONDEU, o e-mail dela e que nao
+  // passa no teste, e a tela responde "responde essa pra continuar".
+  //
+  // O `validateStory` ja dizia o que faltava (inclusive quantos caracteres);
+  // o que faltava era chips, contato e texto terem a mesma cortesia.
+  function motivoBloqueio(): string {
+    if (isContact(step)) {
+      return (email ?? "").trim() ? T.bloqueioEmailErrado : T.bloqueioEmailVazio;
+    }
+    if (isQuestion(step)) {
+      const v = respostas[step.field];
+      if (step.input === "chips") return T.bloqueioChips;
+      if (step.input === "story") return validateStory(step, v as string, locale).message;
+      if (step.input === "text") return T.bloqueioTexto;
+    }
+    return T.faltaResponder;
+  }
+
+  // Levar a pessoa ATE o problema, e nao so contar dela. Um aviso de 12px
+  // embaixo do botao e facil de nao ver com o polegar em cima dele; o campo
+  // ganhando foco rola a tela e abre o teclado no lugar certo.
+  function mostrarOndeFalta() {
+    const campo = corpoRef.current?.querySelector<HTMLElement>("input, textarea");
+    if (campo) campo.focus();
+    else corpoRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 
   // "Continuar" habilitado?
   const canAdvance = (() => {
@@ -370,7 +410,7 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
       )}
 
       {/* Corpo do passo */}
-      <div className="flex flex-1 flex-col justify-center">
+      <div ref={corpoRef} className="flex flex-1 flex-col justify-center">
         {isIntro(step) && (
           <AberturaPresente
             locale={locale}
@@ -664,6 +704,7 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
               !canAdvance
                 ? () => {
                     setAvisoBloqueio(true);
+                    mostrarOndeFalta();
                     trackEvent("continuar_bloqueado", { step_id: step.id, q: qNum });
                   }
                 : isContact(step)
@@ -696,7 +737,9 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
             {isContact(step) ? T.verMinhaLetra : T.continuar}
           </Button>
           {avisoBloqueio && !canAdvance && (
-            <p className="mt-2 text-center text-xs text-destructive">{T.faltaResponder}</p>
+            <p className="mt-2 text-center text-sm font-medium text-destructive">
+              {motivoBloqueio()}
+            </p>
           )}
         </div>
       )}

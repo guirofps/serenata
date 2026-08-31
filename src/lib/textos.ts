@@ -162,8 +162,18 @@ const PT = {
   // música chega de verdade.
   /** Aviso de que a caixa da letra rola. Ver `EditorLetra`. */
   temMaisLetra: "tem mais letra",
-  /** Por que o "Continuar" nao avancou. Ver `Quiz`. */
+  /** Por que o "Continuar" nao avancou. Ver `Quiz`.
+   *
+   *  GENERICO SO COMO ULTIMO RECURSO. Medido em 31/08, com o evento
+   *  `continuar_bloqueado` recem-ligado: uma pessoa tocou CINCO vezes em seis
+   *  segundos no passo do contato. Ela tinha respondido — o e-mail dela e que
+   *  nao passava na validacao — e a unica coisa que a tela dizia era
+   *  "responde essa pra continuar", que pra ela era mentira. */
   faltaResponder: "Responde essa pra continuar",
+  bloqueioEmailVazio: "Escreve o teu e-mail pra receber a letra",
+  bloqueioEmailErrado: "Esse e-mail tem algo errado. Falta o @ ou o ponto?",
+  bloqueioChips: "Toca numa das opções acima",
+  bloqueioTexto: "Preenche esse campo pra continuar",
   zapTitulo: "Deixa um WhatsApp de reserva?",
   zapTexto:
     "A sua música vai pro e-mail que você deixou. O WhatsApp é só garantia: se o e-mail voltar ou sumir, a gente te procura por lá pra você não ficar sem nada.",
@@ -301,6 +311,10 @@ const ES: Textos = {
   // comentário longo no bloco `pt`.
   temMaisLetra: "hay más letra",
   faltaResponder: "Respondé esta para continuar",
+  bloqueioEmailVazio: "Escribí tu correo para recibir la letra",
+  bloqueioEmailErrado: "Ese correo tiene algo raro. ¿Falta la arroba o el punto?",
+  bloqueioChips: "Tocá una de las opciones de arriba",
+  bloqueioTexto: "Completá ese campo para continuar",
   zapTitulo: "¿Nos dejás un WhatsApp de respaldo?",
   zapTexto:
     "Tu canción va al e-mail que dejaste. El WhatsApp es solo garantía: si el e-mail rebota o se pierde, te buscamos por ahí para que no te quedes sin nada.",
