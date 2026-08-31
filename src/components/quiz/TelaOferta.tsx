@@ -4,7 +4,6 @@ import { irParaCheckout } from "@/lib/checkout";
 import { temMusicaDaSessao, finalizarLetra } from "@/lib/coautoria";
 import { meusCreditos } from "@/lib/meus-creditos";
 import { usarCredito } from "@/lib/usar-credito";
-import { supabase } from "@/lib/supabase-client";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
@@ -325,6 +324,10 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   useEffect(() => {
     let vivo = true;
     (async () => {
+      // Dinâmico pelo mesmo motivo do `lead-capture`: 207 KB de SDK não
+      // podem estar no caminho que precisa terminar antes de o botão
+      // "continuar" ganhar comportamento.
+      const { supabase } = await import("@/lib/supabase-client");
       const { data } = await supabase.auth.getSession();
       const tk = data.session?.access_token;
       if (!tk || !vivo) return;

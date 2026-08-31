@@ -1,5 +1,4 @@
-﻿import { supabase } from "@/lib/supabase-client";
-import { getOrCreateSessionId, getStoredAttribution } from "@/lib/session-context";
+﻿import { getOrCreateSessionId, getStoredAttribution } from "@/lib/session-context";
 
 // Grava o progresso do lead a cada avanço do quiz, via RPC SECURITY DEFINER.
 // É a vantagem competitiva direta: quem abandona no meio ainda vira lead.
@@ -32,6 +31,20 @@ export async function captureLeadProgress(args: {
   if (typeof window === "undefined") return;
   const sessionId = getOrCreateSessionId();
   try {
+    // ── IMPORT DINÂMICO, e não estático no topo ──────────────────
+    //
+    // O SDK do Supabase são 207 KB brutos (54 KB comprimidos). Importado no
+    // topo, ele entra no bundle INICIAL do quiz e precisa ser baixado e
+    // interpretado ANTES de o React hidratar — ou seja, antes de o botão
+    // "continuar" passar a funcionar.
+    //
+    // O sintoma disso é o botão que parece pronto e não responde: ele vem
+    // renderizado no HTML do servidor, mas fica morto até o JS terminar. O
+    // dono bateu nisso no celular em 30/08 (dois, três toques até passar).
+    //
+    // `track.ts` já fazia certo. Aqui estava estático — e como a captura de
+    // lead roda a CADA passo, era ele que segurava o SDK no caminho crítico.
+    const { supabase } = await import("@/lib/supabase-client");
     const { error } = await supabase.rpc("upsert_quiz_response", {
       p_session_id: sessionId,
       p_current_step: args.currentStep ?? null,
