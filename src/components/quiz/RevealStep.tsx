@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { gerarRefroes, montarLetra, finalizarLetra, type RefroesGerados } from "@/lib/coautoria";
+import {
+  gerarRefroes,
+  montarLetra,
+  montarLetraStream,
+  finalizarLetra,
+  type RefroesGerados,
+} from "@/lib/coautoria";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import type { LetraGerada } from "@/lib/letra-prompt";
 import { useQuizStore } from "@/lib/quiz-store";
@@ -31,7 +37,7 @@ import { varianteDe } from "@/lib/experimentos";
 
 
 type Fase =
-  | { t: "carregando"; msg: string }
+  | { t: "carregando"; msg: string; parcial?: string }
   | { t: "refroes"; dados: RefroesGerados }
   | { t: "editando"; letra: LetraGerada }
   | { t: "revelando"; letra: LetraGerada }
@@ -125,15 +131,88 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
   async function escolherRefrao(refrao: string) {
     setFase({ t: "carregando", msg: T.loadingRefrao });
     trackEvent("coautoria_refrao_escolhido", {});
+    const dados = { sessionId: getOrCreateSessionId(), respostas: vivas(), refrao, locale };
     try {
-      const letra = await montarLetra({
-        data: { sessionId: getOrCreateSessionId(), respostas: vivas(), refrao, locale },
-      });
+      // ── A LETRA APARECENDO, EM VEZ DE 13 SEGUNDOS DE TELA PARADA ──
+      //
+      // Medido em 30/08: a chamada leva 13,5s. Esse tempo nao cai. O que muda
+      // e a pessoa VER a letra sendo escrita, verso a verso, no lugar de uma
+      // frase parada.
+      //
+      // Se qualquer coisa der errado no caminho novo, cai no antigo abaixo,
+      // que continua intacto. Streaming e ganho de percepcao: nao pode custar
+      // a entrega.
+      const letra = await comStreaming(dados);
       setFase({ t: "editando", letra });
     } catch (err) {
-      console.error("[coautoria] montar letra falhou:", err);
-      setFase({ t: "erro", msg: T.naoMontei, tentar: () => escolherRefrao(refrao) });
+      // ── A QUEDA NAO PODE SER MUDA ────────────────────────────
+      //
+      // Se o framework serializar em vez de transmitir, tudo continua
+      // FUNCIONANDO: o cliente estoura aqui e cai no `montarLetra` de
+      // sempre. A tela fica igual, a letra sai igual — e cada letra passa a
+      // custar DUAS chamadas ao Claude, sem ninguem perceber. Apareceria so
+      // na fatura, dias depois.
+      //
+      // Este evento e o que transforma isso num numero visivel no painel em
+      // minutos. Se ele disparar em toda sessao, o streaming nao pegou e o
+      // certo e voltar atras.
+      trackEvent("letra_stream_falhou", {
+        motivo: err instanceof Error ? err.message.slice(0, 120) : "desconhecido",
+      });
+      console.error("[coautoria] streaming falhou, tentando o caminho antigo:", err);
+      try {
+        const letra = await montarLetra({ data: dados });
+        setFase({ t: "editando", letra });
+      } catch (err2) {
+        console.error("[coautoria] montar letra falhou:", err2);
+        setFase({ t: "erro", msg: T.naoMontei, tentar: () => escolherRefrao(refrao) });
+      }
     }
+  }
+
+  /**
+   * Le o fluxo linha a linha e vai pintando a letra na tela.
+   *
+   * O canal e uma linha de JSON por mensagem: varias `{parcial}` e um `{final}`.
+   * Sem `final`, isto LANCA — e quem chama cai no `montarLetra` de sempre.
+   */
+  async function comStreaming(dados: {
+    sessionId: string;
+    respostas: Record<string, unknown>;
+    refrao: string;
+    locale: string;
+  }): Promise<LetraGerada> {
+    const resp = (await montarLetraStream({ data: dados })) as unknown as Response;
+    if (!resp?.body) throw new Error("sem corpo no stream");
+    const leitor = resp.body.getReader();
+    const dec = new TextDecoder();
+    let sobra = "";
+    let texto = "";
+    let final: LetraGerada | null = null;
+    for (;;) {
+      const { done, value } = await leitor.read();
+      if (done) break;
+      sobra += dec.decode(value, { stream: true });
+      const linhas = sobra.split("\n");
+      sobra = linhas.pop() ?? "";
+      for (const linha of linhas) {
+        if (!linha.trim()) continue;
+        let msg: { parcial?: string; final?: LetraGerada; erro?: string };
+        try {
+          msg = JSON.parse(linha);
+        } catch {
+          continue;
+        }
+        if (msg.erro) throw new Error(msg.erro);
+        if (msg.parcial) {
+          texto += msg.parcial;
+          setFase({ t: "carregando", msg: T.loadingRefrao, parcial: texto });
+        }
+        if (msg.final) final = msg.final;
+      }
+    }
+    if (!final) throw new Error("stream terminou sem a letra");
+    return final;
   }
 
   // `baseDireta` existe pro caminho B, que finaliza sem nunca ter passado
@@ -269,8 +348,23 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
         {/* A espera mostra o PRESENTE, não uma bolinha girando: é o único
             momento em que a pessoa para e olha, e vem logo antes da tela em
             que a gente pede dinheiro. */}
-        <PreviaPresente nome={respostas.nome as string | undefined} locale={locale} />
-        <p className="text-lg text-muted-foreground">{msg}</p>
+        {/* Com a letra ja chegando, ela e a tela. O presente e a frase de
+            espera saem: quem ja esta lendo a propria letra nao precisa de
+            nada dizendo que ela esta sendo escrita. */}
+        {fase.parcial ? (
+          <div className="w-full max-w-md text-left">
+            <p className="mb-3 text-center text-sm text-muted-foreground">{msg}</p>
+            <p className="whitespace-pre-wrap font-serif text-[17px] leading-relaxed text-foreground">
+              {fase.parcial}
+              <span className="ml-0.5 inline-block h-[1.1em] w-[2px] translate-y-[3px] animate-pulse bg-primary align-middle" />
+            </p>
+          </div>
+        ) : (
+          <>
+            <PreviaPresente nome={respostas.nome as string | undefined} locale={locale} />
+            <p className="text-lg text-muted-foreground">{msg}</p>
+          </>
+        )}
       </div>
     );
   }
