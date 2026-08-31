@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { criarPix, type ResultadoPix } from "@/lib/criar-pix";
+import { varianteDe } from "@/lib/experimentos";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
 import { PixPagamento } from "@/components/quiz/PixPagamento";
@@ -48,6 +49,7 @@ export function PixTransparente({
   nome,
   titulo,
   valorTexto,
+  valorBase,
   ancora,
   email,
   aoDesistir,
@@ -56,6 +58,8 @@ export function PixTransparente({
   titulo: string | null;
   /** O preço como a pessoa viu na oferta. Quem manda de verdade é o servidor. */
   valorTexto: string;
+  /** O mesmo preço em reais, pra somar o quadro e mostrar o total. */
+  valorBase: number;
   ancora?: string;
   email: string;
   /** Vai pro checkout hospedado: é por onde sai o cartão. */
@@ -63,18 +67,34 @@ export function PixTransparente({
 }) {
   const [fase, setFase] = useState<Fase>({ t: "resumo" });
 
+  // ── O ORDER BUMP DO QUADRO ───────────────────────────────────────
+  //
+  // Atrás de experimento, e não solto: esta é a folha por onde passam ~87%
+  // das vendas, e uma decisão a mais antes do botão de pagar mexe na
+  // conversão principal. Com experimento dá pra desligar pelo `ativo` no
+  // painel sem deploy, que é o mesmo interruptor do `checkout_pix`.
+  //
+  // A ESCOLHA É FEITA AQUI, ANTES DE GERAR, e não dá pra mudar depois. Não é
+  // preferência de desenho: a referência do PIX carrega o bump (`:q`), a
+  // Woovi recusa reaproveitar um correlationID com outro valor, e deixar
+  // marcar e desmarcar depois criaria duas cobranças vivas do mesmo quiz.
+  const bumpLigado = varianteDe("bump_quadro") === "B";
+  const [quadro, setQuadro] = useState(false);
+
   async function gerar(emailFinal: string) {
     setFase({ t: "gerando" });
     try {
       const r = await criarPix({
-        data: { sessionId: getOrCreateSessionId(), email: emailFinal },
+        // Vai um SIM OU NÃO, nunca um valor: quanto o quadro custa é o
+        // catálogo do servidor que decide.
+        data: { sessionId: getOrCreateSessionId(), email: emailFinal, quadro },
       });
       if (!r.ok) {
         trackEvent("pix_transparente_falhou", { erro: r.erro });
         setFase({ t: "erro" });
         return;
       }
-      trackEvent("pix_transparente_gerado", { valor: r.valorCentavos });
+      trackEvent("pix_transparente_gerado", { valor: r.valorCentavos, quadro });
       setFase({ t: "pronto", dados: r });
     } catch (err) {
       console.error("[pix] criar falhou:", err);
@@ -123,9 +143,15 @@ export function PixTransparente({
       nome={nome}
       titulo={titulo}
       precoTexto={valorTexto}
+      precoBase={valorBase}
       ancora={ancora}
       email={email}
       gerando={fase.t === "gerando"}
+      quadro={bumpLigado ? quadro : null}
+      aoTrocarQuadro={(v) => {
+        setQuadro(v);
+        trackEvent("bump_quadro_marcou", { marcado: v });
+      }}
       aoConfirmar={gerar}
       aoEscolherCartao={aoDesistir}
     />

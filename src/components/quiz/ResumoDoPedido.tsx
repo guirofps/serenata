@@ -3,6 +3,14 @@ import { Check, CreditCard, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GARANTIA } from "@/lib/garantia";
 import { IdentificacaoDoVendedor } from "@/components/quiz/IdentificacaoDoVendedor";
+import { OFERTAS } from "@/lib/creditos";
+
+// O preco sai do MESMO catalogo que o servidor usa pra compor a cobranca
+// (`criar-pix.ts`). Cravar 24,90 aqui deixaria a tela e a cobranca livres pra
+// discordar, que e a unica forma deste bump virar reclamacao.
+const PRECO_QUADRO = OFERTAS.find((o) => o.id === "quadro")?.precoBrl ?? 24.9;
+const reais = (v: number) =>
+  `R$ ${v.toFixed(2).replace(".", ",").replace(/,00$/, "")}`;
 
 // O PASSO ANTES DO QR.
 //
@@ -37,8 +45,11 @@ export function ResumoDoPedido({
   nome,
   titulo,
   precoTexto,
+  precoBase,
   ancora,
   email,
+  quadro,
+  aoTrocarQuadro,
   aoConfirmar,
   aoEscolherCartao,
   gerando,
@@ -48,8 +59,13 @@ export function ResumoDoPedido({
   /** O nome da música, que já existe e ela já ouviu. */
   titulo: string | null;
   precoTexto: string;
+  /** O preco em reais, pra somar o quadro e mostrar o total. */
+  precoBase: number;
   ancora?: string;
   email: string;
+  /** `null` desliga o order bump (braco de controle do experimento). */
+  quadro: boolean | null;
+  aoTrocarQuadro: (v: boolean) => void;
   /** Recebe o e-mail final, já conferido pela pessoa. */
   aoConfirmar: (email: string) => void;
   /** Sai pro checkout hospedado SEM criar cobrança nenhuma. */
@@ -126,6 +142,55 @@ export function ResumoDoPedido({
           <p className="mt-1 text-xs text-amber-700">Confere esse endereço.</p>
         )}
       </div>
+
+      {/* ── O QUADRO, COMPRADO JUNTO ────────────────────────────
+          Uma caixa, DESMARCADA por padrao, entre o e-mail e o botao.
+
+          Aqui e nao no painel por causa da INTENCAO. Medido de 17 a 31/08,
+          PIX gerados contra pagos: R$ 38 paga 56,3%, R$ 29 paga 60,5%,
+          R$ 19 paga 68,1% — e o quadro a R$ 24,90, vendido depois da compra,
+          paga 26,5%. Sao 86 cobrancas mortas em 14 dias. No painel a pessoa
+          abre a folha pra ver quanto custa; aqui ela ja decidiu pagar.
+
+          Uma linha, sem tela nova e sem segundo passo: o unico jeito de um
+          order bump nao custar conversao na venda principal e ele nao pedir
+          uma segunda decisao de verdade. Desmarcada por padrao porque marcar
+          sozinho e cobrar por descuido, e isso volta como reembolso. */}
+      {quadro !== null && (
+        <button
+          type="button"
+          onClick={() => aoTrocarQuadro(!quadro)}
+          aria-pressed={quadro}
+          className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left transition-colors ${
+            quadro ? "border-primary/50 bg-primary/5" : "border-primary/15"
+          }`}
+        >
+          <span
+            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+              quadro ? "border-primary bg-primary text-primary-foreground" : "border-primary/30"
+            }`}
+          >
+            {quadro && <Check className="h-3.5 w-3.5" />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex items-baseline justify-between gap-2">
+              <span className="text-sm font-medium">Levar o quadro pra imprimir</span>
+              <span className="shrink-0 text-sm font-semibold text-primary">
+                + {reais(PRECO_QUADRO)}
+              </span>
+            </span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+              A letra e a foto numa folha pronta pra emoldurar. Sai no mesmo PIX.
+            </span>
+          </span>
+        </button>
+      )}
+
+      {quadro === true && (
+        <p className="text-center text-sm text-muted-foreground">
+          Total: <span className="font-semibold text-foreground">{reais(precoBase + PRECO_QUADRO)}</span>
+        </p>
+      )}
 
       <Button
         size="lg"

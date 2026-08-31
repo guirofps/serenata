@@ -305,7 +305,10 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   // O PIX na própria página. Guarda o preço JÁ formatado, porque a folha só
   // repete o que a pessoa acabou de ler na oferta: quem decide o valor de
   // verdade é o servidor, em `criar-pix.ts`, e nunca este componente.
-  const [pagandoComPix, setPagandoComPix] = useState<{ texto: string; ancora?: string } | null>(
+  // `valor` entra junto do texto porque o order bump do quadro precisa somar
+  // em cima do preco DAQUELE braco, e mostrar o total certo na folha. O texto
+  // sozinho ("R$ 38") nao se soma.
+  const [pagandoComPix, setPagandoComPix] = useState<{ texto: string; ancora?: string; valor: number } | null>(
     null,
   );
   const [aberta, setAberta] = useState<number | null>(null);
@@ -564,7 +567,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       // Visto ao vivo às 19:04, na primeira hora: três cliques em comprar e
       // um `abriu` só.
       trackEvent("pix_transparente_abriu", { valor: plano.valor });
-      setPagandoComPix({ texto: plano.texto, ancora: plano.ancora });
+      setPagandoComPix({ texto: plano.texto, ancora: plano.ancora, valor: Number(plano.valor) || 0 });
       setIndo(false);
       return;
     }
@@ -602,6 +605,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
               nome={nome}
               titulo={letraFinal?.titulo ?? null}
               valorTexto={pagandoComPix.texto}
+              valorBase={pagandoComPix.valor}
               ancora={pagandoComPix.ancora}
               email={email ?? ""}
               // A SAÍDA DE EMERGÊNCIA. Fecha a folha e vai pro checkout de

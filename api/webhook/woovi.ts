@@ -27,6 +27,27 @@ import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../lib/entr
 import { creditarUpsell } from "../lib/creditar-upsell.js";
 import { enviarVendaUtmify } from "../lib/utmify.js";
 import { OFERTAS } from "../../src/lib/creditos.js";
+import { Resend } from "resend";
+
+// Mesmo molde do `perfectpay.ts`. Duplicado de proposito e nao extraido: sao
+// dois webhooks que precisam sobreviver um ao outro, e a unica coisa que
+// compartilham aqui e o endereco do dono.
+async function alertarDono(assunto: string, html: string) {
+  try {
+    const chave = process.env.RESEND_API_KEY;
+    if (!chave) return;
+    await new Resend(chave).emails.send({
+      from: "Serenata <contato@serenatagift.com>",
+      to: ["guilhermerojasiqueira@gmail.com"],
+      subject: assunto,
+      html,
+    });
+  } catch (err) {
+    // Aviso nunca derruba o webhook: a Woovi reenviaria o evento e o
+    // comprador receberia tudo duplicado.
+    console.error("[woovi] alerta ao dono falhou:", err);
+  }
+}
 
 type Req = IncomingMessage & {
   method?: string;
@@ -226,7 +247,7 @@ export default async function handler(req: Req, res: Res) {
   const paymentId = `woovi:${correlationID}`;
   const { data: existente } = await sb
     .from("pedidos")
-    .select("id, status, valor_centavos")
+    .select("id, status, valor_centavos, bump_quadro, email")
     .eq("payment_id", paymentId)
     .maybeSingle();
   if (existente?.status === "pago") {
@@ -276,22 +297,85 @@ export default async function handler(req: Req, res: Res) {
     ? (correlationID.slice("serenata:".length).split(":")[0] ?? null)
     : null;
 
+  // ── ESTE QUIZ JA FOI PAGO? ───────────────────────────────────
+  //
+  // A idempotencia acima e por `payment_id`, ou seja, por COBRANCA. Ela nao
+  // ve um segundo pagamento do mesmo quiz com outra referencia.
+  //
+  // Ate agora isso nao podia acontecer: as referencias extras (`:r2`) so
+  // nascem quando a cobranca anterior VENCE, e cobranca vencida ninguem paga.
+  // O order bump do quadro muda isso — `serenata:<id>` (R$ 38) e
+  // `serenata:<id>:q` (R$ 62,90) podem estar vivas ao mesmo tempo, porque a
+  // Woovi recusa reaproveitar um correlationID com outro valor.
+  //
+  // Sem esta trava, pagar as duas mandaria dois presentes e dobraria a
+  // cobranca em silencio, e quem descobriria seria o comprador, no extrato.
+  // Aqui o dinheiro fica REGISTRADO (ninguem some com pagamento), a entrega
+  // nao se repete, e o dono e avisado pra devolver.
+  if (quizId) {
+    const { data: jaPago } = await sb
+      .from("pedidos")
+      .select("id, payment_id, valor_centavos")
+      .eq("quiz_response_id", quizId)
+      .eq("status", "pago")
+      .neq("payment_id", paymentId)
+      .limit(1)
+      .maybeSingle();
+    if (jaPago) {
+      await sb.from("pedidos").upsert(
+        {
+          payment_id: paymentId,
+          gateway: "woovi",
+          status: "pago",
+          status_gateway: status.statusCru,
+          valor_centavos: status.valorCentavos,
+          taxa_centavos: status.taxaCentavos,
+          quiz_response_id: quizId,
+          paid_at: new Date().toISOString(),
+        },
+        { onConflict: "payment_id" },
+      );
+      await auditar(sb, "woovi_pagou_duas_vezes", {
+        correlationID,
+        quiz_response_id: quizId,
+        anterior: jaPago.payment_id,
+        valor: status.valorCentavos,
+      });
+      await alertarDono(
+        "PAGOU DUAS VEZES — devolver",
+        `<p>O mesmo quiz recebeu dois pagamentos.</p>` +
+          `<p>quiz: ${quizId}<br>agora: ${correlationID} (${status.valorCentavos})` +
+          `<br>antes: ${jaPago.payment_id} (${jaPago.valor_centavos})</p>` +
+          `<p>A entrega NAO foi repetida. Devolver o menor dos dois.</p>`,
+      );
+      return res.status(200).json({ ok: true, nota: "quiz ja pago, nao entregue de novo" });
+    }
+  }
+
   const musica = quizId ? await musicaDoQuiz(sb, quizId) : null;
 
-  const { error: erroPedido } = await sb.from("pedidos").upsert(
-    {
-      payment_id: paymentId,
-      gateway: "woovi",
-      status: "pago",
-      status_gateway: status.statusCru,
-      valor_centavos: status.valorCentavos,
-      taxa_centavos: status.taxaCentavos,
-      quiz_response_id: quizId,
-      musica_id: musica?.id ?? null,
-      paid_at: new Date().toISOString(),
-    },
-    { onConflict: "payment_id" },
-  );
+  // `.select()` no upsert porque o id da venda e o que amarra o direito ao
+  // quadro (`quadros.pedido_id`), e e o indice unico por pedido que impede um
+  // reenvio do postback de criar dois direitos. Com `pedido_id` nulo o indice
+  // nao protege nada: no Postgres, nulo nao colide com nulo.
+  const { data: pedidoDaVenda, error: erroPedido } = await sb
+    .from("pedidos")
+    .upsert(
+      {
+        payment_id: paymentId,
+        gateway: "woovi",
+        status: "pago",
+        status_gateway: status.statusCru,
+        valor_centavos: status.valorCentavos,
+        taxa_centavos: status.taxaCentavos,
+        quiz_response_id: quizId,
+        musica_id: musica?.id ?? null,
+        paid_at: new Date().toISOString(),
+      },
+      { onConflict: "payment_id" },
+    )
+    .select("id")
+    .maybeSingle();
   if (erroPedido) {
     console.error("[woovi] gravar pedido falhou:", erroPedido.message);
     return res.status(500).json({ error: "falha ao gravar pedido" });
@@ -341,6 +425,41 @@ export default async function handler(req: Req, res: Res) {
   if (!email) {
     await auditar(sb, "woovi_pago_sem_email", { correlationID, quiz_response_id: quizId });
     return res.status(200).json({ ok: true, pedido: paymentId, entrega: "sem-email" });
+  }
+
+  // ── O QUADRO COMPRADO JUNTO ──────────────────────────────────
+  //
+  // Vira DIREITO e nao produto: uma linha em `quadros` com `musica_id` nulo,
+  // exatamente como o webhook da Perfect Pay ja faz pro bump dele. O nulo e o
+  // direito — ela ainda vai escolher de qual musica o quadro e.
+  //
+  // A fonte da verdade e a coluna do pedido pendente que NOS criamos, nao o
+  // valor que chegou: valor nao diz o que foi comprado quando o preco tem
+  // cinco bracos de teste. O sufixo `:q` da referencia entra so como rede,
+  // pro caso raro de o postback chegar antes da nossa linha existir.
+  //
+  // ANTES do e-mail de entrega, de proposito: o e-mail conta que o quadro
+  // esta liberado, e contar antes de liberar seria mentir na ordem errada.
+  const comprouQuadro =
+    existente?.bump_quadro === true || correlationID.endsWith(":q");
+  if (comprouQuadro) {
+    const { error: erroQuadro } = await sb.from("quadros").insert({
+      email,
+      pedido_id: pedidoDaVenda?.id ?? null,
+    });
+    // 23505 e o indice unico por pedido: reenvio do postback nao cria dois.
+    if (erroQuadro && erroQuadro.code !== "23505") {
+      await auditar(sb, "woovi_quadro_nao_liberado", {
+        correlationID,
+        erro: erroQuadro.message,
+      });
+      await alertarDono(
+        "Quadro pago no bump e NAO liberado",
+        `<p>O quadro veio junto no PIX e o direito nao foi criado:` +
+          ` ${erroQuadro.message}<br>${email} · ${correlationID}</p>` +
+          `<p>Ela pagou e o painel nao vai mostrar o quadro pra montar.</p>`,
+      );
+    }
   }
 
   const entrega = await mandarEmailDeEntrega(sb, {

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { OFERTAS } from "@/lib/creditos";
 import { woovi } from "@/lib/woovi";
 import { ErroGateway } from "@/lib/gateway";
 
@@ -69,8 +70,62 @@ export type ResultadoPix =
     }
   | { ok: false; erro: "sem-sessao" | "sem-musica" | "sem-preco" | "gateway" };
 
+/**
+ * O QUADRO COMPRADO JUNTO, no mesmo PIX.
+ *
+ * ── POR QUE ELE VEM PRA CA ───────────────────────────────────────
+ *
+ * O quadro (R$ 24,90) so era vendido DEPOIS da compra, no editor e no painel.
+ * Medido de 17 a 31/08, PIX gerados contra pagos:
+ *
+ *   R$ 38,00 (base)     821 -> 462   56,3%
+ *   R$ 29,00            311 -> 188   60,5%
+ *   R$ 19,00            210 -> 143   68,1%
+ *   R$ 24,90 (quadro)   117 ->  31   26,5%
+ *
+ * Todo preco do funil paga entre 56% e 70%; o quadro paga 26,5%, e sao 86
+ * cobrancas mortas em 14 dias. A diferenca nao e o preco, e a INTENCAO: no
+ * funil a pessoa ja decidiu pagar, e no painel ela abre a folha so pra ver
+ * quanto custa (a cobranca nasce sozinha no `useEffect` de montagem).
+ *
+ * Aqui ele entra no MESMO pagamento: sem segunda decisao, sem segundo PIX,
+ * sem cobranca morta na conta da Woovi.
+ *
+ * ── O CLIENTE MANDA UM SIM OU NAO, NUNCA UM VALOR ────────────────
+ *
+ * A invariante do CLAUDE.md continua de pe: o preco sai do braco sorteado,
+ * lido no servidor. O navegador so diz SE quer o quadro; quanto custa e o
+ * catalogo daqui que decide. Se o valor viesse de la, o DevTools levaria
+ * musica e quadro por R$ 1.
+ */
+export const CENTAVOS_QUADRO = Math.round(
+  (OFERTAS.find((o) => o.id === "quadro")?.precoBrl ?? 24.9) * 100,
+);
+
+/**
+ * O valor final da cobranca. Exportado pra ter teste: e a unica conta deste
+ * arquivo que, errada, cobra da pessoa um numero diferente do que ela viu.
+ */
+export function valorComBump(baseCentavos: number, quadro: boolean): number {
+  return baseCentavos + (quadro ? CENTAVOS_QUADRO : 0);
+}
+
+/**
+ * A referencia, que e a chave de idempotencia.
+ *
+ * O sufixo NAO e cosmetico: a Woovi recusa reaproveitar um correlationID com
+ * outro valor, entao sem ele quem abrisse a folha sem o quadro e voltasse pra
+ * marcar cairia num erro em cima de uma cobranca que existe.
+ *
+ * O webhook corta no primeiro dois-pontos depois do prefixo pra achar o quiz,
+ * entao o sufixo tem que vir DEPOIS do id, nunca no meio.
+ */
+export function referenciaDoPix(quizId: string, quadro: boolean): string {
+  return `serenata:${quizId}${quadro ? ":q" : ""}`;
+}
+
 export const criarPix = createServerFn({ method: "POST" })
-  .validator((data: { sessionId: string; email?: string }) => data)
+  .validator((data: { sessionId: string; email?: string; quadro?: boolean }) => data)
   .handler(async ({ data }): Promise<ResultadoPix> => {
     const db = supabaseAdmin();
 
@@ -93,14 +148,30 @@ export const criarPix = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!musica?.id) return { ok: false, erro: "sem-musica" };
 
-    const valorCentavos = await valorCentavosDaSessao(db, quiz.attribution);
-    if (!valorCentavos) return { ok: false, erro: "sem-preco" };
+    const base = await valorCentavosDaSessao(db, quiz.attribution);
+    if (!base) return { ok: false, erro: "sem-preco" };
+    const comQuadro = data.quadro === true;
+    const valorCentavos = valorComBump(base, comQuadro);
 
     // A REFERÊNCIA É A CHAVE DE IDEMPOTÊNCIA, e por isso é o id do quiz e não
     // um aleatório: duplo-clique, reload e voltar-e-avançar devolvem A MESMA
     // cobrança, com o mesmo QR. Sem isso a pessoa acumularia PIX abertos e
     // poderia pagar dois.
-    const referencia = `serenata:${quiz.id}`;
+    // ── A REFERENCIA CARREGA O BUMP ──────────────────────────────
+    //
+    // Ela e a chave de idempotencia, e o valor faz parte da identidade da
+    // cobranca: a Woovi RECUSA reaproveitar um correlationID com outro valor
+    // ("cobranca existente e de X, esperado Y", em `woovi.ts`). Sem o sufixo,
+    // quem abrisse a folha sem o quadro e voltasse pra marcar cairia num erro
+    // em cima de uma cobranca que existe.
+    //
+    // Consequencia aceita, e por isso a trava por quiz entrou no webhook
+    // junto com isto: duas cobrancas VIVAS do mesmo quiz passam a ser
+    // possiveis (R$ 38 e R$ 62,90). Pagar as duas exige pagar dois codigos
+    // PIX de proposito, mas exige. O webhook agora recusa entregar de novo e
+    // avisa o dono pra devolver, em vez de mandar dois presentes e a pessoa
+    // descobrir a cobranca dobrada no extrato.
+    const referencia = referenciaDoPix(String(quiz.id), comQuadro);
     const nome = ((quiz.respostas ?? {}) as Record<string, string>).nome?.trim();
 
     // ── O E-MAIL CONFERIDO NA TELA DE RESUMO ─────────────────────
@@ -169,6 +240,7 @@ export const criarPix = createServerFn({ method: "POST" })
         email: emailDaVenda,
         nome_pagador: nome || null,
         valor_centavos: valorCentavos,
+        bump_quadro: comQuadro,
         taxa_centavos: cobranca.taxaCentavos,
         quiz_response_id: quiz.id,
         musica_id: musica.id,
