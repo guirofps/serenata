@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { criarPix, type ResultadoPix } from "@/lib/criar-pix";
-import { varianteDe } from "@/lib/experimentos";
+import { varianteDe, FORA } from "@/lib/experimentos";
 
 // Mesmo formato do resumo: "R$ 38" quando e redondo, "R$ 62,90" quando nao e.
 const reais = (v: number) =>
@@ -82,7 +82,20 @@ export function PixTransparente({
   // preferência de desenho: a referência do PIX carrega o bump (`:q`), a
   // Woovi recusa reaproveitar um correlationID com outro valor, e deixar
   // marcar e desmarcar depois criaria duas cobranças vivas do mesmo quiz.
-  const bumpLigado = varianteDe("bump_quadro") === "B";
+  // QUALQUER braço que não seja o controle liga o bump, e isso não é frescura.
+  //
+  // Era `=== "B"`. Em 31/08, pra desgrudar quem tinha ficado preso numa versão
+  // com defeito, a variante foi RENOMEADA de `B` pra `B2` — que é o único jeito
+  // de reclassificar quem já foi sorteado (peso não faz isso, e `ativo` desliga
+  // pra todo mundo). Com a comparação cravada no nome, renomear passaria a
+  // desligar o experimento EM SILÊNCIO: o painel mostraria B2 ativo e a tela
+  // nunca renderizaria nada.
+  //
+  // `FORA` vem da constante e não escrito à mão: ele vale `"fora"`, minúsculo,
+  // e comparar com `"FORA"` daria sempre verdadeiro — o bump apareceria pra
+  // quem a exposição tirou do teste.
+  const bracoBump = varianteDe("bump_quadro");
+  const bumpLigado = bracoBump !== "A" && bracoBump !== FORA;
   const [quadro, setQuadro] = useState(false);
 
   async function gerar(emailFinal: string) {
