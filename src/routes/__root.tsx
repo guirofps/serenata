@@ -26,6 +26,7 @@ import {
 } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
 import { rotaSensivel } from "@/lib/rotas-sensiveis";
+import { TIKTOK_PIXEL_ID, scriptTiktok } from "@/lib/tiktok-pixel";
 
 function NotFoundComponent() {
   return (
@@ -219,6 +220,16 @@ function RootShell({ children }: { children: React.ReactNode }) {
               }}
             />
           </>
+        )}
+        {/* TikTok Ads, mesma régua do gtag: fora das rotas sensíveis, e a
+            /obrigado de fora da lista pra a conversão poder disparar lá.
+
+            Só entra quando `VITE_TIKTOK_PIXEL_ID` existe. A conta foi comprada
+            pra testar, e sem o id o módulo inteiro é no-op: nada carrega, nada
+            quebra, e no dia em que o id for configurado começa a medir sem
+            precisar de deploy de código. Ver `tiktok-pixel.ts`. */}
+        {podeMedir && TIKTOK_PIXEL_ID && (
+          <script dangerouslySetInnerHTML={{ __html: scriptTiktok(TIKTOK_PIXEL_ID) }} />
         )}
         {/* UTMify NÃO fica aqui. Ver `carregarUtmify` mais abaixo: o script
             reescreve todo <a href> interno, e no HTML do servidor isso quebra

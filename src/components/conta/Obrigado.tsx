@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { conversaoCompra, transacaoGuardada } from "@/lib/google-ads";
+import { compraTiktok } from "@/lib/tiktok-pixel";
 import { meuPlano } from "@/lib/preco";
 import { useQuizStore } from "@/lib/quiz-store";
 import { buscarPresenteDaCompra, type PresenteDaCompra } from "@/lib/pos-compra";
@@ -126,6 +127,15 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
       // PIX guarda a referência antes de mandar a pessoa pra cá. Sem um dos
       // dois, `transaction_id` sai vazio e um F5 conta a venda de novo.
       transactionId: code ?? transacaoGuardada(),
+    });
+    // TikTok recebe a MESMA venda, com o MESMO id de dedupe. Duas escadas
+    // paralelas sairiam de sincronia no primeiro conserto, e aí o Google
+    // contaria uma coisa e o TikTok outra sem ninguém saber qual está certa.
+    // No-op enquanto `VITE_TIKTOK_PIXEL_ID` não existir.
+    compraTiktok({
+      valor: plano.valor,
+      moeda: locale === "es" ? "USD" : "BRL",
+      eventId: code ?? transacaoGuardada(),
     });
     // Esta sessão já virou venda. Quem voltar ao /criar por qualquer caminho
     // ganha uma sessão nova lá, senão a segunda música sobrescreve a primeira.
@@ -425,3 +435,4 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
     </div>
   );
 }
+
