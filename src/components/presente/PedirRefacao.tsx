@@ -47,6 +47,10 @@ const T = {
       gravando: "A sua música já está sendo regravada. Espere ela ficar pronta.",
       "nao-pago": "O ajuste fica disponível depois da compra.",
       "nao-encontrada": "Não achei essa música.",
+      // O ajuste NÃO foi gasto quando dá isto. Ver `refacao.ts`: trocar um
+      // trecho sem saber o que entra no lugar exigiria inventar, e inventar
+      // numa homenagem é pior que não mudar.
+      vago: "Me diz também o que você quer no lugar. Seu ajuste continua guardado.",
       falhou: "Não deu pra enviar agora. Tente de novo daqui a pouco.",
     } as Record<string, string>,
   },
@@ -70,6 +74,7 @@ const T = {
       gravando: "Tu canción ya se está regrabando. Espera a que termine.",
       "nao-pago": "El ajuste está disponible después de la compra.",
       "nao-encontrada": "No encontré esa canción.",
+      vago: "Dime también qué quieres en su lugar. Tu ajuste sigue guardado.",
       falhou: "No se pudo enviar ahora. Inténtalo de nuevo en un momento.",
     } as Record<string, string>,
   },
@@ -152,7 +157,12 @@ export function PedirRefacao({
         setPronto(true);
         return;
       }
-      setErro(t.erros[r.erro] ?? t.erros.falhou);
+      // Em `vago`, o servidor manda em `falta` o que o modelo disse que
+      // faltou, e essa frase é mais útil que a genérica: ela cita o trecho.
+      // O formulário fica preenchido de propósito, e o ajuste não foi gasto:
+      // a pessoa completa o pedido e manda de novo.
+      trackEvent("refacao_recusada", { motivo: r.erro });
+      setErro(r.erro === "vago" ? (r.falta ?? t.erros.vago) : (t.erros[r.erro] ?? t.erros.falhou));
     } catch {
       setErro(t.erros.falhou);
     } finally {

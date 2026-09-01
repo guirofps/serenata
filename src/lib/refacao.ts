@@ -58,9 +58,17 @@ export type ResultadoRefacao =
        * `sem-direito`    — já usou o ajuste que vinha incluído.
        * `gravando`       — já existe uma regravação em curso.
        * `curto`          — o pedido não diz o que mudar.
+       * `vago`           — o pedido não dá para aplicar sem inventar fato.
        * `falhou`         — erro nosso.
        */
-      erro: "nao-encontrada" | "nao-pago" | "sem-direito" | "gravando" | "curto" | "falhou";
+      erro: "nao-encontrada" | "nao-pago" | "sem-direito" | "gravando" | "curto" | "vago" | "falhou";
+      /**
+       * Só em `vago`: o que faltou no pedido para conseguir aplicar.
+       *
+       * Vem do campo `aviso` do JSON, que o `SYSTEM_AJUSTE` manda preencher
+       * exatamente nesse caso. O direito de refação NÃO é gasto aqui.
+       */
+      falta?: string;
     };
 
 export const pedirRefacao = createServerFn({ method: "POST" })
@@ -134,9 +142,52 @@ export const pedirRefacao = createServerFn({ method: "POST" })
       );
       const j = JSON.parse(
         texto.slice(texto.indexOf("{"), texto.lastIndexOf("}") + 1),
-      ) as { letra?: string; titulo?: string };
+      ) as { letra?: string; titulo?: string; mudou?: string[]; aviso?: string };
       const nova = (j.letra ?? "").trim();
       if (!nova) throw new Error("modelo não devolveu letra");
+
+      // ── O PEDIDO FOI VAGO DEMAIS? ────────────────────────────
+      //
+      // O `SYSTEM_AJUSTE` tem uma saída de emergência: "se o pedido for vago
+      // demais para aplicar sem inventar, devolva a letra intacta e diga o que
+      // falta". Ele cumpre isso preenchendo `aviso` e deixando `mudou` vazio.
+      //
+      // Até 01/09 este código lia só `letra` e `titulo`, e a saída de
+      // emergência ia pro lixo: a letra IDÊNTICA era salva como se fosse nova,
+      // a refação era marcada como usada e a música era regravada igual.
+      //
+      // O custo disso tem nome. Hudson, 31/08: pediu "não gostei do trecho que
+      // fala sobre o bolo de fubá" sem dizer o que queria no lugar. Trocar
+      // exigia inventar, o modelo avisou, o aviso foi ignorado, e ele ouviu a
+      // mesma música com o mesmo fubá e sem direito a outro ajuste. Refez o
+      // quiz inteiro e pagou R$ 38 de novo. Na segunda vez ele escreveu o que
+      // queria no lugar, e funcionou de primeira.
+      //
+      // Todo pedido no formato "não gostei de X", sem dizer o substituto, caía
+      // aqui e queimava a refação em silêncio.
+      //
+      // Letra IDÊNTICA também conta como falha, mesmo sem aviso: se nada mudou,
+      // não há o que regravar, e gastar o direito seria cobrar por nada.
+      const aviso = (j.aviso ?? "").trim();
+      const mudou = Array.isArray(j.mudou) ? j.mudou.filter((x) => String(x).trim()) : [];
+      const igual = nova === (m.letra ?? "").trim();
+      if (aviso || !mudou.length || igual) {
+        // Desfaz o arquivamento, que aconteceu ANTES da chamada. Sem isto
+        // sobraria uma versão órfã ocupando esta `ordem`: a próxima tentativa
+        // esbarraria nela e o histórico contaria um ajuste que não houve.
+        await db.from("versoes_musica").delete().eq("musica_id", m.id).eq("ordem", ordem);
+        console.warn("[refacao] pedido vago, direito preservado", {
+          musica: m.id,
+          temAviso: Boolean(aviso),
+          mudou: mudou.length,
+          igual,
+        });
+        return {
+          ok: false,
+          erro: "vago",
+          falta: aviso || "Me diz também o que você quer no lugar desse trecho.",
+        };
+      }
 
       await registrarCustoLetra({
         quizResponseId: m.quiz_response_id,
