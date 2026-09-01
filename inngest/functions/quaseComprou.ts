@@ -72,6 +72,13 @@ async function jaAvisado(sb: ReturnType<typeof db>, quizId: string) {
  * DE FORA DO TESTE"). A config só tem link em reais, e era exatamente daí que
  * vinha o defeito abaixo.
  */
+// Mesmo padrão dos outros jobs: `VITE_APP_URL` quando ela existe e é URL,
+// e o domínio fixo como piso. Cron não tem cabeçalho de host de onde deduzir,
+// e em produção host de requisição não pode decidir destino.
+const SITE = process.env.VITE_APP_URL?.startsWith("http")
+  ? process.env.VITE_APP_URL
+  : "https://www.serenatagift.com";
+
 const CHECKOUT_ES = "https://go.centerpag.com/PPU38CQF4HJ";
 
 /**
@@ -144,7 +151,7 @@ export const quaseComprou = inngest.createFunction(
 
         const { data: q } = await sb
           .from("quiz_responses")
-          .select("id, email, respostas, locale, attribution")
+          .select("id, session_id, email, respostas, locale, attribution")
           .eq("session_id", sid)
           .maybeSingle();
         if (!q?.id || !q.email) continue;
@@ -179,14 +186,44 @@ export const quaseComprou = inngest.createFunction(
         // O idioma vem do registro: cron não tem requisição de onde deduzir.
         const locale = (q as { locale?: string }).locale === "es" ? "es" : "pt";
 
-        const braco =
-          ((q.attribution as { exp?: Record<string, string> } | null)?.exp?.preco as string) ?? null;
-        const checkout = await checkoutDoBraco(sb, braco, locale);
-        if (!checkout) continue;
-
-        const u = new URL(checkout);
-        u.searchParams.set("src", q.id);
-        u.searchParams.set("email", q.email);
+        // ── PRA ONDE ESTE E-MAIL MANDA ──────────────────────────
+        //
+        // Em português, pro NOSSO funil. Este e-mail recupera a preço CHEIO,
+        // sem cupom, então nada prende ele ao checkout hospedado — e a
+        // diferença é grande: R$ 4,38 de taxa na Perfect Pay contra R$ 0,50
+        // no PIX transparente. Medido em 31/08: 4 vendas assim em 4 dias,
+        // uns R$ 116/mês jogados fora.
+        //
+        // Os e-mails COM CUPOM continuam na Perfect Pay, e isso não é
+        // incoerência: lá o desconto É um produto deles e o e-mail já
+        // prometeu aquele número.
+        //
+        // O `/retomar` só serve pra isso porque ele agora repõe o braço
+        // sorteado (conserto do mesmo dia). Sem aquilo, quem abrisse o e-mail
+        // em outro aparelho seria re-sorteado e poderia ver um preço
+        // diferente do que este e-mail acabou de prometer — que é o risco
+        // que o `checkoutDoBraco` abaixo existe pra evitar.
+        //
+        // Em espanhol NÃO muda: aquele funil cobra em DÓLAR e o dólar só
+        // existe na Perfect Pay. Mandar pro nosso PIX cobraria em reais.
+        const sessao = q.session_id as string | null;
+        let link: string;
+        if (locale === "pt" && sessao) {
+          const u = new URL(`${SITE}/retomar`);
+          u.searchParams.set("s", sessao);
+          u.searchParams.set("de", "quase");
+          link = u.toString();
+        } else {
+          const braco =
+            ((q.attribution as { exp?: Record<string, string> } | null)?.exp?.preco as string) ??
+            null;
+          const checkout = await checkoutDoBraco(sb, braco, locale);
+          if (!checkout) continue;
+          const u = new URL(checkout);
+          u.searchParams.set("src", q.id);
+          u.searchParams.set("email", q.email);
+          link = u.toString();
+        }
 
         out.push({
           email: q.email as string,
@@ -196,7 +233,7 @@ export const quaseComprou = inngest.createFunction(
             ((q.respostas ?? {}) as Record<string, string>).nome?.trim() ||
             (locale === "es" ? "quien vos querés" : "quem você ama"),
           titulo: m.titulo ?? "Sua música",
-          link: u.toString(),
+          link,
           quizId: q.id as string,
         });
       }

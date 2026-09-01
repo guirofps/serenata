@@ -40,7 +40,7 @@ const buscarSessao = createServerFn({ method: "POST" })
     const db = supabaseAdmin();
     const { data: lead } = await db
       .from("quiz_responses")
-      .select("id, respostas, locale, email, whatsapp")
+      .select("id, respostas, locale, email, whatsapp, attribution")
       .eq("session_id", data.sessao)
       .maybeSingle();
     if (!lead) return { erro: "sessao_nao_achada" as Falha };
@@ -81,6 +81,18 @@ const buscarSessao = createServerFn({ method: "POST" })
       // num e-mail nosso, ou seja, e a mais interessada que existe.
       email: (lead.email as string | null) ?? null,
       whatsapp: (lead.whatsapp as string | null) ?? null,
+      // ── O BRAÇO SORTEADO VOLTA JUNTO ──────────────────────────
+      //
+      // Sem isto, quem abre o e-mail de recuperação em OUTRO aparelho não
+      // tem `mp_exp:*` no navegador, é re-sorteado do zero, e pode ver um
+      // preço diferente do que o e-mail acabou de prometer. É o mesmo perigo
+      // que o `quaseComprou` já documenta ao ler o checkout do braço: trocar
+      // o preço depois que a pessoa decidiu transforma recuperação em
+      // reclamação.
+      //
+      // Vale pro funil inteiro, não só pro preço: quem foi medido num braço
+      // e volta noutro suja as duas leituras de uma vez.
+      exp: ((lead.attribution as { exp?: Record<string, string> } | null)?.exp ?? null),
       locale,
       pago: Boolean(pedido),
       token: m.token ?? null,
@@ -191,6 +203,40 @@ function Retomar() {
         store.setLetraFinal({ ...r.letra, sessionId: s });
         if (r.email) store.setEmail(r.email);
         if (r.whatsapp) store.setWhatsapp(r.whatsapp);
+
+        // ── REPÕE O BRAÇO SORTEADO ────────────────────────────────
+        //
+        // O REGISTRO MANDA, e ele sobrescreve. A primeira versão disto só
+        // gravava "se faltar", e era código MORTO: o script inline do
+        // `<html>` sorteia todo experimento ativo no carregamento da página,
+        // antes do React montar, então a chave nunca está ausente aqui.
+        // Descoberto testando com o navegador limpo — `zap_previa` voltava B
+        // com o registro dizendo A.
+        //
+        // Sobrescrever é o certo, e não o perigo que parecia:
+        //
+        // - Aparelho NOVO: o sorteio que acabou de acontecer nesta página é
+        //   ruído de segundos atrás, não uma escolha da pessoa. O registro é
+        //   a única memória verdadeira do que ela viu.
+        // - MESMO aparelho: o sorteio devolve o valor grudado, que já é igual
+        //   ao registro. Sobrescrever não muda nada.
+        //
+        // Sem isto, quem abre o e-mail de recuperação em outro aparelho pode
+        // ver um preço diferente do que o e-mail acabou de prometer, e some
+        // com a leitura do teste no caminho.
+        //
+        // Grava ANTES do `navigate`: `/criar` é rota do cliente, o script
+        // inline não roda de novo, e `varianteDe` lê o localStorage na hora.
+        if (r.exp) {
+          for (const [id, variante] of Object.entries(r.exp)) {
+            if (typeof variante !== "string" || !variante) continue;
+            try {
+              localStorage.setItem(`mp_exp:${id}`, variante);
+            } catch {
+              // Modo anônimo: o funil ainda abre, só sem memória de braço.
+            }
+          }
+        }
         // Guarda ANTES de navegar: a partir daqui a pessoa anda pelo funil e
         // o código precisa sobreviver até o botão de pagar.
         if (cupom) store.setCupom(cupom);
