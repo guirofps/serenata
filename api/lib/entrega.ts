@@ -28,6 +28,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto.js";
+import { literalLike } from "../../src/lib/sql-like.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
@@ -125,6 +126,33 @@ export async function mandarEmailDeEntrega(
       args.nomePagador?.trim() ||
       (locale === "es" ? "quien tú quieres" : "quem você ama");
 
+    // ── ELA JÁ COMPROU O QUADRO? ──────────────────────────────
+    //
+    // Medido em 31/08: 19 dos 24 quadros com mais de três dias NUNCA foram
+    // montados. R$ 473 pagos e não usados, 79%.
+    //
+    // A causa está neste e-mail. O bloco do quadro era SEMPRE oferta — quem
+    // acabou de pagar R$ 24,90 pelo quadro recebia, junto com a entrega, um
+    // anúncio do quadro que ela já tinha, e nenhuma frase dizendo que ela
+    // tinha um. O único lugar que contava a verdade era o painel, e 84% dos
+    // compradores nunca entram na conta (248 de 294, medido em 18/08).
+    //
+    // Então a pessoa pagava por um direito que ninguém nunca mencionava.
+    //
+    // Lido por E-MAIL e não pelo pedido de propósito: pega o bump do
+    // checkout, o upsell comprado depois e o quadro avulso pelo mesmo
+    // caminho — é a mesma leitura que o painel faz.
+    //
+    // `literalLike` porque `%` e `_` são curingas do LIKE e são válidos num
+    // endereço: sem ele, um e-mail com `%` pescaria o direito de outra pessoa.
+    const { data: direitos } = await sb
+      .from("quadros")
+      .select("id")
+      .ilike("email", literalLike(args.email))
+      .is("confirmado_em", null)
+      .limit(1);
+    const temQuadroPraMontar = (direitos?.length ?? 0) > 0;
+
     const linkEditor = `${SITE}/editar/${args.musica.token_edicao}`;
     const linkPresente = `${SITE}/p/${args.musica.token}`;
     const { data: enviado, error } = await new Resend(chave).emails.send({
@@ -140,9 +168,16 @@ export async function mandarEmailDeEntrega(
         titulo: args.musica.titulo ?? "Sua música",
         linkEditor,
         linkPresente,
+        temQuadroPraMontar,
         locale,
       }),
-      text: `A música de ${nome} está pronta.\n\nSEU LINK (monte o presente e baixe o MP3):\n${linkEditor}\n\nO LINK QUE VOCÊ MANDA PRA ELA:\n${linkPresente}\n\nSão DUAS gravações da mesma letra: ouça as duas no primeiro link e escolha a que vai tocar pra ela.\n\nA música não vai anexada e não mandamos por WhatsApp: ela mora nesses links, e eles são seus pra sempre.`,
+      text: `A música de ${nome} está pronta.\n\nSEU LINK (monte o presente e baixe o MP3):\n${linkEditor}\n\nO LINK QUE VOCÊ MANDA PRA ELA:\n${linkPresente}\n\nSão DUAS gravações da mesma letra: ouça as duas no primeiro link e escolha a que vai tocar pra ela.\n\nA música não vai anexada e não mandamos por WhatsApp: ela mora nesses links, e eles são seus pra sempre.${
+        temQuadroPraMontar
+          ? `
+
+O SEU QUADRO: você já pagou por ele e falta montar. É no mesmo link de cima: ${linkEditor}?de=quadro`
+          : ""
+      }`,
     });
     if (error) throw new Error(error.message);
 

@@ -31,6 +31,7 @@ const COPY: Record<IdiomaEmail, {
   comPressa: string; verPresente: string; rodape: string;
   ajuda: string; ajudaBotao: string;
   quadroTitulo: string; quadroTexto: string; quadroBotao: string;
+  meuQuadroTitulo: string; meuQuadroTexto: string; meuQuadroBotao: string;
 }> = {
   pt: {
     assunto: (n) => `A música de ${n} está pronta`,
@@ -57,6 +58,12 @@ const COPY: Record<IdiomaEmail, {
     quadroTexto:
       "O quadro é a letra dela e a foto de vocês numa folha A4, com o QR Code que toca a música. Você salva o PDF, manda imprimir, põe numa moldura e pendura. Quem passar na frente aponta a câmera e ouve.",
     quadroBotao: "VER O QUADRO DA MINHA MÚSICA",
+    // PRA QUEM JÁ PAGOU. Não é oferta, é entrega: a frase precisa dizer que o
+    // quadro é dela e que falta um passo, não convidar a comprar de novo.
+    meuQuadroTitulo: "O seu quadro está esperando você montar",
+    meuQuadroTexto:
+      "Você já pagou por ele. É a letra e a foto de vocês numa folha A4, com o QR Code que toca a música. Escolhe a foto, a gente monta o PDF, e você manda imprimir.",
+    meuQuadroBotao: "MONTAR O MEU QUADRO",
     comPressa:
       "E este é o link <strong style=\"color:#2a1518;\">que você manda pra ela</strong>. O presente já funciona do jeito que está, mesmo sem a foto:",
     verPresente: "ABRIR A PÁGINA QUE EU VOU MANDAR",
@@ -83,6 +90,10 @@ const COPY: Record<IdiomaEmail, {
     quadroTitulo: "",
     quadroTexto: "",
     quadroBotao: "",
+    meuQuadroTitulo: "Tu cuadro está esperando que lo armes",
+    meuQuadroTexto:
+      "Ya lo pagaste. Es la letra y la foto de ustedes en una hoja A4, con el código QR que reproduce la canción. Elegís la foto, armamos el PDF y lo mandás a imprimir.",
+    meuQuadroBotao: "ARMAR MI CUADRO",
     rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
 };
@@ -97,10 +108,20 @@ export function emailPresentePronto(args: {
   titulo: string;
   linkEditor: string;
   linkPresente: string;
+  /**
+   * Ela tem um quadro PAGO e ainda não montado?
+   *
+   * Troca a oferta pela entrega. Sem isto, quem acabou de pagar R$ 24,90 pelo
+   * quadro recebia um anúncio do quadro que já era dela — e nenhuma frase
+   * dizendo que ela tinha um. Era a explicação mais provável dos 79% que
+   * nunca montaram (19 de 24 com mais de 3 dias, medido em 31/08).
+   */
+  temQuadroPraMontar?: boolean;
   locale?: IdiomaEmail;
 }): string {
   const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
   const { nome, titulo, linkEditor, linkPresente } = args;
+  const jaTemQuadro = args.temQuadroPraMontar === true;
   // Devolve null quando o número não está configurado, e aí o bloco de ajuda
   // não é renderizado: melhor sem canal do que com um link que não abre.
   const linkZap = linkSuporte({
@@ -197,7 +218,25 @@ export function emailPresentePronto(args: {
            receber. Pedir a segunda música de alguém que ainda não ouviu a
            primeira é pedir cedo demais. -->
       ${
-        C.quadroTitulo
+        jaTemQuadro
+          ? // JÁ É DELA: entrega, não oferta. Botão CHEIO e não contornado,
+            // porque isto não está pedindo dinheiro, está devolvendo o que
+            // ela já pagou. E o link é o EDITOR pelo token, não o painel: 84%
+            // dos compradores nunca entram na conta, e mandar pro login quem
+            // já pagou é onde os R$ 473 pararam.
+            `<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;border-top:1px solid rgba(42,21,24,0.10);">
+        <tr><td style="padding-top:22px;" align="center">
+          <img src="${SITE}/img/quadro-exemplo.jpg" width="120" alt="" style="display:block;border:6px solid #2c211a;border-radius:2px;background:#f6f2ea;padding:6px;">
+          <p style="margin:14px 0 0;font-size:17px;color:#2a1518;font-family:Georgia,'Times New Roman',serif;">
+            ${C.meuQuadroTitulo}
+          </p>
+          <p style="margin:8px 0 0;font-size:14px;line-height:1.55;color:rgba(42,21,24,0.7);font-family:Helvetica,Arial,sans-serif;">
+            ${C.meuQuadroTexto}
+          </p>
+          <a href="${linkEditor}?de=quadro" style="display:inline-block;margin-top:14px;padding:13px 24px;border-radius:999px;background:#7d2b3a;color:#ffffff;text-decoration:none;font-weight:600;font-size:13px;font-family:Helvetica,Arial,sans-serif;">${C.meuQuadroBotao}</a>
+        </td></tr>
+      </table>`
+          : C.quadroTitulo
           ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;border-top:1px solid rgba(42,21,24,0.10);">
         <tr><td style="padding-top:22px;" align="center">
           <img src="${SITE}/img/quadro-exemplo.jpg" width="120" alt="" style="display:block;border:6px solid #2c211a;border-radius:2px;background:#f6f2ea;padding:6px;">
