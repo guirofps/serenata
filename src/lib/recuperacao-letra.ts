@@ -86,11 +86,40 @@ export async function chamarClaude(userMsg: string): Promise<{ texto: string; us
   };
 }
 
+/**
+ * Tira o JSON da resposta, e quando não consegue, DIZ O QUE VEIO.
+ *
+ * ── POR QUE O ERRO ANTIGO ERA INÚTIL ─────────────────────────────
+ *
+ * "Resposta do modelo não continha JSON" foi o que o atendente viu em 01/09,
+ * no meio de um atendimento, com a letra do cliente na tela. A mensagem não
+ * diz nada: nem o que o modelo respondeu, nem o que fazer.
+ *
+ * E o texto costuma ser justamente a informação que falta. Quando o modelo
+ * não devolve JSON, quase sempre é porque ele escreveu em prosa por que não
+ * conseguiu aplicar o pedido. Esse parágrafo resolveria o atendimento, e ia
+ * pro lixo junto com o erro. É o mesmo defeito da refação (`refacao.ts`), que
+ * ignorava o campo `aviso` e queimava o direito do cliente.
+ */
 function extrairJson<T>(texto: string): T {
-  const s = texto.indexOf("{");
-  const e = texto.lastIndexOf("}");
-  if (s === -1 || e === -1) throw new Error("Resposta do modelo não continha JSON");
-  return JSON.parse(texto.slice(s, e + 1)) as T;
+  const cru = (texto ?? "").trim();
+  const s = cru.indexOf("{");
+  const e = cru.lastIndexOf("}");
+  if (s === -1 || e === -1) {
+    console.error("[recuperacao-letra] resposta sem JSON:", cru.slice(0, 400));
+    throw new Error(
+      cru
+        ? `O modelo respondeu em texto em vez de JSON. Ele disse: "${cru.slice(0, 300)}"`
+        : "O modelo devolveu resposta vazia.",
+    );
+  }
+  try {
+    return JSON.parse(cru.slice(s, e + 1)) as T;
+  } catch {
+    // Chaves existem mas o JSON está quebrado: quase sempre resposta cortada.
+    console.error("[recuperacao-letra] JSON invalido:", cru.slice(0, 400));
+    throw new Error("O modelo devolveu um JSON quebrado, provavelmente cortado. Tente de novo.");
+  }
 }
 
 export type LetraParaAjuste = {
@@ -232,10 +261,33 @@ export const reescreverLetra = createServerFn({ method: "POST" })
       .single();
     if (!m?.letra) throw new Error("música sem letra");
 
-    const { texto, uso } = await chamarClaude(
-      `LETRA ATUAL:\n${m.letra}\n\nPEDIDO DO CLIENTE:\n${pedido}`,
-    );
-    const j = extrairJson<{ letra?: string; mudou?: string[]; aviso?: string }>(texto);
+    // ── UMA SEGUNDA TENTATIVA ANTES DE DESISTIR ────────────────
+    //
+    // O atendente está com o cliente esperando. Modelo que responde em prosa
+    // costuma acertar na segunda, com o formato cobrado de forma explícita, e
+    // uma chamada a mais custa centavos contra um atendimento travado.
+    //
+    // A retentativa é feita AQUI e não dentro do `chamarClaude` de propósito:
+    // a refação do cliente (`refacao.ts`) usa a mesma função e tem outro
+    // desfecho quando falha (ela precisa preservar o direito dele, não
+    // insistir). Um retry escondido lá dentro mudaria os dois de uma vez.
+    const entrada = `LETRA ATUAL:\n${m.letra}\n\nPEDIDO DO CLIENTE:\n${pedido}`;
+    let resposta = await chamarClaude(entrada);
+    let uso = resposta.uso;
+    let j: { letra?: string; mudou?: string[]; aviso?: string };
+    try {
+      j = extrairJson(resposta.texto);
+    } catch (err) {
+      console.warn("[recuperacao-letra] 1a tentativa sem JSON, repetindo:", (err as Error).message);
+      resposta = await chamarClaude(
+        entrada +
+          `\n\nIMPORTANTE: responda SOMENTE com o objeto JSON pedido, começando com { e terminando com }. ` +
+          `Nada de texto antes ou depois. Se não der para aplicar o pedido, devolva a letra intacta e ` +
+          `explique no campo "aviso".`,
+      );
+      uso = resposta.uso;
+      j = extrairJson(resposta.texto);
+    }
     if (!j.letra?.trim()) throw new Error("modelo não devolveu letra");
 
     await registrarCustoLetra({ quizResponseId: m.quiz_response_id, modelo: MODEL, uso });
