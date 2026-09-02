@@ -43,13 +43,32 @@ function Pagina() {
   useEffect(() => {
     guardarCreditoNoNavegador(tokenEdicao);
     trackEvent("credito_link_aberto", {});
-    // `replace`, não `push`: o botão de voltar do celular não pode trazer a
-    // pessoa de volta pra uma tela que só redireciona.
-    //
-    // E `location.replace` em vez do router: a troca de rota do TanStack
-    // manteria o token no histórico do navegador, que é justamente o lugar de
-    // onde a extensão de terceiro lê.
+
     const es = window.location.pathname.startsWith("/es/");
+
+    // ── APAGA O TOKEN DA URL ANTES DE SAIR ───────────────────
+    //
+    // Sem esta linha a rota sensível não protege nada, e isso foi MEDIDO em
+    // produção antes de estar aqui: o `document.referrer` da `/criar` vinha
+    // como `https://www.serenatagift.com/credito/<token>` inteiro. O gtag e a
+    // UTMify carregam na `/criar` (de propósito, é onde a conversão dispara) e
+    // mandam o referrer junto com o resto — ou seja, o token de um cliente
+    // chegaria no servidor deles pela porta dos fundos.
+    //
+    // O referrer é calculado a partir da URL ATUAL do documento que navega.
+    // Trocando a URL antes, o que sai é `/credito` sem token.
+    //
+    // `replaceState` e não `pushState`: o botão de voltar do celular não pode
+    // trazer a pessoa de volta pra uma tela que só redireciona.
+    try {
+      window.history.replaceState(null, "", es ? "/es/credito" : "/credito");
+    } catch {
+      // Navegador que recusa a troca: o redirecionamento continua, e o pior
+      // caso é o referrer sujo que já existia antes. Melhor que travar aqui.
+    }
+
+    // `location.replace` em vez do router: a troca de rota do TanStack
+    // manteria a entrada com token no histórico do navegador.
     window.location.replace(es ? "/es/criar" : "/criar");
   }, [tokenEdicao]);
 
