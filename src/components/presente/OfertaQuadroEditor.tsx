@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { OFERTAS, TEXTO_OFERTA } from "@/lib/creditos";
-import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
 import { trackEvent } from "@/lib/track";
 
 // O QUADRO, no fim do editor.
@@ -48,38 +47,53 @@ export function OfertaQuadroEditor({
 }) {
   // O quadro só existe em real: oferecer em espanhol mostraria preço em real
   // pra quem comprou em dólar e levaria a um checkout que não é dela.
-  const [pixAberto, setPixAberto] = useState(false);
   if (locale === "es") return null;
 
   const oferta = OFERTAS.find((o) => o.id === "quadro");
   if (!oferta) return null;
   const t = TEXTO_OFERTA.pt.quadro;
 
-  // ── ERA AQUI QUE O PIX VAZAVA PRA PERFECT PAY ────────────────
+  // ── O CARTÃO LEVA À FOLHA, NÃO AO PAGAMENTO ──────────────────
   //
-  // O quadro é vendido em quatro telas e eu só tinha convertido as duas que
-  // ficam atrás de login. Esta abre por token, e foi dela que saiu a primeira
-  // venda de quadro depois da migração — R$ 24,90 pagando 11,4% de taxa onde
-  // pagaria R$ 0,50.
-  const comPix = Boolean(tokenEdicao);
-  const Tag = comPix ? "button" : "a";
+  // Medido em 02/09, agosto inteiro:
+  //
+  //   PIX da música          1.299 gerados → 742 pagos → 57,1%
+  //   PIX do quadro avulso     139 gerados →  33 pagos → 23,7%
+  //
+  // Dois terços abrem a folha de pagamento e desistem. Não é preço: R$ 24,90
+  // é o menor número da operação, e o pacote de R$ 28 converte 77,8%.
+  //
+  // É que daqui a pessoa nunca viu o quadro DELA. O que este cartão mostra é
+  // uma miniatura de 38x54 pixels de um exemplo de outra pessoa, e "a letra
+  // numa folha A4" não desenha nada na cabeça de ninguém. Pedir R$ 24,90 por
+  // algo que ela não consegue imaginar é o que produz aquele 23,7%.
+  //
+  // E a tela que resolve isso JÁ EXISTE: `/quadro/<token_edicao>` monta a
+  // folha real, com a letra e a foto dela, aberta por token e sem login, com
+  // a compra travando só a impressão. Ela era alcançável pelo painel, onde
+  // 84% dos compradores nunca entram — e o e-mail manda todo mundo pro
+  // editor, que é esta tela aqui.
+  //
+  // Custo aceito: quem já decidiu ganha um toque a mais. Vale, porque na tela
+  // seguinte o botão está do lado do produto montado, em vez de um QR Code
+  // pedindo dinheiro por uma descrição.
+  const comPrevia = Boolean(tokenEdicao);
 
-  return (
+  const classe =
+    "mx-auto mt-12 flex max-w-md items-center gap-3 rounded-[var(--raio-lg)] border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-4 transition-colors hover:border-[var(--acento)]/50";
+
+  const aoClicar = () =>
+    trackEvent("credito_oferta_click", {
+      oferta: "quadro",
+      origem: "editor",
+      via: comPrevia ? "previa" : "checkout",
+    });
+
+  const conteudo = (
     <>
-    <Tag
-      {...(comPix ? { type: "button" as const } : { href: oferta.checkout })}
-      onClick={() => {
-        trackEvent("credito_oferta_click", {
-          oferta: "quadro",
-          origem: "editor",
-          via: comPix ? "pix" : "checkout",
-        });
-        if (comPix) setPixAberto(true);
-      }}
-      className="mx-auto mt-12 flex max-w-md items-center gap-3 rounded-[var(--raio-lg)] border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-4 transition-colors hover:border-[var(--acento)]/50"
-    >
       {/* A moldura em miniatura. "Folha A4 com a letra" não desenha nada na
-          cabeça de ninguém; a imagem resolve em meio segundo. */}
+          cabeça de ninguém; a imagem resolve em meio segundo. Ela continua
+          sendo um EXEMPLO: a folha da pessoa é o que vem na tela seguinte. */}
       <span
         className="shrink-0"
         style={{
@@ -107,7 +121,9 @@ export function OfertaQuadroEditor({
           className="mt-0.5 block text-[var(--tinta-suave)]"
           style={{ fontSize: "var(--t-xs)", lineHeight: 1.45 }}
         >
-          Essa mesma letra e foto numa folha A4, pra imprimir e pendurar na parede.
+          {comPrevia
+            ? "Veja como essa mesma letra fica numa folha A4, com a foto de vocês e o QR Code que toca a música."
+            : "Essa mesma letra e foto numa folha A4, pra imprimir e pendurar na parede."}
         </span>
         <span
           className="mt-1 block font-semibold text-[var(--acento)]"
@@ -118,22 +134,24 @@ export function OfertaQuadroEditor({
       </span>
 
       <ArrowRight className="h-5 w-5 shrink-0 text-[var(--acento)]" />
-    </Tag>
-
-    {pixAberto && tokenEdicao && (
-      <FolhaPixUpsell
-        ofertaId="quadro"
-        tokenEdicao={tokenEdicao}
-        titulo={t.titulo}
-        precoTexto={`R$ ${oferta.precoBrl.toFixed(2).replace(".", ",")}`}
-        checkoutCartao={oferta.checkout}
-        // Depois de pagar ela CONTINUA no editor, montando o presente. Não
-        // tem pra onde mandar: ela já está no lugar certo, e o recarregar
-        // traz o direito ao quadro que o webhook acabou de criar.
-        aoPagar={() => window.location.reload()}
-        aoFechar={() => setPixAberto(false)}
-      />
-    )}
     </>
+  );
+
+  // Rota interna vira `Link` (sem recarregar a página). Sem token não dá pra
+  // montar a folha dela: aí sim vai pro checkout hospedado, que é outro
+  // domínio e continua `<a>`.
+  return comPrevia ? (
+    <Link
+      to="/quadro/$tokenEdicao"
+      params={{ tokenEdicao: tokenEdicao as string }}
+      onClick={aoClicar}
+      className={classe}
+    >
+      {conteudo}
+    </Link>
+  ) : (
+    <a href={oferta.checkout} onClick={aoClicar} className={classe}>
+      {conteudo}
+    </a>
   );
 }
