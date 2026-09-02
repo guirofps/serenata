@@ -21,6 +21,11 @@ dist-ssr
 # Agent
 .agent/
 .claude/
+# As skills do projeto SAO versionadas: elas guardam o metodo, nao a
+# configuracao da maquina. `/disputa` e o unico lugar onde esta escrito por que
+# o dossie de contestacao e daquele jeito.
+!.claude/skills/
+!.claude/skills/**
 .vercel
 scratch/
 !scratch/testar-rota.mjs
