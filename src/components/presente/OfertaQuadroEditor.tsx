@@ -144,6 +144,10 @@ export function OfertaQuadroEditor({
     <Link
       to="/quadro/$tokenEdicao"
       params={{ tokenEdicao: tokenEdicao as string }}
+      // O `de` faz o botão de voltar de lá apontar pra CÁ. Sem ele o padrão é
+      // o `/dashboard`, que exige login: quem chega por token não tem conta, e
+      // o caminho de volta viraria porta fechada no meio da compra.
+      search={{ de: "editor" }}
       onClick={aoClicar}
       className={classe}
     >

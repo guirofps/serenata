@@ -84,6 +84,7 @@ const T = {
     conferindo: "conferindo...",
     voltarMontar: "Voltar e escolher outra música",
     voltarPainel: "Voltar pra minhas músicas",
+    voltarEditor: "Voltar pro presente",
   },
   es: {
     acao: "Imprimir o guardar en PDF",
@@ -112,6 +113,7 @@ const T = {
     conferindo: "comprobando...",
     voltarMontar: "Volver y elegir otra canción",
     voltarPainel: "Volver a mis canciones",
+    voltarEditor: "Volver al regalo",
   },
 };
 
@@ -206,10 +208,15 @@ function Pagina() {
   // não achava mais o caminho de volta pra escolher outra música. Agora ela
   // navega na mesma aba, e o caminho de volta é um botão com nome, não uma
   // seta genérica: destino escrito é o que essa gente consegue seguir.
-  const [de, setDe] = useState<"montar" | "painel">("painel");
+  //
+  // `editor` entrou em 02/09, quando o cartão do quadro no editor passou a
+  // mandar pra cá em vez de abrir o PIX direto. Sem ele o botão de voltar
+  // apontava pro `/dashboard`, que exige login: quem chega por token não tem
+  // conta, e o caminho de volta virava porta fechada bem no meio da compra.
+  const [de, setDe] = useState<"montar" | "editor" | "painel">("painel");
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("de");
-    if (v === "montar") setDe("montar");
+    if (v === "montar" || v === "editor") setDe(v);
   }, []);
 
   const [escala, setEscala] = useState(1);
@@ -415,7 +422,7 @@ function Pagina() {
           /* O ENCOLHIMENTO É SÓ DE TELA. Ele existe pra folha caber num
              celular de 375px; no papel ela precisa sair em A4 inteiro, senão
              a pessoa imprime um quadro do tamanho de um cartão. */
-          .palco { height: auto !important; overflow: visible !important; }
+          .palco { width: auto !important; height: auto !important; overflow: visible !important; }
           .folha { transform: none !important; }
         }
         /* Sem isto o navegador "economiza tinta" e imprime o fundo em branco. */
@@ -427,11 +434,17 @@ function Pagina() {
           {/* O CAMINHO DE VOLTA, primeira coisa da tela. Em cima e com nome,
               porque quem se perde aqui não volta sozinho. */}
           <a
-            href={de === "montar" ? "/meu-quadro" : "/dashboard"}
+            href={
+              de === "montar"
+                ? "/meu-quadro"
+                : de === "editor"
+                ? `/editar/${tokenEdicao}`
+                : "/dashboard"
+            }
             className="inline-flex h-11 items-center gap-2 rounded-full border border-white/25 px-4 text-[13px] text-white/75 transition-colors hover:border-white/50 hover:text-white"
           >
             <ChevronLeft className="h-4 w-4" />
-            {de === "montar" ? t.voltarMontar : t.voltarPainel}
+            {de === "montar" ? t.voltarMontar : de === "editor" ? t.voltarEditor : t.voltarPainel}
           </a>
 
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
@@ -610,17 +623,35 @@ function Pagina() {
           )}
         </div>
 
-        {/* O PALCO tem a altura da folha JÁ ENCOLHIDA. Sem ele, o `scale`
-            deixaria embaixo um vão do tamanho do que foi encolhido, porque
-            transform não muda o espaço que o elemento ocupa. */}
-        <div className="palco mx-auto overflow-hidden" style={{ height: 1123 * escala }}>
+        {/* O PALCO tem a LARGURA E A ALTURA da folha JÁ ENCOLHIDA. Sem ele, o
+            `scale` deixaria em volta um vão do tamanho do que foi encolhido,
+            porque transform não muda o espaço que o elemento ocupa.
+
+            ── A FOLHA SAÍA CORTADA NO CELULAR ──────────────────
+            Achado em 02/09, a 375px: dava pra ver só uns 40% da folha, o
+            resto passava da borda direita. A origem era `top center` com uma
+            folha de 794px dentro de um palco de 375: `mx-auto` não centra
+            filho MAIOR que o pai (as margens automáticas viram zero), então
+            ela começava em x=0 e o encolhimento acontecia em torno do centro
+            DELA, em x=397, empurrando o resultado pra direita.
+
+            Com `top left` o encolhimento acontece a partir da borda esquerda
+            e o palco, agora com a largura final, centraliza o conjunto.
+
+            Isto passou meses sem aparecer porque a tela só era alcançada pelo
+            painel, onde quase ninguém entra. Agora o editor manda todo mundo
+            pra cá, e 99% abre no celular. */}
+        <div
+          className="palco mx-auto overflow-hidden"
+          style={{ width: 794 * escala, height: 1123 * escala }}
+        >
         <div
           className="folha relative mx-auto overflow-hidden"
           style={{
             width: "210mm",
             height: "297mm",
             transform: escala < 1 ? `scale(${escala})` : undefined,
-            transformOrigin: "top center",
+            transformOrigin: "top left",
             background: p.fundo,
             color: p.texto,
             boxShadow: "0 10px 50px rgba(0,0,0,.5)",

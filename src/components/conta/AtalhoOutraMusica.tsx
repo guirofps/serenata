@@ -81,22 +81,32 @@ export function AtalhoOutraMusica({
   if (!oferta) return null;
 
   const t = (TEXTO_OFERTA[locale] ?? TEXTO_OFERTA.pt).extra;
-  const preco = `R$ ${oferta.precoBrl.toFixed(2).replace(".", ",")}`;
+  // Sem os centavos zerados: "R$ 28" cabe numa linha a mais no celular, que é
+  // onde 99% lê isto, e "R$ 28,00" não diz nada que "R$ 28" não diga.
+  const preco = `R$ ${oferta.precoBrl.toFixed(2).replace(".00", "").replace(".", ",")}`;
   // O preço sai em REAL nos dois idiomas, e não é descuido: os três upsells
   // são cobrados em real pela Perfect Pay, e é isso que o painel já mostra.
   // Escrever "US$ 6" aqui seria prometer uma moeda que a fatura não usa.
-  const rotulo = es
-    ? `¿Ya sabes para quién será la próxima? ${preco}`
-    : `Já sabe de quem é a próxima? Leve por ${preco}`;
+  const rotulo = es ? `¿Quién es la próxima? Por ${preco}` : `Quem é a próxima? Por ${preco}`;
 
-  // Alvo de 44px, como o convite ao lado: o dedo ganha área sem o texto se
-  // mexer de lugar.
+  // ── POR QUE `inline` E NÃO `inline-flex` ─────────────────────
+  //
+  // Com flex, o ícone vira uma coluna do lado do texto: quando a frase quebra
+  // em duas linhas no celular, ele fica flutuando sozinho à esquerda e a
+  // segunda linha centraliza sob ele. Foi o que apareceu na primeira versão
+  // desta linha, em 375px de largura.
+  //
+  // Como `inline`, o ícone é só mais um caractere: a frase quebra como texto
+  // normal e as duas linhas centralizam juntas. O alvo de toque de 44px vem
+  // do `py-3` com o `-my-3` devolvendo o espaço, então o dedo ganha área sem
+  // nada se mexer de lugar.
   const classe =
-    "-my-3 inline-flex h-11 items-center gap-2 py-3 text-[var(--tinta-suave)] underline underline-offset-4 hover:text-[var(--acento)]";
+    "-my-3 inline-block max-w-[17rem] py-3 text-[var(--tinta-suave)] underline underline-offset-4 hover:text-[var(--acento)]";
+  const icone = <Music className="mr-1.5 inline h-4 w-4 align-[-3px]" />;
 
   return (
     <>
-      <div className="mt-4 text-center">
+      <div className="mt-6 text-center">
         {es ? (
           <a
             href={oferta.checkout}
@@ -104,7 +114,7 @@ export function AtalhoOutraMusica({
             className={classe}
             style={{ fontSize: "var(--t-sm)" }}
           >
-            <Music className="h-4 w-4" />
+            {icone}
             {rotulo}
           </a>
         ) : (
@@ -117,7 +127,7 @@ export function AtalhoOutraMusica({
             className={classe}
             style={{ fontSize: "var(--t-sm)" }}
           >
-            <Music className="h-4 w-4" />
+            {icone}
             {rotulo}
           </button>
         )}
