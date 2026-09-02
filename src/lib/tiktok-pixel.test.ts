@@ -1,23 +1,23 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+﻿import { describe, it, expect, vi, beforeEach } from "vitest";
 import { compraTiktok, checkoutTiktok, scriptTiktok } from "@/lib/tiktok-pixel";
 
-// O PIXEL DO TIKTOK NÃO PODE QUEBRAR NADA.
+// O PIXEL DO TIKTOK NÃƒO PODE QUEBRAR NADA.
 //
-// A conta foi comprada pra TESTAR. Enquanto o teste não vinga, este código
-// roda em cima de um funil que fatura todo dia, e a regra é: sem id
-// configurado, ele não existe; com id, ele não atrapalha o que já funciona.
+// A conta foi comprada pra TESTAR. Enquanto o teste nÃ£o vinga, este cÃ³digo
+// roda em cima de um funil que fatura todo dia, e a regra Ã©: sem id
+// configurado, ele nÃ£o existe; com id, ele nÃ£o atrapalha o que jÃ¡ funciona.
 
-declare global {
-  // eslint-disable-next-line no-var
-  var window: any;
-}
+// `window` global sem redeclarar o tipo dele: `declare global { var window }`
+// entra em conflito com o `Window & typeof globalThis` que o TS jÃ¡ conhece, e
+// o `tsc` reclama mesmo com o vitest passando.
+const g = globalThis as unknown as { window: { ttq?: { track: (...a: unknown[]) => void } } };
 
 beforeEach(() => {
-  globalThis.window = {} as never;
+  g.window = {};
 });
 
-describe("o pixel some quando não há conta", () => {
-  it("não estoura quando `ttq` não existe (id não configurado)", () => {
+describe("o pixel some quando nÃ£o hÃ¡ conta", () => {
+  it("nÃ£o estoura quando `ttq` nÃ£o existe (id nÃ£o configurado)", () => {
     expect(() => compraTiktok({ valor: 38 })).not.toThrow();
     expect(() => checkoutTiktok({ valor: 38 })).not.toThrow();
   });
@@ -26,7 +26,7 @@ describe("o pixel some quando não há conta", () => {
 describe("a compra", () => {
   it("manda valor, moeda e o id de dedupe", () => {
     const track = vi.fn();
-    globalThis.window = { ttq: { track } } as never;
+    g.window = { ttq: { track } };
     compraTiktok({ valor: 54.9, moeda: "BRL", eventId: "ref-123" });
     const [evento, dados, opcoes] = track.mock.calls[0];
     expect(evento).toBe("CompletePayment");
@@ -35,26 +35,26 @@ describe("a compra", () => {
     expect(opcoes).toEqual({ event_id: "ref-123" });
   });
 
-  it("OMITE o event_id quando não há id, em vez de mandar vazio", () => {
-    // Mesmo raciocínio do `transaction_id` do Google: id vazio faz a
+  it("OMITE o event_id quando nÃ£o hÃ¡ id, em vez de mandar vazio", () => {
+    // Mesmo raciocÃ­nio do `transaction_id` do Google: id vazio faz a
     // plataforma tratar todas as vendas como a mesma e descartar o resto, o
     // que erra pra baixo. Omitir erra pra cima.
     const track = vi.fn();
-    globalThis.window = { ttq: { track } } as never;
+    g.window = { ttq: { track } };
     compraTiktok({ valor: 38 });
     expect(track.mock.calls[0][2]).toBeUndefined();
   });
 
-  it("id só com espaço conta como ausente", () => {
+  it("id sÃ³ com espaÃ§o conta como ausente", () => {
     const track = vi.fn();
-    globalThis.window = { ttq: { track } } as never;
+    g.window = { ttq: { track } };
     compraTiktok({ valor: 38, eventId: "   " });
     expect(track.mock.calls[0][2]).toBeUndefined();
   });
 
-  it("dólar passa como dólar, pro funil espanhol", () => {
+  it("dÃ³lar passa como dÃ³lar, pro funil espanhol", () => {
     const track = vi.fn();
-    globalThis.window = { ttq: { track } } as never;
+    g.window = { ttq: { track } };
     compraTiktok({ valor: 9, moeda: "USD", eventId: "x" });
     expect(track.mock.calls[0][1].currency).toBe("USD");
   });
@@ -69,3 +69,4 @@ describe("o script base", () => {
     expect(scriptTiktok("ABC123")).toContain("ttq.page()");
   });
 });
+

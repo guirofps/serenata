@@ -1,22 +1,22 @@
-// WEBHOOK DA WOOVI.
+﻿// WEBHOOK DA WOOVI.
 //
-// ── DUAS PERGUNTAS DIFERENTES, DUAS TRAVAS ───────────────────────
+// â”€â”€ DUAS PERGUNTAS DIFERENTES, DUAS TRAVAS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
-// 1. "Esta mensagem veio mesmo da Woovi?"  → ASSINATURA (RSA-SHA256).
-// 2. "O dinheiro entrou mesmo?"            → CONSULTA na API.
+// 1. "Esta mensagem veio mesmo da Woovi?"  â†’ ASSINATURA (RSA-SHA256).
+// 2. "O dinheiro entrou mesmo?"            â†’ CONSULTA na API.
 //
-// Não é redundância. A assinatura prova ORIGEM; só a consulta prova
-// PAGAMENTO. Um postback legítimo pode chegar por um evento que não é
+// NÃ£o Ã© redundÃ¢ncia. A assinatura prova ORIGEM; sÃ³ a consulta prova
+// PAGAMENTO. Um postback legÃ­timo pode chegar por um evento que nÃ£o Ã©
 // pagamento, e um corpo pode ser replicado depois de um estorno.
 //
-// Este é o ponto em que a Woovi é melhor que a MillionsPay, cujo postback
-// não é assinado de forma nenhuma: lá eu tive que suprir a falta com segredo
-// na URL. Aqui a origem é provada com criptografia.
+// Este Ã© o ponto em que a Woovi Ã© melhor que a MillionsPay, cujo postback
+// nÃ£o Ã© assinado de forma nenhuma: lÃ¡ eu tive que suprir a falta com segredo
+// na URL. Aqui a origem Ã© provada com criptografia.
 //
-// ── A ASSINATURA É SOBRE O CORPO CRU ─────────────────────────────
+// â”€â”€ A ASSINATURA Ã‰ SOBRE O CORPO CRU â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Com o parser do Vercel ligado, o JSON re-serializado quase nunca bate byte
-// a byte com o original, e a verificação falharia em tudo. Por isso
+// a byte com o original, e a verificaÃ§Ã£o falharia em tudo. Por isso
 // `bodyParser: false` e leitura manual do stream. Mesmo motivo do webhook do
 // Resend.
 
@@ -26,6 +26,7 @@ import { woovi, assinaturaWooviConfere } from "../../src/lib/woovi.js";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../lib/entrega.js";
 import { creditarUpsell } from "../lib/creditar-upsell.js";
 import { enviarVendaUtmify } from "../lib/utmify.js";
+import { venderNoTiktok } from "../lib/tiktok-eventos.js";
 import { OFERTAS } from "../../src/lib/creditos.js";
 import { Resend } from "resend";
 
@@ -88,14 +89,14 @@ async function auditar(sb: ReturnType<typeof db>, evento: string, dados: unknown
 }
 
 /**
- * O UPSELL PAGO: grava o pedido e DÁ o que foi comprado.
+ * O UPSELL PAGO: grava o pedido e DÃ o que foi comprado.
  *
- * Sai cedo do fluxo principal porque quase nada dele se aplica: não há quiz,
- * não há música, não há e-mail de entrega. O que há é um direito a criar.
+ * Sai cedo do fluxo principal porque quase nada dele se aplica: nÃ£o hÃ¡ quiz,
+ * nÃ£o hÃ¡ mÃºsica, nÃ£o hÃ¡ e-mail de entrega. O que hÃ¡ Ã© um direito a criar.
  *
- * O e-mail vem do PEDIDO PENDENTE, que nasceu de uma sessão autenticada em
- * `criar-pix-upsell.ts`. Não vem do que a Woovi ecoa: creditar pelo e-mail
- * que o gateway devolve seria confiar num campo que não é a nossa prova de
+ * O e-mail vem do PEDIDO PENDENTE, que nasceu de uma sessÃ£o autenticada em
+ * `criar-pix-upsell.ts`. NÃ£o vem do que a Woovi ecoa: creditar pelo e-mail
+ * que o gateway devolve seria confiar num campo que nÃ£o Ã© a nossa prova de
  * identidade.
  */
 async function pagarUpsell(
@@ -111,15 +112,15 @@ async function pagarUpsell(
   const ofertaId = correlationID.split(":")[1] ?? "";
   const oferta = OFERTAS.find((o) => o.id === ofertaId);
   if (!oferta) {
-    // Referência com oferta que não existe no catálogo. Não inventa nada:
-    // grita e deixa o dinheiro registrado pra alguém olhar.
+    // ReferÃªncia com oferta que nÃ£o existe no catÃ¡logo. NÃ£o inventa nada:
+    // grita e deixa o dinheiro registrado pra alguÃ©m olhar.
     await auditar(sb, "woovi_upsell_desconhecido", { correlationID, ofertaId });
     console.error("[woovi] upsell desconhecido:", ofertaId);
     return res.status(200).json({ ok: true, nota: "oferta desconhecida" });
   }
 
-  // O VALOR TEM QUE BATER com o catálogo, e não só com o pedido pendente:
-  // é a segunda trava contra alguém pagar R$ 1 num crédito de R$ 28.
+  // O VALOR TEM QUE BATER com o catÃ¡logo, e nÃ£o sÃ³ com o pedido pendente:
+  // Ã© a segunda trava contra alguÃ©m pagar R$ 1 num crÃ©dito de R$ 28.
   const esperado = Math.round(oferta.precoBrl * 100);
   if (status.valorCentavos && status.valorCentavos !== esperado) {
     await auditar(sb, "woovi_upsell_valor_divergente", {
@@ -127,7 +128,7 @@ async function pagarUpsell(
       esperado,
       recebido: status.valorCentavos,
     });
-    return res.status(200).json({ ok: true, nota: "valor divergente, não creditado" });
+    return res.status(200).json({ ok: true, nota: "valor divergente, nÃ£o creditado" });
   }
 
   const { data: pendente } = await sb
@@ -156,8 +157,8 @@ async function pagarUpsell(
       },
       { onConflict: "payment_id" },
     )
-    // O ID É O QUE SEGURA O REENVIO: os índices únicos que impedem crédito
-    // duplicado são por `pedido_id`. Sem ele, cada reenvio creditaria de novo.
+    // O ID Ã‰ O QUE SEGURA O REENVIO: os Ã­ndices Ãºnicos que impedem crÃ©dito
+    // duplicado sÃ£o por `pedido_id`. Sem ele, cada reenvio creditaria de novo.
     .select("id")
     .maybeSingle();
   if (erroPedido) {
@@ -180,9 +181,9 @@ async function pagarUpsell(
     ...(r.erro ? { erro: r.erro } : {}),
   });
   if (r.erro) {
-    // Pagou e não recebeu: o pior desfecho. Sai no log e no evento, e o
-    // pedido fica pago pra o dono liberar à mão pelo painel.
-    console.error("[woovi] upsell pago e NÃO creditado:", r.erro);
+    // Pagou e nÃ£o recebeu: o pior desfecho. Sai no log e no evento, e o
+    // pedido fica pago pra o dono liberar Ã  mÃ£o pelo painel.
+    console.error("[woovi] upsell pago e NÃƒO creditado:", r.erro);
   }
 
   return res.status(200).json({ ok: true, upsell: oferta.id, creditou: r.creditou, quadro: r.quadro });
@@ -193,44 +194,44 @@ export default async function handler(req: Req, res: Res) {
 
   const cru = await corpoCru(req);
 
-  // ── TRAVA 1: a assinatura ────────────────────────────────────
+  // â”€â”€ TRAVA 1: a assinatura â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
-  // FECHADO por natureza: sem assinatura válida, não passa. Não existe
-  // caminho "sem assinatura configurada" que aceite, que é o erro herdado
-  // que o CLAUDE.md proíbe.
+  // FECHADO por natureza: sem assinatura vÃ¡lida, nÃ£o passa. NÃ£o existe
+  // caminho "sem assinatura configurada" que aceite, que Ã© o erro herdado
+  // que o CLAUDE.md proÃ­be.
   const assinatura = cabecalho(req, "x-webhook-signature");
   if (!(await assinaturaWooviConfere(cru, assinatura))) {
-    // 401 e não 404: aqui o endereço não é segredo, a assinatura é que manda.
-    console.error("[woovi] assinatura inválida");
-    return res.status(401).json({ error: "assinatura inválida" });
+    // 401 e nÃ£o 404: aqui o endereÃ§o nÃ£o Ã© segredo, a assinatura Ã© que manda.
+    console.error("[woovi] assinatura invÃ¡lida");
+    return res.status(401).json({ error: "assinatura invÃ¡lida" });
   }
 
   let evento: { event?: string; charge?: { correlationID?: string; status?: string } };
   try {
     evento = JSON.parse(cru);
   } catch {
-    return res.status(400).json({ error: "corpo inválido" });
+    return res.status(400).json({ error: "corpo invÃ¡lido" });
   }
 
   const sb = db();
   const correlationID = evento?.charge?.correlationID;
   if (!correlationID) {
-    // Teste de webhook do painel deles chega sem cobrança. 200 pra não ficar
-    // vermelho no painel por uma coisa que está certa.
+    // Teste de webhook do painel deles chega sem cobranÃ§a. 200 pra nÃ£o ficar
+    // vermelho no painel por uma coisa que estÃ¡ certa.
     await auditar(sb, "woovi_evento_sem_cobranca", { evento: evento?.event ?? null });
     return res.status(200).json({ ok: true, nota: "sem correlationID" });
   }
 
-  // ── TRAVA 2: pergunta pra fonte ──────────────────────────────
+  // â”€â”€ TRAVA 2: pergunta pra fonte â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let status;
   try {
     status = await woovi.consultar(correlationID);
   } catch (err) {
-    // 500 de propósito: gateway reenvia postback com erro. Devolver 200 aqui
+    // 500 de propÃ³sito: gateway reenvia postback com erro. Devolver 200 aqui
     // seria descartar uma venda porque a consulta piscou.
     console.error("[woovi] consulta falhou:", err);
     await auditar(sb, "woovi_consulta_falhou", { correlationID });
-    return res.status(500).json({ error: "não consegui confirmar na fonte" });
+    return res.status(500).json({ error: "nÃ£o consegui confirmar na fonte" });
   }
 
   await auditar(sb, `woovi_${status.statusCru.toLowerCase()}`, {
@@ -243,7 +244,7 @@ export default async function handler(req: Req, res: Res) {
     return res.status(200).json({ ok: true, nota: `status ${status.statusCru}` });
   }
 
-  // ── IDEMPOTÊNCIA ─────────────────────────────────────────────
+  // â”€â”€ IDEMPOTÃŠNCIA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const paymentId = `woovi:${correlationID}`;
   const { data: existente } = await sb
     .from("pedidos")
@@ -254,10 +255,10 @@ export default async function handler(req: Req, res: Res) {
     return res.status(200).json({ ok: true, duplicado: true });
   }
 
-  // ── O VALOR TEM QUE BATER ────────────────────────────────────
+  // â”€â”€ O VALOR TEM QUE BATER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
-  // Contra o pedido pendente que nós mesmos criamos ao gerar o PIX. Sem
-  // isto, uma cobrança de R$ 1 criada por fora com a referência de alguém
+  // Contra o pedido pendente que nÃ³s mesmos criamos ao gerar o PIX. Sem
+  // isto, uma cobranÃ§a de R$ 1 criada por fora com a referÃªncia de alguÃ©m
   // liberaria um produto de R$ 54,90.
   if (existente?.valor_centavos && status.valorCentavos &&
       existente.valor_centavos !== status.valorCentavos) {
@@ -266,45 +267,45 @@ export default async function handler(req: Req, res: Res) {
       esperado: existente.valor_centavos,
       recebido: status.valorCentavos,
     });
-    return res.status(200).json({ ok: true, nota: "valor divergente, não liberado" });
+    return res.status(200).json({ ok: true, nota: "valor divergente, nÃ£o liberado" });
   }
 
-  // ── UPSELL? ──────────────────────────────────────────────────
+  // â”€â”€ UPSELL? â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
-  // `up:<oferta>:<uuid>` é compra de crédito ou de quadro, feita por alguém
-  // logado no painel. Caminho inteiro diferente do funil: não tem música pra
+  // `up:<oferta>:<uuid>` Ã© compra de crÃ©dito ou de quadro, feita por alguÃ©m
+  // logado no painel. Caminho inteiro diferente do funil: nÃ£o tem mÃºsica pra
   // entregar, tem direito pra dar.
   //
-  // A oferta é conferida contra o CATÁLOGO, nunca aceita como veio: o texto
-  // chega dentro de uma referência que nós criamos, mas quem valida no fim é
-  // o servidor, e é barato manter assim.
+  // A oferta Ã© conferida contra o CATÃLOGO, nunca aceita como veio: o texto
+  // chega dentro de uma referÃªncia que nÃ³s criamos, mas quem valida no fim Ã©
+  // o servidor, e Ã© barato manter assim.
   if (correlationID.startsWith("up:")) {
     return await pagarUpsell(sb, res, { correlationID, paymentId, status });
   }
 
-  // ── DE QUEM É ────────────────────────────────────────────────
+  // â”€â”€ DE QUEM Ã‰ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
-  // A referência que a gente mandou é `serenata:<quiz_response_id>`. Sai
-  // dela, sem adivinhação: SEM fallback por "quiz mais recente", que sob
-  // concorrência entrega a música da pessoa errada.
+  // A referÃªncia que a gente mandou Ã© `serenata:<quiz_response_id>`. Sai
+  // dela, sem adivinhaÃ§Ã£o: SEM fallback por "quiz mais recente", que sob
+  // concorrÃªncia entrega a mÃºsica da pessoa errada.
   //
-  // O `.split(":")[0]` NÃO é paranoia: quando a cobrança anterior daquele
+  // O `.split(":")[0]` NÃƒO Ã© paranoia: quando a cobranÃ§a anterior daquele
   // quiz venceu, a Woovi recusa reaproveitar o id e a nova nasce como
   // `serenata:<quizId>:r2`. Sem cortar no primeiro dois-pontos, o id do quiz
-  // sairia com o sufixo colado e a busca não acharia música nenhuma — a
-  // pessoa pagaria e o webhook registraria "pago sem música".
+  // sairia com o sufixo colado e a busca nÃ£o acharia mÃºsica nenhuma â€” a
+  // pessoa pagaria e o webhook registraria "pago sem mÃºsica".
   const quizId = correlationID.startsWith("serenata:")
     ? (correlationID.slice("serenata:".length).split(":")[0] ?? null)
     : null;
 
-  // ── ESTE QUIZ JA FOI PAGO? ───────────────────────────────────
+  // â”€â”€ ESTE QUIZ JA FOI PAGO? â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
   // A idempotencia acima e por `payment_id`, ou seja, por COBRANCA. Ela nao
   // ve um segundo pagamento do mesmo quiz com outra referencia.
   //
   // Ate agora isso nao podia acontecer: as referencias extras (`:r2`) so
   // nascem quando a cobranca anterior VENCE, e cobranca vencida ninguem paga.
-  // O order bump do quadro muda isso — `serenata:<id>` (R$ 38) e
+  // O order bump do quadro muda isso â€” `serenata:<id>` (R$ 38) e
   // `serenata:<id>:q` (R$ 62,90) podem estar vivas ao mesmo tempo, porque a
   // Woovi recusa reaproveitar um correlationID com outro valor.
   //
@@ -346,7 +347,7 @@ export default async function handler(req: Req, res: Res) {
         valor: status.valorCentavos,
       });
       await alertarDono(
-        "PAGOU DUAS VEZES — devolver",
+        "PAGOU DUAS VEZES â€” devolver",
         `<p>O mesmo quiz recebeu dois pagamentos.</p>` +
           `<p>quiz: ${quizId}<br>agora: ${correlationID} (${status.valorCentavos})` +
           `<br>antes: ${jaPago.payment_id} (${jaPago.valor_centavos})</p>` +
@@ -396,20 +397,20 @@ export default async function handler(req: Req, res: Res) {
     quiz_response_id: quizId,
   });
 
-  // ── A ENTREGA ────────────────────────────────────────────────
+  // â”€â”€ A ENTREGA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
-  // DEPOIS de gravar o pedido, de propósito. Se o e-mail estourasse antes, a
-  // pessoa teria pagado e o pagamento não existiria em lugar nenhum; nesta
-  // ordem, o pior caso é uma venda registrada sem e-mail, que dá pra reenviar
+  // DEPOIS de gravar o pedido, de propÃ³sito. Se o e-mail estourasse antes, a
+  // pessoa teria pagado e o pagamento nÃ£o existiria em lugar nenhum; nesta
+  // ordem, o pior caso Ã© uma venda registrada sem e-mail, que dÃ¡ pra reenviar
   // olhando o painel.
   //
-  // NÃO devolve erro se a entrega falhar: 500 faria a Woovi reenviar o
+  // NÃƒO devolve erro se a entrega falhar: 500 faria a Woovi reenviar o
   // evento, e o comprador receberia o mesmo e-mail de novo.
   if (!musica) {
-    // Pagou e não achamos a música. Grita no log e no banco: não existe
-    // caminho automático daqui, alguém tem que olhar.
+    // Pagou e nÃ£o achamos a mÃºsica. Grita no log e no banco: nÃ£o existe
+    // caminho automÃ¡tico daqui, alguÃ©m tem que olhar.
     await auditar(sb, "woovi_pago_sem_musica", { correlationID, quiz_response_id: quizId });
-    console.error("[woovi] PAGO SEM MÚSICA:", correlationID);
+    console.error("[woovi] PAGO SEM MÃšSICA:", correlationID);
     return res.status(200).json({ ok: true, pedido: paymentId, entrega: "sem-musica" });
   }
 
@@ -421,11 +422,14 @@ export default async function handler(req: Req, res: Res) {
     });
   }
 
-  // O e-mail do PEDIDO, que é o do quiz: a Woovi não pede e-mail pra pagar
-  // um PIX, então o que ela ecoa é o que nós mandamos na criação da cobrança.
+  // O e-mail do PEDIDO, que Ã© o do quiz: a Woovi nÃ£o pede e-mail pra pagar
+  // um PIX, entÃ£o o que ela ecoa Ã© o que nÃ³s mandamos na criaÃ§Ã£o da cobranÃ§a.
   const { data: pedido } = await sb
     .from("pedidos")
-    .select("email, nome_pagador")
+    // `telefone` entra pro TikTok: é o segundo identificador que a Events API
+    // usa pra casar a venda quando o `ttclid` não veio (visita direta, ou
+    // clique que perdeu o parâmetro no caminho).
+    .select("email, nome_pagador, telefone")
     .eq("payment_id", paymentId)
     .maybeSingle();
 
@@ -435,11 +439,11 @@ export default async function handler(req: Req, res: Res) {
     return res.status(200).json({ ok: true, pedido: paymentId, entrega: "sem-email" });
   }
 
-  // ── O QUADRO COMPRADO JUNTO ──────────────────────────────────
+  // â”€â”€ O QUADRO COMPRADO JUNTO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
   // Vira DIREITO e nao produto: uma linha em `quadros` com `musica_id` nulo,
   // exatamente como o webhook da Perfect Pay ja faz pro bump dele. O nulo e o
-  // direito — ela ainda vai escolher de qual musica o quadro e.
+  // direito â€” ela ainda vai escolher de qual musica o quadro e.
   //
   // A fonte da verdade e a coluna do pedido pendente que NOS criamos, nao o
   // valor que chegou: valor nao diz o que foi comprado quando o preco tem
@@ -464,7 +468,7 @@ export default async function handler(req: Req, res: Res) {
       await alertarDono(
         "Quadro pago no bump e NAO liberado",
         `<p>O quadro veio junto no PIX e o direito nao foi criado:` +
-          ` ${erroQuadro.message}<br>${email} · ${correlationID}</p>` +
+          ` ${erroQuadro.message}<br>${email} Â· ${correlationID}</p>` +
           `<p>Ela pagou e o painel nao vai mostrar o quadro pra montar.</p>`,
       );
     }
@@ -482,17 +486,17 @@ export default async function handler(req: Req, res: Res) {
   });
   if (!entrega.ok) console.error("[woovi] e-mail falhou:", entrega.erro);
 
-  // ── A VENDA VAI PRA UTMIFY ───────────────────────────────────
+  // â”€â”€ A VENDA VAI PRA UTMIFY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
-  // DEPOIS da entrega, de propósito: relatório nunca pode atrasar (nem
+  // DEPOIS da entrega, de propÃ³sito: relatÃ³rio nunca pode atrasar (nem
   // arriscar) o que a pessoa pagou pra receber.
   //
   // Faltava, e o buraco era grande: com o PIX inteiro na Woovi, a UTMify
-  // passou a ver 1 venda a cada 9. Um painel que mostra 11% do faturamento é
-  // pior que painel nenhum — ele parece uma queda.
+  // passou a ver 1 venda a cada 9. Um painel que mostra 11% do faturamento Ã©
+  // pior que painel nenhum â€” ele parece uma queda.
   //
-  // Os UTMs saem do NOSSO banco (captura first-touch), não do que o gateway
-  // ecoa: é o dado mais confiável que temos da origem do clique.
+  // Os UTMs saem do NOSSO banco (captura first-touch), nÃ£o do que o gateway
+  // ecoa: Ã© o dado mais confiÃ¡vel que temos da origem do clique.
   try {
     const { data: q } = await sb
       .from("quiz_responses")
@@ -511,11 +515,35 @@ export default async function handler(req: Req, res: Res) {
       taxaCentavos: status.taxaCentavos ?? 0,
       aprovadoEm: new Date(),
     });
+
+    // â”€â”€ E A VENDA VAI PRO TIKTOK, DAQUI E NÃƒO DA /obrigado â”€â”€â”€â”€â”€â”€
+    //
+    // O pixel tambÃ©m dispara `CompletePayment` lÃ¡, mas `/obrigado` Ã© pÃ¡gina
+    // que muita gente nunca vÃª: quem paga PIX no aplicativo do banco nÃ£o
+    // volta. JÃ¡ foi medido com o Google, em 28/08: 23 vendas num dia, 8
+    // contadas pela tag. Contar venda sÃ³ pelo navegador Ã© aceitar perder dois
+    // terÃ§os, e foi por isso que `api/conversoes.ts` precisou existir.
+    //
+    // Os dois mandam o MESMO `event_id` (a referÃªncia do pagamento), entÃ£o o
+    // TikTok deduplica e a cobertura vira a UNIÃƒO dos dois caminhos em vez da
+    // interseÃ§Ã£o. O `ttclid` sai da atribuiÃ§Ã£o first-touch, que Ã© o que dÃ¡ ao
+    // evento alguÃ©m em quem casar.
+    const attr = (q?.attribution ?? null) as Record<string, string | undefined> | null;
+    await venderNoTiktok({
+      eventId: paymentId,
+      valor: (status.valorCentavos ?? 0) / 100,
+      moeda: "BRL",
+      email,
+      telefone: (pedido?.telefone as string | null) ?? null,
+      ttclid: attr?.ttclid ?? null,
+      quando: new Date(),
+    });
   } catch (err) {
-    // Relatório que falha não derruba entrega já feita.
+    // RelatÃ³rio que falha nÃ£o derruba entrega jÃ¡ feita.
     console.error("[woovi] utmify falhou:", err);
   }
 
   console.log("[woovi] liberado:", { paymentId, musica: musica.id });
   return res.status(200).json({ ok: true, pedido: paymentId, quiz: quizId, entrega: entrega.ok });
 }
+

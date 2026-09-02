@@ -26,6 +26,15 @@ export type Attribution = {
   utm_term?: string;
   gclid?: string;
   fbclid?: string;
+  /**
+   * O identificador do clique no TikTok.
+   *
+   * Guardado pelo mesmo motivo do `gclid`, e ele é o que torna o evento de
+   * SERVIDOR possível: a Events API do TikTok casa a venda com o clique por
+   * ele. Sem isso, o webhook mandaria uma conversão órfã, que a plataforma
+   * conta como visitante novo e não credita à campanha.
+   */
+  ttclid?: string;
   referrer?: string;
   // Carimbada por stampVariantIntoAttribution no mount da raiz; flui como está
   // para funnel_events.event_data.attribution e quiz_responses.attribution.
@@ -156,6 +165,7 @@ function hasCapturedTouch(attr: Attribution): boolean {
       attr.utm_term ||
       attr.gclid ||
       attr.fbclid ||
+      attr.ttclid ||
       attr.referrer,
   );
 }
@@ -176,10 +186,18 @@ export function captureFirstTouchAttribution(): Attribution | null {
   const utm_term = sp.get("utm_term") ?? undefined;
   const gclid = sp.get("gclid") ?? undefined;
   const fbclid = sp.get("fbclid") ?? undefined;
+  const ttclid = sp.get("ttclid") ?? undefined;
   const referrer = document.referrer || undefined;
 
   const hasAnyUtm =
-    utm_source || utm_medium || utm_campaign || utm_content || utm_term || gclid || fbclid;
+    utm_source ||
+    utm_medium ||
+    utm_campaign ||
+    utm_content ||
+    utm_term ||
+    gclid ||
+    fbclid ||
+    ttclid;
   if (!hasAnyUtm && !referrer) return null;
 
   const attribution: Attribution = {
@@ -192,6 +210,7 @@ export function captureFirstTouchAttribution(): Attribution | null {
     utm_term,
     gclid,
     fbclid,
+    ttclid,
     referrer,
     captured_at: new Date().toISOString(),
   };
