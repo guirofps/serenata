@@ -2,7 +2,7 @@ import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailLetraPronta, assuntoLetraPronta } from "../../emails/letra-pronta.js";
-import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
+import { REMETENTE_TRANSACIONAL } from "../../emails/remetentes.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 
@@ -222,15 +222,25 @@ export const mandarLetra = inngest.createFunction(
       // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
       // pessoa e nem sempre vem no evento.
       tags: [{ name: "template", value: "letra_pronta" }],
-          // Subdomínio, não o domínio raiz. Este e-mail vai pra quem NÃO
-          // comprou, e é o tipo que junta reclamação de spam por natureza.
-          // Se ele queimar reputação, queima a do `envio.` — a ENTREGA de
-          // quem pagou continua saindo de `contato@serenatagift.com`, limpa.
-          from: REMETENTE_RECUPERACAO,
-          // O subdomínio só manda, não tem caixa. Sem isto, quem responde
-          // escreve pro vazio — e resposta de cliente é o retorno mais
-          // valioso que um disparo produz.
-          replyTo: RESPONDER_PARA,
+          // ── DOMÍNIO RAIZ, desde 02/09 ────────────────────────
+          //
+          // Ele saía pelo subdomínio de recuperação porque vai pra quem ainda
+          // não comprou. A régua estava errada: a pessoa PEDIU esta letra,
+          // digitando o próprio e-mail pra recebê-la. Não é conteúdo não
+          // solicitado, é a entrega de um produto grátis.
+          //
+          // O que a classificação errada custava, medido em 14 dias: 3.014
+          // entregues abrindo 14,2%, contra 34,6% do domínio raiz. Metade da
+          // abertura do e-mail de maior volume e de maior consequência da
+          // operação, porque é ele que sustenta toda a recuperação.
+          //
+          // E o motivo que justificava o subdomínio não apareceu: ZERO
+          // reclamações de spam em 16 mil entregas, com o webhook conferido
+          // escutando `email.complained`.
+          //
+          // A escada de descontos continua no subdomínio. Ela é oferta, e
+          // oferta é o que junta reclamação quando junta. Ver `remetentes.ts`.
+          from: REMETENTE_TRANSACIONAL,
           to: [p.email],
           subject: assuntoLetraPronta(p.nome, p.locale),
           html: emailLetraPronta({ ...p, linkPrevia, linkDescadastro }),

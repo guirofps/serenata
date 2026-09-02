@@ -126,6 +126,22 @@ export const quadroParado = inngest.createFunction(
         // A busca é por igualdade, NÃO por `ilike`: e-mail com `%` ou `_` é
         // endereço válido e curinga de LIKE ao mesmo tempo, e aqui a consulta
         // decide pra quem vai o token de alguém. Ver `src/lib/sql-like.ts`.
+        // ── DOIS CAMINHOS ATÉ A MÚSICA, e o segundo não é luxo ──
+        //
+        // O caminho natural é `pedidos.musica_id`. Só que ele é NULO em pedido
+        // de upsell: quadro e pacote de crédito não compram música nenhuma.
+        //
+        // Quem comprou o quadro num pedido avulso, e cuja música veio de outra
+        // compra ou de um crédito, some por esse caminho. Foi o caso do
+        // comprador de 18/08 que pagou R$ 52,90 (pacote + quadro), tem QUATRO
+        // músicas prontas na conta, e mesmo assim o disparo de 02/09 o
+        // classificou como "sem música pronta" e pulou. Ele ficaria de fora
+        // pra sempre, porque o cron repetiria o mesmo julgamento todo dia.
+        //
+        // Então: tenta pelo pedido, e caindo fora, pela CONTA (`user_id`), que
+        // é o que amarra música a dono no resto do sistema.
+        let escolhida: { token_edicao: string; titulo: string | null; locale: string | null } | null = null;
+
         const { data: pedidos } = await sb
           .from("pedidos")
           .select("musica_id, paid_at")
@@ -135,7 +151,6 @@ export const quadroParado = inngest.createFunction(
           .order("paid_at", { ascending: false })
           .limit(10);
 
-        let escolhida: { token_edicao: string; titulo: string | null; locale: string | null } | null = null;
         for (const p of pedidos ?? []) {
           const { data: m } = await sb
             .from("musicas")
@@ -147,9 +162,28 @@ export const quadroParado = inngest.createFunction(
             break;
           }
         }
-        // Sem música pronta não há folha pra montar. Isso é caso de suporte,
-        // não de e-mail automático: avisar "monte o seu quadro" quem não tem
-        // música seria mandar a pessoa pra uma tela vazia.
+
+        if (!escolhida) {
+          const { data: conta } = await sb.from("users").select("id").eq("email", q.email).maybeSingle();
+          if (conta?.id) {
+            const { data: m } = await sb
+              .from("musicas")
+              .select("token_edicao, titulo, status, locale")
+              .eq("user_id", conta.id)
+              .eq("status", "pronta")
+              .not("token_edicao", "is", null)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (m?.token_edicao) {
+              escolhida = { token_edicao: m.token_edicao, titulo: m.titulo, locale: m.locale };
+            }
+          }
+        }
+
+        // Sem música pronta por nenhum dos dois caminhos não há folha pra
+        // montar. Isso é caso de suporte, não de e-mail automático: avisar
+        // "monte o seu quadro" quem não tem música é mandar pra uma tela vazia.
         if (!escolhida) continue;
 
         out.push({
