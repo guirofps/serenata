@@ -37,6 +37,10 @@ const PREFIXOS = [
   "/recuperar",
   "/retomar",
   "/pix/",
+  // `/credito/<token_edicao>` carrega a prova de posse de quem tem crédito.
+  // Ela só guarda o crachá e sai pro `/criar`, mas enquanto está na barra de
+  // endereço é token de cliente numa URL, e é isso que a lista protege.
+  "/credito/",
   "/descadastrar",
   "/auth/",
 ];

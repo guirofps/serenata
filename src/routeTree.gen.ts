@@ -25,6 +25,7 @@ import { Route as RecuperarRouteImport } from './routes/recuperar'
 import { Route as RetomarRouteImport } from './routes/retomar'
 import { Route as TermosRouteImport } from './routes/termos'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as CreditoTokenEdicaoRouteImport } from './routes/credito.$tokenEdicao'
 import { Route as EditarTokenEdicaoRouteImport } from './routes/editar.$tokenEdicao'
 import { Route as EsIndexRouteImport } from './routes/es.index'
 import { Route as EsCriarRouteImport } from './routes/es.criar'
@@ -116,6 +117,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CreditoTokenEdicaoRoute = CreditoTokenEdicaoRouteImport.update({
+  id: '/credito/$tokenEdicao',
+  path: '/credito/$tokenEdicao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EditarTokenEdicaoRoute = EditarTokenEdicaoRouteImport.update({
   id: '/editar/$tokenEdicao',
   path: '/editar/$tokenEdicao',
@@ -179,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/retomar': typeof RetomarRoute
   '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
   '/es/gracias': typeof EsGraciasRoute
@@ -206,6 +213,7 @@ export interface FileRoutesByTo {
   '/retomar': typeof RetomarRoute
   '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
   '/es/gracias': typeof EsGraciasRoute
@@ -234,6 +242,7 @@ export interface FileRoutesById {
   '/retomar': typeof RetomarRoute
   '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
   '/es/gracias': typeof EsGraciasRoute
@@ -263,6 +272,7 @@ export interface FileRouteTypes {
     | '/retomar'
     | '/termos'
     | '/auth/callback'
+    | '/credito/$tokenEdicao'
     | '/editar/$tokenEdicao'
     | '/es/criar'
     | '/es/gracias'
@@ -290,6 +300,7 @@ export interface FileRouteTypes {
     | '/retomar'
     | '/termos'
     | '/auth/callback'
+    | '/credito/$tokenEdicao'
     | '/editar/$tokenEdicao'
     | '/es/criar'
     | '/es/gracias'
@@ -317,6 +328,7 @@ export interface FileRouteTypes {
     | '/retomar'
     | '/termos'
     | '/auth/callback'
+    | '/credito/$tokenEdicao'
     | '/editar/$tokenEdicao'
     | '/es/criar'
     | '/es/gracias'
@@ -345,6 +357,7 @@ export interface RootRouteChildren {
   RetomarRoute: typeof RetomarRoute
   TermosRoute: typeof TermosRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  CreditoTokenEdicaoRoute: typeof CreditoTokenEdicaoRoute
   EditarTokenEdicaoRoute: typeof EditarTokenEdicaoRoute
   EsCriarRoute: typeof EsCriarRoute
   EsGraciasRoute: typeof EsGraciasRoute
@@ -470,6 +483,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/credito/$tokenEdicao': {
+      id: '/credito/$tokenEdicao'
+      path: '/credito/$tokenEdicao'
+      fullPath: '/credito/$tokenEdicao'
+      preLoaderRoute: typeof CreditoTokenEdicaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/editar/$tokenEdicao': {
       id: '/editar/$tokenEdicao'
       path: '/editar/$tokenEdicao'
@@ -553,6 +573,7 @@ const rootRouteChildren: RootRouteChildren = {
   RetomarRoute: RetomarRoute,
   TermosRoute: TermosRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  CreditoTokenEdicaoRoute: CreditoTokenEdicaoRoute,
   EditarTokenEdicaoRoute: EditarTokenEdicaoRoute,
   EsCriarRoute: EsCriarRoute,
   EsGraciasRoute: EsGraciasRoute,

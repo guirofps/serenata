@@ -78,10 +78,14 @@ async function jaAvisado(sb: ReturnType<typeof db>, quadroId: string, email: str
     .limit(1);
   if ((porQuadro ?? []).length > 0) return true;
 
+  // O SILÊNCIO É SOBRE O RECADO, não sobre o produto. Quem tem um quadro e um
+  // crédito parados recebe UM e-mail por semana, não dois: duas mensagens de
+  // "você esqueceu" saindo do remetente transacional é o que faz alguém marcar
+  // como spam — e é esse remetente que carrega a entrega de quem pagou.
   const { data: porPessoa } = await sb
     .from("funnel_events")
     .select("id")
-    .eq("event_name", "quadro_parado_avisado")
+    .in("event_name", ["quadro_parado_avisado", "credito_parado_avisado"])
     .contains("event_data", { email })
     .gte("created_at", new Date(Date.now() - SILENCIO_DIAS * 86400000).toISOString())
     .limit(1);

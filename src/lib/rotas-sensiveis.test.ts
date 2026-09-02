@@ -15,6 +15,14 @@ describe("rotaSensivel — onde script de terceiro não entra", () => {
     expect(rotaSensivel("/auth/callback")).toBe(true);
   });
 
+  it("bloqueia a porta do crédito, que carrega o token no caminho", () => {
+    // Ela redireciona pro `/criar` em milissegundos, mas nesse intervalo o
+    // token está na barra de endereço. Se o gtag carregar aqui, ele manda a
+    // URL inteira pro Google — que é exatamente o buraco que a lista fecha.
+    expect(rotaSensivel("/credito/abc123def456")).toBe(true);
+    expect(rotaSensivel("/es/credito/abc123def456")).toBe(true);
+  });
+
   it("bloqueia os painéis internos, que mostram PII de cliente", () => {
     expect(rotaSensivel("/admin")).toBe(true);
     expect(rotaSensivel("/recuperar")).toBe(true);
