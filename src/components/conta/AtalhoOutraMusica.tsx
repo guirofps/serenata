@@ -3,6 +3,7 @@ import { Music } from "lucide-react";
 import { OFERTAS, TEXTO_OFERTA } from "@/lib/creditos";
 import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
 import { trackEvent } from "@/lib/track";
+import { guardarCreditoNoNavegador } from "@/lib/credito-no-navegador";
 
 // O ATALHO PRA SEGUNDA MÚSICA, MAIS BARATO E SEM REFAZER TUDO.
 //
@@ -140,7 +141,16 @@ export function AtalhoOutraMusica({
           precoTexto={preco}
           checkoutCartao={oferta.checkout}
           tokenEdicao={tokenEdicao}
-          aoPagar={() => trackEvent("atalho_extra_pago", { origem, locale })}
+          aoPagar={() => {
+            trackEvent("atalho_extra_pago", { origem, locale });
+            // O CRACHÁ, e ele não é opcional. O crédito vai pro razão pelo
+            // e-mail, mas o resgate acontece no fim do PRÓXIMO quiz, numa
+            // sessão anônima que não sabe quem é essa pessoa. Sem guardar a
+            // prova de posse aqui, ela paga R$ 28 e a tela seguinte cobra
+            // R$ 38 — que é exatamente o defeito do quadro, repetido.
+            guardarCreditoNoNavegador(tokenEdicao);
+            window.location.href = locale === "es" ? "/es/criar" : "/criar";
+          }}
           aoFechar={() => setAberto(false)}
         />
       )}

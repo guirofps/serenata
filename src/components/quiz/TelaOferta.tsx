@@ -4,6 +4,10 @@ import { irParaCheckout } from "@/lib/checkout";
 import { temMusicaDaSessao, finalizarLetra } from "@/lib/coautoria";
 import { meusCreditos } from "@/lib/meus-creditos";
 import { usarCredito } from "@/lib/usar-credito";
+import {
+  creditoNoNavegador,
+  esquecerCreditoNoNavegador,
+} from "@/lib/credito-no-navegador";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
@@ -291,7 +295,13 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   //
   // Custo: uma chamada a mais SÓ pra quem está logado. Tráfego de anúncio é
   // anônimo e nem chega no `if`.
-  const [credito, setCredito] = useState<{ saldo: number; token: string } | null>(null);
+  // `token` é a sessão (quando existe) e `tokenEdicao` é o crachá de posse.
+  // Um dos dois é sempre preenchido; ver o efeito que consulta o saldo.
+  const [credito, setCredito] = useState<{
+    saldo: number;
+    token: string | null;
+    tokenEdicao: string | null;
+  } | null>(null);
   const [erroCredito, setErroCredito] = useState<string | null>(null);
   const respostas = useQuizStore((s) => s.respostas);
   const email = useQuizStore((s) => s.email);
@@ -333,11 +343,32 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       const { supabase } = await import("@/lib/supabase-client");
       const { data } = await supabase.auth.getSession();
       const tk = data.session?.access_token;
-      if (!tk || !vivo) return;
-      const c = await meusCreditos({ data: { token: tk } });
-      if (vivo && c.saldo > 0) {
-        setCredito({ saldo: c.saldo, token: tk });
-        trackEvent("oferta_com_credito", { saldo: c.saldo });
+      // ── AS DUAS CREDENCIAIS ──────────────────────────────
+      //
+      // Até 02/09 esta consulta parava aqui quando não havia sessão, e isso
+      // fechava o crédito pra 84% dos compradores — os que nunca clicam no
+      // magic link. Deixou de ser detalhe no dia em que o pacote de R$ 28
+      // passou a ser vendido na `/obrigado` e no e-mail de entrega, ou seja,
+      // exatamente pra quem não tem login: a pessoa pagava R$ 28 e esta tela
+      // pedia R$ 38 de novo.
+      //
+      // O crachá é o `token_edicao` guardado no navegador quando ela pagou
+      // (`credito-no-navegador.ts`). Ele é PROVA de posse, não afirmação: o
+      // servidor resolve o dono por ele e tira o e-mail de `pedidos`.
+      const cracha = tk ? null : creditoNoNavegador();
+      if ((!tk && !cracha) || !vivo) return;
+      const c = await meusCreditos({
+        data: tk ? { token: tk } : { tokenEdicao: cracha as string },
+      });
+      if (!vivo) return;
+      if (c.saldo > 0) {
+        setCredito({ saldo: c.saldo, token: tk ?? null, tokenEdicao: cracha });
+        trackEvent("oferta_com_credito", { saldo: c.saldo, via: tk ? "sessao" : "cracha" });
+      } else if (cracha) {
+        // Saldo zerado com crachá na mão: ele já foi gasto. Some, senão a
+        // próxima música consulta de novo e a tela promete crédito a quem não
+        // tem mais.
+        esquecerCreditoNoNavegador();
       }
     })().catch(() => {
       // Consulta indisponível: a tela segue cobrando. Ver `pagar`.
@@ -365,15 +396,25 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   // consulta que caiu seria trocar um problema raro por um pior.
   // O RESGATE. Não passa pelo gateway: debita o crédito no servidor, grava o
   // pedido e manda pro /obrigado, que é a mesma porta de quem pagou.
-  async function resgatar(tk: string) {
+  // Sem argumento: as credenciais vivem no estado `credito`, preenchido pelo
+  // efeito que consulta o saldo. Passar o token por parametro era resto de
+  // quando so existia a sessao.
+  async function resgatar() {
     setIndo(true);
     setErroCredito(null);
     try {
       const r = await usarCredito({
-        data: { token: tk, sessionId: getOrCreateSessionId() },
+        data: {
+          token: credito?.token ?? undefined,
+          tokenEdicao: credito?.tokenEdicao ?? undefined,
+          sessionId: getOrCreateSessionId(),
+        },
       });
       if (r.ok) {
         trackEvent("credito_resgatado", { saldo: r.saldo });
+        // Gastou: o crachá não serve mais e não pode sobreviver pra prometer
+        // crédito na próxima.
+        if (r.saldo <= 0) esquecerCreditoNoNavegador();
         window.location.href = "/obrigado";
         return;
       }
@@ -496,7 +537,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
         setSemMusica(null);
         // Segue o caminho que ela tinha escolhido. `pagar` é declaração de
         // função e está içada, então dá pra chamar daqui de cima.
-        if (origem === "credito" && credito) void resgatar(credito.token);
+        if (origem === "credito" && credito) void resgatar();
         else void pagar();
       } catch {
         // Consulta caiu: tenta de novo no próximo tique. Não desiste por uma
@@ -521,7 +562,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     // de mistério em leitura.
     trackEvent("botao_comprar", { locale, braco_bump: varianteDe("bump_quadro") });
     if (credito) {
-      await resgatar(credito.token);
+      await resgatar();
       return;
     }
     setIndo(true);

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { emailDaSessao } from "@/lib/conta-sessao";
+import { donoPorTokenEdicao } from "@/lib/dono-por-token";
 import { literalLike } from "@/lib/sql-like";
 
 // O SALDO DA CONTA, pro painel mostrar.
@@ -25,15 +26,24 @@ const ROTULO: Record<string, string> = {
 };
 
 export const meusCreditos = createServerFn({ method: "POST" })
-  // O TOKEN, não o e-mail. Server function é rota HTTP: aceitar o e-mail como
-  // parâmetro deixaria qualquer um ler saldo e histórico de compra de qualquer
-  // pessoa. Quem manda é a sessão assinada pelo Supabase.
-  .validator((data: { token: string }) => data)
+  // NUNCA O E-MAIL COMO PARÂMETRO. Server function é rota HTTP: aceitar o
+  // e-mail deixaria qualquer um ler saldo e histórico de compra de qualquer
+  // pessoa. As duas credenciais aceitas provam posse — a sessão assinada pelo
+  // Supabase, ou o `token_edicao` de uma música que a pessoa comprou.
+  //
+  // A segunda entrou em 02/09, quando o pacote de R$ 28 passou a ser vendido
+  // na `/obrigado` e no e-mail de entrega, ou seja, PRA QUEM NÃO TEM LOGIN.
+  // Sem ela o comprador pagava o crédito e, no fim do quiz seguinte, a tela
+  // não via saldo nenhum e pedia os R$ 38 de novo.
+  .validator((data: { token?: string; tokenEdicao?: string }) => data)
   .handler(async ({ data }): Promise<MeusCreditos> => {
-    const email = await emailDaSessao(data.token);
-    if (!email) return { saldo: 0, temQuadro: false, extrato: [] };
-
+    const vazio = { saldo: 0, temQuadro: false, extrato: [] };
     const db = supabaseAdmin();
+    const email =
+      (data.token ? await emailDaSessao(data.token) : null) ??
+      (await donoPorTokenEdicao(db, data.tokenEdicao))?.email ??
+      null;
+    if (!email) return vazio;
     const [{ data: saldo }, { data: linhas }] = await Promise.all([
       db.rpc("saldo_creditos", { p_email: email }),
       db

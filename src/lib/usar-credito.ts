@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Resend } from "resend";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { emailDaSessao } from "@/lib/conta-sessao";
+import { donoPorTokenEdicao } from "@/lib/dono-por-token";
 import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto";
 import { registrarEnvio } from "@/lib/registro-email";
 
@@ -64,15 +65,21 @@ export type ResgateCredito =
     };
 
 export const usarCredito = createServerFn({ method: "POST" })
-  // O TOKEN, nunca o e-mail. Server function é rota HTTP: aceitar e-mail como
-  // parâmetro deixaria qualquer um gastar o crédito de qualquer pessoa. Mesma
-  // regra de `meusCreditos`, e pelo mesmo motivo.
-  .validator((data: { token: string; sessionId: string }) => data)
+  // NUNCA O E-MAIL. Server function é rota HTTP: aceitar e-mail como parâmetro
+  // deixaria qualquer um gastar o crédito de qualquer pessoa. Valem as duas
+  // provas de posse, iguais às de `meusCreditos`: a sessão assinada pelo
+  // Supabase, ou o `token_edicao` de uma música que esta pessoa comprou.
+  //
+  // A segunda entrou em 02/09, quando o pacote de R$ 28 passou a ser vendido
+  // na `/obrigado` e no e-mail de entrega — ou seja, pra quem não tem login.
+  .validator((data: { token?: string; tokenEdicao?: string; sessionId: string }) => data)
   .handler(async ({ data }): Promise<ResgateCredito> => {
-    const email = await emailDaSessao(data.token);
-    if (!email) return { ok: false, erro: "sem-conta" };
-
     const db = supabaseAdmin();
+    const email =
+      (data.token ? await emailDaSessao(data.token) : null) ??
+      (await donoPorTokenEdicao(db, data.tokenEdicao))?.email ??
+      null;
+    if (!email) return { ok: false, erro: "sem-conta" };
 
     // ── 1. TEM O QUE ENTREGAR? ───────────────────────────────
     // A regra que o projeto não quebra é "nunca cobrar por algo que não foi
