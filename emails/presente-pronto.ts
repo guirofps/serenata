@@ -32,6 +32,7 @@ const COPY: Record<IdiomaEmail, {
   ajuda: string; ajudaBotao: string;
   quadroTitulo: string; quadroTexto: string; quadroBotao: string;
   meuQuadroTitulo: string; meuQuadroTexto: string; meuQuadroBotao: string;
+  outraMusica: string; outraMusicaLink: string;
 }> = {
   pt: {
     assunto: (n) => `A música de ${n} está pronta`,
@@ -67,6 +68,13 @@ const COPY: Record<IdiomaEmail, {
     comPressa:
       "E este é o link <strong style=\"color:#2a1518;\">que você manda pra ela</strong>. O presente já funciona do jeito que está, mesmo sem a foto:",
     verPresente: "ABRIR A PÁGINA QUE EU VOU MANDAR",
+    // UMA LINHA, e no fim. Quem recebe este e-mail ainda não ouviu a música
+    // que acabou de comprar, então isto não pode ter peso de oferta. Existe
+    // porque a única porta visível pra segunda música levava ao funil a preço
+    // cheio: em agosto, 32 recompras pagaram R$ 1.317,40 onde o pacote teria
+    // cobrado R$ 896.
+    outraMusica: "Tem mais alguém que merece uma? A segunda sai por R$ 28, e você não refaz nada: conta a história e a música fica pronta.",
+    outraMusicaLink: "quero mais uma música",
     rodape: "Serenata · uma música feita da história de quem você ama",
   },
   es: {
@@ -94,6 +102,10 @@ const COPY: Record<IdiomaEmail, {
     meuQuadroTexto:
       "Ya lo pagaste. Es la letra y la foto de ustedes en una hoja A4, con el código QR que reproduce la canción. Elegís la foto, armamos el PDF y lo mandás a imprimir.",
     meuQuadroBotao: "ARMAR MI CUADRO",
+    // O precio va en real porque el cobro va en real (Perfect Pay), igual que
+    // en el panel. Ver el comentario de `outraMusica` en pt.
+    outraMusica: "¿Hay alguien más que merece una? La segunda sale por R$ 28, y no rehacés nada: contás la historia y la canción queda lista.",
+    outraMusicaLink: "quiero una canción más",
     rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
 };
@@ -251,6 +263,25 @@ export function emailPresentePronto(args: {
       </table>`
           : ""
       }
+
+      <!-- MAIS UMA MÚSICA, e de propósito é só UMA LINHA de texto.
+           Ela vem depois do quadro e antes do socorro, com peso de rodapé:
+           quem lê este e-mail ainda não ouviu a música que comprou, e uma
+           oferta com peso aqui competiria com a ação da mensagem, que é
+           montar o presente.
+
+           ATENÇÃO ao editar este comentário: ele mora DENTRO do template
+           literal do e-mail, então crase aqui fecha a string e o arquivo
+           inteiro para de compilar. Nomes de rota vão sem crase.
+
+           O link é o EDITOR pelo token, com âncora, e não o /dashboard.
+           Este é o mesmo erro que enterrou o pacote: ele só aparecia na conta,
+           e 84% dos compradores nunca entram nela. Pelo token a pessoa cai no
+           bloco com o PIX aberto, sem login nenhum. -->
+      <p style="margin:22px 0 0;color:rgba(42,21,24,0.6);font-size:13px;line-height:1.5;font-family:Helvetica,Arial,sans-serif;">
+        ${C.outraMusica}
+        <a href="${linkEditor}#outra-musica" style="color:#7d2b3a;font-weight:600;text-decoration:underline;white-space:nowrap;">${C.outraMusicaLink}</a>
+      </p>
 
       <!-- O SOCORRO, no e-mail e não só no site.
            Medido em 18/08: 248 dos 294 compradores nunca entraram na conta.

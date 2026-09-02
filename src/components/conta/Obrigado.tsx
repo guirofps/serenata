@@ -12,6 +12,7 @@ import { trackEvent } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
+import { AtalhoOutraMusica } from "@/components/conta/AtalhoOutraMusica";
 import { linkSuporte, TEXTO_SUPORTE } from "@/lib/suporte-whatsapp";
 import { Check, Mail, Inbox, Pencil, Loader2 } from "lucide-react";
 
@@ -412,6 +413,19 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
             origem="obrigado"
             variante="discreto"
           />
+          {/* E, logo abaixo, o caminho BARATO pra quem já decidiu.
+              O convite acima manda pro `/criar`, que é o funil inteiro a preço
+              cheio, e era a única porta que existia aqui: em agosto, 32
+              recompras saíram a R$ 38+ (R$ 1.317,40) quando o pacote teria
+              cobrado R$ 896. O pacote precisa do `token_edicao` desta compra
+              pra cobrar sem login, por isso só aparece com o presente na mão. */}
+          {presente?.tokenEdicao && (
+            <AtalhoOutraMusica
+              locale={locale === "es" ? "es" : "pt"}
+              tokenEdicao={presente.tokenEdicao}
+              origem="obrigado"
+            />
+          )}
         </div>
 
         <p

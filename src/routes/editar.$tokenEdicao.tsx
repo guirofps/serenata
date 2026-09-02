@@ -19,6 +19,7 @@ import { marcarDono } from "@/lib/dono-presente";
 import { marcarSessaoGasta } from "@/lib/session-context";
 import { linkSuporte, TEXTO_SUPORTE } from "@/lib/suporte-whatsapp";
 import { OfertaQuadroEditor } from "@/components/presente/OfertaQuadroEditor";
+import { AtalhoOutraMusica } from "@/components/conta/AtalhoOutraMusica";
 import { trackEvent } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE, nomeCor } from "@/lib/marca";
 import { tp } from "@/lib/textos-presente";
@@ -925,6 +926,26 @@ function Editor() {
             locale={p?.locale === "es" ? "es" : "pt"}
             tokenEdicao={tokenEdicao}
           />
+
+          {/* E a "mais uma música" volta, mas como LINHA e não como bloco.
+              O comentário acima continua valendo: um quarto CARTÃO aqui vira
+              bagunça e o quadro vende mais. Uma linha de texto não disputa
+              espaço com cartão nenhum, e ela precisa existir aqui por dois
+              motivos:
+
+              1. É o alvo do link do e-mail de entrega. Sem âncora, o e-mail
+                 teria que mandar pro `/dashboard`, onde 84% dos compradores
+                 nunca entram, que é exatamente onde este pacote morreu.
+              2. Em agosto, 32 recompras saíram a preço cheio (R$ 1.317,40
+                 contra R$ 896) porque a única porta visível levava ao
+                 `/criar`. */}
+          <div id="outra-musica" style={{ scrollMarginTop: "5rem" }}>
+            <AtalhoOutraMusica
+              locale={p?.locale === "es" ? "es" : "pt"}
+              tokenEdicao={tokenEdicao}
+              origem="editor"
+            />
+          </div>
         </div>
 
         {/* SUPORTE POR WHATSAPP, e só aqui dentro.
