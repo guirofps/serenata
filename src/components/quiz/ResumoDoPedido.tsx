@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check, CreditCard, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GARANTIA } from "@/lib/garantia";
@@ -74,6 +74,9 @@ export function ResumoDoPedido({
 }) {
   const [valor, setValor] = useState(email);
   const [editando, setEditando] = useState(false);
+  // Pra levar a pessoa ate o campo quando o botao recusa: dizer "confere o
+  // e-mail" sem mostrar onde ele esta e a mesma falha, so que educada.
+  const caixaEmail = useRef<HTMLDivElement | null>(null);
   const g = GARANTIA.pt;
   const valido = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(valor.trim());
 
@@ -112,7 +115,7 @@ export function ResumoDoPedido({
           Mostrado sempre, editável em um toque. Ver o cabeçalho: endereço
           errado consertado aqui custa um toque; consertado depois custa uma
           conversa com o suporte. */}
-      <div className="rounded-2xl border border-primary/15 px-4 py-3">
+      <div ref={caixaEmail} className="rounded-2xl border border-primary/15 px-4 py-3">
         <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
           <Mail className="h-3.5 w-3.5" /> Enviamos pra
         </p>
@@ -192,26 +195,6 @@ export function ResumoDoPedido({
         </p>
       )}
 
-      <Button
-        size="lg"
-        className="w-full"
-        disabled={gerando || !valido}
-        onClick={() => aoConfirmar(valor.trim())}
-      >
-        {gerando ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Gerando o seu PIX...
-          </>
-        ) : (
-          "Gerar meu PIX"
-        )}
-      </Button>
-
-      <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-        {g.curto}
-      </p>
-
       {/* ── O CARTÃO SAI DAQUI, ANTES DE EXISTIR COBRANÇA ────────
           Este botão estava só na tela do QR, e isso obrigava quem queria
           cartão a gerar um PIX que nunca seria pago só pra descobrir onde
@@ -219,7 +202,10 @@ export function ResumoDoPedido({
           morta, e faz a pessoa passar por uma tela que não é pra ela.
 
           Cartão é 12,8% das vendas (uns R$ 8.000/mês). Merece a saída no
-          primeiro passo, não no segundo. */}
+          primeiro passo, não no segundo.
+
+          FICA ACIMA DO BOTÃO DE PIX no DOM porque o de PIX virou barra fixa
+          (abaixo). Quem não rola vê a barra; quem rola encontra o cartão. */}
       <div className="border-t border-primary/10 pt-4">
         <p className="mb-2 text-center text-xs text-muted-foreground">
           Prefere cartão, ou quer parcelar?
@@ -229,7 +215,69 @@ export function ResumoDoPedido({
         </Button>
       </div>
 
-      <IdentificacaoDoVendedor />
+      {/* O respiro existe pra a barra fixa não comer o CNPJ quando a folha
+          chega no fim. Medido: sem ele sobram 11px de sobreposição, e a linha
+          coberta é justamente a que prova que existe empresa atrás disto. */}
+      <div className="pb-3">
+        <IdentificacaoDoVendedor />
+      </div>
+
+      {/* ── O BOTÃO DE PAGAR NASCIA FORA DA TELA ────────────────
+          Medido em 02/09, na folha real a 375px: o conteúdo tem 879px e a
+          folha mostra 747px. O "Gerar meu PIX" terminava a 647px do topo
+          dela, ou seja, só aparecia sem rolar em aparelho com mais de ~704px
+          de viewport VISÍVEL. Com a barra de endereço aberta, num iPhone SE
+          ou num Android intermediário, ele não existia até a pessoa descobrir
+          que aquela folha rola por dentro — e ela não parece rolar, porque a
+          página atrás não se mexe.
+
+          O que isso produzia: 1.006 sessões abriram a folha em 7 dias, 460
+          geraram o código, e 488 sumiram SEM TOCAR EM NADA. Sem fechar, sem
+          ir pro cartão, sem marcar o bump. É o comportamento de quem não
+          achou o botão, não o de quem desistiu do preço.
+
+          Como barra fixa ele existe em qualquer tela. É a última posição do
+          DOM de propósito: `sticky bottom-0` fica colado até o fim do
+          conteúdo, então qualquer bloco depois dele seria coberto. */}
+      <div className="sticky bottom-0 -mx-5 -mb-8 border-t border-primary/10 bg-background px-5 pb-6 pt-3">
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={gerando}
+          onClick={() => {
+            // ── BOTÃO MORTO NÃO EXPLICA NADA ──────────────────
+            //
+            // Antes ele nascia `disabled` quando o e-mail não passava no
+            // regex, e o passo do contato já ensinou o que isso produz: a
+            // pessoa toca, nada acontece, e ela conclui que o site quebrou.
+            //
+            // Medido: entre quem NÃO gerou o PIX, 5,7% estava sem e-mail na
+            // sessão, contra 0,4% entre quem gerou. É 14x, e pra essas
+            // pessoas o botão era literalmente impossível de usar.
+            //
+            // Agora ele responde: abre o campo e diz o que falta.
+            if (!valido) {
+              setEditando(true);
+              caixaEmail.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+              return;
+            }
+            aoConfirmar(valor.trim());
+          }}
+        >
+          {gerando ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Gerando o seu PIX...
+            </>
+          ) : (
+            "Gerar meu PIX"
+          )}
+        </Button>
+
+        <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+          {g.curto}
+        </p>
+      </div>
     </div>
   );
 }
