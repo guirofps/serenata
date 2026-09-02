@@ -16,7 +16,7 @@ import { EFEITOS, rotuloEfeito } from "@/components/presente/Efeitos";
 import { FONTES, MARCA } from "@/lib/marca";
 import { Printer, Lock, Check, ChevronLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase-client";
-import { acessoAoQuadro, salvarQuadro } from "@/lib/meus-quadros";
+import { acessoAoQuadro, salvarQuadro, confirmarQuadro } from "@/lib/meus-quadros";
 import { OFERTAS } from "@/lib/creditos";
 import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
 import { trackEvent } from "@/lib/track";
@@ -166,6 +166,7 @@ function Pagina() {
   const t = T[q.locale] ?? T.pt;
   const token = q.linkPresente.split("/p/")[1] ?? "";
   const [pixAberto, setPixAberto] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
 
   const [estilo, setEstilo] = useState<Estilo>(ESTILO_PADRAO);
   const [qr, setQr] = useState<string | null>(null);
@@ -238,11 +239,21 @@ function Pagina() {
     (async () => {
       const { data: sess } = await supabase.auth.getSession();
       const tk = sess.session?.access_token;
-      if (!tk) {
-        if (vivo) setConferindo(false);
-        return;
-      }
-      const r = await acessoAoQuadro({ data: { token: tk, musicaId: q.musicaId as string } });
+      // ── AQUI SE PERDIA O QUADRO PAGO ─────────────────────────
+      //
+      // Até 02/09 esta função DESISTIA quando não havia sessão, e o `acesso`
+      // ficava em `nenhum`. Como 84% dos compradores não têm conta, quem tinha
+      // pago o quadro e abria a folha pelo link do e-mail via o botão "Quero
+      // este quadro por R$ 24,90": a tela pedia dinheiro por uma coisa que já
+      // era dela.
+      //
+      // Explica o número melhor que esquecimento: 34 vendidos, 7 montados.
+      //
+      // Agora o `token_edicao` da própria URL vai junto e serve de credencial,
+      // como já servia pro editor, pro PIX do upsell e pra própria folha.
+      const r = await acessoAoQuadro({
+        data: { token: tk, tokenEdicao, musicaId: q.musicaId as string },
+      });
       if (vivo) {
         setAcesso(r.acesso);
         // O QUE ELA GRAVOU MANDA. O loader roda sem sessão, então ele devolve
@@ -393,9 +404,11 @@ function Pagina() {
     try {
       const { data: sess } = await supabase.auth.getSession();
       const tk = sess.session?.access_token;
-      if (!tk) return setSalvo("nao");
+      // Sem sessão vale o token da URL: quem montou o quadro pelo link do
+      // e-mail precisa que o que ela escreveu sobreviva ao reload, senão ela
+      // digita a mesma dedicatória de novo no computador da impressão.
       const r = await salvarQuadro({
-        data: { token: tk, musicaId: q.musicaId, titulo, dedicatoria, estilo },
+        data: { token: tk, tokenEdicao, musicaId: q.musicaId, titulo, dedicatoria, estilo },
       });
       setSalvo(r.ok ? "sim" : "nao");
     } catch {
@@ -559,18 +572,50 @@ function Pagina() {
             </div>
           ) : acesso === "previa" ? (
             /* COMPROU, AINDA NÃO ESCOLHEU. Não é hora de vender de novo: é
-               hora de mandar ela terminar o que já pagou. */
+               hora de deixar ela terminar o que já pagou.
+
+               O BOTÃO CONFIRMA AQUI, não manda pro `/meu-quadro`. Ela está
+               olhando pra folha da música que quer; mandar pra uma lista pra
+               escolher de novo é pedir a mesma decisão duas vezes, e a lista
+               ainda ficava atrás de login. */
             <div className="mx-auto max-w-md text-center">
               <p className="text-[13px] leading-relaxed text-white/70">
                 {t.previaTexto}
               </p>
-              <a
-                href="/meu-quadro"
-                className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-7 font-medium"
+              <button
+                type="button"
+                disabled={confirmando}
+                onClick={async () => {
+                  if (!q.musicaId) return;
+                  setConfirmando(true);
+                  try {
+                    const { data: sess } = await supabase.auth.getSession();
+                    const r = await confirmarQuadro({
+                      data: {
+                        token: sess.session?.access_token,
+                        tokenEdicao,
+                        musicaId: q.musicaId,
+                      },
+                    });
+                    if (r.ok) {
+                      trackEvent("quadro_confirmado", { origem: "folha" });
+                      setAcesso("confirmado");
+                    } else {
+                      // Só sobra o caminho antigo quando o servidor recusa: aí
+                      // é caso de conta, e a lista é onde ela se resolve.
+                      window.location.href = "/meu-quadro";
+                    }
+                  } catch {
+                    window.location.href = "/meu-quadro";
+                  } finally {
+                    setConfirmando(false);
+                  }
+                }}
+                className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-7 font-medium disabled:opacity-60"
                 style={{ fontSize: 15, background: "#f0b95f", color: "#0d0a08" }}
               >
-                <Check className="h-4 w-4" /> {t.previaCta}
-              </a>
+                <Check className="h-4 w-4" /> {confirmando ? t.conferindo : t.previaCta}
+              </button>
             </div>
           ) : (
             /* NÃO COMPROU. O quadro fica visível de propósito: é a vitrine

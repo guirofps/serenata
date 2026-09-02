@@ -66,6 +66,72 @@ export type MeusQuadros = {
  */
 export type EstiloGravado = { modo?: string; cor?: string; efeito?: string };
 
+// ── A SEGUNDA CREDENCIAL: O TOKEN DE EDIÇÃO ──────────────────────
+//
+// Até 02/09 TUDO aqui exigia sessão. Consequência medida no mesmo dia: 34
+// quadros vendidos, 7 montados. E o motivo não era esquecimento.
+//
+// 84% dos compradores nunca criam conta. Quem pagava o quadro e abria a folha
+// pelo link do e-mail caía sem sessão, o `acessoAoQuadro` devolvia `nenhum`, e
+// a tela mostrava o botão "Quero este quadro por R$ 24,90" — pedindo dinheiro
+// por uma coisa que a pessoa JÁ TINHA COMPRADO. Não é um passo esquecido, é
+// uma porta que dizia "não é seu".
+//
+// O `token_edicao` já é a credencial do pós-compra em todo o resto do sistema:
+// é ele que abre o editor, que autoriza o PIX do upsell e que serve a folha.
+// Passa a valer aqui também. Quem tem o link é o dono, que é exatamente o
+// contrato que o e-mail de entrega estabelece com o comprador.
+//
+// ── O QUE ELE NÃO AFROUXA ────────────────────────────────────────
+//
+// O token prova posse de UMA música. Então ele só autoriza operações NAQUELA
+// música: `quemE` recusa quando o `musicaId` pedido não é o da própria música
+// do token. Sem isso, um token qualquer viraria chave pro quadro de todo
+// mundo — que é a diferença entre "o alvo vem do servidor" e "o alvo vem de
+// quem pediu".
+
+type Autorizado = { email: string; musicaId: string };
+
+async function quemE(
+  db: ReturnType<typeof supabaseAdmin>,
+  args: { token?: string; tokenEdicao?: string; musicaId: string },
+): Promise<Autorizado | null> {
+  // A SESSÃO VEM PRIMEIRO. Quem tem conta pode operar em qualquer música dela,
+  // inclusive numa que não seja a do link que abriu a tela.
+  if (args.token) {
+    const email = await emailDaSessao(args.token);
+    if (email) return { email, musicaId: args.musicaId };
+  }
+
+  const tk = (args.tokenEdicao ?? "").trim();
+  if (!tk) return null;
+
+  const { data: m } = await db
+    .from("musicas")
+    .select("id")
+    .eq("token_edicao", tk)
+    .maybeSingle();
+  if (!m?.id) return null;
+  // O token só fala pela própria música.
+  if (m.id !== args.musicaId) return null;
+
+  // O DONO É QUEM PAGOU, e isso vem de `pedidos`: `musicas` não guarda e-mail.
+  // Pagamento pago, mais recente, porque é o e-mail com que a compra do quadro
+  // foi feita que aparece em `quadros.email`.
+  const { data: p } = await db
+    .from("pedidos")
+    .select("email")
+    .eq("musica_id", m.id)
+    .eq("status", "pago")
+    .not("email", "is", null)
+    .order("paid_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!p?.email) return null;
+
+  return { email: p.email, musicaId: m.id };
+}
+
 /** O que a pessoa tem: direitos, quadros prontos e as músicas pra escolher. */
 export const meusQuadros = createServerFn({ method: "POST" })
   .validator((data: { token: string }) => data)
@@ -149,28 +215,34 @@ export const meusQuadros = createServerFn({ method: "POST" })
  * ponto em que um quadro comprado viraria quadro de todas as músicas dela.
  */
 export const confirmarQuadro = createServerFn({ method: "POST" })
-  .validator((data: { token: string; musicaId: string }) => data)
+  .validator((data: { token?: string; tokenEdicao?: string; musicaId: string }) => data)
   .handler(
     async ({
       data,
     }): Promise<
       { ok: true; tokenEdicao: string } | { ok: false; erro: "sem-conta" | "sem-direito" | "sem-musica" }
     > => {
-      const email = await emailDaSessao(data.token);
-      if (!email) return { ok: false, erro: "sem-conta" };
-
       const db = supabaseAdmin();
+      const quem = await quemE(db, data);
+      if (!quem) return { ok: false, erro: "sem-conta" };
+      const email = quem.email;
 
       // A MÚSICA É DELA? Sem esta pergunta, um id colado na requisição faria o
       // quadro sair com a música de outra pessoa.
+      //
+      // DOIS CAMINHOS, porque são duas credenciais. Com sessão, a prova é o
+      // `user_id` da conta. Com o token de edição, a prova é o próprio token:
+      // o `quemE` já recusou qualquer `musicaId` que não seja o dele, então
+      // exigir conta aqui barraria justamente os 84% que não têm uma — que é o
+      // defeito que este caminho existe pra consertar.
       const { data: conta } = await db.from("users").select("id").eq("email", email).maybeSingle();
-      if (!conta?.id) return { ok: false, erro: "sem-musica" };
-      const { data: musica } = await db
+      const porSessao = Boolean(data.token && conta?.id);
+      let consulta = db
         .from("musicas")
         .select("id, titulo, dedicatoria, token_edicao")
-        .eq("id", data.musicaId)
-        .eq("user_id", conta.id)
-        .maybeSingle();
+        .eq("id", data.musicaId);
+      if (porSessao) consulta = consulta.eq("user_id", conta!.id);
+      const { data: musica } = await consulta.maybeSingle();
       if (!musica?.id) return { ok: false, erro: "sem-musica" };
 
       // Já confirmado pra esta música: devolve o mesmo quadro em vez de gastar
@@ -218,7 +290,8 @@ export const confirmarQuadro = createServerFn({ method: "POST" })
 export const salvarQuadro = createServerFn({ method: "POST" })
   .validator(
     (data: {
-      token: string;
+      token?: string;
+      tokenEdicao?: string;
       musicaId: string;
       titulo?: string;
       dedicatoria?: string;
@@ -226,9 +299,10 @@ export const salvarQuadro = createServerFn({ method: "POST" })
     }) => data,
   )
   .handler(async ({ data }): Promise<{ ok: boolean }> => {
-    const email = await emailDaSessao(data.token);
-    if (!email) return { ok: false };
     const db = supabaseAdmin();
+    const quem = await quemE(db, data);
+    if (!quem) return { ok: false };
+    const email = quem.email;
     const mudanca: Record<string, unknown> = {};
     if (data.titulo !== undefined) mudanca.titulo = data.titulo.slice(0, 120);
     if (data.dedicatoria !== undefined) mudanca.dedicatoria = data.dedicatoria.slice(0, 400);
@@ -252,7 +326,7 @@ export const salvarQuadro = createServerFn({ method: "POST" })
  * numa chamada que não arrasta a letra inteira de novo.
  */
 export const acessoAoQuadro = createServerFn({ method: "POST" })
-  .validator((data: { token: string; musicaId: string }) => data)
+  .validator((data: { token?: string; tokenEdicao?: string; musicaId: string }) => data)
   .handler(
     async ({
       data,
@@ -263,10 +337,11 @@ export const acessoAoQuadro = createServerFn({ method: "POST" })
       estilo: EstiloGravado | null;
     }> => {
       const nada = { acesso: "nenhum" as const, titulo: null, dedicatoria: null, estilo: null };
-      const email = await emailDaSessao(data.token);
-      if (!email) return nada;
-
       const db = supabaseAdmin();
+      const quem = await quemE(db, data);
+      if (!quem) return nada;
+      const email = quem.email;
+
       const { data: meu } = await db
         .from("quadros")
         .select("id, titulo, dedicatoria, estilo")
