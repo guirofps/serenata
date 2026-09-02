@@ -34,3 +34,8 @@ materiais/
 
 # estado local do supabase cli (tem pooler-url com string de conexao)
 supabase/.temp/
+
+# Os dossiês de contestação SÃO versionados, apesar de nascerem de um script.
+# Cada um é o registro do que a gente afirmou a um adquirente, e disputa volta
+# a ser pedida meses depois.
+!docs/disputas/
