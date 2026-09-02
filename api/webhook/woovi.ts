@@ -529,7 +529,7 @@ export default async function handler(req: Req, res: Res) {
     // interseÃ§Ã£o. O `ttclid` sai da atribuiÃ§Ã£o first-touch, que Ã© o que dÃ¡ ao
     // evento alguÃ©m em quem casar.
     const attr = (q?.attribution ?? null) as Record<string, string | undefined> | null;
-    await venderNoTiktok({
+    const tiktok = await venderNoTiktok({
       eventId: paymentId,
       valor: (status.valorCentavos ?? 0) / 100,
       moeda: "BRL",
@@ -537,6 +537,28 @@ export default async function handler(req: Req, res: Res) {
       telefone: (pedido?.telefone as string | null) ?? null,
       ttclid: attr?.ttclid ?? null,
       quando: new Date(),
+    });
+
+    // ── O RESULTADO FICA GRAVADO, e não é zelo ──────────────
+    //
+    // O retorno era descartado e a lib só escrevia no `console.error`, então
+    // do nosso lado esta integração era invisível: em 02/09 a primeira venda
+    // vinda do TikTok chegou, o painel deles contabilizou, e aqui não havia
+    // uma linha provando isso. Eu procurei e concluí que tinha falhado.
+    //
+    // O modo de falhar que isso esconde é o caro: token expirado ou pixel
+    // trocado não derrubam nada, só param de mandar conversão — e a campanha
+    // vai perdendo otimização em silêncio até alguém estranhar o CPA semanas
+    // depois. Mesmo padrão do `catch {}` vazio que o CLAUDE.md lista como erro
+    // a não repetir.
+    //
+    // Grava sucesso E fracasso: sem o sucesso não dá pra saber se o silêncio
+    // é "não vendeu" ou "parou de mandar".
+    await auditar(sb, tiktok.ok ? "tiktok_conversao_enviada" : "tiktok_conversao_falhou", {
+      payment_id: paymentId,
+      valor: (status.valorCentavos ?? 0) / 100,
+      com_ttclid: Boolean(attr?.ttclid),
+      motivo: tiktok.motivo ?? null,
     });
   } catch (err) {
     // RelatÃ³rio que falha nÃ£o derruba entrega jÃ¡ feita.
