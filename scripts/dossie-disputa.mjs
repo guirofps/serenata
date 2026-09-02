@@ -36,7 +36,7 @@
 // A LETRA da música também fica de fora por padrão: é longa e não prova nada
 // que o título e a dedicatória já não provem.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
 
@@ -57,6 +57,18 @@ const EMAIL = arg("email");
 const E2E = arg("e2e");
 const COBRANCA = arg("cobranca");
 const SEM_PDF = process.argv.includes("--sem-pdf");
+// ── O PRINT DA PÁGINA PRESENTE, e por que ele é OPCIONAL ────────
+//
+// É a peça mais persuasiva que existe: mostra o produto montado, com o nome de
+// quem ganhou e a dedicatória escrita pelo comprador. Um analista entende em
+// dois segundos o que levaria três parágrafos.
+//
+// E mesmo assim não é padrão, porque a página costuma trazer o ROSTO de
+// terceiros. No primeiro caso que a gente defendeu era uma criança, e mandar
+// isso pra uma fila de análise de adquirente é errado independentemente de
+// ajudar na disputa. Quando as fotos são do próprio comprador com um adulto,
+// a conta muda — mas quem decide é quem está olhando o caso, não o script.
+const COM_PRINT = process.argv.includes("--print-presente");
 const MOTIVO = arg("motivo") ?? "Contestação por alegação de fraude";
 
 if (!PEDIDO && !EMAIL) {
@@ -216,6 +228,36 @@ if (entrega?.email_id) {
   linha.push({ quando: entrega.created_at, texto: `E-mail de entrega enviado para ${pedido.email}` });
 }
 
+// ── A PALAVRA FINAL É DO PROVEDOR, NÃO DO NOSSO WEBHOOK ─────────
+//
+// O Resend guarda o `last_event` de cada envio e devolve o HTML exato que saiu.
+// Nosso webhook grava a mesma coisa, mas com atraso: neste caso ele dizia
+// "sem abertura registrada" enquanto o provedor já marcava `clicked`.
+//
+// Num documento de disputa isso é a diferença entre "enviado" e "aberto e com
+// link clicado", que é a linha mais forte da seção de entrega. Então a fonte
+// passa a ser o provedor, e o nosso registro vira reforço.
+let emailDoProvedor = null;
+if (entrega?.email_id && env.RESEND_API_KEY) {
+  try {
+    const r = await fetch(`https://api.resend.com/emails/${entrega.email_id}`, {
+      headers: { Authorization: "Bearer " + env.RESEND_API_KEY },
+    });
+    if (r.ok) {
+      emailDoProvedor = await r.json();
+      const ev = String(emailDoProvedor.last_event ?? "");
+      // `clicked` implica aberto, e aberto implica entregue: o Resend guarda só
+      // o ÚLTIMO evento, não a lista.
+      if (["delivered", "opened", "clicked"].includes(ev)) estadoEmail.entregue = true;
+      if (["opened", "clicked"].includes(ev)) estadoEmail.aberto = true;
+      if (ev === "clicked") estadoEmail.clicado = true;
+      if (emailDoProvedor.subject) estadoEmail.assunto = emailDoProvedor.subject;
+    }
+  } catch {
+    // Provedor fora do ar não impede o dossiê: o que temos no nosso banco vale.
+  }
+}
+
 const textoEstadoEmail = estadoEmail.clicado
   ? "comprovadamente aberto e com link clicado"
   : estadoEmail.aberto ? "comprovadamente aberto"
@@ -304,6 +346,41 @@ const batemOsNomes = Boolean(
   (normal(nomeNoPix).includes(normal(nomeNoQuiz)) || normal(nomeNoQuiz).includes(normal(nomeNoPix))),
 );
 const nomeArquivo = `evidencias-${String(referencia).replace(/[^A-Za-z0-9_-]/g, "-")}`;
+
+// ── 5b. O PRINT DA PÁGINA, quando pedido ────────────────────────
+let printPresente = null;
+const acharChrome = () => [
+  "C:/Program Files/Google/Chrome/Application/chrome.exe",
+  "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+].find((c) => existsSync(c));
+
+if (COM_PRINT && musica?.token) {
+  const chrome = acharChrome();
+  const destino = `${process.cwd()}/docs/disputas/.print-presente.png`;
+  if (chrome) {
+    try {
+      if (!existsSync("docs/disputas")) mkdirSync("docs/disputas", { recursive: true });
+      execFileSync(chrome, [
+        "--headless", "--disable-gpu", "--hide-scrollbars",
+        "--window-size=500,1000",
+        // A página monta no cliente e as fotos vêm do Storage: sem orçamento de
+        // tempo o print sai preto, que é pior que print nenhum.
+        "--virtual-time-budget=9000",
+        `--screenshot=${destino}`,
+        `${SITE}/p/${musica.token}`,
+      ], { stdio: "ignore", timeout: 90000 });
+      if (existsSync(destino)) {
+        printPresente = readFileSync(destino).toString("base64");
+        // APAGA O ARQUIVO SOLTO. Ele vai embutido no documento; deixado em
+        // disco, viraria uma foto do rosto de um cliente versionada no git,
+        // que é exatamente o que a regra das fotos existe pra evitar.
+        rmSync(destino, { force: true });
+      }
+    } catch (e) {
+      console.warn("print da página não saiu:", String(e.message).slice(0, 100));
+    }
+  }
+}
 
 // ── 6. O DOCUMENTO ───────────────────────────────────────────────
 const bloco = (rotulo, valor) => valor == null || valor === "" ? "" :
@@ -440,7 +517,36 @@ ${totalFotos ? `<p>
   ${houveCompartilhamento ? bloco("Compartilhamento", "O produto foi acessado ao longo de horas, a partir de sessões distintas. O compartilhamento do link é a finalidade do produto: trata-se de um presente digital destinado a terceiros.") : ""}
 </dl>
 
-<h2>${totalFotos || musica?.personalizada_em ? "8" : "7"}. Conclusão</h2>
+${printPresente ? `
+<h2>${totalFotos || musica?.personalizada_em ? "8" : "7"}. O produto entregue</h2>
+<p>
+  Reprodução da página de presente tal como está publicada em
+  ${SITE}/p/${esc(musica.token)}, montada pelo próprio comprador
+  ${musica?.personalizada_em ? `em ${dataHora(musica.personalizada_em)}` : ""}.
+</p>
+<div style="text-align:center;margin:12px 0">
+  <img src="data:image/png;base64,${printPresente}" style="width:74mm;border:1px solid #999" alt="Página de presente">
+</div>` : ""}
+
+${emailDoProvedor?.html ? `
+<h2>${(totalFotos || musica?.personalizada_em ? 8 : 7) + (printPresente ? 1 : 0)}. Reprodução do e-mail de entrega</h2>
+<p>
+  Cópia fiel do e-mail enviado ao cliente em ${dataHora(entrega.created_at)},
+  <span class="forte">recuperada do provedor de envio</span>. O provedor registra este envio como
+  <span class="forte">${esc(textoEstadoEmail.replace("comprovadamente ", "").replace("registrado como ", "").replace(" pelo provedor", ""))}</span>.
+</p>
+<dl>
+  ${bloco("De", esc(emailDoProvedor.from))}
+  ${bloco("Para", esc([].concat(emailDoProvedor.to ?? []).join(", ")))}
+  ${bloco("Assunto", esc(emailDoProvedor.subject))}
+  ${bloco("Enviado em", dataHora(emailDoProvedor.created_at))}
+  ${bloco("ID do envio", `<span style="font-size:9pt">${esc(emailDoProvedor.id)}</span>`)}
+</dl>
+<div style="border:1px solid #999;margin:10px 0;overflow:hidden">
+  <iframe srcdoc="${esc(emailDoProvedor.html)}" style="width:100%;height:250mm;border:0" title="E-mail de entrega"></iframe>
+</div>` : ""}
+
+<h2>${(totalFotos || musica?.personalizada_em ? 8 : 7) + (printPresente ? 1 : 0) + (emailDoProvedor?.html ? 1 : 0)}. Conclusão</h2>
 <ul>
   ${tempoAtePagar ? `<li>O pagamento foi originado no próprio navegador do comprador, após ${duracao(tempoAtePagar)} de preenchimento de um questionário com informações pessoais.</li>` : ""}
   ${primeiroDe.get("musica_play") ? "<li>O comprador ouviu uma amostra do produto antes de decidir pagar.</li>" : ""}
@@ -533,6 +639,12 @@ prova(houveCompartilhamento, houveCompartilhamento
   ? `acessos espalhados por ${duracao(janelaAcessos)} — da pra falar em compartilhamento`
   : "acessos concentrados demais pra afirmar compartilhamento (nao entrou no documento)");
 prova(Boolean(pedido.titular_pix ?? pedido.nome_pagador), "titular da conta pagadora identificado");
+prova(Boolean(emailDoProvedor?.html), emailDoProvedor?.html
+  ? `copia fiel do e-mail recuperada do provedor (last_event: ${emailDoProvedor.last_event})`
+  : "sem copia do e-mail — o provedor nao devolveu o HTML");
+prova(Boolean(printPresente), printPresente
+  ? "print da pagina presente embutido (--print-presente)"
+  : "sem print da pagina (use --print-presente se as fotos permitirem)");
 prova(batemOsNomes, batemOsNomes
   ? `a descricao no PIX ("${nomeNoPix}") repete o nome digitado no quiz`
   : "descricao do PIX nao coincide com o quiz (nem sempre existe)");
