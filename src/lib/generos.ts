@@ -326,3 +326,56 @@ export function acharGenero(value: string | null | undefined): Genero | null {
   }
   return null;
 }
+
+/**
+ * O estilo que vai pro Suno, com o GENERO mandando.
+ *
+ * ── O DEFEITO QUE ISTO CONSERTA ─────────────────────────────────
+ *
+ * O `estilo_suno` que ia pro provedor era escrito pelo Claude junto com a
+ * letra, e ele derrapa. Medido em 14 dias: dos 46 pagodes, 23 (METADE) sairam
+ * com "violao de nylon" no estilo, e junto vinham "suave", "discreto",
+ * "leve", "clima intimista e caseiro", "andamento moderado".
+ *
+ * Isso nao descreve pagode, descreve balada acustica — e o Suno obedece a
+ * descricao, nao a palavra "pagode" no comeco dela. Foi assim que uma musica
+ * pedida em pagode saiu soando sertanejo.
+ *
+ * Por que o pagode e o mais atingido: a historia e romantica e o modelo puxa
+ * pra "intimista". Em sertanejo e MPB isso E o genero, entao nao ha conflito;
+ * em pagode e o oposto dele (alegre, caloroso, percussivo).
+ *
+ * ── A REGRA ─────────────────────────────────────────────────────
+ *
+ * O catalogo manda no GENERO; o modelo so acrescenta a VOZ. O texto curado de
+ * cada genero vem PRIMEIRO, porque o Suno pesa o comeco da string, e o que o
+ * modelo escreveu entra depois so pra dizer o timbre.
+ *
+ * Nao e desconfianca do modelo em geral: e que a escolha do genero foi da
+ * PESSOA, num campo do quiz, e nao cabe a um texto gerado contradizer isso.
+ */
+export function estiloParaSuno(args: {
+  genero: string | null | undefined;
+  /** O que o modelo escreveu. Usado so pra extrair a voz. */
+  estiloDoModelo?: string | null;
+  voz?: string | null;
+}): string {
+  const g = acharGenero(args.genero);
+  // Sem genero no catalogo (valor antigo, ou vazio) o texto do modelo e tudo
+  // que existe: melhor ele do que nada.
+  if (!g) return String(args.estiloDoModelo ?? args.genero ?? "").trim();
+
+  const voz =
+    args.voz === "feminina" ? "voz feminina" : args.voz === "masculina" ? "voz masculina" : null;
+
+  // O timbre que o modelo escolheu ("grave e emotiva", "suave e calorosa"),
+  // sem os adjetivos de ARRANJO que sao justamente os que derrapam.
+  const timbre = String(args.estiloDoModelo ?? "").match(
+    /voz\s+(?:masculina|feminina)\s+([a-zà-ú]+(?:\s+e\s+[a-zà-ú]+)?)/i,
+  )?.[1];
+
+  return [g.estiloSuno, voz && timbre ? `${voz} ${timbre}` : voz]
+    .filter(Boolean)
+    .join(", ")
+    .slice(0, 190);
+}

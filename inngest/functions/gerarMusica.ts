@@ -1,7 +1,7 @@
 ﻿import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { iniciarGeracao, consultarGeracao, obterTimestamps } from "../lib/kie.js";
-import { acharGenero } from "../../src/lib/generos.js";
+import { acharGenero, estiloParaSuno } from "../../src/lib/generos.js";
 import { podeGerar } from "../lib/disjuntor.js";
 
 // Job de geração da música. Portado de scratch/pipeline-completo.mjs, que já
@@ -199,10 +199,29 @@ export const gerarMusica = inngest.createFunction(
 
     let motivoRecusa: string | null = null;
 
+    // ── O GENERO ESCOLHIDO MANDA NO ESTILO ──────────────────────
+    //
+    // `musica.estilo_suno` e escrito pelo Claude junto com a letra, e ele
+    // derrapa. Medido em 14 dias: dos 46 pagodes, 23 (METADE) sairam com
+    // "violao de nylon", acompanhado de "suave", "leve", "clima intimista e
+    // caseiro", "andamento moderado". Isso descreve balada acustica, e o Suno
+    // obedece a descricao e nao a palavra "pagode" que abre a frase — foi
+    // assim que uma musica pedida em pagode saiu soando sertanejo.
+    //
+    // `estiloParaSuno` poe o texto CURADO do catalogo na frente (o Suno pesa
+    // o comeco) e guarda do texto do modelo so o timbre da voz. O genero foi
+    // escolhido pela PESSOA num campo do quiz; nenhum texto gerado pode
+    // contradizer isso.
+    const estiloDoGenero = estiloParaSuno({
+      genero: musica.genero,
+      estiloDoModelo: musica.estilo_suno,
+      voz,
+    });
+
     const estilos = [
-      { rotulo: "original", valor: musica.estilo_suno ?? musica.genero ?? "", esperaAntes: "" },
-      { rotulo: "sem-referencias", valor: estiloSemReferencias(musica.estilo_suno, musica.genero), esperaAntes: "" },
-      { rotulo: "segunda-chance", valor: musica.estilo_suno ?? musica.genero ?? "", esperaAntes: "60s" },
+      { rotulo: "original", valor: estiloDoGenero, esperaAntes: "" },
+      { rotulo: "sem-referencias", valor: estiloSemReferencias(estiloDoGenero, musica.genero), esperaAntes: "" },
+      { rotulo: "segunda-chance", valor: estiloDoGenero, esperaAntes: "60s" },
       // QUARTA tentativa, dez minutos depois. Medido na madrugada de 13/08: as
       // falhas se concentram na HORA DE PICO (14 prontas e 3 falhas às 23h,
       // zero falha nas horas vazias) e a recusa volta em segundos, não depois
@@ -212,7 +231,7 @@ export const gerarMusica = inngest.createFunction(
       //
       // Dez minutos de espera não custam nada pra quem já foi embora da
       // página (o e-mail avisa) e salvam a venda de quem voltar.
-      { rotulo: "ultima-chance", valor: musica.estilo_suno ?? musica.genero ?? "", esperaAntes: "10m" },
+      { rotulo: "ultima-chance", valor: estiloDoGenero, esperaAntes: "10m" },
     ];
 
     // Uma vez por música, não por estilo: se a primeira tentativa já deu
