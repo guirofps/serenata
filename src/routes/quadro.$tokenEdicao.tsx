@@ -296,12 +296,57 @@ function Pagina() {
   // coluna só, com foto, não cabe em tamanho nenhum que se leia.
   const duasColunas = q.letra.split(NOVA_LINHA).filter((l) => l.trim()).length > 26;
 
+  // ── O ESTILO PRECISA SOBREVIVER AO APARELHO ─────────────────────
+  //
+  // `gravarEstilo` e localStorage, e so isso deixava a escolha presa no
+  // celular. O servidor so recebia o estilo de carona no `gravarTextos`, que
+  // dispara no BLUR do titulo ou da dedicatoria — quem nao escreve nada nos
+  // campos (a maioria: o titulo ja vem preenchido) nunca salvava nada.
+  //
+  // Medido no quadro da Mausina, 02/09: ela escolheu fundo claro e coracoes
+  // (o evento `quadro_imprimir` registrou `modo:"claro", efeito:"coracoes"`),
+  // e a coluna `estilo` da linha dela ficou `null`. Abrir no computador da
+  // grafica devolveria o escuro sem efeito, que nao e o quadro que ela montou.
+  //
+  // E o mesmo motivo que o comentario do `gravarTextos` ja da pros textos:
+  // "o que ela escreveu tem que existir no outro aparelho". O estilo e o
+  // desenho da folha, entao vale ainda mais.
+  //
+  // Com folga de 800ms porque mexer na cor e clicar varias vezes seguidas, e
+  // cada clique viraria uma escrita.
+  const gravandoEstilo = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const mudar = (novo: Partial<Estilo>) => {
     const e = { ...estilo, ...novo };
     setEstilo(e);
     gravarEstilo(token, e);
     trackEvent("quadro_personalizou", novo as Record<string, string>);
+    if (gravandoEstilo.current) clearTimeout(gravandoEstilo.current);
+    gravandoEstilo.current = setTimeout(() => {
+      void guardarNoServidor(e);
+    }, 800);
   };
+
+  /**
+   * Manda titulo, dedicatoria e estilo pro servidor.
+   *
+   * Falha em silencio de proposito: o localStorage ja guardou a escolha, e
+   * uma tela de erro em cima de "escolhi a cor errada" atrapalharia mais do
+   * que ajuda. O que nao pode e a pessoa achar que salvou quando nao salvou —
+   * por isso o indicador de "salvo" continua saindo so do `gravarTextos`,
+   * que e acao deliberada dela.
+   */
+  async function guardarNoServidor(e: Estilo) {
+    if (!q.musicaId) return;
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      await salvarQuadro({
+        data: { token: sess.session?.access_token, tokenEdicao, musicaId: q.musicaId, titulo, dedicatoria, estilo: e },
+      });
+    } catch {
+      // localStorage ja tem; a proxima acao dela tenta de novo
+    }
+  }
 
   useEffect(() => {
     if (token) setEstilo(lerEstilo(token));
