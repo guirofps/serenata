@@ -40,13 +40,15 @@
   "functions": {
     "api/inngest.ts": { "maxDuration": 300 },
     "api/webhook/cakto.ts": { "maxDuration": 30 },
-    "api/ssr.js": { "maxDuration": 60 }
+    "api/ssr.js": { "maxDuration": 60 },
+    "api/quadro-pdf/[token].ts": { "maxDuration": 60, "memory": 2048 }
   },
   "rewrites": [
     { "source": "/api/inngest", "destination": "/api/inngest" },
     { "source": "/api/conversoes.csv", "destination": "/api/conversoes" },
     { "source": "/api/og/:token", "destination": "/api/og/[token]" },
     { "source": "/api/previa/:id", "destination": "/api/previa/[id]" },
+    { "source": "/api/quadro-pdf/:token", "destination": "/api/quadro-pdf/[token]" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/api/ssr" }
   ]

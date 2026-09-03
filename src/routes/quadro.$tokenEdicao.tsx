@@ -59,8 +59,13 @@ export const Route = createFileRoute("/quadro/$tokenEdicao")({
 
 const T = {
   pt: {
-    acao: "Imprimir ou salvar em PDF",
-    dica: "Escolha “Salvar como PDF”. Pra emoldurar, peça impressão em gráfica, papel fosco A4.",
+    acao: "Baixar o meu quadro em PDF",
+    baixando: "Preparando o arquivo...",
+    // O texto mudou junto com o botão. Antes ele ensinava a achar “Salvar
+    // como PDF” dentro da folha de impressão do sistema, que é exatamente o
+    // passo que ninguém achava no celular. Agora o arquivo chega pronto e
+    // não há nada pra ensinar.
+    dica: "O arquivo baixa pronto pra imprimir. Numa gráfica, peça papel fosco A4.",
     ouvir: "Aponte a câmera e ouça",
     para: "para",
     modo: "Fundo",
@@ -87,8 +92,9 @@ const T = {
     voltarEditor: "Voltar pro presente",
   },
   es: {
-    acao: "Imprimir o guardar en PDF",
-    dica: "Elige “Guardar como PDF”. Para enmarcar, pide impresión profesional en papel mate A4.",
+    acao: "Descargar mi cuadro en PDF",
+    baixando: "Preparando el archivo...",
+    dica: "El archivo se descarga listo para imprimir. Pide papel mate A4.",
     ouvir: "Apunta la cámara y escucha",
     para: "para",
     modo: "Fondo",
@@ -285,6 +291,10 @@ function Pagina() {
   //
   // Metade das fotos de celular é retrato, então isso não é caso raro.
   const [formato, setFormato] = useState<"paisagem" | "quadrada" | "retrato">("paisagem");
+  // `formato` ja NASCE com "paisagem", entao ele nunca serve como "a foto
+  // carregou" — checar a verdade dele daria sempre verdadeiro e o PDF sairia
+  // com o layout do palpite inicial. Este aqui e o sinal de verdade.
+  const [fotoMedida, setFotoMedida] = useState(false);
   const caixaRef = useRef<HTMLDivElement>(null);
   const letraRef = useRef<HTMLParagraphElement>(null);
 
@@ -336,6 +346,68 @@ function Pagina() {
    * por isso o indicador de "salvo" continua saindo so do `gravarTextos`,
    * que e acao deliberada dela.
    */
+  const [baixando, setBaixando] = useState(false);
+
+  /**
+   * Baixa a folha como PDF, feita pelo Chrome do servidor.
+   *
+   * ── POR QUE NAO E MAIS `window.print()` ─────────────────────────
+   *
+   * Porque no celular ele nao funciona, e o celular e 100% de quem usa isto.
+   * Medido em 30 dias: 76 cliques no botao, 74 de celular e ZERO de
+   * computador, e 15 das 33 sessoes apertaram mais de uma vez (a pior, 14
+   * vezes em 109 minutos). Ninguem aperta imprimir catorze vezes querendo
+   * catorze copias.
+   *
+   * Dentro do navegador embutido de um aplicativo de e-mail, que e por onde
+   * a maioria chega, `window.print()` costuma nem existir: o toque nao faz
+   * nada, sem erro. Foi o que aconteceu com a compradora que respondeu
+   * "Vou procurar alguem pra fazer para mim" tres minutos depois de apertar.
+   *
+   * ── O SALVAR ANTES NAO E ZELO, E CORRECAO ───────────────────────
+   *
+   * O servidor renderiza a pagina LENDO O BANCO. A troca de estilo salva com
+   * 800ms de folga, entao quem escolhe a cor e aperta o botao em seguida
+   * pediria um PDF do estilo ANTERIOR. Esperar a gravacao fecha essa janela.
+   *
+   * ── O `download` AQUI FUNCIONA, AO CONTRARIO DO MP3 ─────────────
+   *
+   * O atributo `download` e ignorado quando o arquivo mora em outro dominio,
+   * que foi o defeito do botao de baixar a musica em 02/09. Aqui a URL e um
+   * blob de MESMA ORIGEM, entao ele vale. E o servidor ainda manda
+   * `Content-Disposition: attachment` por cima, que e o que convence
+   * navegador embutido de aplicativo.
+   */
+  async function baixarPdf() {
+    if (baixando) return;
+    setBaixando(true);
+    trackEvent("quadro_imprimir", { modo: estilo.modo, efeito: estilo.efeito, via: "servidor" });
+    let url: string | null = null;
+    try {
+      await guardarNoServidor(estilo);
+      const r = await fetch(`/api/quadro-pdf/${tokenEdicao}`);
+      if (!r.ok) throw new Error(String(r.status));
+      const blob = await r.blob();
+      url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(titulo || "quadro").replace(/[^\p{L}\p{N} ]/gu, "").trim() || "quadro"}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      // NUNCA DEIXA A PESSOA SEM CAMINHO. Se o servidor falhou, a impressao
+      // do navegador continua ali: no computador ela sempre funcionou, e no
+      // celular e melhor uma chance do que nenhuma.
+      console.error("[quadro] pdf falhou:", err);
+      trackEvent("quadro_pdf_falhou", { erro: String(err).slice(0, 80) });
+      window.print();
+    } finally {
+      if (url) URL.revokeObjectURL(url);
+      setBaixando(false);
+    }
+  }
+
   async function guardarNoServidor(e: Estilo) {
     if (!q.musicaId) return;
     try {
@@ -360,7 +432,12 @@ function Pagina() {
     img.onload = () => {
       const r = img.naturalWidth / img.naturalHeight;
       setFormato(r > 1.15 ? "paisagem" : r < 0.85 ? "retrato" : "quadrada");
+      setFotoMedida(true);
     };
+    // Foto que nao carrega nao pode travar a folha pra sempre: a impressao
+    // segue com o formato palpitado, que e o que acontecia antes deste sinal
+    // existir.
+    img.onerror = () => setFotoMedida(true);
     img.src = q.fotoUrl;
   }, [q.fotoUrl]);
 
@@ -375,6 +452,29 @@ function Pagina() {
       .then(setQr)
       .catch(() => {});
   }, [q.linkPresente, p.qrEscuro, p.qrFundo]);
+
+  // ── A BANDEIRINHA QUE O RENDERIZADOR DO PDF ESPERA ──────────────
+  //
+  // `/api/quadro-pdf/<token>` abre esta mesma pagina num Chrome no servidor e
+  // imprime. Sem um sinal explicito de "acabei", ele teria que dormir um
+  // tanto arbitrario e torcer — e a folha sai errada de um jeito que ninguem
+  // ve antes da grafica: letra no corpo velho porque a medicao ainda nao
+  // rodou, QR em branco, foto ausente.
+  //
+  // Entao a pagina AVISA. Tres coisas precisam estar de pe, e cada uma ja
+  // quebrou a folha sozinha em algum momento:
+  //
+  //   `pronto`      a medicao do corpo da letra rodou (senao a letra vaza)
+  //   `qr`          o QR Code foi gerado (senao imprime um quadrado vazio)
+  //   `fotoMedida`  a foto carregou e o formato foi decidido de verdade
+  //
+  // Fica no <html> e nao em estado do React porque quem le e o Puppeteer,
+  // de fora, com `waitForSelector`.
+  useEffect(() => {
+    const ok = pronto && Boolean(qr) && (!q.fotoUrl || fotoMedida);
+    if (ok) document.documentElement.dataset.quadroPronto = "1";
+    else delete document.documentElement.dataset.quadroPronto;
+  }, [pronto, qr, fotoMedida, q.fotoUrl]);
 
   useLayoutEffect(() => {
     const medir = () => {
@@ -602,14 +702,12 @@ function Pagina() {
           ) : acesso === "confirmado" ? (
             <div className="text-center">
               <button
-                onClick={() => {
-                  trackEvent("quadro_imprimir", { modo: estilo.modo, efeito: estilo.efeito });
-                  window.print();
-                }}
+                disabled={baixando}
+                onClick={baixarPdf}
                 className="inline-flex h-12 w-full max-w-md items-center justify-center gap-2 rounded-full px-7 font-medium"
                 style={{ fontSize: 15, background: "#f0b95f", color: "#0d0a08" }}
               >
-                <Printer className="h-4 w-4" /> {t.acao}
+                <Printer className="h-4 w-4" /> {baixando ? t.baixando : t.acao}
               </button>
               <p className="mx-auto mt-3 max-w-md text-[13px] leading-relaxed text-white/45">
                 {t.dica} {estilo.modo === "escuro" && t.dicaClaro}
