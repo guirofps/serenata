@@ -144,3 +144,91 @@ export function gravarEstilo(token: string, e: Estilo): void {
     // Navegador com storage bloqueado não pode derrubar a impressão.
   }
 }
+
+/**
+ * O tamanho da moldura da foto na folha, a partir da proporcao REAL da imagem.
+ *
+ * ── POR QUE ISTO NAO E MAIS TRES BALDES ─────────────────────────
+ *
+ * Antes a foto caia em `paisagem`, `quadrada` ou `retrato`, e cada balde tinha
+ * uma moldura fixa. O balde do meio era o pior negocio da folha: uma foto 1:1
+ * era jogada numa faixa de 210x96mm, ou seja 2,2:1, e METADE DA IMAGEM ficava
+ * de fora. Ninguem ajusta o que sobrou de um corte desses; so da pra escolher
+ * qual metade se perde.
+ *
+ * A regra agora e uma so: a moldura tenta ter a PROPORCAO DA FOTO. Quando ela
+ * consegue, `object-fit: cover` nao corta nada, porque nao ha sobra pra
+ * cortar. E o que um emoldurador faz — o papel se ajusta a foto, nao o
+ * contrario.
+ *
+ * ── O QUE LIMITA ────────────────────────────────────────────────
+ *
+ * A folha tem 297mm e a letra precisa do resto. Entao a altura da foto vive
+ * numa faixa: nunca menos que 62mm (abaixo disso a foto vira selo e o rosto
+ * some), nunca mais que 104mm (acima disso a letra nao cabe e o corpo dela
+ * encolhe ate ficar ilegivel).
+ *
+ * Foto MUITO larga (panoramica) ou MUITO alta bate no limite e volta a ter
+ * corte — mas ai o corte e pequeno e o ajuste por arrasto resolve. O corte
+ * catastrofico, o de metade da imagem, deixa de existir.
+ *
+ * ── SANGRAR OU NAO ──────────────────────────────────────────────
+ *
+ * Foto larga sangra de ponta a ponta: encostar nas bordas e o que da a ela
+ * cara de capa, e o degrade por cima segura o titulo.
+ *
+ * Foto quadrada ou em pe vira bloco centralizado com respiro dos lados. O
+ * fundo da folha vira o passe-partout, que e como quadro de verdade se monta.
+ * Esticar uma foto vertical de parede a parede seria o corte que este arquivo
+ * existe pra evitar.
+ */
+export function molduraDaFoto(proporcao: number | null): {
+  sangra: boolean;
+  larguraMm: number;
+  alturaMm: number;
+} {
+  // Sem medida ainda (a imagem nao carregou): o palpite antigo de foto deitada,
+  // que e o formato mais comum. Ele so vale pelo instante ate o onload.
+  const r = proporcao && Number.isFinite(proporcao) && proporcao > 0 ? proporcao : 1.5;
+
+  const ALTURA_MIN = 62;
+  const ALTURA_MAX = 104;
+  const LARGURA_SANGRA = 210;
+  const LARGURA_MAX_BLOCO = 150;
+
+  // ── ONDE FICA A LINHA DA SANGRIA ────────────────────────────────
+  //
+  // Sangrar prende a largura em 210mm, e ai so a altura negocia — o que
+  // significa que a moldura NAO consegue ter a proporcao da foto, e o corte
+  // volta. Com a linha em 1,5 (a primeira tentativa) uma foto 3:2, que e a
+  // mais comum que sai de celular, perdia 26% da area: a moldura virava
+  // 210x104mm, ou 2,02:1, contra os 1,5:1 da foto.
+  //
+  // Em 2,0 so sangra o que ja e panoramico de verdade, e ai a moldura fica
+  // colada na proporcao da foto de novo. Todo o resto vira bloco centralizado
+  // com a proporcao exata: 1:1, 3:4, 3:2 e 16:9 passam a cortar ZERO.
+  //
+  // O preco e que a maioria das fotos deixa de encostar nas bordas. Nao e
+  // perda: foto com respiro dos lados e o fundo servindo de passe-partout e
+  // como quadro de verdade se monta, e vale mais que a cara de capa quando a
+  // alternativa e comer um quarto da imagem.
+  if (r >= 2) {
+    // Sangra: a largura esta cravada em 210mm, entao so a altura negocia.
+    const alta = Math.min(ALTURA_MAX, Math.max(ALTURA_MIN, LARGURA_SANGRA / r));
+    return { sangra: true, larguraMm: LARGURA_SANGRA, alturaMm: Math.round(alta) };
+  }
+
+  // Bloco: comeca pela altura maxima e deriva a largura da proporcao. Se a
+  // largura estourar (foto quase quadrada), e ela que manda e a altura cede.
+  let altura = ALTURA_MAX;
+  let largura = altura * r;
+  if (largura > LARGURA_MAX_BLOCO) {
+    largura = LARGURA_MAX_BLOCO;
+    altura = largura / r;
+  }
+  return {
+    sangra: false,
+    larguraMm: Math.round(largura),
+    alturaMm: Math.round(Math.min(ALTURA_MAX, Math.max(ALTURA_MIN, altura))),
+  };
+}

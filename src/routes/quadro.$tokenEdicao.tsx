@@ -14,6 +14,7 @@ import {
   type Estilo,
   posicaoDaFoto,
   limitarFoco,
+  molduraDaFoto,
 } from "@/lib/quadro-estilo";
 import { EFEITOS, rotuloEfeito } from "@/components/presente/Efeitos";
 import { FONTES, MARCA } from "@/lib/marca";
@@ -302,6 +303,9 @@ function Pagina() {
   // carregou" — checar a verdade dele daria sempre verdadeiro e o PDF sairia
   // com o layout do palpite inicial. Este aqui e o sinal de verdade.
   const [fotoMedida, setFotoMedida] = useState(false);
+  // A proporcao de verdade, nao o balde. E dela que a moldura tira o tamanho,
+  // pra a folha se ajustar a foto em vez de o contrario.
+  const [proporcao, setProporcao] = useState<number | null>(null);
   const caixaRef = useRef<HTMLDivElement>(null);
   const letraRef = useRef<HTMLDivElement>(null);
 
@@ -311,7 +315,16 @@ function Pagina() {
   // arrasto, e ela pensaria que o controle estragou alguma coisa.
   const focoPadrao = formato === "retrato" ? { x: 50, y: 50 } : { x: 50, y: 22 };
 
+  // A MOLDURA SEGUE A FOTO. Ver `molduraDaFoto`: em vez de tres tamanhos
+  // fixos, ela tenta ter a proporcao da imagem, e ai `cover` nao tem sobra pra
+  // cortar. O balde `quadrada` era o pior negocio da folha — jogava uma foto
+  // 1:1 numa faixa de 2,2:1 e comia metade dela.
+  const moldura = molduraDaFoto(proporcao);
+
   const p = paleta(estilo.modo);
+  // Sangra so quando o MODO permite E a foto e panoramica de verdade. Depende
+  // de `p`, entao mora depois da paleta.
+  const fotoSangra = p.fotoSangra && moldura.sangra;
   const acento = corDoQuadro(estilo.cor, estilo.modo);
 
   // DUAS COLUNAS QUANDO A LETRA É LONGA, e não é escolha estética: 49 linhas
@@ -444,6 +457,7 @@ function Pagina() {
     const img = new Image();
     img.onload = () => {
       const r = img.naturalWidth / img.naturalHeight;
+      setProporcao(r);
       setFormato(r > 1.15 ? "paisagem" : r < 0.85 ? "retrato" : "quadrada");
       setFotoMedida(true);
     };
@@ -681,10 +695,14 @@ function Pagina() {
               <AjusteDaFoto
                 url={q.fotoUrl}
                 foco={estilo.foco ?? focoPadrao}
-                // A MESMA ALTURA RELATIVA DA FAIXA NA FOLHA. Se o controle
-                // tivesse outra proporção, a pessoa enquadraria uma coisa e a
-                // folha mostraria outra, que é pior que não ter controle.
-                alturaCss={formato === "retrato" ? "160px" : formato === "quadrada" ? "150px" : "120px"}
+                // A MESMA PROPORÇÃO DA MOLDURA NA FOLHA, derivada do mesmo
+                // cálculo. Se o controle tivesse outra forma, a pessoa
+                // enquadraria uma coisa e a folha mostraria outra, que é pior
+                // que não ter controle nenhum.
+                //
+                // 300px é a largura de referência do controle no celular; a
+                // altura sai da proporção pra a moldura ser a mesma figura.
+                alturaCss={`${Math.round((300 * moldura.alturaMm) / moldura.larguraMm)}px`}
                 aoMudar={(f) => mudar({ foco: f })}
                 rotulo={t.rotuloFoto}
                 dica={t.dicaFoto}
@@ -920,18 +938,27 @@ function Pagina() {
           {q.fotoUrl && p.fotoSangra && (
             <div
               style={
-                formato === "retrato"
+                !fotoSangra
                   ? {
-                      // EM PÉ: não sangra. A foto vira um bloco centralizado,
-                      // com a proporção quase intacta, e o fundo escuro é a
-                      // moldura. Cortar uma foto vertical pra caber numa faixa
-                      // deitada é o que destrói o rosto.
+                      // NÃO SANGRA: a foto vira um bloco centralizado com a
+                      // PROPORÇÃO DELA, e o fundo da folha faz de
+                      // passe-partout. Sangrar prende a largura em 210mm, e aí
+                      // a moldura não consegue mais ter o formato da foto e o
+                      // corte volta.
+                      //
+                      // Era `formato === "retrato"`, ou seja, só foto em pé
+                      // escapava da faixa. Foto quadrada caía numa faixa de
+                      // 2,2:1 e perdia METADE da imagem; 3:2, que é a que sai
+                      // de celular, perdia 26%.
                       position: "absolute",
                       top: "14mm",
                       left: "50%",
                       transform: "translateX(-50%)",
-                      width: "62mm",
-                      height: "74mm",
+                      // Largura E altura saem da proporcao da foto: e o que
+                      // faz `cover` nao ter sobra pra cortar. Era 62x74mm
+                      // cravado, que so servia pra uma foto em pe de 0,84.
+                      width: `${moldura.larguraMm}mm`,
+                      height: `${moldura.alturaMm}mm`,
                       overflow: "hidden",
                       borderRadius: 3,
                     }
@@ -940,7 +967,8 @@ function Pagina() {
                       top: 0,
                       left: 0,
                       right: 0,
-                      height: formato === "quadrada" ? "96mm" : "88mm",
+                      // A altura sai da proporcao da foto, nao de um balde.
+                      height: `${moldura.alturaMm}mm`,
                     }
               }
             >
@@ -1018,11 +1046,18 @@ function Pagina() {
               <div
                 style={{
                   marginTop: "2mm",
-                  // Em pé ganha altura e perde largura; deitada fica na faixa.
-                  height: formato === "retrato" ? "84mm" : formato === "quadrada" ? "64mm" : "55mm",
-                  width: formato === "retrato" ? "72mm" : "100%",
-                  marginLeft: formato === "retrato" ? "auto" : undefined,
-                  marginRight: formato === "retrato" ? "auto" : undefined,
+                  // Mesma regra do outro modo: a moldura tem a proporção da
+                  // foto, então `cover` não tem sobra pra cortar. Eram três
+                  // alturas cravadas por balde (84/64/55mm), e a do meio
+                  // esmagava foto quadrada numa faixa de 2,9:1.
+                  //
+                  // Aqui a folha é clara e a foto nunca encosta nas bordas, só
+                  // que a largura ainda é limitada pela caixa de texto.
+                  height: `${Math.round(moldura.alturaMm * 0.76)}mm`,
+                  width: `${Math.round(moldura.larguraMm * 0.76)}mm`,
+                  maxWidth: "100%",
+                  marginLeft: "auto",
+                  marginRight: "auto",
                   overflow: "hidden",
                   borderRadius: 3,
                 }}
