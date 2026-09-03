@@ -10,6 +10,7 @@ import {
 } from "@/lib/credito-no-navegador";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent, trackEventOnce } from "@/lib/track";
+import { checkoutTiktok } from "@/lib/tiktok-pixel";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { TEMA_CLARO } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
@@ -586,6 +587,27 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     // de preço tem que ser lido.
     const plano = meuPlano(locale, { temCupom: Boolean(cupom && descontado) });
     trackEvent("checkout_click", { valor: plano.valor, locale, preco: plano.texto });
+
+    // ── O SINAL DO MEIO DO FUNIL PRO TIKTOK ──────────────────────
+    //
+    // `checkoutTiktok` existia, tinha teste, e NINGUÉM chamava. O pixel do
+    // TikTok só recebia `CompletePayment`, ou seja, o algoritmo dele tinha 2
+    // ou 3 eventos por dia pra aprender com quem é o nosso comprador.
+    //
+    // Isso não é detalhe de instrumentação, é o motivo de a campanha não sair
+    // do lugar: plataforma de anúncio otimiza pelo evento que recebe, e com
+    // 2 conversões diárias ela não tem amostra pra achar ninguém. Medido hoje:
+    // 1.387 sessões do TikTok chegaram na abertura e 24 terminaram a letra —
+    // ele está mandando gente que não tem nada a ver com o produto, porque
+    // nunca teve como aprender quem tem.
+    //
+    // `InitiateCheckout` acontece ~100x mais que a venda e é o sinal mais
+    // forte que dá pra alimentar sem inventar: quem clica em comprar declarou
+    // intenção de verdade.
+    //
+    // Vale pra QUALQUER visitante, não só pra quem veio do TikTok: é assim
+    // que o pixel monta público. Ele só existe se o pixel carregou.
+    checkoutTiktok({ valor: plano.valor, moeda: locale === "es" ? "USD" : "BRL" });
 
     // ── O CHECKOUT TRANSPARENTE ──────────────────────────────────
     //
