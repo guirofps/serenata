@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { carregarQuadro, type Quadro } from "@/lib/quadro";
 import { QuadroEfeitos } from "@/components/presente/QuadroEfeitos";
+import { AjusteDaFoto } from "@/components/presente/AjusteDaFoto";
 import {
   CORES_QUADRO,
   corDoQuadro,
@@ -11,6 +12,8 @@ import {
   gravarEstilo,
   ESTILO_PADRAO,
   type Estilo,
+  posicaoDaFoto,
+  limitarFoco,
 } from "@/lib/quadro-estilo";
 import { EFEITOS, rotuloEfeito } from "@/components/presente/Efeitos";
 import { FONTES, MARCA } from "@/lib/marca";
@@ -82,6 +85,8 @@ const T = {
     ofertaCta: "Quero este quadro por R$ 24,90",
     ofertaNota: "Depois de comprar você volta e escolhe de qual música é.",
     deOndeVieram: "Estes textos vieram da sua página presente. Mude aqui se quiser: muda só o quadro.",
+    rotuloFoto: "Foto",
+    dicaFoto: "Arraste a foto pra escolher o que aparece.",
     rotuloTitulo: "Título",
     rotuloMensagem: "Mensagem de baixo",
     salvando: "salvando...",
@@ -112,6 +117,8 @@ const T = {
     ofertaCta: "",
     ofertaNota: "",
     deOndeVieram: "Estos textos vinieron de tu página regalo. Cámbialos aquí si quieres: solo cambia el cuadro.",
+    rotuloFoto: "Foto",
+    dicaFoto: "Arrastra la foto para elegir qué aparece.",
     rotuloTitulo: "Título",
     rotuloMensagem: "Mensaje de abajo",
     salvando: "guardando...",
@@ -296,7 +303,13 @@ function Pagina() {
   // com o layout do palpite inicial. Este aqui e o sinal de verdade.
   const [fotoMedida, setFotoMedida] = useState(false);
   const caixaRef = useRef<HTMLDivElement>(null);
-  const letraRef = useRef<HTMLParagraphElement>(null);
+  const letraRef = useRef<HTMLDivElement>(null);
+
+  // O ponto de partida do ajuste quando a pessoa nunca mexeu: o mesmo palpite
+  // que a folha usa, pra o controle abrir mostrando exatamente o que ela ja
+  // esta vendo. Abrir centralizado daria um pulo na foto antes de qualquer
+  // arrasto, e ela pensaria que o controle estragou alguma coisa.
+  const focoPadrao = formato === "retrato" ? { x: 50, y: 50 } : { x: 50, y: 22 };
 
   const p = paleta(estilo.modo);
   const acento = corDoQuadro(estilo.cor, estilo.modo);
@@ -513,25 +526,30 @@ function Pagina() {
   // letra aparece CORTADA em cima e embaixo, porque a caixa tem
   // `overflow: hidden` e o conteúdo está centralizado.
   //
-  // `scrollHeight` não detecta transbordo em multicoluna. O retângulo de um
-  // Range detecta: ele devolve a posição REAL do primeiro e do último
-  // caractere na tela. Se algum estiver fora, encolhe 0,25pt e o efeito roda
-  // de novo, até parar de vazar.
+  // `scrollHeight` não detecta transbordo em multicoluna. A posição REAL do
+  // primeiro e do último pedaço de texto na tela detecta: se algum estiver
+  // fora da caixa, encolhe 0,25pt e o efeito roda de novo, até parar de vazar.
+  //
+  // ── ISTO MEDIA UM RANGE DE TEXTO, E PAROU DE PODER ──────────────
+  //
+  // Enquanto a letra era um <p> com um nó de texto só, dava pra medir os dois
+  // primeiros e os dois últimos CARACTERES com um Range. Em 03/09 cada verso
+  // virou um <span> de bloco (pra a coluna não partir uma linha no meio), e
+  // `el.firstChild` deixou de ser texto: os offsets 0 e 2 de um Range sobre
+  // ELEMENTO contam nós filhos, não letras, então a medição passaria a
+  // responder outra pergunta — em silêncio, que é o pior jeito.
+  //
+  // Medir o primeiro e o último verso dá a mesma resposta e não depende da
+  // forma interna do texto.
   useLayoutEffect(() => {
     const el = letraRef.current;
     const caixa = caixaRef.current;
-    const txt = el?.firstChild;
-    if (!el || !caixa || !txt || !txt.textContent || corpoPt <= 7) return;
-    const fim = txt.textContent.trimEnd().length;
-    if (fim < 2) return;
+    if (!el || !caixa || corpoPt <= 7) return;
+    const versos = el.children;
+    if (versos.length < 1) return;
 
-    const r = document.createRange();
-    r.setStart(txt, 0);
-    r.setEnd(txt, 2);
-    const primeiro = r.getBoundingClientRect();
-    r.setStart(txt, fim - 2);
-    r.setEnd(txt, fim);
-    const ultimo = r.getBoundingClientRect();
+    const primeiro = versos[0].getBoundingClientRect();
+    const ultimo = versos[versos.length - 1].getBoundingClientRect();
     const cx = caixa.getBoundingClientRect();
 
     if (primeiro.top < cx.top - 1 || ultimo.bottom > cx.bottom + 1) {
@@ -650,6 +668,29 @@ function Pagina() {
               </button>
             ))}
           </div>
+
+          {/* ── ONDE A PESSOA ENQUADRA A PRÓPRIA FOTO ──────────
+              Vem DEPOIS de cor e efeito e ANTES dos textos, na mesma lógica
+              do resto do painel: o que se resolve com o dedo vem primeiro, o
+              que pede teclado vem por último.
+
+              Só aparece pra quem já confirmou o quadro. Antes disso a folha é
+              prévia e não há o que ajustar. */}
+          {acesso === "confirmado" && q.fotoUrl && (
+            <div className="mx-auto w-full max-w-md text-left">
+              <AjusteDaFoto
+                url={q.fotoUrl}
+                foco={estilo.foco ?? focoPadrao}
+                // A MESMA ALTURA RELATIVA DA FAIXA NA FOLHA. Se o controle
+                // tivesse outra proporção, a pessoa enquadraria uma coisa e a
+                // folha mostraria outra, que é pior que não ter controle.
+                alturaCss={formato === "retrato" ? "160px" : formato === "quadrada" ? "150px" : "120px"}
+                aoMudar={(f) => mudar({ foco: f })}
+                rotulo={t.rotuloFoto}
+                dica={t.dicaFoto}
+              />
+            </div>
+          )}
 
           {/* ── OS TEXTOS, editáveis só por quem tem o quadro ──
               Aparecem DEPOIS das cores, e não antes: cor e fundo são um toque
@@ -910,10 +951,14 @@ function Pagina() {
                   width: "100%",
                   height: "100%",
                   objectFit: "cover",
-                  // Deitada e quadrada: puxa pro terço superior, onde ficam os
-                  // rostos. Em pé: centro, porque o bloco já respeita a
-                  // proporção e não há o que compensar.
-                  objectPosition: formato === "retrato" ? "center center" : "center 22%",
+                  // O enquadramento sai de `posicaoDaFoto`, a MESMA funcao que
+                  // o controle de ajuste usa. Duas contas separadas aqui e la
+                  // significariam a pessoa enquadrar uma coisa e a grafica
+                  // imprimir outra.
+                  //
+                  // Sem ajuste dela, vale o palpite de sempre: terco superior
+                  // na deitada (onde ficam os rostos), centro na em pe.
+                  objectPosition: posicaoDaFoto(estilo, formato),
                   display: "block",
                 }}
               />
@@ -989,7 +1034,7 @@ function Pagina() {
                     width: "100%",
                     height: "100%",
                     objectFit: "cover",
-                    objectPosition: formato === "retrato" ? "center center" : "center 22%",
+                    objectPosition: posicaoDaFoto(estilo, formato),
                     display: "block",
                   }}
                 />
@@ -1039,10 +1084,26 @@ function Pagina() {
                 overflow: "hidden",
               }}
             >
-              <p
+              {/* ── UMA LINHA DA LETRA, UM BLOCO ────────────────────
+                  Isto era um <p> so, com `pre-wrap` e duas colunas, e o
+                  navegador despejava o texto inteiro como um rio: sem
+                  fronteira de elemento, o corte entre as colunas caia no meio
+                  de uma linha QUE JA TINHA QUEBRADO.
+
+                  O estrago, pego no quadro de "Encontro no Golandim": o verso
+                  "Do Golandim ate Bodo, foi la que a nossa historia comecou a
+                  ter nome" quebrou, e a palavra `nome` foi parar sozinha no
+                  TOPO DA SEGUNDA COLUNA — lida de longe parece marcador de
+                  sistema vazando pra dentro do presente.
+
+                  Com cada linha num bloco e `breakInside: "avoid"`, a coluna
+                  so pode virar ENTRE versos. Linha nenhuma se parte no meio.
+
+                  A linha vazia vira um bloco com espaco duro: `pre-wrap` dava
+                  altura de linha pra ela, e sem isso as estrofes colariam. */}
+              <div
                 ref={letraRef}
                 style={{
-                  whiteSpace: "pre-wrap",
                   textAlign: "center",
                   fontSize: `${corpoPt}pt`,
                   lineHeight: duasColunas ? 1.42 : 1.6,
@@ -1051,8 +1112,12 @@ function Pagina() {
                   ...(duasColunas ? { columnCount: 2, columnGap: "12mm", width: "100%" } : {}),
                 }}
               >
-                {q.letra}
-              </p>
+                {q.letra.split(NOVA_LINHA).map((linha, i) => (
+                  <span key={i} style={{ display: "block", breakInside: "avoid" }}>
+                    {linha.trim() ? linha : " "}
+                  </span>
+                ))}
+              </div>
             </div>
 
             {dedicatoria && (

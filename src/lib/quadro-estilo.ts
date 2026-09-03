@@ -12,9 +12,55 @@ export type Estilo = {
   cor: string;
   /** Chave de EFEITOS (`nenhum`, `coracoes`, `estrelas`, `petalas`, `luzes`). */
   efeito: string;
+  /**
+   * Que ponto da foto fica no centro da faixa, em porcentagem.
+   *
+   * ── POR QUE ISTO EXISTE ─────────────────────────────────────────
+   *
+   * A faixa da foto e larga e baixa; a foto que a pessoa mandou quase nunca
+   * tem esse formato. Alguem precisa decidir que pedaco aparece, e ate 03/09
+   * quem decidia era um palpite fixo no codigo: `center 22%` pra foto
+   * deitada, `center center` pra em pe.
+   *
+   * O palpite acerta as vezes. Quando erra, corta a cara: no quadro de
+   * "Encontro no Golandim" a testa dela ficou raspada e a cabeca dele ficou
+   * de fora. Num presente cuja graca inteira e a foto de voces dois, isso e o
+   * defeito mais caro que a folha pode ter, e nenhuma escolha de cor conserta.
+   *
+   * Agora quem decide e o dono da foto, arrastando. E o mesmo gesto de trocar
+   * foto de perfil ou por banner em qualquer lugar, entao ninguem precisa
+   * aprender nada.
+   *
+   * Fica no estilo (e nao numa coluna propria) porque e escolha visual do
+   * quadro e viaja pelo mesmo caminho que ja salva no servidor a cada troca.
+   */
+  foco?: { x: number; y: number };
 };
 
+/**
+ * Sem `foco` de proposito: `undefined` quer dizer "a pessoa nunca ajustou", e
+ * ai vale o palpite por formato (`center 22%` pra deitada). Cravar um padrao
+ * aqui obrigaria toda foto em pe a nascer no enquadramento errado.
+ */
 export const ESTILO_PADRAO: Estilo = { modo: "escuro", cor: "ambar", efeito: "nenhum" };
+
+/** Limita ao quadrado 0-100: arrastar nunca pode empurrar a foto pra fora. */
+export function limitarFoco(x: number, y: number): { x: number; y: number } {
+  const trava = (v: number) => Math.max(0, Math.min(100, Number.isFinite(v) ? v : 50));
+  return { x: trava(x), y: trava(y) };
+}
+
+/**
+ * O `object-position` final da faixa.
+ *
+ * Uma funcao so, usada pela tela E pela folha, pra as duas nunca discordarem:
+ * o dia em que o ajuste valer no controle e nao na impressao, a pessoa manda
+ * pra grafica uma foto diferente da que ela enquadrou.
+ */
+export function posicaoDaFoto(estilo: Estilo, formato: string): string {
+  if (estilo.foco) return `${estilo.foco.x}% ${estilo.foco.y}%`;
+  return formato === "retrato" ? "center center" : "center 22%";
+}
 
 // CADA COR TEM DOIS VALORES, e isso não é capricho.
 //
