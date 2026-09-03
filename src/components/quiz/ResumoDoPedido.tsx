@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useFarolDaFolha } from "@/lib/farol-folha";
 import { Check, CreditCard, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GARANTIA } from "@/lib/garantia";
@@ -77,6 +78,9 @@ export function ResumoDoPedido({
   // Pra levar a pessoa ate o campo quando o botao recusa: dizer "confere o
   // e-mail" sem mostrar onde ele esta e a mesma falha, so que educada.
   const caixaEmail = useRef<HTMLDivElement | null>(null);
+  // O que a pessoa fez aqui dentro, pra quem abandona parar de ser um
+  // numero unico e virar dois grupos com remedios opostos. Ver `farol-folha.ts`.
+  const farol = useFarolDaFolha();
   const g = GARANTIA.pt;
   const valido = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(valor.trim());
 
@@ -134,7 +138,10 @@ export function ResumoDoPedido({
             <span className="truncate text-sm font-medium">{valor || "sem e-mail"}</span>
             <button
               type="button"
-              onClick={() => setEditando(true)}
+              onClick={() => {
+                farol.email();
+                setEditando(true);
+              }}
               className="shrink-0 text-xs text-primary underline underline-offset-4"
             >
               trocar
@@ -162,7 +169,10 @@ export function ResumoDoPedido({
       {quadro !== null && (
         <button
           type="button"
-          onClick={() => aoTrocarQuadro(!quadro)}
+          onClick={() => {
+            farol.bump();
+            aoTrocarQuadro(!quadro);
+          }}
           aria-pressed={quadro}
           className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left transition-colors ${
             quadro ? "border-primary/50 bg-primary/5" : "border-primary/15"
@@ -239,7 +249,10 @@ export function ResumoDoPedido({
           Como barra fixa ele existe em qualquer tela. É a última posição do
           DOM de propósito: `sticky bottom-0` fica colado até o fim do
           conteúdo, então qualquer bloco depois dele seria coberto. */}
-      <div className="sticky bottom-0 -mx-5 -mb-8 border-t border-primary/10 bg-background px-5 pb-6 pt-3">
+      <div
+        ref={farol.refDoBotao}
+        className="sticky bottom-0 -mx-5 -mb-8 border-t border-primary/10 bg-background px-5 pb-6 pt-3"
+      >
         <Button
           size="lg"
           className="w-full"
@@ -257,10 +270,12 @@ export function ResumoDoPedido({
             //
             // Agora ele responde: abre o campo e diz o que falta.
             if (!valido) {
+              farol.email();
               setEditando(true);
               caixaEmail.current?.scrollIntoView({ behavior: "smooth", block: "center" });
               return;
             }
+            farol.gerou();
             aoConfirmar(valor.trim());
           }}
         >
