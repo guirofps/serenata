@@ -35,7 +35,11 @@ import { Resend } from "resend";
 // gente no funil) E nenhuma música ficou pronta no mesmo período. Sem
 // tráfego, o vigia dorme junto.
 
-const PARA = "guilhermerojasiqueira@gmail.com";
+// DOIS ENDERECOS, e nao e desleixo. Este alerta existe pra uma decisao com
+// hora marcada — pausar as campanhas —, e um e-mail que cai na caixa errada
+// ou empaca num filtro custa o dia inteiro de midia. Redundancia aqui e
+// barata; o alerta que nao chega nao e.
+const PARA = ["guilhermerojasiqueira@gmail.com", "agenciarocketfy@gmail.com"];
 
 /** Quanto tempo sem música pronta, HAVENDO tráfego, já é suspeito. */
 const JANELA_MIN = 20;
@@ -59,6 +63,43 @@ function db() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Supabase env ausente");
   return createClient(url, key, { auth: { persistSession: false } });
+}
+
+/**
+ * Os sinais que valem acordar o dono, separados do job pra poderem ser
+ * testados sem Inngest, sem banco e sem e-mail.
+ *
+ * Sao TRES, e o terceiro nasceu em 03/09 porque os dois primeiros tinham um
+ * ponto cego caro:
+ *
+ *   `nada-saiu`      tem gente escrevendo letra e nao saiu musica nenhuma
+ *   `fila-grande`    tanta coisa presa que nao e soluco
+ *   `provedor-recusando`  as musicas FALHAM em vez de travar
+ *
+ * O terceiro e o formato de quebra de quem MUDA DE CONTRATO: o job fala com
+ * o provedor, toma erro e marca `falhou`. Nada fica preso, entao nao ha o que
+ * redisparar; e como alguma coisa ainda sai, "nada saiu" nunca acende. Uma
+ * quebra parcial passava inteira por baixo do radar, e metade das musicas
+ * falhando e venda perdida do mesmo jeito.
+ *
+ * Tres falhas e o piso pra nao gritar com um soluco isolado; a maioria
+ * falhando e o que separa "uma musica deu azar" de "o provedor mudou debaixo
+ * de nos".
+ */
+export function lerOsSinais(d: {
+  letrasNovas: number;
+  prontasNaJanela: number;
+  totalPresas: number;
+  falhas: number;
+}): { avisar: boolean; motivo: "nada-saiu" | "fila-grande" | "provedor-recusando" | null } {
+  if (d.falhas >= 3 && d.falhas >= d.prontasNaJanela) {
+    return { avisar: true, motivo: "provedor-recusando" };
+  }
+  if (d.letrasNovas >= 3 && d.prontasNaJanela === 0) {
+    return { avisar: true, motivo: "nada-saiu" };
+  }
+  if (d.totalPresas >= 15) return { avisar: true, motivo: "fila-grande" };
+  return { avisar: false, motivo: null };
 }
 
 export const vigiaGeracao = inngest.createFunction(
@@ -87,6 +128,36 @@ export const vigiaGeracao = inngest.createFunction(
         .from("musicas")
         .select("id", { count: "exact", head: true })
         .gte("gerada_em", desde);
+
+      // ── E QUANTAS FALHARAM, E POR QUÊ ─────────────────────────
+      //
+      // Este vigia nasceu olhando pra `aguardando` e `gerando`, porque foi
+      // escrito depois de uma queda em que o job nem chegava a rodar. Ele
+      // NUNCA olhou `falhou` — e é ali que cai o provedor que responde, mas
+      // responde diferente.
+      //
+      // A diferença importa: se o contrato da API muda, o job fala com o
+      // provedor, toma erro e marca `falhou`. Nada fica preso, então o
+      // redisparo não tem o que consertar e o sinal de "nada saiu" só acende
+      // se TODAS falharem. Uma quebra parcial (metade das músicas) passava
+      // inteira por baixo do radar.
+      //
+      // O `erro` vem junto porque é ele que diz se é o provedor ou nós.
+      const { data: falhadas } = await sb
+        .from("musicas")
+        .select("erro, created_at")
+        .eq("status", "falhou")
+        .gte("created_at", desde);
+
+      // TETO DIÁRIO NÃO É QUEDA. O disjuntor marca `falhou` quando o limite
+      // de gasto do dia estoura, e isso é o sistema funcionando como
+      // projetado. Contar essas como pane faria o alerta gritar justamente
+      // no dia de maior volume — e alerta que mente uma vez deixa de ser
+      // lido.
+      const falhasReais = (falhadas ?? []).filter(
+        (f) => !String(f.erro ?? "").toLowerCase().includes("teto diário"),
+      );
+      const motivos = [...new Set(falhasReais.map((f) => String(f.erro ?? "sem motivo")))].slice(0, 4);
 
       // O QUE ESTÁ PRESO, com quem pagou na frente.
       //
@@ -151,6 +222,8 @@ export const vigiaGeracao = inngest.createFunction(
         prontasNaJanela: prontasNaJanela ?? 0,
         presas: lista,
         totalPresas: (presas ?? []).length,
+        falhas: falhasReais.length,
+        motivos,
       };
     });
 
@@ -188,11 +261,10 @@ export const vigiaGeracao = inngest.createFunction(
     // Uma fila pequena que voltou pra fila é operação normal. O que merece
     // acordar alguém é o sinal de PARADA: tem gente escrevendo letra e não
     // saiu música nenhuma, ou a fila presa é grande demais pra ser soluço.
-    const paradaReal =
-      (diagnostico.letrasNovas >= 3 && diagnostico.prontasNaJanela === 0) ||
-      diagnostico.totalPresas >= 15;
+    const veredito = lerOsSinais(diagnostico);
+    const maioriaFalhando = veredito.motivo === "provedor-recusando";
 
-    if (!paradaReal) return { ok: true, redisparadas };
+    if (!veredito.avisar) return { ok: true, redisparadas, falhas: diagnostico.falhas };
 
     await step.run("avisar-dono", async () => {
       const chave = process.env.RESEND_API_KEY;
@@ -200,24 +272,38 @@ export const vigiaGeracao = inngest.createFunction(
       const pagos = diagnostico.presas.filter((m) => m.pago).length;
       await new Resend(chave).emails.send({
         from: "Serenata <contato@serenatagift.com>",
-        to: [PARA],
-        subject: `🔴 A GERAÇÃO DE MÚSICA PAROU (${diagnostico.totalPresas} presas)`,
+        to: PARA,
+        subject: maioriaFalhando
+          ? `🔴 PAUSE AS CAMPANHAS — o provedor está recusando (${diagnostico.falhas} falhas)`
+          : `🔴 PAUSE AS CAMPANHAS — a geração de música parou (${diagnostico.totalPresas} presas)`,
         html:
-          `<p><strong>Nos últimos ${JANELA_MIN} minutos entraram ` +
-          `${diagnostico.letrasNovas} letras novas e ficaram prontas ` +
-          `${diagnostico.prontasNaJanela} músicas.</strong></p>` +
-          `<p>Presas: <strong>${diagnostico.totalPresas}</strong>, sendo ` +
-          `<strong>${pagos} de quem já pagou</strong>.<br>` +
-          `Redisparei ${redisparadas} agora; se este e-mail se repetir na ` +
+          // A AÇÃO VEM ANTES DO DIAGNÓSTICO. Este e-mail é lido no celular,
+          // provavelmente no meio de outra coisa. Cada minuto de campanha
+          // rodando sem música saindo é dinheiro comprando lead que não vai
+          // ser atendido — e, pior, comprador que paga por algo que não
+          // existe, que é a única regra que este projeto não quebra.
+          `<p style="font-size:17px"><strong>Pause as campanhas do Google.</strong> ` +
+          `Enquanto elas rodam, cada lead que entra vira música que não sai.</p>` +
+          `<p><strong>Nos últimos ${JANELA_MIN} minutos:</strong><br>` +
+          `${diagnostico.letrasNovas} letras novas · ` +
+          `${diagnostico.prontasNaJanela} músicas prontas · ` +
+          `<strong>${diagnostico.falhas} falhas</strong> · ` +
+          `${diagnostico.totalPresas} presas (${pagos} de quem já pagou)</p>` +
+          (diagnostico.motivos.length
+            ? `<p><strong>O que o provedor respondeu:</strong><br>` +
+              diagnostico.motivos.map((m) => `<code>${m}</code>`).join("<br>") +
+              `</p>`
+            : "") +
+          `<p>Redisparei ${redisparadas} agora; se este e-mail se repetir na ` +
           `próxima rodada, o redisparo não está resolvendo.</p>` +
           `<p>Onde olhar, na ordem:<br>` +
-          `1. <code>/api/inngest</code> responde? (500 ali derruba TODAS as ` +
+          `1. O provedor mudou de contrato? (o motivo acima diz)<br>` +
+          `2. <code>/api/inngest</code> responde? (500 ali derruba TODAS as ` +
           `funções — foi o que aconteceu em 26/08, quatro horas fora)<br>` +
-          `2. Saldo do kie.ai<br>` +
-          `3. O provedor está de pé?</p>`,
+          `3. Saldo do kie.ai</p>`,
       });
     });
 
-    return { ok: false, redisparadas, presas: diagnostico.totalPresas };
+    return { ok: false, redisparadas, presas: diagnostico.totalPresas, falhas: diagnostico.falhas };
   },
 );
