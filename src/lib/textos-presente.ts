@@ -42,9 +42,10 @@ const PT = {
   guardarOuEnviar: "Guardar ou enviar",
   comoBaixa: "como baixa a música?",
   ajudaCelular:
-    "No celular abre as opções do aparelho: escolha “Salvar em Arquivos” pra guardar, ou o WhatsApp pra mandar direto.",
-  ajudaDesktop: "Baixa o MP3 no seu computador.",
+    "O MP3 vai pros seus downloads. Pra mandar direto no WhatsApp, use o botão de enviar.",
+  ajudaDesktop: "O MP3 vai pra pasta de downloads do seu computador.",
   baixarOuEnviar: "Baixar ou enviar a música",
+  enviarMusica: "Enviar pelo WhatsApp",
   preparandoAudio: "preparando o áudio…",
   pronto: "pronto",
   posicaoMusica: "Posição da música",
@@ -156,9 +157,10 @@ const ES: TextosPresente = {
   guardarOuEnviar: "Guardar o enviar",
   comoBaixa: "¿cómo se descarga?",
   ajudaCelular:
-    "En el celular abre las opciones del teléfono: elige “Guardar en Archivos” para guardarla, o WhatsApp para mandarla directo.",
-  ajudaDesktop: "Descarga el MP3 en tu computadora.",
+    "El MP3 va a tus descargas. Para mandarla directo por WhatsApp, usá el botón de enviar.",
+  ajudaDesktop: "El MP3 va a la carpeta de descargas de tu computadora.",
   baixarOuEnviar: "Descargar o enviar la canción",
+  enviarMusica: "Enviar por WhatsApp",
   preparandoAudio: "preparando el audio…",
   pronto: "listo",
   posicaoMusica: "Posición de la canción",
@@ -252,8 +254,9 @@ const AR: Partial<TextosPresente> = {
   anterioresTexto:
     "Las grabaciones de antes de tu ajuste. Quedan guardadas: si preferís alguna, avisanos nomás.",
   ajudaCelular:
-    "En el celu abrí las opciones del teléfono: elegí “Guardar en Archivos” para guardarla, o WhatsApp para mandarla directo.",
-  ajudaDesktop: "Descargá el MP3 en tu compu.",
+    "El MP3 va a tus descargas. Para mandarla directo por WhatsApp, usá el botón de enviar.",
+  ajudaDesktop: "El MP3 va a la carpeta de descargas de tu compu.",
+  enviarMusica: "Enviar por WhatsApp",
   qualGravacao: "¿Cuál grabación preferís?",
   fizemosDuas:
     "Hicimos dos. Escuchá las dos y elegí la que más te emocione. Es la que se va a abrir cuando la reciba.",

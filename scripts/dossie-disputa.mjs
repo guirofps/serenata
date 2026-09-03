@@ -69,6 +69,23 @@ const SEM_PDF = process.argv.includes("--sem-pdf");
 // ajudar na disputa. Quando as fotos são do próprio comprador com um adulto,
 // a conta muda — mas quem decide é quem está olhando o caso, não o script.
 const COM_PRINT = process.argv.includes("--print-presente");
+
+// ── O PRINT DA CONVERSA COM O CLIENTE ───────────────────────────
+//
+// `--conversa <arquivo.png> --conversa-legenda "..."`
+//
+// Quando existe, é a prova mais forte do dossiê inteiro, e por um motivo
+// simples: todas as outras são registros NOSSOS, e um adquirente sabe que o
+// lojista controla os próprios sistemas. A conversa é o cliente falando, com
+// o horário do WhatsApp dele, dizendo o que recebeu.
+//
+// Foi o caso de 02/09: o comprador alegou publicamente que o e-mail tinha
+// "sumido" e chamou de golpe. Na conversa ele escreve "Não consigo baixar
+// pelo e-mail. Manda por aqui" — ou seja, o e-mail estava lá — e depois de
+// receber os arquivos responde "feito :)" e diz que vai comprar de novo no
+// fim do mês.
+const CONVERSA = arg("conversa");
+const CONVERSA_LEGENDA = arg("conversa-legenda");
 const MOTIVO = arg("motivo") ?? "Contestação por alegação de fraude";
 
 if (!PEDIDO && !EMAIL) {
@@ -382,6 +399,15 @@ if (COM_PRINT && musica?.token) {
   }
 }
 
+let conversaBase64 = null;
+if (CONVERSA) {
+  if (!existsSync(CONVERSA)) {
+    console.error(`Não achei o print da conversa em: ${CONVERSA}`);
+    process.exit(1);
+  }
+  conversaBase64 = readFileSync(CONVERSA).toString("base64");
+}
+
 // ── 6. O DOCUMENTO ───────────────────────────────────────────────
 const bloco = (rotulo, valor) => valor == null || valor === "" ? "" :
   `<div class="par"><dt>${esc(rotulo)}</dt><dd>${valor}</dd></div>`;
@@ -528,8 +554,17 @@ ${printPresente ? `
   <img src="data:image/png;base64,${printPresente}" style="width:74mm;border:1px solid #999" alt="Página de presente">
 </div>` : ""}
 
+${conversaBase64 ? `
+<h2>${(totalFotos || musica?.personalizada_em ? 8 : 7) + (printPresente ? 1 : 0)}. Atendimento e confirmação do cliente</h2>
+<p>
+  ${CONVERSA_LEGENDA ? esc(CONVERSA_LEGENDA) : "Conversa por WhatsApp entre a Serenata e o comprador, iniciada por nós ao tomar conhecimento da contestação. O comprador confirma o recebimento do produto."}
+</p>
+<div style="text-align:center;margin:12px 0">
+  <img src="data:image/png;base64,${conversaBase64}" style="width:150mm;border:1px solid #999" alt="Conversa com o comprador">
+</div>` : ""}
+
 ${emailDoProvedor?.html ? `
-<h2>${(totalFotos || musica?.personalizada_em ? 8 : 7) + (printPresente ? 1 : 0)}. Reprodução do e-mail de entrega</h2>
+<h2>${(totalFotos || musica?.personalizada_em ? 8 : 7) + (printPresente ? 1 : 0) + (conversaBase64 ? 1 : 0)}. Reprodução do e-mail de entrega</h2>
 <p>
   Cópia fiel do e-mail enviado ao cliente em ${dataHora(entrega.created_at)},
   <span class="forte">recuperada do provedor de envio</span>. O provedor registra este envio como
@@ -546,7 +581,7 @@ ${emailDoProvedor?.html ? `
   <iframe srcdoc="${esc(emailDoProvedor.html)}" style="width:100%;height:250mm;border:0" title="E-mail de entrega"></iframe>
 </div>` : ""}
 
-<h2>${(totalFotos || musica?.personalizada_em ? 8 : 7) + (printPresente ? 1 : 0) + (emailDoProvedor?.html ? 1 : 0)}. Conclusão</h2>
+<h2>${(totalFotos || musica?.personalizada_em ? 8 : 7) + (printPresente ? 1 : 0) + (conversaBase64 ? 1 : 0) + (emailDoProvedor?.html ? 1 : 0)}. Conclusão</h2>
 <ul>
   ${tempoAtePagar ? `<li>O pagamento foi originado no próprio navegador do comprador, após ${duracao(tempoAtePagar)} de preenchimento de um questionário com informações pessoais.</li>` : ""}
   ${primeiroDe.get("musica_play") ? "<li>O comprador ouviu uma amostra do produto antes de decidir pagar.</li>" : ""}
@@ -642,6 +677,9 @@ prova(Boolean(pedido.titular_pix ?? pedido.nome_pagador), "titular da conta paga
 prova(Boolean(emailDoProvedor?.html), emailDoProvedor?.html
   ? `copia fiel do e-mail recuperada do provedor (last_event: ${emailDoProvedor.last_event})`
   : "sem copia do e-mail — o provedor nao devolveu o HTML");
+prova(Boolean(conversaBase64), conversaBase64
+  ? "conversa com o cliente anexada — e a unica prova que nao sai dos NOSSOS sistemas"
+  : "sem print de conversa (use --conversa se houver atendimento registrado)");
 prova(Boolean(printPresente), printPresente
   ? "print da pagina presente embutido (--print-presente)"
   : "sem print da pagina (use --print-presente se as fotos permitirem)");
