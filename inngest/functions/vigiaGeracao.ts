@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { lerOsSinais as avaliarSinais } from "../../src/lib/sinais-geracao.js";
 
 // O VIGIA DA GERAÇÃO — e ele CONSERTA antes de avisar.
 //
@@ -86,21 +87,14 @@ function db() {
  * falhando e o que separa "uma musica deu azar" de "o provedor mudou debaixo
  * de nos".
  */
-export function lerOsSinais(d: {
-  letrasNovas: number;
-  prontasNaJanela: number;
-  totalPresas: number;
-  falhas: number;
-}): { avisar: boolean; motivo: "nada-saiu" | "fila-grande" | "provedor-recusando" | null } {
-  if (d.falhas >= 3 && d.falhas >= d.prontasNaJanela) {
-    return { avisar: true, motivo: "provedor-recusando" };
-  }
-  if (d.letrasNovas >= 3 && d.prontasNaJanela === 0) {
-    return { avisar: true, motivo: "nada-saiu" };
-  }
-  if (d.totalPresas >= 15) return { avisar: true, motivo: "fila-grande" };
-  return { avisar: false, motivo: null };
-}
+// A LEITURA DOS SINAIS MORA FORA DESTE ARQUIVO.
+//
+// Ela saiu daqui em 04/09/2026, quando uma queda de 58 minutos do proprio
+// Inngest provou que um vigia que roda DENTRO do Inngest nao cobre a falha
+// que mais custa. Agora quem lê os sinais é `src/lib/sinais-geracao.ts`, e
+// dois vigias a chamam: este (que tambem conserta redisparando) e o de fora,
+// em Vercel Cron, que sobrevive a queda do orquestrador.
+export { lerOsSinais } from "../../src/lib/sinais-geracao.js";
 
 export const vigiaGeracao = inngest.createFunction(
   {
@@ -261,7 +255,7 @@ export const vigiaGeracao = inngest.createFunction(
     // Uma fila pequena que voltou pra fila é operação normal. O que merece
     // acordar alguém é o sinal de PARADA: tem gente escrevendo letra e não
     // saiu música nenhuma, ou a fila presa é grande demais pra ser soluço.
-    const veredito = lerOsSinais(diagnostico);
+    const veredito = avaliarSinais(diagnostico);
     const maioriaFalhando = veredito.motivo === "provedor-recusando";
 
     if (!veredito.avisar) return { ok: true, redisparadas, falhas: diagnostico.falhas };
