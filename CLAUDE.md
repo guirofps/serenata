@@ -364,6 +364,58 @@ Consequência: a rota não aceita `Range` (`Accept-Ranges: none`). Cortar bytes
 do começo desloca todo offset, e o pedaço que o navegador pede deixaria de ser
 o que ele recebe.
 
+## O Inngest caiu, e o alarme caiu junto (04/09/2026)
+
+Das **15h11 às 16h09**, o Inngest ficou em "Degraded Function Execution"
+(incidente de impacto major na status page deles). O formato da falha é o mais
+traiçoeiro possível: ele **aceitava os eventos com HTTP 200 e não criava
+execução nenhuma**. `POST /e/<key>` respondia 200, o evento aparecia em
+`/v1/events`, e `/v1/events/<id>/runs` devolvia lista vazia pra todos.
+
+Tudo do nosso lado estava de pé, e conferido um por um: créditos na kie.ai
+(8.745), geração manual funcionando em 130s, `PUT /api/inngest` respondendo
+`"Successfully registered"`, disjuntor com teto 2500 e contador em 571.
+**Nada era nosso.** Voltou sozinho no minuto em que eles disseram ter
+consertado, drenando a fila inteira.
+
+| | |
+|---|---|
+| Músicas paradas | 25 |
+| Espera pela música, mediana | 112s → **1.412s** (pior caso 2.921s) |
+| Folhas de PIX abertas por hora | 10 a 23 → **4** e depois **3** |
+| Comprador pago sem entrega | 1, que abriu contestação no mesmo dia |
+
+**O erro que era nosso:** o alerta pra exatamente isso existia (`vigiaGeracao`,
+cron de 10 em 10 minutos) e não disparou, porque **ele é um cron do Inngest**.
+Detector de incêndio ligado na tomada que pegou fogo. O dono ficou sabendo por
+um print de disputa que um cliente abriu.
+
+### Invariantes que nasceram daqui
+
+- **Vigia não roda dentro do vigiado.** `api/vigia-externo.ts` roda em Vercel
+  Cron e fala direto com o Supabase. Pra ele calar a boca, Vercel e Supabase
+  precisam cair juntos — e aí o site já está fora e se descobre por outro
+  caminho. O `vigiaGeracao` continua existindo: ele CONSERTA redisparando, o
+  que só faz sentido com o Inngest vivo.
+- **O quarto sinal olha o RELÓGIO, não a fila.** Os três anteriores
+  (`nada-saiu`, `fila-grande`, `provedor-recusando`) dependem de a fila
+  engordar ou de algo falhar. Numa queda do orquestrador **nada falha** e a
+  fila leva minutos pra crescer. O que morre na hora exata é o relógio da
+  última música pronta: `orquestrador-mudo` acende com 25 minutos sem nenhuma
+  música ficar pronta HAVENDO letra nova (sem tráfego ele dorme, igual aos
+  outros). A leitura mora em `src/lib/sinais-geracao.ts`, pura, porque os dois
+  vigias precisam dela e importá-la de dentro do job traria o Inngest junto.
+- **O vigia externo NÃO redispara.** Durante uma queda, redisparo só empilha
+  evento que ninguém consome, e quando o serviço volta ele despeja a fila
+  dobrada em cima do provedor — pagando duas vezes pela mesma música. Ele só
+  grita. Gritar é o que faltava.
+- **No plantão, só quem PAGOU.** `scratch/plantao-musica.mjs` roda
+  `socorro-musica.mjs` em laço, e só pra pedido pago. Prévia parada custa
+  R$ 0,32 e se resolve sozinha quando o serviço volta; comprador parado vira
+  contestação. Gerar a fila inteira na mão durante a queda seria pior que não
+  gerar, porque os eventos do Inngest continuam enfileirados e ele gera tudo
+  de novo quando voltar.
+
 ## Riscos conhecidos
 
 1. **Dependência de revendedor não oficial do Suno.** Zona cinzenta nos termos
