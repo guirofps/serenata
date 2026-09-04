@@ -28,6 +28,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto.js";
+import { emailEmProducao, assuntoEmProducao } from "../../emails/entrega-em-producao.js";
 import { literalLike } from "../../src/lib/sql-like.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 
@@ -155,6 +156,40 @@ export async function mandarEmailDeEntrega(
 
     const linkEditor = `${SITE}/editar/${args.musica.token_edicao}`;
     const linkPresente = `${SITE}/p/${args.musica.token}`;
+
+    // ── A MÚSICA EXISTE MESMO? ────────────────────────────────
+    //
+    // Em dia normal existe, porque ela é gerada ANTES do pagamento. Mas em
+    // 04/09/2026 o Inngest ficou 58 minutos sem executar nada, e este e-mail
+    // saiu 1 segundo depois do pagamento anunciando "A música de Fernanda
+    // está pronta" — de uma música que só passou a existir 50 minutos depois.
+    // O comprador clicou duas vezes, achou uma página sem áudio e abriu
+    // contestação. Depois disse que "não recebeu nada": do lado dele, o que
+    // chegou não era o que o assunto prometia.
+    //
+    // O atraso não era evitável; a MENTIRA era. Quando não há arquivo, sai o
+    // e-mail que confirma o pagamento e diz que está gravando, e o "está
+    // pronta" fica pra quando for verdade — quem o manda é o próprio job de
+    // geração, ao terminar (`gerarMusica.ts`).
+    if (!(args.musica.status === "pronta" && args.musica.audio_path)) {
+      const { data: aviso, error: erroAviso } = await new Resend(chave).emails.send({
+        tags: [{ name: "template", value: "entrega_em_producao" }],
+        from: "Serenata <contato@serenatagift.com>",
+        to: [args.email],
+        subject: assuntoEmProducao(nome, locale),
+        html: emailEmProducao({ nome, linkEditor, locale }),
+        text: `Recebemos o seu pagamento. A música de ${nome} está sendo gravada agora.\n\nNormalmente leva menos de 5 minutos. Se o nosso fornecedor estiver com fila, pode chegar a 30. Você não precisa fazer nada: assim que ficar pronta, mandamos outro e-mail com tudo.\n\nSEU LINK (ele já é seu e não muda, a página avisa sozinha quando o áudio entrar):\n${linkEditor}`,
+      });
+      if (erroAviso) throw new Error(erroAviso.message);
+      await registrarEnvio(sb, {
+        emailId: aviso?.id,
+        template: "entrega_em_producao",
+        para: args.email,
+        quizResponseId: args.musica.quiz_response_id ?? null,
+      });
+      return { ok: true, emailId: aviso?.id ?? null };
+    }
+
     const { data: enviado, error } = await new Resend(chave).emails.send({
       // A ETIQUETA DO ENVIO, que o Resend devolve em todo evento. É o único
       // jeito de medir DEPOIS qual e-mail performou: o assunto carrega o nome

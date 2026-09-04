@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { iniciarGeracao, consultarGeracao, obterTimestamps } from "../lib/kie.js";
 import { acharGenero, estiloParaSuno } from "../../src/lib/generos.js";
 import { podeGerar } from "../lib/disjuntor.js";
+import { musicaDoQuiz, mandarEmailDeEntrega } from "../../api/lib/entrega.js";
 
 // Job de geração da música. Portado de scratch/pipeline-completo.mjs, que já
 // rodou de ponta a ponta na mão (3 músicas aprovadas).
@@ -106,9 +107,19 @@ function db() {
 export const gerarMusica = inngest.createFunction(
   {
     id: "gerar-musica",
-    // Teto do plano atual do Inngest é 5 — subir aqui faz o registro do app
-    // ser recusado inteiro (visto no deploy). Aumentar junto com o plano.
-    concurrency: { limit: 5 },
+    // ── QUANTAS MÚSICAS DE UMA VEZ ───────────────────────────────
+    //
+    // Era 5, que é o teto do plano Hobby (subir além dele fazia o registro do
+    // app ser recusado INTEIRO no deploy, não só ignorar o número). O plano
+    // Pro foi assinado em 04/09/2026 e leva esse teto a 100.
+    //
+    // Vai pra 25, não pra 100, e o número tem uma medição atrás: o pico real
+    // de demanda simultânea medido foi 18. 25 cobre o pico com folga e a
+    // fila deixa de existir; 100 só trocaria a nossa fila por uma fila do
+    // lado do provedor, cujo limite de taxa a gente não conhece — e descobrir
+    // esse limite em produção, num funil que gera antes de cobrar, custaria
+    // música falhada em vez de música na espera.
+    concurrency: { limit: 25 },
     retries: 2,
     triggers: [{ event: "musica/gerar" }],
   },
@@ -529,6 +540,57 @@ export const gerarMusica = inngest.createFunction(
         })
         .eq("id", musicaId);
       if (error) throw new Error(`update final falhou: ${error.message}`);
+    });
+
+    // ─── 7. QUEM JÁ PAGOU E ESPEROU RECEBE AGORA ──────────────────
+    //
+    // O caso normal é o inverso: a música fica pronta ANTES do pagamento, e
+    // o webhook manda a entrega. Este passo é pro caminho que existe quando
+    // isso não acontece — o comprador pagou com a música ainda em produção,
+    // recebeu o e-mail honesto que diz "está sendo gravada", e agora ela
+    // existe. Sem isto, ele ficaria esperando um e-mail que nunca viria.
+    //
+    // Foi exatamente o buraco de 04/09/2026, quando o Inngest ficou 58
+    // minutos fora: um comprador pagou às 15h29 e a música só saiu depois.
+    //
+    // A TRAVA CONTRA E-MAIL DOBRADO é o registro de envio, não uma flag nova:
+    // se já existe uma linha `entrega` pra este quiz, alguém já entregou (o
+    // webhook, ou uma rodada anterior deste passo) e aqui não se faz nada. É
+    // a mesma tabela que o webhook escreve, então as duas pontas concordam
+    // sem precisar se conhecer.
+    await step.run("entregar-a-quem-ja-pagou", async () => {
+      const sb = db();
+      const { data: pedido } = await sb
+        .from("pedidos")
+        .select("email")
+        .eq("musica_id", musicaId)
+        .eq("status", "pago")
+        .limit(1)
+        .maybeSingle();
+      if (!pedido?.email) return { entregue: false, motivo: "ninguém pagou ainda" };
+
+      if (musica.quiz_response_id) {
+        const { data: jaFoi } = await sb
+          .from("emails_enviados")
+          .select("email_id")
+          .eq("template", "entrega")
+          .eq("quiz_response_id", musica.quiz_response_id)
+          .limit(1);
+        if (jaFoi?.length) return { entregue: false, motivo: "entrega já enviada" };
+      }
+
+      const pronta = await musicaDoQuiz(sb, musica.quiz_response_id ?? "");
+      if (!pronta) return { entregue: false, motivo: "música não relida" };
+      const r = await mandarEmailDeEntrega(sb, { email: pedido.email, musica: pronta });
+      if (!r.ok) {
+        // Não derruba o job: a música ESTÁ pronta e o link do comprador já
+        // funciona. E-mail que falha aqui é recuperável (o vigia de entrega
+        // e o `guardeOLink` alcançam a mesma pessoa); job que falha aqui
+        // reexecutaria a geração inteira e cobraria de novo.
+        console.error("[musica] entrega pós-geração falhou:", r.erro);
+        return { entregue: false, motivo: r.erro };
+      }
+      return { entregue: true, para: pedido.email };
     });
 
     return { musicaId, taskId, versoes: caminhos.length, palavras: timestamps?.length ?? 0 };
