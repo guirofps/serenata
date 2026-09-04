@@ -362,6 +362,29 @@ const batemOsNomes = Boolean(
   nomeNoPix !== (pedido.titular_pix ?? "") &&
   (normal(nomeNoPix).includes(normal(nomeNoQuiz)) || normal(nomeNoQuiz).includes(normal(nomeNoPix))),
 );
+
+// ── O SEGUNDO ENCONTRO, QUE ESTE GERADOR NAO VIA ────────────────
+//
+// O de cima compara o texto do PIX com o nome do PRESENTEADO. Existe um
+// segundo par, e ele e ainda mais direto: o nome que o COMPRADOR digitou pra
+// si mesmo no nosso quiz (`nome_comprador`, preenchido quando ele deixa o
+// WhatsApp) contra o TITULAR DA CONTA que o banco dele registrou.
+//
+// Achado no caso E31872495…kTpKm4fUw8L (04/09): o comprador digitou "Felipe"
+// no nosso formulario e a conta pagadora e de "FELIPE DA SILVA GARCIA". O
+// dossie saiu dizendo "descricao do PIX nao coincide com o quiz" e passou
+// batido pela prova mais forte que aquele caso tinha.
+//
+// Por que isso vale tanto: o titular vem da instituicao financeira, nao do
+// cliente, e o nome do quiz foi digitado 3 minutos antes de o dinheiro sair.
+// Quem contesta dizendo "nao reconheco" esta afirmando que outra pessoa usou
+// a conta dele — e teria que explicar por que essa pessoa digitou o primeiro
+// nome DELE num site, minutos antes.
+const nomeComprador = String(quiz?.nome_comprador ?? "").trim();
+const titular = String(pedido.titular_pix ?? "").trim();
+const compradorEhTitular = Boolean(
+  nomeComprador && titular && normal(titular).split(" ").includes(normal(nomeComprador)),
+);
 const nomeArquivo = `evidencias-${String(referencia).replace(/[^A-Za-z0-9_-]/g, "-")}`;
 
 // ── 5b. O PRINT DA PÁGINA, quando pedido ────────────────────────
@@ -470,6 +493,15 @@ const html = `<!DOCTYPE html>
   ${bloco("E-mail informado pelo comprador", esc(pedido.email))}
   ${bloco("Telefone informado pelo comprador", esc(pedido.telefone))}
 </dl>
+
+${compradorEhTitular ? `<div class="caixa">
+  <p style="margin:0"><strong>O comprador se identificou com o nome do titular da conta.</strong>
+  Ao deixar o contato no nosso questionário, ${Math.round((Date.parse(pedido.paid_at) - Date.parse(quiz?.whatsapp_em ?? inicioQuiz)) / 60000)} minutos antes de o pagamento sair, o comprador
+  digitou o próprio nome: <span class="forte">“${esc(nomeComprador)}”</span>. A conta que originou o PIX
+  pertence a <span class="forte">${esc(titular)}</span>, informação registrada pela instituição
+  financeira e não por nós. São dois registros independentes com o mesmo nome,
+  produzidos com minutos de diferença.</p>
+</div>` : ""}
 
 ${batemOsNomes ? `<div class="caixa">
   <p style="margin:0"><strong>Coincidência entre dois sistemas independentes.</strong>
@@ -674,6 +706,9 @@ prova(houveCompartilhamento, houveCompartilhamento
   ? `acessos espalhados por ${duracao(janelaAcessos)} — da pra falar em compartilhamento`
   : "acessos concentrados demais pra afirmar compartilhamento (nao entrou no documento)");
 prova(Boolean(pedido.titular_pix ?? pedido.nome_pagador), "titular da conta pagadora identificado");
+prova(compradorEhTitular, compradorEhTitular
+  ? `nome do comprador no quiz ("${nomeComprador}") bate com o titular da conta ("${titular}")`
+  : "nome do comprador no quiz nao bate com o titular da conta");
 prova(Boolean(emailDoProvedor?.html), emailDoProvedor?.html
   ? `copia fiel do e-mail recuperada do provedor (last_event: ${emailDoProvedor.last_event})`
   : "sem copia do e-mail — o provedor nao devolveu o HTML");
