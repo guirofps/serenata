@@ -1722,3 +1722,75 @@ export const lancarGasto = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+// ── O FINANCEIRO ─────────────────────────────────────────────────
+//
+// Receita, taxa, IA, mídia e custo fixo num lugar só, e o resultado dividido
+// por dois — que é o acerto entre os sócios.
+//
+// A apuração mora em `financeiro.ts`, não aqui: ela é regra de negócio e
+// precisa ser lida sem abrir o painel (o relatório da Woovi usou os mesmos
+// números). Este arquivo só a expõe pra tela, com a mesma trava de admin do
+// resto.
+export const apurarFinanceiro = createServerFn({ method: "POST" })
+  .handler(async () => {
+    const { exigirAdmin } = await import("@/lib/admin-auth.server");
+    exigirAdmin();
+    const { apurar } = await import("@/lib/financeiro");
+    return apurar();
+  });
+
+/**
+ * Lança (ou apaga) um custo que nenhuma API conta.
+ *
+ * Apagar é `valor` zero, igual ao `lancarGasto`: um lançamento errado se
+ * desfaz sem precisar de segunda tela. E `id` vazio cria; `id` preenchido
+ * substitui, porque corrigir o valor de uma assinatura é mais comum que
+ * lançar uma nova.
+ */
+export const lancarCustoFixo = createServerFn({ method: "POST" })
+  .validator((data: {
+    id?: string;
+    dia: string;
+    categoria: string;
+    fornecedor: string;
+    descricao?: string;
+    valor: number;
+    recorrente?: boolean;
+  }) => data)
+  .handler(async ({ data }): Promise<{ ok: boolean; erro?: string }> => {
+    const { exigirAdmin } = await import("@/lib/admin-auth.server");
+    exigirAdmin();
+    const db = supabaseAdmin();
+
+    if (data.id && Number(data.valor) === 0) {
+      await db.from("custos_fixos").delete().eq("id", data.id);
+      return { ok: true };
+    }
+
+    const dia = String(data.dia).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) return { ok: false, erro: "data inválida" };
+    const fornecedor = String(data.fornecedor).trim().slice(0, 60);
+    if (!fornecedor) return { ok: false, erro: "falta o fornecedor" };
+    const valor = Number(data.valor);
+    if (!Number.isFinite(valor) || valor < 0) return { ok: false, erro: "valor inválido" };
+
+    const linha = {
+      dia,
+      categoria: String(data.categoria || "avulso").trim().slice(0, 30),
+      fornecedor,
+      descricao: String(data.descricao ?? "").trim().slice(0, 200) || null,
+      valor_brl: valor,
+      recorrente: Boolean(data.recorrente),
+    };
+
+    const { error } = data.id
+      ? await db.from("custos_fixos").update(linha).eq("id", data.id)
+      : await db.from("custos_fixos").insert(linha);
+
+    if (error) {
+      console.error("[admin] lancarCustoFixo falhou:", error);
+      return { ok: false, erro: error.message };
+    }
+    return { ok: true };
+  });

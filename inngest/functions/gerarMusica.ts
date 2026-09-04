@@ -274,7 +274,24 @@ export const gerarMusica = inngest.createFunction(
 
       recusou = false;
       // Medido: 84s a 250s. Folga de 6 minutos antes de desistir.
-      for (let tentativa = 0; tentativa < 36; tentativa++) {
+      // ── O POLLING E ADAPTATIVO, e o motivo e economico ──────
+      //
+      // O provedor entrega o `streamAudioUrl` entre 22s e 32s (medido em
+      // 30/08). Perguntar de 10 em 10 segundos significa descobrir isso ate
+      // 10s depois de acontecer, e o cliente espera esse atraso olhando uma
+      // tela de "gerando".
+      //
+      // Perguntar de 3 em 3 o tempo TODO resolveria e custaria caro: 120
+      // passos por musica x 500 musicas/dia = 1,8 milhao de execucoes por
+      // mes, acima do incluido no plano Pro (1 milhao). Otimizar a espera
+      // estourando a conta nao e otimizar.
+      //
+      // Entao: 3 em 3 segundos na JANELA em que o stream nasce (os primeiros
+      // 60s), e 10 em 10 depois dela, quando o que se espera e o arquivo
+      // final e ninguem esta olhando a tela. Da ~20 passos rapidos + ~10
+      // lentos = 30 por musica, MENOS que os 36 de hoje.
+      const RAPIDO_ATE = 20; // 20 x 3s = os primeiros 60 segundos
+      for (let tentativa = 0; tentativa < 56; tentativa++) {
         const r = await step.run(`consultar-${estilo.rotulo}-${tentativa}`, () =>
           consultarGeracao(taskId),
         );
@@ -300,8 +317,19 @@ export const gerarMusica = inngest.createFunction(
           // Enquanto só existir uma faixa, espera: as duas aparecem com
           // poucos segundos de diferença, e trocar a versão no meio custaria
           // mais que esperar. Depois de ~60s, aceita o que tiver.
+          // ── O LIMITE E DE TEMPO, NAO DE CONTAGEM ──────────
+          //
+          // Era `tentativa >= 6`, que com o sleep fixo de 10s queria dizer
+          // "depois de 60 segundos". Com o polling adaptativo a mesma
+          // contagem passaria a significar 18 segundos, e a espera pela
+          // segunda faixa — que existe pra a previa ser a MESMA gravacao que
+          // a pessoa recebe paga — sumiria sem ninguem decidir isso.
+          //
+          // Contagem de voltas nao e unidade de tempo. Escrito em segundos,
+          // mexer no intervalo do laco nao muda mais a regra de negocio.
+          const esperandoHa = (tentativa < RAPIDO_ATE ? tentativa * 3 : 60 + (tentativa - RAPIDO_ATE) * 10);
           const preferida =
-            r.faixas.length > 1 ? r.faixas[1] : tentativa >= 6 ? r.faixas[0] : null;
+            r.faixas.length > 1 ? r.faixas[1] : esperandoHa >= 60 ? r.faixas[0] : null;
           const stream = preferida?.streamUrl;
           if (stream) {
             previaSalva = true;
@@ -332,7 +360,10 @@ export const gerarMusica = inngest.createFunction(
           motivoRecusa = r.motivo ?? r.status;
           break;
         }
-        await step.sleep(`espera-${estilo.rotulo}-${tentativa}`, "10s");
+        await step.sleep(
+          `espera-${estilo.rotulo}-${tentativa}`,
+          tentativa < RAPIDO_ATE ? "3s" : "10s",
+        );
       }
       if (faixas.length) break;
     }
