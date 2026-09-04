@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { carregarPainel, lancarGasto, type Painel, type FunilFiltro } from "@/lib/admin-dados";
+import { AbaFinanceiro } from "@/components/admin/AbaFinanceiro";
 import { PRECOS } from "@/lib/custos";
 import { entrarAdmin, sairAdmin } from "@/lib/admin-auth";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,7 @@ export const Route = createFileRoute("/admin")({
     funil: z.enum(["todos", "pt", "es"]).optional(),
     // A ABA na URL, como os campos acima: reload e botão voltar funcionam, e
     // dá pra mandar o link direto pra alguém já na aba certa.
-    aba: z.enum(["operacao", "origem", "vendas", "email", "testes"]).optional(),
+    aba: z.enum(["operacao", "origem", "vendas", "email", "testes", "financeiro"]).optional(),
   }),
   head: () => ({
     meta: [{ title: `Painel · ${MARCA.nome}` }, { name: "robots", content: "noindex, nofollow" }],
@@ -577,6 +578,7 @@ function Admin() {
               ["vendas", "Vendas"],
               ["email", "E-mail"],
               ["testes", "Testes A/B"],
+              ["financeiro", "Financeiro"],
             ] as const
           ).map(([id, rotulo]) => (
             <button
@@ -1345,6 +1347,13 @@ function Admin() {
         )}
 
         {aba === "testes" && <AbaTestes resultados={dados.porExperimento} />}
+
+        {/* A aba financeira NÃO usa `dados`: ela carrega a própria apuração.
+            É de propósito — `carregarPainel` já é a consulta mais pesada do
+            sistema (estourou o tempo do banco em 27/08), e pendurar nela a
+            leitura de `pedidos`, `custos`, `metricas_campanha` e
+            `custos_fixos` inteiros derrubaria as cinco outras abas junto. */}
+        {aba === "financeiro" && <AbaFinanceiro />}
 
         {/* FORA das abas: "atualizado às" e o link pro site valem em qualquer
           uma. Enquanto o painel era uma aba só, isto vivia junto do último
