@@ -382,8 +382,22 @@ const batemOsNomes = Boolean(
 // nome DELE num site, minutos antes.
 const nomeComprador = String(quiz?.nome_comprador ?? "").trim();
 const titular = String(pedido.titular_pix ?? "").trim();
+// A comparacao e por PALAVRA INTEIRA, e todas as palavras do nome que ele
+// digitou precisam aparecer no titular. Duas armadilhas que isso evita:
+//
+//   `includes` de string cru diria que "Ana" bate com "MARIANA SILVA"
+//   `split().includes()` de uma palavra so falha quando ele digita o nome
+//   COMPLETO — foi o que aconteceu no caso E18236120…ef67569, onde o quiz
+//   tinha "Damiao Pinheiro" e o banco "Damião Pinheiro", e o dossie saiu
+//   dizendo que os nomes NAO batiam.
+//
+// Palavras de ate 3 letras saem fora ("da", "de", "dos"), que aparecem em
+// quase todo nome brasileiro e nao provam nada.
+const palavras = (s) => normal(s).split(/\s+/).filter((w) => w.length > 2);
+const pcomprador = palavras(nomeComprador);
+const ptitular = palavras(titular);
 const compradorEhTitular = Boolean(
-  nomeComprador && titular && normal(titular).split(" ").includes(normal(nomeComprador)),
+  pcomprador.length && ptitular.length && pcomprador.every((w) => ptitular.includes(w)),
 );
 const nomeArquivo = `evidencias-${String(referencia).replace(/[^A-Za-z0-9_-]/g, "-")}`;
 
