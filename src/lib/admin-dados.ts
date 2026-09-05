@@ -1794,3 +1794,40 @@ export const lancarCustoFixo = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+// ── A ABA AUTOMAÇÕES ─────────────────────────────────────────────
+//
+// Como a financeira, ela NÃO usa `dados`: carrega a própria apuração. O
+// `carregarPainel` já é a consulta mais pesada do sistema, e a coorte por
+// envio (com last-touch de venda e descadastro) é outra varredura de
+// `funnel_events` que não pode pendurar as outras abas.
+//
+// O período é o MESMO do seletor, pela mesma `janelaDo`: uma régua de 30 dias
+// lida em 3 mostra só os primeiros degraus, e isso é o certo — é o que saiu.
+export const carregarAutomacoes = createServerFn({ method: "POST" })
+  .validator((data: ArgsPainel) => data)
+  .handler(async ({ data }) => {
+    const { exigirAdmin } = await import("@/lib/admin-auth.server");
+    exigirAdmin();
+    const { carregarAutomacoes: carregar } = await import("@/lib/automacoes.server");
+    return carregar(janelaDo(data));
+  });
+
+/**
+ * O HTML de um e-mail, renderizado no servidor com dados de exemplo.
+ *
+ * Sai daqui como string e vai pra um iframe `sandbox` no cliente. É o mesmo
+ * template que o job chama — não uma cópia — então o preview envelhece junto
+ * com a copy, e nunca por conta própria.
+ */
+export const previewEmail = createServerFn({ method: "POST" })
+  .validator((data: { template: string; locale: "pt" | "es" }) => data)
+  .handler(async ({ data }) => {
+    const { exigirAdmin } = await import("@/lib/admin-auth.server");
+    exigirAdmin();
+    const { renderizarPreview } = await import("@/lib/automacoes.server");
+    return renderizarPreview(
+      String(data.template).slice(0, 64),
+      data.locale === "es" ? "es" : "pt",
+    );
+  });

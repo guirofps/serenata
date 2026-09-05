@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { carregarPainel, lancarGasto, type Painel, type FunilFiltro } from "@/lib/admin-dados";
 import { AbaFinanceiro } from "@/components/admin/AbaFinanceiro";
+import { AbaAutomacoes } from "@/components/admin/AbaAutomacoes";
 import { PRECOS } from "@/lib/custos";
 import { entrarAdmin, sairAdmin } from "@/lib/admin-auth";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,9 @@ export const Route = createFileRoute("/admin")({
     funil: z.enum(["todos", "pt", "es"]).optional(),
     // A ABA na URL, como os campos acima: reload e botão voltar funcionam, e
     // dá pra mandar o link direto pra alguém já na aba certa.
-    aba: z.enum(["operacao", "origem", "vendas", "email", "testes", "financeiro"]).optional(),
+    aba: z
+      .enum(["operacao", "origem", "vendas", "email", "automacoes", "testes", "financeiro"])
+      .optional(),
   }),
   head: () => ({
     meta: [{ title: `Painel · ${MARCA.nome}` }, { name: "robots", content: "noindex, nofollow" }],
@@ -577,6 +580,7 @@ function Admin() {
               ["origem", "De onde vem"],
               ["vendas", "Vendas"],
               ["email", "E-mail"],
+              ["automacoes", "Automações"],
               ["testes", "Testes A/B"],
               ["financeiro", "Financeiro"],
             ] as const
@@ -1344,6 +1348,12 @@ function Admin() {
               </Tabela>
             </Secao>
           </>
+        )}
+
+        {/* Como a financeira, NÃO usa `dados`: carrega a própria apuração,
+            no mesmo período do seletor. Ver `AbaAutomacoes.tsx`. */}
+        {aba === "automacoes" && (
+          <AbaAutomacoes args={usandoDatas ? { de, ate } : { dias: periodo }} />
         )}
 
         {aba === "testes" && <AbaTestes resultados={dados.porExperimento} />}
