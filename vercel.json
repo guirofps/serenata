@@ -81,6 +81,9 @@
     "api/quadro-pdf/[token].ts": {
       "maxDuration": 60,
       "memory": 2048
+    },
+    "api/vigia-pagamento.ts": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
@@ -117,6 +120,10 @@
     {
       "path": "/api/vigia-externo",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/vigia-pagamento",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

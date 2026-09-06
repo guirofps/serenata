@@ -75,6 +75,8 @@ type ChargeWoovi = {
   expiresDate?: string;
   identifier?: string;
   transactionID?: string;
+  /** Quando o dinheiro entrou, em ISO. Ver `pagoEm` em `StatusCobranca`. */
+  paidAt?: string;
 };
 
 /**
@@ -256,6 +258,11 @@ export const woovi: GatewayPix = {
       // `taxID` (CPF) tambem vem, e guardar documento sem necessidade so
       // aumenta o estrago de um vazamento futuro.
       titularPix: c.payer?.name ?? null,
+      // A DATA REAL DO PAGAMENTO, e não a de agora. Quando um webhook se
+      // perde e o conserto vem dias depois, gravar "agora" joga a venda no
+      // faturamento do dia errado — e é por `paid_at` que o painel financeiro
+      // agrupa o mês que vai ser dividido entre os sócios.
+      pagoEm: c.paidAt ?? null,
     };
   },
 };

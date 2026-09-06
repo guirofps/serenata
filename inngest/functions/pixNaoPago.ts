@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { emailPixNaoPago, assuntoPixNaoPago } from "../../emails/pix-nao-pago.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
+import { woovi } from "../../src/lib/woovi.js";
 
 // O PIX GERADO QUE NÃO FOI PAGO.
 //
@@ -170,7 +171,7 @@ export const pixNaoPago = inngest.createFunction(
 
       const { data: pendentes } = await sb
         .from("pedidos")
-        .select("id, email, quiz_response_id, valor_centavos, created_at, pix_url, pix_codigo")
+        .select("id, email, quiz_response_id, valor_centavos, created_at, pix_url, pix_codigo, payment_id")
         .eq("status", "pendente")
         .gte("created_at", new Date(agora - MAX_H * 3600000).toISOString())
         .lte("created_at", new Date(agora - MIN_MIN * 60000).toISOString())
@@ -205,6 +206,32 @@ export const pixNaoPago = inngest.createFunction(
           .limit(1)
           .maybeSingle();
         if (pago?.id) continue;
+
+        // ── E SE O NOSSO BANCO ESTIVER ERRADO? ──────────────────
+        //
+        // A trava acima confia em `pedidos`, e em 06/09/2026 `pedidos` mentiu:
+        // duas clientes tinham pago, o webhook se perdeu, e as duas
+        // continuaram recebendo ESTE e-mail dizendo que o pagamento não
+        // entrou. Uma delas respondeu indignada, com o comprovante anexado —
+        // depois de dois dias sendo cobrada por algo que já tinha pagado.
+        //
+        // Uma consulta ao gateway por envio (dezenas por dia, não milhares)
+        // é barata perto de acusar um comprador de não ter pago.
+        //
+        // FALHA ABERTA: se a Woovi não responder, o e-mail sai. A alternativa
+        // seria uma indisponibilidade deles calar a recuperação inteira, e o
+        // caso comum é a pessoa não ter pago mesmo.
+        if (String(p.payment_id ?? "").startsWith("woovi:")) {
+          try {
+            const st = await woovi.consultar(String(p.payment_id).replace(/^woovi:/, ""));
+            if (st.pago) {
+              console.error(`[pix-nao-pago] ${p.payment_id} está PAGO na Woovi e pendente aqui — o vigia de pagamento conserta`);
+              continue;
+            }
+          } catch (err) {
+            console.error("[pix-nao-pago] reconsulta falhou, seguindo:", err);
+          }
+        }
 
         if (!podeMandar(await toquesJaDados(sb, p.quiz_response_id), agora)) continue;
 

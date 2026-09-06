@@ -66,6 +66,19 @@ export type StatusCobranca = {
    * Opcional porque nem todo gateway informa. So o nome, nunca o documento.
    */
   titularPix?: string | null;
+
+  /**
+   * QUANDO o dinheiro entrou, em ISO, segundo o gateway.
+   *
+   * Existe por causa do vigia de pagamento perdido (06/09/2026): quando um
+   * webhook se perde e o conserto acontece dias depois, gravar `paid_at`
+   * como "agora" joga uma venda antiga no faturamento de hoje. O painel
+   * financeiro agrupa por `paid_at`, então isso não é detalhe de auditoria,
+   * é número errado no relatório que divide lucro entre sócios.
+   *
+   * Opcional porque nem todo gateway informa.
+   */
+  pagoEm?: string | null;
 };
 
 export type GatewayPix = {
