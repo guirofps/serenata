@@ -399,7 +399,29 @@ const ptitular = palavras(titular);
 const compradorEhTitular = Boolean(
   pcomprador.length && ptitular.length && pcomprador.every((w) => ptitular.includes(w)),
 );
-const nomeArquivo = `evidencias-${String(referencia).replace(/[^A-Za-z0-9_-]/g, "-")}`;
+// ── O NOME DA PESSOA VAI NO ARQUIVO ─────────────────────────────
+//
+// O painel da Woovi lista as disputas por NOME de quem abriu, nunca pelo
+// E2E. Um arquivo chamado só `evidencias-E60701190202609050530DY5TP7.pdf`
+// obriga a abrir cada PDF pra descobrir de quem é, e com oito disputas
+// abertas ao mesmo tempo isso vira subir a prova errada no caso errado.
+//
+// O E2E continua no nome, e primeiro: ele é o identificador único, e é por
+// ele que o adquirente localiza o caso. O nome entra depois, só pra o olho
+// humano achar na pasta.
+// Conectivos fora: "Edimar Soares Dos Reis" cortado em tres palavras vira
+// "edimar-soares-dos", com a preposicao pendurada e o sobrenome de fora.
+// Em minúsculas porque `normal()` já derruba a caixa — a primeira versão
+// comparava contra um conjunto em maiúsculas e não filtrava nada.
+const CONECTIVOS = new Set(["de", "da", "do", "das", "dos", "e"]);
+const pedacoNome = normal(titular || nomeComprador || "")
+  .split(/\s+/)
+  .filter((w) => w.length > 1 && !CONECTIVOS.has(w))
+  .slice(0, 3)
+  .join("-")
+  .replace(/[^A-Za-z0-9-]/g, "");
+const nomeArquivo = `evidencias-${String(referencia).replace(/[^A-Za-z0-9_-]/g, "-")}`
+  + (pedacoNome ? `-${pedacoNome}` : "");
 
 // ── 5b. O PRINT DA PÁGINA, quando pedido ────────────────────────
 let printPresente = null;
