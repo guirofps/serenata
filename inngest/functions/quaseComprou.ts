@@ -42,10 +42,26 @@ import { pareceTypo } from "../../src/lib/email-typo.js";
 const MIN_MIN = 30;
 // Janela de 48h: mais velho que isso a pessoa já esqueceu, e a escada assume.
 const MAX_H = 48;
-// Teto por rodada. A fila inicial é grande (1.509 em 7 dias) e o domínio tem
-// 20 dias: 8 por rodada, de hora em hora, são ~190/dia, que é o mesmo patamar
-// do `guardeOLink` e não dobra o volume diário do remetente.
-const MAX_POR_RODADA = 8;
+// ── O TETO POR RODADA, E POR QUE ELE SUBIU ───────────────────────
+//
+// Era 8, escolhido quando `serenatagift.com` tinha 20 dias de vida e pico de
+// volume em domínio novo é a assinatura de lista comprada. O medo era certo
+// na época.
+//
+// Medido em 07/09, o medo passou: 12.837 e-mails em 14 dias, **zero**
+// reclamação de spam e 96,6% de entrega. O domínio manda ~917/dia e aguenta.
+//
+// E o teto estava custando caro. O grupo que este e-mail atende — música
+// pronta, PIX não gerado — recebe 463 pessoas por dia. A 8 por rodada de hora
+// em hora, a capacidade era 192/dia: o e-mail que converte a 2,7% alcançava,
+// no máximo, 41% de quem deveria. Medido: 8.337 pessoas nesse degrau em 18
+// dias, 33,9% com algum contato, 5.509 sem nada.
+//
+// 16 por rodada são ~384/dia, +21% no volume do remetente. Sobe em dois
+// passos de propósito: a taxa de 2,7% foi medida em quem é alcançado HOJE,
+// que é a fatia mais quente da fila. A margem pode converter pior, e é isso
+// que o passo seguinte (16 -> 24) vai dizer.
+const MAX_POR_RODADA = 16;
 
 function db() {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
