@@ -28,19 +28,19 @@ import { getOrCreateSessionId, getStoredAttribution, getDevice } from "@/lib/ses
 // O agregado de hoje não separa os dois, e por isso qualquer conserto é tiro
 // no escuro.
 //
-// ── POR QUE `sendBeacon` E NÃO O `trackEvent` NORMAL ─────────────
+// ── POR QUE NÃO O `trackEvent` NORMAL ───────────────────────────
 //
 // O evento mais importante nasce na hora em que a pessoa VAI EMBORA, e é
 // exatamente aí que um fetch comum morre: no celular, fechar a aba ou trocar
 // de aplicativo mata a requisição em voo, e o dado que faltava continua
-// faltando. `sendBeacon` entrega a carga ao sistema operacional, que envia
+// faltando. `fetch` com `keepalive` entrega a carga ao sistema, que envia
 // depois de a página já ter morrido.
 //
-// O preço disso é que beacon NÃO manda cabeçalho, e o PostgREST quer a
-// `apikey`. Ela vai na query string, que o Supabase aceita (testado: 201).
-// Não é vazamento: a chave anônima já está no bundle público, é o mesmo
-// segredo que o `supabase-client` carrega há meses. RLS é quem protege a
-// tabela, não a obscuridade da chave.
+// A `apikey` vai na query string, e não no cabeçalho, por herança da versão
+// que usava `sendBeacon` (ver o porquê de ela ter saído, logo abaixo). Fica
+// assim porque funciona e porque não é vazamento: a chave anônima já está no
+// bundle público, é o mesmo segredo que o `supabase-client` carrega há meses.
+// RLS é quem protege a tabela, não a obscuridade da chave.
 const URL_SB = (import.meta.env?.VITE_SUPABASE_URL ?? "") as string;
 const CHAVE_SB = (import.meta.env?.VITE_SUPABASE_ANON_KEY ?? "") as string;
 
@@ -52,17 +52,33 @@ function mandarPorBaliza(nome: string, dados: Record<string, unknown>): void {
     event_data: { ...dados, device: getDevice(), attribution: getStoredAttribution(), path: window.location.pathname },
   });
   const alvo = `${URL_SB}/rest/v1/funnel_events?apikey=${encodeURIComponent(CHAVE_SB)}`;
-  try {
-    // O tipo importa: sem `application/json` o PostgREST devolve 415 e o
-    // beacon falha em silêncio, que é o pior dos mundos (parece instrumentado
-    // e não está).
-    const pacote = new Blob([corpo], { type: "application/json" });
-    if (navigator.sendBeacon?.(alvo, pacote)) return;
-  } catch {
-    // segue pro fetch abaixo
-  }
-  // Plano B pra navegador sem beacon. `keepalive` faz o mesmo papel, com
-  // limite de 64KB que a nossa carga nem chega perto.
+
+  // ── POR QUE NÃO `sendBeacon`, APESAR DO NOME DESTE ARQUIVO ─────
+  //
+  // Porque ele MENTE. Medido no navegador em 07/09/2026, contra o banco:
+  //
+  //   sendBeacon + application/json  ->  devolve true, NUNCA chega
+  //   sendBeacon + text/plain        ->  devolve true, NUNCA chega
+  //   fetch + keepalive              ->  201, chega
+  //
+  // A causa é CORS. `sendBeacon` não faz requisição pré-voo, e por isso só
+  // consegue mandar os tipos da lista segura (`text/plain`,
+  // `application/x-www-form-urlencoded`, `multipart/form-data`). Com
+  // `application/json` o navegador precisaria de um pré-voo que o beacon não
+  // sabe fazer, e descarta a requisição — mas `sendBeacon()` já devolveu
+  // `true`, porque o retorno dele diz apenas "aceitei a carga na fila", não
+  // "o servidor recebeu". Com `text/plain` o pré-voo some, e aí é o PostgREST
+  // que recusa por tipo.
+  //
+  // Esta função foi escrita com um comentário avisando que o tipo errado
+  // faria a instrumentação "parecer instrumentada e não estar". Era o
+  // diagnóstico certo do problema errado: o tipo certo produziu exatamente
+  // isso, e o farol passou QUATRO DIAS gravando zero evento com 2.308 folhas
+  // de PIX abertas.
+  //
+  // `fetch` com `keepalive` faz o que se esperava do beacon: manda cabeçalho
+  // de verdade, sobrevive ao fechamento da aba e à troca de aplicativo, e tem
+  // limite de 64KB que esta carga nem chega perto.
   void fetch(alvo, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
