@@ -51,7 +51,7 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
-import { segredoConfere } from "./lib/segredo.js";
+import { autorizadoBasic, logRequisicao } from "./lib/basic-auth.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -120,69 +120,12 @@ type PedidoComLead = {
   quiz_responses: { attribution: Record<string, unknown> | null; locale: string | null } | null;
 };
 
-/**
- * Usuário e senha do HTTP Basic, que é como o Google se autentica aqui.
- *
- * A primeira versão punha o segredo na URL (`?k=`), por eu supor que a
- * importação agendada só sabia buscar um endereço. Errado: o formulário do
- * Google pede **URL, nome de usuário e senha**, e recusa sem os dois últimos.
- *
- * O `?k=` fica como segunda porta, porque é o que permite conferir o arquivo
- * com um `curl` sem montar cabeçalho. As duas comparam em tempo constante.
- */
-function autorizado(req: Req, url: URL, esperado: string): boolean {
-  if (segredoConfere(url.searchParams.get("k"), esperado)) return true;
-
-  const cru = req.headers["authorization"];
-  const cabecalho = typeof cru === "string" ? cru : Array.isArray(cru) ? cru[0] : null;
-  if (!cabecalho?.toLowerCase().startsWith("basic ")) return false;
-
-  let decodificado: string;
-  try {
-    decodificado = Buffer.from(cabecalho.slice(6).trim(), "base64").toString("utf8");
-  } catch {
-    return false;
-  }
-  // `indexOf` e não `split(":")`: senha PODE conter dois-pontos, e partir em
-  // todos truncaria a senha em silêncio — o pior tipo de recusa, a que parece
-  // "credencial errada" quando na verdade é o nosso parser.
-  const corte = decodificado.indexOf(":");
-  if (corte < 0) return false;
-  const usuario = decodificado.slice(0, corte);
-  const senha = decodificado.slice(corte + 1);
-
-  const usuarioEsperado = process.env.CONVERSOES_USUARIO || "google";
-  // Os dois em tempo constante, e sem `&&` que saia cedo: um curto-circuito
-  // depois do usuário deixaria o tempo de resposta contar se ele acertou.
-  const okUsuario = segredoConfere(usuario, usuarioEsperado);
-  const okSenha = segredoConfere(senha, esperado);
-  return okUsuario && okSenha;
-}
+// A porta HTTP Basic mora em `lib/basic-auth.ts` desde que o endpoint de
+// customer-match precisou da mesma. Módulo e não cópia: conserto num tem
+// que valer no outro.
 
 export default async function handler(req: Req, res: Res) {
-  // ── QUEM BATEU AQUI, E COM O QUÊ ─────────────────────────────
-  //
-  // Em 27/08 a importação do Google falhou com "Arquivo não encontrado"
-  // DEPOIS de ter lido o mesmo arquivo com sucesso na configuração, e o
-  // `curl` continuava respondendo 200 em 0,5s. Sem ver a requisição dele não
-  // dá pra passar de palpite.
-  //
-  // Só metadado: método, caminho, agente, e se veio credencial. NUNCA o
-  // conteúdo do `Authorization` nem o `k` da query — log de produção é lido
-  // por mais gente que o banco.
-  const cru = req.headers["authorization"];
-  const temBasic = typeof cru === "string" && cru.toLowerCase().startsWith("basic ");
-  const agente = req.headers["user-agent"];
-  console.log(
-    "[conversoes] req",
-    JSON.stringify({
-      metodo: req.method ?? "?",
-      caminho: (req.url ?? "").split("?")[0],
-      temQuery: (req.url ?? "").includes("?"),
-      temBasic,
-      agente: typeof agente === "string" ? agente.slice(0, 120) : null,
-    }),
-  );
+  logRequisicao("conversoes", req);
 
   const esperado = process.env.CONVERSOES_SECRET;
   if (!esperado) {
@@ -192,7 +135,7 @@ export default async function handler(req: Req, res: Res) {
     return res.status(503).json({ error: "CONVERSOES_SECRET não configurado" });
   }
   const url = new URL(req.url ?? "/", "https://serenatagift.com");
-  if (!autorizado(req, url, esperado)) {
+  if (!autorizadoBasic(req, url, esperado, process.env.CONVERSOES_USUARIO || "google")) {
     // 401 COM DESAFIO, e não o 404 discreto da primeira versão: o Basic só
     // interopera assim. Cliente que não mandou credencial precisa saber que
     // existe credencial pra mandar, senão nunca tenta.
