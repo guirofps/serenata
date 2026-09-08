@@ -72,9 +72,22 @@ export const PUBLICOS = {
   },
 } satisfies Record<string, Publico>;
 
-const normaliza = (e: unknown) => String(e ?? "").trim().toLowerCase();
-const hash = (e: unknown) => createHash("sha256").update(normaliza(e)).digest("hex");
-const emailOk = (e: unknown) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normaliza(e));
+/**
+ * Exportados porque são o contrato com o Google, e contrato tem teste.
+ *
+ * Errar aqui é invisível: o Google ACEITA o arquivo, responde "processando",
+ * e 48h depois a lista aparece com zero correspondências, sem mensagem de
+ * erro em lugar nenhum. Hex maiúsculo, e-mail sem normalizar ou normalização
+ * feita DEPOIS do hash produzem um arquivo que passa em qualquer inspeção
+ * visual e casa com ninguém. Ver `src/lib/customer-match-hash.test.ts`.
+ */
+export const normalizaEmail = (e: unknown) => String(e ?? "").trim().toLowerCase();
+export const hashEmail = (e: unknown) => createHash("sha256").update(normalizaEmail(e)).digest("hex");
+export const emailValido = (e: unknown) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalizaEmail(e));
+
+const normaliza = normalizaEmail;
+const hash = hashEmail;
+const emailOk = emailValido;
 
 async function token(): Promise<string> {
   const r = await fetch("https://oauth2.googleapis.com/token", {

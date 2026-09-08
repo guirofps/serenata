@@ -41,7 +41,7 @@
 // `CONVERSOES_SECRET`). Marque que os dados JÁ ESTÃO COM HASH.
 
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { segredoConfere } from "./lib/segredo.js";
+import { autorizadoBasic, logRequisicao } from "./lib/basic-auth.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -57,43 +57,47 @@ type Res = ServerResponse & {
 const LISTAS = ["abandonou", "naoPediu", "compradores"] as const;
 type Lista = (typeof LISTAS)[number];
 
+// A porta HTTP Basic mora em `lib/basic-auth.ts`, dividida com
+// `conversoes.ts`. Módulo e não cópia: o bloco gêmeo dentro do webhook da
+// Perfect Pay já ensinou que conserto num não vai no outro.
+
 /**
- * Mesma autenticação das conversões, e de propósito.
+ * Baixa a lista já hasheada do parceiro e devolve só o que é hash de verdade.
  *
- * O formulário de agendamento do Google pede URL, usuário e senha, e recusa
- * sem os dois últimos. O `?k=` fica como segunda porta porque é o que permite
- * conferir o arquivo com um `curl` sem montar cabeçalho. As duas comparam em
- * tempo constante.
+ * A autorização de usar a base da Cantoria junto com a nossa é acordo entre
+ * as duas empresas, registrado pelo dono em 08/09/2026.
+ *
+ * Lança em vez de devolver lista curta: quem chama transforma isso em 500.
  */
-function autorizado(req: Req, url: URL, esperado: string): boolean {
-  if (segredoConfere(url.searchParams.get("k"), esperado)) return true;
+async function listaDoParceiro(): Promise<string[]> {
+  const url = process.env.PARCEIRO_MATCH_URL;
+  const usuario = process.env.PARCEIRO_MATCH_USUARIO;
+  const senha = process.env.PARCEIRO_MATCH_SENHA;
+  if (!url || !usuario || !senha) throw new Error("PARCEIRO_MATCH_* não configurado");
 
-  const cru = req.headers["authorization"];
-  const cabecalho = typeof cru === "string" ? cru : Array.isArray(cru) ? cru[0] : null;
-  if (!cabecalho?.toLowerCase().startsWith("basic ")) return false;
+  const r = await fetch(url, {
+    headers: { Authorization: "Basic " + Buffer.from(`${usuario}:${senha}`).toString("base64") },
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!r.ok) throw new Error(`parceiro devolveu HTTP ${r.status}`);
 
-  let decodificado: string;
-  try {
-    decodificado = Buffer.from(cabecalho.slice(6).trim(), "base64").toString("utf8");
-  } catch {
-    return false;
-  }
-  // `indexOf` e não `split(":")`: senha PODE conter dois-pontos, e partir em
-  // todos truncaria a senha em silêncio.
-  const corte = decodificado.indexOf(":");
-  if (corte < 0) return false;
-  const okUsuario = segredoConfere(decodificado.slice(0, corte), process.env.CONVERSOES_USUARIO || "google");
-  const okSenha = segredoConfere(decodificado.slice(corte + 1), esperado);
-  // Sem `&&` que saia cedo: curto-circuito depois do usuário deixaria o tempo
-  // de resposta contar se ele acertou.
-  return okUsuario && okSenha;
+  const linhas = (await r.text()).replace(/^﻿/, "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  // Fora o cabeçalho, e só o que é SHA-256 em hex minúsculo. Se o formato do
+  // lado deles mudar, isto some em vez de contaminar a lista com texto solto
+  // — e e-mail cru entrando aqui seria vazamento, não só erro de formato.
+  const hashes = linhas.slice(1)
+    .map((l) => l.replace(/^"|"$/g, "").trim().toLowerCase())
+    .filter((l) => /^[a-f0-9]{64}$/.test(l));
+  if (!hashes.length) throw new Error("parceiro devolveu lista vazia");
+  return hashes;
 }
 
 export default async function handler(req: Req, res: Res) {
+  logRequisicao("publicos", req);
   const url = new URL(req.url ?? "/", "https://serenatagift.com");
 
   const esperado = process.env.CONVERSOES_SECRET;
-  if (!esperado || !autorizado(req, url, esperado)) {
+  if (!esperado || !autorizadoBasic(req, url, esperado, process.env.CONVERSOES_USUARIO || "google")) {
     res.setHeader("WWW-Authenticate", 'Basic realm="publicos"');
     return res.status(401).json({ error: "não autorizado" });
   }
@@ -118,7 +122,27 @@ export default async function handler(req: Req, res: Res) {
     return res.status(500).json({ error: "falha ao montar a lista" });
   }
 
-  console.log(`[publicos] ${pedida}: ${hashes.length} membros`);
+  // ── A BASE DO PARCEIRO, COM `?parceiro=1` ────────────────────
+  //
+  // Se a busca no parceiro falhar, devolve 500 e NÃO a lista só com a nossa
+  // parte. Lista que encolhe pode fazer o Google remover membro que estava
+  // certo; erro alto aparece no painel, lista curta não aparece em lugar
+  // nenhum. Mesma regra do arquivo vazio, logo acima.
+  let doParceiro = 0;
+  if (url.searchParams.get("parceiro") === "1") {
+    try {
+      const deles = await listaDoParceiro();
+      doParceiro = deles.length;
+      // Set porque as duas bases podem ter a mesma pessoa, e o mesmo e-mail
+      // normalizado dos dois lados gera o mesmo hash.
+      hashes = [...new Set([...hashes, ...deles])];
+    } catch (err) {
+      console.error("[publicos] parceiro falhou:", err);
+      return res.status(500).json({ error: "falha ao ler a lista do parceiro" });
+    }
+  }
+
+  console.log(`[publicos] ${pedida}: ${hashes.length} membros (parceiro: ${doParceiro})`);
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   // Nunca cacheado: o Google busca uma vez por dia e tem que ver quem entrou
   // ontem, não a resposta guardada da semana passada por uma borda da Vercel.
