@@ -20,7 +20,7 @@ import { marcarSessaoGasta } from "@/lib/session-context";
 import { linkSuporte, TEXTO_SUPORTE } from "@/lib/suporte-whatsapp";
 import { OfertaQuadroEditor } from "@/components/presente/OfertaQuadroEditor";
 import { AtalhoOutraMusica } from "@/components/conta/AtalhoOutraMusica";
-import { trackEvent } from "@/lib/track";
+import { trackEvent, trackEventOnce } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE, nomeCor } from "@/lib/marca";
 import { tp } from "@/lib/textos-presente";
 import { Logo } from "@/components/marca/Logo";
@@ -93,6 +93,27 @@ function Editor() {
     // porta. Foi assim que o caso de 15/08 ia se repetir de graça, com o
     // comprador ganhando 3 músicas e as 3 caindo na mesma linha.
     marcarSessaoGasta();
+
+    // ── O PÓS-COMPRA ERA UM PONTO CEGO ───────────────────────────
+    //
+    // Medido em 08/09: em 14 dias, com 1.241 compradores, os únicos eventos
+    // depois do pagamento eram `obrigado_presente_achado` (867) e
+    // `quadro_chamada_click` (77). Não dava pra saber quantos abriam o
+    // editor, e sem isso não dá pra dizer se o quadro converte a 6% porque
+    // a oferta é fraca ou porque quase ninguém chega até ela. São consertos
+    // opostos.
+    //
+    // É a mesma lição da folha de PIX: enquanto não gravava, a teoria do
+    // "botão escondido" parecia óbvia; com 645 registros, 100% tinham visto
+    // o botão e o problema era outro.
+    //
+    // `trackEventOnce` porque o efeito roda de novo a cada troca de token e
+    // em remonte de rota; abrir o editor é UM evento por presente.
+    trackEventOnce("editor_aberto", `editor_aberto:${p.tokenPublico}`, {
+      temFoto: Boolean(p.fotoUrl),
+      temFrase: Boolean(p.dedicatoria),
+      fotosNaGaleria: p.galeria?.length ?? 0,
+    });
   }, [p.tokenPublico]);
 
   const [fotoUrl, setFotoUrl] = useState(p.fotoUrl);
@@ -195,7 +216,13 @@ function Editor() {
       }
       if (r.fotoUrl) setFotoUrl(r.fotoUrl);
       setSalvo(true);
+      // Depois do `ok`, nunca no clique: o que interessa medir é foto que
+      // ENTROU, não intenção de subir foto.
+      trackEvent("presente_foto_salva", { substituiu: Boolean(p.fotoUrl) });
     } catch (err) {
+      trackEvent("presente_foto_falhou", {
+        motivo: err instanceof Error ? err.message.slice(0, 80) : "desconhecido",
+      });
       console.error("[editar] foto falhou:", err);
       setErro(err instanceof Error ? err.message : T.erroUsarFoto);
       setFotoUrl(p.fotoUrl);
@@ -266,6 +293,12 @@ function Editor() {
       setFraseStatus("idle");
     } else {
       setFraseStatus("salvo");
+      // A frase salva sozinha a cada 900ms parado, então este evento repete
+      // enquanto a pessoa digita. `trackEventOnce` por presente: o que se
+      // quer saber é se ela escreveu alguma coisa, não quantas vezes.
+      if (texto.trim()) {
+        trackEventOnce("presente_frase_salva", `presente_frase_salva:${p.tokenPublico}`);
+      }
     }
   }
 
@@ -284,6 +317,16 @@ function Editor() {
       await navigator.clipboard.writeText(mensagemPronta);
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2200);
+      // O DEGRAU QUE FECHA A ENTREGA. O comprador é quem presenteia (regra
+      // do projeto: nós nunca mandamos nada pro presenteado), então copiar
+      // a mensagem é o último passo que depende do site. Quem não chega
+      // aqui pagou e não entregou — e é o candidato do e-mail "guarde o
+      // link", não de oferta nenhuma.
+      trackEvent("presente_link_copiado", {
+        temFoto: Boolean(fotoUrl),
+        temFrase: Boolean(dedicatoria.trim()),
+        fotosNaGaleria: galeria.length,
+      });
     } catch {
       setErro(T.erroCopiar);
     }

@@ -11,6 +11,7 @@ import { Logo } from "@/components/marca/Logo";
 import { MARCA, FONTES } from "@/lib/marca";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { ehDono } from "@/lib/dono-presente";
+import { trackEventOnce } from "@/lib/track";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -162,7 +163,26 @@ function PaginaPresente() {
   // Só no efeito: o SSR não tem localStorage, e ler no render faria a
   // hidratação divergir.
   const [dono, setDono] = useState(false);
-  useEffect(() => setDono(ehDono(token)), [token]);
+  useEffect(() => {
+    const ehODono = ehDono(token);
+    setDono(ehODono);
+
+    // ── A ENTREGA ACONTECEU? ─────────────────────────────────────
+    //
+    // Este é o único degrau que prova que o presente chegou: o comprador é
+    // quem entrega (nós nunca mandamos nada pro presenteado), então a
+    // página aberta por alguém que NÃO é o dono é a confirmação de que a
+    // mensagem foi mandada e alguém do outro lado clicou.
+    //
+    // `dono` separa as duas coisas, e a distinção é o dado inteiro: o
+    // comprador reabrindo a própria página não é entrega, é conferência.
+    // Somar os dois daria um número bonito e falso.
+    trackEventOnce(
+      "presente_aberto",
+      `presente_aberto:${token}:${ehODono ? "dono" : "visita"}`,
+      { dono: ehODono },
+    );
+  }, [token]);
 
   // Duração vem do PRÓPRIO áudio, não do banco. O banco guarda a duração da
   // v1; na v2 (outra gravação) ela seria nula e o player mostrava 0:00 com a

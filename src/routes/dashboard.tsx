@@ -100,6 +100,18 @@ function Dashboard() {
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("aba");
     if (v === "quadro" || v === "criar") setAba(v);
+
+    // ── QUANTOS COMPRADORES CHEGAM NO PAINEL ─────────────────────
+    //
+    // A oferta do quadro mora numa ABA daqui. Em 14 dias, 77 pessoas
+    // clicaram na chamada dela, de 1.241 compradores. Sem medir a chegada,
+    // não dá pra saber se a oferta é fraca ou se ninguém abre o painel — e
+    // os dois pedem consertos opostos.
+    //
+    // `aba_inicial` separa quem veio pelo botão do e-mail (`?aba=quadro`)
+    // de quem entrou pela porta da frente. São públicos diferentes e
+    // misturá-los esconde o efeito do e-mail.
+    trackEvent("painel_aberto", { abaInicial: v ?? "musicas" });
   }, []);
   // ── A ESPERA DO PIX ─────────────────────────────────────────────
   //
@@ -330,7 +342,14 @@ function Dashboard() {
               ] as const).map(([chave, rotulo, quantos, selo]) => (
                 <button
                   key={chave}
-                  onClick={() => setAba(chave)}
+                  onClick={() => {
+                    setAba(chave);
+                    // Qual aba a pessoa PROCURA sozinha. Se ela abre o
+                    // painel e nunca toca em "quadro" nem em "criar", a
+                    // oferta não está sendo recusada — está sendo ignorada,
+                    // e o conserto é a chamada, não o preço.
+                    trackEvent("painel_aba", { aba: chave });
+                  }}
                   className={
                     "relative flex h-12 flex-1 items-center justify-center gap-1.5 font-medium transition-colors " +
                     (aba === chave ? "text-[var(--acento)]" : "text-[var(--tinta-suave)]")
