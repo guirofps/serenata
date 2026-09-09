@@ -100,38 +100,6 @@ export type Painel = {
     custoPorVendaBrl: number;
   };
 
-  /**
-   * O MESMO RECORTE, UM PERÍODO ATRÁS. É o que alimenta a variação ao lado de
-   * cada número ("↓ 24%"), no espírito do painel da Shopify.
-   *
-   * Guarda VALORES, não porcentagens: a conta é feita na tela, onde se sabe
-   * qual número é bom subir. Guardar a % aqui obrigaria a decidir o sinal de
-   * cada métrica no servidor, e "custo caiu 20%" e "vendas caiu 20%" não são
-   * a mesma notícia.
-   *
-   * `null` quando a janela anterior falhou. A tela some com as setinhas e o
-   * resto do painel continua de pé.
-   */
-  comparativo?: {
-    /** A janela comparada, pra tela poder dizer contra o que está comparando. */
-    de: string;
-    ate: string;
-    topo: Painel["topo"];
-    /** id do degrau -> quantos chegaram nele. */
-    funil: Record<string, number>;
-    /**
-     * A série do período anterior INTEIRO — e é o único número deste bloco que
-     * não é cortado na hora de agora.
-     *
-     * Todo o resto do `comparativo` compara "hoje até agora" com "ontem até
-     * esta mesma hora", que é o que faz a setinha ser honesta. No gráfico a
-     * régua é outra: a linha tracejada cheia mostra ONDE ONTEM FECHOU, e é isso
-     * que transforma o desenho em meta em vez de só placar. A sólida para em
-     * agora e a diferença fica à vista, que é o desenho da Shopify.
-     */
-    serie: PontoSerie[];
-  } | null;
-
   /** O funil inteiro, do clique à venda. É o mapa de onde fura. */
   funil: Array<{
     id: string;
@@ -270,16 +238,6 @@ export type Painel = {
     tempoP95S: number | null;
     falhas: number;
     travadas: number; // gerando há mais de 15 min
-    /**
-     * Crédito restante no kie.ai, e quantas músicas ainda cabem.
-     *
-     * Em 08/08 o saldo zerou e o pipeline parou por 13 HORAS em silêncio: 38
-     * músicas presas em "gerando", 7 delas já pagas, a mais antiga esperando
-     * 4h20. Nada falhou de forma visível — o job simplesmente não produzia, e
-     * o painel mostrava "gerando" como se fosse normal.
-     */
-    creditoKie: number | null;
-    musicasQueCabem: number | null;
   };
 
   /**
@@ -304,29 +262,6 @@ export type Painel = {
   custos: {
     porTipo: Array<{ tipo: string; brl: number; n: number }>;
     porDia: Array<{ dia: string; brl: number; receitaBrl: number; vendas: number }>;
-  };
-
-  /**
-   * O ECOSSISTEMA DE E-MAIL. Conta PESSOA, não evento: o Resend dispara
-   * `opened`/`clicked` a cada reabertura, e taxa por evento cru passa de 100%.
-   *
-   * Clique PODE ser maior que abertura, e não é bug: quem bloqueia imagem não
-   * registra abertura (o pixel não carrega), mas o clique no link registra.
-   */
-  emails: {
-    enviadosLetra: number;
-    enviadosSequencia: number;
-    entregues: number;
-    abriram: number;
-    clicaram: number;
-    voltaram: number;
-    porModelo: Array<{
-      modelo: string;
-      entregues: number;
-      abriram: number;
-      clicaram: number;
-      voltaram: number;
-    }>;
   };
 
   qualidade: {
@@ -368,6 +303,93 @@ export type Painel = {
     comprou: boolean;
     quando: string;
   }>;
+};
+
+// ── AS TRÊS FATIAS QUE NÃO ESPERAM O PAINEL ─────────────────────
+//
+// Elas moravam dentro de `Painel` e vinham na mesma resposta. Saíram porque o
+// painel só pintava quando a ÚLTIMA delas chegasse, e as três são justamente
+// as mais lentas ou as mais dispensáveis:
+//
+//   - o resumo de e-mail custa 13,6s (medido em 28/08) e só a aba E-mail o lê;
+//   - o saldo do provedor é um fetch externo com 5s de timeout, em série;
+//   - o comparativo é um SEGUNDO painel inteiro, da janela anterior.
+//
+// Somadas, eram ~18s de espera pra ver o faturamento do dia. Cada uma agora é
+// uma server function própria, e a tela mostra esqueleto no lugar de cada uma
+// até ela chegar.
+
+/**
+ * O MESMO RECORTE, UM PERÍODO ATRÁS. É o que alimenta a variação ao lado de
+ * cada número ("↓ 24%"), no espírito do painel da Shopify.
+ *
+ * Guarda VALORES, não porcentagens: a conta é feita na tela, onde se sabe
+ * qual número é bom subir. Guardar a % aqui obrigaria a decidir o sinal de
+ * cada métrica no servidor, e "custo caiu 20%" e "vendas caiu 20%" não são
+ * a mesma notícia.
+ *
+ * `null` quando a janela anterior falhou. A tela some com as setinhas e o
+ * resto do painel continua de pé — e é o mesmo desenho de quando ela apenas
+ * ainda não chegou, o que é o que torna esta fatia barata de separar.
+ */
+export type Comparativo = {
+  /** A janela comparada, pra tela poder dizer contra o que está comparando. */
+  de: string;
+  ate: string;
+  topo: Painel["topo"];
+  /** id do degrau -> quantos chegaram nele. */
+  funil: Record<string, number>;
+  /**
+   * A série do período anterior INTEIRO — e é o único número deste bloco que
+   * não é cortado na hora de agora.
+   *
+   * Todo o resto do `comparativo` compara "hoje até agora" com "ontem até
+   * esta mesma hora", que é o que faz a setinha ser honesta. No gráfico a
+   * régua é outra: a linha tracejada cheia mostra ONDE ONTEM FECHOU, e é isso
+   * que transforma o desenho em meta em vez de só placar. A sólida para em
+   * agora e a diferença fica à vista, que é o desenho da Shopify.
+   */
+  serie: PontoSerie[];
+};
+
+/**
+ * O ECOSSISTEMA DE E-MAIL. Conta PESSOA, não evento: o Resend dispara
+ * `opened`/`clicked` a cada reabertura, e taxa por evento cru passa de 100%.
+ *
+ * Clique PODE ser maior que abertura, e não é bug: quem bloqueia imagem não
+ * registra abertura (o pixel não carrega), mas o clique no link registra.
+ */
+export type ResumoEmails = {
+  enviadosLetra: number;
+  enviadosSequencia: number;
+  entregues: number;
+  abriram: number;
+  clicaram: number;
+  voltaram: number;
+  porModelo: Array<{
+    modelo: string;
+    entregues: number;
+    abriram: number;
+    clicaram: number;
+    voltaram: number;
+  }>;
+};
+
+/**
+ * Crédito restante no kie.ai, e quantas músicas ainda cabem.
+ *
+ * Em 08/08 o saldo zerou e o pipeline parou por 13 HORAS em silêncio: 38
+ * músicas presas em "gerando", 7 delas já pagas, a mais antiga esperando
+ * 4h20. Nada falhou de forma visível — o job simplesmente não produzia, e o
+ * painel mostrava "gerando" como se fosse normal.
+ *
+ * NÃO leva janela na chave: é estado de AGORA, não do período. Trocar o
+ * recorte de 7 pra 30 dias não muda o saldo, e por isso a tela não refaz esta
+ * consulta quando o filtro muda.
+ */
+export type SaldoKie = {
+  creditoKie: number | null;
+  musicasQueCabem: number | null;
 };
 
 const ROTULOS: Record<string, string> = {
@@ -690,18 +712,16 @@ function janelaAnterior(j: Janela): Janela {
 }
 
 /**
- * O painel de UMA janela. É chamado DUAS vezes por carregamento: a janela
- * pedida e a anterior, em paralelo.
+ * O painel de UMA janela.
  *
- * `enxuto` corta o que não entra em comparação nenhuma e custa caro: o saldo
- * do kie.ai (uma chamada HTTP externa, com timeout de 5s) e o resumo de
- * e-mail. Sem isso, ligar o comparativo dobraria as duas coisas à toa.
+ * Havia aqui um `opts.enxuto`, que cortava o saldo do kie.ai e o resumo de
+ * e-mail pra janela do comparativo não pagar duas vezes por eles. O parâmetro
+ * morreu porque os DOIS chamadores passaram a querer o corte: as duas coisas
+ * viraram server function própria (`carregarSaldoKie`, `carregarEmails`) e a
+ * tela busca cada uma no seu tempo. Um `if` que só tem um lado não é opção,
+ * é o comportamento.
  */
-async function montarPainel(
-  data: ArgsPainel,
-  { inicio, fim, dias }: Janela,
-  opts: { enxuto?: boolean } = {},
-): Promise<Painel> {
+async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Promise<Painel> {
   const db = supabaseAdmin();
   const desde = inicio.toISOString();
   const ateISO = fim.toISOString();
@@ -732,18 +752,13 @@ async function montarPainel(
   // Agora essa conta é feita no banco, por `admin_eventos_resumo`, e volta
   // como ~30 linhas de resumo. Chamada mais abaixo, porque ela precisa
   // saber quais sessões compraram, e isso sai de `pedidos`.
-  // O RESUMO DE E-MAIL SAI NA FRENTE, sem `await`.
   //
-  // Ele custa 13,6s e não depende de nada daqui — é por destinatário, não por
-  // sessão. Disparado agora, ele corre junto das leituras abaixo e já está
-  // pronto quando alguém for buscá-lo lá embaixo.
-  //
-  // A promessa é guardada, não aguardada: `await` aqui devolveria a serialização
-  // que este comentário existe pra evitar.
-  const emailsEmVoo = opts.enxuto
-    ? null
-    : db.rpc("admin_emails_resumo", { p_desde: desde, p_ate: ateISO });
-
+  // O RESUMO DE E-MAIL TAMBÉM NÃO ENTRA MAIS AQUI. Ele era disparado neste
+  // ponto sem `await`, justamente pra correr junto das leituras abaixo — e
+  // ainda assim custava 13,6s, o que fazia dele o mais lento do lote e,
+  // portanto, o tempo de parede do painel inteiro. Agora é `carregarEmails`,
+  // e a tela só pede quando a aba E-mail está aberta: quem olha faturamento
+  // não paga mais por uma taxa de abertura que não pediu.
   const [leadsCru, musicas, custos, pedidos] = await Promise.all([
     // ── SÓ OS QUATRO CAMPOS QUE O PAINEL LÊ ────────────────────
     //
@@ -936,37 +951,6 @@ async function montarPainel(
       `campanhas abaixo estão corretos. Escolha um período menor para ver o funil.`;
   }
   const resumo = (resumoCru ?? {}) as EventosResumo;
-
-  // O e-mail é agregado à parte porque não compartilha nada com o funil: ele
-  // é por DESTINATÁRIO, não por sessão, e mistura eventos que vêm do Resend
-  // com os nossos. Falha aqui NÃO derruba o painel: não saber a taxa de
-  // abertura é ruim, não ver o faturamento é pior.
-  let emails: Painel["emails"] = {
-    enviadosLetra: 0,
-    enviadosSequencia: 0,
-    entregues: 0,
-    abriram: 0,
-    clicaram: 0,
-    voltaram: 0,
-    porModelo: [],
-  };
-  // `enxuto`: o comparativo não mostra e-mail, então nem pede.
-  //
-  // A CHAMADA FOI DISPARADA LÁ EM CIMA, junto das leituras, e só é esperada
-  // aqui. Ela leva 13,6s (medido em 28/08) e não depende de NADA do que veio
-  // antes — deixá-la em série era somar esses 13,6s ao total pelo simples
-  // fato de estar escrita depois. Com o limite de 60s da função, isso era um
-  // quarto do orçamento gasto à toa.
-  if (emailsEmVoo) {
-    try {
-      const { data: e, error } = await emailsEmVoo;
-      if (error) throw new Error(error.message);
-      if (e) emails = e as Painel["emails"];
-    } catch (err) {
-      // Não saber a taxa de abertura é ruim; não ver o faturamento é pior.
-      console.error("[admin] resumo de e-mail não lido:", err);
-    }
-  }
 
   // Visitante único: sessões distintas com page_view. É o denominador honesto
   // do funil (o total de page_view contaria a mesma pessoa várias vezes).
@@ -1178,9 +1162,11 @@ async function montarPainel(
   //
   // Uma consulta só, com os IDs que apareceram no período. A tabela tem 83
   // linhas hoje, mas o `in` deixa isso continuar barato se um dia forem mil.
-  const idsCampanha = [...new Set(
-    [...origemMap.values()].map((v) => v.campanha).filter((c): c is string => Boolean(c)),
-  )];
+  const idsCampanha = [
+    ...new Set(
+      [...origemMap.values()].map((v) => v.campanha).filter((c): c is string => Boolean(c)),
+    ),
+  ];
   const nomeCampanha = new Map<string, { nome: string; status: string | null }>();
   if (idsCampanha.length) {
     const { data: nomes } = await db
@@ -1356,24 +1342,11 @@ async function montarPainel(
   const porStatus: Record<string, number> = {};
   const tempos: number[] = [];
   const agora = Date.now();
-  // O SALDO DO PROVEDOR. Falha aqui não derruba o painel: provedor fora do
-  // ar não pode impedir de ver o resto da operação.
-  let creditoKie: number | null = null;
-  // `enxuto`: saldo é estado de AGORA, não do período — comparar não faz
-  // sentido, e são 5s de timeout numa chamada externa.
-  if (!opts.enxuto) {
-    try {
-      const rs = await fetch("https://api.kie.ai/api/v1/chat/credit", {
-        headers: { Authorization: `Bearer ${process.env.KIE_API_KEY ?? ""}` },
-        signal: AbortSignal.timeout(5000),
-      });
-      const j = await rs.json();
-      if (typeof j?.data === "number") creditoKie = j.data;
-    } catch (err) {
-      console.error("[admin] saldo kie.ai não lido:", err);
-    }
-  }
-
+  // O SALDO DO PROVEDOR SAIU DAQUI, pra `carregarSaldoKie`. Era um `fetch`
+  // externo com 5s de timeout, escrito no meio de uma função que já tinha
+  // terminado de falar com o banco — 5s de tempo morto pendurados no fim do
+  // painel, pra preencher um cartão. Fora, ele corre sozinho e o cartão mostra
+  // esqueleto enquanto isso.
   let travadas = 0;
   for (const m of musicasF) {
     porStatus[m.status] = (porStatus[m.status] ?? 0) + 1;
@@ -1466,8 +1439,6 @@ async function montarPainel(
     gastos,
 
     producao: {
-      creditoKie,
-      musicasQueCabem: creditoKie === null ? null : Math.floor(creditoKie / CREDITO_POR_MUSICA),
       porStatus,
       tempoMedioS: medio,
       tempoP95S: p95,
@@ -1499,8 +1470,6 @@ async function montarPainel(
         .map(([dia, v]) => ({ dia, ...v }))
         .sort((a, b) => a.dia.localeCompare(b.dia)),
     },
-
-    emails,
 
     qualidade: {
       refacoes: conta("letra_refacao"),
@@ -1645,6 +1614,21 @@ async function serieAnterior(j: Janela, filtro: FunilFiltro): Promise<PontoSerie
   }
 }
 
+/**
+ * O NÚCLEO DO PAINEL: faturamento, funil, gráfico, campanhas, vendas.
+ *
+ * É a única consulta sem a qual não há painel, e por isso é a única que ainda
+ * pode mandar a tela pra "não consegui carregar" (ver `decidirEstado` em
+ * `admin-estado.ts`). O comparativo, o resumo de e-mail e o saldo do provedor
+ * saíram daqui pra três server functions próprias, que a tela busca em
+ * paralelo e desenha quando chegarem.
+ *
+ * O que essa separação vale, com os números medidos em 28/08: o resumo de
+ * e-mail custava 13,6s e era o mais lento do lote, ou seja, ELE era o tempo
+ * de parede; o saldo do kie.ai somava até 5s em série; e o comparativo é um
+ * `montarPainel` inteiro, então o painel esperava pela mais lenta das duas
+ * janelas. Nada disso é faturamento, e nada disso precisa chegar junto.
+ */
 export const carregarPainel = createServerFn({ method: "POST" })
   // `de`/`ate` em "YYYY-MM-DD" (hora local BR) têm prioridade sobre `dias`.
   // Com eles dá pra olhar UM dia específico ou qualquer intervalo.
@@ -1654,36 +1638,131 @@ export const carregarPainel = createServerFn({ method: "POST" })
     const { exigirAdmin } = await import("@/lib/admin-auth.server");
     exigirAdmin();
 
+    return montarPainel(data, janelaDo(data));
+  });
+
+/**
+ * O MESMO RECORTE, UM PERÍODO ATRÁS — as setinhas de variação e a linha
+ * tracejada do gráfico.
+ *
+ * Continua devolvendo `null` em vez de lançar quando a janela anterior falha,
+ * e isso agora é gratuito: a tela já desenha o painel sem comparativo enquanto
+ * esta consulta não volta, então "falhou" e "ainda não chegou" caem no mesmo
+ * lugar. `Cartao` se cala sem o par de valores e o gráfico recebe `[]`.
+ */
+export const carregarComparativo = createServerFn({ method: "POST" })
+  .validator((data: ArgsPainel) => data)
+  .handler(async ({ data }): Promise<Comparativo | null> => {
+    const { exigirAdmin } = await import("@/lib/admin-auth.server");
+    exigirAdmin();
+
     const janela = janelaDo(data);
     const antes = janelaAnterior(janela);
 
-    const [painel, anterior, serieDeAntes] = await Promise.all([
-      montarPainel(data, janela),
-      montarPainel(data, antes, { enxuto: true }).catch((err) => {
+    const [anterior, serieDeAntes] = await Promise.all([
+      montarPainel(data, antes).catch((err) => {
         console.error("[admin] periodo anterior nao lido:", err);
         return null;
       }),
-      // Em paralelo com as outras duas: o tempo de parede fica no mais lento,
-      // não na soma. É a mesma razão de as duas janelas já rodarem juntas.
+      // Em paralelo com a outra: o tempo de parede fica na mais lenta, não na
+      // soma. As duas leem janelas diferentes e não dependem uma da outra.
       serieAnterior(janelaAnteriorCheia(janela), data.funil ?? "todos"),
     ]);
+    if (!anterior) return null;
 
     return {
-      ...painel,
-      comparativo: anterior
-        ? {
-            de: antes.inicio.toISOString(),
-            ate: antes.fim.toISOString(),
-            topo: anterior.topo,
-            // Só o alcance de cada degrau. As taxas do funil se recalculam
-            // sozinhas a partir daí, e guardar as duas coisas abriria espaço
-            // pra elas discordarem.
-            funil: Object.fromEntries(anterior.funil.map((f) => [f.id, f.alcancaram])),
-            serie: serieDeAntes,
-          }
-        : null,
+      de: antes.inicio.toISOString(),
+      ate: antes.fim.toISOString(),
+      topo: anterior.topo,
+      // Só o alcance de cada degrau. As taxas do funil se recalculam sozinhas
+      // a partir daí, e guardar as duas coisas abriria espaço pra elas
+      // discordarem.
+      funil: Object.fromEntries(anterior.funil.map((f) => [f.id, f.alcancaram])),
+      serie: serieDeAntes,
     };
   });
+
+/**
+ * O RESUMO DE E-MAIL. 13,6s medidos em 28/08, e só a aba E-mail o lê.
+ *
+ * A tela pede esta consulta apenas com a aba aberta. Não é economia de
+ * enfeite: enquanto ela morava dentro de `carregarPainel`, era a mais lenta do
+ * lote — quem abria o painel pra ver quanto entrou no dia esperava por uma
+ * taxa de abertura que não tinha pedido.
+ *
+ * Ela é agregada à parte porque não compartilha NADA com o funil: é por
+ * DESTINATÁRIO, não por sessão, e mistura eventos do Resend com os nossos. Por
+ * isso saiu inteira, sem deixar pedaço atrás.
+ *
+ * Falha aqui não derruba o painel — é uma consulta acessória em
+ * `decidirEstado`, pela regra de sempre: não saber a taxa de abertura é ruim,
+ * não ver o faturamento é pior.
+ */
+export const carregarEmails = createServerFn({ method: "POST" })
+  .validator((data: ArgsPainel) => data)
+  .handler(async ({ data }): Promise<ResumoEmails> => {
+    const { exigirAdmin } = await import("@/lib/admin-auth.server");
+    exigirAdmin();
+
+    const { inicio, fim } = janelaDo(data);
+    const db = supabaseAdmin();
+    const { data: e, error } = await db.rpc("admin_emails_resumo", {
+      p_desde: inicio.toISOString(),
+      p_ate: fim.toISOString(),
+    });
+    if (error) throw new Error(error.message);
+
+    return (
+      (e as ResumoEmails | null) ?? {
+        enviadosLetra: 0,
+        enviadosSequencia: 0,
+        entregues: 0,
+        abriram: 0,
+        clicaram: 0,
+        voltaram: 0,
+        porModelo: [],
+      }
+    );
+  });
+
+/**
+ * O SALDO DO PROVEDOR, e quantas músicas ainda cabem nele.
+ *
+ * Não recebe janela, de propósito: é estado de AGORA. Trocar o recorte de 7
+ * pra 30 dias não muda o saldo do kie.ai, então a tela guarda esta resposta
+ * numa chave sem período e não a refaz quando o filtro muda.
+ *
+ * Era um `fetch` externo de 5s de timeout escrito no fim de `montarPainel`,
+ * depois de o banco já ter respondido tudo: 5s de tempo morto pendurados no
+ * caminho crítico, pra preencher um cartão. Fora, ele corre sozinho.
+ */
+export const carregarSaldoKie = createServerFn({ method: "POST" }).handler(
+  async (): Promise<SaldoKie> => {
+    const { exigirAdmin } = await import("@/lib/admin-auth.server");
+    exigirAdmin();
+
+    // Falha não derruba o painel: provedor fora do ar não pode impedir de ver
+    // o resto da operação. Devolve `null`, que a tela mostra como ausência
+    // explícita em vez de zero — "não sei o saldo" e "o saldo é zero" pedem
+    // reações opostas, e zero é justamente o que dispara o alerta.
+    let creditoKie: number | null = null;
+    try {
+      const rs = await fetch("https://api.kie.ai/api/v1/chat/credit", {
+        headers: { Authorization: `Bearer ${process.env.KIE_API_KEY ?? ""}` },
+        signal: AbortSignal.timeout(5000),
+      });
+      const j = await rs.json();
+      if (typeof j?.data === "number") creditoKie = j.data;
+    } catch (err) {
+      console.error("[admin] saldo kie.ai não lido:", err);
+    }
+
+    return {
+      creditoKie,
+      musicasQueCabem: creditoKie === null ? null : Math.floor(creditoKie / CREDITO_POR_MUSICA),
+    };
+  },
+);
 
 /**
  * Lança (ou corrige) o gasto de mídia de um dia.
@@ -1732,13 +1811,12 @@ export const lancarGasto = createServerFn({ method: "POST" })
 // precisa ser lida sem abrir o painel (o relatório da Woovi usou os mesmos
 // números). Este arquivo só a expõe pra tela, com a mesma trava de admin do
 // resto.
-export const apurarFinanceiro = createServerFn({ method: "POST" })
-  .handler(async () => {
-    const { exigirAdmin } = await import("@/lib/admin-auth.server");
-    exigirAdmin();
-    const { apurar } = await import("@/lib/financeiro");
-    return apurar();
-  });
+export const apurarFinanceiro = createServerFn({ method: "POST" }).handler(async () => {
+  const { exigirAdmin } = await import("@/lib/admin-auth.server");
+  exigirAdmin();
+  const { apurar } = await import("@/lib/financeiro");
+  return apurar();
+});
 
 /**
  * Lança (ou apaga) um custo que nenhuma API conta.
@@ -1749,15 +1827,17 @@ export const apurarFinanceiro = createServerFn({ method: "POST" })
  * lançar uma nova.
  */
 export const lancarCustoFixo = createServerFn({ method: "POST" })
-  .validator((data: {
-    id?: string;
-    dia: string;
-    categoria: string;
-    fornecedor: string;
-    descricao?: string;
-    valor: number;
-    recorrente?: boolean;
-  }) => data)
+  .validator(
+    (data: {
+      id?: string;
+      dia: string;
+      categoria: string;
+      fornecedor: string;
+      descricao?: string;
+      valor: number;
+      recorrente?: boolean;
+    }) => data,
+  )
   .handler(async ({ data }): Promise<{ ok: boolean; erro?: string }> => {
     const { exigirAdmin } = await import("@/lib/admin-auth.server");
     exigirAdmin();
@@ -1777,9 +1857,14 @@ export const lancarCustoFixo = createServerFn({ method: "POST" })
 
     const linha = {
       dia,
-      categoria: String(data.categoria || "avulso").trim().slice(0, 30),
+      categoria: String(data.categoria || "avulso")
+        .trim()
+        .slice(0, 30),
       fornecedor,
-      descricao: String(data.descricao ?? "").trim().slice(0, 200) || null,
+      descricao:
+        String(data.descricao ?? "")
+          .trim()
+          .slice(0, 200) || null,
       valor_brl: valor,
       recorrente: Boolean(data.recorrente),
     };
