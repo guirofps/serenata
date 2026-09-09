@@ -53,6 +53,38 @@ const MAX_POR_RODADA = 80;
 /** Recém-criado ainda pode estar no caminho normal do webhook. */
 const IDADE_MIN_MIN = 12;
 
+/**
+ * ── A SEGUNDA VARREDURA: PAGOU, A MÚSICA FICOU PRONTA DEPOIS ─────
+ *
+ * A varredura de cima pega o pagamento que o webhook PERDEU. Esta pega o
+ * oposto: o webhook chegou certinho, mas naquele instante a música ainda não
+ * existia. Ele registra `entrega: "sem-musica"` e segue (woovi.ts:414). A
+ * música fica pronta minutos depois e NINGUÉM avisa o comprador.
+ *
+ * Nenhum dos dois vigias existentes cobria isso:
+ *
+ *   este mesmo arquivo, acima, só olha pedido `pendente`. O caso aqui já
+ *   está `pago`, então passava direto.
+ *
+ *   `repescarFalhadas` recoloca a música na fila, mas quem entrega é o
+ *   fluxo do pagamento, que já passou.
+ *
+ * Aconteceu em 09/09/2026: a kie.ai devolveu 500 por uma hora, 37 músicas
+ * falharam e duas eram de comprador. Uma delas ficou pronta e o dono só
+ * soube porque alguém foi olhar na mão. É o mesmo desenho de falha que virou
+ * contestação em 04/09.
+ *
+ * A janela é maior que a de cima porque aqui o dinheiro JÁ entrou: enquanto
+ * houver comprador sem entrega, vale continuar procurando.
+ */
+const ENTREGA_JANELA_H = 72;
+const ENTREGA_MAX_POR_RODADA = 40;
+/**
+ * Dá tempo do caminho normal acontecer antes de a gente entrar por cima.
+ * Geração leva ~2 minutos; 15 cobre a fila cheia sem pisar no webhook.
+ */
+const ENTREGA_IDADE_MIN_MIN = 15;
+
 function db() {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -79,6 +111,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   const agora = Date.now();
   const consertados: Array<{ email: string; pedido: string; horas: number; entregue: boolean }> = [];
   const semResposta: string[] = [];
+  /** Pagou, música ficou pronta depois, e-mail de entrega nunca saiu. */
+  const semEntrega: Array<{ email: string; horas: number; entregue: boolean }> = [];
 
   try {
     const { data: pendentes } = await sb
@@ -155,6 +189,67 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       });
     }
 
+    // ── SEGUNDA VARREDURA: PAGO, SEM E-MAIL DE ENTREGA ───────────
+    //
+    // Ver o bloco de constantes lá em cima pro caso que motivou isto.
+    for (const p of await (async () => {
+      const { data } = await sb
+        .from("pedidos")
+        .select("payment_id, email, quiz_response_id, paid_at")
+        .eq("status", "pago")
+        .not("dinheiro_entrou", "is", false)
+        .not("quiz_response_id", "is", null)
+        .gte("paid_at", new Date(agora - ENTREGA_JANELA_H * 3600000).toISOString())
+        .lte("paid_at", new Date(agora - ENTREGA_IDADE_MIN_MIN * 60000).toISOString())
+        .order("paid_at")
+        .limit(ENTREGA_MAX_POR_RODADA);
+      if (!data?.length) return [];
+
+      // Quem JÁ recebeu, numa consulta só. Um `select` por pedido dentro do
+      // laço estouraria o tempo da função em dia de volume.
+      const { data: enviados } = await sb
+        .from("emails_enviados")
+        .select("quiz_response_id")
+        .eq("template", "entrega")
+        .in("quiz_response_id", data.map((x) => x.quiz_response_id));
+      const jaFoi = new Set((enviados ?? []).map((e) => e.quiz_response_id));
+      return data.filter((x) => !jaFoi.has(x.quiz_response_id));
+    })()) {
+      try {
+        const musica = await musicaDoQuiz(sb, p.quiz_response_id as string);
+        // Sem música pronta ainda não é o nosso caso: é geração em curso, e
+        // o caminho normal ainda vai entregar. Entrar aqui mandaria o
+        // "em produção" por cima de quem já recebeu esse mesmo aviso.
+        if (!musica || musica.status !== "pronta") continue;
+
+        await refazerSeFaltou(sb, musica);
+        const r = await mandarEmailDeEntrega(sb, { email: p.email, musica });
+        semEntrega.push({
+          email: p.email,
+          horas: Math.round((agora - Date.parse(p.paid_at as string)) / 3600000),
+          entregue: r.ok,
+        });
+      } catch (err) {
+        console.error(`[vigia-pagamento] entrega atrasada falhou em ${p.payment_id}:`, err);
+      }
+    }
+
+    if (semEntrega.length && process.env.RESEND_API_KEY) {
+      await new Resend(process.env.RESEND_API_KEY).emails.send({
+        from: "Serenata <contato@serenatagift.com>",
+        to: PARA,
+        subject: `📦 ${semEntrega.length} comprador(es) pagaram e ficaram sem o e-mail de entrega`,
+        html:
+          `<p><strong>Estes pagaram, a música ficou pronta DEPOIS, e ninguém avisou.</strong> ` +
+          `Acabei de mandar a entrega.</p>` +
+          `<ul>${semEntrega.map((c) =>
+            `<li>${c.email} — esperando há ${c.horas}h — ${c.entregue ? "entregue agora" : "FALHOU, olhe este"}</li>`).join("")}</ul>` +
+          `<p>Quase sempre a causa é o provedor de música ter recusado no instante do pagamento. ` +
+          `Vale conferir <code>scratch/falhas-24h.mjs</code> pra ver se foi uma janela ruim do provedor ` +
+          `ou algo nosso.</p>`,
+      });
+    }
+
     // ── O AVISO ──────────────────────────────────────────────────
     //
     // Conserto silencioso esconde a causa. Cada linha aqui é um webhook que
@@ -179,7 +274,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
     res.statusCode = 200;
     res.setHeader("content-type", "application/json");
-    res.end(JSON.stringify({ ok: true, conferidos: (pendentes ?? []).length, consertados, semResposta: semResposta.length }));
+    res.end(JSON.stringify({ ok: true, conferidos: (pendentes ?? []).length, consertados, semResposta: semResposta.length, entregasAtrasadas: semEntrega }));
   } catch (err) {
     console.error("[vigia-pagamento] falhou:", err);
     res.statusCode = 500;
