@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-client";
+import { entrarComGoogle } from "@/lib/admin-auth";
+import { destinoDoCallback } from "@/lib/auth-destino";
 import { TEMA_CLARO, MARCA } from "@/lib/marca";
 import { Loader2 } from "lucide-react";
 import { normalizarLocale, caminho } from "@/lib/i18n";
@@ -16,16 +18,15 @@ export const Route = createFileRoute("/auth/callback")({
   // erro em português e seria mandado pro login brasileiro.
   validateSearch: (busca: Record<string, unknown>) => ({
     lang: typeof busca.lang === "string" ? busca.lang : undefined,
+    // Enum, nunca URL — a regra e o porquê vivem em `auth-destino.ts`, com
+    // teste, porque é o que impede esta rota de virar redirect aberto.
+    destino: destinoDoCallback(busca.destino),
   }),
   head: () => ({
-    meta: [
-      { title: `Entrando · ${MARCA.nome}` },
-      { name: "robots", content: "noindex, nofollow" },
-    ],
+    meta: [{ title: `Entrando · ${MARCA.nome}` }, { name: "robots", content: "noindex, nofollow" }],
   }),
   component: Callback,
 });
-
 
 const COPY = {
   pt: {
@@ -49,9 +50,39 @@ const COPY = {
 function Callback() {
   const navigate = useNavigate();
   const [erro, setErro] = useState(false);
+  // Sessão Google criada, mas o e-mail não está na lista do painel. É um
+  // estado LEGÍTIMO, não uma falha: a pessoa entrou no site de verdade, só não
+  // é admin. Sem uma tela dizendo isso, o sintoma seria "o botão do Google não
+  // faz nada" e a busca começaria pela configuração, que está certa.
+  const [semAcesso, setSemAcesso] = useState(false);
+  const { destino } = Route.useSearch();
 
   useEffect(() => {
     let vivo = true;
+
+    /**
+     * Onde a sessão desemboca.
+     *
+     * Com `destino=admin`, troca o token do Supabase pelo cookie do painel —
+     * são duas sessões separadas de propósito (ver `admin-auth.server.ts`), e
+     * esta é a única ponte entre elas.
+     */
+    async function seguir() {
+      if (destino !== "admin") {
+        navigate({ to: "/dashboard" });
+        return;
+      }
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (!accessToken) {
+        if (vivo) setErro(true);
+        return;
+      }
+      const r = await entrarComGoogle({ data: { accessToken } });
+      if (!vivo) return;
+      if (r.ok) navigate({ to: "/admin", search: {} });
+      else setSemAcesso(true);
+    }
 
     async function entrar() {
       const url = new URL(window.location.href);
@@ -65,7 +96,7 @@ function Callback() {
           setErro(true);
           return;
         }
-        navigate({ to: "/dashboard" });
+        await seguir();
         return;
       }
 
@@ -74,7 +105,7 @@ function Callback() {
       for (let i = 0; i < 50 && vivo; i++) {
         const { data } = await supabase.auth.getSession();
         if (data.session) {
-          navigate({ to: "/dashboard" });
+          await seguir();
           return;
         }
         await new Promise((r) => setTimeout(r, 100));
@@ -86,7 +117,7 @@ function Callback() {
     return () => {
       vivo = false;
     };
-  }, [navigate]);
+  }, [navigate, destino]);
 
   const locale = normalizarLocale(Route.useSearch().lang);
   const C = COPY[locale] ?? COPY.pt;
@@ -101,7 +132,35 @@ function Callback() {
           caía aqui, pedia outro, e repetia — 11 vezes no caso medido em
           02/08. Agora a tela diz a CAUSA provável antes de oferecer o botão
           que reinicia o ciclo. */}
-      {erro ? (
+      {semAcesso ? (
+        // SEM i18n de propósito: só o painel manda gente pra cá, e o painel é
+        // em português. As outras mensagens desta rota são traduzidas porque a
+        // aterrissagem do magic link atende comprador mexicano também.
+        <div className="mx-auto max-w-xs">
+          <p style={{ fontSize: "var(--t-lg)" }}>Esta conta não abre o painel.</p>
+          <p
+            className="mt-3 text-[var(--tinta-suave)]"
+            style={{ fontSize: "var(--t-sm)", lineHeight: 1.6 }}
+          >
+            Você entrou no site, mas o acesso ao painel é liberado por e-mail, um por um. Se era
+            outra conta Google que você queria usar, saia e entre de novo com ela.
+          </p>
+          <button
+            onClick={async () => {
+              // Derruba a sessão Supabase antes de voltar. Sem isto, o Google
+              // reentra sozinho com a MESMA conta que acabou de ser recusada, e
+              // a tela vira um laço em que clicar de novo dá sempre o mesmo
+              // resultado sem explicar por quê.
+              await supabase.auth.signOut();
+              navigate({ to: "/admin", search: {} });
+            }}
+            className="mt-5 text-[var(--acento)] underline underline-offset-4"
+            style={{ fontSize: "var(--t-sm)" }}
+          >
+            sair e tentar com outra conta
+          </button>
+        </div>
+      ) : erro ? (
         <div className="mx-auto max-w-xs">
           <p style={{ fontSize: "var(--t-lg)" }}>{C.naoVale}</p>
           <p

@@ -15,6 +15,7 @@ import {
   type FunilFiltro,
 } from "@/lib/admin-dados";
 import { decidirEstado } from "@/lib/admin-estado";
+import { supabase } from "@/lib/supabase-client";
 import { AbaFinanceiro } from "@/components/admin/AbaFinanceiro";
 import { AbaAutomacoes } from "@/components/admin/AbaAutomacoes";
 import { PRECOS } from "@/lib/custos";
@@ -475,35 +476,67 @@ function Admin() {
         className="grid min-h-screen place-items-center bg-[var(--papel)] px-4"
         style={TEMA_CLARO}
       >
-        <form
-          className="w-full max-w-sm space-y-4"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setErro(null);
-            const r = await entrarAdmin({ data: { senha } });
-            if (r.ok) {
-              setSenha("");
-              setDeslogado(false);
-              carregar();
-            } else setErro("Senha inválida.");
-          }}
-        >
+        <div className="w-full max-w-sm space-y-4">
           <div className="flex justify-center">
             <Logo tamanho="md" />
           </div>
           <p className="text-center text-sm text-[var(--tinta-suave)]">Painel da operação</p>
-          <Input
-            type="password"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            placeholder="Senha"
-            autoFocus
-          />
-          {erro && <p className="text-sm text-destructive">{erro}</p>}
-          <Button type="submit" className="cta w-full rounded-full border-0">
-            Entrar
+
+          {/* GOOGLE PRIMEIRO, porque é o caminho normal. A senha fica embaixo
+              como para-quedas: se o Google ou o Supabase Auth cair, o painel é
+              justamente a tela que se quer abrir pra entender o que caiu. */}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full rounded-full"
+            onClick={async () => {
+              setErro(null);
+              // `window.location.origin`, e não uma env nem cabeçalho: é a
+              // origem real do navegador, então preview e produção voltam cada
+              // um pra si sem configuração. E não repete o buraco do
+              // `x-forwarded-host` decidindo `redirectTo` (CLAUDE.md), porque
+              // aqui quem decide não é nada que o servidor receba de fora.
+              const { error } = await supabase.auth.signInWithOAuth({
+                provider: "google",
+                options: { redirectTo: `${window.location.origin}/auth/callback?destino=admin` },
+              });
+              if (error) setErro("Não consegui abrir o Google agora.");
+            }}
+          >
+            Entrar com Google
           </Button>
-        </form>
+
+          <div className="flex items-center gap-3 text-[11px] uppercase tracking-wider text-[var(--tinta-suave)]">
+            <span className="h-px flex-1 bg-[var(--tinta-fraca)]/40" />
+            ou
+            <span className="h-px flex-1 bg-[var(--tinta-fraca)]/40" />
+          </div>
+
+          <form
+            className="space-y-4"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setErro(null);
+              const r = await entrarAdmin({ data: { senha } });
+              if (r.ok) {
+                setSenha("");
+                setDeslogado(false);
+                carregar();
+              } else setErro("Senha inválida.");
+            }}
+          >
+            <Input
+              type="password"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              placeholder="Senha"
+            />
+            {erro && <p className="text-sm text-destructive">{erro}</p>}
+            <Button type="submit" className="cta w-full rounded-full border-0">
+              Entrar
+            </Button>
+          </form>
+        </div>
       </div>
     );
   }

@@ -12,6 +12,21 @@ export const entrarAdmin = createServerFn({ method: "POST" })
     return { ok: papel !== null, papel };
   });
 
+/**
+ * Troca uma sessão do Google pelo cookie de admin.
+ *
+ * Recebe o `access_token` que o Supabase entregou ao navegador e devolve se
+ * aquilo vale entrada no painel. O e-mail NÃO viaja daqui: quem diz de quem é o
+ * token é o Supabase, no servidor. Ver `autenticarPorGoogle`.
+ */
+export const entrarComGoogle = createServerFn({ method: "POST" })
+  .validator((data: { accessToken: string }) => data)
+  .handler(async ({ data }): Promise<{ ok: boolean; papel: string | null }> => {
+    const { autenticarPorGoogle } = await import("@/lib/admin-auth.server");
+    const papel = await autenticarPorGoogle(data.accessToken);
+    return { ok: papel !== null, papel };
+  });
+
 export const sairAdmin = createServerFn({ method: "POST" }).handler(async () => {
   const { encerrarSessao } = await import("@/lib/admin-auth.server");
   encerrarSessao();

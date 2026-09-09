@@ -1,5 +1,6 @@
 import { getCookie, setCookie } from "@tanstack/react-start/server";
 import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
+import { emailLiberado, lerListaDeAdmins } from "@/lib/admin-emails";
 
 // Lógica de autenticação do painel. Arquivo `.server.ts` de propósito: o
 // bundler nunca o inclui no cliente (o import de node:crypto quebrava o build
@@ -90,6 +91,20 @@ export async function autenticar(senha: string): Promise<Papel | null> {
     return null;
   }
 
+  abrirSessao(papel);
+  return papel;
+}
+
+/**
+ * Grava o cookie de sessão assinado. UM lugar só, de propósito.
+ *
+ * Nasceu quando o login pelo Google entrou: são dois jeitos de PROVAR quem você
+ * é (senha e Google) e um jeito só de ESTAR logado. Duas funções gravando
+ * sessão significaria, na primeira vez que alguém encurtasse a validade ou
+ * mexesse no `sameSite`, um caminho com a correção e outro sem — e o que fica
+ * sem é o que o atacante usa.
+ */
+function abrirSessao(papel: Papel): void {
   const payload = `${Date.now() + DURACAO_S * 1000}.${randomBytes(8).toString("hex")}.${papel}`;
   setCookie(COOKIE, `${payload}.${assinar(payload)}`, {
     httpOnly: true, // o JS da página não lê
@@ -98,7 +113,66 @@ export async function autenticar(senha: string): Promise<Papel | null> {
     path: "/",
     maxAge: DURACAO_S,
   });
-  return papel;
+}
+
+/**
+ * ENTRADA PELO GOOGLE — a segunda forma de provar quem você é.
+ *
+ * O que muda em relação à senha é só a PROVA. A sessão que sai daqui é a mesma:
+ * o mesmo cookie assinado, o mesmo papel dentro da assinatura, as mesmas 12h.
+ * `exigirAdmin` não sabe por onde a pessoa entrou, e é isso que faz este
+ * caminho ser um acréscimo em vez de um segundo sistema de autenticação.
+ *
+ * ── A LINHA QUE CARREGA A SEGURANÇA INTEIRA ──────────────────────
+ *
+ * O cliente manda um TOKEN, nunca um e-mail. Quem diz de quem é o token é o
+ * Supabase, com a chave dele: `getUser(token)` valida a assinatura do JWT e
+ * devolve o usuário. Aceitar um e-mail vindo do navegador seria o
+ * `admin_session=true` forjável por curl — o primeiro item da lista de erros
+ * herdados no CLAUDE.md — com outra roupa e o mesmo buraco.
+ *
+ * Devolve `null` em toda recusa, sem dizer qual foi: "e-mail não liberado" e
+ * "token inválido" são a mesma resposta pra quem está tentando.
+ */
+export async function autenticarPorGoogle(accessToken: string): Promise<Papel | null> {
+  if (!accessToken) return null;
+
+  const lista = lerListaDeAdmins(process.env.ADMIN_EMAILS);
+  // Curto-circuito antes de falar com o Supabase: sem lista ninguém entra, e
+  // não há por que gastar uma ida à rede pra confirmar isso.
+  if (lista.length === 0) {
+    console.error("[admin] ADMIN_EMAILS ausente: entrada pelo Google está fechada");
+    return null;
+  }
+
+  const { supabaseAdmin } = await import("@/lib/supabase-admin");
+  const { data, error } = await supabaseAdmin().auth.getUser(accessToken);
+  if (error || !data?.user) {
+    console.error("[admin] token do Google não validou:", error?.message);
+    return null;
+  }
+
+  const u = data.user;
+  // E-MAIL CONFIRMADO, sempre. Num login Google ele vem confirmado por
+  // construção, mas a checagem não custa nada e fecha a porta pra qualquer
+  // provider que venha a ser ligado depois no MESMO projeto Supabase sem
+  // verificação de e-mail — e aí a lista de permissão passaria a valer contra
+  // um endereço que ninguém provou ser seu.
+  if (!u.email_confirmed_at) {
+    console.error("[admin] e-mail sem confirmação:", u.email);
+    return null;
+  }
+
+  if (!emailLiberado(u.email, lista)) {
+    // Fica registrado: alguém logou com uma conta Google válida e pediu o
+    // painel. Não é erro do sistema, é tentativa de acesso, e é a única coisa
+    // aqui que vale olhar depois.
+    console.error("[admin] conta fora da lista tentou o painel:", u.email);
+    return null;
+  }
+
+  abrirSessao("admin");
+  return "admin";
 }
 
 export function encerrarSessao(): void {
