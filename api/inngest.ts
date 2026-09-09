@@ -8,6 +8,7 @@ import { gerarMusica } from "../inngest/functions/gerarMusica.js";
 import { lembrarPresente } from "../inngest/functions/lembrarPresente.js";
 import { volteCriar } from "../inngest/functions/volteCriar.js";
 import { ocasiaoCalendario } from "../inngest/functions/ocasiaoCalendario.js";
+import { limparAudioAntigo } from "../inngest/functions/limparAudioAntigo.js";
 import { vigiaWebhook } from "../inngest/functions/vigiaWebhook.js";
 import { vigiarSaldo } from "../inngest/functions/vigiarSaldo.js";
 import { mandarLetra } from "../inngest/functions/mandarLetra.js";
@@ -38,6 +39,7 @@ export default serve({
     lembrarPresente,
     volteCriar,
     ocasiaoCalendario,
+    limparAudioAntigo,
     vigiaWebhook,
     vigiarSaldo,
     mandarLetra,
