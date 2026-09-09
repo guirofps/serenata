@@ -408,7 +408,22 @@ function PaginaPresente() {
           caindo NA FRENTE da foto e da letra durante a música. */}
       <Efeitos tipo={p.efeito} ativo={fotosAtivas} tempo={t} />
 
-      {p.audioUrl && <audio ref={audioRef} src={p.audioUrl} preload="auto" />}
+      {/* ── `metadata`, NUNCA `auto` ──────────────────────────────
+          `auto` mandava o navegador baixar o MP3 INTEIRO na abertura da
+          página, tivesse alguém apertado play ou não. Medido em 30 dias:
+          655 aberturas por dia contra 52 plays. Nove em cada dez downloads
+          de 4,41 MB iam pro lixo, e isso sozinho dá ~87 GB/mês de banda do
+          Supabase — o que gerou o aviso de Fair Use de 08/09/2026.
+
+          `metadata` baixa só o cabeçalho, que é o que o `loadedmetadata`
+          logo acima precisa pra saber a duração e desenhar a barra. O
+          arquivo entra quando a pessoa toca no círculo, em streaming.
+
+          A capa desta tela é um convite com UM gesto possível, e o áudio
+          começa a chegar no instante do toque. A diferença que `auto`
+          comprava era imperceptível aqui, e mesmo essa já não existia no
+          iPhone, que ignora `auto` sem gesto do usuário. */}
+      {p.audioUrl && <audio ref={audioRef} src={p.audioUrl} preload="metadata" />}
 
       {/* ── CAPA ─────────────────────────────────────────────── */}
       {/* Antes do play a capa ocupa a tela inteira: é o convite, e o único
