@@ -661,9 +661,13 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
                 depoimento é de alguém falando português. Nada disso se resolve
                 traduzindo. O funil espanhol fica exatamente como estava. */}
             {locale === "pt" && (
+              /* O SORTEIO VEM PRIMEIRO, o depoimento embaixo. Os dois
+                 respondem perguntas diferentes, e o depoimento é o mais alto
+                 dos dois: em cima, ele empurrava o sorteio pra longe do campo,
+                 e quem não rolasse até o fim não via o prêmio. */
               <div className="space-y-5 pt-2">
-                <DepoimentoContato />
                 <SorteioSemanal />
+                <DepoimentoContato />
               </div>
             )}
           </div>
