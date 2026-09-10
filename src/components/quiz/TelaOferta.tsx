@@ -21,6 +21,8 @@ import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
 import { varianteDe } from "@/lib/experimentos";
 import { PixTransparente } from "@/components/quiz/PixTransparente";
+import { SorteioSemanal } from "@/components/quiz/SorteioSemanal";
+import { DepoimentoContato } from "@/components/quiz/DepoimentoContato";
 import {
   Music, Images, Sparkles, QrCode, Download, Infinity as InfinityIcon,
   Pencil, ShieldCheck, ChevronLeft, ChevronDown, Check, RefreshCw,
@@ -914,6 +916,29 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           </p>
         </div>
       </div>
+
+      {/* ── O SORTEIO E O DEPOIMENTO, LOGO DEPOIS DO PEDIDO ──────
+          Os mesmos dois blocos do passo do e-mail, e aqui eles trabalham
+          melhor: lá o sorteio era anúncio de uma coisa que só acontece na
+          compra, e nesta tela a compra é o próprio botão logo acima.
+
+          FORA do card da oferta, não dentro. Os dois já são cards com borda, e
+          aninhá-los na moldura do preço empilharia três bordas — o `space-y-8`
+          do container faz a separação sem desenhar mais nada.
+
+          A tela já tem prova social (o vídeo de reações, antes do preço). Não
+          é repetição: o vídeo convence ANTES de a pessoa saber o valor, e o
+          depoimento escrito responde a hesitação DEPOIS do pedido. São dois
+          momentos, não duas cópias da mesma peça.
+
+          `pt` apenas, mesma razão do outro lugar: a JBL é entregue no Brasil e
+          o depoimento é de alguém falando português. */}
+      {locale === "pt" && (
+        <div className="space-y-5">
+          <SorteioSemanal />
+          <DepoimentoContato />
+        </div>
+      )}
 
       {/* ── OBJEÇÕES ────────────────────────────────────────── */}
       <div>
