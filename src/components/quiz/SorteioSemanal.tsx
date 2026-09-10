@@ -35,11 +35,14 @@ const FOTO = "/img/jbl-boombox-4.webp";
 export function SorteioSemanal() {
   return (
     <div className="mx-auto flex max-w-md items-center gap-4 rounded-2xl border border-border/60 px-4 py-3 text-left">
+      {/* `width`/`height` batem com o `h-16 w-16` do CSS (64px). Eles reservam
+          o espaço antes de a imagem carregar, pra o bloco não pular quando ela
+          chega — divergir do tamanho real só confunde quem lê depois. */}
       <img
         src={FOTO}
         alt="JBL Boombox 4"
-        width={72}
-        height={72}
+        width={64}
+        height={64}
         loading="lazy"
         onError={(e) => {
           e.currentTarget.hidden = true;
