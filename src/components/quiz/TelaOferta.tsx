@@ -19,10 +19,11 @@ import { PrecoCurto, PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
 import { cupomAtivo } from "@/lib/cupom";
 import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
-import { varianteDe } from "@/lib/experimentos";
+import { varianteDe, EXP_PROVA_BLOCOS } from "@/lib/experimentos";
 import { PixTransparente } from "@/components/quiz/PixTransparente";
 import { SorteioSemanal } from "@/components/quiz/SorteioSemanal";
 import { DepoimentoContato } from "@/components/quiz/DepoimentoContato";
+import { Variante } from "@/components/Variante";
 import {
   Music, Images, Sparkles, QrCode, Download, Infinity as InfinityIcon,
   Pencil, ShieldCheck, ChevronLeft, ChevronDown, Check, RefreshCw,
@@ -934,10 +935,22 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           `pt` apenas, mesma razão do outro lugar: a JBL é entregue no Brasil e
           o depoimento é de alguém falando português. */}
       {locale === "pt" && (
-        <div className="space-y-5">
-          <SorteioSemanal />
-          <DepoimentoContato />
-        </div>
+        /* EM TESTE A/B (`prova_blocos`), o mesmo par do passo do e-mail: A sem
+           os dois, B com os dois. Um experimento só cobrindo os dois lugares —
+           quem cai no B vê os blocos nas duas telas, o que é o tratamento que
+           se quer medir.
+
+           `mt-8` DENTRO do invólucro, e não herdado do `space-y-8` do
+           container. O CSS do experimento aplica `display:contents` no
+           invólucro, e elemento com `display:contents` NÃO renderiza margem —
+           a margem que o `space-y` põe nele seria engolida e este bloco
+           grudaria na seção de cima. */
+        <Variante exp={EXP_PROVA_BLOCOS} v="B">
+          <div className="mt-8 space-y-5">
+            <SorteioSemanal />
+            <DepoimentoContato />
+          </div>
+        </Variante>
       )}
 
       {/* ── OBJEÇÕES ────────────────────────────────────────── */}

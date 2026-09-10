@@ -43,6 +43,8 @@ import { Progress } from "@/components/ui/progress";
 import { ChevronLeft } from "lucide-react";
 import { SugestoesDominio } from "@/components/quiz/SugestoesDominio";
 import { DepoimentoContato } from "@/components/quiz/DepoimentoContato";
+import { Variante } from "@/components/Variante";
+import { EXP_PROVA_BLOCOS } from "@/lib/experimentos";
 import { SorteioSemanal } from "@/components/quiz/SorteioSemanal";
 
 // PASSOS QUE NÃO EXISTEM SEM UMA LETRA ANTES.
@@ -661,14 +663,26 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
                 depoimento é de alguém falando português. Nada disso se resolve
                 traduzindo. O funil espanhol fica exatamente como estava. */}
             {locale === "pt" && (
-              /* O SORTEIO VEM PRIMEIRO, o depoimento embaixo. Os dois
+              /* EM TESTE A/B (`prova_blocos`): A é a tela sem nenhum dos dois,
+                 B é com os dois. Ver a nota do experimento em `experimentos.ts`.
+
+                 `<Variante>` e não `varianteDe()`, e a diferença não é estilo:
+                 `varianteDe` lê o `<html>` e no servidor devolve sempre o
+                 controle, então os blocos só entrariam DEPOIS da hidratação —
+                 piscada e salto de layout numa tela de conversão. Assim o HTML
+                 sai igual pra todo mundo e só o CSS decide, que é a razão de o
+                 `<Variante>` existir.
+
+                 O SORTEIO VEM PRIMEIRO, o depoimento embaixo. Os dois
                  respondem perguntas diferentes, e o depoimento é o mais alto
                  dos dois: em cima, ele empurrava o sorteio pra longe do campo,
                  e quem não rolasse até o fim não via o prêmio. */
-              <div className="space-y-5 pt-2">
-                <SorteioSemanal />
-                <DepoimentoContato />
-              </div>
+              <Variante exp={EXP_PROVA_BLOCOS} v="B">
+                <div className="space-y-5 pt-2">
+                  <SorteioSemanal />
+                  <DepoimentoContato />
+                </div>
+              </Variante>
             )}
           </div>
         )}

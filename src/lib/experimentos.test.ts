@@ -207,6 +207,79 @@ describe("cssExperimentos", () => {
   });
 });
 
+// ── O TESTE DOS BLOCOS DE PROVA ─────────────────────────────────
+//
+// Este experimento tem uma forma que os outros não têm: o CONTROLE É VAZIO.
+// `A` não é uma versão alternativa da tela, é a tela sem os dois blocos — e
+// por isso não existe nenhum `<Variante v="A">` no código, só o `v="B"`.
+//
+// Isso muda o que pode dar errado. Nos outros experimentos, uma falha no CSS
+// deixa DUAS versões visíveis ao mesmo tempo, que é feio e óbvio. Aqui a falha
+// é invisível do jeito caro: o B aparece pra quem foi sorteado no A, ninguém
+// nota, e o teste mede duas populações idênticas por dias.
+//
+// É exatamente o acidente de 10/08 — desligar um experimento fazia as regras
+// sumirem do CSS e publicava a variante pra 100% do tráfego. Estas asserções
+// são a rede pra que isso não se repita com um controle vazio, onde não há
+// nada na tela que denuncie.
+describe("cssExperimentos — prova_blocos, o experimento de controle vazio", () => {
+  const provaBlocos = (over: Partial<ExperimentoConfig> = {}): ExperimentoConfig[] => [
+    {
+      id: "prova_blocos",
+      ativo: true,
+      exposicaoPct: 100,
+      nota: "",
+      variantes: [
+        { nome: "A", peso: 1 },
+        { nome: "B", peso: 1 },
+      ],
+      ...over,
+    },
+  ];
+
+  it("esconde o B por padrão, e só o revela pra quem foi carimbado B", () => {
+    const css = cssExperimentos(provaBlocos());
+    expect(css).toContain('[data-v="prova_blocos:A"],[data-v="prova_blocos:B"]{display:none}');
+    expect(css).toContain(
+      'html[data-exp-prova_blocos="B"] [data-v="prova_blocos:B"]{display:contents}',
+    );
+  });
+
+  it("sem JavaScript, sem carimbo e fora do teste: o B NÃO aparece", () => {
+    const css = cssExperimentos(provaBlocos());
+    // As três redes revelam o CONTROLE, e o controle aqui é o vazio: as regras
+    // apontam pra `:A`, que não existe no HTML. O efeito certo é tela sem
+    // bloco nenhum — e o que estas asserções travam é o efeito ERRADO, que
+    // seria alguma dessas redes revelar o `:B`.
+    expect(css).toContain('html[data-exp-prova_blocos="fora"] [data-v="prova_blocos:A"]');
+    expect(css).toContain('html:not([data-exp-prova_blocos]) [data-v="prova_blocos:A"]');
+    expect(css).not.toContain('html[data-exp-prova_blocos="fora"] [data-v="prova_blocos:B"]');
+    expect(css).not.toContain('html:not([data-exp-prova_blocos]) [data-v="prova_blocos:B"]');
+  });
+
+  it("DESLIGAR o teste não pode publicar o B pra todo mundo", () => {
+    const css = cssExperimentos(provaBlocos({ ativo: false }));
+    expect(css).toContain('[data-v="prova_blocos:A"],[data-v="prova_blocos:B"]{display:none}');
+    // Nenhuma regra volta a mostrar o B: nem por carimbo, nem por `fora`, nem
+    // pela ausência de atributo.
+    expect(css).not.toContain('[data-v="prova_blocos:B"]{display:contents}');
+    expect(css).not.toContain('html[data-exp-prova_blocos="B"]');
+  });
+
+  it("o id está no catálogo, com A como controle", () => {
+    // `varianteDe` cai no primeiro nome do catálogo quando não há banco. Se
+    // alguém inverter a ordem aqui, o padrão de todo mundo vira "com blocos" —
+    // e o experimento passa a medir o contrário do que a nota diz.
+    const e = EXPERIMENTOS.find((x) => x.id === "prova_blocos");
+    expect(e).toBeDefined();
+    expect(e!.variantes[0]).toBe("A");
+    expect(e!.variantes).toEqual(["A", "B"]);
+    // O array é o CHÃO: ativo aqui seria mentira, porque `configDoCodigo()`
+    // força false de qualquer jeito.
+    expect(e!.ativo).toBe(false);
+  });
+});
+
 describe("scriptConfigGlobal", () => {
   it("planta window.__SRN_CFG__ com a config recebida", () => {
     const script = scriptConfigGlobal(cfg());

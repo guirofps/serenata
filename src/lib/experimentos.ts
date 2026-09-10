@@ -195,7 +195,45 @@ export const EXPERIMENTOS: Experimento[] = [
     ativo: false,
     nota: "Onde a pessoa paga. B (todo mundo) = PIX transparente da Woovi numa folha sobre a oferta, sem trocar de domínio e sem pedir CPF. A = checkout hospedado da Perfect Pay, que continua sendo o caminho do CARTÃO (12,8% das vendas) pelo botão da folha, e do cupom, e do funil espanhol. DESLIGA PELO `ativo`, nunca pelo peso: só o `ativo` vence o sorteio já guardado no navegador da pessoa. Ler por RECEITA LÍQUIDA, não por conversão: a taxa cai de 11,39% (R$ 4,63 medidos) pra R$ 0,50, então empate na conversão já é vitória.",
   },
+  {
+    id: "prova_blocos",
+    // A = a tela como era antes de 10/09 (nenhum dos dois blocos).
+    // B = sorteio da JBL + depoimento do Marcelo, nos DOIS lugares: o passo do
+    //     e-mail e a tela da oferta.
+    //
+    // ── OS DOIS BLOCOS ANDAM JUNTOS, DE PROPÓSITO ──────────────
+    //
+    // Testá-los separado responde uma pergunta melhor ("qual dos dois carrega
+    // o resultado?") e custa o dobro ou o triplo do tráfego. O teste de preço
+    // precisou de 842 leads por braço pra um efeito ENORME (12,6% contra
+    // 6,4%); prova social costuma mexer muito menos que preço, e a ~163
+    // leads/dia partir em quatro é desenhar um teste que nunca conclui.
+    //
+    // Se o B ganhar, a pergunta de qual bloco fez o trabalho continua aberta —
+    // e aí ela vira um teste próprio, com o B de hoje como controle.
+    //
+    // ── COMO LER ───────────────────────────────────────────────
+    //
+    // RECEITA POR LEAD, não conversão. É a mesma lição do preço, e aqui ela
+    // tem uma armadilha extra: o sorteio é isca, e isca atrai quem quer o
+    // prêmio e não a música. Se ele subir a captura de e-mail e derrubar a
+    // compra, a conversão do funil inteiro cai e a receita por lead é o único
+    // número que enxerga isso de uma vez.
+    variantes: ["A", "B"],
+    // NUNCA `true` aqui. O array é o chão, não a verdade: `configDoCodigo()`
+    // força `ativo: false` em tudo, e quem manda é a linha da tabela
+    // `experimentos`. Escrever `true` aqui só enganaria quem lê.
+    ativo: false,
+    nota: "Prova social e sorteio no passo do e-mail e na tela da oferta. A = sem nenhum dos dois (a tela como era antes de 10/09). B = sorteio da JBL Boombox 4 + depoimento do Marcelo R. nos dois lugares. Os dois blocos andam JUNTOS porque separá-los partiria o tráfego em quatro e o teste nunca concluiria. Ler por RECEITA POR LEAD: o sorteio é isca, e isca pode subir a captura de e-mail e derrubar a compra — só a receita por lead enxerga os dois efeitos de uma vez.",
+  },
 ];
+
+/**
+ * O teste dos blocos de prova. Constante e não string solta porque ele é lido
+ * em dois arquivos de tela, e id digitado errado não falha: ele simplesmente
+ * devolve o controle pra sempre, em silêncio.
+ */
+export const EXP_PROVA_BLOCOS = "prova_blocos";
 
 const CHAVE = "mp_exp:";
 
