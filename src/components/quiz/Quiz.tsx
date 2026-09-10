@@ -42,6 +42,8 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft } from "lucide-react";
 import { SugestoesDominio } from "@/components/quiz/SugestoesDominio";
+import { DepoimentoContato } from "@/components/quiz/DepoimentoContato";
+import { SorteioSemanal } from "@/components/quiz/SorteioSemanal";
 
 // PASSOS QUE NÃO EXISTEM SEM UMA LETRA ANTES.
 //
@@ -648,6 +650,22 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
                 </button>
               );
             })()}
+
+            {/* ── ABAIXO DO CAMPO, E SÓ NO FUNIL BRASILEIRO ──────────
+                O campo continua sendo a primeira coisa da tela, e a barra do
+                "continuar" é `sticky` — então a altura daqui custa rolagem, não
+                alcance do botão.
+
+                `pt` apenas, e não por preguiça de traduzir: o sorteio é de uma
+                JBL entregue no Brasil, sob regulamento brasileiro, e o
+                depoimento é de alguém falando português. Nada disso se resolve
+                traduzindo. O funil espanhol fica exatamente como estava. */}
+            {locale === "pt" && (
+              <div className="space-y-5 pt-2">
+                <DepoimentoContato />
+                <SorteioSemanal />
+              </div>
+            )}
           </div>
         )}
 
