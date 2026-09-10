@@ -8,8 +8,15 @@
 //
 // Então escrever "deixe seu e-mail e concorra" seria falso. Num sorteio isso
 // não é só perda de confiança — é a parte regulada: promessa de prêmio que não
-// corresponde à mecânica é propaganda enganosa. A frase tem que ligar o número
-// à música comprada, e é por isso que ela está escrita do jeito que está.
+// corresponde à mecânica é propaganda enganosa.
+//
+// A frase liga o número à MÚSICA, e é a palavra que faz esse trabalho: no
+// vocabulário do produto, letra é o que sai de graça e música é o que se paga.
+// É a fronteira do paywall, repetida no funil inteiro — e o título desta mesma
+// tela diz "a sua letra", o que deixa as duas coisas lado a lado.
+//
+// A linha vermelha, essa não se move: o número nunca pode ser prometido pelo
+// E-MAIL, porque aí a frase descreveria uma mecânica que não existe.
 //
 // ── O QUE FALTA, E É JURÍDICO ────────────────────────────────────
 //
@@ -56,10 +63,15 @@ export function SorteioSemanal() {
         <p className="mt-1 text-sm font-medium leading-snug text-foreground">
           Sorteamos uma JBL Boombox 4
         </p>
-        {/* "comprada" e não "criada": a letra é de graça e não vale número.
-            Ver o bloco de comentário no topo deste arquivo. */}
+        {/* "MÚSICA", e a palavra faz o trabalho que "comprada" fazia.
+            No vocabulário do produto a LETRA é o que sai de graça e a MÚSICA é
+            o que se paga — é a fronteira do paywall, repetida no funil inteiro,
+            e o título desta própria tela diz "a sua letra". Entao "cada música"
+            já carrega a compra sem precisar da palavra.
+
+            O que NÃO pode voltar: ligar o número ao e-mail. Ver o topo. */}
         <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-          Cada música comprada na semana é um número.
+          Cada música te dá um número pra concorrer.
           {REGULAMENTO && (
             <>
               {" "}
