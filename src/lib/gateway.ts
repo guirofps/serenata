@@ -98,7 +98,27 @@ export type GatewayPix = {
     descricao: string;
     nome?: string | null;
     email?: string | null;
+    /**
+     * CPF do pagador, só dígitos. A Woovi ignora; o Asaas EXIGE, porque lá a
+     * cobrança pendura num cliente e `POST /customers` tem `cpfCnpj` como
+     * campo obrigatório na especificação deles.
+     *
+     * Opcional no contrato de propósito: quem decide se falta é o gateway,
+     * via `exigeCpf`, e não o funil — senão trocar de gateway voltaria a ser
+     * reescrever o checkout, que é justamente o que este arquivo existe pra
+     * impedir.
+     */
+    cpf?: string | null;
   }): Promise<CobrancaPix>;
+
+  /**
+   * Este gateway precisa de CPF pra criar a cobrança?
+   *
+   * A tela lê isto pra decidir se mostra o campo. Sem essa pergunta, o
+   * checkout teria que saber COM QUEM está falando — e aí o contrato não
+   * estaria isolando nada.
+   */
+  exigeCpf: boolean;
 
   /**
    * Pergunta o status NA FONTE.

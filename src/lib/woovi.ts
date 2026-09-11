@@ -108,6 +108,13 @@ function pagou(status: string | undefined): boolean {
 export const woovi: GatewayPix = {
   nome: "woovi",
 
+  /**
+   * A Woovi cria a cobrança só com nome e e-mail, e é metade da tese da folha
+   * transparente: sem trocar de domínio e SEM PEDIR CPF. Manter `false` aqui
+   * é o que faz o campo de CPF sumir da tela quando o PIX volta pra cá.
+   */
+  exigeCpf: false,
+
   async criar(args): Promise<CobrancaPix> {
     // ── A WOOVI NÃO É IDEMPOTENTE, E ISSO CUSTA CARO ───────────
     //

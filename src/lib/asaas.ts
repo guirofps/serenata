@@ -55,7 +55,14 @@ function chaveDoAmbiente(): string {
  * Vercel — que é exatamente o que não pode acontecer com o PCI-DSS em cima.
  * Por isso o erro só carrega status e a mensagem que o Asaas devolve.
  */
-async function chamar<T>(caminho: string, init?: RequestInit): Promise<T> {
+/**
+ * Exportada porque o PIX (`asaas-pix.ts`) fala com a MESMA conta, com a mesma
+ * chave, com o mesmo tratamento de erro e com a mesma regra de sandbox pelo
+ * prefixo. Copiar isto pra lá criaria o arquivo gêmeo que o CLAUDE.md manda
+ * evitar — e que já custou caro aqui: quando um dos dois ganha um conserto, o
+ * outro fica pra trás em silêncio.
+ */
+export async function chamarAsaas<T>(caminho: string, init?: RequestInit): Promise<T> {
   const chave = chaveDoAmbiente();
   let r: Response;
   try {
@@ -89,6 +96,8 @@ async function chamar<T>(caminho: string, init?: RequestInit): Promise<T> {
   return corpo as T;
 }
 
+const chamar = chamarAsaas;
+
 /**
  * Só dígitos. O formulário deixa a pessoa digitar do jeito dela.
  *
@@ -106,7 +115,7 @@ const soDigitos = (s: string) => (s ?? "").replace(/\D/g, "");
  * antifraude deles, que pode terminar em `REPROVED_BY_RISK_ANALYSIS` depois.
  * Entregar em cima de análise pendente é entregar e depois perder o dinheiro.
  */
-function pagou(status: unknown): boolean {
+export function asaasPagou(status: unknown): boolean {
   const s = String(status ?? "").toUpperCase();
   return s === "CONFIRMED" || s === "RECEIVED" || s === "RECEIVED_IN_CASH";
 }
@@ -200,7 +209,7 @@ export const asaas: GatewayCartao = {
         ok: true,
         gateway: "asaas",
         idExterno: p.id,
-        confirmado: pagou(p.status),
+        confirmado: asaasPagou(p.status),
         statusCru: String(p.status ?? "desconhecido"),
         valorCentavos: Math.round(Number(p.value ?? 0) * 100),
         // Só isto pode ser guardado. Nunca o número inteiro, nunca o CVV.
@@ -228,7 +237,7 @@ export const asaas: GatewayCartao = {
     const bruto = Number(p?.value ?? 0);
     const liquido = Number(p?.netValue ?? 0);
     return {
-      confirmado: pagou(p?.status),
+      confirmado: asaasPagou(p?.status),
       statusCru: String(p?.status ?? "desconhecido"),
       valorCentavos: bruto ? Math.round(bruto * 100) : null,
       // O Asaas não devolve a taxa direto: ela é a diferença pro líquido.

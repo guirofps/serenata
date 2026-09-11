@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { OFERTAS } from "@/lib/creditos";
+import { cpfValido, soDigitosCpf } from "@/lib/cpf";
 import { woovi } from "@/lib/woovi";
-import { ErroGateway } from "@/lib/gateway";
+import { asaasPix } from "@/lib/asaas-pix";
+import { ErroGateway, type GatewayPix } from "@/lib/gateway";
 
 // GERA O PIX DO CHECKOUT TRANSPARENTE.
 //
@@ -68,7 +70,29 @@ export type ResultadoPix =
       expiraEm: string | null;
       referencia: string;
     }
-  | { ok: false; erro: "sem-sessao" | "sem-musica" | "sem-preco" | "gateway" };
+  | {
+      ok: false;
+      /**
+       * `cpf-necessario` e `cpf-invalido` NÃO são falha: são pedido de
+       * correção. A tela mostra o campo em vez do aviso de erro, e quem
+       * decide que eles existem é o gateway (`exigeCpf`), não o checkout.
+       */
+      erro: "sem-sessao" | "sem-musica" | "sem-preco" | "gateway" | "cpf-necessario" | "cpf-invalido";
+    };
+
+/**
+ * QUEM PROCESSA O PIX AGORA.
+ *
+ * `PIX_GATEWAY=asaas` troca o gateway inteiro sem deploy de código — que é a
+ * promessa escrita no topo do `gateway.ts` e que, em 11/09/2026, não valeu
+ * nada: a Woovi ficou três horas sem receber e não havia segunda perna.
+ *
+ * Padrão é a Woovi porque a taxa dela é R$ 0,50 contra o R$ 1,99 do Asaas, e
+ * porque ela não pede CPF. O Asaas é o plano B, não o plano A.
+ */
+function gatewayPix(): GatewayPix {
+  return process.env.PIX_GATEWAY === "asaas" ? asaasPix : woovi;
+}
 
 /**
  * O QUADRO COMPRADO JUNTO, no mesmo PIX.
@@ -131,29 +155,41 @@ export function referenciaDoPix(quizId: string, quadro: boolean): string {
  * A folha cai na tela de erro, que oferece "Continuar pelo checkout" e leva
  * pra Perfect Pay — ninguem fica sem caminho pra pagar.
  *
- * ── POR QUE NAO BASTA O `ativo` DO PAINEL ────────────────────────
+ * ── POR QUE EXISTE, ALEM DO `ativo` DO PAINEL ────────────────────
  *
  * Em 11/09/2026 a Woovi parou de receber as 16:44 (2h52 sem um unico
  * pagamento, 14 cobrancas recentes todas ACTIVE na API deles). O `ativo` do
- * `checkout_pix` foi desligado as 18:58 e a config propagou na hora — o HTML
- * servido passou a dizer `"checkout_pix","ativo":false` em toda amostra.
+ * `checkout_pix` foi desligado no painel e a config propagou na hora.
  *
- * E mesmo assim os pedidos continuaram nascendo na Woovi, porque o carimbo
- * que `varianteDe` le mora no `<html>` de uma pagina JA CARREGADA. Quem
- * abriu o site antes das 18:58 e ainda estava no funil seguia com o caminho
- * velho: o SPA nao recarrega sozinho, e o quiz leva uns 7 minutos.
+ * REGISTRO HONESTO DE UMA CONCLUSAO ERRADA: eu escrevi aqui, e disse pro
+ * dono, que o painel "nao tinha alcancado" quem ja estava no funil, citando
+ * pedidos que continuaram nascendo na Woovi depois do desligamento. Estava
+ * errado — eu tinha anotado 18:58 como a hora da mexida, e o
+ * `experimentos.atualizado_em` diz 19:30:37. Os pedidos que usei como prova
+ * sao de sessoes ANTERIORES a ela, e os tres que vieram depois cabem
+ * inteiros nos 3 minutos que eu esperei, com cache de 60s por lambda.
  *
- * O painel desliga pra quem AINDA VAI CARREGAR. Isto aqui desliga pra quem ja
- * esta dentro, que e justamente quem perde o pagamento numa queda de gateway.
+ * O painel, ao que tudo indica, estava funcionando.
  *
- * Ligar e desligar pela env na Vercel, sem mexer em codigo.
+ * Entao o motivo deste interruptor nao e "o painel falha". E:
+ *
+ *   - ele nao depende de estado no navegador de ninguem. O `varianteDe` le um
+ *     carimbo do `<html>` de uma pagina que pode ter sido carregada ha meia
+ *     hora; isto aqui vale na proxima chamada, para todo mundo, sem excecao.
+ *   - ele fecha ANTES de tocar no gateway, entao nao nasce cobranca morta pra
+ *     entupir a fila do vigia de pagamento.
+ *   - numa queda de gateway, "todo mundo agora" e exatamente o que se quer, e
+ *     nao da pra ficar torcendo pro cache virar.
+ *
+ * Ligar e desligar pela env na Vercel, sem mexer em codigo. E lembrar que sao
+ * DOIS interruptores agora: este e o `ativo` do painel.
  */
 function pixTransparenteDesligado(): boolean {
   return process.env.PIX_TRANSPARENTE_OFF === "1";
 }
 
 export const criarPix = createServerFn({ method: "POST" })
-  .validator((data: { sessionId: string; email?: string; quadro?: boolean }) => data)
+  .validator((data: { sessionId: string; email?: string; quadro?: boolean; cpf?: string }) => data)
   .handler(async ({ data }): Promise<ResultadoPix> => {
     // Antes de qualquer leitura: nao adianta montar cobranca que o banco do
     // cliente vai recusar, e cobranca morta ainda entope a fila do vigia.
@@ -249,20 +285,37 @@ export const criarPix = createServerFn({ method: "POST" })
     }
     const emailDaVenda = emailVale ? emailNovo! : ((quiz.email as string | null) ?? null);
 
+    // ── O CPF, QUANDO O GATEWAY PEDE ─────────────────────────
+    //
+    // Conferido AQUI, antes de tocar na rede: CPF errado vira pedido de
+    // correção na tela, com a pessoa ainda olhando o campo. Se fosse o Asaas
+    // recusando, ela veria "não consegui gerar o PIX agora" — o aviso
+    // genérico, que não diz o que fazer e vira abandono.
+    const gw = gatewayPix();
+    const cpf = soDigitosCpf(data.cpf);
+    if (gw.exigeCpf) {
+      if (!cpf) return { ok: false, erro: "cpf-necessario" };
+      if (!cpfValido(cpf)) return { ok: false, erro: "cpf-invalido" };
+    }
+
     let cobranca;
     try {
-      cobranca = await woovi.criar({
+      cobranca = await gw.criar({
         referencia,
         valorCentavos,
         descricao: `Serenata · ${musica.titulo ?? "sua música"}`,
         nome: nome || null,
         email: emailDaVenda,
+        cpf: cpf || null,
       });
     } catch (err) {
-      // Aqui entra o failover quando houver segundo gateway de PIX. Por ora,
-      // falha limpa e a tela oferece o checkout antigo.
+      // Sem failover automático de propriedade: os dois gateways pedem coisas
+      // diferentes (o Asaas exige CPF, a Woovi não), então cair de um pro
+      // outro no meio da chamada pediria um dado que a tela nem mostrou. A
+      // troca é pelo `PIX_GATEWAY`, consciente, e aqui a falha é limpa: a
+      // tela oferece o checkout antigo, que sempre funciona.
       const g = err instanceof ErroGateway ? err : null;
-      console.error("[criar-pix] gateway falhou:", g?.message ?? err);
+      console.error(`[criar-pix] ${gw.nome} falhou:`, g?.message ?? err);
       return { ok: false, erro: "gateway" };
     }
 
@@ -281,8 +334,11 @@ export const criarPix = createServerFn({ method: "POST" })
     // invisível, como era na Perfect Pay até 10/08.
     const { error } = await db.from("pedidos").upsert(
       {
-        payment_id: `woovi:${refFinal}`,
-        gateway: "woovi",
+        // O PREFIXO SAI DO GATEWAY, não de literal: o webhook do Asaas casa
+        // por `asaas:<id>` e o da Woovi por `woovi:<ref>`. Cravar "woovi" aqui
+        // faria o pagamento pelo Asaas chegar e não achar pedido nenhum.
+        payment_id: `${cobranca.gateway}:${refFinal}`,
+        gateway: cobranca.gateway,
         status: "pendente",
         email: emailDaVenda,
         nome_pagador: nome || null,
@@ -348,10 +404,15 @@ export const pixFoiPago = createServerFn({ method: "POST" })
     // Lê do NOSSO banco, não do gateway. Quem escreve ali é o webhook, que já
     // conferiu assinatura e valor. Bater na Woovi a cada 5 segundos, por
     // pessoa, seria gastar a API deles pra saber o que a gente já sabe.
+    //
+    // OS DOIS PREFIXOS, e não só o do gateway de agora. Trocar de gateway não
+    // pode deixar quem está com o QR aberto girando pra sempre: a folha dele
+    // nasceu no gateway antigo e a pergunta chega depois da troca. São dois
+    // valores numa consulta indexada, custo zero.
     const { data: pedido } = await supabaseAdmin()
       .from("pedidos")
       .select("status")
-      .eq("payment_id", `woovi:${data.referencia}`)
+      .in("payment_id", [`woovi:${data.referencia}`, `asaas:${data.referencia}`])
       .maybeSingle();
     return { pago: pedido?.status === "pago" };
   });
