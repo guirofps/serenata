@@ -124,9 +124,44 @@ export function referenciaDoPix(quizId: string, quadro: boolean): string {
   return `serenata:${quizId}${quadro ? ":q" : ""}`;
 }
 
+/**
+ * INTERRUPTOR DE EMERGENCIA DO PIX TRANSPARENTE, no SERVIDOR.
+ *
+ * `PIX_TRANSPARENTE_OFF=1` faz esta funcao recusar antes de tocar no gateway.
+ * A folha cai na tela de erro, que oferece "Continuar pelo checkout" e leva
+ * pra Perfect Pay — ninguem fica sem caminho pra pagar.
+ *
+ * ── POR QUE NAO BASTA O `ativo` DO PAINEL ────────────────────────
+ *
+ * Em 11/09/2026 a Woovi parou de receber as 16:44 (2h52 sem um unico
+ * pagamento, 14 cobrancas recentes todas ACTIVE na API deles). O `ativo` do
+ * `checkout_pix` foi desligado as 18:58 e a config propagou na hora — o HTML
+ * servido passou a dizer `"checkout_pix","ativo":false` em toda amostra.
+ *
+ * E mesmo assim os pedidos continuaram nascendo na Woovi, porque o carimbo
+ * que `varianteDe` le mora no `<html>` de uma pagina JA CARREGADA. Quem
+ * abriu o site antes das 18:58 e ainda estava no funil seguia com o caminho
+ * velho: o SPA nao recarrega sozinho, e o quiz leva uns 7 minutos.
+ *
+ * O painel desliga pra quem AINDA VAI CARREGAR. Isto aqui desliga pra quem ja
+ * esta dentro, que e justamente quem perde o pagamento numa queda de gateway.
+ *
+ * Ligar e desligar pela env na Vercel, sem mexer em codigo.
+ */
+function pixTransparenteDesligado(): boolean {
+  return process.env.PIX_TRANSPARENTE_OFF === "1";
+}
+
 export const criarPix = createServerFn({ method: "POST" })
   .validator((data: { sessionId: string; email?: string; quadro?: boolean }) => data)
   .handler(async ({ data }): Promise<ResultadoPix> => {
+    // Antes de qualquer leitura: nao adianta montar cobranca que o banco do
+    // cliente vai recusar, e cobranca morta ainda entope a fila do vigia.
+    if (pixTransparenteDesligado()) {
+      console.warn("[criar-pix] PIX_TRANSPARENTE_OFF=1, recusando e mandando pro checkout");
+      return { ok: false, erro: "gateway" };
+    }
+
     const db = supabaseAdmin();
 
     const { data: quiz } = await db

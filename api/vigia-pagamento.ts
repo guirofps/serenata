@@ -122,7 +122,22 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       .eq("gateway", "woovi")
       .gte("created_at", new Date(agora - JANELA_H * 3600000).toISOString())
       .lte("created_at", new Date(agora - IDADE_MIN_MIN * 60000).toISOString())
-      .order("created_at")
+      // DO MAIS NOVO PRO MAIS VELHO, e isto é o conserto de 11/09/2026.
+      //
+      // Ascendente com teto era um ponto cego que se abria sozinho: naquele
+      // dia havia 107 pendentes na janela e o teto é 80, então os 27 mais
+      // RECENTES nunca eram conferidos. Um comprador ficou 4h18 sem entrega
+      // na posição 88 da fila, com o vigia rodando de 30 em 30 minutos e
+      // devolvendo `consertados: []` em todas.
+      //
+      // E a fila só passa de 80 em dia de muito PIX não pago — ou seja, o
+      // vigia cegava exatamente no dia em que ele é necessário.
+      //
+      // Descendente inverte o risco pro lado certo: quem acabou de pagar é
+      // conferido na hora, e um pedido continua sendo reconferido até 80
+      // mais novos aparecerem na frente (~10h no volume de hoje). Quem paga,
+      // paga em minutos — 10h é folga de sobra.
+      .order("created_at", { ascending: false })
       .limit(MAX_POR_RODADA);
 
     for (const p of pendentes ?? []) {
@@ -201,7 +216,17 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         .not("quiz_response_id", "is", null)
         .gte("paid_at", new Date(agora - ENTREGA_JANELA_H * 3600000).toISOString())
         .lte("paid_at", new Date(agora - ENTREGA_IDADE_MIN_MIN * 60000).toISOString())
-        .order("paid_at")
+        // DESCENDENTE, e aqui era pior que ponto cego: era morte total.
+        //
+        // Ascendente com teto de 40 numa janela de 72h pegava os 40
+        // pagamentos mais VELHOS de três dias atrás — todos já entregues há
+        // muito. O filtro de "quem já recebeu" logo abaixo zerava a lista, e
+        // esta varredura devolvia vazio em TODA rodada desde que subiu
+        // (commit bd3554e). Ela nunca entregou nada a ninguém.
+        //
+        // Descoberto em 11/09/2026 com um comprador de 4h18 sem entrega: a
+        // varredura rodou duas vezes na frente dele e não o viu.
+        .order("paid_at", { ascending: false })
         .limit(ENTREGA_MAX_POR_RODADA);
       if (!data?.length) return [];
 
