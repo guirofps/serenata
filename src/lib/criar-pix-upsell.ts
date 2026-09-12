@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { emailDaSessao } from "@/lib/conta-sessao";
 import { literalLike } from "@/lib/sql-like";
 import { gatewayPix } from "@/lib/criar-pix";
+import { cpfValido, soDigitosCpf } from "@/lib/cpf";
 import { ErroGateway } from "@/lib/gateway";
 import { OFERTAS, type Oferta } from "@/lib/creditos";
 
@@ -65,7 +66,15 @@ export type ResultadoPixUpsell =
       referencia: string;
       reaproveitado: boolean;
     }
-  | { ok: false; erro: "sem-sessao" | "oferta-invalida" | "gateway" };
+  | {
+      ok: false;
+      /**
+       * `cpf-necessario` e `cpf-invalido` sao PEDIDO DE CORRECAO, nao falha: a
+       * folha mostra o campo em vez da tela de erro. Quem decide que eles
+       * existem e o gateway (`exigeCpf`), nunca a tela.
+       */
+      erro: "sem-sessao" | "oferta-invalida" | "gateway" | "cpf-necessario" | "cpf-invalido";
+    };
 
 /**
  * O MIOLO, compartilhado pelas DUAS portas de entrada.
@@ -75,7 +84,7 @@ export type ResultadoPixUpsell =
  * idêntico de propósito: duas cópias disto divergiriam na primeira correção,
  * e o que elas guardam é a regra de o cliente nunca escolher o preço.
  */
-async function gerarCobranca(email: string, ofertaId: string): Promise<ResultadoPixUpsell> {
+async function gerarCobranca(email: string, ofertaId: string, cpfCru?: string): Promise<ResultadoPixUpsell> {
   {
     const oferta = ofertaValida(ofertaId);
     if (!oferta) return { ok: false, erro: "oferta-invalida" };
@@ -92,14 +101,16 @@ async function gerarCobranca(email: string, ofertaId: string): Promise<Resultado
     // DEPOIS da compra, que e o pior lugar possivel pra isso.
     const gw = gatewayPix();
 
-    // O ASAAS EXIGE CPF E ESTA TELA NAO TEM ONDE PEDIR: ela gera a cobranca
-    // no `useEffect` de montagem, sem passo de resumo. Recusar limpo e melhor
-    // que criar um QR que ninguem consegue pagar — a folha ja tem tela de
-    // erro. O conserto de verdade e dar um passo de resumo a ela, igual ao do
-    // checkout principal.
+    // O CPF, QUANDO O GATEWAY PEDE. A folha tem passo de resumo desde
+    // 11/09/2026 justamente pra caber esta pergunta — antes dele a cobranca
+    // nascia no `useEffect` de montagem e nao havia onde pedir nada.
+    //
+    // Conferido AQUI, antes da rede: CPF errado vira pedido de correcao com a
+    // pessoa ainda olhando o campo, e nao "nao consegui gerar o PIX agora".
+    const cpf = soDigitosCpf(cpfCru);
     if (gw.exigeCpf) {
-      console.warn(`[pix-upsell] ${gw.nome} exige CPF e esta tela nao pede. Recusando.`);
-      return { ok: false, erro: "gateway" };
+      if (!cpf) return { ok: false, erro: "cpf-necessario" };
+      if (!cpfValido(cpf)) return { ok: false, erro: "cpf-invalido" };
     }
 
     // ── DUPLO-CLIQUE: reaproveita o PIX ainda vivo ───────────────
@@ -142,6 +153,7 @@ async function gerarCobranca(email: string, ofertaId: string): Promise<Resultado
         descricao: `Serenata · ${oferta.id === "quadro" ? "Quadro para imprimir" : "Música extra"}`,
         nome: null,
         email,
+        cpf: cpf || null,
       });
     } catch (err) {
       const g = err instanceof ErroGateway ? err : null;
@@ -184,11 +196,11 @@ async function gerarCobranca(email: string, ofertaId: string): Promise<Resultado
  * regra de `meusCreditos`.
  */
 export const criarPixUpsell = createServerFn({ method: "POST" })
-  .validator((data: { token: string; ofertaId: string }) => data)
+  .validator((data: { token: string; ofertaId: string; cpf?: string }) => data)
   .handler(async ({ data }): Promise<ResultadoPixUpsell> => {
     const email = await emailDaSessao(data.token);
     if (!email) return { ok: false, erro: "sem-sessao" };
-    return gerarCobranca(email, data.ofertaId);
+    return gerarCobranca(email, data.ofertaId, data.cpf);
   });
 
 /**
@@ -210,7 +222,7 @@ export const criarPixUpsell = createServerFn({ method: "POST" })
  * endereço que já recebeu a entrega, e é ele que o webhook vai creditar.
  */
 export const criarPixUpsellPorToken = createServerFn({ method: "POST" })
-  .validator((data: { tokenEdicao: string; ofertaId: string }) => data)
+  .validator((data: { tokenEdicao: string; ofertaId: string; cpf?: string }) => data)
   .handler(async ({ data }): Promise<ResultadoPixUpsell> => {
     if (!data.tokenEdicao) return { ok: false, erro: "sem-sessao" };
     const db = supabaseAdmin();
@@ -229,5 +241,5 @@ export const criarPixUpsellPorToken = createServerFn({ method: "POST" })
     const email = (q?.email as string | null)?.trim().toLowerCase();
     if (!email) return { ok: false, erro: "sem-sessao" };
 
-    return gerarCobranca(email, data.ofertaId);
+    return gerarCobranca(email, data.ofertaId, data.cpf);
   });
