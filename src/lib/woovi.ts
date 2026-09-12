@@ -160,8 +160,39 @@ export const woovi: GatewayPix = {
       // 168h é o que o dono configurou e é o que a API aceita (medido em
       // 27/08: `expiresIn` de 259200 e 604800 voltam com a validade exata).
       expiresIn: 604800,
-      ...(args.nome || args.email
-        ? { customer: { name: args.nome ?? undefined, email: args.email ?? undefined } }
+      // ── O CLIENTE, E O TELEFONE QUE LIGA O WHATSAPP ──────────
+      //
+      // A Woovi tem uma automação que manda o código do PIX no WhatsApp de
+      // quem gerou a cobrança. Ela só dispara se o `customer.phone` vier, em
+      // E.164 (`+5511988887777`) — confirmado contra a API deles em
+      // 11/09/2026, criando uma cobrança de teste: o campo é aceito e volta
+      // na resposta.
+      //
+      // ATE 11/09 A GENTE NUNCA MANDOU ESSE CAMPO. O telefone existia no
+      // quiz, chegava no `pedidos.telefone`, e parava ali. A automação foi
+      // ligada no painel da Woovi e disparava pra ZERO pessoas, sem erro
+      // nenhum em lugar nenhum — a cobrança nasce igual, a mensagem
+      // simplesmente não sai.
+      //
+      // O TELEFONE CHEGA AQUI JA NORMALIZADO, em E.164 com o `+`. Quem
+      // normaliza e o `criar-pix`, por dois motivos:
+      //
+      //   - o formato depende do IDIOMA da venda (o funil espanhol vende na
+      //     Argentina, onde o WhatsApp e `54 9 11 ...`), e o `telefone.ts`
+      //     que sabe disso importa com `@/`, que NAO resolve no runtime Node
+      //     da Vercel — que e onde este arquivo roda;
+      //   - telefone torto faz a Woovi recusar a cobranca INTEIRA. Quem tem o
+      //     contexto pra decidir entre "mando" e "omito" e quem tem o locale.
+      //
+      // Aqui, portanto: se veio, vai; se nao veio, o campo some.
+      ...(args.nome || args.email || args.telefone
+        ? {
+            customer: {
+              name: args.nome ?? undefined,
+              email: args.email ?? undefined,
+              phone: args.telefone ?? undefined,
+            },
+          }
         : {}),
     });
 

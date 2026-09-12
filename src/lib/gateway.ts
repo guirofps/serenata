@@ -109,6 +109,19 @@ export type GatewayPix = {
      * impedir.
      */
     cpf?: string | null;
+    /**
+     * WhatsApp do comprador JA EM E.164, com o `+` ("+5511988887777").
+     *
+     * Normalizado por quem chama, nunca aqui: o formato depende do idioma da
+     * venda (o funil espanhol vende na Argentina, onde o numero do WhatsApp
+     * leva um 9 entre o DDI e o DDD), e o modulo que sabe disso nao pode ser
+     * importado de dentro dos gateways.
+     *
+     * E o que liga a automacao de WhatsApp da Woovi, que manda o codigo do
+     * PIX pra pessoa. Ate 11/09/2026 este campo nao existia no contrato: o
+     * telefone morava no quiz, chegava no `pedidos.telefone` e parava ali.
+     */
+    telefone?: string | null;
   }): Promise<CobrancaPix>;
 
   /**

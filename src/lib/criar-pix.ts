@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { OFERTAS } from "@/lib/creditos";
 import { cpfValido, soDigitosCpf } from "@/lib/cpf";
+import { paraE164, telefoneValido } from "@/lib/telefone";
 import { woovi } from "@/lib/woovi";
 import { asaasPix } from "@/lib/asaas-pix";
 import { ErroGateway, type GatewayPix } from "@/lib/gateway";
@@ -90,6 +91,23 @@ export type ResultadoPix =
  * Padrão é a Woovi porque a taxa dela é R$ 0,50 contra o R$ 1,99 do Asaas, e
  * porque ela não pede CPF. O Asaas é o plano B, não o plano A.
  */
+/**
+ * O WhatsApp do quiz em E.164, ou `null` se nao der pra confiar.
+ *
+ * Reusa o `telefone.ts` que ja existia (mascara, validacao e DDI por
+ * mercado). Eu cheguei a escrever um segundo modulo de telefone sem procurar
+ * o primeiro, e pior: sobrescrevi o original, que era mais completo. Ficou
+ * aqui como lembrete de procurar antes de criar.
+ */
+function telefoneParaGateway(cru: unknown, locale: "pt" | "es"): string | null {
+  const v = String(cru ?? "").trim();
+  if (!v || !telefoneValido(v, locale)) return null;
+  const e164 = paraE164(v, locale);
+  // `paraE164` devolve so digitos com DDI; a Woovi quer com o `+` (medido
+  // contra a API deles em 11/09/2026).
+  return e164 ? `+${e164}` : null;
+}
+
 function gatewayPix(): GatewayPix {
   return process.env.PIX_GATEWAY === "asaas" ? asaasPix : woovi;
 }
@@ -202,7 +220,7 @@ export const criarPix = createServerFn({ method: "POST" })
 
     const { data: quiz } = await db
       .from("quiz_responses")
-      .select("id, email, respostas, attribution, whatsapp, nome_comprador")
+      .select("id, email, respostas, attribution, whatsapp, nome_comprador, locale")
       .eq("session_id", data.sessionId)
       .maybeSingle();
     if (!quiz?.id) return { ok: false, erro: "sem-sessao" };
@@ -307,6 +325,21 @@ export const criarPix = createServerFn({ method: "POST" })
         nome: nome || null,
         email: emailDaVenda,
         cpf: cpf || null,
+        // O telefone que o quiz ja tem, normalizado com o LOCALE da venda.
+        //
+        // E o mesmo numero que vai pro `pedidos.telefone` logo abaixo; a
+        // diferenca e que agora ele tambem CHEGA no gateway, que e quem
+        // dispara a mensagem de WhatsApp com o codigo do PIX.
+        //
+        // Invalido vira `null` e o campo e OMITIDO: a Woovi recusa a cobranca
+        // inteira com telefone torto, e perder a venda pra mandar um numero
+        // errado seria o pior negocio possivel.
+        telefone: telefoneParaGateway(
+          quiz.whatsapp,
+          // O idioma da venda mora na COLUNA, nao na URL: e a mesma regra do
+          // resto do projeto, e aqui decide o DDI do numero.
+          (quiz as { locale?: string }).locale === "es" ? "es" : "pt",
+        ),
       });
     } catch (err) {
       // Sem failover automático de propriedade: os dois gateways pedem coisas
