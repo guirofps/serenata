@@ -1,10 +1,12 @@
 import { useRef, useState } from "react";
 import { useFarolDaFolha } from "@/lib/farol-folha";
-import { Check, CreditCard, Loader2, Mail, ShieldCheck } from "lucide-react";
+import { Check, CreditCard, Loader2, Mail, MessageCircle, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GARANTIA } from "@/lib/garantia";
 import { IdentificacaoDoVendedor } from "@/components/quiz/IdentificacaoDoVendedor";
 import { OFERTAS } from "@/lib/creditos";
+import { mascaraTelefone, telefoneValido } from "@/lib/telefone";
+import { varianteDe } from "@/lib/experimentos";
 
 // O preco sai do MESMO catalogo que o servidor usa pra compor a cobranca
 // (`criar-pix.ts`). Cravar 24,90 aqui deixaria a tela e a cobranca livres pra
@@ -49,6 +51,7 @@ export function ResumoDoPedido({
   precoBase,
   ancora,
   email,
+  telefoneInicial,
   quadro,
   aoTrocarQuadro,
   aoConfirmar,
@@ -64,17 +67,36 @@ export function ResumoDoPedido({
   precoBase: number;
   ancora?: string;
   email: string;
+  /** O WhatsApp que o quiz ja capturou, se existir. */
+  telefoneInicial: string;
   /** `null` desliga o order bump (braco de controle do experimento). */
   quadro: boolean | null;
   aoTrocarQuadro: (v: boolean) => void;
   /** Recebe o e-mail final, já conferido pela pessoa. */
-  aoConfirmar: (email: string) => void;
+  aoConfirmar: (email: string, telefone: string) => void;
   /** Sai pro checkout hospedado SEM criar cobrança nenhuma. */
   aoEscolherCartao: () => void;
   gerando: boolean;
 }) {
   const [valor, setValor] = useState(email);
   const [editando, setEditando] = useState(false);
+  // ── O WHATSAPP ───────────────────────────────────────
+  //
+  // Comeca com o que o quiz ja tem. Medido em 11/09: 38% dos pedidos ja
+  // chegam aqui com numero, e pra esses NAO existe campo nenhum — existe uma
+  // linha dizendo que o codigo tambem vai pro WhatsApp deles. Isso nao e
+  // atrito, e promessa de entrega no instante da decisao.
+  //
+  // Os outros 62% veem o campo. E o unico jeito de a automacao da Woovi
+  // (que manda o codigo do PIX no WhatsApp) alcancar mais que uma minoria.
+  const [tel, setTel] = useState(telefoneInicial ?? "");
+  const [editandoTel, setEditandoTel] = useState(false);
+  const telOk = telefoneValido(tel, "pt");
+  // O campo do MEIO do funil continua onde esta, e isto aqui nao o substitui:
+  // 72% dos numeros que a gente coleta vem de gente que nunca chega a gerar
+  // PIX (799 em 4 dias). Tirar de la pra "nao perguntar duas vezes" trocaria
+  // ~200 contatos/dia por um atrito que este pre-preenchimento ja elimina.
+  const pedirWhats = varianteDe("whats_no_pix") === "B";
   // Pra levar a pessoa ate o campo quando o botao recusa: dizer "confere o
   // e-mail" sem mostrar onde ele esta e a mesma falha, so que educada.
   const caixaEmail = useRef<HTMLDivElement | null>(null);
@@ -152,6 +174,53 @@ export function ResumoDoPedido({
           <p className="mt-1 text-xs text-amber-700">Confere esse endereço.</p>
         )}
       </div>
+
+      {/* ── O CÓDIGO TAMBÉM NO WHATSAPP ────────────────────
+          Atrás de experimento porque é decisão nova nesta tela, e foi
+          exatamente isso que derrubou a conversão em 31/08 com o order bump.
+          Com espelho dá pra saber se caiu por causa disto ou por causa da
+          noite; sem espelho, vira adivinhação. */}
+      {pedirWhats && (
+        <div className="rounded-2xl border border-primary/15 px-4 py-3">
+          <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+            <MessageCircle className="h-3.5 w-3.5" /> O código também no WhatsApp
+          </p>
+          {telOk && !editandoTel ? (
+            <div className="mt-0.5 flex items-center justify-between gap-2">
+              <span className="truncate text-sm font-medium">{mascaraTelefone(tel, "pt")}</span>
+              <button
+                type="button"
+                onClick={() => setEditandoTel(true)}
+                className="shrink-0 text-xs text-primary underline underline-offset-4"
+              >
+                trocar
+              </button>
+            </div>
+          ) : (
+            <>
+              <input
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                value={mascaraTelefone(tel, "pt")}
+                onChange={(e) => setTel(e.target.value)}
+                placeholder="(11) 91234-5678"
+                className="mt-1 w-full rounded-lg border border-primary/20 bg-background px-2.5 py-1.5 text-sm"
+                aria-label="WhatsApp"
+              />
+              {/* Só reclama quando já há número suficiente pra julgar: avisar
+                  "inválido" no terceiro dígito é reclamar de algo que a pessoa
+                  ainda está fazendo. */}
+              {tel.replace(/\D/g, "").length >= 10 && !telOk && (
+                <p className="mt-1 text-xs text-amber-700">Confere esse número.</p>
+              )}
+            </>
+          )}
+          <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
+            Opcional. Serve pra você receber o código sem precisar voltar aqui.
+          </p>
+        </div>
+      )}
 
       {/* ── O QUADRO, COMPRADO JUNTO ────────────────────────────
           Uma caixa, DESMARCADA por padrao, entre o e-mail e o botao.
@@ -276,7 +345,11 @@ export function ResumoDoPedido({
               return;
             }
             farol.gerou();
-            aoConfirmar(valor.trim());
+            // Telefone invalido NAO barra a venda: o campo e opcional e o
+            // gateway recusa a cobranca inteira se receber numero torto.
+            // Manda vazio e segue — a mensagem de WhatsApp e um bonus, o
+            // pagamento e o produto.
+            aoConfirmar(valor.trim(), telOk ? tel : "");
           }}
         >
           {gerando ? (

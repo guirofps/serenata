@@ -194,13 +194,13 @@ export function PixTransparente({
   }
   const [quadro, setQuadro] = useState(false);
 
-  async function gerar(emailFinal: string, cpf?: string) {
+  async function gerar(emailFinal: string, telefoneFinal?: string, cpf?: string) {
     setFase({ t: "gerando" });
     try {
       const r = await criarPix({
         // Vai um SIM OU NÃO, nunca um valor: quanto o quadro custa é o
         // catálogo do servidor que decide.
-        data: { sessionId: getOrCreateSessionId(), email: emailFinal, quadro, cpf },
+        data: { sessionId: getOrCreateSessionId(), email: emailFinal, quadro, cpf, telefone: telefoneFinal },
       });
       if (!r.ok) {
         // CPF NAO E FALHA, E PEDIDO DE CORRECAO. Mandar isto pra tela de erro
@@ -302,6 +302,7 @@ export function PixTransparente({
       precoBase={valorBase}
       ancora={ancora}
       email={email}
+      telefoneInicial={useQuizStore.getState().whatsapp ?? ""}
       gerando={fase.t === "gerando"}
       quadro={bumpLigado ? quadro : null}
       aoTrocarQuadro={(v) => {
@@ -336,7 +337,7 @@ function TelaCpf({
 }: {
   email: string;
   aviso: string | null;
-  aoEnviar: (email: string, cpf: string) => void;
+  aoEnviar: (email: string, telefone: string, cpf: string) => void;
   aoVoltar: () => void;
 }) {
   const [valor, setValor] = useState("");
@@ -362,7 +363,7 @@ function TelaCpf({
           value={formatarCpf(valor)}
           onChange={(e) => setValor(soDigitosCpf(e.target.value))}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && ok) aoEnviar(email, soDigitosCpf(valor));
+            if (e.key === "Enter" && ok) aoEnviar(email, "", soDigitosCpf(valor));
           }}
           placeholder="000.000.000-00"
           className="w-full rounded-xl border border-input bg-background px-3 py-3 text-base tabular-nums outline-none focus:border-ring"
@@ -381,7 +382,7 @@ function TelaCpf({
         size="lg"
         className="w-full"
         disabled={!ok}
-        onClick={() => aoEnviar(email, soDigitosCpf(valor))}
+        onClick={() => aoEnviar(email, "", soDigitosCpf(valor))}
       >
         Gerar o PIX
       </Button>

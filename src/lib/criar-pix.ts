@@ -207,7 +207,16 @@ function pixTransparenteDesligado(): boolean {
 }
 
 export const criarPix = createServerFn({ method: "POST" })
-  .validator((data: { sessionId: string; email?: string; quadro?: boolean; cpf?: string }) => data)
+  .validator(
+    (data: {
+      sessionId: string;
+      email?: string;
+      quadro?: boolean;
+      cpf?: string;
+      /** WhatsApp digitado na folha, cru. Normalizado aqui, nunca no cliente. */
+      telefone?: string;
+    }) => data,
+  )
   .handler(async ({ data }): Promise<ResultadoPix> => {
     // Antes de qualquer leitura: nao adianta montar cobranca que o banco do
     // cliente vai recusar, e cobranca morta ainda entope a fila do vigia.
@@ -303,6 +312,29 @@ export const criarPix = createServerFn({ method: "POST" })
     }
     const emailDaVenda = emailVale ? emailNovo! : ((quiz.email as string | null) ?? null);
 
+    // ── O WHATSAPP, MESMA LOGICA DO E-MAIL ─────────────────
+    //
+    // O que a pessoa digitou na folha vence o que o quiz tinha, porque e mais
+    // recente e foi digitado olhando a cobranca. Invalido nao sobrescreve
+    // nada: melhor manter o antigo do que gravar lixo por cima.
+    //
+    // O idioma da venda mora na COLUNA, nao na URL — mesma regra do resto do
+    // projeto — e aqui decide o DDI do numero.
+    const locale = (quiz as { locale?: string }).locale === "es" ? "es" : "pt";
+    const telefoneDaVenda =
+      telefoneParaGateway(data.telefone, locale) ?? telefoneParaGateway(quiz.whatsapp, locale);
+    // Numero novo e valido volta pro quiz, pra recuperacao e pro suporte
+    // acharem a pessoa depois. Sem await bloqueante na venda: falha aqui nao
+    // pode impedir a cobranca de nascer.
+    const telefoneCru = String(data.telefone ?? "").trim();
+    if (telefoneCru && telefoneParaGateway(telefoneCru, locale) && telefoneCru !== (quiz.whatsapp ?? "")) {
+      const { error } = await db
+        .from("quiz_responses")
+        .update({ whatsapp: telefoneCru })
+        .eq("id", quiz.id);
+      if (error) console.error("[criar-pix] gravar whatsapp falhou:", error.message);
+    }
+
     // ── O CPF, QUANDO O GATEWAY PEDE ─────────────────────────
     //
     // Conferido AQUI, antes de tocar na rede: CPF errado vira pedido de
@@ -334,12 +366,7 @@ export const criarPix = createServerFn({ method: "POST" })
         // Invalido vira `null` e o campo e OMITIDO: a Woovi recusa a cobranca
         // inteira com telefone torto, e perder a venda pra mandar um numero
         // errado seria o pior negocio possivel.
-        telefone: telefoneParaGateway(
-          quiz.whatsapp,
-          // O idioma da venda mora na COLUNA, nao na URL: e a mesma regra do
-          // resto do projeto, e aqui decide o DDI do numero.
-          (quiz as { locale?: string }).locale === "es" ? "es" : "pt",
-        ),
+        telefone: telefoneDaVenda,
       });
     } catch (err) {
       // Sem failover automático de propriedade: os dois gateways pedem coisas
@@ -388,9 +415,11 @@ export const criarPix = createServerFn({ method: "POST" })
         // numero (33,8% das sessoes ainda deixam) — era o dado existindo no
         // quiz e nao chegando no pedido.
         //
-        // Vem do `whatsapp` do quiz, que a pessoa deixou na tela de espera. Nao
-        // e coleta nova: e parar de jogar fora o que ela ja deu.
-        telefone: (quiz.whatsapp as string | null) || null,
+        // Vem do `whatsapp` do quiz, que a pessoa deixou na tela de espera — ou
+        // da propria folha, quando ela digitou aqui. O objeto `quiz` foi lido
+        // ANTES dessa digitacao, entao usar so ele gravaria o numero velho (ou
+        // nenhum) num pedido que acabou de receber o novo.
+        telefone: telefoneCru || (quiz.whatsapp as string | null) || null,
         valor_centavos: valorCentavos,
         bump_quadro: comQuadro,
         taxa_centavos: cobranca.taxaCentavos,

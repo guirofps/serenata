@@ -196,6 +196,44 @@ export const EXPERIMENTOS: Experimento[] = [
     nota: "Onde a pessoa paga. B (todo mundo) = PIX transparente da Woovi numa folha sobre a oferta, sem trocar de domínio e sem pedir CPF. A = checkout hospedado da Perfect Pay, que continua sendo o caminho do CARTÃO (12,8% das vendas) pelo botão da folha, e do cupom, e do funil espanhol. DESLIGA PELO `ativo`, nunca pelo peso: só o `ativo` vence o sorteio já guardado no navegador da pessoa. Ler por RECEITA LÍQUIDA, não por conversão: a taxa cai de 11,39% (R$ 4,63 medidos) pra R$ 0,50, então empate na conversão já é vitória.",
   },
   {
+    id: "whats_no_pix",
+    // A = a folha do PIX como esta hoje.
+    // B = mais uma caixa, "O codigo tambem no WhatsApp".
+    //
+    // ── POR QUE EXISTE ───────────────────────────────
+    //
+    // A Woovi manda o codigo do PIX no WhatsApp de quem gerou a cobranca, mas
+    // so com `customer.phone` preenchido. Medido em 11/09: 38% dos pedidos tem
+    // telefone (47% dos pagos, 17% das sessoes).
+    //
+    // ── ELE NAO SUBSTITUI O CAMPO DO MEIO DO FUNIL ──────────
+    //
+    // 72% dos numeros que a gente coleta (799 em 4 dias) vem de gente que
+    // NUNCA gera PIX. Esses so existem por causa do campo da tela de espera, e
+    // sao exatamente os que a recuperacao precisa alcancar. Tirar de la pra
+    // "nao perguntar duas vezes" trocaria ~200 contatos/dia por um atrito que
+    // o pre-preenchimento ja elimina.
+    //
+    // ── POR QUE PODE SUBIR A CONVERSAO ───────────────────
+    //
+    // Pra 38% dos pedidos o braco B nao pede nada: mostra o numero que ja
+    // existe e diz que o codigo vai pra la. No instante da decisao, isso e
+    // promessa de entrega, nao imposto.
+    //
+    // ── E POR QUE MESMO ASSIM VAI ATRAS DE EXPERIMENTO ───────
+    //
+    // E decisao nova na tela por onde passam ~87% das vendas, e foi isso que
+    // o order bump fez em 31/08: `oferta_vista` normal e `checkout_click`
+    // desabando. Quem detectou foi a comparacao entre bracos.
+    //
+    // Ler por RECEITA POR LEAD. Telefone coletado e insumo, nao resultado: um
+    // braco que coleta 100% dos numeros e vende menos perdeu.
+    variantes: ["A", "B"],
+    peso: [1, 1],
+    ativo: false,
+    nota: "WhatsApp na folha do PIX, pre-preenchido com o numero que o quiz ja tem. Liga a automacao da Woovi que manda o codigo no WhatsApp. Ler por receita por lead; se checkout_click->pago cair no B, desligar pelo `ativo`.",
+  },
+  {
     id: "prova_blocos",
     // A = a tela como era antes de 10/09 (nenhum dos dois blocos).
     // B = sorteio da JBL + depoimento do Marcelo, nos DOIS lugares: o passo do
