@@ -37,6 +37,7 @@ import { Resend } from "resend";
 import { segredoConfere } from "./lib/segredo.js";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "./lib/entrega.js";
 import { woovi } from "../src/lib/woovi.js";
+import { asaasPix } from "../src/lib/asaas-pix.js";
 
 const PARA = ["guilhermerojasiqueira@gmail.com", "agenciarocketfy@gmail.com"];
 
@@ -117,9 +118,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   try {
     const { data: pendentes } = await sb
       .from("pedidos")
-      .select("payment_id, email, quiz_response_id, valor_centavos, created_at")
+      .select("payment_id, gateway, email, quiz_response_id, valor_centavos, created_at")
       .eq("status", "pendente")
-      .eq("gateway", "woovi")
+      // Os dois gateways de PIX. Ver o comentario dentro do laco.
+      .in("gateway", ["woovi", "asaas"])
       .gte("created_at", new Date(agora - JANELA_H * 3600000).toISOString())
       .lte("created_at", new Date(agora - IDADE_MIN_MIN * 60000).toISOString())
       // DO MAIS NOVO PRO MAIS VELHO, e isto é o conserto de 11/09/2026.
@@ -141,10 +143,18 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       .limit(MAX_POR_RODADA);
 
     for (const p of pendentes ?? []) {
-      const idExterno = String(p.payment_id).replace(/^woovi:/, "");
+      // O GATEWAY DE CADA LINHA, e não a Woovi cravada.
+      //
+      // Até 12/09/2026 esta varredura só olhava `gateway = woovi`. Com o PIX
+      // migrado pro Asaas na noite de 11/09, pagamento no Asaas cujo webhook
+      // se perdesse ficava pendente pra sempre: ninguém reconsultava. Foi o
+      // formato exato de um cliente que mandou comprovante e continuava
+      // "pendente" na plataforma de recuperação.
+      const cliente = p.gateway === "asaas" ? asaasPix : woovi;
+      const idExterno = String(p.payment_id).replace(/^(woovi|asaas):/, "");
       let st;
       try {
-        st = await woovi.consultar(idExterno);
+        st = await cliente.consultar(idExterno);
       } catch {
         // Falha de rede não vira silêncio: entra no relatório e a próxima
         // rodada tenta de novo. Foi um `catch` vazio que fez a primeira

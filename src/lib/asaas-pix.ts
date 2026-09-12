@@ -125,6 +125,25 @@ function hojeEmBrasilia(): string {
   return new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
 }
 
+/**
+ * O dia do pagamento, do jeito que o Asaas manda, virado instante seguro.
+ *
+ * `confirmedDate` e `paymentDate` vêm como DIA, sem hora: "2026-09-11". Gravar
+ * isso cru em `paid_at` vira meia-noite UTC, que é 21h do dia ANTERIOR em
+ * Brasília — e o painel financeiro agrupa por `paid_at`. Uma venda das 23:57
+ * de 11/09 apareceria no faturamento de 10/09.
+ *
+ * Meio-dia de Brasília (15:00 UTC) mantém o dia certo em qualquer fuso que o
+ * painel use, e não finge uma hora que o gateway não informou. Valor que já
+ * vem com hora passa intacto.
+ */
+export function diaAsaasParaInstante(cru: string | null | undefined): string | null {
+  const s = String(cru ?? "").trim();
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T15:00:00.000Z`;
+  return Number.isNaN(Date.parse(s)) ? null : s;
+}
+
 export const asaasPix: GatewayPix = {
   nome: "asaas",
   exigeCpf: true,
@@ -221,7 +240,7 @@ export const asaasPix: GatewayPix = {
       titularPix: null,
       // A data DELES. Sem isto, um conserto de dias depois jogaria venda
       // antiga no faturamento de hoje — o painel agrupa por `paid_at`.
-      pagoEm: p?.confirmedDate ?? p?.paymentDate ?? p?.clientPaymentDate ?? null,
+      pagoEm: diaAsaasParaInstante(p?.confirmedDate ?? p?.paymentDate ?? p?.clientPaymentDate ?? null),
     };
   },
 };
