@@ -35,6 +35,22 @@ const COPY: Record<
     botao: string;
     ouCopie: string;
     rodapeAviso: string;
+    /**
+     * Quando NAO ha codigo pra mandar.
+     *
+     * O rodape normal promete "o seu codigo continua valendo, e o mesmo que
+     * voce gerou" — e isso e mentira quando o link vai pro checkout em vez
+     * do PIX que ela abriu. Dois casos caem aqui:
+     *
+     *   - pedido antigo que nao guardou `pix_url` (o caminho de reserva que
+     *     ja existia, e que ja mandava esse rodape errado);
+     *   - gateway fora do ar, quando o codigo gerado nao pode ser pago. Em
+     *     11/09/2026 a chave PIX da Woovi parou de resolver no DICT e todo
+     *     codigo do dia virou papel: o e-mail continuava mandando a pessoa
+     *     pra um pagamento impossivel, prometendo que valia.
+     */
+    botaoSemCodigo: string;
+    rodapeSemCodigo: string;
     rodape: string;
   }
 > = {
@@ -53,6 +69,9 @@ const COPY: Record<
     // pedir à pessoa que refizesse um trabalho que ela já tinha feito.
     rodapeAviso:
       "O seu código continua valendo, é o mesmo que você gerou.<br>Se preferir pagar no cartão, a opção aparece na mesma tela.",
+    botaoSemCodigo: "CONCLUIR O PAGAMENTO →",
+    rodapeSemCodigo:
+      "A sua música continua guardada.<br>É só concluir o pagamento na página, por PIX ou cartão.",
     rodape: "Serenata · uma música feita da história de quem você ama",
   },
   es: {
@@ -64,6 +83,9 @@ const COPY: Record<
     ouCopie: "O copia el código y pégalo en la app de tu banco:",
     rodapeAviso:
       "Tu código sigue siendo válido, es el mismo que generaste.<br>Si prefieres tarjeta, la opción aparece en la misma pantalla.",
+    botaoSemCodigo: "COMPLETAR EL PAGO →",
+    rodapeSemCodigo:
+      "Tu canción sigue guardada.<br>Solo falta completar el pago en la página.",
     rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
 };
@@ -111,7 +133,7 @@ export function emailPixNaoPago(args: {
                fim da linha e cola a pontuação da frase nele. Um caractere a
                menos no checkout dá erro seco, sem pista. -->
           <a href="${linkCheckout}" style="display:inline-block;background:#7d2b3a;color:#faf5ee;text-decoration:none;font-size:16px;font-family:Helvetica,Arial,sans-serif;font-weight:bold;padding:16px 34px;border-radius:999px;">
-            ${C.botao}
+            ${codigo ? C.botao : C.botaoSemCodigo}
           </a>
         </td></tr>
 
@@ -128,7 +150,7 @@ export function emailPixNaoPago(args: {
         }
 
         <tr><td style="padding:14px 36px 30px;text-align:center;color:rgba(42,21,24,0.5);font-size:13px;font-family:Helvetica,Arial,sans-serif;line-height:1.7;">
-          ${C.rodapeAviso}
+          ${codigo ? C.rodapeAviso : C.rodapeSemCodigo}
         </td></tr>
       </table>
 

@@ -267,7 +267,23 @@ export const pixNaoPago = inngest.createFunction(
         // Aí sim precisa do `src`, que é o session_id: é por ele que o webhook
         // casa o pagamento com a música já gerada. Sem ele a compra entra como
         // "pago sem música casada" e alguém entrega à mão.
-        let link = p.pix_url as string | null;
+        // ── INTERRUPTOR: CODIGO GERADO QUE NAO PODE SER PAGO ────
+        //
+        // `RECUPERACAO_SEM_PIX=1` ignora o `pix_url` e o codigo e manda a
+        // pessoa pro checkout. Existe por causa de 11/09/2026: a chave PIX da
+        // Woovi parou de resolver no DICT as 16:44 e todo codigo gerado no
+        // dia virou papel — o banco do pagador respondia "A conta informada
+        // nao foi encontrada".
+        //
+        // Sem isto, este e-mail vira o pior tipo de recuperacao: pega quem ja
+        // tentou pagar uma vez e manda de volta pro MESMO pagamento
+        // impossivel, prometendo no rodape que o codigo continua valendo. A
+        // pessoa tenta, falha de novo, e agora acha que o site e quebrado.
+        //
+        // Sem codigo, o template troca botao e rodape sozinho (ver
+        // `botaoSemCodigo`): nenhuma promessa que a gente nao possa cumprir.
+        const semPix = process.env.RECUPERACAO_SEM_PIX === "1";
+        let link = semPix ? null : (p.pix_url as string | null);
         if (!link) {
           const checkout = await checkoutDoValor(sb, (p.valor_centavos ?? 0) / 100);
           if (!checkout) continue;
@@ -294,7 +310,10 @@ export const pixNaoPago = inngest.createFunction(
           // Só sai quando veio junto do `pix_url`: o código pertence AQUELE
           // pedido, e misturar código de um com link de outro cobraria errado.
           // Pedido antigo sem URL guardada vai só com o checkout.
-          codigo: p.pix_url ? ((p.pix_codigo as string | null) ?? null) : null,
+          // Sem `pix_url` (ou com o interruptor ligado) nao vai codigo: o
+          // link e o do checkout, e mandar junto um copia-e-cola que aponta
+          // pra outro lugar e a receita do "paguei e nao caiu".
+          codigo: link === (p.pix_url as string | null) && p.pix_url ? ((p.pix_codigo as string | null) ?? null) : null,
           quizId: p.quiz_response_id,
         });
       }
