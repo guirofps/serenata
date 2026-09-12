@@ -165,9 +165,11 @@ export const asaas: GatewayCartao = {
 
     // ── 2. A COBRANÇA ────────────────────────────────────────
     //
-    // `dueDate` é hoje: cartão autoriza na hora, e data futura faria o Asaas
-    // tratar como agendamento.
-    const hoje = new Date().toISOString().slice(0, 10);
+    // `dueDate` é hoje EM BRASÍLIA. `toISOString()` é UTC, e das 21h à
+    // meia-noite daqui o UTC já está no dia seguinte — o que faz o Asaas ler
+    // como agendamento. No cartão isso passa despercebido (autoriza na hora);
+    // no PIX derrubou a geracao do QR em 11/09/2026, depois das 21h.
+    const hoje = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
     try {
       const p = await chamar<{
         id?: string;

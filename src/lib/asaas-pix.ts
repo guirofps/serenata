@@ -108,6 +108,23 @@ async function copiaECola(idPagamento: string): Promise<{ payload: string; expir
   return { payload, expiraEm: qr?.expirationDate ?? null };
 }
 
+/**
+ * A data de HOJE em horario de Brasilia, "AAAA-MM-DD".
+ *
+ * `new Date().toISOString()` e UTC. Das 21h a meia-noite de Brasilia o UTC ja
+ * esta no dia SEGUINTE, entao um `dueDate` montado assim vira data futura pro
+ * Asaas — que opera em BRT e trata cobranca com vencimento futuro como
+ * AGENDADA. Cobranca agendada nasce, aparece no painel deles, e nao tem QR
+ * pra buscar: o `pixQrCode` falha e a pessoa fica sem codigo.
+ *
+ * Descoberto em 11/09/2026, as 21h50: cobranca criada com sucesso no Asaas e
+ * `pixQrCode` recusando, todas as tentativas depois das 21h. Antes desse
+ * horario o bug nao aparece, porque UTC e BRT ainda estao no mesmo dia.
+ */
+function hojeEmBrasilia(): string {
+  return new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+}
+
 export const asaasPix: GatewayPix = {
   nome: "asaas",
   exigeCpf: true,
@@ -163,9 +180,10 @@ export const asaasPix: GatewayPix = {
 
     // ── 3. A COBRANÇA ────────────────────────────────────────
     //
-    // `dueDate` é hoje: PIX é pra pagar agora, e data futura faria o Asaas
-    // tratar como agendamento. O vencimento real do QR vem do `pixQrCode`.
-    const hoje = new Date().toISOString().slice(0, 10);
+    // `dueDate` é hoje EM BRASÍLIA, e a distinção não é preciosismo: ver
+    // `hojeEmBrasilia`. Data futura faz o Asaas tratar como agendamento, e
+    // agendamento não tem QR.
+    const hoje = hojeEmBrasilia();
     const p = await chamarAsaas<PagamentoAsaas>("/payments", {
       method: "POST",
       body: JSON.stringify({
