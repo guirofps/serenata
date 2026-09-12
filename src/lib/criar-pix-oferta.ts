@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { woovi } from "@/lib/woovi";
+import { gatewayPix } from "@/lib/criar-pix";
 import { ErroGateway } from "@/lib/gateway";
 import { conferirOferta } from "@/lib/oferta-assinada";
 import { OFERTA, type DegrauEscada } from "../../emails/escada";
@@ -93,9 +93,24 @@ export const criarPixOferta = createServerFn({ method: "POST" })
     const nome = ((quiz.respostas ?? {}) as Record<string, string>).nome?.trim() || "quem você ama";
     const email = (quiz.email as string | null) ?? "";
 
+    // ── O GATEWAY DA CONTA, E NAO A WOOVI CRAVADA ────────────────
+    //
+    // Mesma historia do `criar-pix-upsell`: ate 11/09/2026 este arquivo
+    // chamava `woovi.criar` direto, e no dia em que a chave da Woovi parou de
+    // resolver no DICT ele seguiu gerando cobranca impagavel.
+    const gw = gatewayPix();
+
+    // O Asaas exige CPF e a escada e um LINK DE E-MAIL: a pessoa cai direto
+    // na tela do PIX, sem passo nenhum onde pedir documento. Recusar limpo e
+    // melhor que entregar um QR que nao pode ser pago.
+    if (gw.exigeCpf) {
+      console.warn(`[pix-oferta] ${gw.nome} exige CPF e a escada nao pede. Recusando.`);
+      return { ok: false, erro: "gateway" };
+    }
+
     let cobranca;
     try {
-      cobranca = await woovi.criar({
+      cobranca = await gw.criar({
         referencia,
         valorCentavos,
         descricao: `Serenata · ${musica.titulo ?? "sua música"}`,
@@ -104,7 +119,7 @@ export const criarPixOferta = createServerFn({ method: "POST" })
       });
     } catch (err) {
       const g = err instanceof ErroGateway ? err : null;
-      console.error("[pix-oferta] gateway falhou:", g?.message ?? err);
+      console.error(`[pix-oferta] ${gw.nome} falhou:`, g?.message ?? err);
       return { ok: false, erro: "gateway" };
     }
 
@@ -115,8 +130,9 @@ export const criarPixOferta = createServerFn({ method: "POST" })
 
     const { error } = await db.from("pedidos").upsert(
       {
-        payment_id: `woovi:${refFinal}`,
-        gateway: "woovi",
+        // Prefixo do gateway que respondeu: e por ele que o webhook casa.
+        payment_id: `${cobranca.gateway}:${refFinal}`,
+        gateway: cobranca.gateway,
         status: "pendente",
         email: email || null,
         nome_pagador: nome || null,

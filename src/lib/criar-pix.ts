@@ -108,7 +108,7 @@ function telefoneParaGateway(cru: unknown, locale: "pt" | "es"): string | null {
   return e164 ? `+${e164}` : null;
 }
 
-function gatewayPix(): GatewayPix {
+export function gatewayPix(): GatewayPix {
   return process.env.PIX_GATEWAY === "asaas" ? asaasPix : woovi;
 }
 

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { emailDaSessao } from "@/lib/conta-sessao";
 import { literalLike } from "@/lib/sql-like";
-import { woovi } from "@/lib/woovi";
+import { gatewayPix } from "@/lib/criar-pix";
 import { ErroGateway } from "@/lib/gateway";
 import { OFERTAS, type Oferta } from "@/lib/creditos";
 
@@ -83,17 +83,40 @@ async function gerarCobranca(email: string, ofertaId: string): Promise<Resultado
     const db = supabaseAdmin();
     const valorCentavos = Math.round(oferta.precoBrl * 100);
 
+    // ── O GATEWAY DA CONTA, E NAO A WOOVI CRAVADA ────────────────
+    //
+    // Ate 11/09/2026 este arquivo chamava `woovi.criar` direto. Passou
+    // despercebido enquanto so existia um gateway de PIX; o dia em que isso
+    // deixou de ser verdade foi o dia em que a chave da Woovi parou de
+    // resolver no DICT, e este caminho seguiu gerando cobranca impagavel
+    // DEPOIS da compra, que e o pior lugar possivel pra isso.
+    const gw = gatewayPix();
+
+    // O ASAAS EXIGE CPF E ESTA TELA NAO TEM ONDE PEDIR: ela gera a cobranca
+    // no `useEffect` de montagem, sem passo de resumo. Recusar limpo e melhor
+    // que criar um QR que ninguem consegue pagar — a folha ja tem tela de
+    // erro. O conserto de verdade e dar um passo de resumo a ela, igual ao do
+    // checkout principal.
+    if (gw.exigeCpf) {
+      console.warn(`[pix-upsell] ${gw.nome} exige CPF e esta tela nao pede. Recusando.`);
+      return { ok: false, erro: "gateway" };
+    }
+
     // ── DUPLO-CLIQUE: reaproveita o PIX ainda vivo ───────────────
+    //
+    // OS DOIS PREFIXOS: durante uma troca de gateway convivem cobrancas dos
+    // dois lados, e procurar so por um deixaria a pessoa gerar outra em cima
+    // de uma que ja existe.
     const umaHoraAtras = new Date(Date.now() - 3600_000).toISOString();
     const { data: vivo } = await db
       .from("pedidos")
       .select("payment_id, pix_codigo")
-      .eq("gateway", "woovi")
+      .eq("gateway", gw.nome)
       .eq("status", "pendente")
       .eq("valor_centavos", valorCentavos)
       .ilike("email", literalLike(email))
       .gte("created_at", umaHoraAtras)
-      .like("payment_id", `woovi:up:${oferta.id}:%`)
+      .like("payment_id", `${gw.nome}:up:${oferta.id}:%`)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -102,7 +125,7 @@ async function gerarCobranca(email: string, ofertaId: string): Promise<Resultado
         ok: true,
         copiaECola: vivo.pix_codigo as string,
         valorCentavos,
-        referencia: (vivo.payment_id as string).slice("woovi:".length),
+        referencia: (vivo.payment_id as string).slice(`${gw.nome}:`.length),
         reaproveitado: true,
       };
     }
@@ -113,7 +136,7 @@ async function gerarCobranca(email: string, ofertaId: string): Promise<Resultado
 
     let cobranca;
     try {
-      cobranca = await woovi.criar({
+      cobranca = await gw.criar({
         referencia,
         valorCentavos,
         descricao: `Serenata · ${oferta.id === "quadro" ? "Quadro para imprimir" : "Música extra"}`,
@@ -122,14 +145,17 @@ async function gerarCobranca(email: string, ofertaId: string): Promise<Resultado
       });
     } catch (err) {
       const g = err instanceof ErroGateway ? err : null;
-      console.error("[pix-upsell] gateway falhou:", g?.message ?? err);
+      console.error(`[pix-upsell] ${gw.nome} falhou:`, g?.message ?? err);
       return { ok: false, erro: "gateway" };
     }
 
     const { error } = await db.from("pedidos").upsert(
       {
-        payment_id: `woovi:${referencia}`,
-        gateway: "woovi",
+        // O prefixo sai do gateway QUE RESPONDEU: e por ele que o webhook
+        // acha o pedido. Cravar "woovi" faria o pagamento pelo Asaas chegar e
+        // nao casar com linha nenhuma.
+        payment_id: `${cobranca.gateway}:${referencia}`,
+        gateway: cobranca.gateway,
         status: "pendente",
         email,
         valor_centavos: valorCentavos,

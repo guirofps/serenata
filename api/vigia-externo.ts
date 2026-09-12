@@ -38,6 +38,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { segredoConfere } from "./lib/segredo.js";
 import { lerOsSinais, assuntoDoAlerta } from "../src/lib/sinais-geracao.js";
+import { trilhoMudo, MINUTOS_MUDO } from "../src/lib/sinais-pagamento.js";
 
 // DOIS ENDEREÇOS, igual ao vigia de dentro. Este alerta existe pra uma
 // decisão com hora marcada (pausar as campanhas), e e-mail que empaca num
@@ -163,10 +164,90 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       }
     }
 
+    // ── O TRILHO DE PAGAMENTO, QUE E OUTRO PROBLEMA ──────────────
+    //
+    // Independente do sinal de geracao, e de proposito: em 11/09/2026 a
+    // musica saia perfeita e o que tinha parado era a LIQUIDACAO. A chave PIX
+    // da Woovi deixou de resolver no DICT as 16:44, o banco do pagador
+    // respondia "A conta informada nao foi encontrada", e nada falhava nem do
+    // nosso lado nem do lado deles. Tres horas ate alguem notar, e quem notou
+    // foi o dono estranhando o painel.
+    //
+    // Ver `sinais-pagamento.ts` pros limiares e pro motivo de ele dormir de
+    // madrugada.
+    const janelaPag = new Date(agora - MINUTOS_MUDO * 60000).toISOString();
+    const { data: ultimoPago } = await sb
+      .from("pedidos")
+      .select("paid_at")
+      .eq("status", "pago")
+      .not("paid_at", "is", null)
+      .order("paid_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const minutosSemPagamento = ultimoPago?.paid_at
+      ? Math.round((agora - Date.parse(ultimoPago.paid_at as string)) / 60000)
+      : null;
+    const { count: pixGeradosNaJanela } = await sb
+      .from("pedidos")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", janelaPag);
+    // "Madura" = ja passou de 20 min sem pagar. Medido: 96% de quem paga,
+    // paga em ate 20 minutos. Vai no corpo do e-mail porque e a diferenca
+    // entre "esta devagar" e "parou".
+    const { count: maduras } = await sb
+      .from("pedidos")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", janelaPag)
+      .lte("created_at", new Date(agora - 20 * 60000).toISOString())
+      .neq("status", "pago");
+    const vp = trilhoMudo({
+      minutosSemPagamento,
+      pixGeradosNaJanela: pixGeradosNaJanela ?? 0,
+      maduras: maduras ?? 0,
+    });
+
+    if (vp.avisar && process.env.RESEND_API_KEY) {
+      // Chave propria: uma queda de pagamento nao pode ser silenciada por um
+      // alerta de geracao que saiu na mesma hora.
+      const chavePag = `alerta-pagamento:${new Date(agora - 3 * 3600000).toISOString().slice(0, 13)}`;
+      let primeiraPag = true;
+      try {
+        const { data } = await sb.rpc("consumir_limite", { p_chave: chavePag, p_janela_s: 7200, p_teto: 1 });
+        primeiraPag = data !== false;
+      } catch {
+        primeiraPag = true;
+      }
+      if (primeiraPag) {
+        await new Resend(process.env.RESEND_API_KEY).emails.send({
+          from: "Serenata <contato@serenatagift.com>",
+          to: PARA,
+          subject: `💸 ${minutosSemPagamento} min sem NENHUM pagamento entrar`,
+          html:
+            `<p style="font-size:17px"><strong>${vp.motivo}</strong></p>` +
+            `<p>O funil esta gerando cobranca normalmente. O que pode ter parado e a LIQUIDACAO ` +
+            `— o dinheiro saindo do banco do cliente e chegando na conta.</p>` +
+            `<p><strong>O teste que responde em dois minutos:</strong> abra uma das cobrancas pendentes ` +
+            `no painel do gateway e <em>pague voce mesmo</em>. Se o app do banco disser ` +
+            `"A conta informada nao foi encontrada", a chave PIX de recebimento parou de resolver ` +
+            `no DICT e nao ha nada a consertar do nosso lado: e chamado no gateway.</p>` +
+            `<p>Foi exatamente isso em 11/09/2026, e levou tres horas pra ser descoberto porque ` +
+            `nenhum sistema acusava erro. A API respondia, o QR era valido, e o dinheiro nao andava.</p>` +
+            `<p><strong>Enquanto isso:</strong> trocar o gateway pela env <code>PIX_GATEWAY</code> ` +
+            `(woovi ou asaas) e um deploy. Ultimo recurso, <code>PIX_TRANSPARENTE_OFF=1</code> manda ` +
+            `todo mundo pro checkout hospedado.</p>` +
+            `<ul>` +
+            `<li>ultimo pagamento ha: <strong>${minutosSemPagamento} min</strong></li>` +
+            `<li>cobrancas criadas nesses ${MINUTOS_MUDO} min: ${pixGeradosNaJanela ?? 0}</li>` +
+            `<li>dessas, ja passaram de 20 min sem pagar: ${maduras ?? 0}</li>` +
+            `</ul>`,
+        });
+      }
+    }
+
     if (!veredito.avisar || !veredito.motivo) {
       res.statusCode = 200;
       res.setHeader("content-type", "application/json");
-      res.end(JSON.stringify({ ok: true, alerta: false, ...diagnostico }));
+      res.end(JSON.stringify({ ok: true, alerta: false, pagamentoMudo: vp.avisar, minutosSemPagamento, ...diagnostico }));
       return;
     }
 
