@@ -375,7 +375,25 @@ export const criarPix = createServerFn({ method: "POST" })
       // troca é pelo `PIX_GATEWAY`, consciente, e aqui a falha é limpa: a
       // tela oferece o checkout antigo, que sempre funciona.
       const g = err instanceof ErroGateway ? err : null;
-      console.error(`[criar-pix] ${gw.nome} falhou:`, g?.message ?? err);
+      const motivo = String(g?.message ?? (err as Error)?.message ?? err).slice(0, 300);
+      console.error(`[criar-pix] ${gw.nome} falhou:`, motivo);
+      // ── A MENSAGEM DO GATEWAY VAI PRO BANCO, NAO SO PRO LOG ────
+      //
+      // Em 11/09/2026 o Asaas comecou a recusar a criacao de cobranca e a
+      // unica coisa que restava era `erro: "gateway"` no funnel_events, que
+      // nao diz NADA. `vercel logs` nao devolveu o console.error, e sem a
+      // mensagem deles nao da pra saber se e chave PIX ausente, escopo,
+      // conta sem permissao ou corpo invalido.
+      //
+      // Gravar aqui e barato e e o que transforma "falhou" em "falhou
+      // porque". Sem await bloqueante: diagnostico nunca pode atrasar (nem
+      // derrubar) a resposta pra quem esta esperando o QR.
+      void db.from("funnel_events").insert({
+        event_name: "pix_gateway_recusou",
+        event_data: { gateway: gw.nome, motivo, valorCentavos, sessionId: data.sessionId },
+      }).then(({ error }) => {
+        if (error) console.error("[criar-pix] gravar recusa falhou:", error.message);
+      });
       return { ok: false, erro: "gateway" };
     }
 
