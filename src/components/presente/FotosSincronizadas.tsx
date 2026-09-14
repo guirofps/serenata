@@ -1,5 +1,6 @@
 import { useMemo, useRef } from "react";
 import { FotoAdaptativa } from "./FotoAdaptativa";
+import { marcosDasFotos } from "@/lib/marcos-fotos";
 
 // As fotos como FUNDO CHEIO da tela (nunca cortadas num card), trocando com a
 // música — a experiência imersiva do entregável. A letra corre por cima.
@@ -28,12 +29,12 @@ export function FotosSincronizadas({
   /** Só entra em cena depois que a música começa. */
   ativo: boolean;
 }) {
-  const marcos = useMemo(() => {
-    if (secoes.length > 1) return secoes;
-    if (!duracao || fotos.length < 2) return [];
-    const passo = duracao / fotos.length;
-    return Array.from({ length: fotos.length }, (_, i) => i * passo);
-  }, [secoes, duracao, fotos.length]);
+  // Uma virada por foto, no mínimo: ver `marcosDasFotos` (até 14/09 eram só as
+  // viradas da música, e uma galeria de 12 numa música de 8 seções mostrava 8).
+  const marcos = useMemo(
+    () => marcosDasFotos(secoes, fotos.length, duracao),
+    [secoes, duracao, fotos.length],
+  );
 
   const atual = useMemo(() => {
     if (!fotos.length || !marcos.length) return 0;
