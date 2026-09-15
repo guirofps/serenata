@@ -244,3 +244,21 @@ export const asaasPix: GatewayPix = {
     };
   },
 };
+
+/**
+ * A cobrança pela NOSSA referência, e não pelo id do Asaas.
+ *
+ * O PIX de upsell (`criar-pix-upsell.ts`) grava `asaas:up:<oferta>:<uuid>`, e
+ * `consultar` só entende o id deles (`pay_...`). Até 15/09/2026 o vigia mandava
+ * a referência pro `GET /payments/{id}`, levava erro e seguia em frente: 11
+ * upsells pagos entre 12 e 14/09 ficaram sem crédito e sem quadro.
+ */
+export async function consultarPorReferencia(referencia: string): Promise<StatusCobranca | null> {
+  const r = await chamarAsaas<{ data?: PagamentoAsaas[] }>(
+    `/payments?externalReference=${encodeURIComponent(referencia)}&limit=10`,
+  );
+  const lista = r?.data ?? [];
+  const p = lista.find((x) => asaasPagou(x.status)) ?? lista[0];
+  if (!p?.id) return null;
+  return asaasPix.consultar(p.id);
+}

@@ -37,7 +37,9 @@ import { Resend } from "resend";
 import { segredoConfere } from "./lib/segredo.js";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "./lib/entrega.js";
 import { woovi } from "../src/lib/woovi.js";
-import { asaasPix } from "../src/lib/asaas-pix.js";
+import { asaasPix, consultarPorReferencia } from "../src/lib/asaas-pix.js";
+import { creditarUpsell } from "./lib/creditar-upsell.js";
+import { ofertaDaReferencia } from "../src/lib/creditos.js";
 
 const PARA = ["guilhermerojasiqueira@gmail.com", "agenciarocketfy@gmail.com"];
 
@@ -118,7 +120,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   try {
     const { data: pendentes } = await sb
       .from("pedidos")
-      .select("payment_id, gateway, email, quiz_response_id, valor_centavos, created_at")
+      .select("id, payment_id, gateway, email, quiz_response_id, valor_centavos, created_at")
       .eq("status", "pendente")
       // Os dois gateways de PIX. Ver o comentario dentro do laco.
       .in("gateway", ["woovi", "asaas"])
@@ -154,7 +156,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       const idExterno = String(p.payment_id).replace(/^(woovi|asaas):/, "");
       let st;
       try {
-        st = await cliente.consultar(idExterno);
+        // Upsell no Asaas: a linha guarda a NOSSA referência (`up:...`), e o
+        // `consultar` só entende o id deles. Ver `consultarPorReferencia`.
+        st = p.gateway === "asaas" && idExterno.startsWith("up:")
+          ? await consultarPorReferencia(idExterno)
+          : await cliente.consultar(idExterno);
       } catch {
         // Falha de rede não vira silêncio: entra no relatório e a próxima
         // rodada tenta de novo. Foi um `catch` vazio que fez a primeira
@@ -162,7 +168,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         semResposta.push(p.payment_id);
         continue;
       }
-      if (!st.pago) continue;
+      if (!st?.pago) continue;
 
       // ── AS TRAVAS ANTES DE LIBERAR ────────────────────────────
       //
@@ -190,6 +196,34 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         .eq("status", "pendente");
       if (erroUp) {
         console.error(`[vigia-pagamento] falha ao marcar ${p.payment_id}:`, erroUp.message);
+        continue;
+      }
+
+      // ── UPSELL: O PRODUTO É CRÉDITO OU QUADRO, NÃO MÚSICA ─────────
+      //
+      // Até 15/09/2026 isto caía no bloco de baixo, que procura música pelo
+      // quiz. Upsell não tem quiz: o pedido virava pago e ninguém recebia nada.
+      if (/^(woovi|asaas):up:/.test(String(p.payment_id))) {
+        const oferta = ofertaDaReferencia(String(p.payment_id));
+        let liberado = false;
+        if (oferta && p.email) {
+          const r = await creditarUpsell(sb, {
+            oferta,
+            email: p.email,
+            pedidoId: p.id,
+            nota: { gateway: p.gateway, referencia: idExterno, via: "vigia-pagamento" },
+          });
+          liberado = !r.erro;
+          if (r.erro) console.error(`[vigia-pagamento] upsell pago e NÃO liberado ${p.payment_id}:`, r.erro);
+        } else {
+          console.error(`[vigia-pagamento] upsell pago sem oferta ou e-mail: ${p.payment_id}`);
+        }
+        consertados.push({
+          email: p.email,
+          pedido: p.payment_id,
+          horas: Math.round((agora - Date.parse(p.created_at)) / 3600000),
+          entregue: liberado,
+        });
         continue;
       }
 

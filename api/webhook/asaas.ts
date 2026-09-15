@@ -31,6 +31,8 @@ import { segredoConfere } from "../lib/segredo.js";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../lib/entrega.js";
 import { venderNoTiktok } from "../lib/tiktok-eventos.js";
 import { Resend } from "resend";
+import { creditarUpsell } from "../lib/creditar-upsell.js";
+import { ofertaDaReferencia } from "../../src/lib/creditos.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -75,6 +77,91 @@ async function auditar(sb: ReturnType<typeof db>, nome: string, dados: unknown) 
 /** Eventos que significam dinheiro dentro. O resto Ã© ruÃ­do pra nÃ³s. */
 const PAGOU = new Set(["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"]);
 
+/**
+ * UPSELL PAGO NO ASAAS: crédito de música ou quadro, nunca entrega de música.
+ *
+ * Até 15/09/2026 este caminho não existia. O upsell passou a sair pelo Asaas na
+ * noite de 11/09, e todo pagamento dele caía no fluxo da música: pedido novo
+ * `asaas:pay_...` sem e-mail, sem crédito, sem quadro. Foram 11 compras entre 12
+ * e 14/09; três clientes pagaram duas vezes e um pagou a música cheia depois.
+ *
+ * O e-mail vem do PEDIDO PENDENTE, criado numa sessão com prova de posse em
+ * `criar-pix-upsell.ts`, e não do que o gateway ecoa. Mesmo desenho da Woovi.
+ */
+async function pagarUpsell(
+  sb: ReturnType<typeof db>,
+  res: Res,
+  args: {
+    referencia: string;
+    idCobranca: string;
+    pendente: { id: string; email: string | null } | null;
+    status: { statusCru: string; valorCentavos: number | null; taxaCentavos: number | null };
+  },
+) {
+  const { referencia, idCobranca, pendente, status } = args;
+  const oferta = ofertaDaReferencia(referencia);
+  if (!oferta) {
+    await auditar(sb, "asaas_upsell_desconhecido", { referencia, idCobranca });
+    await alertarDono("Upsell pago no Asaas com oferta desconhecida", `<p>${referencia} · ${idCobranca}</p>`);
+    return res.status(200).json({ ok: true, nota: "oferta desconhecida" });
+  }
+
+  // O valor tem que bater com o CATÁLOGO: trava contra pagar R$ 1 num crédito de R$ 28.
+  const esperado = Math.round(oferta.precoBrl * 100);
+  if (status.valorCentavos && status.valorCentavos !== esperado) {
+    await auditar(sb, "asaas_upsell_valor_divergente", { referencia, esperado, recebido: status.valorCentavos });
+    await alertarDono(
+      "Upsell pago no Asaas com valor divergente",
+      `<p>${referencia}: esperado ${esperado}, recebido ${status.valorCentavos}</p>`,
+    );
+    return res.status(200).json({ ok: true, nota: "valor divergente, não liberado" });
+  }
+
+  const email = pendente?.email ?? null;
+  if (!pendente?.id || !email) {
+    await auditar(sb, "asaas_upsell_sem_pedido", { referencia, idCobranca });
+    await alertarDono("Upsell pago no Asaas sem pedido", `<p>${referencia} · ${idCobranca}</p><p>Liberar à mão.</p>`);
+    return res.status(200).json({ ok: true, nota: "sem pedido do comprador" });
+  }
+
+  const { error: erroPedido } = await sb
+    .from("pedidos")
+    .update({
+      status: "pago",
+      status_gateway: status.statusCru,
+      valor_centavos: status.valorCentavos ?? esperado,
+      taxa_centavos: status.taxaCentavos,
+      paid_at: new Date().toISOString(),
+    })
+    .eq("id", pendente.id)
+    .eq("status", "pendente");
+  if (erroPedido) {
+    await alertarDono(
+      "Upsell pago no Asaas e pedido NÃO gravado",
+      `<p>${erroPedido.message}<br>${email} · ${referencia}</p>`,
+    );
+    return res.status(200).json({ ok: true, nota: "pago, gravação falhou" });
+  }
+
+  // O índice único por `pedido_id` segura o reenvio: o segundo evento não credita de novo.
+  const r = await creditarUpsell(sb, {
+    oferta,
+    email,
+    pedidoId: pendente.id,
+    nota: { gateway: "asaas", referencia, cobranca: idCobranca },
+  });
+  await auditar(sb, r.erro ? "asaas_upsell_falhou" : "asaas_upsell", {
+    referencia,
+    email,
+    oferta: oferta.id,
+    ...(r.erro ? { erro: r.erro } : {}),
+  });
+  if (r.erro) {
+    await alertarDono("Upsell pago no Asaas e NÃO liberado", `<p>${r.erro}<br>${email} · ${referencia}</p>`);
+  }
+  return res.status(200).json({ ok: true, upsell: oferta.id, creditou: r.creditou, quadro: r.quadro });
+}
+
 export default async function handler(req: Req, res: Res) {
   if (req.method !== "POST") return res.status(405).json({ error: "mÃ©todo" });
 
@@ -105,6 +192,11 @@ export default async function handler(req: Req, res: Res) {
 
   const sb = db();
   const paymentId = `asaas:${idCobranca}`;
+  // O upsell grava o pedido pela NOSSA referência (`asaas:up:<oferta>:<uuid>`),
+  // e o Asaas manda o id deles. Sem olhar a referência, o pagamento virava uma
+  // linha nova sem e-mail e o pedido de verdade ficava pendente pra sempre.
+  const referencia = String(corpo?.payment?.externalReference ?? "");
+  const idPorReferencia = referencia.startsWith("up:") ? `asaas:${referencia}` : null;
 
   if (!PAGOU.has(evento)) {
     // Recusa por antifraude Ã© o Ãºnico nÃ£o-pagamento que interessa registrar:
@@ -117,14 +209,14 @@ export default async function handler(req: Req, res: Res) {
   }
 
   // â”€â”€ IDEMPOTÃŠNCIA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const { data: existente } = await sb
+  const { data: existentes } = await sb
     .from("pedidos")
-    .select("id, status, valor_centavos, bump_quadro, email, quiz_response_id")
-    .eq("payment_id", paymentId)
-    .maybeSingle();
-  if (existente?.status === "pago") {
+    .select("id, payment_id, status, valor_centavos, bump_quadro, email, quiz_response_id")
+    .in("payment_id", idPorReferencia ? [paymentId, idPorReferencia] : [paymentId]);
+  if ((existentes ?? []).some((p) => p.status === "pago")) {
     return res.status(200).json({ ok: true, duplicado: true });
   }
+  const existente = (existentes ?? []).find((p) => p.payment_id === paymentId) ?? null;
 
   // â”€â”€ A RECONSULTA, QUE AQUI Ã‰ A ÃšNICA PROVA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let status;
@@ -141,6 +233,11 @@ export default async function handler(req: Req, res: Res) {
   if (!status.confirmado) {
     await auditar(sb, "asaas_evento_sem_pagamento", { paymentId, evento, status: status.statusCru });
     return res.status(200).json({ ok: true, nota: "gateway nÃ£o confirma" });
+  }
+
+  if (idPorReferencia) {
+    const pendente = (existentes ?? []).find((p) => p.payment_id === idPorReferencia) ?? null;
+    return pagarUpsell(sb, res, { referencia, idCobranca, pendente, status });
   }
 
   // â”€â”€ O VALOR TEM QUE BATER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

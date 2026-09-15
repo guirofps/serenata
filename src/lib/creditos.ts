@@ -119,6 +119,16 @@ export const OFERTAS: Oferta[] = [
 ];
 
 /**
+ * A oferta de uma referência de upsell, `up:<oferta>:<uuid>`, com ou sem o
+ * prefixo do gateway (`asaas:up:extra:...`). Conferida contra o CATÁLOGO:
+ * texto que não bate com nenhuma oferta devolve null, nunca uma oferta inventada.
+ */
+export function ofertaDaReferencia(referencia: string): Oferta | null {
+  const m = /^(?:(?:woovi|asaas):)?up:([a-z]+):/.exec(referencia);
+  return (m && OFERTAS.find((o) => o.id === m[1])) || null;
+}
+
+/**
  * Qual oferta foi comprada, e por qual caminho o webhook descobriu.
  *
  * DOIS CAMINHOS, e a ordem importa:
