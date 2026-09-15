@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import {
   listarAbandonados, listarPagos, liberarAcesso, reverterAcesso, linkDeAcesso,
-  marcarContato, buscarCliente, type Abandonado, type Pago, type FichaCliente,
+  marcarContato, buscarCliente, listarDesistentesCpf, type Abandonado, type Pago, type FichaCliente,
 } from "@/lib/recuperacao";
 import { entrarAdmin } from "@/lib/admin-auth";
 import { TEMA_CLARO, MARCA } from "@/lib/marca";
@@ -165,6 +165,43 @@ function mensagens(a: Abandonado): { rotulo: string; texto: string }[] {
   ];
 }
 
+/**
+ * O roteiro de quem PAROU NO CPF. Não existe código Pix pra mandar, e a trava
+ * mais comum é o próprio CPF: a pessoa estranha o pedido ou não tem o número à
+ * mão. O texto explica por que ele é pedido e devolve a pessoa pra sessão dela.
+ */
+function mensagensCpf(a: Abandonado): { rotulo: string; texto: string }[] {
+  const quem = a.paraQuem || "essa pessoa";
+  const rel = a.relacao ? RELACAO[a.relacao] ?? "" : "";
+  const de = rel ? ` pra ${rel}` : "";
+  const link = a.linkPreviaCliente ?? "";
+  const oi = `Oi${a.nome ? ", " + a.nome : ""}!`;
+  return [
+    {
+      rotulo: "1 · primeiro contato",
+      texto:
+        `${oi} Aqui é da Serenata 🎵\n\n` +
+        `Vi que você fez a música${de}, pra ${quem}, e parou na hora de pagar, quando o site pediu o CPF. Ficou alguma dúvida?\n\n` +
+        `O CPF é pedido pelo banco pra gerar o Pix no seu nome. Leva uns segundos.\n\n` +
+        `A música já está gravada, esperando por você: ${link}`,
+    },
+    {
+      rotulo: "2 · se não respondeu (12 a 24h)",
+      texto:
+        `${oi} Não quero incomodar 🙏\n\n` +
+        `A música de ${quem} continua aqui, gravada e pronta. Se travou em alguma parte do pagamento, me fala que eu te ajudo.\n\n` +
+        `É só abrir aqui: ${link}`,
+    },
+    {
+      rotulo: "3 · último (48h+)",
+      texto:
+        `Oi! Esse é o último que eu mando, prometo 😊\n\n` +
+        `A música de ${quem} vai continuar guardada aqui. Se um dia quiser, é só abrir este link: ${link}\n\n` +
+        `Um abraço!`,
+    },
+  ];
+}
+
 function Recuperar() {
   const [papel, setPapel] = useState<string | null>(null);
   const [senha, setSenha] = useState("");
@@ -177,7 +214,9 @@ function Recuperar() {
   const [gerandoLink, setGerandoLink] = useState<string | null>(null);
   const [horas, setHoras] = useState(72);
   const [soNaoContatados, setSoNaoContatados] = useState(false);
-  const [aba, setAba] = useState<"abertos" | "recuperados" | "sozinhos" | "pagos" | "ficha">("abertos");
+  const [aba, setAba] = useState<"abertos" | "cpf" | "recuperados" | "sozinhos" | "pagos" | "ficha">("abertos");
+  // Quem parou na tela do CPF sem gerar Pix. Carrega quando a aba abre.
+  const [cpf, setCpf] = useState<{ lista: Abandonado[]; semWhatsapp: number } | null>(null);
   const [pagos, setPagos] = useState<Pago[] | null>(null);
   const [busca, setBusca] = useState("");
   // Os três recortes que ele realmente usa na aba de pagos. Sem isso, os 5
@@ -202,6 +241,7 @@ function Recuperar() {
     setCarregando(true);
     try {
       setLista(await listarAbandonados({ data: { horas: h } }));
+      if (aba === "cpf") setCpf(await listarDesistentesCpf({ data: { horas: h } }));
     } catch {
       setErro("Sessão expirada. Entre de novo.");
       setPapel(null);
@@ -271,6 +311,15 @@ function Recuperar() {
     return () => clearTimeout(id);
   }, [aba, papel, busca]);
 
+  // A aba do CPF carrega quando abre: cada cartão assina dois áudios, e não
+  // vale pagar isso pra quem nunca abre a aba.
+  useEffect(() => {
+    if (aba !== "cpf" || !papel) return;
+    listarDesistentesCpf({ data: { horas } })
+      .then(setCpf)
+      .catch(() => setCpf({ lista: [], semWhatsapp: 0 }));
+  }, [aba, papel, horas]);
+
   // A fila se atualiza sozinha a cada 45s. Antes só mexia quando ele apertava
   // "Atualizar" — ou seja, um Pix gerado agora só existia pra ele quando
   // lembrasse de clicar, e quem pagava continuava na tela como se devesse.
@@ -280,9 +329,14 @@ function Recuperar() {
       listarAbandonados({ data: { horas } })
         .then(setLista)
         .catch(() => {});
+      if (aba === "cpf") {
+        listarDesistentesCpf({ data: { horas } })
+          .then(setCpf)
+          .catch(() => {});
+      }
     }, 45000);
     return () => clearInterval(id);
-  }, [papel, horas]);
+  }, [papel, horas, aba]);
 
   function copiar(texto: string, id: string) {
     navigator.clipboard.writeText(texto);
@@ -320,7 +374,10 @@ function Recuperar() {
   const recuperados = (lista ?? []).filter((a) => a.recuperado);
   const resolvidos = (lista ?? []).filter((a) => a.jaComprouDepois && !a.recuperado);
   const semContato = todosAbertos.filter((a) => a.contatos.length === 0).length;
-  const visiveis = aba === "abertos" ? abertos : aba === "recuperados" ? recuperados : resolvidos;
+  const cpfTodos = (cpf?.lista ?? []).filter((a) => !a.jaComprouDepois);
+  const cpfAbertos = soNaoContatados ? cpfTodos.filter((a) => a.contatos.length === 0) : cpfTodos;
+  const visiveis =
+    aba === "cpf" ? cpfAbertos : aba === "abertos" ? abertos : aba === "recuperados" ? recuperados : resolvidos;
   const ganhoCentavos = recuperados.reduce((s, a) => s + (a.valorCentavos ?? 0), 0);
 
   return (
@@ -347,9 +404,10 @@ function Recuperar() {
             </Button>
           </div>
 
-          <div className="mt-3 grid grid-cols-5 gap-1 rounded-full bg-[var(--tinta-fraca)]/20 p-1">
+          <div className="mt-3 grid grid-cols-3 gap-1 rounded-2xl bg-[var(--tinta-fraca)]/20 p-1 sm:grid-cols-6">
             {([
               ["abertos", "A trabalhar", abertos.length],
+              ["cpf", "Parou no CPF", cpfTodos.length],
               ["recuperados", "Recuperados", recuperados.length],
               ["sozinhos", "Pagaram sós", resolvidos.length],
             ["pagos", "Pagos · suporte", pagos?.length ?? 0],
@@ -416,7 +474,7 @@ function Recuperar() {
                 {rot as string}
               </button>
             ))}
-            {aba === "abertos" && (
+            {(aba === "abertos" || aba === "cpf") && (
             <label className="ml-2 inline-flex cursor-pointer items-center gap-1.5 text-xs text-[var(--tinta-suave)]">
               <input
                 type="checkbox"
@@ -432,7 +490,13 @@ function Recuperar() {
           {/* A carência não é detalhe: sem ela o operador liga em quem está com
               o app do banco aberto naquele segundo. */}
           <p className="mt-2 text-[11px] text-[var(--tinta-suave)]">
-            {aba === "abertos"
+            {aba === "cpf"
+              ? `Chegaram na tela do CPF e não geraram o Pix. Aqui só aparece quem deixou WhatsApp${
+                  cpf?.semWhatsapp
+                    ? `; outras ${cpf.semWhatsapp} pessoas não deixaram e recebem sozinhas o e-mail de "quase comprou"`
+                    : ""
+                }. Os botões liberam 30 minutos depois.`
+              : aba === "abertos"
               ? "Só aparece quem gerou o Pix há mais de 30 minutos. Quem pagar depois muda de aba sozinho."
               : aba === "recuperados"
                 ? "Quem você liberou no botão, ou pagou depois de um contato seu. É o seu placar."
@@ -440,10 +504,12 @@ function Recuperar() {
           </p>
         </header>
 
-        {lista === null && <p className="text-sm text-[var(--tinta-suave)]">carregando…</p>}
-        {lista !== null && visiveis.length === 0 && (
+        {(lista === null || (aba === "cpf" && cpf === null)) && <p className="text-sm text-[var(--tinta-suave)]">carregando…</p>}
+        {lista !== null && !(aba === "cpf" && cpf === null) && visiveis.length === 0 && (
           <p className="rounded-2xl border border-[var(--tinta-fraca)]/40 p-8 text-center text-[var(--tinta-suave)]">
-            {aba === "abertos"
+            {aba === "cpf"
+              ? "Ninguém com WhatsApp parou no CPF nessa janela."
+              : aba === "abertos"
               ? "Nenhum Pix abandonado nessa janela."
               : aba === "recuperados"
                 ? "Nada recuperado nessa janela ainda."
@@ -802,7 +868,7 @@ function Recuperar() {
 
         <div className={"space-y-4 " + (aba === "pagos" || aba === "ficha" ? "hidden" : "")}>
           {visiveis.map((a) => {
-            const msgs = mensagens(a);
+            const msgs = a.pedidoId.startsWith("cpf:") ? mensagensCpf(a) : mensagens(a);
             // Cronômetro da carência. Enquanto corre, o cartão já está na tela
             // (ele vê a fila enchendo) mas os botões de falar ficam travados.
             const faltaMs = new Date(a.podeFalarEm).getTime() - agora;
@@ -833,7 +899,8 @@ function Recuperar() {
                     </p>
                     <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--tinta-suave)]">
                       <Clock className="h-3 w-3" />
-                      há {a.horasAtras}h · R$ {((a.valorCentavos ?? 0) / 100).toFixed(2)}
+                      há {a.horasAtras}h ·{" "}
+                      {a.valorCentavos != null ? `R$ ${(a.valorCentavos / 100).toFixed(2)}` : "parou no CPF, sem Pix gerado"}
                       {a.locale === "es" && " · 🇲🇽 espanhol"}
                       {!a.temAudio && " · ⚠️ música não ficou pronta"}
                     </p>
@@ -1093,6 +1160,8 @@ function Recuperar() {
                       </div>
                     </details>
 
+                    {/* Quem parou no CPF não tem pedido: liberar aqui não teria o que liberar. */}
+                    {!a.pedidoId.startsWith("cpf:") && (
                     <div className="mt-3 border-t border-[var(--tinta-fraca)]/30 pt-3">
                       {/* DUAS PERGUNTAS DIFERENTES, dois botões.
                           Era um só, e dizia "liberar acesso sem pagamento
@@ -1135,6 +1204,7 @@ function Recuperar() {
                         ))}
                       </div>
                     </div>
+                    )}
                   </>
                 )}
               </div>

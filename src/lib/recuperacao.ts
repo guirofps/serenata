@@ -328,6 +328,177 @@ export const marcarContato = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/**
+ * QUEM PAROU NA TELA DO CPF.
+ *
+ * Desde 11/09/2026 o PIX sai pelo Asaas, que exige CPF. A aprovação do PIX
+ * subiu de ~60% pra ~80%, mas uma parte disso é filtro: uns 60 por dia chegam
+ * na tela do CPF e não geram cobrança nenhuma. Sem pedido, essa pessoa não
+ * existia nesta tela, porque a fila de cima nasce de `pedidos`. Medido de 12 a
+ * 14/09: 57 a 63 por dia, 17 a 28 com WhatsApp, e praticamente ninguém voltou
+ * sozinho.
+ *
+ * Só entra quem deixou WhatsApp. Quem não deixou já recebe o e-mail de "quase
+ * comprou" (`inngest/functions/quaseComprou.ts`), e um cartão sem telefone
+ * aqui seria trabalho que o operador não tem como fazer. A contagem dos que
+ * ficaram de fora volta junto, pra ele saber que não sumiram.
+ *
+ * O `pedidoId` é `cpf:<sessão>`: é a chave que `marcarContato` grava, e não
+ * colide com id de pedido de verdade.
+ */
+export const listarDesistentesCpf = createServerFn({ method: "POST" })
+  .validator((data: { horas?: number }) => data)
+  .handler(async ({ data }): Promise<{ lista: Abandonado[]; semWhatsapp: number }> => {
+    const { exigirRecuperacao } = await import("@/lib/admin-auth.server");
+    exigirRecuperacao();
+
+    const db = supabaseAdmin();
+    const janelaH = Math.min(data.horas ?? 72, 720);
+    const desde = new Date(Date.now() - janelaH * 3600000).toISOString();
+
+    // Paginado: o PostgREST corta em 1000 linhas e `.limit` não levanta o teto.
+    async function sessoesDo(evento: string, cada: (e: { session_id: string; created_at: string }) => void) {
+      for (let de = 0; ; de += 1000) {
+        const { data: ev } = await db
+          .from("funnel_events")
+          .select("session_id, created_at")
+          .eq("event_name", evento)
+          .gte("created_at", desde)
+          .order("created_at", { ascending: true })
+          .range(de, de + 999);
+        for (const e of ev ?? []) if (e.session_id) cada(e as { session_id: string; created_at: string });
+        if (!ev || ev.length < 1000) break;
+      }
+    }
+
+    // Sessão -> primeira vez que viu a tela do CPF.
+    const viuCpf = new Map<string, string>();
+    await sessoesDo("pix_cpf_pedido", (e) => {
+      if (!viuCpf.has(e.session_id)) viuCpf.set(e.session_id, e.created_at);
+    });
+    if (!viuCpf.size) return { lista: [], semWhatsapp: 0 };
+
+    // Quem gerou o PIX ou pagou no cartão depois do CPF não desistiu.
+    const seguiu = new Set<string>();
+    await sessoesDo("pix_transparente_gerado", (e) => seguiu.add(e.session_id));
+    await sessoesDo("cartao_pago", (e) => seguiu.add(e.session_id));
+    const sessoes = [...viuCpf.keys()].filter((s) => !seguiu.has(s));
+
+    type QuizCpf = {
+      id: string;
+      session_id: string;
+      email: string | null;
+      whatsapp: string | null;
+      nome_comprador: string | null;
+      respostas: Record<string, string> | null;
+      locale: string | null;
+    };
+    const quizzes: QuizCpf[] = [];
+    for (let i = 0; i < sessoes.length; i += 100) {
+      const { data: qs } = await db
+        .from("quiz_responses")
+        .select("id, session_id, email, whatsapp, nome_comprador, respostas, locale")
+        .in("session_id", sessoes.slice(i, i + 100));
+      quizzes.push(...((qs ?? []) as unknown as QuizCpf[]));
+    }
+
+    // Pedido pendente pro mesmo quiz = gerou cobrança por outro caminho e já
+    // está na fila de cima. Pedido pago = comprou.
+    const ids = quizzes.map((q) => q.id);
+    const pendenteNoQuiz = new Set<string>();
+    const pagoNoQuiz = new Map<string, string>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data: ps } = await db
+        .from("pedidos")
+        .select("quiz_response_id, status, paid_at")
+        .in("quiz_response_id", ids.slice(i, i + 100));
+      for (const p of ps ?? []) {
+        if (p.status === "pendente") pendenteNoQuiz.add(p.quiz_response_id as string);
+        if (p.status === "pago") pagoNoQuiz.set(p.quiz_response_id as string, (p.paid_at as string) ?? "");
+      }
+    }
+
+    const candidatos = quizzes.filter((q) => !pendenteNoQuiz.has(q.id));
+    const comZap = candidatos.filter((q) => paraWhatsapp(q.whatsapp, q.locale === "es" ? "es" : "pt"));
+
+    const { data: toques } = await db
+      .from("funnel_events")
+      .select("event_data, created_at")
+      .eq("event_name", "recuperacao_contato")
+      .gte("created_at", desde)
+      .order("created_at", { ascending: true });
+    const contatosDe = new Map<string, { quando: string; canal: string; nota: string | null }[]>();
+    for (const t of toques ?? []) {
+      const d = (t.event_data ?? {}) as Record<string, unknown>;
+      const chave = String(d.pedido ?? "");
+      if (!chave.startsWith("cpf:")) continue;
+      const lista = contatosDe.get(chave) ?? [];
+      lista.push({ quando: t.created_at, canal: String(d.canal ?? "whatsapp"), nota: (d.nota as string) ?? null });
+      contatosDe.set(chave, lista);
+    }
+
+    const assinar = async (caminho: string | null) => {
+      if (!caminho) return null;
+      const { data: u } = await db.storage.from("musicas").createSignedUrl(caminho, 2 * 3600);
+      return u?.signedUrl ?? null;
+    };
+
+    const out: Abandonado[] = [];
+    for (const q of comZap) {
+      const locale = q.locale === "es" ? "es" : "pt";
+      const chave = `cpf:${q.session_id}`;
+      const viuEm = viuCpf.get(q.session_id)!;
+      const contatos = contatosDe.get(chave) ?? [];
+      const pagouEm = pagoNoQuiz.get(q.id);
+      const { data: m } = await db
+        .from("musicas")
+        .select("id, titulo, status, audio_path, audio_path_v2")
+        .eq("quiz_response_id", q.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const r = q.respostas ?? {};
+      out.push({
+        pedidoId: chave,
+        paymentId: null,
+        nome: q.nome_comprador?.trim()
+          ? q.nome_comprador.trim().split(/\s+/)[0].toLowerCase().replace(/^./, (c) => c.toUpperCase())
+          : null,
+        email: q.email,
+        telefone: q.whatsapp,
+        whatsapp: paraWhatsapp(q.whatsapp, locale),
+        horasAtras: Math.round(((Date.now() - new Date(viuEm).getTime()) / 3600000) * 10) / 10,
+        criadoEm: viuEm,
+        valorCentavos: null,
+        locale,
+        musicaId: m?.id ?? null,
+        titulo: m?.titulo ?? null,
+        paraQuem: r.nome?.trim() ?? null,
+        relacao: r.relacao ?? null,
+        ocasiao: r.ocasiao ?? null,
+        status: m?.status ?? null,
+        temAudio: Boolean(m?.audio_path),
+        linkPreviaCliente: `${SITE}/retomar?s=${encodeURIComponent(q.session_id)}&de=cpf`,
+        audioV1: await assinar(m?.audio_path ?? null),
+        audioV2: await assinar(m?.audio_path_v2 ?? null),
+        jaComprouDepois: pagouEm !== undefined,
+        recuperado:
+          pagouEm !== undefined && contatos.length > 0
+            ? { tipo: "pagou", quando: pagouEm || viuEm, por: null }
+            : null,
+        // 30 minutos, o mesmo tempo do e-mail de "quase comprou": antes disso ela
+        // ainda pode estar achando o CPF na carteira.
+        podeFalarEm: new Date(new Date(viuEm).getTime() + 30 * 60000).toISOString(),
+        contatos,
+        pixCodigo: null,
+        pixUrl: null,
+        pixExpirou: false,
+      });
+    }
+    out.sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
+    return { lista: out, semWhatsapp: candidatos.length - comZap.length };
+  });
+
 export type FichaCliente = {
   /** Como as linhas foram agrupadas: telefone quando existe, senão e-mail. */
   chave: string;
