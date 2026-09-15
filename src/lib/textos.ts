@@ -177,14 +177,18 @@ const PT = {
   /** Rótulo do campo de nome de QUEM COMPRA, na tela de espera. */
   compradorCampo: "Seu nome",
   compradorPlaceholder: "como você se chama",
-  zapTitulo: "Deixa um WhatsApp de reserva?",
+  // O QUE O NÚMERO AUTORIZA. Até 15/09/2026 dizia "só usamos se o e-mail falhar",
+  // e o número era usado pra recuperar Pix não pago: a Meta desativou o WhatsApp
+  // Business por spam. O texto tem que cobrir o que o atendimento faz. Curto de
+  // propósito: é um funil de emoção, não lugar pra parágrafo.
+  zapTitulo: "Avisos do seu pedido no WhatsApp?",
   zapTexto:
-    "A sua música vai pro e-mail que você deixou. Diz o seu nome pra gente saber com quem fala, e o WhatsApp é só garantia: se o e-mail voltar ou sumir, a gente te procura por lá pra você não ficar sem nada.",
+    "A Serenata só te chama sobre este pedido.",
   zapCampo: "Seu WhatsApp (opcional)",
-  zapBotao: "Deixar meu WhatsApp",
-  zapDispensar: "Não precisa",
+  zapBotao: "Quero receber",
+  zapDispensar: "Só por e-mail",
   zapInvalido: "Confere o número, parece faltar um dígito.",
-  zapPronto: "Guardado. Só usamos se o e-mail falhar.",
+  zapPronto: "Guardado ✓",
   zapSpam: "A música chega sempre por e-mail. Vale conferir a caixa de spam e a aba Promoções.",
   umaMusicaPra: "uma música pra",
   linkEQr: "link + QR Code pra compartilhar",
@@ -320,14 +324,14 @@ const ES: Textos = {
   bloqueioTexto: "Completá ese campo para continuar",
   compradorCampo: "Tu nombre",
   compradorPlaceholder: "cómo te llamás",
-  zapTitulo: "¿Nos dejás un WhatsApp de respaldo?",
+  zapTitulo: "¿Avisos de tu pedido por WhatsApp?",
   zapTexto:
-    "Tu canción va al e-mail que dejaste. Decinos tu nombre para saber con quién hablamos, y el WhatsApp es solo garantía: si el e-mail rebota o se pierde, te buscamos por ahí para que no te quedes sin nada.",
+    "Serenata solo te escribe sobre este pedido.",
   zapCampo: "Tu WhatsApp (opcional)",
-  zapBotao: "Dejar mi WhatsApp",
-  zapDispensar: "No hace falta",
+  zapBotao: "Quiero recibir",
+  zapDispensar: "Solo por e-mail",
   zapInvalido: "Revisa el número, parece que falta un dígito.",
-  zapPronto: "Guardado. Solo lo usamos si el e-mail falla.",
+  zapPronto: "Guardado ✓",
   zapSpam: "La canción llega siempre por e-mail. Conviene revisar la carpeta de spam y la pestaña Promociones.",
   umaMusicaPra: "una canción para",
   linkEQr: "link + código QR para compartir",
