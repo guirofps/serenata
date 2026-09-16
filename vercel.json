@@ -96,6 +96,10 @@
       "destination": "/api/conversoes"
     },
     {
+      "source": "/api/publicos.csv",
+      "destination": "/api/publicos"
+    },
+    {
       "source": "/api/og/:token",
       "destination": "/api/og/[token]"
     },
