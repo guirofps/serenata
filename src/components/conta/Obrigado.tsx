@@ -6,7 +6,7 @@ import { compraTiktok } from "@/lib/tiktok-pixel";
 import { meuPlano } from "@/lib/preco";
 import { useQuizStore } from "@/lib/quiz-store";
 import { buscarPresenteDaCompra, type PresenteDaCompra } from "@/lib/pos-compra";
-import { sessaoJaPagou } from "@/lib/coautoria";
+import { sessaoJaPagou, entrarNaConta } from "@/lib/coautoria";
 import { marcarSessaoGasta, getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
@@ -14,7 +14,7 @@ import { Logo } from "@/components/marca/Logo";
 import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
 import { AtalhoOutraMusica } from "@/components/conta/AtalhoOutraMusica";
 import { linkSuporte, TEXTO_SUPORTE } from "@/lib/suporte-whatsapp";
-import { Check, Mail, Inbox, Pencil, Loader2 } from "lucide-react";
+import { Check, Mail, Inbox, Pencil, Loader2, ArrowRight } from "lucide-react";
 
 // Página de PÓS-COMPRA — o destino do redirect do checkout (Cakto/Perfect Pay).
 //
@@ -46,6 +46,7 @@ const COPY = {
     entregaPorLink:
       "A sua música não chega sozinha: ela está neste botão. Não mandamos arquivo por WhatsApp nem anexo no e-mail.",
     montarBotao: "Montar o presente",
+    entrarBotao: "Entrar na minha conta",
     aindaSaindo: "A gravação ainda está saindo do forno. Pode ir montando: ela aparece sozinha quando ficar pronta.",
     tambemMandamos: "Também mandamos esse link para",
     praNaoPerder: ", pra você não perder. Se não achar, olhe em Promoções e no Spam.",
@@ -73,6 +74,7 @@ const COPY = {
     entregaPorLink:
       "Tu canción no llega sola: está en este botón. No mandamos archivos por WhatsApp ni adjuntos por correo.",
     montarBotao: "Armar el regalo",
+    entrarBotao: "Entrar a mi cuenta",
     aindaSaindo: "La grabación todavía se está terminando. Puedes ir armando: aparece sola cuando esté lista.",
     tambemMandamos: "También mandamos ese link a",
     praNaoPerder: ", para que no lo pierdas. Si no lo encuentras, revisa Promociones y Spam.",
@@ -100,6 +102,33 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
   const tz = TEXTO_SUPORTE[locale === "es" ? "es" : "pt"];
   const [presente, setPresente] = useState<PresenteDaCompra | null>(null);
   const [procurando, setProcurando] = useState(true);
+  const [entrando, setEntrando] = useState(false);
+
+  // O BOTÃO PRINCIPAL: loga a pessoa na conta e cai no painel (/dashboard),
+  // sem passar pelo e-mail. Nasceu pra cortar MED — o público mais velho paga,
+  // não acha o e-mail e acha que não recebeu.
+  //
+  // O link do login volta no CORPO da resposta (nunca na URL do /obrigado, que
+  // vaza pro gtag/UTMify) e o clique navega pro Supabase.
+  //
+  // PLANO B que garante nunca ficar pior que hoje: se a geração do login
+  // falhar, o botão cai no /editar/<token>, que é o destino de sempre.
+  async function entrarNaMinhaConta() {
+    if (entrando) return;
+    setEntrando(true);
+    trackEvent("obrigado_entrar_conta_click", {});
+    try {
+      const r = await entrarNaConta({ data: { sessionId: getOrCreateSessionId() } });
+      if (r.ok && r.link) {
+        window.location.href = r.link;
+        return;
+      }
+    } catch (err) {
+      console.error("[obrigado] entrar na conta falhou:", err);
+    }
+    setEntrando(false);
+    if (presente?.tokenEdicao) window.location.href = `/editar/${presente.tokenEdicao}`;
+  }
 
   // Conversão do Google Ads: é aqui que o algoritmo aprende quem comprou.
   useEffect(() => {
@@ -282,13 +311,16 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
             >
               {C.escolhaGravacao}
             </p>
-            <a
-              href={`/editar/${presente.tokenEdicao}`}
-              className="cta mt-5 inline-flex items-center gap-2 rounded-full px-8 py-4 font-medium"
+            <button
+              type="button"
+              onClick={entrarNaMinhaConta}
+              disabled={entrando}
+              className="cta mt-5 inline-flex items-center gap-2 rounded-full px-8 py-4 font-medium disabled:opacity-70"
               style={{ fontSize: "var(--t-base)" }}
             >
-              <Pencil className="h-4 w-4" /> {C.montarBotao}
-            </a>
+              {entrando ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+              {C.entrarBotao}
+            </button>
             {presente.gerando && (
               <p className="mt-3 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
                 {C.aindaSaindo}

@@ -781,3 +781,90 @@ export function letraParcial(bruto: string): string {
   }
   return saida;
 }
+
+/**
+ * ENTRAR NA CONTA a partir da sessão que acabou de pagar.
+ *
+ * O `/obrigado` tem a sessão do navegador de quem comprou. Isto troca essa
+ * prova de pagamento por um login DE VERDADE na conta (Supabase Auth) e
+ * devolve o link que já cai no `/dashboard` — o painel principal, com a
+ * música, os créditos, os quadros e os upsells. Nasceu pra cortar MED: o
+ * público mais velho paga, não acha o e-mail, e acha que não recebeu.
+ *
+ * ── POR QUE NÃO É SÓ UM `/editar/<token>` ────────────────────────
+ * Aquele token abre UM presente, sem conta. O painel precisa de sessão de
+ * conta pra listar tudo e mostrar os upsells.
+ *
+ * ── O TOKEN NUNCA VAI NA URL DO `/obrigado` ──────────────────────
+ * O link volta no CORPO da resposta e o clique navega pro Supabase. A rota
+ * `/obrigado` dispara a conversão do Google (gtag/UTMify leem a URL dela),
+ * então um token de login na barra dela vazaria pra terceiro. Aqui, nunca.
+ *
+ * ── AMARRA A MÚSICA À CONTA, IGUAL AO send-magic-link ────────────
+ * Só o webhook da Perfect Pay amarra música à conta. Quem pagou por PIX
+ * (Woovi/Asaas), que hoje é a maioria, não tinha `user_id` na música, e o
+ * painel apareceria VAZIO. Por isso este passo é obrigatório, não enfeite.
+ */
+export const entrarNaConta = createServerFn({ method: "POST" })
+  .validator((data: { sessionId: string }) => data)
+  .handler(async ({ data }): Promise<{ ok: boolean; link?: string }> => {
+    const db = supabaseAdmin();
+    const quizId = await quizIdDaSessao(data.sessionId);
+    if (!quizId) return { ok: false };
+
+    // PROVA DE PAGAMENTO: só quem pagou nesta sessão entra. Mesmo nível de
+    // confiança do `sessaoJaPagou`, que já libera o token do presente por aqui.
+    const { data: pedido } = await db
+      .from("pedidos")
+      .select("email")
+      .eq("quiz_response_id", quizId)
+      .eq("status", "pago")
+      .not("email", "is", null)
+      .limit(1)
+      .maybeSingle();
+    const email = String((pedido as { email?: string } | null)?.email ?? "").trim().toLowerCase();
+    if (!email) return { ok: false };
+
+    const { data: q } = await db
+      .from("quiz_responses")
+      .select("locale")
+      .eq("id", quizId)
+      .maybeSingle();
+    const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
+
+    // Garante a conta. Idempotente: se já existe, dá "already registered" e a
+    // gente segue — o generateLink funciona pra conta existente.
+    await db.auth.admin.createUser({ email, email_confirm: true });
+
+    const SITE = "https://www.serenatagift.com";
+    const { data: linkData, error } = await db.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+      options: { redirectTo: `${SITE}/auth/callback?lang=${locale}` },
+    });
+    const link = linkData?.properties?.action_link;
+    const uid = linkData?.user?.id;
+    if (error || !link || !uid) return { ok: false };
+
+    // Amarra TODAS as músicas deste e-mail à conta, senão o painel vem vazio
+    // pra quem pagou por PIX. Só as sem dono. Idempotente.
+    const { data: quizzes } = await db
+      .from("quiz_responses")
+      .select("id")
+      .eq("email", email);
+    const quizIds = (quizzes ?? []).map((x) => (x as { id: string }).id);
+    if (quizIds.length) {
+      await db
+        .from("musicas")
+        .update({ user_id: uid })
+        .in("quiz_response_id", quizIds)
+        .is("user_id", null);
+    }
+
+    await db.from("funnel_events").insert({
+      event_name: "obrigado_entrou_na_conta",
+      event_data: { email, quiz: quizId },
+    });
+
+    return { ok: true, link };
+  });
