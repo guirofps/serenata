@@ -30,6 +30,13 @@ export function autorizadoBasic(
   url: URL,
   esperado: string,
   usuarioEsperado: string,
+  // Aceita a credencial SÓ pela senha, ignorando o usuário. Existe porque a
+  // tela de Customer Match do Google exige que a URL termine em `.csv`, então
+  // a lista vai no CAMINHO (`/api/publicos/compradores.csv`) e não sobra query
+  // pro `?k=`. A senha faz o mesmo papel do `k`: é o segredo. O usuário nunca
+  // foi um segundo fator (era o rótulo "google"), e adivinhá-lo do lado do
+  // Google só dava "credenciais inválidas" sem motivo real.
+  senhaBasta = false,
 ): boolean {
   if (segredoConfere(url.searchParams.get("k"), esperado)) return true;
 
@@ -52,8 +59,9 @@ export function autorizadoBasic(
 
   // Os dois em tempo constante, e sem `&&` que saia cedo: um curto-circuito
   // depois do usuário deixaria o tempo de resposta contar se ele acertou.
-  const okUsuario = segredoConfere(decodificado.slice(0, corte), usuarioEsperado);
   const okSenha = segredoConfere(decodificado.slice(corte + 1), esperado);
+  if (senhaBasta) return okSenha;
+  const okUsuario = segredoConfere(decodificado.slice(0, corte), usuarioEsperado);
   return okUsuario && okSenha;
 }
 

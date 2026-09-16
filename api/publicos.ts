@@ -97,7 +97,9 @@ export default async function handler(req: Req, res: Res) {
   const url = new URL(req.url ?? "/", "https://serenatagift.com");
 
   const esperado = process.env.CONVERSOES_SECRET;
-  if (!esperado || !autorizadoBasic(req, url, esperado, process.env.CONVERSOES_USUARIO || "google")) {
+  // `senhaBasta`: a lista pode vir no caminho (`/api/publicos/compradores.csv`,
+  // que o Google exige terminar em .csv), e aí a autenticação é só pela senha.
+  if (!esperado || !autorizadoBasic(req, url, esperado, process.env.CONVERSOES_USUARIO || "google", true)) {
     res.setHeader("WWW-Authenticate", 'Basic realm="publicos"');
     return res.status(401).json({ error: "não autorizado" });
   }
