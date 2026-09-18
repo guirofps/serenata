@@ -1006,7 +1006,7 @@ function Editor() {
           locale={p?.locale === "es" ? "es" : "pt"}
         />
 
-        {linkZap && (
+        {linkZap ? (
           <div className="mx-auto mt-12 max-w-md text-center">
             <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
               {tz.titulo}
@@ -1022,6 +1022,20 @@ function Editor() {
               <MessageCircle className="h-4 w-4" /> {tz.botao}
             </a>
           </div>
+        ) : (
+          // Sem número de suporte (WhatsApp desativado 15/09): resta o e-mail.
+          <p
+            className="mx-auto mt-12 max-w-md text-center text-[var(--tinta-suave)]"
+            style={{ fontSize: "var(--t-sm)" }}
+          >
+            {p?.locale === "es" ? "¿Necesitas ayuda? Escríbenos a " : "Precisa de ajuda? Escreva pra "}
+            <a
+              href="mailto:contato@serenatagift.com"
+              className="text-[var(--acento)] underline underline-offset-2"
+            >
+              contato@serenatagift.com
+            </a>
+          </p>
         )}
       </main>
     </div>

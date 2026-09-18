@@ -863,6 +863,9 @@ export const entrarNaConta = createServerFn({ method: "POST" })
 
     await db.from("funnel_events").insert({
       event_name: "obrigado_entrou_na_conta",
+      // Sem o session_id, todos os eventos caíam com o mesmo id e "distintos"
+      // dava 1 — a adoção só era legível pelo clique no cliente. Agora bate.
+      session_id: data.sessionId,
       event_data: { email, quiz: quizId },
     });
 
