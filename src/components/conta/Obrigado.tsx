@@ -1,5 +1,5 @@
 ﻿import { type Locale } from "@/lib/i18n";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { conversaoCompra, transacaoGuardada } from "@/lib/google-ads";
 import { compraTiktok } from "@/lib/tiktok-pixel";
@@ -103,6 +103,9 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
   const [presente, setPresente] = useState<PresenteDaCompra | null>(null);
   const [procurando, setProcurando] = useState(true);
   const [entrando, setEntrando] = useState(false);
+  // Trava de disparo único da conversão: a venda só é contada uma vez, mesmo
+  // que o `presente` seja setado de novo ou o React remonte o efeito.
+  const jaContou = useRef(false);
 
   // O BOTÃO PRINCIPAL: loga a pessoa na conta e cai no painel (/dashboard),
   // sem passar pelo e-mail. Nasceu pra cortar MED — o público mais velho paga,
@@ -132,6 +135,17 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
 
   // Conversão do Google Ads: é aqui que o algoritmo aprende quem comprou.
   useEffect(() => {
+    // SÓ CONTA COM PAGAMENTO CONFIRMADO, e uma vez só.
+    //
+    // Antes este efeito rodava no MOUNT (dep `[code]`) e disparava a venda com
+    // `code ?? transacaoGuardada()`. A referência do PIX (`transacaoGuardada`)
+    // é gravada no instante em que o PIX é GERADO, não em que é pago — então
+    // quem gerava o PIX e caía aqui sem pagar contava uma venda falsa, e o
+    // TikTok registrava "PIX gerado" como compra. `presente` só é setado quando
+    // `sessaoJaPagou.pago` é true ou o `code` da Perfect Pay resolve numa
+    // compra REAL, então gatilhar nele conta só pagamento confirmado.
+    if (!presente || jaContou.current) return;
+    jaContou.current = true;
     // O valor e a moeda saem do PLANO desta venda, não de um número cravado.
     //
     // Com o teste A/B de preço rodando, "o preço" deixou de ser um número só:
@@ -172,7 +186,7 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
     // Marcado DEPOIS da conversão de propósito: o evento de venda tem que
     // sair na sessão que gerou a venda.
     marcarSessaoGasta();
-  }, [code]);
+  }, [presente, code, locale]);
 
   // Busca o presente pra dar o botão AQUI em vez de mandar a pessoa caçar
   // e-mail. Faz polling porque o redirect chega antes do webhook: a pessoa
