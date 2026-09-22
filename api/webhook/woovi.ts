@@ -529,8 +529,12 @@ export default async function handler(req: Req, res: Res) {
     // interseÃ§Ã£o. O `ttclid` sai da atribuiÃ§Ã£o first-touch, que Ã© o que dÃ¡ ao
     // evento alguÃ©m em quem casar.
     const attr = (q?.attribution ?? null) as Record<string, string | undefined> | null;
+    // O event_id É o `correlationID` cru, NÃO o `paymentId`. O pixel na
+    // /obrigado manda a referência sem prefixo, e o `paymentId` carrega o
+    // `woovi:` na frente — mandar ele aqui fazia o TikTok NÃO deduplicar e
+    // contar a venda duas vezes. Agora os dois mandam a mesma chave de verdade.
     const tiktok = await venderNoTiktok({
-      eventId: paymentId,
+      eventId: correlationID,
       valor: (status.valorCentavos ?? 0) / 100,
       moeda: "BRL",
       email,
