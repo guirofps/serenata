@@ -365,29 +365,33 @@ export default async function handler(req: Req, res: Res) {
       .eq("id", quizId)
       .maybeSingle();
     const attr = (q?.attribution ?? null) as Record<string, string | undefined> | null;
-    // O event_id É o `idCobranca` CRU, NÃO o `paymentId`. O pixel na /obrigado
-    // guarda e manda o id da cobrança sem prefixo; o `paymentId` carrega o
-    // `asaas:` na frente. Mandar ele aqui fazia o TikTok NÃO deduplicar e
-    // contar duas vezes todo comprador que voltava pra /obrigado (o painel
-    // marcava ~35 num dia de 22 vendas reais). Agora os dois batem.
-    const tiktok = await venderNoTiktok({
-      eventId: idCobranca,
-      valor: (dono?.valor_centavos as number | null ?? 0) / 100,
-      moeda: "BRL",
-      email,
-      telefone: (dono?.telefone as string | null) ?? null,
-      ttclid: attr?.ttclid ?? null,
-      quando: new Date(),
-    });
-    // Grava sucesso E fracasso, igual ao Woovi: sem isso o silêncio é ambíguo
-    // entre "não vendeu" e "o server-side parou de mandar". Era o log que
-    // faltava pra confirmar que o dedup casou.
-    await auditar(sb, tiktok.ok ? "tiktok_conversao_enviada" : "tiktok_conversao_falhou", {
-      payment_id: paymentId,
-      valor: (dono?.valor_centavos as number | null ?? 0) / 100,
-      com_ttclid: Boolean(attr?.ttclid),
-      motivo: tiktok.motivo ?? null,
-    });
+    // SÓ manda pro TikTok venda que REALMENTE veio dele (tem `ttclid`). Antes a
+    // gente disparava CompletePayment em TODA venda, inclusive Google/direto/
+    // orgânico, e o TikTok reivindicava essas por view-through, inflando o
+    // painel. Não é o TikTok reportando errado, era a gente entregando venda de
+    // outro canal. Venda sem ttclid não é do TikTok e não sobe.
+    if (attr?.ttclid) {
+      // O event_id É o `idCobranca` CRU, NÃO o `paymentId`. O pixel na /obrigado
+      // guarda e manda o id da cobrança sem prefixo; o `paymentId` carrega o
+      // `asaas:` na frente. Mandar ele aqui fazia o TikTok NÃO deduplicar e
+      // contar duas vezes o comprador que voltava pra /obrigado. Agora batem.
+      const tiktok = await venderNoTiktok({
+        eventId: idCobranca,
+        valor: (dono?.valor_centavos as number | null ?? 0) / 100,
+        moeda: "BRL",
+        email,
+        telefone: (dono?.telefone as string | null) ?? null,
+        ttclid: attr.ttclid,
+        quando: new Date(),
+      });
+      // Grava sucesso E fracasso, igual ao Woovi: sem isso o silêncio é ambíguo
+      // entre "não vendeu" e "o server-side parou de mandar".
+      await auditar(sb, tiktok.ok ? "tiktok_conversao_enviada" : "tiktok_conversao_falhou", {
+        payment_id: paymentId,
+        valor: (dono?.valor_centavos as number | null ?? 0) / 100,
+        motivo: tiktok.motivo ?? null,
+      });
+    }
   } catch (err) {
     console.error("[asaas] tiktok falhou:", (err as Error).message);
   }

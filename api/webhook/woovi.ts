@@ -529,41 +529,35 @@ export default async function handler(req: Req, res: Res) {
     // interseÃ§Ã£o. O `ttclid` sai da atribuiÃ§Ã£o first-touch, que Ã© o que dÃ¡ ao
     // evento alguÃ©m em quem casar.
     const attr = (q?.attribution ?? null) as Record<string, string | undefined> | null;
-    // O event_id É o `correlationID` cru, NÃO o `paymentId`. O pixel na
-    // /obrigado manda a referência sem prefixo, e o `paymentId` carrega o
-    // `woovi:` na frente — mandar ele aqui fazia o TikTok NÃO deduplicar e
-    // contar a venda duas vezes. Agora os dois mandam a mesma chave de verdade.
-    const tiktok = await venderNoTiktok({
-      eventId: correlationID,
-      valor: (status.valorCentavos ?? 0) / 100,
-      moeda: "BRL",
-      email,
-      telefone: (pedido?.telefone as string | null) ?? null,
-      ttclid: attr?.ttclid ?? null,
-      quando: new Date(),
-    });
+    // SÓ manda pro TikTok venda que REALMENTE veio dele (tem `ttclid`). Antes a
+    // gente disparava CompletePayment em toda venda, inclusive Google/direto/
+    // orgânico, e o TikTok reivindicava essas por view-through, inflando o
+    // painel. Venda sem ttclid não é do TikTok e não sobe.
+    if (attr?.ttclid) {
+      // O event_id É o `correlationID` cru, NÃO o `paymentId`. O pixel na
+      // /obrigado manda a referência sem prefixo, e o `paymentId` carrega o
+      // `woovi:` na frente. Mandar ele aqui fazia o TikTok NÃO deduplicar e
+      // contar a venda duas vezes. Agora os dois mandam a mesma chave.
+      const tiktok = await venderNoTiktok({
+        eventId: correlationID,
+        valor: (status.valorCentavos ?? 0) / 100,
+        moeda: "BRL",
+        email,
+        telefone: (pedido?.telefone as string | null) ?? null,
+        ttclid: attr.ttclid,
+        quando: new Date(),
+      });
 
-    // ── O RESULTADO FICA GRAVADO, e não é zelo ──────────────
-    //
-    // O retorno era descartado e a lib só escrevia no `console.error`, então
-    // do nosso lado esta integração era invisível: em 02/09 a primeira venda
-    // vinda do TikTok chegou, o painel deles contabilizou, e aqui não havia
-    // uma linha provando isso. Eu procurei e concluí que tinha falhado.
-    //
-    // O modo de falhar que isso esconde é o caro: token expirado ou pixel
-    // trocado não derrubam nada, só param de mandar conversão — e a campanha
-    // vai perdendo otimização em silêncio até alguém estranhar o CPA semanas
-    // depois. Mesmo padrão do `catch {}` vazio que o CLAUDE.md lista como erro
-    // a não repetir.
-    //
-    // Grava sucesso E fracasso: sem o sucesso não dá pra saber se o silêncio
-    // é "não vendeu" ou "parou de mandar".
-    await auditar(sb, tiktok.ok ? "tiktok_conversao_enviada" : "tiktok_conversao_falhou", {
-      payment_id: paymentId,
-      valor: (status.valorCentavos ?? 0) / 100,
-      com_ttclid: Boolean(attr?.ttclid),
-      motivo: tiktok.motivo ?? null,
-    });
+      // Grava sucesso E fracasso: token expirado ou pixel trocado não derrubam
+      // nada, só param de mandar conversão, e a campanha perde otimização em
+      // silêncio até alguém estranhar o CPA. Sem o sucesso não dá pra saber se
+      // o silêncio é "não vendeu" ou "parou de mandar".
+      await auditar(sb, tiktok.ok ? "tiktok_conversao_enviada" : "tiktok_conversao_falhou", {
+        payment_id: paymentId,
+        valor: (status.valorCentavos ?? 0) / 100,
+        motivo: tiktok.motivo ?? null,
+      });
+    }
   } catch (err) {
     // RelatÃ³rio que falha nÃ£o derruba entrega jÃ¡ feita.
     console.error("[woovi] utmify falhou:", err);

@@ -7,7 +7,7 @@ import { meuPlano } from "@/lib/preco";
 import { useQuizStore } from "@/lib/quiz-store";
 import { buscarPresenteDaCompra, type PresenteDaCompra } from "@/lib/pos-compra";
 import { sessaoJaPagou, entrarNaConta } from "@/lib/coautoria";
-import { marcarSessaoGasta, getOrCreateSessionId } from "@/lib/session-context";
+import { marcarSessaoGasta, getOrCreateSessionId, getStoredAttribution } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
@@ -176,11 +176,20 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
     // paralelas sairiam de sincronia no primeiro conserto, e aí o Google
     // contaria uma coisa e o TikTok outra sem ninguém saber qual está certa.
     // No-op enquanto `VITE_TIKTOK_PIXEL_ID` não existir.
-    compraTiktok({
-      valor: plano.valor,
-      moeda: locale === "es" ? "USD" : "BRL",
-      eventId: code ?? transacaoGuardada(),
-    });
+    //
+    // SÓ dispara se a venda REALMENTE veio do TikTok (tem `ttclid` na
+    // atribuição first-touch, que mora no localStorage). Sem esse gate, todo
+    // comprador de Google/direto/orgânico que caísse aqui mandava um
+    // CompletePayment, e o TikTok reivindicava a venda por view-through,
+    // inflando o painel. Venda de TikTok que volta por e-mail numa sessão sem
+    // `ttclid` aqui é coberta pelo server-side, que lê o ttclid do banco.
+    if (getStoredAttribution()?.ttclid) {
+      compraTiktok({
+        valor: plano.valor,
+        moeda: locale === "es" ? "USD" : "BRL",
+        eventId: code ?? transacaoGuardada(),
+      });
+    }
     // Esta sessão já virou venda. Quem voltar ao /criar por qualquer caminho
     // ganha uma sessão nova lá, senão a segunda música sobrescreve a primeira.
     // Marcado DEPOIS da conversão de propósito: o evento de venda tem que
