@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CarolRouteImport } from './routes/carol'
 import { Route as CriarRouteImport } from './routes/criar'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DemoMusicaRouteImport } from './routes/demo-musica'
@@ -44,6 +45,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarolRoute = CarolRouteImport.update({
+  id: '/carol',
+  path: '/carol',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CriarRoute = CriarRouteImport.update({
@@ -171,6 +177,7 @@ const QuadroTokenEdicaoRoute = QuadroTokenEdicaoRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/carol': typeof CarolRoute
   '/criar': typeof CriarRoute
   '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/carol': typeof CarolRoute
   '/criar': typeof CriarRoute
   '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
@@ -228,6 +236,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/carol': typeof CarolRoute
   '/criar': typeof CriarRoute
   '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
@@ -258,6 +267,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/carol'
     | '/criar'
     | '/dashboard'
     | '/demo-musica'
@@ -286,6 +296,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/carol'
     | '/criar'
     | '/dashboard'
     | '/demo-musica'
@@ -314,6 +325,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/carol'
     | '/criar'
     | '/dashboard'
     | '/demo-musica'
@@ -343,6 +355,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  CarolRoute: typeof CarolRoute
   CriarRoute: typeof CriarRoute
   DashboardRoute: typeof DashboardRoute
   DemoMusicaRoute: typeof DemoMusicaRoute
@@ -383,6 +396,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/carol': {
+      id: '/carol'
+      path: '/carol'
+      fullPath: '/carol'
+      preLoaderRoute: typeof CarolRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/criar': {
@@ -559,6 +579,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  CarolRoute: CarolRoute,
   CriarRoute: CriarRoute,
   DashboardRoute: DashboardRoute,
   DemoMusicaRoute: DemoMusicaRoute,
