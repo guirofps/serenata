@@ -11,11 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
-import { Route as CarolRouteImport } from './routes/carol'
 import { Route as CriarRouteImport } from './routes/criar'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DemoMusicaRouteImport } from './routes/demo-musica'
 import { Route as DescadastrarRouteImport } from './routes/descadastrar'
+import { Route as GleysiRouteImport } from './routes/gleysi'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MarcaRouteImport } from './routes/marca'
 import { Route as MeuQuadroRouteImport } from './routes/meu-quadro'
@@ -47,11 +47,6 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CarolRoute = CarolRouteImport.update({
-  id: '/carol',
-  path: '/carol',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CriarRoute = CriarRouteImport.update({
   id: '/criar',
   path: '/criar',
@@ -70,6 +65,11 @@ const DemoMusicaRoute = DemoMusicaRouteImport.update({
 const DescadastrarRoute = DescadastrarRouteImport.update({
   id: '/descadastrar',
   path: '/descadastrar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GleysiRoute = GleysiRouteImport.update({
+  id: '/gleysi',
+  path: '/gleysi',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -177,11 +177,11 @@ const QuadroTokenEdicaoRoute = QuadroTokenEdicaoRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/carol': typeof CarolRoute
   '/criar': typeof CriarRoute
   '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
   '/descadastrar': typeof DescadastrarRoute
+  '/gleysi': typeof GleysiRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
   '/meu-quadro': typeof MeuQuadroRoute
@@ -206,11 +206,11 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/carol': typeof CarolRoute
   '/criar': typeof CriarRoute
   '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
   '/descadastrar': typeof DescadastrarRoute
+  '/gleysi': typeof GleysiRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
   '/meu-quadro': typeof MeuQuadroRoute
@@ -236,11 +236,11 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/carol': typeof CarolRoute
   '/criar': typeof CriarRoute
   '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
   '/descadastrar': typeof DescadastrarRoute
+  '/gleysi': typeof GleysiRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
   '/meu-quadro': typeof MeuQuadroRoute
@@ -267,11 +267,11 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
-    | '/carol'
     | '/criar'
     | '/dashboard'
     | '/demo-musica'
     | '/descadastrar'
+    | '/gleysi'
     | '/login'
     | '/marca'
     | '/meu-quadro'
@@ -296,11 +296,11 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
-    | '/carol'
     | '/criar'
     | '/dashboard'
     | '/demo-musica'
     | '/descadastrar'
+    | '/gleysi'
     | '/login'
     | '/marca'
     | '/meu-quadro'
@@ -325,11 +325,11 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
-    | '/carol'
     | '/criar'
     | '/dashboard'
     | '/demo-musica'
     | '/descadastrar'
+    | '/gleysi'
     | '/login'
     | '/marca'
     | '/meu-quadro'
@@ -355,11 +355,11 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
-  CarolRoute: typeof CarolRoute
   CriarRoute: typeof CriarRoute
   DashboardRoute: typeof DashboardRoute
   DemoMusicaRoute: typeof DemoMusicaRoute
   DescadastrarRoute: typeof DescadastrarRoute
+  GleysiRoute: typeof GleysiRoute
   LoginRoute: typeof LoginRoute
   MarcaRoute: typeof MarcaRoute
   MeuQuadroRoute: typeof MeuQuadroRoute
@@ -398,13 +398,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/carol': {
-      id: '/carol'
-      path: '/carol'
-      fullPath: '/carol'
-      preLoaderRoute: typeof CarolRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/criar': {
       id: '/criar'
       path: '/criar'
@@ -431,6 +424,13 @@ declare module '@tanstack/react-router' {
       path: '/descadastrar'
       fullPath: '/descadastrar'
       preLoaderRoute: typeof DescadastrarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gleysi': {
+      id: '/gleysi'
+      path: '/gleysi'
+      fullPath: '/gleysi'
+      preLoaderRoute: typeof GleysiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -579,11 +579,11 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
-  CarolRoute: CarolRoute,
   CriarRoute: CriarRoute,
   DashboardRoute: DashboardRoute,
   DemoMusicaRoute: DemoMusicaRoute,
   DescadastrarRoute: DescadastrarRoute,
+  GleysiRoute: GleysiRoute,
   LoginRoute: LoginRoute,
   MarcaRoute: MarcaRoute,
   MeuQuadroRoute: MeuQuadroRoute,
