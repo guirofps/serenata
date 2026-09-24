@@ -416,6 +416,36 @@ um print de disputa que um cliente abriu.
   gerar, porque os eventos do Inngest continuam enfileirados e ele gera tudo
   de novo quando voltar.
 
+## Vídeo-presente (24/09/2026)
+
+Upsell de R$ 24,90: as fotos da página passando no ritmo da música, com a
+letra acendendo palavra por palavra. Remotion (`video/src/`), render na AWS
+Lambda (us-east-1), job `inngest/functions/renderizarVideo.ts`.
+
+**A página e o vídeo são a mesma montagem.** O bloco do vídeo mora DENTRO do
+editor, entre a dedicatória e a entrega, com a prévia TOCANDO pelo
+`@remotion/player`: a mesma composição da Lambda, com as fotos e a frase ao
+vivo do editor e a marca "PRÉVIA". Ela vê o que compra antes de pagar, a
+custo zero.
+
+### Invariantes
+
+- **Uma cópia só do Remotion, na raiz.** `video/` não tem package próprio
+  (tinha React 18 e o app tem 19: duas cópias quebram hooks). Estúdio e
+  deploy: `npm run video:estudio | video:site | video:funcao`. Mudou o
+  template, **rodar `video:site`**: o site no S3 é o que a Lambda usa.
+- **Conta nova da AWS: cota de 10 Lambdas simultâneas**, sem aumento pela
+  API (a conta é sub-conta de organização, pedido só pelo console). Por isso
+  6 Lambdas por render e 1 render por vez (8+1 deu `Rate Exceeded`). Com a
+  cota maior, subir `LAMBDAS_POR_RENDER` e o `concurrency` do job. Medido:
+  3min32 de música em 200s, US$ 0,041.
+- **Letra entra 0,45s ANTES de cantar** e palavra sustentada apaga em 2,2s.
+  Sem isso a letra parece atrasada e fica acesa o solo inteiro.
+- **"Atualizar meu vídeo" é por assinatura** (`assinatura-video.ts`) das
+  entradas: CAMINHO da foto no Storage, nunca URL assinada (muda a cada
+  carregamento). Grátis, teto de 5. Atualização que falha devolve o vídeo
+  anterior. Arquivo novo a cada render: com o mesmo nome o CDN serve o velho.
+
 ## Riscos conhecidos
 
 1. **Dependência de revendedor não oficial do Suno.** Zona cinzenta nos termos
