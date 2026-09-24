@@ -49,7 +49,9 @@ const Foto: React.FC<{ src: string; ini: number; dur: number; fade: number; k: n
     <AbsoluteFill style={{ opacity: op }}>
       <Img
         src={src}
-        style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${escala}) translate(${tx}px, ${ty}px)` }}
+        // 35% de cima: em foto deitada cortada pra vertical, o rosto costuma
+        // estar no terço de cima, e o centro exato cortava testa.
+        style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "50% 35%", transform: `scale(${escala}) translate(${tx}px, ${ty}px)` }}
       />
     </AbsoluteFill>
   );
@@ -68,15 +70,29 @@ const FundoSemFoto: React.FC<{ t: number }> = ({ t }) => {
   );
 };
 
+// ── Tempo do karaokê ──────────────────────────────────────────────
+// A linha entra ANTES de ser cantada: aparecendo só no instante da primeira
+// palavra, o olho chega atrasado e a letra inteira parece fora de tempo (foi
+// a reclamação do primeiro vídeo real, 24/09).
+const ANTECEDE = 0.45;
+// Nota sustentada e pausa instrumental vêm como UMA palavra comprida: no
+// refrão da Daiane, "trilho" durou 11,9s atravessando o solo. Sem teto, a
+// palavra fica dourada e a linha fica na tela o solo inteiro.
+const SUSTENTA_MAX = 2.2;
+const fimDe = (w: { s: number; e: number }) => Math.min(w.e, w.s + SUSTENTA_MAX);
+
 function linhaAtiva(karaoke: LinhaKaraoke[], t: number): { linha: LinhaKaraoke | null; proxIni: number } {
   let ativa = -1;
   for (let i = 0; i < karaoke.length; i++) {
-    if (karaoke[i].start <= t + 0.12) ativa = i;
+    if (karaoke[i].start - ANTECEDE <= t) ativa = i;
     else break;
   }
   if (ativa < 0) return { linha: null, proxIni: Infinity };
   return { linha: karaoke[ativa], proxIni: karaoke[ativa + 1]?.start ?? Infinity };
 }
+
+/** Segundos pra ler a dedicatória com calma: ~14 caracteres por segundo. */
+const tempoDeLeitura = (texto: string) => (texto ? clamp(texto.length / 14, 3, 15) : 0);
 
 const TEXTOS = {
   pt: { fecho: "uma música feita da história de vocês" },
@@ -100,17 +116,41 @@ export const Presente: React.FC<PropsPresente> = ({ audioUrl, fotos, karaoke, ti
   // ── Karaokê ─────────────────────────────────────────────────────
   const inicioFecho = durS - FECHAMENTO_S;
   const { linha, proxIni } = linhaAtiva(karaoke, t);
-  const mostraLinha = !!linha && t < proxIni + 0.2 && t < linha.end + 3.5 && t < inicioFecho;
-  const opLinha = linha ? clamp(Math.min((t - linha.start) / 0.32, (proxIni - t) / 0.3, (inicioFecho - t) / 0.4), 0, 1) : 0;
+  const ultima = linha?.words[linha.words.length - 1];
+  const saiLinha = ultima ? fimDe(ultima) + 1.2 : 0;
+  const mostraLinha = !!linha && t < saiLinha && t < inicioFecho;
+  const opLinha = linha
+    ? clamp(
+        Math.min(
+          (t - (linha.start - ANTECEDE)) / 0.3,
+          (proxIni - ANTECEDE - t) / 0.2,
+          (saiLinha - t) / 0.5,
+          (inicioFecho - t) / 0.4,
+        ),
+        0,
+        1,
+      )
+    : 0;
 
-  // ── Card de abertura: some quando começa a cantar ───────────────
+  // ── Card de abertura ────────────────────────────────────────────
+  // Fica o tempo de LER a dedicatória, não até a primeira palavra cantada:
+  // com intro curta ele sumia aos 6s, antes de dar pra ler duas linhas. Se o
+  // canto começa antes, o card sobe um pouco e divide a tela com a letra
+  // (ele no meio, a letra embaixo, sem encostar).
+  const ded = dedicatoria ? encurtar(dedicatoria, 240) : "";
   const primeiraFala = karaoke[0]?.start ?? 4;
-  const fimTitulo = Math.max(primeiraFala, 3.5);
-  const opTitulo = interpolate(t, [0.3, 1.2, fimTitulo - 0.5, fimTitulo + 0.3], [0, 1, 1, 0], {
+  const fimTitulo = Math.max(primeiraFala, 2.2 + tempoDeLeitura(ded), 4);
+  const opTitulo = interpolate(t, [0.3, 1.2, fimTitulo - 0.6, fimTitulo + 0.4], [0, 1, 1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const ded = dedicatoria ? encurtar(dedicatoria) : "";
+  const opDed = interpolate(t, [1.4, 2.4], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const sobeTitulo = fimTitulo > primeiraFala
+    ? interpolate(t, [primeiraFala - ANTECEDE - 0.8, primeiraFala - ANTECEDE], [0, -170], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      })
+    : 0;
 
   // ── Card de fechamento ──────────────────────────────────────────
   const opFecho = interpolate(t, [inicioFecho, inicioFecho + 1.2], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -133,16 +173,37 @@ export const Presente: React.FC<PropsPresente> = ({ audioUrl, fotos, karaoke, ti
             "linear-gradient(180deg, rgba(60,20,30,0.28) 0%, rgba(0,0,0,0) 28%, rgba(0,0,0,0) 52%, rgba(10,4,7,0.55) 82%, rgba(8,3,5,0.86) 100%)",
         }}
       />
+      {/* Vinheta em gradiente, não em box-shadow: sombra interna de 320px de
+          desfoque é redesenhada a cada quadro e pesava no tempo de render. */}
       <AbsoluteFill
         style={{
-          boxShadow: "inset 0 0 320px 90px rgba(12,4,8,0.7)",
-          background: "radial-gradient(120% 80% at 50% 42%, rgba(0,0,0,0) 55%, rgba(10,4,7,0.5) 100%)",
+          background:
+            "radial-gradient(115% 75% at 50% 42%, rgba(0,0,0,0) 45%, rgba(12,4,8,0.45) 78%, rgba(10,4,7,0.8) 100%)",
         }}
       />
 
-      {/* Abertura */}
+      {/* Abertura. O véu escuro atrás é o que deixa a dedicatória legível em
+          cima de rosto e de céu claro; sai junto com o card. */}
       {opTitulo > 0.01 && (
-        <AbsoluteFill style={{ opacity: opTitulo, justifyContent: "center", alignItems: "center", padding: "0 90px", textAlign: "center" }}>
+        <AbsoluteFill
+          style={{
+            opacity: opTitulo,
+            transform: `translateY(${sobeTitulo}px)`,
+            background: "radial-gradient(75% 30% at 50% 50%, rgba(12,5,8,0.62) 0%, rgba(12,5,8,0.3) 60%, rgba(12,5,8,0) 100%)",
+          }}
+        />
+      )}
+      {opTitulo > 0.01 && (
+        <AbsoluteFill
+          style={{
+            opacity: opTitulo,
+            justifyContent: "center",
+            alignItems: "center",
+            padding: "0 90px",
+            textAlign: "center",
+            transform: `translateY(${sobeTitulo}px)`,
+          }}
+        >
           <div style={{ fontFamily: LORA, color: OURO, letterSpacing: 14, fontSize: 32, marginBottom: 30, textShadow: "0 2px 20px rgba(0,0,0,0.6)" }}>
             SERENATA
           </div>
@@ -154,8 +215,9 @@ export const Presente: React.FC<PropsPresente> = ({ audioUrl, fotos, karaoke, ti
               style={{
                 fontFamily: LORA,
                 fontStyle: "italic",
-                color: "rgba(247,237,226,0.85)",
-                fontSize: ded.length > 100 ? 30 : 34,
+                opacity: opDed,
+                color: "rgba(247,237,226,0.9)",
+                fontSize: ded.length > 170 ? 30 : ded.length > 100 ? 33 : 36,
                 marginTop: 36,
                 lineHeight: 1.5,
                 maxWidth: 760,
@@ -174,7 +236,7 @@ export const Presente: React.FC<PropsPresente> = ({ audioUrl, fotos, karaoke, ti
           <div style={{ opacity: opLinha, textAlign: "center", display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "0 18px" }}>
             {linha.words.map((w, i) => {
               const cantada = w.s <= t + 0.02;
-              const atual = w.s <= t && t < w.e + 0.08;
+              const atual = w.s <= t && t < fimDe(w) + 0.08;
               return (
                 <span
                   key={i}
