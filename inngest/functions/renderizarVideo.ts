@@ -43,6 +43,10 @@ const VALIDADE_URL_S = 60 * 60 * 24;
 // 720x1280: no celular não se distingue do 1080 e o arquivo fica ~7x menor.
 const ESCALA = 2 / 3;
 const FECHAMENTO_S = 5;
+// Lambdas renderizando em paralelo num render (fora a orquestradora). A conta
+// nova tem cota de 10, e 8 + 1 já deu "Rate Exceeded" na prática (24/09): 6
+// deixa folga. Com a cota maior, subir aqui encurta o render na mesma proporção.
+const LAMBDAS_POR_RENDER = 6;
 
 function db(): SupabaseClient {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -104,9 +108,10 @@ type Preparo =
 export const renderizarVideo = inngest.createFunction(
   {
     id: "renderizar-video",
-    // A Lambda aguenta muito mais, mas cada render abre dezenas de Lambdas em
-    // paralelo e a conta nova da AWS nasce com cota baixa de concorrência.
-    concurrency: { limit: 3 },
+    // A conta nova da AWS nasce com cota de 10 Lambdas simultâneas, e um render
+    // usa 1 orquestradora + LAMBDAS_POR_RENDER. Dois renders juntos estouram a
+    // cota e a AWS recusa (throttle). Subir junto com a cota, quando ela subir.
+    concurrency: { limit: 1 },
     retries: 2,
     triggers: [{ event: "video/renderizar" }],
     onFailure: async ({ event, error }) => {
@@ -216,6 +221,7 @@ export const renderizarVideo = inngest.createFunction(
         imageFormat: "jpeg",
         privacy: "private",
         maxRetries: 2,
+        concurrency: LAMBDAS_POR_RENDER,
         outName: `${videoId}.mp4`,
         downloadBehavior: { type: "download", fileName: "video-serenata.mp4" },
       });
@@ -232,12 +238,12 @@ export const renderizarVideo = inngest.createFunction(
     });
 
     // ── 3. ESPERA TERMINAR ─────────────────────────────────────────
-    // Um render de 3 min leva ~1-2 min com as Lambdas em paralelo. 60 voltas
-    // de 10s = 10 min de teto: passou disso, algo travou e é melhor falhar
-    // alto do que esperar pra sempre.
+    // Cada Lambda faz ~3,4 quadros/s: com 6 delas, uma música de 3,5 min leva
+    // ~6 min (medido 24/09). 40 voltas de 30s = 20 min de teto, abaixo dos
+    // 900s + folga da Lambda: passou disso, algo travou e é melhor falhar alto.
     let saida: { bucket: string; key: string } | null = null;
-    for (let i = 0; i < 60 && !saida; i++) {
-      await step.sleep(`espera-${i}`, "10s");
+    for (let i = 0; i < 40 && !saida; i++) {
+      await step.sleep(`espera-${i}`, "30s");
       const p = await step.run(`progresso-${i}`, async () => {
         const { funcao } = configLambda();
         const prog = await getRenderProgress({
