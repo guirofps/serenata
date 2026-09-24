@@ -46,8 +46,12 @@ export function PixPagamento({
   referencia: string;
   /** Chamado quando o pagamento é confirmado. */
   aoPagar: () => void;
-  /** Vai pro checkout hospedado. A saída pro cartão é sempre visível. */
-  aoEscolherCartao: () => void;
+  /**
+   * Vai pro checkout do cartão. Sem ele, a saída pro cartão NÃO aparece: um
+   * produto que só vende no PIX (o vídeo) não pode oferecer um botão que leva
+   * a lugar nenhum.
+   */
+  aoEscolherCartao?: () => void;
 }) {
   const [copiado, setCopiado] = useState(false);
   const [png, setPng] = useState<string | null>(null);
@@ -199,19 +203,21 @@ export function PixPagamento({
           Separada por uma linha, e com o motivo escrito: quem quer cartão
           quase sempre quer PARCELAR, e parcelamento é uma palavra que faz a
           pessoa procurar em vez de desistir. */}
-      <div className="border-t border-primary/10 pt-4">
-        <p className="mb-2 text-center text-xs text-muted-foreground">
-          Prefere cartão, ou quer parcelar?
-        </p>
-        <Button
-          variant="outline"
-          size="lg"
-          className="w-full"
-          onClick={aoEscolherCartao}
-        >
-          <CreditCard className="mr-2 h-4 w-4" /> Pagar com cartão
-        </Button>
-      </div>
+      {aoEscolherCartao ? (
+        <div className="border-t border-primary/10 pt-4">
+          <p className="mb-2 text-center text-xs text-muted-foreground">
+            Prefere cartão, ou quer parcelar?
+          </p>
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full"
+            onClick={aoEscolherCartao}
+          >
+            <CreditCard className="mr-2 h-4 w-4" /> Pagar com cartão
+          </Button>
+        </div>
+      ) : null}
 
       {/* Também aqui, e não só no resumo: esta é a tela onde a pessoa está
           com o app do banco aberto pra transferir. É o momento exato em que

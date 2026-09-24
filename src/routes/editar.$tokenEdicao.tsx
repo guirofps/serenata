@@ -19,6 +19,7 @@ import { marcarDono } from "@/lib/dono-presente";
 import { marcarSessaoGasta } from "@/lib/session-context";
 import { linkSuporte, TEXTO_SUPORTE } from "@/lib/suporte-whatsapp";
 import { OfertaQuadroEditor } from "@/components/presente/OfertaQuadroEditor";
+import { VideoPresenteEditor } from "@/components/presente/VideoPresenteEditor";
 import { AtalhoOutraMusica } from "@/components/conta/AtalhoOutraMusica";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE, nomeCor } from "@/lib/marca";
@@ -965,6 +966,11 @@ function Editor() {
 
               A "mais uma música" continua nos e-mails de entrega e recompra,
               onde não compete com nada. */}
+          {/* O VÍDEO vem antes do quadro: é feito das fotos que ela acabou de
+              subir logo acima, e o e-mail de "vídeo pronto" aponta pra cá
+              (#video). Some sozinho enquanto o render não está configurado. */}
+          <VideoPresenteEditor tokenEdicao={tokenEdicao} locale={p?.locale === "es" ? "es" : "pt"} />
+
           <OfertaQuadroEditor
             locale={p?.locale === "es" ? "es" : "pt"}
             tokenEdicao={tokenEdicao}

@@ -1,0 +1,22 @@
+{
+  "name": "serenata-video",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Composição Remotion do vídeo-presente. Não roda na Vercel: o bundle vai pro S3 (site) e o render roda na AWS Lambda. O site chama via @remotion/lambda/client no job renderizarVideo.",
+  "scripts": {
+    "estudio": "remotion studio src/index.ts",
+    "sample": "remotion render src/index.ts Presente out/sample.mp4 --props=./exemplo-props.json --scale=0.6667 --crf=26",
+    "deploy:funcao": "remotion lambda functions deploy --memory=3009 --timeout=240 --disk=4096",
+    "deploy:site": "remotion lambda sites create src/index.ts --site-name=serenata-presente"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.528",
+    "@remotion/google-fonts": "4.0.528",
+    "@remotion/lambda": "4.0.528",
+    "@remotion/media-utils": "4.0.528",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.528"
+  }
+}

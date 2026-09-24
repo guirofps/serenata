@@ -26,6 +26,7 @@ import { assuntoQuadro, emailQuadro } from "../../emails/quadro-na-parede";
 import { assuntoVolteCriar, emailVolteCriar } from "../../emails/volte-criar";
 import { assuntoQuadroParado, emailQuadroParado } from "../../emails/quadro-parado";
 import { assuntoCreditoParado, emailCreditoParado } from "../../emails/credito-parado";
+import { assuntoVideoPronto, emailVideoPronto } from "../../emails/video-pronto";
 
 // O CATÁLOGO DAS AUTOMAÇÕES DE E-MAIL, do jeito que elas rodam hoje.
 //
@@ -208,6 +209,24 @@ export const AUTOMACOES: Automacao[] = [
         template: "entrega_credito",
         nome: "O presente está pronto (crédito)",
         quando: "quando a pessoa usa um crédito comprado antes",
+        idiomas: ["pt", "es"],
+      },
+    ],
+  },
+  {
+    id: "video-presente",
+    nome: "Vídeo-presente pronto",
+    fase: "compra",
+    gatilho: "fim do render do vídeo (job renderizarVideo, depois do upsell pago)",
+    quemRecebe:
+      "Quem comprou o vídeo-presente no editor. Sai quando o MP4 fica pronto, uns minutos depois do PIX, com o link do editor onde assiste e baixa.",
+    remetente: "transacional",
+    arquivo: "inngest/functions/renderizarVideo.ts",
+    emails: [
+      {
+        template: "video_pronto",
+        nome: "O vídeo de vocês está pronto",
+        quando: "quando o render termina",
         idiomas: ["pt", "es"],
       },
     ],
@@ -540,6 +559,11 @@ export function renderizarPreview(template: string, locale: "pt" | "es"): Previe
       return pt(
         assuntoCreditoParado(l),
         emailCreditoParado({ link: E.linkCredito, saldo: 1, locale: l }),
+      );
+    case "video_pronto":
+      return pt(
+        assuntoVideoPronto(E.titulo, l),
+        emailVideoPronto({ titulo: E.titulo, linkVideo: `${E.linkEditor}#video`, locale: l }),
       );
     default:
       return desconhecido(template, locale);

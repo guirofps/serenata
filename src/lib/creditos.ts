@@ -36,8 +36,8 @@
 // voltando, aí sim vale criar.
 
 export type Oferta = {
-  id: "extra" | "tres" | "quadro";
-  /** Quantas músicas novas o crédito libera. O quadro não dá crédito. */
+  id: "extra" | "tres" | "quadro" | "video";
+  /** Quantas músicas novas o crédito libera. O quadro e o vídeo não dão crédito. */
   creditos: number;
   precoBrl: number;
   /** Link de checkout da Perfect Pay. */
@@ -116,6 +116,20 @@ export const OFERTAS: Oferta[] = [
     checkout: "https://go.perfectpay.com.br/PPU38CQFE9O",
     productCode: "PPPBFA6H",
   },
+  {
+    id: "video",
+    // O VÍDEO-PRESENTE: as fotos dela + a música + a letra acendendo palavra
+    // por palavra, renderizado depois da compra (tabela `videos`, job
+    // `renderizarVideo`). Não é música nova, então não dá crédito.
+    //
+    // SÓ PIX, SEM CARTÃO: nasceu depois que a Perfect Pay saiu de cena, então
+    // não tem produto lá. `checkout` vazio faz a folha esconder o botão de
+    // cartão em vez de mandar a pessoa pra lugar nenhum.
+    creditos: 0,
+    precoBrl: 24.9,
+    checkout: "",
+    productCode: "",
+  },
 ];
 
 /**
@@ -182,6 +196,11 @@ export const TEXTO_OFERTA = {
       cta: "Quero o quadro",
       exemplo: "ver um exemplo",
     },
+    video: {
+      titulo: "O vídeo da música",
+      sub: "As fotos de vocês passando no ritmo da música, com a letra acendendo palavra por palavra. Pronto pra mandar no WhatsApp ou postar no story.",
+      cta: "Quero o vídeo",
+    },
   },
   es: {
     extra: {
@@ -200,6 +219,11 @@ export const TEXTO_OFERTA = {
       sub: "La letra de la canción y su foto en una hoja A4, con el código QR que reproduce la canción. La guardas en PDF aquí, la mandas a imprimir, compras un marco A4 y la cuelgas en la pared.",
       cta: "Quiero el cuadro",
       exemplo: "ver un ejemplo",
+    },
+    video: {
+      titulo: "El video de la canción",
+      sub: "Sus fotos pasando al ritmo de la canción, con la letra encendiéndose palabra por palabra. Listo para mandar por WhatsApp o subir a tu historia.",
+      cta: "Quiero el video",
     },
   },
 } as const;

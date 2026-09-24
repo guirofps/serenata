@@ -62,7 +62,11 @@ export function FolhaPixUpsell({
   /** "Música extra", "Quadro para imprimir" — só pra pessoa se situar. */
   titulo: string;
   precoTexto: string;
-  /** Link da Perfect Pay, pra quem preferir cartão. */
+  /**
+   * Link do checkout de cartão. VAZIO = oferta só no PIX (o vídeo): a folha
+   * esconde toda saída pro cartão em vez de mandar pra `""`, que só
+   * recarregava a página e parecia defeito.
+   */
   checkoutCartao: string;
   aoFechar: () => void;
 }) {
@@ -172,16 +176,18 @@ export function FolhaPixUpsell({
             >
               Gerar o PIX
             </Button>
-            <button
-              type="button"
-              onClick={() => {
-                trackEvent("pix_upsell_cartao", { oferta: ofertaId });
-                window.location.href = checkoutCartao;
-              }}
-              className="w-full text-xs text-[var(--tinta-fraca)] underline underline-offset-4"
-            >
-              Prefiro pagar com cartao
-            </button>
+            {checkoutCartao ? (
+              <button
+                type="button"
+                onClick={() => {
+                  trackEvent("pix_upsell_cartao", { oferta: ofertaId });
+                  window.location.href = checkoutCartao;
+                }}
+                className="w-full text-xs text-[var(--tinta-fraca)] underline underline-offset-4"
+              >
+                Prefiro pagar com cartao
+              </button>
+            ) : null}
           </div>
         )}
 
@@ -197,16 +203,19 @@ export function FolhaPixUpsell({
           <div className="space-y-3 py-4 text-center">
             <p className="text-sm font-semibold">Não consegui gerar o PIX agora</p>
             <p className="text-xs leading-snug text-[var(--tinta-fraca)]">
-              Nada foi cobrado. Dá pra concluir pelo nosso checkout normal.
+              {checkoutCartao
+                ? "Nada foi cobrado. Dá pra concluir pelo nosso checkout normal."
+                : "Nada foi cobrado. Tenta de novo em um minutinho."}
             </p>
             <Button
               size="lg"
               className="w-full"
               onClick={() => {
-                window.location.href = checkoutCartao;
+                if (checkoutCartao) window.location.href = checkoutCartao;
+                else setFase({ t: "resumo" });
               }}
             >
-              Continuar pelo checkout
+              {checkoutCartao ? "Continuar pelo checkout" : "Tentar de novo"}
             </Button>
           </div>
         )}
@@ -228,10 +237,14 @@ export function FolhaPixUpsell({
               if (aoPagar) aoPagar();
               else window.location.reload();
             }}
-            aoEscolherCartao={() => {
-              trackEvent("pix_upsell_cartao", { oferta: ofertaId });
-              window.location.href = checkoutCartao;
-            }}
+            aoEscolherCartao={
+              checkoutCartao
+                ? () => {
+                    trackEvent("pix_upsell_cartao", { oferta: ofertaId });
+                    window.location.href = checkoutCartao;
+                  }
+                : undefined
+            }
           />
         )}
       </div>

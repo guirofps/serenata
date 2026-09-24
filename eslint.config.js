@@ -6,7 +6,9 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", ".output", ".vinxi", ".tanstack", "src/routeTree.gen.ts"] },
+  // `video/` é o projeto Remotion do vídeo-presente: dependências próprias
+  // (React 18 do Remotion), não roda na Vercel, e o bundle vai pro S3.
+  { ignores: ["dist", ".output", ".vinxi", ".tanstack", "src/routeTree.gen.ts", "video/**"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

@@ -84,10 +84,22 @@ export type ResultadoPixUpsell =
  * idêntico de propósito: duas cópias disto divergiriam na primeira correção,
  * e o que elas guardam é a regra de o cliente nunca escolher o preço.
  */
-async function gerarCobranca(email: string, ofertaId: string, cpfCru?: string): Promise<ResultadoPixUpsell> {
+async function gerarCobranca(
+  email: string,
+  ofertaId: string,
+  cpfCru?: string,
+  /**
+   * De qual música é a compra. SÓ o vídeo usa: ele é uma peça de UMA música,
+   * e o webhook lê isto do pedido pra saber o que renderizar. Quadro e música
+   * extra continuam sem, de propósito: `pedidos.musica_id` preenchido num
+   * upsell deles é território que outras consultas não esperam.
+   */
+  musicaId?: string | null,
+): Promise<ResultadoPixUpsell> {
   {
     const oferta = ofertaValida(ofertaId);
     if (!oferta) return { ok: false, erro: "oferta-invalida" };
+    const musicaDoPedido = oferta.id === "video" ? (musicaId ?? null) : null;
 
     const db = supabaseAdmin();
     const valorCentavos = Math.round(oferta.precoBrl * 100);
@@ -119,7 +131,7 @@ async function gerarCobranca(email: string, ofertaId: string, cpfCru?: string): 
     // dois lados, e procurar so por um deixaria a pessoa gerar outra em cima
     // de uma que ja existe.
     const umaHoraAtras = new Date(Date.now() - 3600_000).toISOString();
-    const { data: vivo } = await db
+    let consultaVivo = db
       .from("pedidos")
       .select("payment_id, pix_codigo")
       .eq("gateway", gw.nome)
@@ -127,7 +139,11 @@ async function gerarCobranca(email: string, ofertaId: string, cpfCru?: string): 
       .eq("valor_centavos", valorCentavos)
       .ilike("email", literalLike(email))
       .gte("created_at", umaHoraAtras)
-      .like("payment_id", `${gw.nome}:up:${oferta.id}:%`)
+      .like("payment_id", `${gw.nome}:up:${oferta.id}:%`);
+    // Vídeo de OUTRA música é outra compra: reaproveitar o PIX do vídeo da
+    // música A pra quem clicou no vídeo da música B renderizaria o errado.
+    if (musicaDoPedido) consultaVivo = consultaVivo.eq("musica_id", musicaDoPedido);
+    const { data: vivo } = await consultaVivo
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -150,7 +166,9 @@ async function gerarCobranca(email: string, ofertaId: string, cpfCru?: string): 
       cobranca = await gw.criar({
         referencia,
         valorCentavos,
-        descricao: `Serenata · ${oferta.id === "quadro" ? "Quadro para imprimir" : "Música extra"}`,
+        descricao: `Serenata · ${
+          oferta.id === "quadro" ? "Quadro para imprimir" : oferta.id === "video" ? "Vídeo da música" : "Música extra"
+        }`,
         nome: null,
         email,
         cpf: cpf || null,
@@ -175,6 +193,7 @@ async function gerarCobranca(email: string, ofertaId: string, cpfCru?: string): 
         pix_codigo: cobranca.copiaECola,
         pix_expira: cobranca.expiraEm,
         pix_url: `${urlDoSite()}/pix/${referencia}`,
+        ...(musicaDoPedido ? { musica_id: musicaDoPedido } : {}),
       },
       { onConflict: "payment_id" },
     );
@@ -228,7 +247,7 @@ export const criarPixUpsellPorToken = createServerFn({ method: "POST" })
     const db = supabaseAdmin();
     const { data: m } = await db
       .from("musicas")
-      .select("quiz_response_id")
+      .select("id, quiz_response_id")
       .eq("token_edicao", data.tokenEdicao)
       .maybeSingle();
     if (!m?.quiz_response_id) return { ok: false, erro: "sem-sessao" };
@@ -241,5 +260,7 @@ export const criarPixUpsellPorToken = createServerFn({ method: "POST" })
     const email = (q?.email as string | null)?.trim().toLowerCase();
     if (!email) return { ok: false, erro: "sem-sessao" };
 
-    return gerarCobranca(email, data.ofertaId, data.cpf);
+    // A música vem do TOKEN, nunca do cliente: é a mesma prova de posse que
+    // abre o editor. Só o vídeo a usa (ver `gerarCobranca`).
+    return gerarCobranca(email, data.ofertaId, data.cpf, m.id as string);
   });
