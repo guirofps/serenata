@@ -17,4 +17,10 @@ export type PropsPresente = {
   /** Duração do vídeo em segundos (a música inteira + o card de fechamento). */
   duracaoS: number;
   locale: "pt" | "es";
+  /**
+   * Prévia tocando no editor, antes da compra. Carimba "prévia" no canto: a
+   * prévia é o vídeo inteiro de verdade, e sem marca ela bastaria gravada da
+   * tela. O render pago nunca manda isto.
+   */
+  previa?: boolean;
 };

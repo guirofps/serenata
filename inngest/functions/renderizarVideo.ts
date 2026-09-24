@@ -9,6 +9,7 @@ import {
   type AwsRegion,
 } from "@remotion/lambda/client";
 import { montarKaraoke } from "../../src/lib/karaoke-video.js";
+import { assinaturaDoVideo, entradaDaMusica } from "../../src/lib/assinatura-video.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { emailVideoPronto, assuntoVideoPronto } from "../../emails/video-pronto.js";
 import type { PropsPresente } from "../../video/src/props.js";
@@ -103,6 +104,10 @@ type Preparo =
       locale: "pt" | "es";
       quizId: string | null;
       props: PropsPresente;
+      assinatura: string;
+      /** > 0 = é "atualizar meu vídeo": ela está no editor, não precisa de e-mail. */
+      atualizacoes: number;
+      caminhoAntigo: string | null;
     };
 
 export const renderizarVideo = inngest.createFunction(
@@ -120,12 +125,23 @@ export const renderizarVideo = inngest.createFunction(
       if (!videoId) return;
       const sb = db();
       const msg = (error as Error)?.message?.slice(0, 500) ?? "erro desconhecido";
-      await sb.from("videos").update({ status: "falhou", erro: msg }).eq("id", videoId);
       const { data: v } = await sb
         .from("videos")
-        .select("email, musica_id")
+        .select("email, musica_id, video_path")
         .eq("id", videoId)
         .maybeSingle();
+      // Uma ATUALIZAÇÃO que falhou não tira o vídeo que ela já tinha: volta
+      // pra `pronto` com o arquivo anterior (a assinatura velha continua lá,
+      // então o editor segue oferecendo atualizar).
+      if (v?.video_path) {
+        await sb.from("videos").update({ status: "pronto", erro: msg }).eq("id", videoId);
+        await alertarDono(
+          "Atualização de vídeo falhou (cliente segue com o anterior)",
+          `<p>vídeo: ${videoId}<br>música: ${v.musica_id ?? "?"}<br>cliente: ${v.email ?? "?"}</p><p>erro: ${msg}</p>`,
+        );
+        return;
+      }
+      await sb.from("videos").update({ status: "falhou", erro: msg }).eq("id", videoId);
       await alertarDono(
         "VÍDEO PAGO E NÃO ENTREGUE",
         `<p>O render do vídeo falhou depois das tentativas.</p>` +
@@ -145,11 +161,10 @@ export const renderizarVideo = inngest.createFunction(
       const sb = db();
       const { data: v } = await sb
         .from("videos")
-        .select("id, email, musica_id, status")
+        .select("id, email, musica_id, status, assinatura, atualizacoes, video_path")
         .eq("id", videoId)
         .maybeSingle();
       if (!v) return { pular: true, motivo: "vídeo não existe" };
-      if (v.status === "pronto") return { pular: true, motivo: "já pronto" };
       if (!v.musica_id) return { pular: true, motivo: "sem música escolhida" };
 
       const { data: m } = await sb
@@ -161,6 +176,13 @@ export const renderizarVideo = inngest.createFunction(
         .maybeSingle();
       if (!m) throw new Error(`música ${v.musica_id} não existe`);
       if (m.status !== "pronta" || !m.audio_path) throw new Error(`música ${m.id} não está pronta`);
+
+      // Pronto e com a página igual à do render: evento repetido, nada a
+      // fazer. Pronto com a página MUDADA é o "atualizar meu vídeo".
+      const assinatura = assinaturaDoVideo(entradaDaMusica(m));
+      if (v.status === "pronto" && v.assinatura === assinatura) {
+        return { pular: true, motivo: "já pronto e igual à página" };
+      }
 
       // A versão que ela escolheu no editor, com o timestamp DA MESMA versão:
       // karaokê de uma gravação em cima do áudio da outra sai fora de tempo.
@@ -202,6 +224,9 @@ export const renderizarVideo = inngest.createFunction(
           duracaoS,
           locale: m.locale === "es" ? "es" : "pt",
         },
+        assinatura,
+        atualizacoes: Number(v.atualizacoes) || 0,
+        caminhoAntigo: (v.video_path as string | null) ?? null,
       };
     })) as Preparo;
     if (preparo.pular) return { ok: false, motivo: preparo.motivo };
@@ -281,7 +306,9 @@ export const renderizarVideo = inngest.createFunction(
       if (!resp.ok) throw new Error(`download do S3 falhou: ${resp.status}`);
       const bytes = new Uint8Array(await resp.arrayBuffer());
 
-      const destino = `${preparo.musicaId}/${videoId}.mp4`;
+      // Nome novo a cada render, não o mesmo sobrescrito: com o mesmo caminho,
+      // o CDN do Storage pode servir o vídeo ANTIGO depois de um "atualizar".
+      const destino = `${preparo.musicaId}/${videoId}-${preparo.assinatura}.mp4`;
       const { error } = await sb.storage
         .from("videos")
         .upload(destino, bytes, { contentType: "video/mp4", upsert: true });
@@ -292,10 +319,17 @@ export const renderizarVideo = inngest.createFunction(
         .update({
           status: "pronto",
           video_path: destino,
+          assinatura: preparo.assinatura,
           pronto_em: new Date().toISOString(),
           erro: null,
         })
         .eq("id", videoId);
+
+      // O anterior só sai DEPOIS de o novo estar gravado e apontado: ela
+      // nunca fica sem vídeo no meio de uma atualização.
+      if (preparo.caminhoAntigo && preparo.caminhoAntigo !== destino) {
+        await sb.storage.from("videos").remove([preparo.caminhoAntigo]);
+      }
 
       // Limpa o S3. Se falhar, o ciclo de vida do bucket do Remotion apaga
       // depois; não é motivo pra refazer a entrega.
@@ -315,6 +349,9 @@ export const renderizarVideo = inngest.createFunction(
     await step.run("avisar-cliente", async () => {
       const chave = process.env.RESEND_API_KEY;
       if (!chave) return;
+      // Atualização ela pediu com o editor aberto, e a tela já se atualiza
+      // sozinha. Um segundo "seu vídeo está pronto" seria só ruído.
+      if (preparo.atualizacoes > 0) return;
       const linkVideo = `${SITE}/editar/${preparo.tokenEdicao}#video`;
       const { data: enviado, error } = await new Resend(chave).emails.send({
         tags: [{ name: "template", value: "video_pronto" }],

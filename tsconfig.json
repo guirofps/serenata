@@ -4,6 +4,8 @@
     "src/**/*.tsx",
     "api/**/*.ts",
     "inngest/**/*.ts",
+    "video/src/**/*.ts",
+    "video/src/**/*.tsx",
     "vite.config.ts",
     "eslint.config.js"
   ],

@@ -1,5 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   carregarParaEditar,
   salvarPersonalizacao,
@@ -149,6 +149,12 @@ function Editor() {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const audioPreferido = versaoPref === 2 ? p.audioUrlV2 : p.audioUrlV1;
+  // As fotos do vídeo, na ordem em que o render usa: capa, depois galeria.
+  // Memo porque a prévia do vídeo recalcula a cada array novo.
+  const fotosDoVideo = useMemo(
+    () => [fotoUrl, ...galeria.map((g) => g.url)].filter((u): u is string => Boolean(u)),
+    [fotoUrl, galeria],
+  );
 
   // Um <audio> só, compartilhado pelos dois botões de prévia. Trocar de versão
   // no meio para a atual e começa a outra do zero.
@@ -798,6 +804,21 @@ function Editor() {
               </p>
             )}
 
+            {/* O VÍDEO mora DENTRO da montagem, entre a dedicatória e a entrega:
+                a página e o vídeo são a mesma montagem, e a prévia toca com as
+                fotos e a frase que ela acabou de escolher aqui em cima, mudando
+                na hora. O e-mail de "vídeo pronto" aponta pra cá (#video). Some
+                sozinho enquanto o render não está configurado. */}
+            <VideoPresenteEditor
+              tokenEdicao={tokenEdicao}
+              locale={p?.locale === "es" ? "es" : "pt"}
+              fotos={fotosDoVideo}
+              titulo={p.titulo}
+              dedicatoria={dedicatoria}
+              audioUrl={audioPreferido}
+              versao={versaoPref}
+            />
+
             {/* entrega */}
             <section className="rounded-3xl border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-6">
               <h2 className="font-medium" style={{ fontSize: "var(--t-lg)" }}>
@@ -966,11 +987,6 @@ function Editor() {
 
               A "mais uma música" continua nos e-mails de entrega e recompra,
               onde não compete com nada. */}
-          {/* O VÍDEO vem antes do quadro: é feito das fotos que ela acabou de
-              subir logo acima, e o e-mail de "vídeo pronto" aponta pra cá
-              (#video). Some sozinho enquanto o render não está configurado. */}
-          <VideoPresenteEditor tokenEdicao={tokenEdicao} locale={p?.locale === "es" ? "es" : "pt"} />
-
           <OfertaQuadroEditor
             locale={p?.locale === "es" ? "es" : "pt"}
             tokenEdicao={tokenEdicao}

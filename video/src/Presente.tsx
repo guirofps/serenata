@@ -95,11 +95,11 @@ function linhaAtiva(karaoke: LinhaKaraoke[], t: number): { linha: LinhaKaraoke |
 const tempoDeLeitura = (texto: string) => (texto ? clamp(texto.length / 14, 3, 15) : 0);
 
 const TEXTOS = {
-  pt: { fecho: "uma música feita da história de vocês" },
-  es: { fecho: "una canción hecha de su historia" },
+  pt: { fecho: "uma música feita da história de vocês", previa: "PRÉVIA" },
+  es: { fecho: "una canción hecha de su historia", previa: "VISTA PREVIA" },
 } as const;
 
-export const Presente: React.FC<PropsPresente> = ({ audioUrl, fotos, karaoke, titulo, dedicatoria, locale }) => {
+export const Presente: React.FC<PropsPresente> = ({ audioUrl, fotos, karaoke, titulo, dedicatoria, locale, previa }) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
   const t = frame / fps;
@@ -267,6 +267,27 @@ export const Presente: React.FC<PropsPresente> = ({ audioUrl, fotos, karaoke, ti
             <div style={{ fontFamily: LORA, fontStyle: "italic", color: CREME, fontSize: 38, lineHeight: 1.45 }}>
               {(TEXTOS[locale] ?? TEXTOS.pt).fecho}
             </div>
+          </div>
+        </AbsoluteFill>
+      )}
+
+      {/* Marca da prévia: em diagonal no terço de cima, onde recortar tira o
+          rosto junto. No meio ela brigava com o título e a dedicatória. */}
+      {previa && (
+        <AbsoluteFill style={{ alignItems: "center", paddingTop: 360, pointerEvents: "none" }}>
+          <div
+            style={{
+              transform: "rotate(-24deg)",
+              fontFamily: LORA,
+              fontWeight: 600,
+              fontSize: 150,
+              letterSpacing: 30,
+              color: "rgba(255,255,255,0.24)",
+              textShadow: "0 0 2px rgba(0,0,0,0.12)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {(TEXTOS[locale] ?? TEXTOS.pt).previa}
           </div>
         </AbsoluteFill>
       )}
