@@ -236,6 +236,7 @@ const Montagem: React.FC<PropsPresente & { pulso: number }> = ({
   locale,
   previa,
   para,
+  trecho,
   pulso,
 }) => {
   const frame = useCurrentFrame();
@@ -249,7 +250,7 @@ const Montagem: React.FC<PropsPresente & { pulso: number }> = ({
   const refrao = useMemo(() => linhasDeRefrao(karaoke), [karaoke]);
 
   // ── Karaokê ─────────────────────────────────────────────────────
-  const inicioFecho = durS - FECHAMENTO_S;
+  const inicioFecho = trecho ? Infinity : durS - FECHAMENTO_S;
   const { idx, proxIni } = linhaAtiva(karaoke, t);
   const linha = idx >= 0 ? karaoke[idx] : null;
   const ultima = linha?.words[linha.words.length - 1];
@@ -265,11 +266,13 @@ const Montagem: React.FC<PropsPresente & { pulso: number }> = ({
   // divide a tela com a letra (ele no meio, a letra embaixo, sem encostar).
   const ded = dedicatoria ? encurtar(dedicatoria, 240) : "";
   const primeiraFala = karaoke[0]?.start ?? 4;
-  const fimTitulo = Math.max(primeiraFala, 2.6 + tempoDeLeitura(ded), 4.5);
-  const opTitulo = interpolate(t, [0.2, 0.9, fimTitulo - 0.6, fimTitulo + 0.4], [0, 1, 1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  const fimTitulo = trecho ? 0 : Math.max(primeiraFala, 2.6 + tempoDeLeitura(ded), 4.5);
+  const opTitulo = trecho
+    ? 0
+    : interpolate(t, [0.2, 0.9, fimTitulo - 0.6, fimTitulo + 0.4], [0, 1, 1, 0], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      });
   const opTituloTexto = interpolate(t, [1.1, 1.8], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const opDed = interpolate(t, [1.8, 2.8], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const cenas = useMemo(
@@ -293,7 +296,9 @@ const Montagem: React.FC<PropsPresente & { pulso: number }> = ({
   }, 0);
 
   // ── Fechamento ──────────────────────────────────────────────────
-  const opFecho = interpolate(t, [inicioFecho, inicioFecho + 1.2], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const opFecho = trecho
+    ? 0
+    : interpolate(t, [inicioFecho, inicioFecho + 1.2], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   return (
     <AbsoluteFill style={{ backgroundColor: FUNDO }}>

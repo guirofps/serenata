@@ -3,6 +3,7 @@ import { Composition } from "remotion";
 import { getAudioDurationInSeconds } from "@remotion/media-utils";
 import { Presente } from "./Presente";
 import type { PropsPresente } from "./props";
+import { Anuncio, DURACAO_ANUNCIO_S, type PropsAnuncio } from "./Anuncio";
 
 /**
  * O vídeo dura o que a MÚSICA dura, medido no próprio MP3.
@@ -34,8 +35,29 @@ const EXEMPLO: PropsPresente = {
   locale: "pt",
 };
 
+// O anúncio renderiza LOCAL (`scratch/anuncio/`), com --public-dir=video/public:
+// os prints e a música de demonstração moram lá, fora do git.
+const EXEMPLO_ANUNCIO: PropsAnuncio = {
+  titulo: "",
+  para: "Bianca",
+  audio: "anuncio/demo-v1.mp3",
+  inicioAudio: 0,
+  versos: [],
+  karaoke: [],
+};
+
 export const RemotionRoot: React.FC = () => {
   return (
+    <>
+    <Composition
+      id="Anuncio"
+      component={Anuncio}
+      durationInFrames={Math.round(DURACAO_ANUNCIO_S * FPS)}
+      fps={FPS}
+      width={1080}
+      height={1920}
+      defaultProps={EXEMPLO_ANUNCIO}
+    />
     <Composition
       id="Presente"
       component={Presente}
@@ -53,5 +75,6 @@ export const RemotionRoot: React.FC = () => {
         durationInFrames: Math.max(FPS * 5, Math.ceil((await duracaoDoVideo(props)) * FPS)),
       })}
     />
+    </>
   );
 };

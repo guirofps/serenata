@@ -20,6 +20,11 @@ export type PropsPresente = {
   /** Quem ganha o presente ("Daiane"). Abre o vídeo e sai em itálico dourado na letra. */
   para?: string;
   /**
+   * Um PEDAÇO do vídeo, sem abertura nem fechamento: é como ele aparece
+   * dentro do celular no anúncio. O vídeo de verdade nunca manda isto.
+   */
+  trecho?: boolean;
+  /**
    * Prévia tocando no editor, antes da compra. Carimba "prévia" no canto: a
    * prévia é o vídeo inteiro de verdade, e sem marca ela bastaria gravada da
    * tela. O render pago nunca manda isto.
