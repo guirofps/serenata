@@ -19,6 +19,7 @@ import { guardeOLink } from "../inngest/functions/guardeOLink.js";
 import { repescarFalhadas } from "../inngest/functions/repescarFalhadas.js";
 import { vigiaExperimento } from "../inngest/functions/vigiaExperimento.js";
 import { puxarMetricasAds } from "../inngest/functions/puxarMetricasAds.js";
+import { resumoDiario } from "../inngest/functions/resumoDiario.js";
 import { taxasFaltando } from "../inngest/functions/taxasFaltando.js";
 import { vigiaEntrega } from "../inngest/functions/vigiaEntrega.js";
 import { ofertaQuadro } from "../inngest/functions/ofertaQuadro.js";
@@ -56,6 +57,7 @@ export default serve({
     vigiaExperimento,
     taxasFaltando,
     puxarMetricasAds,
+    resumoDiario,
     ofertaQuadro,
     vigiaGeracao,
     quaseComprou,
