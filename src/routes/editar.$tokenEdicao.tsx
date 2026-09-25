@@ -817,6 +817,7 @@ function Editor() {
               dedicatoria={dedicatoria}
               audioUrl={audioPreferido}
               versao={versaoPref}
+              para={p.nome ?? undefined}
             />
 
             {/* entrega */}

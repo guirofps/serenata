@@ -70,6 +70,7 @@ export function VideoPresenteEditor({
   dedicatoria,
   audioUrl,
   versao,
+  para,
 }: {
   tokenEdicao: string;
   locale?: "pt" | "es";
@@ -80,6 +81,8 @@ export function VideoPresenteEditor({
   /** O áudio da versão que ela escolheu no editor. */
   audioUrl: string | null;
   versao: 1 | 2;
+  /** Quem ganha o presente: abre o vídeo e sai em itálico dourado na letra. */
+  para?: string;
 }) {
   const [estado, setEstado] = useState<EstadoVideo | null>(null);
   const [folhaAberta, setFolhaAberta] = useState(false);
@@ -306,6 +309,7 @@ export function VideoPresenteEditor({
               dedicatoria={dedicatoria}
               duracaoReserva={versao === 1 ? estado.duracaoS : 0}
               locale={locale}
+              para={para}
             />
           </Suspense>
         ) : (

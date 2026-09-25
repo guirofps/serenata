@@ -17,6 +17,8 @@ export type PropsPresente = {
   /** Duração do vídeo em segundos (a música inteira + o card de fechamento). */
   duracaoS: number;
   locale: "pt" | "es";
+  /** Quem ganha o presente ("Daiane"). Abre o vídeo e sai em itálico dourado na letra. */
+  para?: string;
   /**
    * Prévia tocando no editor, antes da compra. Carimba "prévia" no canto: a
    * prévia é o vídeo inteiro de verdade, e sem marca ela bastaria gravada da

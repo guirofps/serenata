@@ -204,6 +204,16 @@ export const renderizarVideo = inngest.createFunction(
 
       // Duração de reserva. A de verdade a composição mede no próprio MP3
       // (`calculateMetadata`); esta só vale se a medição falhar.
+      // Quem ganha o presente: abre o vídeo e sai em itálico dourado na letra.
+      const { data: q } = m.quiz_response_id
+        ? await sb
+            .from("quiz_responses")
+            .select("respostas")
+            .eq("id", m.quiz_response_id)
+            .maybeSingle()
+        : { data: null };
+      const para = String(((q?.respostas ?? {}) as Record<string, unknown>).nome ?? "").trim();
+
       const ultimaPalavra = karaoke.length ? karaoke[karaoke.length - 1].end : 0;
       const duracaoS = Math.max(Number(m.duracao_s) || 0, ultimaPalavra + FECHAMENTO_S + 2, 20);
 
@@ -223,6 +233,7 @@ export const renderizarVideo = inngest.createFunction(
           dedicatoria: (m.dedicatoria as string | null) ?? "",
           duracaoS,
           locale: m.locale === "es" ? "es" : "pt",
+          para: para || undefined,
         },
         assinatura,
         atualizacoes: Number(v.atualizacoes) || 0,

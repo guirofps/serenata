@@ -27,6 +27,7 @@ export default function PreviaVideo({
   dedicatoria,
   duracaoReserva,
   locale,
+  para,
 }: {
   audioUrl: string;
   fotos: string[];
@@ -35,6 +36,7 @@ export default function PreviaVideo({
   dedicatoria: string;
   duracaoReserva: number;
   locale: "pt" | "es";
+  para?: string;
 }) {
   // A duração de verdade é a do MP3. A reserva (coluna ou última palavra)
   // não sabe do instrumental do fim, e cortar o fim é cortar a parte que emociona.
@@ -63,8 +65,9 @@ export default function PreviaVideo({
       duracaoS: duracaoS ?? reserva,
       locale,
       previa: true,
+      para,
     }),
-    [audioUrl, fotos, karaoke, titulo, dedicatoria, duracaoS, reserva, locale],
+    [audioUrl, fotos, karaoke, titulo, dedicatoria, duracaoS, reserva, locale, para],
   );
 
   if (duracaoS === null) {
