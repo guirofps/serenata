@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Audio, Easing, Img, Sequence, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Audio, Easing, Img, OffthreadVideo, Sequence, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { useAudioData, visualizeAudio } from "@remotion/media-utils";
 import { loadFont as carregarPoppins } from "@remotion/google-fonts/Poppins";
 import { loadFont as carregarPlayfair } from "@remotion/google-fonts/PlayfairDisplay";
@@ -7,13 +7,23 @@ import { loadFont as carregarLora } from "@remotion/google-fonts/Lora";
 import type { LinhaKaraoke } from "./props";
 import { Presente } from "./Presente";
 
-// O ANÚNCIO: 21s vertical mostrando o produto funcionando, com a música de
-// demonstração tocando por baixo.
+// O ANÚNCIO: ~1 minuto vertical que abre e fecha na EMOÇÃO de quem recebe, e
+// no meio mostra o produto funcionando, com a música de demonstração por baixo.
 //
-// Tudo aqui é produto de verdade: a tela do quiz e a página presente são
-// prints do site, a música e a letra saíram do pipeline do app. A história
-// é INVENTADA (Bianca e o café ruim): música, foto e rosto de cliente nunca
-// entram em anúncio.
+// ── EMOÇÃO PRIMEIRO ──────────────────────────────────────────────
+//
+// A primeira versão só mostrava o que a plataforma entrega, e o dono apontou
+// o buraco: não mostrava o que a pessoa SENTE ao receber. Agora o gancho são
+// as reações (o mesmo vídeo da home, que a marca já usa), e elas voltam antes
+// do fechamento. O "como funciona" fica no meio, como explicação do choro.
+//
+// ── RITMO DE QUEM TEM 35-40+ ─────────────────────────────────────
+//
+// Cenas de ~7s, letra maior e máquina de escrever mais lenta: o público lê
+// cada tela até o fim antes de a próxima entrar.
+//
+// A música e a história da demonstração são INVENTADAS (Bianca e o café
+// ruim); as telas são prints do site. Música e foto de cliente não entram.
 //
 // A linguagem vem de anúncio de app (tipografia cinética, capítulos, celular
 // com etiquetas), nas cores da marca: vinho, ouro e creme sobre escuro.
@@ -41,18 +51,18 @@ export type PropsAnuncio = {
 };
 
 // ── Roteiro (em segundos) ─────────────────────────────────────────
-// ~5s por cena: com 3,5s (primeira versão, 21s) não dava tempo de ler as
-// etiquetas, e o dono achou curto.
 const CENAS = {
-  gancho: [0, 4.2],
-  conta: [4.2, 9.2],
-  letra: [9.2, 14.2],
-  musica: [14.2, 19.4],
-  video: [19.4, 24.6],
-  presente: [24.6, 29.6],
-  fecho: [29.6, 34],
+  gancho: [0, 6.5],
+  conta: [6.5, 13.5],
+  letra: [13.5, 20.5],
+  musica: [20.5, 27.5],
+  recebe: [27.5, 34.5],
+  video: [34.5, 40.5],
+  reacoes: [40.5, 47.5],
+  presente: [47.5, 53.5],
+  fecho: [53.5, 60],
 } as const;
-export const DURACAO_ANUNCIO_S = 34;
+export const DURACAO_ANUNCIO_S = 60;
 
 // ── Peças ─────────────────────────────────────────────────────────
 
@@ -72,7 +82,7 @@ const Titulo: React.FC<{ reta: string; italico: string; dur: number; topo?: numb
   const palavras = reta.split(" ");
   return (
     <div style={{ position: "absolute", top: topo, left: 0, right: 0, textAlign: "center", opacity: op, padding: "0 70px" }}>
-      <div style={{ fontFamily: POPPINS, fontWeight: 700, color: CREME, fontSize: 86, lineHeight: 1.05, letterSpacing: -2 }}>
+      <div style={{ fontFamily: POPPINS, fontWeight: 700, color: CREME, fontSize: 94, lineHeight: 1.05, letterSpacing: -2 }}>
         {palavras.map((p, i) => {
           const e = suave(clamp((t - i * 0.07) / 0.45, 0, 1));
           return (
@@ -88,7 +98,7 @@ const Titulo: React.FC<{ reta: string; italico: string; dur: number; topo?: numb
           fontStyle: "italic",
           fontWeight: 600,
           color: OURO,
-          fontSize: 100,
+          fontSize: 110,
           lineHeight: 1.1,
           marginTop: 6,
           opacity: suave(clamp((t - 0.35) / 0.5, 0, 1)),
@@ -104,7 +114,7 @@ const Titulo: React.FC<{ reta: string; italico: string; dur: number; topo?: numb
 const Capitulo: React.FC<{ n: string; nome: string; dur: number }> = ({ n, nome, dur }) => {
   const { op } = useEntradaSaida(dur);
   return (
-    <div style={{ position: "absolute", top: 150, left: 0, right: 0, textAlign: "center", opacity: op, fontFamily: POPPINS, fontWeight: 600, fontSize: 26, letterSpacing: 8 }}>
+    <div style={{ position: "absolute", top: 150, left: 0, right: 0, textAlign: "center", opacity: op, fontFamily: POPPINS, fontWeight: 600, fontSize: 30, letterSpacing: 8 }}>
       <span style={{ color: OURO }}>{n}</span>
       {nome ? <span style={{ color: "rgba(247,237,226,0.55)" }}> · {nome}</span> : null}
     </div>
@@ -219,14 +229,59 @@ const Pulso: React.FC<{ bandas: number[]; cy: number; escala?: number; op?: numb
 
 const dur = (c: readonly [number, number]) => c[1] - c[0];
 
-const CenaGancho: React.FC<{ bandas: number[] }> = ({ bandas }) => {
-  const d = dur(CENAS.gancho);
-  const { op } = useEntradaSaida(d);
+/**
+ * REAÇÕES: duas de uma vez, empilhadas. O vídeo é horizontal (o da home) e
+ * o anúncio é vertical: em vez de cortar o quadro e perder metade das
+ * pessoas (quase toda cena tem duas), cada reação entra inteira numa faixa.
+ * Mudo: por baixo toca a nossa música, e o áudio de lá é outra canção.
+ */
+const CenaReacoes: React.FC<{ reta: string; italico: string; dur: number; inicios: [number, number] }> = ({ reta, italico, dur: d, inicios }) => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const t = f / fps;
+  const faixa = (i: number): React.CSSProperties => {
+    const e = suave(clamp((t - 0.15 - i * 0.25) / 0.6, 0, 1));
+    return {
+      position: "absolute",
+      left: 40,
+      right: 40,
+      top: 560 + i * 640,
+      height: 580,
+      borderRadius: 34,
+      overflow: "hidden",
+      boxShadow: "0 30px 80px rgba(0,0,0,0.55), 0 0 0 2px rgba(232,196,106,0.2)",
+      opacity: Math.min(e, clamp((d - t) / 0.35, 0, 1)),
+      transform: `translateY(${(1 - e) * 80}px) scale(${1.02 - 0.02 * e})`,
+    };
+  };
   return (
     <AbsoluteFill>
-      <Capitulo n="SERENATA" nome="" dur={d} />
-      <Titulo reta="E se a história de vocês" italico="virasse música?" dur={d} topo={330} />
-      <Pulso bandas={bandas} cy={1250} op={op} />
+      <Titulo reta={reta} italico={italico} dur={d} topo={170} />
+      {inicios.map((ini, i) => (
+        <div key={i} style={faixa(i)}>
+          <OffthreadVideo src={staticFile("anuncio/reacoes.mp4")} startFrom={Math.round(ini * fps)} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        </div>
+      ))}
+    </AbsoluteFill>
+  );
+};
+
+/**
+ * ELA RECEBE: a gravação de tela da entrega (a mesma da home), no celular.
+ * WhatsApp, toca no link, a página abre e a música começa. É a experiência
+ * de quem ganha, do jeito que ela acontece.
+ */
+const CenaRecebe: React.FC = () => {
+  const d = dur(CENAS.recebe);
+  return (
+    <AbsoluteFill>
+      <Capitulo n="04" nome="ELA RECEBE" dur={d} />
+      <Titulo reta="Ela recebe" italico="no WhatsApp…" dur={d} />
+      <Celular dur={d}>
+        <OffthreadVideo src={staticFile("anuncio/entrega.mp4")} startFrom={15} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </Celular>
+      <Etiqueta x={250} y={1060} ax={380} ay={1120} titulo="Abre o link" sub="sem baixar nada" atraso={1.2} dur={d} />
+      <Etiqueta x={830} y={1500} ax={700} ay={1420} titulo="E ouve" sub="a história dela" atraso={3.4} dur={d} />
     </AbsoluteFill>
   );
 };
@@ -251,9 +306,9 @@ const CenaLetra: React.FC<{ versos: string[]; para: string }> = ({ versos, para 
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const t = f / fps;
-  // Máquina de escrever: ~60 letras por segundo, depois de o celular entrar.
+  // Máquina de escrever: ~45 letras por segundo (público 35-40+ lê até o fim), depois de o celular entrar.
   const total = versos.join("\n");
-  const n = Math.floor(clamp((t - 0.55) * 60, 0, total.length));
+  const n = Math.floor(clamp((t - 0.55) * 45, 0, total.length));
   const escrito = total.slice(0, n).split("\n");
   return (
     <AbsoluteFill>
@@ -339,7 +394,7 @@ const CenaVideo: React.FC<{ karaoke: LinhaKaraoke[]; inicioAudio: number; para: 
   const escala = altura / 1920;
   return (
     <AbsoluteFill>
-      <Capitulo n="04" nome="O VÍDEO" dur={d} />
+      <Capitulo n="05" nome="O VÍDEO" dur={d} />
       <Titulo reta="As fotos de vocês" italico="viram vídeo." dur={d} />
       <Celular dur={d}>
         <div style={{ position: "absolute", top: 0, left: (500 - 28 - 1080 * escala) / 2, width: 1080, height: 1920, transform: `scale(${escala})`, transformOrigin: "0 0" }}>
@@ -374,7 +429,7 @@ const CenaPresente: React.FC<{ para: string }> = ({ para }) => {
   const rotulo: React.CSSProperties = { fontFamily: POPPINS, fontWeight: 600, fontSize: 30, color: CREME, textAlign: "center", marginTop: 26 };
   return (
     <AbsoluteFill>
-      <Capitulo n="05" nome="O PRESENTE" dur={d} />
+      <Capitulo n="06" nome="O PRESENTE" dur={d} />
       <Titulo reta="E vira" italico="presente." dur={d} />
       <div style={{ position: "absolute", top: 720, left: 40, right: 40, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         {/* Página presente com QR Code */}
@@ -474,14 +529,20 @@ export const Anuncio: React.FC<PropsAnuncio> = (props) => {
           background: `radial-gradient(${70 + 10 * graves}% ${45 + 6 * graves}% at 50% 58%, rgba(125,43,58,${0.55 + 0.2 * graves}) 0%, rgba(40,14,20,0.6) 45%, ${FUNDO} 80%)`,
         }}
       />
-      <Sequence {...seq(CENAS.gancho)}><CenaGancho bandas={bandas} /></Sequence>
+      <Sequence {...seq(CENAS.gancho)}>
+        <CenaReacoes reta="Ela não esperava" italico="por isso." dur={dur(CENAS.gancho)} inicios={[4.5, 13.4]} />
+      </Sequence>
       <Sequence {...seq(CENAS.conta)}><CenaConta /></Sequence>
       <Sequence {...seq(CENAS.letra)}><CenaLetra versos={props.versos} para={props.para} /></Sequence>
       <Sequence {...seq(CENAS.musica)}>
         <CenaMusica karaoke={props.karaoke} inicioAudio={props.inicioAudio} para={props.para} bandas={bandas} />
       </Sequence>
+      <Sequence {...seq(CENAS.recebe)}><CenaRecebe /></Sequence>
       <Sequence {...seq(CENAS.video)}>
         <CenaVideo karaoke={props.karaoke} inicioAudio={props.inicioAudio} para={props.para} />
+      </Sequence>
+      <Sequence {...seq(CENAS.reacoes)}>
+        <CenaReacoes reta="Quem recebe" italico="nunca esquece." dur={dur(CENAS.reacoes)} inicios={[15.6, 20]} />
       </Sequence>
       <Sequence {...seq(CENAS.presente)}><CenaPresente para={props.para} /></Sequence>
       <Sequence {...seq(CENAS.fecho)}><CenaFecho /></Sequence>
