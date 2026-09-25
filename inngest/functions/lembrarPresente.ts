@@ -1,4 +1,5 @@
 import { inngest } from "../client.js";
+import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
@@ -143,6 +144,7 @@ export const lembrarPresente = inngest.createFunction(
       tags: [{ name: "template", value: "lembrar_presente" }],
           from: "Serenata <contato@serenatagift.com>",
           to: [c.email],
+          headers: cabecalhosDescadastro(c.email),
           subject: assuntoLembrete(c.nome, c.locale),
           html: emailLembretePresente({ nome: c.nome, titulo: c.titulo, linkEditor: c.linkEditor, locale: c.locale }),
           text:

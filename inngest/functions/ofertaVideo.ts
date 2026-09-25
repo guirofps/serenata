@@ -1,4 +1,5 @@
 import { inngest } from "../client.js";
+import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
@@ -157,6 +158,7 @@ export const ofertaVideo = inngest.createFunction(
           from: REMETENTE_RECUPERACAO,
           replyTo: RESPONDER_PARA,
           to: [c.email],
+          headers: cabecalhosDescadastro(c.email),
           subject: assuntoVideoOferta(c.nome),
           html: emailVideoOferta({ nome: c.nome, titulo: c.titulo, link: c.link }),
           text: textoVideoOferta({ nome: c.nome, link: c.link }),

@@ -32,13 +32,18 @@ export async function bloqueados(
   const alvos = [...new Set(emails.filter(Boolean).map((e) => e.toLowerCase()))];
   if (!alvos.length) return new Set();
   try {
-    const { data, error } = await db
-      .from("emails_mortos")
-      .select("email")
-      .in("email", alvos)
-      .is("liberado_em", null);
-    if (error) throw error;
-    return new Set((data ?? []).map((r) => String(r.email).toLowerCase()));
+    // Mortos (bounce) E descadastrados: desde 25/09 o "Cancelar inscrição"
+    // do Outlook/Gmail grava em `descadastros`, e ele tem que valer em toda
+    // régua que usa esta checagem, não só na escada. (Os transacionais, como
+    // a entrega, não passam por aqui.)
+    const [mortos, fora] = await Promise.all([
+      db.from("emails_mortos").select("email").in("email", alvos).is("liberado_em", null),
+      db.from("descadastros").select("email").in("email", alvos),
+    ]);
+    if (mortos.error) throw mortos.error;
+    return new Set(
+      [...(mortos.data ?? []), ...(fora.data ?? [])].map((r) => String(r.email).toLowerCase()),
+    );
   } catch (err) {
     console.error("[emails-mortos] consulta falhou, seguindo sem bloquear:", err);
     return new Set();

@@ -1,4 +1,5 @@
-﻿import { inngest } from "../client.js";
+import { inngest } from "../client.js";
+import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import {
@@ -578,6 +579,7 @@ export const sequenciaRecuperacao = inngest.createFunction(
           from: REMETENTE_RECUPERACAO,
           replyTo: RESPONDER_PARA,
           to: [p.email],
+          headers: cabecalhosDescadastro(p.email),
           subject: naEscada
             ? assuntoEscada(p.numero as DegrauEscada, p.nome, p.ouviu)
             : assuntoSequencia(p.numero as NumeroDaSequencia, p.nome, p.locale),
@@ -598,10 +600,6 @@ export const sequenciaRecuperacao = inngest.createFunction(
                 locale: p.locale,
                 verso: p.verso,
               }),
-          headers: {
-            "List-Unsubscribe": `<${linkDescadastro}>`,
-            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-          },
         });
         if (error) {
           console.error("[sequencia] envio falhou:", p.email, p.numero, error.message);

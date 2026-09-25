@@ -1,4 +1,5 @@
 import { inngest } from "../client.js";
+import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
@@ -197,6 +198,7 @@ export const volteCriar = inngest.createFunction(
           from: REMETENTE_RECUPERACAO,
           replyTo: RESPONDER_PARA,
           to: [c.email],
+          headers: cabecalhosDescadastro(c.email),
           subject: assuntoVolteCriar(c.nome, c.locale),
           html: emailVolteCriar({
             nome: c.nome,
@@ -204,10 +206,6 @@ export const volteCriar = inngest.createFunction(
             linkDescadastro,
             locale: c.locale,
           }),
-          headers: {
-            "List-Unsubscribe": `<${linkDescadastro}>`,
-            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-          },
         });
         if (error) {
           console.error("[volte-criar] envio falhou:", c.email, error.message);

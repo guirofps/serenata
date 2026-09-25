@@ -1,4 +1,5 @@
 import { inngest } from "../client.js";
+import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";

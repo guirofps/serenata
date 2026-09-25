@@ -1,4 +1,5 @@
 import { inngest } from "../client.js";
+import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
@@ -364,6 +365,7 @@ export const pixNaoPago = inngest.createFunction(
           tags: [{ name: "template", value: "pix_nao_pago" }],
           from: "Serenata <contato@serenatagift.com>",
           to: [c.email],
+          headers: cabecalhosDescadastro(c.email),
           subject: assuntoPixNaoPago(c.nome, c.locale),
           html: emailPixNaoPago({
             nome: c.nome,

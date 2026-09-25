@@ -1,4 +1,5 @@
 import { inngest } from "../client.js";
+import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
@@ -172,6 +173,7 @@ export const guardeOLink = inngest.createFunction(
           tags: [{ name: "template", value: "guarde_o_link" }],
           from: "Serenata <contato@serenatagift.com>",
           to: [c.email],
+          headers: cabecalhosDescadastro(c.email),
           subject: assuntoGuardeOLink(c.nome, c.locale),
           html: emailGuardeOLink({
             nome: c.nome,

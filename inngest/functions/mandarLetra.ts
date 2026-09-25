@@ -1,4 +1,5 @@
 import { inngest } from "../client.js";
+import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailLetraPronta, assuntoLetraPronta } from "../../emails/letra-pronta.js";
@@ -242,14 +243,13 @@ export const mandarLetra = inngest.createFunction(
           // oferta é o que junta reclamação quando junta. Ver `remetentes.ts`.
           from: REMETENTE_TRANSACIONAL,
           to: [p.email],
+          // Cabeçalho que o Gmail e o Outlook leem pra oferecer o "cancelar
+          // inscrição" nativo. Sem ele, quem quer sair usa o botão de spam.
+          // Desde 25/09 aponta pra `/api/descadastro`, que aceita o toque
+          // único (POST) do provedor; a página `/descadastrar` não aceitava.
+          headers: cabecalhosDescadastro(p.email),
           subject: assuntoLetraPronta(p.nome, p.locale),
           html: emailLetraPronta({ ...p, linkPrevia, linkDescadastro }),
-          // Cabeçalho que o Gmail lê pra oferecer o "cancelar inscrição"
-          // nativo. Sem ele, quem quer sair usa o botão de spam.
-          headers: {
-            "List-Unsubscribe": `<${linkDescadastro}>`,
-            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-          },
         });
         if (error) {
           console.error("[letra] envio falhou:", p.email, error.message);
