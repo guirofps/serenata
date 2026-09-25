@@ -37,7 +37,12 @@ const COPY = {
     preparando: "Preparando o seu presente…",
     proximoPasso: "o próximo passo",
     monteOPresente: (n?: string | null) => `Monte o presente${n ? ` de ${n}` : ""}`,
-    escolhaGravacao: "Escolha a gravação, ponha as fotos de vocês e uma frase sua. Leva dois minutos.",
+    // "e veja virar vídeo" é o motivo a mais pra montar AGORA, e não uma
+    // oferta: a ação desta tela continua UMA (ver o comentário do convite
+    // discreto no fim do arquivo). A venda do vídeo mora no editor, embaixo
+    // da prévia, com as fotos que ela acabou de subir.
+    escolhaGravacao:
+      "Escolha a gravação, ponha as fotos de vocês e uma frase sua. Leva dois minutos, e você já vê a página virar vídeo com a música.",
     // A ENTREGA É POR LINK, e isso precisa estar escrito.
     // Em 26/08, cinco dos sete tickets do dia eram gente esperando a música
     // chegar sozinha — por WhatsApp ou anexa no e-mail. O produto estava

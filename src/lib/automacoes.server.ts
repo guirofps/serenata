@@ -27,6 +27,7 @@ import { assuntoVolteCriar, emailVolteCriar } from "../../emails/volte-criar";
 import { assuntoQuadroParado, emailQuadroParado } from "../../emails/quadro-parado";
 import { assuntoCreditoParado, emailCreditoParado } from "../../emails/credito-parado";
 import { assuntoVideoPronto, emailVideoPronto } from "../../emails/video-pronto";
+import { assuntoVideoOferta, emailVideoOferta } from "../../emails/video-oferta";
 
 // O CATÁLOGO DAS AUTOMAÇÕES DE E-MAIL, do jeito que elas rodam hoje.
 //
@@ -248,6 +249,25 @@ export const AUTOMACOES: Automacao[] = [
         nome: "O presente está esperando você montar",
         quando: "3h depois da compra, sem montar",
         idiomas: ["pt", "es"],
+      },
+    ],
+  },
+  {
+    id: "oferta-video",
+    nome: "Oferta do vídeo",
+    fase: "depois",
+    gatilho: "de hora em hora, 10h–19h (aos 50 min)",
+    quemRecebe:
+      "Quem pagou há 1 a 14 dias e subiu pelo menos uma foto. O link abre o editor na prévia do vídeo tocando. Teto de 6 por rodada.",
+    quemNao: "Quem já tem vídeo. Quem não subiu foto. Quem comprou em espanhol.",
+    remetente: "recuperacao",
+    arquivo: "inngest/functions/ofertaVideo.ts",
+    emails: [
+      {
+        template: "oferta_video",
+        nome: "A sua página virou vídeo",
+        quando: "1 dia depois da compra",
+        idiomas: ["pt"],
       },
     ],
   },
@@ -564,6 +584,11 @@ export function renderizarPreview(template: string, locale: "pt" | "es"): Previe
       return pt(
         assuntoVideoPronto(E.titulo, l),
         emailVideoPronto({ titulo: E.titulo, linkVideo: `${E.linkEditor}#video`, locale: l }),
+      );
+    case "oferta_video":
+      return pt(
+        assuntoVideoOferta(E.nome),
+        emailVideoOferta({ nome: E.nome, titulo: E.titulo, link: `${E.linkEditor}?de=video#video` }),
       );
     default:
       return desconhecido(template, locale);

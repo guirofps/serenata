@@ -128,6 +128,21 @@ export function VideoPresenteEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fotos, dedicatoria, versao]);
 
+  // Chegou pelo link do e-mail (`#video`): o bloco só existe depois que o
+  // estado carrega, então o navegador não acha a âncora sozinho. Rola até
+  // ele e já liga a prévia, que é o que o e-mail prometeu ("dá o play").
+  const temEstado = !!estado;
+  useEffect(() => {
+    if (!temEstado || typeof window === "undefined" || window.location.hash !== "#video") return;
+    setPerto(true);
+    const id = setTimeout(
+      () =>
+        document.getElementById("video")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      150,
+    );
+    return () => clearTimeout(id);
+  }, [temEstado]);
+
   // Liga a prévia quando o bloco chega a uma tela de distância.
   const mostraOferta = !!estado && estado.habilitado && locale !== "es" && !estado.status && !pagou;
   useEffect(() => {
