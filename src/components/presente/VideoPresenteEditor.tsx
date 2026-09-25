@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
-import { Download, Loader2, Film, RefreshCw } from "lucide-react";
+import { Download, Loader2, Film, ImagePlus, RefreshCw } from "lucide-react";
 import { OFERTAS } from "@/lib/creditos";
 import {
   atualizarVideo,
@@ -35,7 +35,10 @@ const TEXTOS = {
   pt: {
     titulo: "Sua página também virou vídeo",
     sub: "As fotos que você escolheu passando no ritmo da música, com a letra acendendo palavra por palavra. Dá o play e veja.",
-    semFoto: "Suba as fotos aqui em cima: elas entram no vídeo na hora.",
+    semFoto:
+      "Escolha umas fotos de vocês e veja o vídeo se montar aqui, na hora, no ritmo da música.",
+    escolherFotos: "Escolher as fotos",
+    semFotoFino: "Pode escolher várias de uma vez, até 12. Elas também entram na página.",
     cta: "Quero o vídeo em HD",
     fino: "Sem a marca de prévia, pra baixar e mandar no WhatsApp ou postar no story. Mudou uma foto? O vídeo acompanha.",
     montando: "Estamos montando o seu vídeo",
@@ -59,6 +62,8 @@ const TEXTOS = {
     titulo: "Tu página también se volvió video",
     sub: "",
     semFoto: "",
+    escolherFotos: "Elegir las fotos",
+    semFotoFino: "",
     cta: "",
     fino: "",
     montando: "Estamos armando tu video",
@@ -88,6 +93,7 @@ export function VideoPresenteEditor({
   audioUrl,
   versao,
   para,
+  subindoFotos = false,
 }: {
   tokenEdicao: string;
   locale?: "pt" | "es";
@@ -100,6 +106,8 @@ export function VideoPresenteEditor({
   versao: 1 | 2;
   /** Quem ganha o presente: abre o vídeo e sai em itálico dourado na letra. */
   para?: string;
+  /** A galeria do editor está subindo fotos (o botão daqui usa o mesmo input). */
+  subindoFotos?: boolean;
 }) {
   const [estado, setEstado] = useState<EstadoVideo | null>(null);
   const [folhaAberta, setFolhaAberta] = useState(false);
@@ -244,6 +252,39 @@ export function VideoPresenteEditor({
 
   if (!estado) return null;
 
+  // SEM FOTO, O BOTÃO É DE FOTO. Metade dos compradores chega aqui sem nenhuma
+  // foto (19 de 40 tinham, em 25/09), e pra eles a oferta era uma prévia com o
+  // fundo da Serenata e o botão de compra desligado. Este abre o MESMO input da
+  // galeria do editor (id="galeria", `multiple`): as fotos sobem pela rotina
+  // de sempre, entram na página e a prévia aqui se remonta com elas na hora.
+  const botaoFotos = (
+    <>
+      <label
+        htmlFor="galeria"
+        onClick={() =>
+          trackEvent("video_escolher_fotos", { origem: esperandoFotos ? "pago" : "oferta" })
+        }
+        className={`mx-auto mt-5 flex h-12 w-full max-w-[300px] cursor-pointer items-center justify-center gap-2 rounded-full cta px-6 font-medium ${subindoFotos ? "pointer-events-none opacity-60" : ""}`}
+        style={{ fontSize: "var(--t-sm)" }}
+      >
+        {subindoFotos ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <ImagePlus className="h-4 w-4" />
+        )}
+        {t.escolherFotos}
+      </label>
+      {t.semFotoFino && (
+        <p
+          className="mx-auto mt-2 max-w-[300px] text-center text-[var(--tinta-suave)]"
+          style={{ fontSize: "var(--t-xs)", lineHeight: 1.5 }}
+        >
+          {t.semFotoFino}
+        </p>
+      )}
+    </>
+  );
+
   // ── PAGO NO CHECKOUT, ESPERANDO AS FOTOS ──────────────────────
   // O vídeo veio junto com a música (order bump). Ela confere a prévia, já
   // sem marca, com as fotos que subiu aqui em cima, e manda gerar.
@@ -262,6 +303,7 @@ export function VideoPresenteEditor({
           {fotos.length ? t.pagoSub : t.pagoSemFoto}
         </p>
         <div className="mt-5">{previa(true)}</div>
+        {fotos.length === 0 && botaoFotos}
         <button
           type="button"
           disabled={pedindo}
@@ -389,24 +431,29 @@ export function VideoPresenteEditor({
 
       <div className="mt-5">{previa(false)}</div>
 
-      <button
-        type="button"
-        disabled={semFoto}
-        onClick={() => {
-          trackEvent("credito_oferta_click", { oferta: "video", origem: "editor_previa" });
-          setFolhaAberta(true);
-        }}
-        className="mx-auto mt-5 flex h-12 w-full max-w-[300px] items-center justify-center gap-2 rounded-full cta px-6 font-medium disabled:opacity-50"
-        style={{ fontSize: "var(--t-sm)" }}
-      >
-        {t.cta} · {precoTexto}
-      </button>
-      <p
-        className="mx-auto mt-2 max-w-[300px] text-center text-[var(--tinta-suave)]"
-        style={{ fontSize: "var(--t-xs)", lineHeight: 1.5 }}
-      >
-        {t.fino}
-      </p>
+      {semFoto ? (
+        botaoFotos
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              trackEvent("credito_oferta_click", { oferta: "video", origem: "editor_previa" });
+              setFolhaAberta(true);
+            }}
+            className="mx-auto mt-5 flex h-12 w-full max-w-[300px] items-center justify-center gap-2 rounded-full cta px-6 font-medium disabled:opacity-50"
+            style={{ fontSize: "var(--t-sm)" }}
+          >
+            {t.cta} · {precoTexto}
+          </button>
+          <p
+            className="mx-auto mt-2 max-w-[300px] text-center text-[var(--tinta-suave)]"
+            style={{ fontSize: "var(--t-xs)", lineHeight: 1.5 }}
+          >
+            {t.fino}
+          </p>
+        </>
+      )}
 
       {folhaAberta && (
         <FolhaPixUpsell

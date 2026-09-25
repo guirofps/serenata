@@ -9,6 +9,7 @@ import {
   assuntoVideoOferta,
   textoVideoOferta,
 } from "../../emails/video-oferta.js";
+import { emailFotosVideo, assuntoFotosVideo, textoFotosVideo } from "../../emails/fotos-video.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 
 // O VÍDEO, no dia seguinte à compra, pra quem já subiu foto.
@@ -31,6 +32,17 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 // PIX). E só com o render configurado: vender o que a infraestrutura não
 // sabe produzir é a regra que este projeto não quebra.
 //
+// ── E QUEM NÃO SUBIU FOTO (25/09) ────────────────────────────────
+//
+// Metade dos compradores não tinha foto nenhuma (21 de 40), e os 3 vídeos
+// vendidos saíram todos de quem tinha. Pra esses vai OUTRO e-mail
+// (`emails/fotos-video.ts`), a partir do dia 2 (o lembrete de montar sai entre
+// 3h e 96h, e dois e-mails no mesmo dia pedindo a mesma coisa cansa). Ele não
+// vende: pede as fotos. O link cai no bloco do vídeo, onde o botão "Escolher
+// as fotos" abre a galeria; a prévia se monta e a oferta aparece.
+// Marcadores separados: quem recebe o convite e sobe foto ainda pode receber
+// o "virou vídeo" depois, que aí é verdade.
+//
 // ── O LINK LEVA PRA PRÉVIA TOCANDO, NÃO PRO CHECKOUT ─────────────
 //
 // `#video` rola o editor até o bloco do vídeo, onde a prévia com as fotos
@@ -43,10 +55,13 @@ const SITE = process.env.VITE_APP_URL?.startsWith("http")
 const linkDoVideo = (tokenEdicao: string) => `${SITE}/editar/${tokenEdicao}?de=video#video`;
 
 const MIN_DIAS = 1;
+const MIN_DIAS_SEM_FOTO = 2;
 const MAX_DIAS = 14;
-// Mesmo teto do quadro, pelo mesmo motivo: disparo novo num domínio novo
-// sobe devagar. A fila inicial é a das últimas duas semanas com foto.
-const MAX_POR_RODADA = 6;
+// Teto por rodada, por tipo. Eram 6 no total, mas 10 rodadas x 6 = 60/dia não
+// davam conta de ~65 compradores/dia com foto; com os sem foto a fila dobra.
+const MAX_POR_RODADA = { comFoto: 8, semFoto: 6 };
+const MARCA = { comFoto: "oferta_video_enviada", semFoto: "convite_fotos_video_enviado" } as const;
+type Tipo = keyof typeof MARCA;
 
 function db() {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -55,12 +70,12 @@ function db() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-/** Já ofereceu o vídeo pra esta música? Por MÚSICA: cada uma tem o seu vídeo. */
-async function jaOfertado(sb: ReturnType<typeof db>, musicaId: string) {
+/** Já mandou este tipo de e-mail pra esta música? Por MÚSICA: cada uma tem o seu vídeo. */
+async function jaOfertado(sb: ReturnType<typeof db>, musicaId: string, tipo: Tipo) {
   const { data } = await sb
     .from("funnel_events")
     .select("id")
-    .eq("event_name", "oferta_video_enviada")
+    .eq("event_name", MARCA[tipo])
     .contains("event_data", { musica_id: musicaId })
     .limit(1);
   return (data ?? []).length > 0;
@@ -77,7 +92,7 @@ export const ofertaVideo = inngest.createFunction(
       return { pulado: "render não configurado" };
     }
 
-    const candidatos = await step.run("achar-quem-subiu-foto", async () => {
+    const candidatos = await step.run("achar-candidatos", async () => {
       const sb = db();
       const agora = Date.now();
       const { data: pedidos } = await sb
@@ -95,11 +110,14 @@ export const ofertaVideo = inngest.createFunction(
         titulo: string;
         link: string;
         musicaId: string;
+        tipo: Tipo;
       }> = [];
+      const conta = { comFoto: 0, semFoto: 0 };
       const vistos = new Set<string>();
 
       for (const p of pedidos ?? []) {
-        if (out.length >= MAX_POR_RODADA) break;
+        if (conta.comFoto >= MAX_POR_RODADA.comFoto && conta.semFoto >= MAX_POR_RODADA.semFoto)
+          break;
         if (!p.email || !p.musica_id || vistos.has(p.musica_id)) continue;
         vistos.add(p.musica_id);
 
@@ -110,7 +128,6 @@ export const ofertaVideo = inngest.createFunction(
           .limit(1)
           .maybeSingle();
         if (temVideo?.id) continue;
-        if (await jaOfertado(sb, p.musica_id)) continue;
 
         const { data: m } = await sb
           .from("musicas")
@@ -119,7 +136,14 @@ export const ofertaVideo = inngest.createFunction(
           .maybeSingle();
         if (!m || m.status !== "pronta") continue;
         const fotos = (m.foto_path ? 1 : 0) + ((m.galeria as string[] | null) ?? []).length;
-        if (fotos === 0) continue;
+        const tipo: Tipo = fotos > 0 ? "comFoto" : "semFoto";
+        if (conta[tipo] >= MAX_POR_RODADA[tipo]) continue;
+        if (
+          tipo === "semFoto" &&
+          Date.parse(p.paid_at as string) > agora - MIN_DIAS_SEM_FOTO * 86400000
+        )
+          continue;
+        if (await jaOfertado(sb, p.musica_id, tipo)) continue;
 
         const { data: q } = p.quiz_response_id
           ? await sb
@@ -136,7 +160,9 @@ export const ofertaVideo = inngest.createFunction(
           titulo: m.titulo ?? "Sua música",
           link: linkDoVideo(m.token_edicao as string),
           musicaId: m.id,
+          tipo,
         });
+        conta[tipo] += 1;
       }
       return out;
     });
@@ -149,33 +175,44 @@ export const ofertaVideo = inngest.createFunction(
         const chave = process.env.RESEND_API_KEY;
         if (!chave) return false;
         const sb = db();
-        if (await jaOfertado(sb, c.musicaId)) return false;
+        if (await jaOfertado(sb, c.musicaId, c.tipo)) return false;
         if (await estaBloqueado(sb, c.email)) return false;
 
+        const semFoto = c.tipo === "semFoto";
+        const template = semFoto ? "fotos_video" : "oferta_video";
         const { data: enviado, error } = await new Resend(chave).emails.send({
-          tags: [{ name: "template", value: "oferta_video" }],
+          tags: [{ name: "template", value: template }],
           // Remetente de RECUPERAÇÃO: é oferta, não entrega (ver `emails/remetentes.ts`).
           from: REMETENTE_RECUPERACAO,
           replyTo: RESPONDER_PARA,
           to: [c.email],
           headers: cabecalhosDescadastro(c.email),
-          subject: assuntoVideoOferta(c.nome),
-          html: emailVideoOferta({ nome: c.nome, titulo: c.titulo, link: c.link }),
-          text: textoVideoOferta({ nome: c.nome, link: c.link }),
+          subject: semFoto ? assuntoFotosVideo(c.nome) : assuntoVideoOferta(c.nome),
+          html: (semFoto ? emailFotosVideo : emailVideoOferta)({
+            nome: c.nome,
+            titulo: c.titulo,
+            link: c.link,
+          }),
+          text: (semFoto ? textoFotosVideo : textoVideoOferta)({ nome: c.nome, link: c.link }),
         });
         if (error) {
           console.error("[oferta-video] envio falhou:", error.message);
           return false;
         }
-        await registrarEnvio(sb, { emailId: enviado?.id, template: "oferta_video", para: c.email });
+        await registrarEnvio(sb, { emailId: enviado?.id, template, para: c.email });
         await sb.from("funnel_events").insert({
-          event_name: "oferta_video_enviada",
+          event_name: MARCA[c.tipo],
           event_data: { musica_id: c.musicaId, email: c.email },
         });
         return true;
       });
       if (ok) enviados += 1;
     }
-    return { candidatos: candidatos.length, enviados };
+    return {
+      candidatos: candidatos.length,
+      comFoto: candidatos.filter((c) => c.tipo === "comFoto").length,
+      semFoto: candidatos.filter((c) => c.tipo === "semFoto").length,
+      enviados,
+    };
   },
 );

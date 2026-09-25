@@ -819,6 +819,7 @@ function Editor() {
               audioUrl={audioPreferido}
               versao={versaoPref}
               para={p.nome ?? undefined}
+              subindoFotos={subindoGaleria}
             />
 
             {/* entrega */}
