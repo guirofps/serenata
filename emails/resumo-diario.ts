@@ -132,7 +132,7 @@ export function emailResumoDiario(args: {
       .map((c) => {
         const ruim = c.cpaBrl == null ? c.gastoBrl >= 76 : c.cpaBrl > 33.8;
         const cor = ruim ? "color:#b3261e;" : "";
-        return `<tr><td style="${td}">${c.nome}</td><td style="${tdN}">${brl0(c.gastoBrl)}</td><td style="${tdN}">${c.vendas}</td><td style="${tdN}${cor}">${c.cpaBrl == null ? "-" : brl(c.cpaBrl)}</td></tr>`;
+        return `<tr><td style="${td}">${c.nome}</td><td style="${tdN}">${brl0(c.gastoBrl)}</td><td style="${tdN}">${c.vendas}</td><td style="${tdN}${cor}">${c.cpaBrl != null ? brl(c.cpaBrl) : c.vendas === 0 && c.gastoBrl >= 76 ? "sem venda" : "-"}</td></tr>`;
       })
       .join("")}
   </table>

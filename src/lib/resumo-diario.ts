@@ -136,7 +136,9 @@ export function resumirDia(args: {
         nome: g.nome,
         gastoBrl: g.gastoBrl,
         vendas: v,
-        cpaBrl: v ? g.gastoBrl / v : null,
+        // Campanha que quase não gastou no dia e recebeu venda de clique antigo
+        // daria "CPA R$ 0,04": número que parece ótimo e não diz nada.
+        cpaBrl: v && g.gastoBrl >= 1 ? g.gastoBrl / v : null,
       };
     })
     .sort((a, b) => b.gastoBrl - a.gastoBrl);

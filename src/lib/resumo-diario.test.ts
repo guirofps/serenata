@@ -93,3 +93,24 @@ describe("datas em Brasília", () => {
     expect(somarDias("2026-09-30", 1)).toBe("2026-10-01");
   });
 });
+
+describe("CPA de campanha que quase não gastou", () => {
+  it("venda de clique antigo com gasto de centavos não vira CPA", () => {
+    const r = resumirDia({
+      pedidos: [
+        {
+          paymentId: "w:1",
+          valorBrl: 38,
+          taxaBrl: 0,
+          bumpQuadro: false,
+          bumpVideo: false,
+          atribuicao: { gclid: "g", utm_campaign: "9" },
+        },
+      ],
+      gastoGoogle: [{ campanhaId: "9", nome: "Velha", gastoBrl: 0.04 }],
+      gastoOutros: {},
+      custoProducaoBrl: 0,
+    });
+    expect(r.porCampanha[0]).toMatchObject({ vendas: 1, cpaBrl: null });
+  });
+});
