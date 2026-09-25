@@ -3,7 +3,7 @@ import { Composition } from "remotion";
 import { getAudioDurationInSeconds } from "@remotion/media-utils";
 import { Presente } from "./Presente";
 import type { PropsPresente } from "./props";
-import { Anuncio, DURACAO_ANUNCIO_S, type PropsAnuncio } from "./Anuncio";
+import { Anuncio, duracaoDoRoteiro, type PropsAnuncio } from "./Anuncio";
 
 /**
  * O vídeo dura o que a MÚSICA dura, medido no próprio MP3.
@@ -52,7 +52,9 @@ export const RemotionRoot: React.FC = () => {
     <Composition
       id="Anuncio"
       component={Anuncio}
-      durationInFrames={Math.round(DURACAO_ANUNCIO_S * FPS)}
+      durationInFrames={Math.round(duracaoDoRoteiro() * FPS)}
+      // O roteiro (completo ou curto) decide a duração.
+      calculateMetadata={({ props }) => ({ durationInFrames: Math.round(duracaoDoRoteiro(props.roteiro) * FPS) })}
       fps={FPS}
       width={1080}
       height={1920}

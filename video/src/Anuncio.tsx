@@ -48,21 +48,56 @@ export type PropsAnuncio = {
   inicioAudio: number;
   versos: string[];
   karaoke: LinhaKaraoke[];
+  /** `completo` (~60s, YouTube/Google) ou `curto` (~28s, TikTok/Reels). */
+  roteiro?: NomeRoteiro;
+  /** O título das reações do começo: é o GANCHO que se testa. */
+  gancho?: { reta: string; italico: string };
 };
 
-// ── Roteiro (em segundos) ─────────────────────────────────────────
-const CENAS = {
-  gancho: [0, 6.5],
-  conta: [6.5, 13.5],
-  letra: [13.5, 20.5],
-  musica: [20.5, 27.5],
-  recebe: [27.5, 34.5],
-  video: [34.5, 40.5],
-  reacoes: [40.5, 47.5],
-  presente: [47.5, 53.5],
-  fecho: [53.5, 60],
-} as const;
-export const DURACAO_ANUNCIO_S = 60;
+// ── Roteiros (em segundos) ────────────────────────────────────────
+//
+// O curto é o mesmo material cortado pra quem rola rápido: reações, a letra,
+// ela recebendo, reações de novo e o fechamento. Sem "como funciona" longo:
+// no TikTok o que segura é a emoção, e a explicação cabe numa cena.
+type TipoCena = "gancho" | "conta" | "letra" | "musica" | "recebe" | "video" | "reacoes" | "presente" | "fecho";
+export type NomeRoteiro = "completo" | "curto";
+const ROTEIROS: Record<NomeRoteiro, Array<[TipoCena, number]>> = {
+  completo: [
+    ["gancho", 6.5],
+    ["conta", 7],
+    ["letra", 7],
+    ["musica", 7],
+    ["recebe", 7],
+    ["video", 6],
+    ["reacoes", 7],
+    ["presente", 6],
+    ["fecho", 6.5],
+  ],
+  curto: [
+    ["gancho", 5],
+    ["letra", 6],
+    ["recebe", 6],
+    ["reacoes", 6],
+    ["fecho", 5],
+  ],
+};
+export const duracaoDoRoteiro = (r: NomeRoteiro = "completo") => ROTEIROS[r].reduce((s, [, d]) => s + d, 0);
+
+/** Onde cada cena começa, quanto dura e que número de capítulo leva. */
+function linhaDoTempo(r: NomeRoteiro) {
+  let t = 0;
+  let cap = 0;
+  const semNumero = new Set<TipoCena>(["gancho", "reacoes", "fecho"]);
+  return ROTEIROS[r].map(([tipo, d]) => {
+    const ini = t;
+    t += d;
+    const n = semNumero.has(tipo) ? "" : String(++cap).padStart(2, "0");
+    return { tipo, ini, d, n };
+  });
+}
+
+const CenaCtx = React.createContext({ ini: 0, d: 5, n: "" });
+const useCena = () => React.useContext(CenaCtx);
 
 // ── Peças ─────────────────────────────────────────────────────────
 
@@ -227,7 +262,6 @@ const Pulso: React.FC<{ bandas: number[]; cy: number; escala?: number; op?: numb
 
 // ── Cenas ─────────────────────────────────────────────────────────
 
-const dur = (c: readonly [number, number]) => c[1] - c[0];
 
 /**
  * REAÇÕES: duas de uma vez, empilhadas. O vídeo é horizontal (o da home) e
@@ -235,7 +269,8 @@ const dur = (c: readonly [number, number]) => c[1] - c[0];
  * pessoas (quase toda cena tem duas), cada reação entra inteira numa faixa.
  * Mudo: por baixo toca a nossa música, e o áudio de lá é outra canção.
  */
-const CenaReacoes: React.FC<{ reta: string; italico: string; dur: number; inicios: [number, number] }> = ({ reta, italico, dur: d, inicios }) => {
+const CenaReacoes: React.FC<{ reta: string; italico: string; inicios: [number, number] }> = ({ reta, italico, inicios }) => {
+  const { d } = useCena();
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const t = f / fps;
@@ -272,10 +307,10 @@ const CenaReacoes: React.FC<{ reta: string; italico: string; dur: number; inicio
  * de quem ganha, do jeito que ela acontece.
  */
 const CenaRecebe: React.FC = () => {
-  const d = dur(CENAS.recebe);
+  const { d, n, ini } = useCena();
   return (
     <AbsoluteFill>
-      <Capitulo n="04" nome="ELA RECEBE" dur={d} />
+      <Capitulo n={n} nome="ELA RECEBE" dur={d} />
       <Titulo reta="Ela recebe" italico="no WhatsApp…" dur={d} />
       <Celular dur={d}>
         <OffthreadVideo src={staticFile("anuncio/entrega.mp4")} startFrom={15} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -287,10 +322,10 @@ const CenaRecebe: React.FC = () => {
 };
 
 const CenaConta: React.FC = () => {
-  const d = dur(CENAS.conta);
+  const { d, n, ini } = useCena();
   return (
     <AbsoluteFill>
-      <Capitulo n="01" nome="VOCÊ CONTA" dur={d} />
+      <Capitulo n={n} nome="VOCÊ CONTA" dur={d} />
       <Titulo reta="Você conta" italico="a história…" dur={d} />
       <Celular dur={d}>
         <Img src={staticFile("anuncio/quiz.png")} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
@@ -302,7 +337,7 @@ const CenaConta: React.FC = () => {
 };
 
 const CenaLetra: React.FC<{ versos: string[]; para: string }> = ({ versos, para }) => {
-  const d = dur(CENAS.letra);
+  const { d, n: capitulo } = useCena();
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const t = f / fps;
@@ -312,7 +347,7 @@ const CenaLetra: React.FC<{ versos: string[]; para: string }> = ({ versos, para 
   const escrito = total.slice(0, n).split("\n");
   return (
     <AbsoluteFill>
-      <Capitulo n="02" nome="A LETRA" dur={d} />
+      <Capitulo n={capitulo} nome="A LETRA" dur={d} />
       <Titulo reta="…e a letra sai" italico="na hora." dur={d} />
       <Celular dur={d}>
         <AbsoluteFill style={{ background: "#faf5ee", padding: "90px 44px", fontFamily: LORA }}>
@@ -337,16 +372,16 @@ const CenaMusica: React.FC<{ karaoke: LinhaKaraoke[]; inicioAudio: number; para:
   para,
   bandas,
 }) => {
-  const d = dur(CENAS.musica);
+  const { d, n, ini } = useCena();
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const tMusica = inicioAudio + CENAS.musica[0] + f / fps;
+  const tMusica = inicioAudio + ini + f / fps;
   const linha = [...karaoke].reverse().find((l) => l.start - 0.45 <= tMusica);
   const { op } = useEntradaSaida(d);
   return (
     <AbsoluteFill>
       <Pulso bandas={bandas} cy={1330} escala={1.35} op={op * 0.7} />
-      <Capitulo n="03" nome="A MÚSICA" dur={d} />
+      <Capitulo n={n} nome="A MÚSICA" dur={d} />
       <Titulo reta="Vira música" italico="de verdade." dur={d} />
       <Celular dur={d}>
         <Img src={staticFile("anuncio/presente-capa.png")} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -375,8 +410,8 @@ const CenaMusica: React.FC<{ karaoke: LinhaKaraoke[]; inicioAudio: number; para:
  * fechamento), com a letra deslocada pro instante da música que está tocando.
  */
 const CenaVideo: React.FC<{ karaoke: LinhaKaraoke[]; inicioAudio: number; para: string }> = ({ karaoke, inicioAudio, para }) => {
-  const d = dur(CENAS.video);
-  const desloca = inicioAudio + CENAS.video[0];
+  const { d, n, ini } = useCena();
+  const desloca = inicioAudio + ini;
   const trechoKaraoke = React.useMemo(
     () =>
       karaoke
@@ -394,7 +429,7 @@ const CenaVideo: React.FC<{ karaoke: LinhaKaraoke[]; inicioAudio: number; para: 
   const escala = altura / 1920;
   return (
     <AbsoluteFill>
-      <Capitulo n="05" nome="O VÍDEO" dur={d} />
+      <Capitulo n={n} nome="O VÍDEO" dur={d} />
       <Titulo reta="As fotos de vocês" italico="viram vídeo." dur={d} />
       <Celular dur={d}>
         <div style={{ position: "absolute", top: 0, left: (500 - 28 - 1080 * escala) / 2, width: 1080, height: 1920, transform: `scale(${escala})`, transformOrigin: "0 0" }}>
@@ -418,7 +453,7 @@ const CenaVideo: React.FC<{ karaoke: LinhaKaraoke[]; inicioAudio: number; para: 
 };
 
 const CenaPresente: React.FC<{ para: string }> = ({ para }) => {
-  const d = dur(CENAS.presente);
+  const { d, n, ini } = useCena();
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const t = f / fps;
@@ -429,7 +464,7 @@ const CenaPresente: React.FC<{ para: string }> = ({ para }) => {
   const rotulo: React.CSSProperties = { fontFamily: POPPINS, fontWeight: 600, fontSize: 30, color: CREME, textAlign: "center", marginTop: 26 };
   return (
     <AbsoluteFill>
-      <Capitulo n="06" nome="O PRESENTE" dur={d} />
+      <Capitulo n={n} nome="O PRESENTE" dur={d} />
       <Titulo reta="E vira" italico="presente." dur={d} />
       <div style={{ position: "absolute", top: 720, left: 40, right: 40, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         {/* Página presente com QR Code */}
@@ -466,7 +501,7 @@ const CenaPresente: React.FC<{ para: string }> = ({ para }) => {
 };
 
 const CenaFecho: React.FC = () => {
-  const d = dur(CENAS.fecho);
+  const { d, n, ini } = useCena();
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const t = f / fps;
@@ -514,7 +549,29 @@ export const Anuncio: React.FC<PropsAnuncio> = (props) => {
   const frameMusica = f + Math.round(props.inicioAudio * fps);
   const bandas = audio ? visualizeAudio({ fps, frame: frameMusica, audioData: audio, numberOfSamples: 32, optimizeFor: "speed", smoothing: true }) : new Array(32).fill(0);
   const graves = (bandas[0] + bandas[1] + bandas[2]) / 3;
-  const seq = (c: readonly [number, number]) => ({ from: Math.round(c[0] * fps), durationInFrames: Math.round((c[1] - c[0]) * fps) });
+  const gancho = props.gancho ?? { reta: "Ela não esperava", italico: "por isso." };
+  const cena = (tipo: TipoCena): React.ReactNode => {
+    switch (tipo) {
+      case "gancho":
+        return <CenaReacoes reta={gancho.reta} italico={gancho.italico} inicios={[4.5, 13.4]} />;
+      case "conta":
+        return <CenaConta />;
+      case "letra":
+        return <CenaLetra versos={props.versos} para={props.para} />;
+      case "musica":
+        return <CenaMusica karaoke={props.karaoke} inicioAudio={props.inicioAudio} para={props.para} bandas={bandas} />;
+      case "recebe":
+        return <CenaRecebe />;
+      case "video":
+        return <CenaVideo karaoke={props.karaoke} inicioAudio={props.inicioAudio} para={props.para} />;
+      case "reacoes":
+        return <CenaReacoes reta="Quem recebe" italico="nunca esquece." inicios={[15.6, 20]} />;
+      case "presente":
+        return <CenaPresente para={props.para} />;
+      case "fecho":
+        return <CenaFecho />;
+    }
+  };
 
   return (
     <AbsoluteFill style={{ backgroundColor: FUNDO }}>
@@ -529,23 +586,11 @@ export const Anuncio: React.FC<PropsAnuncio> = (props) => {
           background: `radial-gradient(${70 + 10 * graves}% ${45 + 6 * graves}% at 50% 58%, rgba(125,43,58,${0.55 + 0.2 * graves}) 0%, rgba(40,14,20,0.6) 45%, ${FUNDO} 80%)`,
         }}
       />
-      <Sequence {...seq(CENAS.gancho)}>
-        <CenaReacoes reta="Ela não esperava" italico="por isso." dur={dur(CENAS.gancho)} inicios={[4.5, 13.4]} />
-      </Sequence>
-      <Sequence {...seq(CENAS.conta)}><CenaConta /></Sequence>
-      <Sequence {...seq(CENAS.letra)}><CenaLetra versos={props.versos} para={props.para} /></Sequence>
-      <Sequence {...seq(CENAS.musica)}>
-        <CenaMusica karaoke={props.karaoke} inicioAudio={props.inicioAudio} para={props.para} bandas={bandas} />
-      </Sequence>
-      <Sequence {...seq(CENAS.recebe)}><CenaRecebe /></Sequence>
-      <Sequence {...seq(CENAS.video)}>
-        <CenaVideo karaoke={props.karaoke} inicioAudio={props.inicioAudio} para={props.para} />
-      </Sequence>
-      <Sequence {...seq(CENAS.reacoes)}>
-        <CenaReacoes reta="Quem recebe" italico="nunca esquece." dur={dur(CENAS.reacoes)} inicios={[15.6, 20]} />
-      </Sequence>
-      <Sequence {...seq(CENAS.presente)}><CenaPresente para={props.para} /></Sequence>
-      <Sequence {...seq(CENAS.fecho)}><CenaFecho /></Sequence>
+      {linhaDoTempo(props.roteiro ?? "completo").map((c) => (
+        <Sequence key={c.tipo} from={Math.round(c.ini * fps)} durationInFrames={Math.round(c.d * fps)}>
+          <CenaCtx.Provider value={c}>{cena(c.tipo)}</CenaCtx.Provider>
+        </Sequence>
+      ))}
     </AbsoluteFill>
   );
 };
