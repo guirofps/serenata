@@ -85,7 +85,7 @@ type Evento = {
     subject?: string;
     from?: string;
     click?: { link?: string };
-    bounce?: { type?: string };
+    bounce?: { type?: string; subType?: string; message?: string };
   };
 };
 
@@ -226,6 +226,11 @@ export default async function handler(req: Req, res: Res) {
             email: alvo,
             motivo: "bounce",
             tipo: d.bounce?.type ?? null,
+            // O MOTIVO, não só o tipo: é o que diz se é caixa cheia, endereço
+            // inexistente ou recusa por reputação. Cortado: mensagem de
+            // servidor de e-mail às vezes vem com o corpo inteiro.
+            detalhe:
+              [d.bounce?.subType, d.bounce?.message].filter(Boolean).join(": ").slice(0, 400) || null,
             assunto: d.subject ?? null,
             vezes: (ja?.vezes ?? 0) + 1,
             ultimo_em: new Date().toISOString(),

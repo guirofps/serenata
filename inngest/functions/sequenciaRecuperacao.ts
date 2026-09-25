@@ -125,7 +125,11 @@ const OLHAR_ATE_DIAS = 45;
 // Teto por rodada, pelo mesmo motivo do `mandarLetra`: `envio.serenatagift.com`
 // é domínio novo, e pico de volume em remetente sem histórico é a assinatura
 // de lista comprada.
-const MAX_POR_RODADA = 10;
+// 5 e não 10 na VOLTA da escada (25/09): ela ficou quase parada de 31/08 a
+// 25/09, o bounce da conta está em 4-6% (o saudável é < 2%), e religar a 480
+// por dia de uma vez é o pico que assina lista comprada. Subir pra 10 depois
+// de uma semana com o bounce da escada abaixo de 3%.
+const MAX_POR_RODADA = 5;
 
 /**
  * ESTA PESSOA ABRIU OU CLICOU ALGUM E-MAIL NOSSO?
@@ -339,15 +343,17 @@ export const sequenciaRecuperacao = inngest.createFunction(
         ouviu: boolean;
       }> = [];
 
+      // ── A FILA ANDA DE VERDADE (conserto de 25/09) ──────────
+      //
+      // Até aqui o laço parava nos 60 primeiros candidatos, SEMPRE na mesma
+      // ordem (a do id do evento), e só depois o gate de engajamento barrava
+      // ~87% dos de desconto. Os barrados continuavam aptos e voltavam a
+      // ocupar as mesmas 60 vagas em toda rodada: a escada caiu de 480
+      // envios/dia pra ~3 em 31/08 e ninguém viu, porque nada dava erro.
+      // Agora junta TODOS os aptos, ordena pelo mais recente (lead fresco
+      // converte mais) e o gate roda em lotes até encher a rodada.
+      const aptos: Array<(typeof out)[number] & { quando: number }> = [];
       for (const [quizId, { quando, numero }] of ultimo) {
-        // JUNTA MAIS DO QUE VAI MANDAR, de proposito.
-        //
-        // O gate de engajamento roda DEPOIS deste laco (precisa de consulta em
-        // lote), e ele derruba ~87% dos candidatos a degrau com desconto. Com
-        // o corte em MAX_POR_RODADA aqui, quase toda rodada sairia vazia e a
-        // fila de quem PODE receber nunca andaria.
-        if (out.length >= MAX_POR_RODADA * 6) break;
-
         const l = porId.get(quizId);
         if (!l?.email) continue;
         if (bloqueado.has(l.email.toLowerCase())) continue;
@@ -369,8 +375,9 @@ export const sequenciaRecuperacao = inngest.createFunction(
         const horas = (agora - quando) / 3600000;
         if (horas < esperaDe(proximo, locale)) continue;
         const r = (l.respostas ?? {}) as Record<string, string>;
-        out.push({
+        aptos.push({
           quizId,
+          quando,
           sessao: l.session_id ?? "",
           email: l.email,
           nome: r.nome?.trim() || (locale === "es" ? "esa persona" : "quem você ama"),
@@ -380,7 +387,9 @@ export const sequenciaRecuperacao = inngest.createFunction(
           ouviu: false,
         });
       }
-      // ── O GATE DE ENGAJAMENTO ─────────────────────────────
+      aptos.sort((a, b) => b.quando - a.quando);
+
+      // ── O GATE DE ENGAJAMENTO, EM LOTES ───────────────────
       //
       // Degrau de preco CHEIO vai pra qualquer nao-comprador: e lembrete, e a
       // pessoa pediu a letra. Degrau com DESCONTO so vai pra quem abriu ou
@@ -394,20 +403,29 @@ export const sequenciaRecuperacao = inngest.createFunction(
       // Tambem responde ao que o dono pediu: parar de descontar no automatico.
       // Preco menor deixa de ser reflexo e passa a ser resposta a alguem que
       // demonstrou interesse e mesmo assim nao comprou.
-      const comDesconto = out.filter((o) => temDesconto(o.numero as DegrauEscada));
-      if (comDesconto.length) {
-        const engajou = await quemEngajou(sb, comDesconto.map((o) => o.quizId));
-        const antes = out.length;
-        out = out.filter(
-          (o) => !temDesconto(o.numero as DegrauEscada) || engajou.has(o.quizId),
-        );
-        console.log(
-          `[escada] gate: ${comDesconto.length} candidatos a desconto, ${engajou.size} engajaram, ${antes - out.length} barrados`,
-        );
+      //
+      // Em lotes de 150 porque a consulta de engajamento vai por lista de ids,
+      // e com milhares de aptos uma lista só estouraria a URL e os 8s do
+      // PostgREST. Para assim que a rodada enche.
+      const LOTE = 150;
+      let barrados = 0;
+      for (let i = 0; i < aptos.length && out.length < MAX_POR_RODADA; i += LOTE) {
+        const lote = aptos.slice(i, i + LOTE);
+        const comDesconto = lote.filter((o) => temDesconto(o.numero as DegrauEscada));
+        const engajou = comDesconto.length
+          ? await quemEngajou(sb, comDesconto.map((o) => o.quizId))
+          : new Set<string>();
+        for (const o of lote) {
+          if (out.length >= MAX_POR_RODADA) break;
+          if (temDesconto(o.numero as DegrauEscada) && !engajou.has(o.quizId)) {
+            barrados += 1;
+            continue;
+          }
+          const { quando: _quando, ...item } = o;
+          out.push(item);
+        }
       }
-      // So agora corta no teto da rodada: o teto existe pra proteger a
-      // reputacao do remetente, e o que conta pra isso e o que SAI.
-      if (out.length > MAX_POR_RODADA) out.length = MAX_POR_RODADA;
+      console.log(`[escada] ${aptos.length} aptos, ${out.length} nesta rodada, ${barrados} barrados no gate`);
 
       // ── A LETRA DELA, DENTRO DO E-MAIL ────────────────────
       //

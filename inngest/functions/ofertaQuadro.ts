@@ -1,4 +1,5 @@
 import { inngest } from "../client.js";
+import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
@@ -187,6 +188,7 @@ export const ofertaQuadro = inngest.createFunction(
         if (!chave) return false;
         const sb = db();
         if (await jaOfertado(sb, c.musicaId)) return false;
+        if (await estaBloqueado(sb, c.email)) return false;
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "oferta_quadro" }],

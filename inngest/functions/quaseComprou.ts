@@ -1,4 +1,5 @@
 import { inngest } from "../client.js";
+import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
@@ -275,6 +276,9 @@ export const quaseComprou = inngest.createFunction(
           .maybeSingle();
         if (pedido?.id) return false;
         if (await jaAvisado(sb, c.quizId)) return false;
+        // Endereço que já voltou não recebe de novo: 51 destes foram pra
+        // endereço morto em 14 dias, e é a reputação que paga.
+        if (await estaBloqueado(sb, c.email)) return false;
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "quase_comprou" }],

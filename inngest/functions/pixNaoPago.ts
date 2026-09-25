@@ -1,4 +1,5 @@
 import { inngest } from "../client.js";
+import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailPixNaoPago, assuntoPixNaoPago } from "../../emails/pix-nao-pago.js";
@@ -103,6 +104,17 @@ function db() {
  * o `quiz_response_id` e não o pedido: quem tenta pagar três vezes gera três
  * pedidos pendentes e não pode receber três e-mails.
  */
+/** Quantos destes e-mails a PESSOA recebeu nos últimos 14 dias, de qualquer pedido. */
+async function toquesDaPessoa(sb: ReturnType<typeof db>, email: string): Promise<number> {
+  const { count } = await sb
+    .from("funnel_events")
+    .select("id", { count: "exact", head: true })
+    .eq("event_name", "pix_nao_pago_enviado")
+    .contains("event_data", { email })
+    .gte("created_at", new Date(Date.now() - 14 * 86400000).toISOString());
+  return count ?? 0;
+}
+
 async function toquesJaDados(sb: ReturnType<typeof db>, quizId: string) {
   const { data } = await sb
     .from("funnel_events")
@@ -342,6 +354,11 @@ export const pixNaoPago = inngest.createFunction(
           .maybeSingle();
         if (pago?.id) return false;
         if (!podeMandar(await toquesJaDados(sb, c.quizId), Date.now())) return false;
+        // POR PESSOA, não só por pedido (25/09): quem gerava vários PIX em
+        // dias diferentes recebia 3 a 10 destes em 14 dias, porque a trava
+        // acima conta por quiz. Dois por pessoa na quinzena, e pronto.
+        if ((await toquesDaPessoa(sb, c.email)) >= MAX_TOQUES) return false;
+        if (await estaBloqueado(sb, c.email)) return false;
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "pix_nao_pago" }],

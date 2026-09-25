@@ -1,4 +1,5 @@
 import { inngest } from "../client.js";
+import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailGuardeOLink, assuntoGuardeOLink } from "../../emails/guarde-o-link.js";
@@ -165,6 +166,7 @@ export const guardeOLink = inngest.createFunction(
         if (!chave) return false;
         const sb = db();
         if (await jaMandado(sb, c.musicaId)) return false;
+        if (await estaBloqueado(sb, c.email)) return false;
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "guarde_o_link" }],

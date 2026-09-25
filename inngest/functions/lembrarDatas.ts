@@ -1,4 +1,5 @@
 import { inngest } from "../client.js";
+import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
@@ -78,6 +79,7 @@ export const lembrarDatas = inngest.createFunction(
         const chave = process.env.RESEND_API_KEY;
         if (!chave) return false;
         const sb = db();
+        if (await estaBloqueado(sb, d.email as string)) return false;
         // Marca ANTES de mandar, condicionalmente: rodada repetida não manda dois.
         const { data: marcou } = await sb
           .from("datas_especiais")

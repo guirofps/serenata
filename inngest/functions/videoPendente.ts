@@ -1,4 +1,5 @@
 import { inngest } from "../client.js";
+import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { REMETENTE_TRANSACIONAL } from "../../emails/remetentes.js";
@@ -106,6 +107,7 @@ export const videoPendente = inngest.createFunction(
           .contains("event_data", { video_id: v.id })
           .limit(1);
         if (ja?.length) continue;
+        if (await estaBloqueado(sb, v.email as string)) continue;
 
         const { data: m } = await sb
           .from("musicas")

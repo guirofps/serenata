@@ -67,6 +67,15 @@ export const volteCriar = inngest.createFunction(
     triggers: [{ cron: "30 12-23 * * *" }],
   },
   async ({ step }) => {
+    // ── PAUSADO EM 25/09 ───────────────────────────────────────
+    //
+    // 105 entregues em 14 dias, 11% de abertura, ZERO cliques. A recompra
+    // passou a ter dois caminhos melhores: as datas que a própria pessoa
+    // cadastra (`lembrarDatas`, com dia marcado e motivo concreto) e o disparo
+    // por ocasião (2% de clique, 1 venda). E-mail que ninguém clica só gasta
+    // reputação. Religar com `VOLTE_CRIAR_ON=1` na Vercel.
+    if (process.env.VOLTE_CRIAR_ON !== "1") return { pausado: true };
+
     const fila = await step.run("achar-quem-pode-voltar", async () => {
       const sb = db();
       const agora = Date.now();

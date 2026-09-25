@@ -1,4 +1,5 @@
 import { inngest } from "../client.js";
+import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailLembretePresente, assuntoLembrete } from "../../emails/lembrete-presente.js";
@@ -132,6 +133,7 @@ export const lembrarPresente = inngest.createFunction(
         // Recheca na hora do envio: a pessoa pode ter montado entre a busca e
         // agora, e nada é pior que cobrar quem já fez.
         if (await jaLembrado(sb, c.musicaId)) return false;
+        if (await estaBloqueado(sb, c.email)) return false;
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
       // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento

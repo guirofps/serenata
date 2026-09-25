@@ -85,6 +85,8 @@ const T = {
     ofertaTexto: "Este é o quadro da sua música: a letra e a foto de vocês numa folha A4, pronta pra você imprimir e emoldurar.",
     ofertaCta: "Quero este quadro por R$ 24,90",
     ofertaNota: "Depois de comprar você volta e escolhe de qual música é.",
+    exemploTexto: "Esta folha é um exemplo. O seu quadro sai com a letra e a foto da sua música.",
+    exemploCta: "Quero o quadro da minha música",
     deOndeVieram: "Estes textos vieram da sua página presente. Mude aqui se quiser: muda só o quadro.",
     rotuloFoto: "Foto",
     dicaFoto: "Arraste a foto pra escolher o que aparece.",
@@ -111,6 +113,8 @@ const T = {
     dicaClaro: "El fondo claro gasta mucha menos tinta en impresora de casa.",
     previaTexto: "Tienes un cuadro para armar. Confirma que es el de esta canción para liberar la impresión.",
     previaCta: "Elegir esta canción",
+    exemploTexto: "Esta hoja es un ejemplo. Tu cuadro sale con la letra y la foto de tu canción.",
+    exemploCta: "Volver",
     ofertaTexto: "Este es el cuadro de tu canción. Todavía no está disponible en tu país; te avisamos por correo cuando lo esté.",
     // SEM PREÇO E SEM BOTÃO NO ES: o produto do quadro não existe no México.
     // A oferta inteira é escondida lá, então este texto não é usado; fica
@@ -758,6 +762,28 @@ function Pagina() {
               lado numa tela de celular é onde a pessoa aperta a errada. */}
           {conferindo ? (
             <div className="text-center text-[13px] text-white/40">{t.conferindo}</div>
+          ) : acesso === "confirmado" && !q.musicaId ? (
+            /* O EXEMPLO É VITRINE, NÃO QUADRO DE NINGUÉM. Até 25/09 ele
+               mostrava "baixar PDF", que chamava o gerador com o token
+               `exemplo` e voltava 400: 63 erros em 14 dias, a maioria de quem
+               chegou pelo e-mail da oferta (156 cliques, 1 venda). Aqui a ação
+               é querer o SEU, e ela volta pro editor dela, onde a oferta mora. */
+            <div className="text-center">
+              <p className="mx-auto mb-3 max-w-md text-[13px] leading-relaxed text-white/55">
+                {t.exemploTexto}
+              </p>
+              <button
+                onClick={() => {
+                  trackEvent("quadro_exemplo_cta", {});
+                  if (window.history.length > 1) window.history.back();
+                  else window.location.href = "/dashboard?aba=quadro";
+                }}
+                className="inline-flex h-12 w-full max-w-md items-center justify-center gap-2 rounded-full px-7 font-medium"
+                style={{ fontSize: 15, background: "#f0b95f", color: "#0d0a08" }}
+              >
+                {t.exemploCta}
+              </button>
+            </div>
           ) : acesso === "confirmado" ? (
             <div className="text-center">
               <button

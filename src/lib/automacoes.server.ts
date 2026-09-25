@@ -348,11 +348,11 @@ export const AUTOMACOES: Automacao[] = [
   },
   {
     id: "volte-criar",
-    nome: "Volte a criar",
+    nome: "Volte a criar (PAUSADO)",
     fase: "depois",
-    gatilho: "de hora em hora, 9h–20h (aos 30 min)",
+    gatilho: "PAUSADO desde 25/09 (0 cliques em 105). Religar com VOLTE_CRIAR_ON=1",
     quemRecebe:
-      "Quem pagou há 5 a 30 dias. Convite pra criar a próxima música. Um só, pra sempre. Teto de 15 por rodada.",
+      "Quem pagou há 5 a 30 dias. Convite pra criar a próxima música. Um só, pra sempre. Teto de 15 por rodada. Substituído pelo lembrete das datas cadastradas.",
     remetente: "recuperacao",
     arquivo: "inngest/functions/volteCriar.ts",
     emails: [
