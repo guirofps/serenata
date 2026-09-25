@@ -1,6 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { OFERTAS } from "@/lib/creditos";
+import {
+  BUMPS,
+  ehItemBump,
+  referenciaComItem,
+  valorComItem,
+  type ItemBump,
+} from "@/lib/bump";
 import { cpfValido, soDigitosCpf } from "@/lib/cpf";
 import { paraE164, telefoneValido } from "@/lib/telefone";
 import { woovi } from "@/lib/woovi";
@@ -149,7 +156,7 @@ export const CENTAVOS_QUADRO = Math.round(
  * arquivo que, errada, cobra da pessoa um numero diferente do que ela viu.
  */
 export function valorComBump(baseCentavos: number, quadro: boolean): number {
-  return baseCentavos + (quadro ? CENTAVOS_QUADRO : 0);
+  return valorComItem(baseCentavos, quadro ? "quadro" : null);
 }
 
 /**
@@ -163,7 +170,7 @@ export function valorComBump(baseCentavos: number, quadro: boolean): number {
  * entao o sufixo tem que vir DEPOIS do id, nunca no meio.
  */
 export function referenciaDoPix(quizId: string, quadro: boolean): string {
-  return `serenata:${quizId}${quadro ? ":q" : ""}`;
+  return referenciaComItem(quizId, quadro ? "quadro" : null);
 }
 
 /**
@@ -211,7 +218,10 @@ export const criarPix = createServerFn({ method: "POST" })
     (data: {
       sessionId: string;
       email?: string;
+      /** Legado (quadro sim/nao). O caminho novo e `bump`. */
       quadro?: boolean;
+      /** QUAL item extra ela marcou. O preco dele sai de `BUMPS`, daqui. */
+      bump?: ItemBump;
       cpf?: string;
       /** WhatsApp digitado na folha, cru. Normalizado aqui, nunca no cliente. */
       telefone?: string;
@@ -248,8 +258,13 @@ export const criarPix = createServerFn({ method: "POST" })
 
     const base = await valorCentavosDaSessao(db, quiz.attribution);
     if (!base) return { ok: false, erro: "sem-preco" };
-    const comQuadro = data.quadro === true;
-    const valorCentavos = valorComBump(base, comQuadro);
+    // Uma pagina carregada antes do deploy ainda manda `quadro: true`.
+    const item: ItemBump | null = ehItemBump(data.bump)
+      ? data.bump
+      : data.quadro === true
+        ? "quadro"
+        : null;
+    const valorCentavos = valorComItem(base, item);
 
     // A REFERÊNCIA É A CHAVE DE IDEMPOTÊNCIA, e por isso é o id do quiz e não
     // um aleatório: duplo-clique, reload e voltar-e-avançar devolvem A MESMA
@@ -269,7 +284,7 @@ export const criarPix = createServerFn({ method: "POST" })
     // PIX de proposito, mas exige. O webhook agora recusa entregar de novo e
     // avisa o dono pra devolver, em vez de mandar dois presentes e a pessoa
     // descobrir a cobranca dobrada no extrato.
-    const referencia = referenciaDoPix(String(quiz.id), comQuadro);
+    const referencia = referenciaComItem(String(quiz.id), item);
     // O NOME DO COMPRADOR, quando ele existe.
     //
     // `respostas.nome` e a pessoa HOMENAGEADA, e mandar ela como `customer.name`
@@ -439,7 +454,8 @@ export const criarPix = createServerFn({ method: "POST" })
         // nenhum) num pedido que acabou de receber o novo.
         telefone: telefoneCru || (quiz.whatsapp as string | null) || null,
         valor_centavos: valorCentavos,
-        bump_quadro: comQuadro,
+        bump_quadro: item ? BUMPS[item].quadro : false,
+        bump_video: item ? BUMPS[item].video : false,
         taxa_centavos: cobranca.taxaCentavos,
         quiz_response_id: quiz.id,
         musica_id: musica.id,

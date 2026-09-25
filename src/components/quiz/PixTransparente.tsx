@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { criarPix, CENTAVOS_QUADRO, type ResultadoPix } from "@/lib/criar-pix";
+import { criarPix, type ResultadoPix } from "@/lib/criar-pix";
+import { BUMPS, itemDoBraco, type ItemBump } from "@/lib/bump";
 import { varianteDe, FORA } from "@/lib/experimentos";
 import { cobrarCartao } from "@/lib/criar-cartao";
 import { FormularioCartao } from "@/components/quiz/FormularioCartao";
@@ -112,7 +113,9 @@ export function PixTransparente({
   // e comparar com `"FORA"` daria sempre verdadeiro — o bump apareceria pra
   // quem a exposição tirou do teste.
   const bracoBump = varianteDe("bump_quadro");
-  const bumpLigado = bracoBump !== "A" && bracoBump !== FORA;
+  // O braço decide QUAL item a caixinha oferece (quadro, vídeo ou completo).
+  const itemBump = itemDoBraco(bracoBump === FORA ? "fora" : bracoBump);
+  const bumpLigado = itemBump !== null;
 
   // ── O CARTÃO NA NOSSA TELA ───────────────────────────────────────
   //
@@ -152,7 +155,13 @@ export function PixTransparente({
     setErroCartao(null);
     try {
       const r = await cobrarCartao({
-        data: { sessionId: getOrCreateSessionId(), quadro, cartao: dados.cartao, titular: dados.titular },
+        data: {
+          sessionId: getOrCreateSessionId(),
+          quadro: bumpItem === "quadro",
+          bump: bumpItem ?? undefined,
+          cartao: dados.cartao,
+          titular: dados.titular,
+        },
       });
       if (r.ok) {
         trackEvent("cartao_pago", { pago: r.pago });
@@ -192,7 +201,10 @@ export function PixTransparente({
       setCobrando(false);
     }
   }
+  // `quadro` ficou com o nome antigo, mas é "a caixinha está marcada", seja
+  // qual for o item do braço.
   const [quadro, setQuadro] = useState(false);
+  const bumpItem: ItemBump | null = quadro && itemBump ? itemBump : null;
 
   async function gerar(emailFinal: string, telefoneFinal?: string, cpf?: string) {
     setFase({ t: "gerando" });
@@ -200,7 +212,14 @@ export function PixTransparente({
       const r = await criarPix({
         // Vai um SIM OU NÃO, nunca um valor: quanto o quadro custa é o
         // catálogo do servidor que decide.
-        data: { sessionId: getOrCreateSessionId(), email: emailFinal, quadro, cpf, telefone: telefoneFinal },
+        data: {
+          sessionId: getOrCreateSessionId(),
+          email: emailFinal,
+          quadro: bumpItem === "quadro",
+          bump: bumpItem ?? undefined,
+          cpf,
+          telefone: telefoneFinal,
+        },
       });
       if (!r.ok) {
         // CPF NAO E FALHA, E PEDIDO DE CORRECAO. Mandar isto pra tela de erro
@@ -219,7 +238,7 @@ export function PixTransparente({
         setFase({ t: "erro" });
         return;
       }
-      trackEvent("pix_transparente_gerado", { valor: r.valorCentavos, quadro });
+      trackEvent("pix_transparente_gerado", { valor: r.valorCentavos, quadro, bump: bumpItem });
       setFase({ t: "pronto", dados: r });
     } catch (err) {
       console.error("[pix] criar falhou:", err);
@@ -231,7 +250,7 @@ export function PixTransparente({
   if (fase.t === "cartao") {
     return (
       <FormularioCartao
-        precoTexto={quadro ? reaisTotal(valorBase + CENTAVOS_QUADRO / 100) : valorTexto}
+        precoTexto={bumpItem ? reaisTotal(valorBase + BUMPS[bumpItem].centavos / 100) : valorTexto}
         emailDoQuiz={email}
         telefoneDoQuiz={useQuizStore.getState().whatsapp}
         cobrando={cobrando || saindo}
@@ -305,9 +324,10 @@ export function PixTransparente({
       telefoneInicial={useQuizStore.getState().whatsapp ?? ""}
       gerando={fase.t === "gerando"}
       quadro={bumpLigado ? quadro : null}
+      item={itemBump ?? "quadro"}
       aoTrocarQuadro={(v) => {
         setQuadro(v);
-        trackEvent("bump_quadro_marcou", { marcado: v });
+        trackEvent("bump_quadro_marcou", { marcado: v, item: itemBump });
       }}
       aoConfirmar={gerar}
       aoEscolherCartao={cartaoAqui ? () => setFase({ t: "cartao" }) : aoDesistir}

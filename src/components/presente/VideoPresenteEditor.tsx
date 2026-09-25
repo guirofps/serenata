@@ -1,7 +1,12 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Download, Loader2, Film, RefreshCw } from "lucide-react";
 import { OFERTAS } from "@/lib/creditos";
-import { atualizarVideo, videoDoEditor, type EstadoVideo } from "@/lib/video-presente";
+import {
+  atualizarVideo,
+  gerarVideoPago,
+  videoDoEditor,
+  type EstadoVideo,
+} from "@/lib/video-presente";
 import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 
@@ -36,6 +41,12 @@ const TEXTOS = {
     montando: "Estamos montando o seu vídeo",
     montandoSub:
       "Leva uns minutos. Pode fechar a página: a gente te avisa por e-mail quando ficar pronto.",
+    pagoTitulo: "Seu vídeo já está pago",
+    pagoSub:
+      "Ele sai com as fotos e a frase que estão aqui em cima. Dá o play pra conferir e, quando estiver do jeito que você quer, toque em gerar.",
+    pagoSemFoto:
+      "Suba as fotos de vocês aqui em cima primeiro: o vídeo é feito delas. Sem foto, ele sai com o fundo da Serenata.",
+    gerar: "Gerar meu vídeo",
     pronto: "O vídeo de vocês",
     baixar: "Baixar o vídeo",
     mudou: "Você mudou a página depois do vídeo. Quer que ele fique igual?",
@@ -53,6 +64,12 @@ const TEXTOS = {
     montando: "Estamos armando tu video",
     montandoSub:
       "Tarda unos minutos. Puedes cerrar la página: te avisamos por correo cuando esté listo.",
+    pagoTitulo: "Tu video ya está pagado",
+    pagoSub:
+      "Sale con las fotos y la frase que están aquí arriba. Dale play para revisarlo y, cuando esté como quieres, toca en generar.",
+    pagoSemFoto:
+      "Sube primero las fotos de ustedes aquí arriba: el video se hace con ellas. Sin foto, sale con el fondo de Serenata.",
+    gerar: "Generar mi video",
     pronto: "El video de ustedes",
     baixar: "Descargar el video",
     mudou: "Cambiaste la página después del video. ¿Quieres que quede igual?",
@@ -148,8 +165,11 @@ export function VideoPresenteEditor({
 
   // Liga a prévia quando o bloco chega a uma tela de distância.
   const mostraOferta = !!estado && estado.habilitado && locale !== "es" && !estado.status && !pagou;
+  // Comprou o vídeo no checkout, antes das fotos: a prévia também toca, pra
+  // ela conferir com as fotos dela antes de mandar gerar.
+  const esperandoFotos = estado?.status === "aguardando_fotos" && !pagou;
   useEffect(() => {
-    if (!mostraOferta || perto || !caixa.current) return;
+    if (!(mostraOferta || esperandoFotos) || perto || !caixa.current) return;
     const obs = new IntersectionObserver(
       (es) => {
         if (es.some((e) => e.isIntersecting)) {
@@ -163,7 +183,52 @@ export function VideoPresenteEditor({
     );
     obs.observe(caixa.current);
     return () => obs.disconnect();
-  }, [mostraOferta, perto, tokenEdicao]);
+  }, [mostraOferta, esperandoFotos, perto, tokenEdicao]);
+
+  const pedirGeracao = async () => {
+    setPedindo(true);
+    trackEvent("video_presente_gerar", { origem: "editor", fotos: fotos.length });
+    try {
+      const r = await gerarVideoPago({ data: { tokenEdicao } });
+      if (r.ok) setPagou(true); // cai na mesma tela de "montando"
+      await atualizar();
+    } finally {
+      setPedindo(false);
+    }
+  };
+
+  const karaokeDaVersao =
+    estado && versao === 2 && estado.karaoke.v2.length
+      ? estado.karaoke.v2
+      : (estado?.karaoke.v1 ?? []);
+  const previa = (semMarca: boolean) =>
+    perto && audioUrl && estado ? (
+      <Suspense
+        fallback={
+          <div
+            className="mx-auto w-full max-w-[300px] animate-pulse rounded-[var(--raio-lg)] bg-black/80"
+            style={{ aspectRatio: "9 / 16" }}
+          />
+        }
+      >
+        <PreviaVideo
+          audioUrl={audioUrl}
+          fotos={fotos}
+          karaoke={karaokeDaVersao}
+          titulo={titulo}
+          dedicatoria={dedicatoria}
+          duracaoReserva={versao === 1 ? estado.duracaoS : 0}
+          locale={locale}
+          para={para}
+          semMarca={semMarca}
+        />
+      </Suspense>
+    ) : (
+      <div
+        className="mx-auto w-full max-w-[300px] rounded-[var(--raio-lg)] bg-black/80"
+        style={{ aspectRatio: "9 / 16" }}
+      />
+    );
 
   const pedirAtualizacao = async () => {
     setPedindo(true);
@@ -178,6 +243,38 @@ export function VideoPresenteEditor({
   };
 
   if (!estado) return null;
+
+  // ── PAGO NO CHECKOUT, ESPERANDO AS FOTOS ──────────────────────
+  // O vídeo veio junto com a música (order bump). Ela confere a prévia, já
+  // sem marca, com as fotos que subiu aqui em cima, e manda gerar.
+  if (esperandoFotos) {
+    return (
+      <section
+        id="video"
+        ref={caixa}
+        className="rounded-3xl border border-[var(--acento)]/25 bg-[var(--papel-fundo)] p-6"
+        style={{ scrollMarginTop: "5rem" }}
+      >
+        <h2 className="flex items-center gap-2 font-medium" style={{ fontSize: "var(--t-lg)" }}>
+          <Film className="h-5 w-5 text-[var(--acento)]" /> {t.pagoTitulo}
+        </h2>
+        <p className="mt-1 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
+          {fotos.length ? t.pagoSub : t.pagoSemFoto}
+        </p>
+        <div className="mt-5">{previa(true)}</div>
+        <button
+          type="button"
+          disabled={pedindo}
+          onClick={() => void pedirGeracao()}
+          className="mx-auto mt-5 flex h-12 w-full max-w-[300px] items-center justify-center gap-2 rounded-full cta px-6 font-medium disabled:opacity-60"
+          style={{ fontSize: "var(--t-sm)" }}
+        >
+          {pedindo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Film className="h-4 w-4" />}
+          {t.gerar}
+        </button>
+      </section>
+    );
+  }
 
   // ── PRONTO ────────────────────────────────────────────────────
   if (estado.status === "pronto" && estado.url) {
@@ -274,7 +371,6 @@ export function VideoPresenteEditor({
   const oferta = OFERTAS.find((o) => o.id === "video");
   if (!oferta) return null;
   const precoTexto = `R$ ${oferta.precoBrl.toFixed(2).replace(".", ",")}`;
-  const karaoke = versao === 2 && estado.karaoke.v2.length ? estado.karaoke.v2 : estado.karaoke.v1;
   const semFoto = fotos.length === 0;
 
   return (
@@ -291,34 +387,7 @@ export function VideoPresenteEditor({
         {semFoto ? t.semFoto : t.sub}
       </p>
 
-      <div className="mt-5">
-        {perto && audioUrl ? (
-          <Suspense
-            fallback={
-              <div
-                className="mx-auto w-full max-w-[300px] animate-pulse rounded-[var(--raio-lg)] bg-black/80"
-                style={{ aspectRatio: "9 / 16" }}
-              />
-            }
-          >
-            <PreviaVideo
-              audioUrl={audioUrl}
-              fotos={fotos}
-              karaoke={karaoke}
-              titulo={titulo}
-              dedicatoria={dedicatoria}
-              duracaoReserva={versao === 1 ? estado.duracaoS : 0}
-              locale={locale}
-              para={para}
-            />
-          </Suspense>
-        ) : (
-          <div
-            className="mx-auto w-full max-w-[300px] rounded-[var(--raio-lg)] bg-black/80"
-            style={{ aspectRatio: "9 / 16" }}
-          />
-        )}
-      </div>
+      <div className="mt-5">{previa(false)}</div>
 
       <button
         type="button"

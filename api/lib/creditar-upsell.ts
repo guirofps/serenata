@@ -140,3 +140,29 @@ export async function creditarUpsell(
 
   return out;
 }
+
+/**
+ * O VÍDEO COMPRADO JUNTO COM A MÚSICA (order bump do checkout).
+ *
+ * Nasce `aguardando_fotos`, e NÃO pede render: no checkout ela ainda não subiu
+ * foto nenhuma, e um vídeo feito agora sairia com o fundo da marca no lugar
+ * das fotos de vocês. Quem dispara é ela, no editor ("Gerar meu vídeo"), ou o
+ * `videoPendente` depois de uns dias, pra ninguém pagar e ficar sem.
+ *
+ * Chamado pelos DOIS webhooks de pagamento (Woovi e Asaas). Devolve o erro
+ * que não é duplicata, pra quem chamou alertar o dono; `videos_um_por_pedido`
+ * faz o reenvio do mesmo evento bater no 23505 e não criar dois.
+ */
+export async function liberarVideoDoBump(
+  sb: SupabaseClient,
+  args: { email: string; pedidoId: string | null; musicaId: string | null },
+): Promise<string | null> {
+  const { error } = await sb.from("videos").insert({
+    email: args.email,
+    pedido_id: args.pedidoId,
+    musica_id: args.musicaId,
+    status: "aguardando_fotos",
+  });
+  if (error && error.code !== "23505") return error.message;
+  return null;
+}

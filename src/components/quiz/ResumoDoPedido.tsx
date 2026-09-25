@@ -4,14 +4,14 @@ import { Check, CreditCard, Loader2, Mail, MessageCircle, ShieldCheck } from "lu
 import { Button } from "@/components/ui/button";
 import { GARANTIA } from "@/lib/garantia";
 import { IdentificacaoDoVendedor } from "@/components/quiz/IdentificacaoDoVendedor";
-import { OFERTAS } from "@/lib/creditos";
+import { BUMPS, TEXTO_BUMP, type ItemBump } from "@/lib/bump";
 import { mascaraTelefone, telefoneValido } from "@/lib/telefone";
 import { varianteDe } from "@/lib/experimentos";
 
 // O preco sai do MESMO catalogo que o servidor usa pra compor a cobranca
-// (`criar-pix.ts`). Cravar 24,90 aqui deixaria a tela e a cobranca livres pra
-// discordar, que e a unica forma deste bump virar reclamacao.
-const PRECO_QUADRO = OFERTAS.find((o) => o.id === "quadro")?.precoBrl ?? 24.9;
+// (`src/lib/bump.ts`). Cravar o valor aqui deixaria a tela e a cobranca livres
+// pra discordar, que e a unica forma deste bump virar reclamacao.
+const precoDoItem = (item: ItemBump) => BUMPS[item].centavos / 100;
 const reais = (v: number) =>
   `R$ ${v.toFixed(2).replace(".", ",").replace(/,00$/, "")}`;
 
@@ -53,6 +53,7 @@ export function ResumoDoPedido({
   email,
   telefoneInicial,
   quadro,
+  item = "quadro",
   aoTrocarQuadro,
   aoConfirmar,
   aoEscolherCartao,
@@ -71,6 +72,8 @@ export function ResumoDoPedido({
   telefoneInicial: string;
   /** `null` desliga o order bump (braco de controle do experimento). */
   quadro: boolean | null;
+  /** QUAL item a caixinha oferece: o braço do experimento `bump_quadro` decide. */
+  item?: ItemBump;
   aoTrocarQuadro: (v: boolean) => void;
   /** Recebe o e-mail final, já conferido pela pessoa. */
   aoConfirmar: (email: string, telefone: string) => void;
@@ -256,13 +259,20 @@ export function ResumoDoPedido({
           </span>
           <span className="min-w-0 flex-1">
             <span className="flex items-baseline justify-between gap-2">
-              <span className="text-sm font-medium">Levar o quadro pra imprimir</span>
-              <span className="shrink-0 text-sm font-semibold text-primary">
-                + {reais(PRECO_QUADRO)}
+              <span className="text-sm font-medium">{TEXTO_BUMP[item].titulo}</span>
+              <span className="shrink-0 text-right">
+                {TEXTO_BUMP[item].de && (
+                  <span className="mr-1.5 text-xs text-muted-foreground line-through">
+                    {TEXTO_BUMP[item].de}
+                  </span>
+                )}
+                <span className="text-sm font-semibold text-primary">
+                  + {reais(precoDoItem(item))}
+                </span>
               </span>
             </span>
             <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-              A letra e a foto numa folha pronta pra emoldurar. Sai no mesmo PIX.
+              {TEXTO_BUMP[item].sub}
             </span>
           </span>
         </button>
@@ -270,7 +280,7 @@ export function ResumoDoPedido({
 
       {quadro === true && (
         <p className="text-center text-sm text-muted-foreground">
-          Total: <span className="font-semibold text-foreground">{reais(precoBase + PRECO_QUADRO)}</span>
+          Total: <span className="font-semibold text-foreground">{reais(precoBase + precoDoItem(item))}</span>
         </p>
       )}
 

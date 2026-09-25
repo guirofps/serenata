@@ -3,7 +3,7 @@ import { getRequestHeader } from "@tanstack/react-start/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { asaas } from "@/lib/asaas";
 import { ErroGateway, type DadosCartao, type TitularCartao } from "@/lib/gateway-cartao";
-import { valorComBump } from "@/lib/criar-pix";
+import { BUMPS, ehItemBump, valorComItem, type ItemBump } from "@/lib/bump";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../../api/lib/entrega";
 
 // A COBRANÇA NO CARTÃO, transparente.
@@ -144,6 +144,8 @@ export const cobrarCartao = createServerFn({ method: "POST" })
     (data: {
       sessionId: string;
       quadro?: boolean;
+    /** QUAL item extra ela marcou (o preco sai de `BUMPS`). */
+    bump?: ItemBump;
       cartao: DadosCartao;
       titular: TitularCartao;
     }) => data,
@@ -173,7 +175,8 @@ export const cobrarCartao = createServerFn({ method: "POST" })
 
     const { centavos: base, checkoutAntigo } = await valorCentavosDaSessao(db, quiz.attribution);
     if (!base) return { ok: false, erro: "sem-preco" };
-    const valorCentavos = valorComBump(base, data.quadro === true);
+    const item: ItemBump | null = ehItemBump(data.bump) ? data.bump : data.quadro === true ? "quadro" : null;
+    const valorCentavos = valorComItem(base, item);
 
     const ip = ipDoPagador();
     // SEM IP NÃO TENTA. O Asaas exige o campo, e mandar o IP do servidor é
@@ -203,7 +206,7 @@ export const cobrarCartao = createServerFn({ method: "POST" })
     const referencia = `serenata:${quiz.id}`;
     const voltaSegura = async (): Promise<string | null> => {
       if (!checkoutAntigo) return null;
-      if (data.quadro === true) return null;
+      if (item) return null;
       if (await asaas.existeCobranca(referencia)) return null;
       return checkoutAntigo;
     };
@@ -279,7 +282,8 @@ export const cobrarCartao = createServerFn({ method: "POST" })
         titular_pix: data.titular.nome,
         telefone: (quiz.whatsapp as string | null) || data.titular.telefone,
         valor_centavos: valorCentavos,
-        bump_quadro: data.quadro === true,
+        bump_quadro: item ? BUMPS[item].quadro : false,
+        bump_video: item ? BUMPS[item].video : false,
         quiz_response_id: quiz.id,
         musica_id: musica.id,
         // `paid_at` SÓ NA PRIMEIRA VEZ. Ver o bloco abaixo.

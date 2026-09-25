@@ -28,6 +28,7 @@ import { assuntoQuadroParado, emailQuadroParado } from "../../emails/quadro-para
 import { assuntoCreditoParado, emailCreditoParado } from "../../emails/credito-parado";
 import { assuntoVideoPronto, emailVideoPronto } from "../../emails/video-pronto";
 import { assuntoVideoOferta, emailVideoOferta } from "../../emails/video-oferta";
+import { assuntoVideoEsperando, emailVideoEsperando } from "../../emails/video-esperando";
 
 // O CATÁLOGO DAS AUTOMAÇÕES DE E-MAIL, do jeito que elas rodam hoje.
 //
@@ -249,6 +250,24 @@ export const AUTOMACOES: Automacao[] = [
         nome: "O presente está esperando você montar",
         quando: "3h depois da compra, sem montar",
         idiomas: ["pt", "es"],
+      },
+    ],
+  },
+  {
+    id: "video-pendente",
+    nome: "Vídeo comprado esperando as fotos",
+    fase: "depois",
+    gatilho: "de hora em hora (aos 25 min)",
+    quemRecebe:
+      "Quem comprou o vídeo no checkout (bump) e não tocou em 'Gerar' em 24h. Um só. Aos 3 dias o vídeo é gerado sozinho com o que estiver na página.",
+    remetente: "transacional",
+    arquivo: "inngest/functions/videoPendente.ts",
+    emails: [
+      {
+        template: "video_esperando",
+        nome: "O vídeo está esperando as fotos",
+        quando: "24h depois da compra, sem gerar",
+        idiomas: ["pt"],
       },
     ],
   },
@@ -584,6 +603,11 @@ export function renderizarPreview(template: string, locale: "pt" | "es"): Previe
       return pt(
         assuntoVideoPronto(E.titulo, l),
         emailVideoPronto({ titulo: E.titulo, linkVideo: `${E.linkEditor}#video`, locale: l }),
+      );
+    case "video_esperando":
+      return pt(
+        assuntoVideoEsperando(E.nome),
+        emailVideoEsperando({ nome: E.nome, titulo: E.titulo, link: `${E.linkEditor}#video` }),
       );
     case "oferta_video":
       return pt(

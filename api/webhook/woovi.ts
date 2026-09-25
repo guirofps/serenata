@@ -24,7 +24,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { woovi, assinaturaWooviConfere } from "../../src/lib/woovi.js";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../lib/entrega.js";
-import { creditarUpsell } from "../lib/creditar-upsell.js";
+import { creditarUpsell, liberarVideoDoBump } from "../lib/creditar-upsell.js";
+import { oQueLeva } from "../../src/lib/bump.js";
 import { enviarVendaUtmify } from "../lib/utmify.js";
 import { venderNoTiktok } from "../lib/tiktok-eventos.js";
 import { OFERTAS } from "../../src/lib/creditos.js";
@@ -248,7 +249,7 @@ export default async function handler(req: Req, res: Res) {
   const paymentId = `woovi:${correlationID}`;
   const { data: existente } = await sb
     .from("pedidos")
-    .select("id, status, valor_centavos, bump_quadro, email")
+    .select("id, status, valor_centavos, bump_quadro, bump_video, email")
     .eq("payment_id", paymentId)
     .maybeSingle();
   if (existente?.status === "pago") {
@@ -452,8 +453,32 @@ export default async function handler(req: Req, res: Res) {
   //
   // ANTES do e-mail de entrega, de proposito: o e-mail conta que o quadro
   // esta liberado, e contar antes de liberar seria mentir na ordem errada.
-  const comprouQuadro =
-    existente?.bump_quadro === true || correlationID.endsWith(":q");
+  // O sufixo agora pode ser `:q` (quadro), `:v` (video) ou `:c` (os dois),
+  // e sobrevive ao `:r2` da recobranca. Ver `src/lib/bump.ts`.
+  const leva = oQueLeva({
+    bumpQuadro: existente?.bump_quadro,
+    bumpVideo: existente?.bump_video,
+    referencia: correlationID,
+  });
+  const comprouQuadro = leva.quadro;
+
+  // O video do bump: nasce esperando as fotos (`liberarVideoDoBump`).
+  if (leva.video) {
+    const erroVideo = await liberarVideoDoBump(sb, {
+      email,
+      pedidoId: pedidoDaVenda?.id ?? null,
+      musicaId: musica?.id ?? null,
+    });
+    if (erroVideo) {
+      await auditar(sb, "woovi_video_nao_liberado", { correlationID, erro: erroVideo });
+      await alertarDono(
+        "Video pago no bump e NAO liberado",
+        `<p>O video veio junto no PIX e a linha nao foi criada: ${erroVideo}` +
+          `<br>${email} · ${correlationID}</p>`,
+      );
+    }
+  }
+
   if (comprouQuadro) {
     const { error: erroQuadro } = await sb.from("quadros").insert({
       email,

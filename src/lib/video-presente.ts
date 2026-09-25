@@ -19,7 +19,8 @@ export type EstadoVideo = {
   habilitado: boolean;
   /** Quantas fotos a música tem (capa + galeria). O vídeo precisa de pelo menos uma. */
   fotos: number;
-  status: "aguardando" | "renderizando" | "pronto" | "falhou" | null;
+  /** `aguardando_fotos`: pago no checkout, esperando ela tocar em "Gerar". */
+  status: "aguardando_fotos" | "aguardando" | "renderizando" | "pronto" | "falhou" | null;
   /** URL assinada pra tocar no editor (só quando pronto). */
   url: string | null;
   /** URL assinada que força o download com nome de arquivo decente. */
@@ -166,6 +167,51 @@ export const atualizarVideo = createServerFn({ method: "POST" })
     if (!r?.ok) {
       // Sem o evento o render nunca sai: devolve o vídeo antigo e o clique.
       await db.from("videos").update({ status: "pronto", atualizacoes: feitas }).eq("id", v.id);
+      return { ok: false, motivo: "não conseguiu pedir o render" };
+    }
+    return { ok: true };
+  });
+
+/** Manda o evento de render. `true` se o Inngest aceitou. */
+async function pedirRenderVideo(videoId: string): Promise<boolean> {
+  const chave = process.env.INNGEST_EVENT_KEY;
+  if (!chave) return false;
+  const r = await fetch(`https://inn.gs/e/${chave}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "video/renderizar", data: { videoId } }),
+  }).catch(() => null);
+  return !!r?.ok;
+}
+
+/**
+ * "GERAR MEU VÍDEO": o vídeo comprado no checkout (bump), que nasceu esperando
+ * as fotos. Ela conferiu a prévia com as fotos dela e manda fazer.
+ *
+ * A troca de status é CONDICIONAL (`aguardando_fotos` → `aguardando`): dois
+ * toques, ou duas abas, pedem um render só.
+ */
+export const gerarVideoPago = createServerFn({ method: "POST" })
+  .validator((data: { tokenEdicao: string }) => data)
+  .handler(async ({ data }): Promise<{ ok: boolean; motivo?: string }> => {
+    if (!data.tokenEdicao) return { ok: false, motivo: "sem token" };
+    const db = supabaseAdmin();
+    const { data: m } = await db
+      .from("musicas")
+      .select("id")
+      .eq("token_edicao", data.tokenEdicao)
+      .maybeSingle();
+    if (!m) return { ok: false, motivo: "música não encontrada" };
+    const { data: trocou } = await db
+      .from("videos")
+      .update({ status: "aguardando" })
+      .eq("musica_id", m.id)
+      .eq("status", "aguardando_fotos")
+      .select("id");
+    const v = trocou?.[0];
+    if (!v) return { ok: true }; // outro toque chegou antes, ou não havia vídeo esperando
+    if (!(await pedirRenderVideo(v.id as string))) {
+      await db.from("videos").update({ status: "aguardando_fotos" }).eq("id", v.id);
       return { ok: false, motivo: "não conseguiu pedir o render" };
     }
     return { ok: true };

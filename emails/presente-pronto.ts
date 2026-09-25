@@ -129,6 +129,8 @@ export function emailPresentePronto(args: {
    * nunca montaram (19 de 24 com mais de 3 dias, medido em 31/08).
    */
   temQuadroPraMontar?: boolean;
+  /** O vídeo veio no checkout (bump) e espera as fotos pra ser gerado. */
+  temVideoPraGerar?: boolean;
   locale?: IdiomaEmail;
 }): string {
   const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
@@ -229,6 +231,23 @@ export function emailPresentePronto(args: {
            E é o QUADRO, não "mais uma música": ele soma ao que ela acabou de
            receber. Pedir a segunda música de alguém que ainda não ouviu a
            primeira é pedir cedo demais. -->
+      ${
+        // O VÍDEO COMPRADO JUNTO (order bump): já é dela, e só falta subir as
+        // fotos. Mesma lógica do quadro abaixo: entrega, não oferta, botão cheio.
+        args.temVideoPraGerar
+          ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;border-top:1px solid rgba(42,21,24,0.10);">
+        <tr><td style="padding-top:22px;" align="center">
+          <p style="margin:0;font-size:17px;color:#2a1518;font-family:Georgia,'Times New Roman',serif;">
+            O seu vídeo já está pago
+          </p>
+          <p style="margin:8px 0 0;font-size:14px;line-height:1.55;color:rgba(42,21,24,0.7);font-family:Helvetica,Arial,sans-serif;">
+            Ele é feito das fotos de vocês. Suba as fotos na página, dê o play pra conferir e toque em "Gerar meu vídeo".
+          </p>
+          <a href="${linkEditor}?de=video_entrega#video" style="display:inline-block;margin-top:14px;padding:13px 24px;border-radius:999px;background:#7d2b3a;color:#ffffff;text-decoration:none;font-weight:600;font-size:13px;font-family:Helvetica,Arial,sans-serif;">SUBIR AS FOTOS E GERAR</a>
+        </td></tr>
+      </table>`
+          : ""
+      }
       ${
         jaTemQuadro
           ? // JÁ É DELA: entrega, não oferta. Botão CHEIO e não contornado,

@@ -31,7 +31,7 @@ import { segredoConfere } from "../lib/segredo.js";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../lib/entrega.js";
 import { venderNoTiktok } from "../lib/tiktok-eventos.js";
 import { Resend } from "resend";
-import { creditarUpsell } from "../lib/creditar-upsell.js";
+import { creditarUpsell, liberarVideoDoBump } from "../lib/creditar-upsell.js";
 import { ofertaDaReferencia } from "../../src/lib/creditos.js";
 
 type Req = IncomingMessage & {
@@ -211,7 +211,7 @@ export default async function handler(req: Req, res: Res) {
   // â”€â”€ IDEMPOTÃŠNCIA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { data: existentes } = await sb
     .from("pedidos")
-    .select("id, payment_id, status, valor_centavos, bump_quadro, email, quiz_response_id")
+    .select("id, payment_id, status, valor_centavos, bump_quadro, bump_video, email, quiz_response_id")
     .in("payment_id", idPorReferencia ? [paymentId, idPorReferencia] : [paymentId]);
   if ((existentes ?? []).some((p) => p.status === "pago")) {
     return res.status(200).json({ ok: true, duplicado: true });
@@ -291,6 +291,22 @@ export default async function handler(req: Req, res: Res) {
   }
 
   // â”€â”€ O QUADRO COMPRADO JUNTO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // O video do bump (bracos V e C): nasce esperando as fotos. Ver
+  // `liberarVideoDoBump`. Pela coluna do pedido que NOS gravamos.
+  if (existente?.bump_video === true && existente.email) {
+    const erroVideo = await liberarVideoDoBump(sb, {
+      email: existente.email,
+      pedidoId: pedido?.id ?? null,
+      musicaId: musica?.id ?? null,
+    });
+    if (erroVideo) {
+      await alertarDono(
+        "Video pago no bump e NAO liberado",
+        `<p>${erroVideo}<br>${existente.email} · ${paymentId}</p>`,
+      );
+    }
+  }
+
   if (existente?.bump_quadro === true && existente.email) {
     const { error } = await sb.from("quadros").insert({
       email: existente.email,

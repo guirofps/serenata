@@ -154,6 +154,16 @@ export async function mandarEmailDeEntrega(
       .limit(1);
     const temQuadroPraMontar = (direitos?.length ?? 0) > 0;
 
+    // O vídeo comprado junto no checkout, esperando as fotos. Pela MÚSICA:
+    // o vídeo é dela, e o bump já nasce preso a ela.
+    const { data: videoEsperando } = await sb
+      .from("videos")
+      .select("id")
+      .eq("musica_id", args.musica.id)
+      .eq("status", "aguardando_fotos")
+      .limit(1);
+    const temVideoPraGerar = (videoEsperando?.length ?? 0) > 0;
+
     const linkEditor = `${SITE}/editar/${args.musica.token_edicao}`;
     const linkPresente = `${SITE}/p/${args.musica.token}`;
 
@@ -204,6 +214,7 @@ export async function mandarEmailDeEntrega(
         linkEditor,
         linkPresente,
         temQuadroPraMontar,
+        temVideoPraGerar,
         locale,
       }),
       text: `A música de ${nome} está pronta.\n\nSEU LINK (monte o presente e baixe o MP3):\n${linkEditor}\n\nO LINK QUE VOCÊ MANDA PRA ELA:\n${linkPresente}\n\nSão DUAS gravações da mesma letra: ouça as duas no primeiro link e escolha a que vai tocar pra ela.\n\nA música não vai anexada e não mandamos por WhatsApp: ela mora nesses links, e eles são seus pra sempre.${
@@ -211,6 +222,12 @@ export async function mandarEmailDeEntrega(
           ? `
 
 O SEU QUADRO: você já pagou por ele e falta montar. É no mesmo link de cima: ${linkEditor}?de=quadro`
+          : ""
+      }${
+        temVideoPraGerar
+          ? `
+
+O SEU VÍDEO: já está pago. Suba as fotos na página e toque em "Gerar meu vídeo": ${linkEditor}#video`
           : ""
       }`,
     });
