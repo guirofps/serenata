@@ -11,7 +11,7 @@ import { Logo } from "@/components/marca/Logo";
 import { MARCA, FONTES } from "@/lib/marca";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { ehDono } from "@/lib/dono-presente";
-import { trackEventOnce } from "@/lib/track";
+import { trackEvent, trackEventOnce } from "@/lib/track";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -606,6 +606,37 @@ function PaginaPresente() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── QUEM RECEBE VIRA QUEM DÁ ───────────────────────────
+          Esta página é aberta por quem acabou de se emocionar com uma música
+          feita pra ela, e até 25/09 a única saída pra Serenata era o logo
+          apagado do rodapé. Um convite, uma vez, DEPOIS do play: antes dele
+          a capa é um convite com um gesto só, e oferecer outra coisa ali
+          seria competir com o presente.
+
+          Não aparece pro dono (ele já é cliente e tem o editor), e o link
+          não leva o token da página: gtag e UTMify leem a URL do /criar, e
+          token de cliente não entra em URL que terceiro lê. */}
+      {comecou && !dono && (
+        <section data-revela className="relative mx-auto max-w-md px-6 pb-14 text-center">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] px-6 py-7">
+            <p
+              className="text-white/85"
+              style={{ fontFamily: "Fraunces, ui-serif, Georgia, serif", fontSize: "1.25rem", lineHeight: 1.35 }}
+            >
+              {T.conviteTitulo}
+            </p>
+            <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-white/50">{T.conviteSub}</p>
+            <a
+              href={`${p?.locale === "es" ? "/es/criar" : "/criar"}?utm_source=presente&utm_medium=convite&utm_campaign=pagina_presente`}
+              onClick={() => trackEvent("convite_presente_click", { locale: p?.locale ?? "pt" })}
+              className="mt-5 inline-flex h-12 items-center justify-center rounded-full bg-[color:var(--presente-destaque)] px-7 text-sm font-semibold text-[#0d0a08]"
+            >
+              {T.conviteBotao}
+            </a>
+          </div>
+        </section>
       )}
 
       {/* ── RODAPÉ: só a assinatura da marca ─────────────────────

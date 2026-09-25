@@ -29,6 +29,7 @@ import { assuntoCreditoParado, emailCreditoParado } from "../../emails/credito-p
 import { assuntoVideoPronto, emailVideoPronto } from "../../emails/video-pronto";
 import { assuntoVideoOferta, emailVideoOferta } from "../../emails/video-oferta";
 import { assuntoVideoEsperando, emailVideoEsperando } from "../../emails/video-esperando";
+import { assuntoLembreteData, emailLembreteData } from "../../emails/lembrete-data";
 
 // O CATÁLOGO DAS AUTOMAÇÕES DE E-MAIL, do jeito que elas rodam hoje.
 //
@@ -250,6 +251,24 @@ export const AUTOMACOES: Automacao[] = [
         nome: "O presente está esperando você montar",
         quando: "3h depois da compra, sem montar",
         idiomas: ["pt", "es"],
+      },
+    ],
+  },
+  {
+    id: "lembrar-datas",
+    nome: "Lembrete das datas cadastradas",
+    fase: "depois",
+    gatilho: "todo dia às 10h05",
+    quemRecebe:
+      "Quem cadastrou uma data no editor ('Datas que você não pode esquecer'), 10 dias antes dela. Um por data por ano. O botão leva pro atalho de cliente (#outra-musica), não pro funil a preço cheio.",
+    remetente: "recuperacao",
+    arquivo: "inngest/functions/lembrarDatas.ts",
+    emails: [
+      {
+        template: "lembrete_data",
+        nome: "Faltam 10 dias pro aniversário",
+        quando: "10 dias antes de cada data",
+        idiomas: ["pt"],
       },
     ],
   },
@@ -603,6 +622,17 @@ export function renderizarPreview(template: string, locale: "pt" | "es"): Previe
       return pt(
         assuntoVideoPronto(E.titulo, l),
         emailVideoPronto({ titulo: E.titulo, linkVideo: `${E.linkEditor}#video`, locale: l }),
+      );
+    case "lembrete_data":
+      return pt(
+        assuntoLembreteData(E.nome, "aniversario", 10),
+        emailLembreteData({
+          nome: E.nome,
+          tipo: "aniversario",
+          dias: 10,
+          dataTexto: "12 de março",
+          link: `${E.linkEditor}#outra-musica`,
+        }),
       );
     case "video_esperando":
       return pt(

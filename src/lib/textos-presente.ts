@@ -19,6 +19,10 @@ const PT = {
   // página presente espanhola — a única tela que o PRESENTEADO vê.
   toqueParaOuvir: "toque para ouvir",
   feitoCom: "feito com",
+  // O convite pra quem RECEBE (depois do play, nunca pro dono).
+  conviteTitulo: "Alguém que você ama merece uma dessas?",
+  conviteSub: "Conta a história de vocês e a letra sai na hora, de graça.",
+  conviteBotao: "Criar uma música",
   ariaTocar: "Tocar",
   ariaPausar: "Pausar",
   // ── editor: sobras que estavam escritas direto no JSX ──────
@@ -135,6 +139,9 @@ const ES: TextosPresente = {
   soVoceVe: "solo tú ves esto",
   toqueParaOuvir: "toca para escuchar",
   feitoCom: "hecho con",
+  conviteTitulo: "¿Alguien que amas merece una así?",
+  conviteSub: "Cuenta la historia de ustedes y la letra sale al instante, gratis.",
+  conviteBotao: "Crear una canción",
   ariaTocar: "Reproducir",
   ariaPausar: "Pausar",
   versaoN: (n: number) => `Versión ${n}`,

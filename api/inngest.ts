@@ -29,6 +29,7 @@ import { creditoParado } from "../inngest/functions/creditoParado.js";
 import { renderizarVideo } from "../inngest/functions/renderizarVideo.js";
 import { ofertaVideo } from "../inngest/functions/ofertaVideo.js";
 import { videoPendente } from "../inngest/functions/videoPendente.js";
+import { lembrarDatas } from "../inngest/functions/lembrarDatas.js";
 
 // Adapter "inngest/node" (req/res nativo), não "inngest/next": no Inngest v4 o
 // adapter next virou web-style (Request -> Response) e nunca escreve no res de
@@ -63,5 +64,6 @@ export default serve({
     renderizarVideo,
     ofertaVideo,
     videoPendente,
+    lembrarDatas,
   ],
 });
