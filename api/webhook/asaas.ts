@@ -203,7 +203,10 @@ export default async function handler(req: Req, res: Res) {
     // Ã© dinheiro que a tela jÃ¡ mostrou como aprovado e que nÃ£o vai entrar.
     if (evento === "PAYMENT_REPROVED_BY_RISK_ANALYSIS") {
       await auditar(sb, "asaas_reprovado_antifraude", { paymentId });
-      await sb.from("pedidos").update({ status: "recusado", status_gateway: evento }).eq("payment_id", paymentId);
+      // "cancelado", nao "recusado": o CHECK de `pedidos.status` so aceita
+      // pendente|pago|reembolsado|cancelado, e o update com "recusado" falhava
+      // calado. O motivo fica no `status_gateway`.
+      await sb.from("pedidos").update({ status: "cancelado", status_gateway: evento }).eq("payment_id", paymentId);
     }
     return res.status(200).json({ ok: true, evento });
   }
@@ -349,7 +352,7 @@ export default async function handler(req: Req, res: Res) {
   }
 
   try {
-    await refazerSeFaltou(sb, quizId);
+    await refazerSeFaltou(sb, musica);
     await mandarEmailDeEntrega(sb, {
       email,
       musica,
