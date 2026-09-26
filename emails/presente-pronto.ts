@@ -155,7 +155,7 @@ export function emailPresentePronto(args: {
                assim aparece SERENATA em serifada vinho no lugar do ícone
                quebrado. -->
           <!-- A LOGO E TEXTO, nao imagem, e isso e decisao.
-               Era um <img> com o alt estilizado como plano B. O plano B virou
+               Era uma imagem com o alt estilizado como plano B. O plano B virou
                o CASO COMUM: Gmail e Apple Mail bloqueiam imagem remota por
                padrao e desenham um ICONE DE QUEBRADO ao lado do alt. O dono
                abriu o proprio e-mail em 17/08 e viu exatamente isso, com o
@@ -205,8 +205,11 @@ export function emailPresentePronto(args: {
                texto visível: cliente de e-mail corta URL longa no fim da
                linha, ou cola a pontuação da frase nela. E token errado por um
                caractere dá 404 seco, sem pista nenhuma:
-                   /p/783ef70709164f46b9fd1   (faltando 1 char)  -> 404
-                   /p/783ef70709164f46b9fd1e. (com ponto)        -> 404
+                   token faltando 1 caractere: 404
+                   token com um ponto colado no fim: 404
+               (Sem sinal de maior e sem traço duplo aqui dentro: o Yahoo
+               fechava este comentário no meio e mostrava o resto como texto
+               pro cliente, de 10/08 a 26/09.)
                Como botão, o destino vive só no href e nunca é lido, cortado
                ou reescrito por quem renderiza o e-mail. -->
           <a href="${linkPresente}" style="display:inline-block;margin-top:8px;padding:10px 20px;border-radius:999px;border:1px solid rgba(125,43,58,0.35);color:#7d2b3a;text-decoration:none;font-weight:600;">${C.verPresente}</a>

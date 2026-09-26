@@ -125,7 +125,7 @@ export function emailAcesso(args: {
 
         <tr><td style="padding:34px 34px 6px;text-align:center;">
           <!-- A LOGO E TEXTO, nao imagem, e isso e decisao.
-               Era um <img> com o alt estilizado como plano B. O plano B virou
+               Era uma imagem com o alt estilizado como plano B. O plano B virou
                o CASO COMUM: Gmail e Apple Mail bloqueiam imagem remota por
                padrao e desenham um ICONE DE QUEBRADO ao lado do alt. O dono
                abriu o proprio e-mail em 17/08 e viu exatamente isso, com o
