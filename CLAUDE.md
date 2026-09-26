@@ -323,6 +323,29 @@ produto da Perfect Pay, e o e-mail já prometeu aquele número).
   que é antes do checkout. Ver isso e concluir "o experimento não está
   pegando" é um falso alarme já cometido.
 
+## Venda brasileira sai SÓ pelo Asaas (26/09/2026)
+
+Decisão do dono, depois que o Asaas entrou em manutenção programada (01h07 a
+01h47 de 26/09) e o plano B mandou 5 vendas pra Perfect Pay a 11,39% de taxa.
+Substitui o "cartão continua na Perfect Pay" da seção acima.
+
+- **Nenhum caminho do funil brasileiro leva mais à Perfect Pay.** Erro ao gerar
+  o PIX mostra "Tentar de novo" (repete o mesmo pedido) e "Pagar com cartão",
+  que é o formulário do Asaas. O cartão não tem mais volta pro checkout
+  antigo quando o Asaas não responde (`criar-cartao.ts`).
+- **O `checkout_pix` deixou de ser saída.** O funil `pt` abre sempre o
+  transparente; desligar o experimento não devolve ninguém pra Perfect Pay.
+- **O cupom da recuperação (SRN27) é aplicado pelo servidor**
+  (`centavosComCupom`, `cupom.ts`), no PIX e no cartão. Só o código viaja do
+  cliente; o valor sai do catálogo, e o cupom nunca sobe o preço.
+- **Upsell e oferta da recuperação (`/oferta/<token>`) são só PIX.** O cartão
+  deles era produto da Perfect Pay.
+- **Fica na Perfect Pay, por moeda:** o funil espanhol, cobrado em dólar. O
+  Asaas não cobra dólar.
+- Consequência aceita: com o Asaas fora, a venda espera ele voltar (a pessoa
+  tenta de novo, e o lead já está na régua de recuperação) em vez de escorrer
+  pra outro gateway.
+
 ## A prévia sai aos 30s, não aos 120s (30/08/2026)
 
 O provedor devolve **duas** URLs de áudio e a gente só usava a segunda.

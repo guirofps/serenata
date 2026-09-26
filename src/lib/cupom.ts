@@ -42,3 +42,22 @@ export function cupomAtivo(locale: Locale, agora = new Date()): Cupom | null {
   if (agora.toISOString().slice(0, 10) > VALE_ATE) return null;
   return CUPONS[locale] ?? CUPONS.pt;
 }
+
+/**
+ * O preço com o cupom da recuperação, no checkout próprio (26/09).
+ *
+ * O desconto existia como PRODUTO da Perfect Pay; com a venda saindo só pelo
+ * Asaas, quem aplica é o servidor. Só em real (o Asaas não cobra dólar), só o
+ * código ativo, e nunca SOBE o preço: se o braço já estiver abaixo do "por",
+ * vale o braço.
+ */
+export function centavosComCupom(
+  baseCentavos: number,
+  cupom: string | null | undefined,
+  agora = new Date(),
+): number {
+  const c = cupomAtivo("pt", agora);
+  if (!c || !cupom || cupom.trim().toUpperCase() !== c.codigo) return baseCentavos;
+  const por = Math.round(Number(c.por.replace(/[^\d,]/g, "").replace(",", ".")) * 100);
+  return por > 0 ? Math.min(baseCentavos, por) : baseCentavos;
+}

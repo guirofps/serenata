@@ -4,10 +4,7 @@ import { irParaCheckout } from "@/lib/checkout";
 import { temMusicaDaSessao, finalizarLetra } from "@/lib/coautoria";
 import { meusCreditos } from "@/lib/meus-creditos";
 import { usarCredito } from "@/lib/usar-credito";
-import {
-  creditoNoNavegador,
-  esquecerCreditoNoNavegador,
-} from "@/lib/credito-no-navegador";
+import { creditoNoNavegador, esquecerCreditoNoNavegador } from "@/lib/credito-no-navegador";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { checkoutTiktok } from "@/lib/tiktok-pixel";
@@ -25,8 +22,18 @@ import { SorteioSemanal } from "@/components/quiz/SorteioSemanal";
 import { DepoimentoContato } from "@/components/quiz/DepoimentoContato";
 import { Variante } from "@/components/Variante";
 import {
-  Music, Images, Sparkles, QrCode, Download, Infinity as InfinityIcon,
-  Pencil, ShieldCheck, ChevronLeft, ChevronDown, Check, RefreshCw,
+  Music,
+  Images,
+  Sparkles,
+  QrCode,
+  Download,
+  Infinity as InfinityIcon,
+  Pencil,
+  ShieldCheck,
+  ChevronLeft,
+  ChevronDown,
+  Check,
+  RefreshCw,
 } from "lucide-react";
 
 // A OFERTA, entre a letra e o gateway.
@@ -45,22 +52,26 @@ const ENTREGAVEIS_PT = [
   {
     Icone: Music,
     titulo: "A música completa, cantada",
-    detalhe: "Do começo ao fim, sem corte. E em duas gravações diferentes da mesma letra, pra você escolher a que emocionar mais.",
+    detalhe:
+      "Do começo ao fim, sem corte. E em duas gravações diferentes da mesma letra, pra você escolher a que emocionar mais.",
   },
   {
     Icone: Images,
     titulo: "A página presente, com as fotos de vocês",
-    detalhe: "Até 12 fotos, que passam sozinhas nas viradas da música. É essa página que você manda, não um arquivo solto.",
+    detalhe:
+      "Até 12 fotos, que passam sozinhas nas viradas da música. É essa página que você manda, não um arquivo solto.",
   },
   {
     Icone: Sparkles,
     titulo: "O karaokê, palavra por palavra",
-    detalhe: "Cada palavra acende no instante exato em que é cantada. Quem recebe acompanha e canta junto.",
+    detalhe:
+      "Cada palavra acende no instante exato em que é cantada. Quem recebe acompanha e canta junto.",
   },
   {
     Icone: QrCode,
     titulo: "Link e QR Code pra presentear",
-    detalhe: "Manda o link no WhatsApp, ou imprime o QR Code e cola numa caixa de bombom. O presente digital vira presente de mão.",
+    detalhe:
+      "Manda o link no WhatsApp, ou imprime o QR Code e cola numa caixa de bombom. O presente digital vira presente de mão.",
   },
   {
     Icone: Download,
@@ -79,17 +90,20 @@ const ENTREGAVEIS_PT = [
     // pós-compra, no painel.
     Icone: RefreshCw,
     titulo: "Não ficou do seu jeito? A gente refaz",
-    detalhe: "Depois de comprar, você pede um ajuste na sua conta: trocar um trecho da letra, mudar o estilo ou a voz. A gente regrava e te manda a nova versão.",
+    detalhe:
+      "Depois de comprar, você pede um ajuste na sua conta: trocar um trecho da letra, mudar o estilo ou a voz. A gente regrava e te manda a nova versão.",
   },
   {
     Icone: Pencil,
     titulo: "Você monta o presente do seu jeito",
-    detalhe: "Escolhe a cor da página, o efeito na tela e escreve uma frase sua. Dá pra mexer quantas vezes quiser.",
+    detalhe:
+      "Escolhe a cor da página, o efeito na tela e escreve uma frase sua. Dá pra mexer quantas vezes quiser.",
   },
   {
     Icone: InfinityIcon,
     titulo: "É seu pra sempre",
-    detalhe: "A página não expira e o link não para de funcionar. Pagamento único, sem mensalidade.",
+    detalhe:
+      "A página não expira e o link não para de funcionar. Pagamento único, sem mensalidade.",
   },
 ];
 
@@ -135,40 +149,81 @@ const DUVIDAS_PT = [
 // trouxe até aqui: reescreva as duas listas abaixo no espanhol do mercado
 // novo, e só então mude a lista do teste.
 const ENTREGAVEIS_ES = [
-  { Icone: Music, titulo: "La canción completa, cantada",
-    detalhe: "De principio a fin, sin cortes. Y en dos grabaciones distintas de la misma letra, para que elijas la que más te emocione." },
-  { Icone: Images, titulo: "La página regalo, con las fotos de ustedes",
-    detalhe: "Hasta 12 fotos, que pasan solas en los cambios de la canción. Es esa página la que mandás, no un archivo suelto." },
-  { Icone: Sparkles, titulo: "El karaoke, palabra por palabra",
-    detalhe: "Cada palabra se enciende justo cuando se canta. Quien la recibe la sigue y canta con vos." },
-  { Icone: QrCode, titulo: "Link y código QR para regalar",
-    detalhe: "Mandás el link por WhatsApp, o imprimís el código QR y lo pegás en una caja de bombones. El regalo digital se vuelve regalo de mano." },
-  { Icone: Download, titulo: "El MP3 para descargar y guardar",
-    detalhe: "La canción queda en tu celu, para escucharla cuando quieras, con o sin internet." },
-  { Icone: RefreshCw, titulo: "¿No quedó a tu gusto? La rehacemos",
-    detalhe: "Después de comprar, pedís un ajuste en tu cuenta: cambiar una parte de la letra, el estilo o la voz. La volvemos a grabar y te mandamos la nueva versión." },
-  { Icone: Pencil, titulo: "Armás el regalo a tu manera",
-    detalhe: "Elegís el color de la página, el efecto en pantalla y escribís una frase tuya. Podés cambiarlo las veces que quieras." },
-  { Icone: InfinityIcon, titulo: "Es tuya para siempre",
-    detalhe: "La página no expira y el link no deja de funcionar. Pago único, sin mensualidad." },
+  {
+    Icone: Music,
+    titulo: "La canción completa, cantada",
+    detalhe:
+      "De principio a fin, sin cortes. Y en dos grabaciones distintas de la misma letra, para que elijas la que más te emocione.",
+  },
+  {
+    Icone: Images,
+    titulo: "La página regalo, con las fotos de ustedes",
+    detalhe:
+      "Hasta 12 fotos, que pasan solas en los cambios de la canción. Es esa página la que mandás, no un archivo suelto.",
+  },
+  {
+    Icone: Sparkles,
+    titulo: "El karaoke, palabra por palabra",
+    detalhe:
+      "Cada palabra se enciende justo cuando se canta. Quien la recibe la sigue y canta con vos.",
+  },
+  {
+    Icone: QrCode,
+    titulo: "Link y código QR para regalar",
+    detalhe:
+      "Mandás el link por WhatsApp, o imprimís el código QR y lo pegás en una caja de bombones. El regalo digital se vuelve regalo de mano.",
+  },
+  {
+    Icone: Download,
+    titulo: "El MP3 para descargar y guardar",
+    detalhe: "La canción queda en tu celu, para escucharla cuando quieras, con o sin internet.",
+  },
+  {
+    Icone: RefreshCw,
+    titulo: "¿No quedó a tu gusto? La rehacemos",
+    detalhe:
+      "Después de comprar, pedís un ajuste en tu cuenta: cambiar una parte de la letra, el estilo o la voz. La volvemos a grabar y te mandamos la nueva versión.",
+  },
+  {
+    Icone: Pencil,
+    titulo: "Armás el regalo a tu manera",
+    detalhe:
+      "Elegís el color de la página, el efecto en pantalla y escribís una frase tuya. Podés cambiarlo las veces que quieras.",
+  },
+  {
+    Icone: InfinityIcon,
+    titulo: "Es tuya para siempre",
+    detalhe: "La página no expira y el link no deja de funcionar. Pago único, sin mensualidad.",
+  },
 ];
 
 const DUVIDAS_ES = [
-  { p: "¿Es un pago único o una suscripción?",
-    r: "Único. Pagás una vez y la canción es tuya para siempre. No hay mensualidad, no hay renovación automática, no guardamos tu tarjeta." },
-  { p: "¿Cuánto tarda?",
-    r: "Hasta 30 minutos, y normalmente menos de 5. Te avisamos por correo en cuanto esté lista, y también podés armar el regalo ahí mismo, en la pantalla." },
-  { p: "¿La canción va a ser igual a la letra que leí?",
-    r: "Sí. Es exactamente esa letra la que se va a cantar, palabra por palabra. Nada de cambiarla por otra cosa después del pago." },
-  { p: "¿Y si no me gusta la grabación?",
-    r: "Recibís dos versiones de la misma letra, con interpretaciones distintas, y elegís cuál se abre cuando la persona la reciba. Si ninguna te sirve, respondé el correo y lo resolvemos." },
-  { p: "¿Cómo entrego el regalo?",
-    r: "Después de armarlo te damos el link listo y un mensaje para copiar y pegar en WhatsApp. El que lo entrega sos vos." },
+  {
+    p: "¿Es un pago único o una suscripción?",
+    r: "Único. Pagás una vez y la canción es tuya para siempre. No hay mensualidad, no hay renovación automática, no guardamos tu tarjeta.",
+  },
+  {
+    p: "¿Cuánto tarda?",
+    r: "Hasta 30 minutos, y normalmente menos de 5. Te avisamos por correo en cuanto esté lista, y también podés armar el regalo ahí mismo, en la pantalla.",
+  },
+  {
+    p: "¿La canción va a ser igual a la letra que leí?",
+    r: "Sí. Es exactamente esa letra la que se va a cantar, palabra por palabra. Nada de cambiarla por otra cosa después del pago.",
+  },
+  {
+    p: "¿Y si no me gusta la grabación?",
+    r: "Recibís dos versiones de la misma letra, con interpretaciones distintas, y elegís cuál se abre cuando la persona la reciba. Si ninguna te sirve, respondé el correo y lo resolvemos.",
+  },
+  {
+    p: "¿Cómo entrego el regalo?",
+    r: "Después de armarlo te damos el link listo y un mensaje para copiar y pegar en WhatsApp. El que lo entrega sos vos.",
+  },
 ];
 
 const COPY = {
   pt: {
-    entregaveis: ENTREGAVEIS_PT, duvidas: DUVIDAS_PT,
+    entregaveis: ENTREGAVEIS_PT,
+    duvidas: DUVIDAS_PT,
     voltar: "Voltar pra minha música",
     eyebrow: "falta um passo",
     titulo: (n: string) => `A música de ${n} está gravada.`,
@@ -177,11 +232,14 @@ const COPY = {
     oQueLeva: "O que você leva",
     provaLegenda: "reações de quem ouviu uma música feita por nós",
     provaSelo: "reações reais",
-    ancora: "Encomendar uma música original a um compositor custa a partir de R$ 300, e leva semanas.",
-    hojePor: "hoje por", pagamentoUnico: "Pagamento único. Não é assinatura.",
+    ancora:
+      "Encomendar uma música original a um compositor custa a partir de R$ 300, e leva semanas.",
+    hojePor: "hoje por",
+    pagamentoUnico: "Pagamento único. Não é assinatura.",
     // Só o ES precisa: o BR cobra na moeda de quem compra.
     conversao: "",
-    cta: (n: string) => `Quero a música de ${n}`, ctaCurto: "Quero a música",
+    cta: (n: string) => `Quero a música de ${n}`,
+    ctaCurto: "Quero a música",
     creditoTitulo: (n: number) => (n === 1 ? "Você tem 1 crédito" : `Você tem ${n} créditos`),
     creditoSub: "Esta música já está paga. É só desbloquear.",
     creditoCta: "Usar meu crédito e desbloquear",
@@ -189,7 +247,8 @@ const COPY = {
     creditoLabel: "já pago",
     creditoValor: "R$ 0",
     creditoIndo: "Desbloqueando...",
-    abrindo: "Abrindo o pagamento…", abrindoCurto: "Abrindo…",
+    abrindo: "Abrindo o pagamento…",
+    abrindoCurto: "Abrindo…",
     // SEM CITAR PROCESSADOR, e não por preguiça de atualizar.
     //
     // Até 27/08 dizia "processado pela Perfect Pay", e isso virou mentira no
@@ -207,7 +266,8 @@ const COPY = {
     unicoLabel: "pagamento único",
   },
   es: {
-    entregaveis: ENTREGAVEIS_ES, duvidas: DUVIDAS_ES,
+    entregaveis: ENTREGAVEIS_ES,
+    duvidas: DUVIDAS_ES,
     voltar: "Regresar a mi canción",
     eyebrow: "falta un paso",
     titulo: (n: string) => `La canción de ${n} ya está grabada.`,
@@ -227,12 +287,14 @@ const COPY = {
     //
     // A comparação nova vale nos quatro e não precisa de conversão mental.
     ancora: "Un ramo de flores cuesta parecido, dura una semana y nadie lo recuerda.",
-    hojePor: "hoy por", pagamentoUnico: "Pago único. No es suscripción.",
+    hojePor: "hoy por",
+    pagamentoUnico: "Pago único. No es suscripción.",
     // O checkout da Perfect Pay converte pra moeda local — confirmado pelo
     // dono. Dizer isso ANTES do pulo importa: o preço em dólar numa tela em
     // espanhol levanta a dúvida "vou pagar câmbio?" bem no clique.
     conversao: "Verás el precio en la moneda de tu país al pagar.",
-    cta: (n: string) => `Quiero la canción de ${n}`, ctaCurto: "Quiero la canción",
+    cta: (n: string) => `Quiero la canción de ${n}`,
+    ctaCurto: "Quiero la canción",
     creditoTitulo: (n: number) => (n === 1 ? "Tienes 1 crédito" : `Tienes ${n} créditos`),
     creditoSub: "Esta canción ya está pagada. Solo falta desbloquearla.",
     creditoCta: "Usar mi crédito y desbloquear",
@@ -240,7 +302,8 @@ const COPY = {
     creditoLabel: "ya pagado",
     creditoValor: "$ 0",
     creditoIndo: "Desbloqueando...",
-    abrindo: "Abriendo el pago…", abrindoCurto: "Abriendo…",
+    abrindo: "Abriendo el pago…",
+    abrindoCurto: "Abriendo…",
     // CENTERPAG, não Perfect Pay. É a mesma empresa, mas o checkout
     // internacional se apresenta como Centerpag: aparece no rodapé, no
     // "estás comprando a Centerpag" e no e-mail de suporte da tela.
@@ -322,11 +385,14 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   // `valor` entra junto do texto porque o order bump do quadro precisa somar
   // em cima do preco DAQUELE braco, e mostrar o total certo na folha. O texto
   // sozinho ("R$ 38") nao se soma.
-  const [pagandoComPix, setPagandoComPix] = useState<{ texto: string; ancora?: string; valor: number } | null>(
-    null,
-  );
+  const [pagandoComPix, setPagandoComPix] = useState<{
+    texto: string;
+    ancora?: string;
+    valor: number;
+  } | null>(null);
   const [aberta, setAberta] = useState<number | null>(null);
-  const nome = (respostas.nome as string)?.trim() || (locale === "es" ? "quien vos querés" : "quem você ama");
+  const nome =
+    (respostas.nome as string)?.trim() || (locale === "es" ? "quien vos querés" : "quem você ama");
   // Só mostra desconto se o cupom da store for MESMO o da recuperação: um
   // código digitado na URL por curiosidade não pode reescrever o preço da tela.
   const doFunil = cupomAtivo(locale);
@@ -631,11 +697,10 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     // `checkout_pix` é interruptor, não teste (ver a nota em experimentos.ts):
     // desligar o `ativo` no painel devolve TODO MUNDO pro checkout antigo no
     // próximo carregamento, inclusive quem já tinha a variante guardada.
-    if (
-      locale === "pt" &&
-      !cupom &&
-      varianteDe("checkout_pix") === "B"
-    ) {
+    // Desde 26/09 o funil brasileiro é SEMPRE o transparente (só Asaas, pedido
+    // do dono): o cupom da recuperação é aplicado pelo servidor, e o
+    // `checkout_pix` deixou de ser a saída pra Perfect Pay.
+    if (locale === "pt") {
       // `trackEvent`, NÃO `trackEventOnce`.
       //
       // O `Once` deduplica por navegador, e aqui isso apagava o funil: quem
@@ -647,7 +712,11 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       // Visto ao vivo às 19:04, na primeira hora: três cliques em comprar e
       // um `abriu` só.
       trackEvent("pix_transparente_abriu", { valor: plano.valor });
-      setPagandoComPix({ texto: plano.texto, ancora: plano.ancora, valor: Number(plano.valor) || 0 });
+      setPagandoComPix({
+        texto: plano.texto,
+        ancora: plano.ancora,
+        valor: Number(plano.valor) || 0,
+      });
       setIndo(false);
       return;
     }
@@ -688,17 +757,12 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
               valorBase={pagandoComPix.valor}
               ancora={pagandoComPix.ancora}
               email={email ?? ""}
+              cupom={descontado ? (cupom ?? undefined) : undefined}
               // A SAÍDA DE EMERGÊNCIA. Fecha a folha e vai pro checkout de
               // sempre: cartão, e o caminho de volta se o nosso PIX falhar.
               aoDesistir={() => {
                 trackEvent("pix_transparente_desistiu");
                 setPagandoComPix(null);
-                irParaCheckout({
-                  email: email || undefined,
-                  telefone: whatsapp || undefined,
-                  cupom: cupom || undefined,
-                  locale,
-                });
               }}
             />
           </div>
@@ -714,15 +778,11 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
 
       {/* ── O QUE ESTÁ EM JOGO ──────────────────────────────── */}
       <div className="space-y-3 text-center">
-        <p className="text-[11px] uppercase tracking-[0.25em] text-primary">
-          {C.eyebrow}
-        </p>
+        <p className="text-[11px] uppercase tracking-[0.25em] text-primary">{C.eyebrow}</p>
         <h1 className="font-display text-3xl font-semibold leading-tight tracking-tight">
           {C.titulo(nome)}
         </h1>
-        <p className="mx-auto max-w-sm text-muted-foreground">
-          {C.sub}
-        </p>
+        <p className="mx-auto max-w-sm text-muted-foreground">{C.sub}</p>
       </div>
 
       {/* O verso que a própria pessoa escolheu, devolvido a ela. Não é copy
@@ -732,17 +792,13 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           <p className="whitespace-pre-line font-display text-lg leading-snug">
             {letraFinal.versoDestaque.split("\n").slice(0, 2).join("\n")}
           </p>
-          <footer className="mt-2 text-xs text-muted-foreground">
-            {C.daLetra(nome)}
-          </footer>
+          <footer className="mt-2 text-xs text-muted-foreground">{C.daLetra(nome)}</footer>
         </blockquote>
       )}
 
       {/* ── O QUE VEM JUNTO ─────────────────────────────────── */}
       <div>
-        <h2 className="mb-4 text-center font-display text-xl font-semibold">
-          {C.oQueLeva}
-        </h2>
+        <h2 className="mb-4 text-center font-display text-xl font-semibold">{C.oQueLeva}</h2>
         <ul className="space-y-4 rounded-2xl border bg-card p-5">
           {C.entregaveis.map(({ Icone, titulo, detalhe }) => (
             <li key={titulo} className="flex gap-3">
@@ -751,9 +807,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-semibold leading-snug">{titulo}</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                  {detalhe}
-                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{detalhe}</p>
               </div>
             </li>
           ))}
@@ -784,47 +838,41 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           </>
         ) : (
           <>
-        <p className="mx-auto max-w-xs text-sm leading-relaxed text-muted-foreground">
-          {C.ancora}
-        </p>
-        <div className="mt-4">
-          {/* Com cupom, a âncora deixa de ser o preço inventado e passa a ser
+            <p className="mx-auto max-w-xs text-sm leading-relaxed text-muted-foreground">
+              {C.ancora}
+            </p>
+            <div className="mt-4">
+              {/* Com cupom, a âncora deixa de ser o preço inventado e passa a ser
               o preço REAL de quem não tem cupom. É mais forte e é verdade. */}
-          <PrecoDaOferta
-            locale={locale}
-            hojePor={C.hojePor}
-            descontado={descontado}
-          />
-          {descontado && (
-            <p className="mt-1.5 inline-block rounded-full bg-emerald-600/10 px-3 py-1 text-xs font-semibold text-emerald-700">
-              {locale === "es"
-                ? `Cupón ${descontado.codigo} aplicado: ${descontado.texto} de descuento`
-                : `Cupom ${descontado.codigo} aplicado: ${descontado.texto} de desconto`}
-            </p>
-          )}
-          <p className="mt-1 text-xs text-muted-foreground">
-            {C.pagamentoUnico}
-          </p>
-          {C.conversao && (
-            <p className="mx-auto mt-2 max-w-xs text-[11px] leading-relaxed text-muted-foreground">
-              {C.conversao}
-            </p>
-          )}
-        </div>
+              <PrecoDaOferta locale={locale} hojePor={C.hojePor} descontado={descontado} />
+              {descontado && (
+                <p className="mt-1.5 inline-block rounded-full bg-emerald-600/10 px-3 py-1 text-xs font-semibold text-emerald-700">
+                  {locale === "es"
+                    ? `Cupón ${descontado.codigo} aplicado: ${descontado.texto} de descuento`
+                    : `Cupom ${descontado.codigo} aplicado: ${descontado.texto} de desconto`}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">{C.pagamentoUnico}</p>
+              {C.conversao && (
+                <p className="mx-auto mt-2 max-w-xs text-[11px] leading-relaxed text-muted-foreground">
+                  {C.conversao}
+                </p>
+              )}
+            </div>
 
-        {/* GARANTIA logo ACIMA do botão, não abaixo.
+            {/* GARANTIA logo ACIMA do botão, não abaixo.
             É a última objeção que passa pela cabeça de quem já quer comprar
             ("e se não ficar bom?"), e ela precisa estar resolvida no instante
             em que o dedo vai no botão — não depois, quando a pessoa já
             desistiu. Verde, e não cor da marca, porque aqui o trabalho é
             parecer seguro, não parecer nosso. */}
-        <div className="mt-5 flex items-start gap-2.5 rounded-2xl border border-emerald-600/25 bg-emerald-50/60 px-4 py-3 text-left">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-          <div>
-            <p className="text-sm font-semibold text-emerald-900">{G.titulo}</p>
-            <p className="text-xs leading-snug text-emerald-800/80">{G.texto}</p>
-          </div>
-        </div>
+            <div className="mt-5 flex items-start gap-2.5 rounded-2xl border border-emerald-600/25 bg-emerald-50/60 px-4 py-3 text-left">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-900">{G.titulo}</p>
+                <p className="text-xs leading-snug text-emerald-800/80">{G.texto}</p>
+              </div>
+            </div>
           </>
         )}
 
@@ -887,13 +935,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           disabled={indo}
           onClick={pagar}
         >
-          {credito
-            ? indo
-              ? C.creditoIndo
-              : C.creditoCta
-            : indo
-              ? C.abrindo
-              : C.cta(nome)}
+          {credito ? (indo ? C.creditoIndo : C.creditoCta) : indo ? C.abrindo : C.cta(nome)}
         </Button>
 
         {/* SEGURANÇA NO CLIQUE, e não em letra miúda cinza.
@@ -955,9 +997,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
 
       {/* ── OBJEÇÕES ────────────────────────────────────────── */}
       <div>
-        <h2 className="mb-3 text-center font-display text-xl font-semibold">
-          {C.antesDePagar}
-        </h2>
+        <h2 className="mb-3 text-center font-display text-xl font-semibold">{C.antesDePagar}</h2>
         <div className="divide-y rounded-2xl border bg-card">
           {C.duvidas.map((d, i) => (
             <div key={d.p}>
@@ -973,9 +1013,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
                 />
               </button>
               {aberta === i && (
-                <p className="px-5 pb-4 text-sm leading-relaxed text-muted-foreground">
-                  {d.r}
-                </p>
+                <p className="px-5 pb-4 text-sm leading-relaxed text-muted-foreground">{d.r}</p>
               )}
             </div>
           ))}
@@ -984,7 +1022,10 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
 
       <p className="text-center text-xs leading-relaxed text-muted-foreground">
         {C.suporte}{" "}
-        <a href="mailto:contato@serenatagift.com" className="text-primary underline underline-offset-2">
+        <a
+          href="mailto:contato@serenatagift.com"
+          className="text-primary underline underline-offset-2"
+        >
           contato@serenatagift.com
         </a>
         {C.respondemos}
@@ -1001,9 +1042,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
               {credito ? C.creditoLabel : C.unicoLabel}
             </p>
             {credito ? (
-              <p className="font-display text-lg font-semibold leading-tight">
-                {C.creditoValor}
-              </p>
+              <p className="font-display text-lg font-semibold leading-tight">{C.creditoValor}</p>
             ) : (
               <PrecoCurto
                 locale={locale}
@@ -1012,13 +1051,13 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
               />
             )}
           </div>
-          <Button
-            className="cta h-12 flex-1 rounded-full border-0"
-            disabled={indo}
-            onClick={pagar}
-          >
+          <Button className="cta h-12 flex-1 rounded-full border-0" disabled={indo} onClick={pagar}>
             {indo ? (
-              credito ? C.creditoIndo : C.abrindoCurto
+              credito ? (
+                C.creditoIndo
+              ) : (
+                C.abrindoCurto
+              )
             ) : (
               <>
                 <Check className="h-4 w-4" /> {credito ? C.creditoCtaCurto : C.ctaCurto}

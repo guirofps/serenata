@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { asaas } from "@/lib/asaas";
 import { ErroGateway, type DadosCartao, type TitularCartao } from "@/lib/gateway-cartao";
 import { BUMPS, ehItemBump, valorComItem, type ItemBump } from "@/lib/bump";
+import { centavosComCupom } from "@/lib/cupom";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../../api/lib/entrega";
 
 // A COBRANÇA NO CARTÃO, transparente.
@@ -68,7 +69,11 @@ async function valorCentavosDaSessao(
   attribution: unknown,
 ): Promise<{ centavos: number | null; checkoutAntigo: string | null }> {
   const braco = (attribution as { exp?: Record<string, string> } | null)?.exp?.preco ?? "A";
-  const { data } = await db.from("experimentos").select("variantes").eq("id", "preco").maybeSingle();
+  const { data } = await db
+    .from("experimentos")
+    .select("variantes")
+    .eq("id", "preco")
+    .maybeSingle();
   const variantes = (data?.variantes ?? []) as Array<{
     nome?: string;
     plano?: { valor?: number | string };
@@ -144,10 +149,12 @@ export const cobrarCartao = createServerFn({ method: "POST" })
     (data: {
       sessionId: string;
       quadro?: boolean;
-    /** QUAL item extra ela marcou (o preco sai de `BUMPS`). */
-    bump?: ItemBump;
+      /** QUAL item extra ela marcou (o preco sai de `BUMPS`). */
+      bump?: ItemBump;
       cartao: DadosCartao;
       titular: TitularCartao;
+      /** Cupom da recuperação (só o código; o desconto sai de `cupom.ts`). */
+      cupom?: string;
     }) => data,
   )
   .handler(async ({ data }): Promise<ResultadoCartao> => {
@@ -173,9 +180,17 @@ export const cobrarCartao = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!musica?.id) return { ok: false, erro: "sem-musica" };
 
-    const { centavos: base, checkoutAntigo } = await valorCentavosDaSessao(db, quiz.attribution);
-    if (!base) return { ok: false, erro: "sem-preco" };
-    const item: ItemBump | null = ehItemBump(data.bump) ? data.bump : data.quadro === true ? "quadro" : null;
+    const { centavos: semCupom } = await valorCentavosDaSessao(db, quiz.attribution);
+    if (!semCupom) return { ok: false, erro: "sem-preco" };
+    const base = centavosComCupom(semCupom, data.cupom);
+    // SEM VOLTA PRA PERFECT PAY desde 26/09: venda sai só pelo Asaas (pedido
+    // do dono). Asaas fora = mensagem e o PIX, nunca outro gateway.
+    const checkoutAntigo: string | null = null;
+    const item: ItemBump | null = ehItemBump(data.bump)
+      ? data.bump
+      : data.quadro === true
+        ? "quadro"
+        : null;
     const valorCentavos = valorComItem(base, item);
 
     const ip = ipDoPagador();

@@ -105,7 +105,9 @@ export function FolhaPixUpsell({
         if (r.erro === "cpf-necessario" || r.erro === "cpf-invalido") {
           trackEvent("pix_upsell_cpf_pedido", { oferta: ofertaId, motivo: r.erro });
           setPrecisaCpf(true);
-          setAvisoCpf(r.erro === "cpf-invalido" ? "Esse CPF nao confere. Confere os numeros?" : null);
+          setAvisoCpf(
+            r.erro === "cpf-invalido" ? "Esse CPF nao confere. Confere os numeros?" : null,
+          );
           setFase({ t: "resumo" });
           return;
         }
@@ -160,7 +162,9 @@ export function FolhaPixUpsell({
                 />
                 {avisoCpf && !cpf ? <p className="text-xs text-amber-700">{avisoCpf}</p> : null}
                 {cpf.length === 11 && !cpfOk ? (
-                  <p className="text-xs text-amber-700">Esse CPF nao confere. Confere os numeros?</p>
+                  <p className="text-xs text-amber-700">
+                    Esse CPF nao confere. Confere os numeros?
+                  </p>
                 ) : null}
                 <p className="text-[11px] leading-snug text-[var(--tinta-fraca)]">
                   O banco pede pra emitir o PIX no seu nome.
@@ -176,18 +180,8 @@ export function FolhaPixUpsell({
             >
               Gerar o PIX
             </Button>
-            {checkoutCartao ? (
-              <button
-                type="button"
-                onClick={() => {
-                  trackEvent("pix_upsell_cartao", { oferta: ofertaId });
-                  window.location.href = checkoutCartao;
-                }}
-                className="w-full text-xs text-[var(--tinta-fraca)] underline underline-offset-4"
-              >
-                Prefiro pagar com cartao
-              </button>
-            ) : null}
+            {/* Sem "pagar com cartão" desde 26/09: ele ia pra Perfect Pay, e a
+                venda agora sai só pelo Asaas (pedido do dono). */}
           </div>
         )}
 
@@ -203,19 +197,16 @@ export function FolhaPixUpsell({
           <div className="space-y-3 py-4 text-center">
             <p className="text-sm font-semibold">Não consegui gerar o PIX agora</p>
             <p className="text-xs leading-snug text-[var(--tinta-fraca)]">
-              {checkoutCartao
-                ? "Nada foi cobrado. Dá pra concluir pelo nosso checkout normal."
-                : "Nada foi cobrado. Tenta de novo em um minutinho."}
+              Nada foi cobrado. Tenta de novo em um minutinho.
             </p>
             <Button
               size="lg"
               className="w-full"
               onClick={() => {
-                if (checkoutCartao) window.location.href = checkoutCartao;
-                else setFase({ t: "resumo" });
+                setFase({ t: "resumo" });
               }}
             >
-              {checkoutCartao ? "Continuar pelo checkout" : "Tentar de novo"}
+              Tentar de novo
             </Button>
           </div>
         )}

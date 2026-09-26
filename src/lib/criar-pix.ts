@@ -1,13 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { OFERTAS } from "@/lib/creditos";
-import {
-  BUMPS,
-  ehItemBump,
-  referenciaComItem,
-  valorComItem,
-  type ItemBump,
-} from "@/lib/bump";
+import { centavosComCupom } from "@/lib/cupom";
+import { BUMPS, ehItemBump, referenciaComItem, valorComItem, type ItemBump } from "@/lib/bump";
 import { cpfValido, soDigitosCpf } from "@/lib/cpf";
 import { paraE164, telefoneValido } from "@/lib/telefone";
 import { woovi } from "@/lib/woovi";
@@ -57,9 +52,12 @@ async function valorCentavosDaSessao(
   db: ReturnType<typeof supabaseAdmin>,
   attribution: unknown,
 ): Promise<number | null> {
-  const braco =
-    (attribution as { exp?: Record<string, string> } | null)?.exp?.preco ?? "A";
-  const { data } = await db.from("experimentos").select("variantes").eq("id", "preco").maybeSingle();
+  const braco = (attribution as { exp?: Record<string, string> } | null)?.exp?.preco ?? "A";
+  const { data } = await db
+    .from("experimentos")
+    .select("variantes")
+    .eq("id", "preco")
+    .maybeSingle();
   const variantes = (data?.variantes ?? []) as Array<{
     nome?: string;
     plano?: { valor?: number | string };
@@ -85,7 +83,8 @@ export type ResultadoPix =
        * correção. A tela mostra o campo em vez do aviso de erro, e quem
        * decide que eles existem é o gateway (`exigeCpf`), não o checkout.
        */
-      erro: "sem-sessao" | "sem-musica" | "sem-preco" | "gateway" | "cpf-necessario" | "cpf-invalido";
+      erro:
+        "sem-sessao" | "sem-musica" | "sem-preco" | "gateway" | "cpf-necessario" | "cpf-invalido";
     };
 
 /**
@@ -225,6 +224,8 @@ export const criarPix = createServerFn({ method: "POST" })
       cpf?: string;
       /** WhatsApp digitado na folha, cru. Normalizado aqui, nunca no cliente. */
       telefone?: string;
+      /** Cupom da recuperação. Só o CÓDIGO: o desconto sai de `cupom.ts`, daqui. */
+      cupom?: string;
     }) => data,
   )
   .handler(async ({ data }): Promise<ResultadoPix> => {
@@ -256,8 +257,9 @@ export const criarPix = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!musica?.id) return { ok: false, erro: "sem-musica" };
 
-    const base = await valorCentavosDaSessao(db, quiz.attribution);
-    if (!base) return { ok: false, erro: "sem-preco" };
+    const semCupom = await valorCentavosDaSessao(db, quiz.attribution);
+    if (!semCupom) return { ok: false, erro: "sem-preco" };
+    const base = centavosComCupom(semCupom, data.cupom);
     // Uma pagina carregada antes do deploy ainda manda `quadro: true`.
     const item: ItemBump | null = ehItemBump(data.bump)
       ? data.bump
@@ -342,7 +344,11 @@ export const criarPix = createServerFn({ method: "POST" })
     // acharem a pessoa depois. Sem await bloqueante na venda: falha aqui nao
     // pode impedir a cobranca de nascer.
     const telefoneCru = String(data.telefone ?? "").trim();
-    if (telefoneCru && telefoneParaGateway(telefoneCru, locale) && telefoneCru !== (quiz.whatsapp ?? "")) {
+    if (
+      telefoneCru &&
+      telefoneParaGateway(telefoneCru, locale) &&
+      telefoneCru !== (quiz.whatsapp ?? "")
+    ) {
       const { error } = await db
         .from("quiz_responses")
         .update({ whatsapp: telefoneCru })
@@ -403,12 +409,15 @@ export const criarPix = createServerFn({ method: "POST" })
       // Gravar aqui e barato e e o que transforma "falhou" em "falhou
       // porque". Sem await bloqueante: diagnostico nunca pode atrasar (nem
       // derrubar) a resposta pra quem esta esperando o QR.
-      void db.from("funnel_events").insert({
-        event_name: "pix_gateway_recusou",
-        event_data: { gateway: gw.nome, motivo, valorCentavos, sessionId: data.sessionId },
-      }).then(({ error }) => {
-        if (error) console.error("[criar-pix] gravar recusa falhou:", error.message);
-      });
+      void db
+        .from("funnel_events")
+        .insert({
+          event_name: "pix_gateway_recusou",
+          event_data: { gateway: gw.nome, motivo, valorCentavos, sessionId: data.sessionId },
+        })
+        .then(({ error }) => {
+          if (error) console.error("[criar-pix] gravar recusa falhou:", error.message);
+        });
       return { ok: false, erro: "gateway" };
     }
 

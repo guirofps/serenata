@@ -64,7 +64,9 @@ function Pagina() {
         {r?.ok && (
           <>
             <p className="mb-5 text-center text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{r.titulo ?? `A música de ${r.nome}`}</span>{" "}
+              <span className="font-medium text-foreground">
+                {r.titulo ?? `A música de ${r.nome}`}
+              </span>{" "}
               está gravada e esperando.
             </p>
             <PixPagamento
@@ -74,13 +76,8 @@ function Pagina() {
               aoPagar={() => {
                 window.location.href = "/obrigado";
               }}
-              // O CARTÃO CONTINUA NA PERFECT PAY, e no preço do degrau: o
-              // checkout hospedado de cada degrau segue cadastrado lá. Sem
-              // isso, quem quer parcelar sairia daqui sem caminho.
-              aoEscolherCartao={() => {
-                trackEvent("oferta_escada_cartao");
-                window.location.href = `/api/oferta-cartao?t=${encodeURIComponent(token)}`;
-              }}
+              // Sem cartão aqui desde 26/09: ele ia pra Perfect Pay, e venda
+              // agora sai só pelo Asaas (pedido do dono).
             />
           </>
         )}

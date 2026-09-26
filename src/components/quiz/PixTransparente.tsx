@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { criarPix, type ResultadoPix } from "@/lib/criar-pix";
 import { BUMPS, itemDoBraco, type ItemBump } from "@/lib/bump";
 import { varianteDe, FORA } from "@/lib/experimentos";
@@ -6,8 +6,7 @@ import { cobrarCartao } from "@/lib/criar-cartao";
 import { FormularioCartao } from "@/components/quiz/FormularioCartao";
 
 // Mesmo formato do resumo: "R$ 38" quando e redondo, "R$ 62,90" quando nao e.
-const reais = (v: number) =>
-  `R$ ${v.toFixed(2).replace(".", ",").replace(/,00$/, "")}`;
+const reais = (v: number) => `R$ ${v.toFixed(2).replace(".", ",").replace(/,00$/, "")}`;
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { useQuizStore } from "@/lib/quiz-store";
 import { trackEvent } from "@/lib/track";
@@ -74,6 +73,7 @@ export function PixTransparente({
   valorBase,
   ancora,
   email,
+  cupom,
   aoDesistir,
 }: {
   nome: string;
@@ -84,7 +84,9 @@ export function PixTransparente({
   valorBase: number;
   ancora?: string;
   email: string;
-  /** Vai pro checkout hospedado: é por onde sai o cartão. */
+  /** Cupom da recuperação, se ela chegou com um. O servidor confere e aplica. */
+  cupom?: string;
+  /** Fecha a folha. Desde 26/09 NÃO leva mais pra Perfect Pay. */
   aoDesistir: () => void;
 }) {
   const [fase, setFase] = useState<Fase>({ t: "resumo" });
@@ -134,8 +136,14 @@ export function PixTransparente({
   // que a folha do PIX teve em 31/08 — "R$ 38" impresso em cima de um código
   // de R$ 62,90.
   const reaisTotal = (v: number) => `R$ ${v.toFixed(2).replace(".", ",").replace(/,00$/, "")}`;
-  const bracoCartao = varianteDe("cartao_asaas");
-  const cartaoAqui = bracoCartao !== "A" && bracoCartao !== FORA;
+  // ── SÓ ASAAS (26/09) ──────────────────────────────────────────
+  //
+  // O dono decidiu: venda do funil brasileiro sai SÓ pelo Asaas. Até aqui, o
+  // cartão caía na Perfect Pay quando o sorteio do `cartao_asaas` não vinha
+  // (e o erro do PIX mandava pra lá também). Em 26/09, 01h07 a 01h47, o Asaas
+  // ficou em manutenção programada e 5 vendas escorreram pra Perfect Pay por
+  // esse plano B, a 11,39% de taxa. O cartão agora é sempre o formulário nosso.
+  const cartaoAqui = true;
   const [cobrando, setCobrando] = useState(false);
   const [erroCartao, setErroCartao] = useState<string | null>(null);
   /**
@@ -148,8 +156,21 @@ export function PixTransparente({
   const [saindo, setSaindo] = useState(false);
 
   async function pagarNoCartao(dados: {
-    cartao: { numero: string; titular: string; validadeMes: string; validadeAno: string; cvv: string };
-    titular: { nome: string; email: string; cpf: string; cep: string; numeroEndereco: string; telefone: string };
+    cartao: {
+      numero: string;
+      titular: string;
+      validadeMes: string;
+      validadeAno: string;
+      cvv: string;
+    };
+    titular: {
+      nome: string;
+      email: string;
+      cpf: string;
+      cep: string;
+      numeroEndereco: string;
+      telefone: string;
+    };
   }) {
     setCobrando(true);
     setErroCartao(null);
@@ -161,6 +182,7 @@ export function PixTransparente({
           bump: bumpItem ?? undefined,
           cartao: dados.cartao,
           titular: dados.titular,
+          cupom,
         },
       });
       if (r.ok) {
@@ -206,7 +228,11 @@ export function PixTransparente({
   const [quadro, setQuadro] = useState(false);
   const bumpItem: ItemBump | null = quadro && itemBump ? itemBump : null;
 
+  // A última tentativa, pra "tentar de novo" repetir exatamente o mesmo pedido.
+  const ultimaTentativa = useRef<[string, string | undefined, string | undefined] | null>(null);
+
   async function gerar(emailFinal: string, telefoneFinal?: string, cpf?: string) {
+    ultimaTentativa.current = [emailFinal, telefoneFinal, cpf];
     setFase({ t: "gerando" });
     try {
       const r = await criarPix({
@@ -219,6 +245,7 @@ export function PixTransparente({
           bump: bumpItem ?? undefined,
           cpf,
           telefone: telefoneFinal,
+          cupom,
         },
       });
       if (!r.ok) {
@@ -265,24 +292,46 @@ export function PixTransparente({
   }
 
   if (fase.t === "cpf") {
-    return <TelaCpf email={fase.email} aviso={fase.aviso} aoEnviar={gerar} aoVoltar={() => setFase({ t: "resumo" })} />;
+    return (
+      <TelaCpf
+        email={fase.email}
+        aviso={fase.aviso}
+        aoEnviar={gerar}
+        aoVoltar={() => setFase({ t: "resumo" })}
+      />
+    );
   }
 
   if (fase.t === "erro") {
-    // NUNCA deixa a pessoa sem caminho. Ela quer pagar; se o nosso PIX
-    // falhou, o checkout de sempre continua ali.
+    // NUNCA deixa a pessoa sem caminho, mas o caminho é o NOSSO: tentar de
+    // novo (a falha costuma ser o Asaas fora por minutos) ou o cartão, que
+    // também é Asaas. Até 26/09 este botão levava pra Perfect Pay.
     return (
       <div className="space-y-3 rounded-2xl border border-amber-500/30 bg-amber-50 px-4 py-4 text-left">
-        <p className="text-sm font-semibold text-amber-900">
-          Não consegui gerar o PIX agora
-        </p>
+        <p className="text-sm font-semibold text-amber-900">Não consegui gerar o PIX agora</p>
         <p className="text-xs leading-snug text-amber-800/80">
-          Nada foi cobrado. Dá pra concluir pelo nosso checkout normal, que aceita
-          PIX e cartão.
+          Nada foi cobrado. O banco que gera o PIX está instável neste momento. Tenta de novo em um
+          minutinho, a sua música continua aqui.
         </p>
-        <Button size="lg" className="w-full" onClick={aoDesistir}>
-          Continuar pelo checkout
+        <Button
+          size="lg"
+          className="w-full"
+          onClick={() => {
+            trackEvent("pix_transparente_tentou_de_novo");
+            const t = ultimaTentativa.current;
+            if (t) void gerar(t[0], t[1], t[2]);
+            else setFase({ t: "resumo" });
+          }}
+        >
+          Tentar de novo
         </Button>
+        <button
+          type="button"
+          onClick={() => setFase({ t: "cartao" })}
+          className="w-full text-xs text-amber-900/70 underline underline-offset-4"
+        >
+          Pagar com cartão
+        </button>
       </div>
     );
   }
@@ -368,8 +417,8 @@ function TelaCpf({
       <div className="space-y-1">
         <p className="text-sm font-semibold">Falta só o seu CPF</p>
         <p className="text-xs leading-snug text-muted-foreground">
-          O banco pede pra emitir o PIX no seu nome. Não aparece pra ninguém e não vai
-          pra lista nenhuma.
+          O banco pede pra emitir o PIX no seu nome. Não aparece pra ninguém e não vai pra lista
+          nenhuma.
         </p>
       </div>
 
@@ -406,7 +455,11 @@ function TelaCpf({
       >
         Gerar o PIX
       </Button>
-      <button type="button" onClick={aoVoltar} className="w-full text-xs text-muted-foreground underline">
+      <button
+        type="button"
+        onClick={aoVoltar}
+        className="w-full text-xs text-muted-foreground underline"
+      >
         Voltar
       </button>
     </div>
