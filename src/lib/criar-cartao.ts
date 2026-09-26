@@ -332,7 +332,7 @@ export const cobrarCartao = createServerFn({ method: "POST" })
       try {
         const musicaPronta = await musicaDoQuiz(db, quiz.id);
         if (musicaPronta) {
-          await refazerSeFaltou(db, quiz.id);
+          await refazerSeFaltou(db, musicaPronta);
           await mandarEmailDeEntrega(db, {
             email: (quiz.email as string | null) ?? data.titular.email,
             musica: musicaPronta,
