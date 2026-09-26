@@ -10,6 +10,9 @@ describe("canalDe", () => {
   });
   it("convite da página presente", () => {
     expect(canalDe({ utm_source: "presente" })).toBe("Convite");
+    expect(canalDe({ ref: "K7M2QX" })).toBe("Indicação");
+    // Anúncio primeiro e link depois: conta pro anúncio (first-touch).
+    expect(canalDe({ gclid: "x", ref: "K7M2QX" })).toBe("Google");
   });
   it("sem atribuição é Direto", () => {
     expect(canalDe(null)).toBe("Direto");

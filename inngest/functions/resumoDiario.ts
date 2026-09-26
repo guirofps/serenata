@@ -185,6 +185,21 @@ export const resumoDiario = inngest.createFunction(
     const media = (k: "receitaBrl" | "vendas" | "lucroBrl" | "ticketBrl") =>
       anteriores.reduce((s, r) => s + r[k], 0) / anteriores.length;
 
+    // O SAQUE DE INDICAÇÃO É PAGO À MÃO, e ninguém abre o painel pra
+    // procurar fila vazia. O fechamento do dia é o e-mail que os dois já
+    // leem. Falha aqui não segura o fechamento: sem a tabela, sem aviso.
+    const saques = await step.run("saques-indicacao", async () => {
+      const { data, error } = await db()
+        .from("indicacao_saques")
+        .select("valor_centavos")
+        .eq("status", "solicitado");
+      if (error) return null;
+      return {
+        n: (data ?? []).length,
+        centavos: (data ?? []).reduce((s, q) => s + Number(q.valor_centavos ?? 0), 0),
+      };
+    });
+
     const enviado = await step.run("enviar", async () => {
       const chave = process.env.RESEND_API_KEY;
       if (!chave) throw new Error("RESEND_API_KEY ausente");
@@ -202,6 +217,7 @@ export const resumoDiario = inngest.createFunction(
             lucroBrl: media("lucroBrl"),
             ticketBrl: media("ticketBrl"),
           },
+          saques,
         }),
         tags: [{ name: "template", value: "resumo_diario" }],
       });

@@ -33,6 +33,8 @@ const PREFIXOS = [
   "/quadro/",
   "/meu-quadro",
   "/dashboard",
+  // Saldo de indicação e a chave PIX do saque.
+  "/indique",
   "/admin",
   "/recuperar",
   "/retomar",

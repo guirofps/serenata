@@ -18,6 +18,7 @@ import { decidirEstado } from "@/lib/admin-estado";
 import { supabase } from "@/lib/supabase-client";
 import { AbaFinanceiro } from "@/components/admin/AbaFinanceiro";
 import { AbaAutomacoes } from "@/components/admin/AbaAutomacoes";
+import { AbaIndicacoes } from "@/components/admin/AbaIndicacoes";
 import { PRECOS } from "@/lib/custos";
 import { entrarAdmin, sairAdmin } from "@/lib/admin-auth";
 import { Button } from "@/components/ui/button";
@@ -53,7 +54,7 @@ export const Route = createFileRoute("/admin")({
     // A ABA na URL, como os campos acima: reload e botão voltar funcionam, e
     // dá pra mandar o link direto pra alguém já na aba certa.
     aba: z
-      .enum(["operacao", "origem", "vendas", "email", "automacoes", "testes", "financeiro"])
+      .enum(["operacao", "origem", "vendas", "email", "automacoes", "testes", "financeiro", "indicacoes"])
       .optional(),
   }),
   head: () => ({
@@ -587,7 +588,7 @@ function Admin() {
   // as abas Automações e Financeiro, que nunca usaram `dados`, deixam de
   // esperar por ele.
   const dados = nucleo.data;
-  const precisaDoNucleo = aba !== "automacoes" && aba !== "financeiro";
+  const precisaDoNucleo = aba !== "automacoes" && aba !== "financeiro" && aba !== "indicacoes";
 
   // ── O "MANTÉM E ESMAECE" ─────────────────────────────────────
   //
@@ -762,6 +763,7 @@ function Admin() {
               ["automacoes", "Automações"],
               ["testes", "Testes A/B"],
               ["financeiro", "Financeiro"],
+              ["indicacoes", "Indicações"],
             ] as const
           ).map(([id, rotulo]) => (
             <button
@@ -794,6 +796,9 @@ function Admin() {
             leitura de `pedidos`, `custos`, `metricas_campanha` e
             `custos_fixos` inteiros derrubaria as cinco outras abas junto. */}
         {aba === "financeiro" && <AbaFinanceiro />}
+
+        {/* Também não usa `dados`: a fila de saques não depende do período. */}
+        {aba === "indicacoes" && <AbaIndicacoes />}
 
         {precisaDoNucleo &&
           (dados ? (

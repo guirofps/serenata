@@ -58,9 +58,17 @@ export function valorComItem(baseCentavos: number, item: ItemBump | null): numbe
  * A referência do PIX, que é a chave de idempotência. O sufixo carrega o
  * item porque a Woovi recusa reaproveitar um correlationID com outro valor.
  * Sempre DEPOIS do id: o webhook corta no primeiro dois-pontos pra achar o quiz.
+ *
+ * `:i` marca o desconto do convite (member get member), pelo mesmo motivo: o
+ * convite muda o valor, e a mesma pessoa pode abrir a folha com e sem ele
+ * (o convite só vale na primeira compra, e ela pode trocar o e-mail).
  */
-export function referenciaComItem(quizId: string, item: ItemBump | null): string {
-  return `serenata:${quizId}${item ? `:${BUMPS[item].sufixo}` : ""}`;
+export function referenciaComItem(
+  quizId: string,
+  item: ItemBump | null,
+  convite = false,
+): string {
+  return `serenata:${quizId}${item ? `:${BUMPS[item].sufixo}` : ""}${convite ? ":i" : ""}`;
 }
 
 /**

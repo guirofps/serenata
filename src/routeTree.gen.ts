@@ -16,6 +16,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DemoMusicaRouteImport } from './routes/demo-musica'
 import { Route as DescadastrarRouteImport } from './routes/descadastrar'
 import { Route as GleysiRouteImport } from './routes/gleysi'
+import { Route as IndiqueRouteImport } from './routes/indique'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MarcaRouteImport } from './routes/marca'
 import { Route as MeuQuadroRouteImport } from './routes/meu-quadro'
@@ -70,6 +71,11 @@ const DescadastrarRoute = DescadastrarRouteImport.update({
 const GleysiRoute = GleysiRouteImport.update({
   id: '/gleysi',
   path: '/gleysi',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndiqueRoute = IndiqueRouteImport.update({
+  id: '/indique',
+  path: '/indique',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/demo-musica': typeof DemoMusicaRoute
   '/descadastrar': typeof DescadastrarRoute
   '/gleysi': typeof GleysiRoute
+  '/indique': typeof IndiqueRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
   '/meu-quadro': typeof MeuQuadroRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/demo-musica': typeof DemoMusicaRoute
   '/descadastrar': typeof DescadastrarRoute
   '/gleysi': typeof GleysiRoute
+  '/indique': typeof IndiqueRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
   '/meu-quadro': typeof MeuQuadroRoute
@@ -241,6 +249,7 @@ export interface FileRoutesById {
   '/demo-musica': typeof DemoMusicaRoute
   '/descadastrar': typeof DescadastrarRoute
   '/gleysi': typeof GleysiRoute
+  '/indique': typeof IndiqueRoute
   '/login': typeof LoginRoute
   '/marca': typeof MarcaRoute
   '/meu-quadro': typeof MeuQuadroRoute
@@ -272,6 +281,7 @@ export interface FileRouteTypes {
     | '/demo-musica'
     | '/descadastrar'
     | '/gleysi'
+    | '/indique'
     | '/login'
     | '/marca'
     | '/meu-quadro'
@@ -301,6 +311,7 @@ export interface FileRouteTypes {
     | '/demo-musica'
     | '/descadastrar'
     | '/gleysi'
+    | '/indique'
     | '/login'
     | '/marca'
     | '/meu-quadro'
@@ -330,6 +341,7 @@ export interface FileRouteTypes {
     | '/demo-musica'
     | '/descadastrar'
     | '/gleysi'
+    | '/indique'
     | '/login'
     | '/marca'
     | '/meu-quadro'
@@ -360,6 +372,7 @@ export interface RootRouteChildren {
   DemoMusicaRoute: typeof DemoMusicaRoute
   DescadastrarRoute: typeof DescadastrarRoute
   GleysiRoute: typeof GleysiRoute
+  IndiqueRoute: typeof IndiqueRoute
   LoginRoute: typeof LoginRoute
   MarcaRoute: typeof MarcaRoute
   MeuQuadroRoute: typeof MeuQuadroRoute
@@ -431,6 +444,13 @@ declare module '@tanstack/react-router' {
       path: '/gleysi'
       fullPath: '/gleysi'
       preLoaderRoute: typeof GleysiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/indique': {
+      id: '/indique'
+      path: '/indique'
+      fullPath: '/indique'
+      preLoaderRoute: typeof IndiqueRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -584,6 +604,7 @@ const rootRouteChildren: RootRouteChildren = {
   DemoMusicaRoute: DemoMusicaRoute,
   DescadastrarRoute: DescadastrarRoute,
   GleysiRoute: GleysiRoute,
+  IndiqueRoute: IndiqueRoute,
   LoginRoute: LoginRoute,
   MarcaRoute: MarcaRoute,
   MeuQuadroRoute: MeuQuadroRoute,

@@ -8,6 +8,8 @@ import { paraE164, telefoneValido } from "@/lib/telefone";
 import { woovi } from "@/lib/woovi";
 import { asaasPix } from "@/lib/asaas-pix";
 import { ErroGateway, type GatewayPix } from "@/lib/gateway";
+import { conviteDaCompra } from "@/lib/indicacao-db";
+import { descontoDoConvite } from "@/lib/indicacao";
 
 // GERA O PIX DO CHECKOUT TRANSPARENTE.
 //
@@ -266,27 +268,6 @@ export const criarPix = createServerFn({ method: "POST" })
       : data.quadro === true
         ? "quadro"
         : null;
-    const valorCentavos = valorComItem(base, item);
-
-    // A REFERÊNCIA É A CHAVE DE IDEMPOTÊNCIA, e por isso é o id do quiz e não
-    // um aleatório: duplo-clique, reload e voltar-e-avançar devolvem A MESMA
-    // cobrança, com o mesmo QR. Sem isso a pessoa acumularia PIX abertos e
-    // poderia pagar dois.
-    // ── A REFERENCIA CARREGA O BUMP ──────────────────────────────
-    //
-    // Ela e a chave de idempotencia, e o valor faz parte da identidade da
-    // cobranca: a Woovi RECUSA reaproveitar um correlationID com outro valor
-    // ("cobranca existente e de X, esperado Y", em `woovi.ts`). Sem o sufixo,
-    // quem abrisse a folha sem o quadro e voltasse pra marcar cairia num erro
-    // em cima de uma cobranca que existe.
-    //
-    // Consequencia aceita, e por isso a trava por quiz entrou no webhook
-    // junto com isto: duas cobrancas VIVAS do mesmo quiz passam a ser
-    // possiveis (R$ 38 e R$ 62,90). Pagar as duas exige pagar dois codigos
-    // PIX de proposito, mas exige. O webhook agora recusa entregar de novo e
-    // avisa o dono pra devolver, em vez de mandar dois presentes e a pessoa
-    // descobrir a cobranca dobrada no extrato.
-    const referencia = referenciaComItem(String(quiz.id), item);
     // O NOME DO COMPRADOR, quando ele existe.
     //
     // `respostas.nome` e a pessoa HOMENAGEADA, e mandar ela como `customer.name`
@@ -355,6 +336,41 @@ export const criarPix = createServerFn({ method: "POST" })
         .eq("id", quiz.id);
       if (error) console.error("[criar-pix] gravar whatsapp falhou:", error.message);
     }
+
+    // ── O CONVITE (member get member) ────────────────────────────
+    //
+    // Conferido DEPOIS do e-mail da venda, porque é ele que diz se esta é a
+    // primeira compra e se a pessoa não está usando o próprio link. O
+    // desconto sai só do preço da música; o item extra não tem desconto.
+    //
+    // Cupom e convite NÃO se somam: com o cupom da recuperação aplicado
+    // (`base` abaixo do preço do braço), o convite nem é consultado.
+    const convite =
+      base === semCupom
+        ? await conviteDaCompra(db, { attribution: quiz.attribution, email: emailDaVenda, locale })
+        : null;
+    const descontoConvite = convite ? descontoDoConvite(base) : 0;
+    const valorCentavos = valorComItem(base - descontoConvite, item);
+
+    // A REFERÊNCIA É A CHAVE DE IDEMPOTÊNCIA, e por isso é o id do quiz e não
+    // um aleatório: duplo-clique, reload e voltar-e-avançar devolvem A MESMA
+    // cobrança, com o mesmo QR. Sem isso a pessoa acumularia PIX abertos e
+    // poderia pagar dois.
+    // ── A REFERENCIA CARREGA O BUMP ──────────────────────────────
+    //
+    // Ela e a chave de idempotencia, e o valor faz parte da identidade da
+    // cobranca: a Woovi RECUSA reaproveitar um correlationID com outro valor
+    // ("cobranca existente e de X, esperado Y", em `woovi.ts`). Sem o sufixo,
+    // quem abrisse a folha sem o quadro e voltasse pra marcar cairia num erro
+    // em cima de uma cobranca que existe.
+    //
+    // Consequencia aceita, e por isso a trava por quiz entrou no webhook
+    // junto com isto: duas cobrancas VIVAS do mesmo quiz passam a ser
+    // possiveis (R$ 38 e R$ 62,90). Pagar as duas exige pagar dois codigos
+    // PIX de proposito, mas exige. O webhook agora recusa entregar de novo e
+    // avisa o dono pra devolver, em vez de mandar dois presentes e a pessoa
+    // descobrir a cobranca dobrada no extrato.
+    const referencia = referenciaComItem(String(quiz.id), item, Boolean(convite));
 
     // ── O CPF, QUANDO O GATEWAY PEDE ─────────────────────────
     //
@@ -463,6 +479,17 @@ export const criarPix = createServerFn({ method: "POST" })
         // nenhum) num pedido que acabou de receber o novo.
         telefone: telefoneCru || (quiz.whatsapp as string | null) || null,
         valor_centavos: valorCentavos,
+        // O convite validado AQUI, e não o `ref` cru da attribution: é o que
+        // a trigger da comissão lê quando o pagamento entrar.
+        //
+        // SÓ COM CONVITE, e não `null` sempre: assim este upsert não depende
+        // da migração das colunas. Antes dela não existe convite (a leitura
+        // do código falha e `conviteDaCompra` devolve null), e o pedido
+        // pendente continua nascendo igual — sem ele o webhook não tem valor
+        // pra conferir.
+        ...(convite
+          ? { indicacao_codigo: convite.codigo, desconto_indicacao_centavos: descontoConvite }
+          : {}),
         bump_quadro: item ? BUMPS[item].quadro : false,
         bump_video: item ? BUMPS[item].video : false,
         taxa_centavos: cobranca.taxaCentavos,

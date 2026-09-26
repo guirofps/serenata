@@ -5,7 +5,9 @@ import { temMusicaDaSessao, finalizarLetra } from "@/lib/coautoria";
 import { meusCreditos } from "@/lib/meus-creditos";
 import { usarCredito } from "@/lib/usar-credito";
 import { creditoNoNavegador, esquecerCreditoNoNavegador } from "@/lib/credito-no-navegador";
-import { getOrCreateSessionId } from "@/lib/session-context";
+import { getOrCreateSessionId, getStoredAttribution } from "@/lib/session-context";
+import { conviteDaSessao } from "@/lib/indicacao-fns";
+import { descontoDoConvite, reaisDeCentavos } from "@/lib/indicacao";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { checkoutTiktok } from "@/lib/tiktok-pixel";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
@@ -404,6 +406,37 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     trackEventOnce("oferta_vista", "v1");
   }, []);
 
+  // ── O CONVITE DE UM AMIGO (member get member) ─────────────────
+  //
+  // Só pergunta ao servidor quem tem `ref` guardado: tráfego de anúncio não
+  // paga uma chamada a mais. E quem responde se vale é o servidor, com as
+  // mesmas regras da cobrança (`conviteDaCompra`): primeira compra, não é o
+  // próprio link, funil em português. Se a tela mostrasse o desconto sem
+  // perguntar, quem já comprou veria R$ 34,20 aqui e R$ 38 no QR.
+  //
+  // Fora do cupom e do crédito: o cupom vai pra Perfect Pay (preço do
+  // produto, não nosso) e o crédito não cobra nada.
+  const [convitePct, setConvitePct] = useState<number | null>(null);
+  useEffect(() => {
+    if (locale !== "pt" || cupom) return;
+    if (!getStoredAttribution()?.ref) return;
+    let vivo = true;
+    conviteDaSessao({ data: { sessionId: getOrCreateSessionId() } })
+      .then((r) => {
+        if (!vivo || !r.ok) return;
+        setConvitePct(r.pct);
+        trackEventOnce("convite_na_oferta", "v1");
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [locale, cupom]);
+  const comConvite = convitePct !== null && !descontado && !credito;
+  // Só é lido com `comConvite`, que só liga depois da hidratação: `meuPlano`
+  // já sabe o braço sorteado, e o número é o mesmo que o handler cobra.
+  const baseConviteC = comConvite ? Math.round((Number(meuPlano(locale).valor) || 0) * 100) : 0;
+
   useEffect(() => {
     let vivo = true;
     (async () => {
@@ -712,11 +745,23 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       // Visto ao vivo às 19:04, na primeira hora: três cliques em comprar e
       // um `abriu` só.
       trackEvent("pix_transparente_abriu", { valor: plano.valor });
-      setPagandoComPix({
-        texto: plano.texto,
-        ancora: plano.ancora,
-        valor: Number(plano.valor) || 0,
-      });
+      if (comConvite) {
+        // A MESMA CONTA DO SERVIDOR (`descontoDoConvite`), sobre o mesmo
+        // braço de preço. O preço sem desconto vira a âncora riscada.
+        const baseC = Math.round((Number(plano.valor) || 0) * 100);
+        const finalC = baseC - descontoDoConvite(baseC);
+        setPagandoComPix({
+          texto: reaisDeCentavos(finalC),
+          ancora: plano.texto,
+          valor: finalC / 100,
+        });
+      } else {
+        setPagandoComPix({
+          texto: plano.texto,
+          ancora: plano.ancora,
+          valor: Number(plano.valor) || 0,
+        });
+      }
       setIndo(false);
       return;
     }
@@ -845,6 +890,12 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
               {/* Com cupom, a âncora deixa de ser o preço inventado e passa a ser
               o preço REAL de quem não tem cupom. É mais forte e é verdade. */}
               <PrecoDaOferta locale={locale} hojePor={C.hojePor} descontado={descontado} />
+              {comConvite && (
+                <p className="mt-1.5 inline-block rounded-full bg-emerald-600/10 px-3 py-1 text-xs font-semibold text-emerald-700">
+                  Convite de amigo: {convitePct}% off, você paga{" "}
+                  {reaisDeCentavos(baseConviteC - descontoDoConvite(baseConviteC))}
+                </p>
+              )}
               {descontado && (
                 <p className="mt-1.5 inline-block rounded-full bg-emerald-600/10 px-3 py-1 text-xs font-semibold text-emerald-700">
                   {locale === "es"

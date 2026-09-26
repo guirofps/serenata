@@ -6,6 +6,8 @@ import { ErroGateway, type DadosCartao, type TitularCartao } from "@/lib/gateway
 import { BUMPS, ehItemBump, valorComItem, type ItemBump } from "@/lib/bump";
 import { centavosComCupom } from "@/lib/cupom";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../../api/lib/entrega";
+import { conviteDaCompra } from "@/lib/indicacao-db";
+import { descontoDoConvite } from "@/lib/indicacao";
 
 // A COBRANÇA NO CARTÃO, transparente.
 //
@@ -162,7 +164,7 @@ export const cobrarCartao = createServerFn({ method: "POST" })
 
     const { data: quiz } = await db
       .from("quiz_responses")
-      .select("id, email, respostas, attribution, whatsapp")
+      .select("id, email, respostas, attribution, whatsapp, locale")
       .eq("session_id", data.sessionId)
       .maybeSingle();
     if (!quiz?.id) return { ok: false, erro: "sem-sessao" };
@@ -191,7 +193,20 @@ export const cobrarCartao = createServerFn({ method: "POST" })
       : data.quadro === true
         ? "quadro"
         : null;
-    const valorCentavos = valorComItem(base, item);
+    // O CONVITE, com as mesmas regras do PIX (`conviteDaCompra`). O e-mail é
+    // o mesmo que o pedido grava logo abaixo: o do quiz, ou o do titular.
+    // Cupom e convite NÃO se somam: com o cupom da recuperação aplicado, o
+    // convite nem é consultado.
+    const convite =
+      base === semCupom
+        ? await conviteDaCompra(db, {
+            attribution: quiz.attribution,
+            email: (quiz.email as string | null) ?? data.titular.email,
+            locale: quiz.locale as string | null,
+          })
+        : null;
+    const descontoConvite = convite ? descontoDoConvite(base) : 0;
+    const valorCentavos = valorComItem(base - descontoConvite, item);
 
     const ip = ipDoPagador();
     // SEM IP NÃO TENTA. O Asaas exige o campo, e mandar o IP do servidor é
@@ -222,6 +237,9 @@ export const cobrarCartao = createServerFn({ method: "POST" })
     const voltaSegura = async (): Promise<string | null> => {
       if (!checkoutAntigo) return null;
       if (item) return null;
+      // Mesma razão do item: o checkout hospedado cobra o preço cheio do
+      // plano, e ela viu o preço com o desconto do convite.
+      if (convite) return null;
       if (await asaas.existeCobranca(referencia)) return null;
       return checkoutAntigo;
     };
@@ -297,6 +315,10 @@ export const cobrarCartao = createServerFn({ method: "POST" })
         titular_pix: data.titular.nome,
         telefone: (quiz.whatsapp as string | null) || data.titular.telefone,
         valor_centavos: valorCentavos,
+        // Só com convite: ver o mesmo bloco em `criar-pix.ts`.
+        ...(convite
+          ? { indicacao_codigo: convite.codigo, desconto_indicacao_centavos: descontoConvite }
+          : {}),
         bump_quadro: item ? BUMPS[item].quadro : false,
         bump_video: item ? BUMPS[item].video : false,
         quiz_response_id: quiz.id,

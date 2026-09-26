@@ -31,6 +31,17 @@ describe("bump do checkout", () => {
     expect(itemDaReferencia("serenata:abc-123:r2")).toBeNull();
   });
 
+  it("o convite muda a referência e não confunde a leitura do item", () => {
+    expect(referenciaComItem("abc-123", null, true)).toBe("serenata:abc-123:i");
+    expect(referenciaComItem("abc-123", "video", true)).toBe("serenata:abc-123:v:i");
+    expect(itemDaReferencia("serenata:abc-123:v:i")).toBe("video");
+    expect(itemDaReferencia("serenata:abc-123:v:i:r2")).toBe("video");
+    expect(itemDaReferencia("serenata:abc-123:i")).toBeNull();
+    // Com e sem convite são cobranças diferentes: a Woovi recusaria a mesma
+    // referência com outro valor.
+    expect(referenciaComItem("abc-123", "quadro", true)).not.toBe(referenciaComItem("abc-123", "quadro"));
+  });
+
   it("o que a pessoa leva: coluna do pedido primeiro, referência como rede", () => {
     expect(oQueLeva({ bumpQuadro: true })).toEqual({ quadro: true, video: false });
     expect(oQueLeva({ bumpVideo: true })).toEqual({ quadro: false, video: true });

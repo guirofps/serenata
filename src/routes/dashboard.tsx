@@ -18,7 +18,7 @@ import { BlocoVideo } from "@/components/conta/BlocoVideo";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { urlDaMusica } from "@/lib/personalizar";
 import {
-  Loader2, Pencil, ExternalLink, Plus, LogOut, Music, Sparkles, Frame, Lock, ChevronRight,
+  Loader2, Pencil, ExternalLink, Plus, LogOut, Music, Sparkles, Frame, Lock, ChevronRight, Gift,
 } from "lucide-react";
 
 // A ÁREA DO COMPRADOR — a "casa" dele na plataforma. Lista as músicas que ele
@@ -327,6 +327,33 @@ function Dashboard() {
             </span>
             <ChevronRight className="h-5 w-5 shrink-0 text-[var(--acento)]" />
           </a>
+        )}
+
+        {/* INDIQUE E GANHE. Faixa, não aba: com quatro abas a quinta estoura
+            390px (medido), e isto é um convite que se lê uma vez, não um lugar
+            onde se volta todo dia. A tela de lá explica e mostra o saldo. */}
+        {temOfertas && (
+          <Link
+            to="/indique"
+            onClick={() => trackEvent("indique_faixa_click")}
+            className="mt-3 flex items-center gap-3 rounded-[var(--raio)] border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-3"
+          >
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--acento)]/10 text-[var(--acento)]">
+              <Gift className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium" style={{ fontSize: "var(--t-sm)" }}>
+                Indique e ganhe 20%
+              </span>
+              <span
+                className="mt-0.5 block text-[var(--tinta-suave)]"
+                style={{ fontSize: "var(--t-xs)", lineHeight: 1.4 }}
+              >
+                Seu amigo ganha 10% de desconto, e você recebe 20% do que ele pagar.
+              </span>
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-[var(--tinta-suave)]" />
+          </Link>
         )}
 
         {/* ── AS ABAS ────────────────────────────────────────────

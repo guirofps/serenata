@@ -22,7 +22,7 @@
 
 export type Atribuicao = Record<string, unknown> | null | undefined;
 
-export type Canal = "Google" | "TikTok" | "Convite" | "Direto" | string;
+export type Canal = "Google" | "TikTok" | "Convite" | "Indicação" | "Direto" | string;
 
 /** Canal de origem, first-touch. Mesma leitura dos scripts de canal. */
 export function canalDe(a: Atribuicao): Canal {
@@ -32,6 +32,10 @@ export function canalDe(a: Atribuicao): Canal {
   if (a.ttclid || fonte.includes("tiktok") || ref.includes("tiktok")) return "TikTok";
   if (a.gclid || fonte.includes("google")) return "Google";
   if (fonte === "presente") return "Convite";
+  // O link de indicação (member get member). Depois dos anúncios: quem
+  // chegou por anúncio e depois recebeu o link continua contando pro
+  // anúncio, que é a regra first-touch do resto desta leitura.
+  if (a.ref) return "Indicação";
   if (fonte) return fonte;
   return "Direto";
 }

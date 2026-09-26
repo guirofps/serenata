@@ -37,8 +37,10 @@ export function emailResumoDiario(args: {
   hoje: Resumo;
   ontem: Resumo | null;
   media7: { receitaBrl: number; vendas: number; lucroBrl: number; ticketBrl: number } | null;
+  /** Saques de indicação esperando o dono pagar (PIX manual). */
+  saques?: { n: number; centavos: number } | null;
 }): string {
-  const { dia, hoje: r, ontem, media7 } = args;
+  const { dia, hoje: r, ontem, media7, saques } = args;
 
   const linhaTopo = (
     rotulo: string,
@@ -72,6 +74,14 @@ export function emailResumoDiario(args: {
   <div style="font-size:12px;letter-spacing:2px;color:#7d2b3a;">SERENATA · FECHAMENTO DO DIA</div>
   <h2 style="margin:6px 0 2px;font-size:22px;">${rotuloDoDia(dia)}</h2>
   <div style="font-size:13px;color:#777;">Dia inteiro, horário de Brasília.</div>
+  ${
+    saques && saques.n > 0
+      ? `<div style="margin-top:14px;padding:10px 12px;border-radius:8px;background:#fff4e0;color:#7a4b00;font-size:14px;">
+      <b>${saques.n} ${saques.n === 1 ? "saque de indicação esperando" : "saques de indicação esperando"}</b> pagamento, ${brl(saques.centavos / 100)} no total.
+      <a href="https://www.serenatagift.com/admin?aba=indicacoes" style="color:#7a4b00;">Abrir no painel</a>
+    </div>`
+      : ""
+  }
 
   <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;border-collapse:collapse;">
     <tr><th style="${th}"></th><th style="${thN}">dia</th><th style="${thN}">vs ontem</th><th style="${thN}">vs média 7d</th></tr>

@@ -23,6 +23,7 @@ import {
   getDevice,
   getOrAssignVariant,
   stampVariantIntoAttribution,
+  carimbarIndicacao,
 } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
 import { rotaSensivel } from "@/lib/rotas-sensiveis";
@@ -312,6 +313,9 @@ function RootComponent() {
     // primeiro page_view, para todo funnel_event carregar attribution.variant.
     const variant = getOrAssignVariant();
     stampVariantIntoAttribution(variant);
+    // O `?ref=` do link de indicação. Antes do page_view, pelo mesmo motivo
+    // da variante: todo evento já sai sabendo que ela veio por convite.
+    carimbarIndicacao();
     trackEvent("page_view", { is_landing: true });
     // DEPOIS de tudo montado. Ver o comentário de `carregarUtmify`: rodando
     // antes da hidratação ele quebrava a página inteira.

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { normalizarCodigo } from "@/lib/indicacao";
 
 const SESSION_KEY = "mp_session_id";
 const SESSION_TS_KEY = "mp_session_ts";
@@ -39,6 +40,15 @@ export type Attribution = {
   // Carimbada por stampVariantIntoAttribution no mount da raiz; flui como está
   // para funnel_events.event_data.attribution e quiz_responses.attribution.
   variant?: QuizVariant;
+  /**
+   * O código de indicação (member get member), do `?ref=` da URL.
+   *
+   * Escrito pelo cliente, então é só uma PISTA: o servidor confere tudo
+   * (`conviteDaCompra`) antes de dar desconto, e a trigger confere de novo
+   * antes de pagar comissão. Ver `carimbarIndicacao`.
+   */
+  ref?: string;
+  ref_em?: string;
   captured_at: string;
 };
 
@@ -257,6 +267,38 @@ export function stampVariantIntoAttribution(variant: QuizVariant): void {
   } else {
     const stub: Attribution = { variant, captured_at: new Date().toISOString() };
     localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(stub));
+  }
+}
+
+/**
+ * O CONVITE DA URL, guardado na attribution.
+ *
+ * FORA da regra de first-touch, de propósito. Quem já veio antes por um
+ * anúncio tem a attribution travada no primeiro toque; se o `ref` passasse
+ * pela mesma trava, o link do amigo chegaria depois e seria ignorado, e o
+ * convite (que é o motivo de ela voltar) não valeria.
+ *
+ * O ÚLTIMO LINK VENCE: se ela recebeu dois convites, vale o que ela clicou
+ * por último. E não expira aqui — quem decide se ainda vale é o servidor.
+ *
+ * Código fora do formato não é gravado: o valor vai pro banco e pra eventos,
+ * e o que não é código não tem por que viajar.
+ */
+export function carimbarIndicacao(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const codigo = normalizarCodigo(new URLSearchParams(window.location.search).get("ref"));
+    if (!codigo) return;
+    const existing = getStoredAttribution();
+    if (existing?.ref === codigo) return;
+    const base: Attribution = existing ?? { captured_at: new Date().toISOString() };
+    localStorage.setItem(
+      ATTRIBUTION_KEY,
+      JSON.stringify({ ...base, ref: codigo, ref_em: new Date().toISOString() }),
+    );
+  } catch {
+    // localStorage bloqueado (aba anônima, cota): sem convite, preço cheio.
+    // Não pode derrubar a montagem da raiz, que é quem chama isto.
   }
 }
 
