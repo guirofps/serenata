@@ -14,6 +14,7 @@ import { meusCreditos } from "@/lib/meus-creditos";
 import { meusQuadros } from "@/lib/meus-quadros";
 import { BlocoCreditos } from "@/components/conta/BlocoCreditos";
 import { BlocoQuadro } from "@/components/conta/BlocoQuadro";
+import { BlocoVideo } from "@/components/conta/BlocoVideo";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { urlDaMusica } from "@/lib/personalizar";
 import {
@@ -93,13 +94,13 @@ function Dashboard() {
   // Abre em "músicas" de propósito. E as abas não substituem a faixa do quadro
   // comprado, que fica ACIMA delas: produto pago que espera não pode ficar
   // escondido dentro de aba nenhuma.
-  const [aba, setAba] = useState<"musicas" | "criar" | "quadro">("musicas");
+  const [aba, setAba] = useState<"musicas" | "criar" | "quadro" | "video">("musicas");
   // ABA POR LINK. O e-mail de recompra tem um botão que diz "ver o quadro":
   // cair no painel genérico e deixar a pessoa procurar a aba desfaz metade da
   // promessa do botão. `?aba=quadro` e `?aba=criar` abrem onde prometeram.
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("aba");
-    if (v === "quadro" || v === "criar") setAba(v);
+    if (v === "quadro" || v === "criar" || v === "video") setAba(v);
 
     // ── QUANTOS COMPRADORES CHEGAM NO PAINEL ─────────────────────
     //
@@ -338,7 +339,10 @@ function Dashboard() {
               {([
                 ["musicas", T.abaMusicas, musicas.length, ""],
                 ["criar", T.abaCriar, 0, T.seloDesconto],
-                ["quadro", T.abaQuadro, quadros, quadros > 0 ? "" : T.seloQuadro],
+                // Sem selo escrito: com quatro abas, "novo" estoura 390px
+                // (medido). O ponto abaixo faz o papel dele.
+                ["video", T.abaVideo, 0, ""],
+                ["quadro", T.abaQuadro, quadros, ""],
               ] as const).map(([chave, rotulo, quantos, selo]) => (
                 <button
                   key={chave}
@@ -368,6 +372,9 @@ function Dashboard() {
                       {selo}
                     </span>
                   )}
+                  {chave === "video" && aba !== "video" && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--acento)]" aria-hidden />
+                  )}
                   {quantos > 0 && (
                     <span
                       className="rounded-full bg-[var(--tinta-fraca)]/25 px-1.5 py-0.5"
@@ -388,6 +395,8 @@ function Dashboard() {
         {temOfertas && aba === "criar" && saldo !== null && email && (
           <BlocoCreditos saldo={saldo} locale={locale} email={email} />
         )}
+
+        {temOfertas && aba === "video" && <BlocoVideo musicas={musicas} />}
 
         {temOfertas && aba === "quadro" && email && (
           <BlocoQuadro paraMontar={quadros} locale={locale} email={email} />

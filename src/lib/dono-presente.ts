@@ -16,9 +16,19 @@
 
 const PREFIXO = "mp_dono:";
 
-export function marcarDono(tokenPublico: string) {
+// ── DESDE 25/09 A MARCA GUARDA O TOKEN DE EDIÇÃO ─────────────────
+//
+// Pra oferta do vídeo na página levar direto à prévia dela no editor. Continua
+// só no localStorage do aparelho de quem já abriu o editor, nunca na URL: é o
+// mesmo crachá que o crédito já guarda (`credito-no-navegador.ts`). Marca
+// antiga ("1") segue valendo como dono; só não sabe o caminho do editor.
+
+export function marcarDono(tokenPublico: string, tokenEdicao?: string) {
   try {
-    localStorage.setItem(PREFIXO + tokenPublico, "1");
+    localStorage.setItem(
+      PREFIXO + tokenPublico,
+      tokenEdicao && tokenEdicao.length >= 16 ? tokenEdicao : "1",
+    );
   } catch {
     // Navegação privada ou storage cheio: só não mostra o botão extra.
   }
@@ -26,8 +36,18 @@ export function marcarDono(tokenPublico: string) {
 
 export function ehDono(tokenPublico: string): boolean {
   try {
-    return localStorage.getItem(PREFIXO + tokenPublico) === "1";
+    return Boolean(localStorage.getItem(PREFIXO + tokenPublico));
   } catch {
     return false;
+  }
+}
+
+/** O token de edição guardado pelo dono, se a marca for nova. */
+export function edicaoDoDono(tokenPublico: string): string | null {
+  try {
+    const v = localStorage.getItem(PREFIXO + tokenPublico);
+    return v && v.length >= 16 ? v : null;
+  } catch {
+    return null;
   }
 }

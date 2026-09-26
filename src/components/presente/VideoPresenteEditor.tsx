@@ -34,7 +34,7 @@ const PreviaVideo = lazy(() => import("./PreviaVideo"));
 const TEXTOS = {
   pt: {
     titulo: "Sua página também virou vídeo",
-    sub: "As fotos que você escolheu passando no ritmo da música, com a letra acendendo palavra por palavra. Dá o play e veja.",
+    sub: "As fotos que você escolheu passando no ritmo da música, com a letra acendendo palavra por palavra. Olha como ficou.",
     semFoto:
       "Escolha umas fotos de vocês e veja o vídeo se montar aqui, na hora, no ritmo da música.",
     escolherFotos: "Escolher as fotos",

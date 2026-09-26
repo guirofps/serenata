@@ -85,7 +85,7 @@ function Editor() {
   // a música aparecer também na página pública, pra quem volta atrás do MP3
   // depois de já ter enviado o link.
   useEffect(() => {
-    marcarDono(p.tokenPublico);
+    marcarDono(p.tokenPublico, tokenEdicao);
     // E marca a SESSÃO como gasta: chegar aqui significa que este navegador já
     // produziu um presente entregue, então uma música nova precisa começar numa
     // linha nova do banco (ver novaSessao em session-context).

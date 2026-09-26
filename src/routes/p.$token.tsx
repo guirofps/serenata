@@ -11,6 +11,7 @@ import { Logo } from "@/components/marca/Logo";
 import { MARCA, FONTES } from "@/lib/marca";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { ehDono } from "@/lib/dono-presente";
+import { OfertaVideoDono } from "@/components/presente/OfertaVideoDono";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -604,6 +605,7 @@ function PaginaPresente() {
                 locale={p?.locale ?? "pt"}
               />
             </div>
+            <OfertaVideoDono tokenPublico={token} locale={p?.locale === "es" ? "es" : "pt"} />
           </div>
         </div>
       )}
