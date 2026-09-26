@@ -6,6 +6,7 @@ import { Resend } from "resend";
 import { emailPixNaoPago, assuntoPixNaoPago } from "../../emails/pix-nao-pago.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
+import { literalLike } from "../../src/lib/sql-like.js";
 import { woovi } from "../../src/lib/woovi.js";
 
 // O PIX GERADO QUE NÃO FOI PAGO.
@@ -106,6 +107,26 @@ function db() {
  * pedidos pendentes e não pode receber três e-mails.
  */
 /** Quantos destes e-mails a PESSOA recebeu nos últimos 14 dias, de qualquer pedido. */
+/**
+ * A PESSOA já comprou nos últimos 14 dias, por qualquer quiz?
+ *
+ * A trava por quiz não basta: em 26/09 uma compradora fez dois quizzes, pagou
+ * um às 18h13, recebeu a entrega, e às 19h00 levou "seu PIX não foi pago"
+ * pelo pendente do outro. Respondeu "já paguei e não recebi". Pra quem acabou
+ * de comprar, este e-mail é acusação, não lembrete.
+ */
+async function pessoaJaComprou(sb: ReturnType<typeof db>, email: string): Promise<boolean> {
+  const { data } = await sb
+    .from("pedidos")
+    .select("id, email")
+    .ilike("email", literalLike(email))
+    .eq("status", "pago")
+    .gte("paid_at", new Date(Date.now() - 14 * 86400000).toISOString())
+    .limit(5);
+  // Confere em JS também: o `ilike` é sem caixa, e aqui o alvo é a pessoa.
+  return (data ?? []).some((x) => String(x.email ?? "").trim().toLowerCase() === email.trim().toLowerCase());
+}
+
 async function toquesDaPessoa(sb: ReturnType<typeof db>, email: string): Promise<number> {
   const { count } = await sb
     .from("funnel_events")
@@ -219,6 +240,7 @@ export const pixNaoPago = inngest.createFunction(
           .limit(1)
           .maybeSingle();
         if (pago?.id) continue;
+        if (p.email && (await pessoaJaComprou(sb, p.email))) continue;
 
         // ── E SE O NOSSO BANCO ESTIVER ERRADO? ──────────────────
         //
@@ -354,6 +376,7 @@ export const pixNaoPago = inngest.createFunction(
           .limit(1)
           .maybeSingle();
         if (pago?.id) return false;
+        if (await pessoaJaComprou(sb, c.email)) return false;
         if (!podeMandar(await toquesJaDados(sb, c.quizId), Date.now())) return false;
         // POR PESSOA, não só por pedido (25/09): quem gerava vários PIX em
         // dias diferentes recebia 3 a 10 destes em 14 dias, porque a trava
