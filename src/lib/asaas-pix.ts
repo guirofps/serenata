@@ -36,6 +36,7 @@
 // assim que o `/api/inngest` ficou quatro horas fora do ar em 26/08.
 
 import { chamarAsaas, asaasPagou } from "./asaas.js";
+import { semPontoNoFim } from "./email-limpo.js";
 import { ErroGateway, type CobrancaPix, type GatewayPix, type StatusCobranca } from "./gateway.js";
 import { cpfValido, soDigitosCpf } from "./cpf.js";
 
@@ -183,18 +184,35 @@ export const asaasPix: GatewayPix = {
     }
 
     // ── 2. O CLIENTE, QUE O ASAAS EXIGE ANTES DA COBRANÇA ────
-    const cliente = await chamarAsaas<{ id?: string }>("/customers", {
-      method: "POST",
-      body: JSON.stringify({
-        name: args.nome?.trim() || "Cliente Serenata",
-        cpfCnpj: cpf,
-        ...(args.email ? { email: args.email } : {}),
-        // A chave de reuso é o CPF, não o e-mail: o mesmo CPF comprando de
-        // novo tem que cair no mesmo cliente, e e-mail a pessoa troca.
-        externalReference: cpf,
-        notificationDisabled: true, // quem fala com o comprador somos nós
-      }),
-    });
+    //
+    // O E-MAIL É OPCIONAL PRO ASAAS, e não pode derrubar a venda. Em 26/09 uma
+    // pessoa tentou comprar três vezes com "...@hotmail.com." (ponto no fim):
+    // o Asaas respondia "O email informado é inválido.", o PIX não nascia, e
+    // desde que a Perfect Pay saiu do plano B ela não tinha pra onde ir. Quem
+    // avisa o comprador somos nós (`notificationDisabled`), então o e-mail lá
+    // é só cadastro: limpa o óbvio e, se ainda assim for recusado, vai sem.
+    const emailLimpo = args.email ? semPontoNoFim(args.email) || undefined : undefined;
+    const criarCliente = (comEmail: boolean) =>
+      chamarAsaas<{ id?: string }>("/customers", {
+        method: "POST",
+        body: JSON.stringify({
+          name: args.nome?.trim() || "Cliente Serenata",
+          cpfCnpj: cpf,
+          ...(comEmail && emailLimpo ? { email: emailLimpo } : {}),
+          // A chave de reuso é o CPF, não o e-mail: o mesmo CPF comprando de
+          // novo tem que cair no mesmo cliente, e e-mail a pessoa troca.
+          externalReference: cpf,
+          notificationDisabled: true, // quem fala com o comprador somos nós
+        }),
+      });
+    let cliente: { id?: string };
+    try {
+      cliente = await criarCliente(true);
+    } catch (err) {
+      if (!(err instanceof ErroGateway) || !/e-?mail/i.test(err.message) || !emailLimpo) throw err;
+      console.warn("[asaas-pix] e-mail recusado pelo Asaas, criando o cliente sem ele:", err.message);
+      cliente = await criarCliente(false);
+    }
     if (!cliente?.id) throw new ErroGateway("asaas não devolveu id de cliente", "asaas", false);
 
     // ── 3. A COBRANÇA ────────────────────────────────────────

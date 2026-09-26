@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { OFERTAS } from "@/lib/creditos";
 import { centavosComCupom } from "@/lib/cupom";
+import { semPontoNoFim } from "@/lib/email-limpo";
 import { BUMPS, ehItemBump, referenciaComItem, valorComItem, type ItemBump } from "@/lib/bump";
 import { cpfValido, soDigitosCpf } from "@/lib/cpf";
 import { paraE164, telefoneValido } from "@/lib/telefone";
@@ -295,7 +296,7 @@ export const criarPix = createServerFn({ method: "POST" })
     // Valida aqui também, e não só na tela: server function é rota HTTP, e o
     // que chega dela não é promessa de nada. Endereço inválido é ignorado em
     // silêncio — melhor manter o antigo que gravar lixo por cima.
-    const emailNovo = data.email?.trim().toLowerCase();
+    const emailNovo = data.email ? semPontoNoFim(data.email).toLowerCase() : undefined;
     const emailVale =
       !!emailNovo &&
       emailNovo.length <= 254 &&

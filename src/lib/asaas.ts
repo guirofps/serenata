@@ -24,6 +24,7 @@ import {
   type GatewayCartao,
   type ResultadoCartao,
 } from "./gateway-cartao.js";
+import { semPontoNoFim } from "./email-limpo.js";
 
 /**
  * Sandbox ou produção, decidido pelo PREFIXO DA CHAVE e não por env própria.
@@ -150,14 +151,17 @@ export const asaas: GatewayCartao = {
     // encher a base deles de duplicata a cada compra da mesma pessoa, e é o
     // que permite tokenizar o cartão dela depois sem pedir tudo de novo.
     const cpf = soDigitos(args.titular.cpf);
+    // Ponto no fim ("...@hotmail.com.") o Asaas recusa como e-mail inválido e
+    // a venda morre (visto no PIX em 26/09). Limpa o óbvio antes de mandar.
+    const email = semPontoNoFim(args.titular.email);
     const cliente = await chamar<{ id?: string }>("/customers", {
       method: "POST",
       body: JSON.stringify({
         name: args.titular.nome,
-        email: args.titular.email,
+        email,
         cpfCnpj: cpf,
         mobilePhone: soDigitos(args.titular.telefone),
-        externalReference: args.titular.email.toLowerCase(),
+        externalReference: email.toLowerCase(),
         notificationDisabled: true, // quem fala com o comprador somos nós
       }),
     });
@@ -197,7 +201,7 @@ export const asaas: GatewayCartao = {
           },
           creditCardHolderInfo: {
             name: args.titular.nome,
-            email: args.titular.email,
+            email,
             cpfCnpj: cpf,
             postalCode: soDigitos(args.titular.cep),
             addressNumber: args.titular.numeroEndereco,

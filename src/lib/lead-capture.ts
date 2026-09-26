@@ -1,4 +1,5 @@
 ﻿import { getOrCreateSessionId, getStoredAttribution } from "@/lib/session-context";
+import { semPontoNoFim } from "@/lib/email-limpo";
 
 // Grava o progresso do lead a cada avanço do quiz, via RPC SECURITY DEFINER.
 // É a vantagem competitiva direta: quem abandona no meio ainda vira lead.
@@ -57,7 +58,8 @@ export async function captureLeadProgress(args: {
       p_current_step: args.currentStep ?? null,
       p_furthest_step: args.furthestStep ?? null,
       p_respostas: args.respostas,
-      p_email: args.email ?? null,
+      // Ponto no fim ("...@hotmail.com.") mata a entrega e o PIX (26/09).
+      p_email: args.email ? semPontoNoFim(args.email) : null,
       p_whatsapp: args.whatsapp ?? null,
       p_attribution: getStoredAttribution(),
       p_locale: args.locale ?? "pt",
