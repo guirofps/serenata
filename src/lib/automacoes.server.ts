@@ -15,6 +15,7 @@ import {
   type DegrauEscada,
 } from "../../emails/escada";
 import { assuntoSequencia, emailSequencia, type NumeroDaSequencia } from "../../emails/sequencia";
+import { assuntoIndicacao, emailIndicacao } from "../../emails/indicacao";
 import { assuntoLetraPronta, emailLetraPronta } from "../../emails/letra-pronta";
 import { assuntoQuaseComprou, emailQuaseComprou } from "../../emails/quase-comprou";
 import { assuntoPixNaoPago, emailPixNaoPago } from "../../emails/pix-nao-pago";
@@ -310,6 +311,26 @@ export const AUTOMACOES: Automacao[] = [
     ],
   },
   {
+    id: "convite-indicacao",
+    nome: "Convite de indicação",
+    fase: "depois",
+    gatilho: "de 30 em 30 minutos, das 9h às 20h, até a base acabar (disparo único)",
+    quemRecebe:
+      "Todo mundo que já comprou de verdade no funil português. Sai UMA vez por pessoa: o código em `indicacao_codigos` é criado antes do envio e a data fica marcada na mesma linha. Lote pequeno por rodada, pra não dar pico de reputação no mesmo remetente da recuperação.",
+    quemNao:
+      "Quem se descadastrou, quem está em excluidos_email, endereço que voltou, quem já recebeu este convite, e quem comprou em espanhol (lá o preço é em dólar e a trigger da comissão não comissiona).",
+    remetente: "recuperacao",
+    arquivo: "inngest/functions/conviteIndicacao.ts",
+    emails: [
+      {
+        template: "indicacao_convite",
+        nome: "Ganhe dinheiro indicando o Serenata",
+        quando: "uma vez, pra base inteira",
+        idiomas: ["pt"],
+      },
+    ],
+  },
+  {
     id: "guarde-o-link",
     nome: "Guarde o link",
     fase: "depois",
@@ -527,6 +548,16 @@ export function renderizarPreview(template: string, locale: "pt" | "es"): Previe
   }
 
   switch (template) {
+    case "indicacao_convite":
+      return pt(
+        assuntoIndicacao(),
+        emailIndicacao({
+          nome: E.nome,
+          link: `${SITE}/criar?ref=K7M2QX`,
+          linkPainel: `${SITE}/indique`,
+          linkDescadastro: E.linkDescadastro,
+        }),
+      );
     case "letra_pronta":
       return pt(
         assuntoLetraPronta(E.nome, l),

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { emailDaSessao } from "@/lib/conta-sessao";
 import { literalLike } from "@/lib/sql-like";
+import { primeiroNome } from "@/lib/primeiro-nome";
 
 // O PRIMEIRO NOME DE QUEM COMPROU, pra saudação do painel.
 //
@@ -14,16 +15,6 @@ import { literalLike } from "@/lib/sql-like";
 // guarda em `pedidos.nome_pagador`. Medido em 17/08: 298 de 302 pedidos pagos
 // (99%) têm o nome preenchido. Perguntar seria pedir de novo um dado que já
 // está no banco, e todo campo a mais é gente a menos terminando.
-
-/** "RONDINELE APARECIDO DOS SANTOS" -> "Rondinele". */
-function primeiroNome(completo: string): string {
-  const limpo = completo.trim().replace(/\s+/g, " ");
-  if (!limpo) return "";
-  const p = limpo.split(" ")[0];
-  // Nomes vêm em CAIXA ALTA do gateway na maioria das vezes. "RONDINELE" numa
-  // saudação parece grito.
-  return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
-}
 
 /**
  * Descobre o nome pelo e-mail da conta logada.

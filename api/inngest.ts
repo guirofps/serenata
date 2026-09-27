@@ -29,6 +29,7 @@ import { quadroParado } from "../inngest/functions/quadroParado.js";
 import { creditoParado } from "../inngest/functions/creditoParado.js";
 import { renderizarVideo } from "../inngest/functions/renderizarVideo.js";
 import { ofertaVideo } from "../inngest/functions/ofertaVideo.js";
+import { conviteIndicacao } from "../inngest/functions/conviteIndicacao.js";
 import { videoPendente } from "../inngest/functions/videoPendente.js";
 import { lembrarDatas } from "../inngest/functions/lembrarDatas.js";
 
@@ -65,6 +66,7 @@ export default serve({
     creditoParado,
     renderizarVideo,
     ofertaVideo,
+    conviteIndicacao,
     videoPendente,
     lembrarDatas,
   ],
