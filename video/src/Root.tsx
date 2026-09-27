@@ -4,6 +4,7 @@ import { getAudioDurationInSeconds } from "@remotion/media-utils";
 import { Presente } from "./Presente";
 import type { PropsPresente } from "./props";
 import { Anuncio, duracaoDoRoteiro, type PropsAnuncio } from "./Anuncio";
+import { Compilado, duracaoCompilado } from "./Compilado";
 
 /**
  * O vídeo dura o que a MÚSICA dura, medido no próprio MP3.
@@ -59,6 +60,15 @@ export const RemotionRoot: React.FC = () => {
       width={1080}
       height={1920}
       defaultProps={EXEMPLO_ANUNCIO}
+    />
+    <Composition
+      id="Compilado"
+      component={Compilado}
+      durationInFrames={Math.round(duracaoCompilado() * FPS)}
+      fps={FPS}
+      width={1080}
+      height={1920}
+      defaultProps={{ inicioAudio: 48.6 }}
     />
     <Composition
       id="Presente"
