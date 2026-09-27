@@ -101,3 +101,48 @@ export function somenteBrasileiros(
 ): Convidado[] {
   return fila.filter((c) => !c.quizId || (locais.get(c.quizId) ?? "pt") === "pt");
 }
+
+// ── A RAMPA, porque 4.660 de uma vez dobra o domínio ─────────────
+//
+// O remetente `ola@envio.serenatagift.com` manda hoje ~380/dia (régua de
+// recuperação ~240, oferta do vídeo ~140). Entrar com 440/dia no primeiro dia
+// MAIS QUE DOBRA o volume de marketing do domínio de uma hora pra outra, e
+// salto assim é o que faz Gmail e Microsoft começarem a segurar entrega — pelo
+// mesmo domínio que entrega a música de quem pagou.
+//
+// A rampa sobe sozinha, medida pelo que JÁ SAIU, não por data: ela não depende
+// de ninguém lembrar de mexer, não quebra se o deploy atrasar um dia, e se o
+// job ficar parado ela retoma de onde estava em vez de pular pro fim.
+//
+//   primeiros 200   ->  5 por rodada  (~110/dia, +29% no domínio)
+//   até 700         -> 10 por rodada  (~220/dia)
+//   daí em diante   -> 20 por rodada  (~440/dia)
+//
+// Com 4.660 na fila isso dá umas duas semanas, contra os 11 dias do ritmo
+// cheio. Os três dias a mais compram a chance de ver a taxa de reclamação nos
+// primeiros 200 — e reputação queimada não se desfaz, enquanto e-mail atrasado
+// se manda depois.
+const DEGRAUS_RAMPA: readonly [number, number][] = [
+  [200, 5],
+  [700, 10],
+];
+const LOTE_CHEIO = 20;
+
+/**
+ * Quantos mandar nesta rodada.
+ *
+ * `override` vem de `config_operacao` (a mesma tabela do teto do Suno), pra
+ * dar um dial sem deploy: numa alta de reclamação, `0` PAUSA o disparo na
+ * hora. Trocar env var na Vercel exige redeploy, e redeploy no meio de um
+ * incidente de reputação é lento demais pra servir de freio.
+ */
+export function loteDaVez(jaEnviados: number, override?: number | null): number {
+  if (override !== undefined && override !== null && Number.isFinite(override)) {
+    return Math.max(0, Math.floor(override));
+  }
+  const n = Number.isFinite(jaEnviados) ? Math.max(0, jaEnviados) : 0;
+  for (const [ate, lote] of DEGRAUS_RAMPA) {
+    if (n < ate) return lote;
+  }
+  return LOTE_CHEIO;
+}

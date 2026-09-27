@@ -5,7 +5,7 @@ import { cabecalhosDescadastro, linkDescadastroUmClique } from "../lib/descadast
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { assuntoIndicacao, emailIndicacao, textoIndicacao } from "../../emails/indicacao.js";
 import { gerarCodigo, linkDoConvite } from "../../src/lib/indicacao.js";
-import { montarFila, somenteBrasileiros } from "../../src/lib/fila-convite.js";
+import { loteDaVez, montarFila, somenteBrasileiros } from "../../src/lib/fila-convite.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 
 // O CONVITE DE INDICAÇÃO, disparo único pra quem já comprou (27/09/2026).
@@ -44,9 +44,9 @@ const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
   : "https://www.serenatagift.com";
 
-// Por rodada. Começa baixo de propósito: dá pra subir depois de ver a primeira
-// leva, e não dá pra "dessubir" um e-mail que já saiu.
-const LOTE = Number(process.env.CONVITE_INDICACAO_LOTE) || 20;
+// O tamanho do lote NÃO é constante: sobe sozinho conforme a base vai sendo
+// coberta (`loteDaVez`, em `fila-convite.ts`), e pode ser travado a qualquer
+// momento pela chave `convite_indicacao_lote` em `config_operacao` — `0` pausa.
 
 // ── SÓ EM HORÁRIO DE GENTE ACORDADA ──────────────────────────────
 //
@@ -149,11 +149,25 @@ export const conviteIndicacao = inngest.createFunction(
 
       // A DECISÃO mora em `src/lib/fila-convite.ts`, pura e testada. Aqui
       // fica só o que precisa de banco: ler as listas e conferir o idioma.
+      // O DIAL SEM DEPLOY. Numa alta de reclamação, `0` aqui para o disparo na
+      // rodada seguinte — trocar env var na Vercel exigiria redeploy, e isso é
+      // lento demais pra servir de freio no meio de um incidente.
+      const { data: cfg } = await sb
+        .from("config_operacao")
+        .select("valor")
+        .eq("chave", "convite_indicacao_lote")
+        .maybeSingle();
+      const override = cfg?.valor === undefined ? null : Number(cfg.valor);
+
+      const jaEnviados = codigos.filter((c) => c.convite_enviado_em).length;
+      const lote = loteDaVez(jaEnviados, override);
+      if (lote <= 0) return [];
+
       const fila = montarFila({
         pagos,
         bloqueados: [...fora, ...excl, ...mortos].map((x) => x.email),
         codigos,
-        lote: LOTE,
+        lote,
       });
 
       // O idioma é conferido SÓ sobre o lote que vai sair: puxar o `locale` da

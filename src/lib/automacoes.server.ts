@@ -314,7 +314,7 @@ export const AUTOMACOES: Automacao[] = [
     id: "convite-indicacao",
     nome: "Convite de indicação",
     fase: "depois",
-    gatilho: "de 30 em 30 minutos, das 9h às 20h, até a base acabar (disparo único)",
+    gatilho: "de 30 em 30 minutos, das 9h às 20h, em rampa (5 → 10 → 20 por rodada) até a base acabar",
     quemRecebe:
       "Todo mundo que já comprou de verdade no funil português. Sai UMA vez por pessoa: o código em `indicacao_codigos` é criado antes do envio e a data fica marcada na mesma linha. Lote pequeno por rodada, pra não dar pico de reputação no mesmo remetente da recuperação.",
     quemNao:

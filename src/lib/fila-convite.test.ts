@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { montarFila, somenteBrasileiros, type PedidoPago } from "./fila-convite";
+import { loteDaVez, montarFila, somenteBrasileiros, type PedidoPago } from "./fila-convite";
 
 // A FILA DO DISPARO ÚNICO, testada onde ela erra sem avisar.
 //
@@ -161,5 +161,50 @@ describe("a janela de horário", () => {
     expect(dentroDaJanela(emUtc("2026-09-28T22:59:00Z"))).toBe(true);
     // 23:00 UTC = 20:00 BR: fechou.
     expect(dentroDaJanela(emUtc("2026-09-28T23:00:00Z"))).toBe(false);
+  });
+});
+
+describe("a rampa do disparo", () => {
+  it("começa pequeno: os primeiros 200 saem a 5 por rodada", () => {
+    // ~110/dia sobre os ~380/dia que o domínio já manda. Entrar com 440
+    // dobraria o volume de marketing de uma hora pra outra.
+    expect(loteDaVez(0)).toBe(5);
+    expect(loteDaVez(199)).toBe(5);
+  });
+
+  it("sobe em degraus, medidos pelo que JÁ SAIU e não por data", () => {
+    // Por contagem e não por data: não depende de ninguém lembrar de mexer, e
+    // se o job ficar parado um dia ela retoma de onde estava em vez de pular
+    // pro fim.
+    expect(loteDaVez(200)).toBe(10);
+    expect(loteDaVez(699)).toBe(10);
+    expect(loteDaVez(700)).toBe(20);
+    expect(loteDaVez(4000)).toBe(20);
+  });
+
+  it("nunca passa do lote cheio, por maior que fique a base", () => {
+    expect(loteDaVez(999_999)).toBe(20);
+  });
+
+  it("o override do painel VENCE a rampa, inclusive pra baixo", () => {
+    expect(loteDaVez(4000, 3)).toBe(3);
+    expect(loteDaVez(0, 50)).toBe(50);
+  });
+
+  it("override ZERO pausa — é o freio que não precisa de deploy", () => {
+    // O caso que importa: reclamação de spam subindo às 21h de um sábado.
+    expect(loteDaVez(4000, 0)).toBe(0);
+  });
+
+  it("override ausente ou lixo cai na rampa, não em zero", () => {
+    // `Number(undefined)` é NaN, e NaN virando 0 pausaria o disparo pra
+    // sempre por causa de uma linha que ninguém criou em config_operacao.
+    expect(loteDaVez(0, null)).toBe(5);
+    expect(loteDaVez(0, undefined)).toBe(5);
+    expect(loteDaVez(0, Number("abc"))).toBe(5);
+  });
+
+  it("override negativo não vira lote negativo", () => {
+    expect(loteDaVez(0, -7)).toBe(0);
   });
 });
