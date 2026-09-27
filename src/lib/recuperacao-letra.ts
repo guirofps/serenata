@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { extrairJsonTolerante } from "@/lib/json-tolerante";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { MODELO_LETRA, registrarCustoLetra, type UsoClaude } from "@/lib/custos";
 import { dispararGeracaoMusica } from "@/lib/gerar-letra";
@@ -114,7 +115,9 @@ function extrairJson<T>(texto: string): T {
     );
   }
   try {
-    return JSON.parse(cru.slice(s, e + 1)) as T;
+    // Tolerante (27/09): aspa sem escape ou quebra de linha crua na letra não
+    // derruba mais o pedido; ver `json-tolerante.ts`.
+    return extrairJsonTolerante<T>(cru);
   } catch {
     // Chaves existem mas o JSON está quebrado: quase sempre resposta cortada.
     console.error("[recuperacao-letra] JSON invalido:", cru.slice(0, 400));

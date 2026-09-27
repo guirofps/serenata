@@ -1,5 +1,6 @@
 ﻿import { createServerFn } from "@tanstack/react-start";
 import { type Locale, normalizarLocale } from "@/lib/i18n";
+import { extrairJsonTolerante } from "@/lib/json-tolerante";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { MODELO_LETRA, MODELO_LETRA_CURTA, registrarCustoLetra, type UsoClaude } from "@/lib/custos";
 import { dispararGeracaoMusica } from "@/lib/gerar-letra";
@@ -162,12 +163,17 @@ async function chamarClaude(
 }
 
 // Extrai o primeiro objeto JSON da resposta (o modelo às vezes embrulha em
-// texto apesar da instrução).
+// texto apesar da instrução). Tolerante desde 27/09: 6 a 7% das letras vinham
+// com defeito miúdo no JSON (aspa sem escape na letra) e refaziam do zero. Ver
+// `json-tolerante.ts`. Quando nem o conserto salva, o log guarda o começo do
+// que o modelo mandou, pra dar pra entender o caso.
 function extrairJson<T>(texto: string): T {
-  const s = texto.indexOf("{");
-  const e = texto.lastIndexOf("}");
-  if (s === -1 || e === -1) throw new Error("Resposta do modelo não continha JSON");
-  return JSON.parse(texto.slice(s, e + 1)) as T;
+  try {
+    return extrairJsonTolerante<T>(texto);
+  } catch (err) {
+    console.error("[coautoria] JSON ilegível do modelo:", (err as Error).message, "| começo:", texto.slice(0, 300));
+    throw err;
+  }
 }
 
 // Acha o quiz_response da sessão pra chavear custo e persistência.
