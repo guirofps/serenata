@@ -16,9 +16,9 @@ import {
 describe("indicação: os números combinados com o dono", () => {
   // Estes quatro também existem em SQL (a trigger da comissão). Se um teste
   // daqui quebrar porque o número mudou, mude a migração junto.
-  it("10% pro convidado, 20% pra quem indica, 30 dias, saque a partir de R$ 100", () => {
+  it("10% pro convidado, 30% pra quem indica, 30 dias, saque a partir de R$ 100", () => {
     expect(PCT_DESCONTO).toBe(10);
-    expect(PCT_COMISSAO).toBe(20);
+    expect(PCT_COMISSAO).toBe(30);
     expect(CARENCIA_DIAS).toBe(30);
     expect(SAQUE_MINIMO_CENTAVOS).toBe(10_000);
   });
@@ -40,10 +40,10 @@ describe("descontoDoConvite", () => {
 });
 
 describe("comissaoDe", () => {
-  it("20% do que o convidado pagou", () => {
-    expect(comissaoDe(3420)).toBe(684);
+  it("30% do que o convidado pagou", () => {
+    expect(comissaoDe(3420)).toBe(1026);
     // Com o vídeo junto: 34,20 + 19,90
-    expect(comissaoDe(5410)).toBe(1082);
+    expect(comissaoDe(5410)).toBe(1623);
   });
   it("pedido de zero (crédito, cortesia) não gera comissão", () => {
     expect(comissaoDe(0)).toBe(0);
@@ -84,7 +84,7 @@ describe("gerarCodigo", () => {
 
 describe("formatos", () => {
   it("o link aponta pra home com o ref", () => {
-    expect(linkDoConvite("K7M2QX")).toBe("https://www.serenatagift.com/?ref=K7M2QX");
+    expect(linkDoConvite("K7M2QX")).toBe("https://www.serenatagift.com/criar?ref=K7M2QX");
   });
   it("reais no formato do funil", () => {
     expect(reaisDeCentavos(3420)).toBe("R$ 34,20");
@@ -105,5 +105,37 @@ describe("chavePixAceitavel", () => {
     expect(chavePixAceitavel("a".repeat(141))).toBeNull();
     expect(chavePixAceitavel("chave\ncom quebra")).toBeNull();
     expect(chavePixAceitavel("<script>x</script>")).toBeNull();
+  });
+});
+
+// ── O TS E O SQL TÊM QUE CONCORDAR ───────────────────────────────
+//
+// A comissão é calculada numa TRIGGER do banco (é o único ponto por onde os
+// seis caminhos de pagamento passam), e a porcentagem existe nos dois lados:
+// aqui ela manda no que a tela PROMETE, lá no que o banco PAGA.
+//
+// Divergir não quebra nada visivelmente: o site anuncia um número, a conta
+// credita outro, e ninguém descobre até um cliente conferir na calculadora —
+// numa promessa de dinheiro, que é onde ele confere mesmo. Este teste lê a
+// migração mais recente da comissão e recusa a diferença.
+describe("a taxa do TypeScript e a da trigger", () => {
+  it("são a mesma — mudar uma sem a outra não passa daqui", async () => {
+    const { readdir, readFile } = await import("node:fs/promises");
+    const dir = "supabase/migrations";
+    const arquivos = (await readdir(dir)).filter((f) => f.endsWith(".sql")).sort();
+
+    // A última migração que redefine a trigger é a que está valendo.
+    let sql: string | null = null;
+    for (const f of arquivos) {
+      const txt = await readFile(`${dir}/${f}`, "utf-8");
+      if (txt.includes("create or replace function public.indicacao_comissionar()")) sql = txt;
+    }
+    expect(sql, "nenhuma migração define indicacao_comissionar()").not.toBeNull();
+
+    const m = sql!.match(/round\(new\.valor_centavos \* (\d+) \/ 100\.0\)/);
+    expect(m, "não achei a conta da comissão na trigger").not.toBeNull();
+    expect(Number(m![1]), "a trigger paga uma porcentagem diferente da que a tela promete").toBe(
+      PCT_COMISSAO,
+    );
   });
 });

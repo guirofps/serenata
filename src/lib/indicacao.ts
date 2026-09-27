@@ -5,7 +5,7 @@
 // O MEMBER GET MEMBER, as regras num lugar só.
 //
 // Quem já comprou ganha um link. Quem chega por ele paga 10% a menos na
-// primeira música, e quem indicou ganha 20% do que o convidado pagou. O valor
+// primeira música, e quem indicou ganha 30% do que o convidado pagou. O valor
 // fica "a liberar" por 30 dias (reembolso e contestação chegam depois da
 // venda), e vira saque por PIX a partir de R$ 100.
 //
@@ -22,7 +22,7 @@
 // existem nos dois lados. O teste deste arquivo segura os números daqui.
 
 export const PCT_DESCONTO = 10;
-export const PCT_COMISSAO = 20;
+export const PCT_COMISSAO = 30;
 export const CARENCIA_DIAS = 30;
 export const SAQUE_MINIMO_CENTAVOS = 10_000;
 
@@ -75,8 +75,20 @@ export function comissaoDe(pagoCentavos: number): number {
   return Math.round((pagoCentavos * PCT_COMISSAO) / 100);
 }
 
+/**
+ * O LINK CAI NO QUIZ (`/criar`), NÃO NA HOME.
+ *
+ * Quem chega por convite já foi vendido pela pessoa que mandou — a home
+ * repetiria um argumento que ela já ouviu de alguém em quem confia, e cada
+ * tela a mais antes do quiz é gente que desiste no caminho.
+ *
+ * O `?ref` continua sendo capturado porque `carimbarIndicacao()` roda na RAIZ
+ * (`__root.tsx`), em toda rota, e não na home. Se um dia ele voltar pra
+ * dentro da home, este link para de dar desconto EM SILÊNCIO: o convidado
+ * paga cheio e o indicador fica sem comissão, sem erro em lugar nenhum.
+ */
 export function linkDoConvite(codigo: string, site = "https://www.serenatagift.com"): string {
-  return `${site}/?ref=${codigo}`;
+  return `${site}/criar?ref=${codigo}`;
 }
 
 /** "R$ 34,20", "R$ 100". Mesmo formato do resto do funil. */
