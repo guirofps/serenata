@@ -239,7 +239,45 @@ export const EXPERIMENTOS: Experimento[] = [
     // B = sorteio da JBL + depoimento do Marcelo, nos DOIS lugares: o passo do
     //     e-mail e a tela da oferta.
     //
-    // ── OS DOIS BLOCOS ANDAM JUNTOS, DE PROPÓSITO ──────────────
+    // ── ENCERRADO EM 27/09/2026: EMPATE, E EMPATE AQUI É RESPOSTA ──
+    //
+    // Rodou de 10/09 a 27/09 e terminou empatado em receita por lead. Os
+    // números por braço estão no painel; o que este comentário registra é a
+    // LEITURA, que é a parte que se perde.
+    //
+    // Empate NÃO é "faltou amostra". Com os ~163 leads/dia do funil partidos em
+    // dois, e uma base de 12,6%, o menor efeito que este teste consegue ver é
+    // de uns 3,5 pontos — 28% de ganho relativo. Ou seja: 17 dias de empate
+    // provam que o sorteio não faz nada GRANDE. Pode fazer algo pequeno, e é
+    // justamente aí que ele não se paga, porque o que ele carrega não é pequeno.
+    //
+    // O que ele carrega: sorteio de prêmio atrelado à compra, sem autorização
+    // da SPA/MF e com `REGULAMENTO` vazio (ver o topo de `SorteioSemanal.tsx`).
+    // Risco regulatório acima de zero com retorno medido igual a zero é a pior
+    // troca que existe — e foi por isso, não pelo número, que ele saiu do ar.
+    //
+    // ── POR QUE ZERANDO O PESO DO B, E NÃO PELO `ativo` ────────
+    //
+    // Mesmo movimento do braço E do teste de preço (28/08), pela mesma razão e
+    // com uma razão extra que só vale aqui.
+    //
+    // A razão de sempre: `ativo:false` publica o controle pra TODO MUNDO no
+    // próximo carregamento, inclusive pra quem já tem `B` guardado no
+    // navegador. Em 10/08 fazer exatamente isso publicou o braço errado pra
+    // 100% do tráfego.
+    //
+    // A razão extra, e ela é do sorteio: quem tem `B` guardado pode ter
+    // COMPRADO vendo "cada música te dá um número pra concorrer". Apagar o
+    // bloco desses navegadores não cancela o número — só esconde a promessa de
+    // quem a recebeu. Enquanto houver número prometido, o bloco some pra
+    // visita NOVA e a cauda seca sozinha.
+    //
+    // E O QUE ENCERRAR O TESTE NÃO FAZ: não desobriga o sorteio. Quem comprou
+    // na vigência tem número, e isso é operação, não código. Desligar o bloco
+    // sem sortear a JBL de verdade não resolve nada — piora, porque a promessa
+    // já foi feita e some a única tela que a explicava.
+    //
+    // ── OS DOIS BLOCOS ANDAVAM JUNTOS, DE PROPÓSITO ────────────
     //
     // Testá-los separado responde uma pergunta melhor ("qual dos dois carrega
     // o resultado?") e custa o dobro ou o triplo do tráfego. O teste de preço
@@ -247,22 +285,35 @@ export const EXPERIMENTOS: Experimento[] = [
     // 6,4%); prova social costuma mexer muito menos que preço, e a ~163
     // leads/dia partir em quatro é desenhar um teste que nunca conclui.
     //
-    // Se o B ganhar, a pergunta de qual bloco fez o trabalho continua aberta —
-    // e aí ela vira um teste próprio, com o B de hoje como controle.
+    // Consequência do empate: qual dos dois blocos fazia o quê ficou SEM
+    // resposta, e não vale mais gastar tráfego pra descobrir — nenhum dos dois
+    // moveu o número junto. O depoimento do Marcelo saiu de carona com o
+    // sorteio; se alguém quiser prova social escrita de volta, é teste próprio
+    // e sem a JBL dentro.
     //
-    // ── COMO LER ───────────────────────────────────────────────
+    // ── SE O ASSUNTO VOLTAR ────────────────────────────────────
+    //
+    // Regulamento e certificado ANTES de o sorteio subir de novo, não depois.
+    // E aí é experimento novo, com o B de hoje como controle — não religar
+    // este, cuja leitura já está fechada.
+    //
+    // ── COMO ERA LIDO ──────────────────────────────────────────
     //
     // RECEITA POR LEAD, não conversão. É a mesma lição do preço, e aqui ela
-    // tem uma armadilha extra: o sorteio é isca, e isca atrai quem quer o
-    // prêmio e não a música. Se ele subir a captura de e-mail e derrubar a
-    // compra, a conversão do funil inteiro cai e a receita por lead é o único
-    // número que enxerga isso de uma vez.
+    // tinha uma armadilha extra: o sorteio é isca, e isca atrai quem quer o
+    // prêmio e não a música. Se ele subisse a captura de e-mail e derrubasse a
+    // compra, a conversão do funil inteiro cairia e a receita por lead era o
+    // único número que enxergava isso de uma vez.
     variantes: ["A", "B"],
+    // ZERADO NO B desde 27/09 (ver acima). O array é o chão, não a verdade —
+    // quem manda é a linha da tabela `experimentos` —, mas deixar o peso aqui
+    // batendo com o banco evita que a próxima leitura ache que ainda é 50/50.
+    peso: [1, 0],
     // NUNCA `true` aqui. O array é o chão, não a verdade: `configDoCodigo()`
     // força `ativo: false` em tudo, e quem manda é a linha da tabela
     // `experimentos`. Escrever `true` aqui só enganaria quem lê.
     ativo: false,
-    nota: "Prova social e sorteio no passo do e-mail e na tela da oferta. A = sem nenhum dos dois (a tela como era antes de 10/09). B = sorteio da JBL Boombox 4 + depoimento do Marcelo R. nos dois lugares. Os dois blocos andam JUNTOS porque separá-los partiria o tráfego em quatro e o teste nunca concluiria. Ler por RECEITA POR LEAD: o sorteio é isca, e isca pode subir a captura de e-mail e derrubar a compra — só a receita por lead enxerga os dois efeitos de uma vez.",
+    nota: "ENCERRADO 27/09/2026 (empate em receita por lead), zerando o PESO do B e NÃO pelo `ativo`: quem já tem B guardado pode ter comprado vendo a promessa do sorteio, e apagar o bloco não cancela o número — só esconde a promessa de quem a recebeu. Visita nova cai em A (sem os blocos) e a cauda seca sozinha. Empate aqui não é falta de amostra: com ~163 leads/dia o teste só vê efeito de ~3,5 pontos pra cima, então o sorteio não faz nada grande — e o que ele carrega (prêmio atrelado à compra sem autorização da SPA/MF, regulamento vazio) não é pequeno. NÃO religar: se o sorteio voltar, regulamento antes e teste novo com o B de hoje como controle.",
   },
 ];
 

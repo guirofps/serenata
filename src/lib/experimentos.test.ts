@@ -130,6 +130,41 @@ describe("scriptExperimentos", () => {
     }
   });
 
+  // ── COMO UM TESTE SE ENCERRA SEM ATROPELAR QUEM JÁ FOI SORTEADO ──
+  //
+  // Este é o caso do `prova_blocos` em 27/09 e do braço E do preço em 28/08:
+  // zera o peso do braço perdedor e o teste acaba pra visita NOVA, enquanto
+  // quem já tem aquele braço guardado continua nele até trocar de aparelho.
+  //
+  // É a propriedade que faz `peso` ser diferente de `ativo`, e a única razão
+  // pela qual desligar o sorteio da JBL pelo peso foi seguro: quem tinha `B`
+  // guardado podia ter COMPRADO vendo "cada música te dá um número pra
+  // concorrer", e apagar o bloco do navegador dessa pessoa não cancelaria o
+  // número — só esconderia a promessa de quem a recebeu.
+  //
+  // O outro teste de guardado usa pesos [1,1], então ele não pega isto: uma
+  // "otimização" que filtrasse variante de peso zero ANTES de ler o
+  // localStorage passaria por ele e viraria a cauda inteira pro controle, em
+  // silêncio, sem nenhum teste ficar vermelho.
+  it("peso zero NÃO expulsa quem já tem esse braço guardado", () => {
+    const c = cfg({
+      variantes: [
+        { nome: "A", peso: 1 },
+        { nome: "B", peso: 0 },
+      ],
+    });
+    for (const r of [0.01, 0.5, 0.999]) {
+      const { atributos, guardado } = rodarScript(scriptExperimentos(c), {
+        aleatorios: [r],
+        guardado: { "mp_exp:preco": "B" },
+      });
+      expect(atributos["data-exp-preco"]).toBe("B");
+      // E continua guardado: uma visita da cauda não pode reescrever o carimbo
+      // pra "A", senão a pessoa muda de braço na segunda página que abrir.
+      expect(guardado["mp_exp:preco"]).toBe("B");
+    }
+  });
+
   it("todos os pesos zerados cai no controle, nunca trava e nunca sorteia variante", () => {
     const c = cfg({
       variantes: [
