@@ -262,6 +262,35 @@ export const renderizarVideo = inngest.createFunction(
       const suf = t === 1 ? "" : `-t${t}`;
       if (t > 1) await step.sleep(`respiro${suf}`, "2m");
 
+      // ── A VEZ NA FILA (27/09) ──────────────────────────────────
+      // O `concurrency: 1` acima limita PASSOS rodando, não renders no ar:
+      // enquanto um espera a Lambda, o próximo disparava, e três juntos pediam
+      // ~21 Lambdas numa cota de 10. Aqui o job só dispara quando nenhum outro
+      // vídeo está renderizando (começado há menos de 25 min), e já reserva a
+      // vez no MESMO passo: como os passos desta função rodam um de cada vez,
+      // olhar e reservar não disputam entre si. Teto de ~30 min na fila; depois
+      // disso dispara mesmo assim, e a nova tentativa acima cobre a recusa.
+      for (let k = 0; k < 40; k++) {
+        const livre = await step.run(`vez${suf}-${k}`, async () => {
+          const sb = db();
+          const desde = new Date(Date.now() - 25 * 60000).toISOString();
+          const { count } = await sb
+            .from("videos")
+            .select("id", { count: "exact", head: true })
+            .eq("status", "renderizando")
+            .neq("id", videoId)
+            .gt("render_iniciado_em", desde);
+          if (count) return false;
+          await sb
+            .from("videos")
+            .update({ status: "renderizando", render_iniciado_em: new Date().toISOString() })
+            .eq("id", videoId);
+          return true;
+        });
+        if (livre) break;
+        await step.sleep(`fila${suf}-${k}`, "45s");
+      }
+
       const render = await step.run(`iniciar-render${suf}`, async () => {
         const { funcao, serveUrl } = configLambda();
         const r = await renderMediaOnLambda({
