@@ -30,6 +30,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { segredoConfere } from "../lib/segredo.js";
 import { Resend } from "resend";
+import { DONOS } from "../../src/lib/donos.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -47,7 +48,7 @@ async function avisar(assunto: string, html: string) {
     if (!chave) return;
     await new Resend(chave).emails.send({
       from: "Serenata <contato@serenatagift.com>",
-      to: ["guilhermerojasiqueira@gmail.com"],
+      to: [...DONOS],
       subject: assunto,
       html,
     });

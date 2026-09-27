@@ -24,6 +24,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import { DONOS } from "../../src/lib/donos.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -275,7 +276,7 @@ export default async function handler(req: Req, res: Res) {
           const { Resend } = await import("resend");
           await new Resend(chave).emails.send({
             from: "Serenata <contato@serenatagift.com>",
-            to: ["guilhermerojasiqueira@gmail.com"],
+            to: [...DONOS],
             subject: `🔴 COMPRADOR não recebeu o e-mail: ${para}`,
             html:
               `<p><strong>O e-mail de entrega voltou. Essa pessoa pagou e não sabe onde está a música dela.</strong></p>` +

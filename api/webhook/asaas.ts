@@ -33,6 +33,7 @@ import { venderNoTiktok } from "../lib/tiktok-eventos.js";
 import { Resend } from "resend";
 import { creditarUpsell, liberarVideoDoBump } from "../lib/creditar-upsell.js";
 import { ofertaDaReferencia } from "../../src/lib/creditos.js";
+import { DONOS } from "../../src/lib/donos.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -57,7 +58,7 @@ async function alertarDono(assunto: string, html: string) {
     if (!chave) return;
     await new Resend(chave).emails.send({
       from: "Serenata <contato@serenatagift.com>",
-      to: ["guilhermerojasiqueira@gmail.com"],
+      to: [...DONOS],
       subject: assunto,
       html,
     });

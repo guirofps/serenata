@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { DONOS } from "../../src/lib/donos.js";
 
 // A ENTREGA QUE SAI E NÃO CHEGA.
 //
@@ -39,7 +40,6 @@ import { Resend } from "resend";
 // futura, não de produto já vendido. Alarme que dispara por tudo vira alarme
 // que ninguém lê.
 
-const PARA = "guilhermerojasiqueira@gmail.com";
 const ESPERAR_MIN = 90;
 // Janela de 24h: mais velho que isso já foi tratado ou já virou ticket, e
 // realertar todo dia sobre o mesmo caso é o jeito de treinar o dono a ignorar.
@@ -117,7 +117,7 @@ export const vigiaEntrega = inngest.createFunction(
 
       await new Resend(chave).emails.send({
         from: "Serenata <contato@serenatagift.com>",
-        to: [PARA],
+        to: [...DONOS],
         subject: `🔴 ${orfaos.length} entrega${orfaos.length > 1 ? "s" : ""} sem confirmação de recebimento`,
         html:
           `<p><strong>O e-mail de entrega saiu e o provedor nunca confirmou que chegou.</strong> ` +

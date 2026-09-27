@@ -11,8 +11,8 @@
 import { inngest } from "../client.js";
 import { triar, responder, type Caso } from "../lib/suporte.js";
 import { createClient } from "@supabase/supabase-js";
+import { DONOS } from "../../src/lib/donos.js";
 
-const DONO = "guilhermerojasiqueira@gmail.com";
 
 function db() {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -89,7 +89,7 @@ export const triarSuporte = inngest.createFunction(
         const { Resend } = await import("resend");
         await new Resend(chave).emails.send({
           from: "Serenata <contato@serenatagift.com>",
-          to: [DONO],
+          to: [...DONOS],
           subject: `Suporte: ${paraVoce.length} ${paraVoce.length === 1 ? "e-mail precisa" : "e-mails precisam"} de você`,
           html:
             `<p style="font-family:Helvetica,Arial,sans-serif;">` +

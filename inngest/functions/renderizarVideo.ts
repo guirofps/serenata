@@ -13,6 +13,7 @@ import { assinaturaDoVideo, entradaDaMusica } from "../../src/lib/assinatura-vid
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { emailVideoPronto, assuntoVideoPronto } from "../../emails/video-pronto.js";
 import type { PropsPresente } from "../../video/src/props.js";
+import { DONOS } from "../../src/lib/donos.js";
 
 // O VÍDEO-PRESENTE, do pagamento ao MP4 no bucket.
 //
@@ -75,7 +76,7 @@ async function alertarDono(assunto: string, html: string) {
     if (!chave) return;
     await new Resend(chave).emails.send({
       from: "Serenata <contato@serenatagift.com>",
-      to: ["guilhermerojasiqueira@gmail.com"],
+      to: [...DONOS],
       subject: assunto,
       html,
     });

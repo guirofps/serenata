@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { DONOS } from "./donos.js";
 
 // O AVISO DE QUE A OPERAÇÃO PAROU.
 //
@@ -31,7 +32,6 @@ import { Resend } from "resend";
 // O e-mail PESSOAL do dono, não o contato@. Mesma escolha do `vigiarSaldo`:
 // alerta de operação tem que chegar em quem pode recarregar, e a caixa de
 // suporte é onde ele se perderia no meio dos tickets.
-const PARA = "guilhermerojasiqueira@gmail.com";
 
 /**
  * Um aviso por assunto a cada 30 minutos.
@@ -70,7 +70,7 @@ async function enviar(assunto: string, html: string): Promise<void> {
     if (!chave) return;
     await new Resend(chave).emails.send({
       from: "Serenata <contato@serenatagift.com>",
-      to: [PARA],
+      to: [...DONOS],
       subject: assunto,
       html,
     });

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { DONOS } from "../../src/lib/donos.js";
 
 // O DISJUNTOR DE GASTO DO SUNO.
 //
@@ -36,7 +37,6 @@ import { Resend } from "resend";
 const TETO_PADRAO = 300;
 /** Janela larga: quem separa um dia do outro é a CHAVE, não a janela. */
 const JANELA_S = 60 * 60 * 48;
-const PARA = "guilhermerojasiqueira@gmail.com";
 
 /** A chave em `config_operacao`. Mesma string que o painel escreve. */
 export const CHAVE_TETO = "teto_musicas_dia";
@@ -107,7 +107,7 @@ async function avisarUmaVezPorDia(sb: SupabaseClient, teto: number): Promise<voi
     if (!chave) return;
     await new Resend(chave).emails.send({
       from: "Serenata <contato@serenatagift.com>",
-      to: [PARA],
+      to: [...DONOS],
       subject: `🔌 Disjuntor ligou: ${teto} músicas hoje, parei de gerar pra quem não pagou`,
       html:
         `<p><strong>O teto diário de geração foi atingido: ${teto} músicas.</strong></p>` +
@@ -149,7 +149,7 @@ async function avisarPerto(sb: SupabaseClient, teto: number): Promise<void> {
     if (!chave) return;
     await new Resend(chave).emails.send({
       from: "Serenata <contato@serenatagift.com>",
-      to: [PARA],
+      to: [...DONOS],
       subject: `⚠️ 80% do teto de músicas usado hoje (${alerta} de ${teto})`,
       html:
         `<p><strong>Já foram ${alerta} das ${teto} músicas do dia.</strong> ` +

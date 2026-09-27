@@ -10,6 +10,7 @@ import {
   type Resumo,
 } from "../../src/lib/resumo-diario.js";
 import { assuntoResumoDiario, emailResumoDiario } from "../../emails/resumo-diario.js";
+import { DONOS } from "../../src/lib/donos.js";
 
 // O FECHAMENTO DO DIA, por e-mail, toda manhã, pro dono e pro sócio.
 //
@@ -25,7 +26,7 @@ import { assuntoResumoDiario, emailResumoDiario } from "../../emails/resumo-diar
 // Disparo manual, pra reenviar ou conferir um dia: evento
 // `resumo/diario.enviar` com `{ dia?: "AAAA-MM-DD", para?: string[] }`.
 
-const PARA = ["guilhermerojasiqueira@gmail.com", "nosfer@gmail.com"];
+const PARA = [...DONOS];
 // Mesmo câmbio de `PRECOS.cambioUsdBrl` (src/lib/custos.ts). Não importado de
 // lá porque aquele arquivo puxa o cliente do app pelo alias `@/`, que o
 // bundle das funções não resolve.

@@ -40,8 +40,9 @@ import { woovi } from "../src/lib/woovi.js";
 import { asaasPix, consultarPorReferencia } from "../src/lib/asaas-pix.js";
 import { creditarUpsell } from "./lib/creditar-upsell.js";
 import { ofertaDaReferencia } from "../src/lib/creditos.js";
+import { donosMais } from "../src/lib/donos.js";
 
-const PARA = ["guilhermerojasiqueira@gmail.com", "agenciarocketfy@gmail.com"];
+const PARA = donosMais("agenciarocketfy@gmail.com");
 
 /**
  * Quanto tempo pra trás olhar, e quantos por rodada.

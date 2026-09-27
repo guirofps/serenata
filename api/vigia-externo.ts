@@ -39,11 +39,12 @@ import { Resend } from "resend";
 import { segredoConfere } from "./lib/segredo.js";
 import { lerOsSinais, assuntoDoAlerta } from "../src/lib/sinais-geracao.js";
 import { trilhoMudo, MINUTOS_MUDO } from "../src/lib/sinais-pagamento.js";
+import { donosMais } from "../src/lib/donos.js";
 
 // DOIS ENDEREÇOS, igual ao vigia de dentro. Este alerta existe pra uma
 // decisão com hora marcada (pausar as campanhas), e e-mail que empaca num
 // filtro custa o dia inteiro de mídia.
-const PARA = ["guilhermerojasiqueira@gmail.com", "agenciarocketfy@gmail.com"];
+const PARA = donosMais("agenciarocketfy@gmail.com");
 
 const JANELA_MIN = 20;
 const PRESA_MIN = 15;

@@ -25,6 +25,7 @@ import { pareceTypo, sugerirEmail } from "../../src/lib/email-typo.js";
 import { reconhecerOferta, PRODUTO_PRINCIPAL, OFERTAS } from "../../src/lib/creditos.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { segredoConfere } from "../lib/segredo.js";
+import { DONOS } from "../../src/lib/donos.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -105,7 +106,7 @@ async function alertarDono(assunto: string, html: string) {
     if (!chave) return;
     await new Resend(chave).emails.send({
       from: "Serenata <contato@serenatagift.com>",
-      to: ["guilhermerojasiqueira@gmail.com"],
+      to: [...DONOS],
       subject: assunto,
       html,
     });

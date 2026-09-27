@@ -2,6 +2,7 @@ import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { lerOsSinais as avaliarSinais } from "../../src/lib/sinais-geracao.js";
+import { donosMais } from "../../src/lib/donos.js";
 
 // O VIGIA DA GERAÇÃO — e ele CONSERTA antes de avisar.
 //
@@ -40,7 +41,7 @@ import { lerOsSinais as avaliarSinais } from "../../src/lib/sinais-geracao.js";
 // hora marcada — pausar as campanhas —, e um e-mail que cai na caixa errada
 // ou empaca num filtro custa o dia inteiro de midia. Redundancia aqui e
 // barata; o alerta que nao chega nao e.
-const PARA = ["guilhermerojasiqueira@gmail.com", "agenciarocketfy@gmail.com"];
+const PARA = donosMais("agenciarocketfy@gmail.com");
 
 /** Quanto tempo sem música pronta, HAVENDO tráfego, já é suspeito. */
 const JANELA_MIN = 20;

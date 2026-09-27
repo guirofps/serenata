@@ -1,5 +1,6 @@
 ﻿import { inngest } from "../client.js";
 import { Resend } from "resend";
+import { DONOS } from "../../src/lib/donos.js";
 
 // VIGIA DO SALDO do kie.ai.
 //
@@ -35,7 +36,6 @@ const CREDITO_POR_MUSICA = 12; // tabela pública do kie.ai (2 versões)
 // O e-mail PESSOAL do dono, não o contato@. Alerta de operação tem que
 // chegar em quem pode recarregar, e a caixa de suporte é onde ele se perderia
 // no meio dos tickets — que foi mais ou menos o que aconteceu em 08/08.
-const PARA = "guilhermerojasiqueira@gmail.com";
 
 export const vigiarSaldo = inngest.createFunction(
   {
@@ -87,7 +87,7 @@ export const vigiarSaldo = inngest.createFunction(
       const acabou = musicas === 0;
       await new Resend(chave).emails.send({
         from: "Serenata <contato@serenatagift.com>",
-        to: [PARA],
+        to: [...DONOS],
         // Assunto direto: este e-mail chega no meio de outros e precisa ser
         // lido no título, sem abrir.
         subject: acabou

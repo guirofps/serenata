@@ -30,6 +30,7 @@ import { enviarVendaUtmify } from "../lib/utmify.js";
 import { venderNoTiktok } from "../lib/tiktok-eventos.js";
 import { OFERTAS } from "../../src/lib/creditos.js";
 import { Resend } from "resend";
+import { DONOS } from "../../src/lib/donos.js";
 
 // Mesmo molde do `perfectpay.ts`. Duplicado de proposito e nao extraido: sao
 // dois webhooks que precisam sobreviver um ao outro, e a unica coisa que
@@ -40,7 +41,7 @@ async function alertarDono(assunto: string, html: string) {
     if (!chave) return;
     await new Resend(chave).emails.send({
       from: "Serenata <contato@serenatagift.com>",
-      to: ["guilhermerojasiqueira@gmail.com"],
+      to: [...DONOS],
       subject: assunto,
       html,
     });

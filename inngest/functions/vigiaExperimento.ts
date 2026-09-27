@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { DONOS } from "../../src/lib/donos.js";
 
 // O EXPERIMENTO QUE DERRUBA A VENDA, DESLIGADO SEM NINGUÉM OLHANDO.
 //
@@ -56,7 +57,7 @@ async function avisar(assunto: string, html: string) {
   if (!chave) return;
   await new Resend(chave).emails.send({
     from: "Serenata <contato@serenatagift.com>",
-    to: ["guilhermerojasiqueira@gmail.com"],
+    to: [...DONOS],
     subject: assunto,
     html,
   });
