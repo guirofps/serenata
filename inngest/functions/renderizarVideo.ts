@@ -242,64 +242,91 @@ export const renderizarVideo = inngest.createFunction(
     })) as Preparo;
     if (preparo.pular) return { ok: false, motivo: preparo.motivo };
 
-    // ── 2. DISPARA NA LAMBDA ───────────────────────────────────────
-    const render = await step.run("iniciar-render", async () => {
-      const { funcao, serveUrl } = configLambda();
-      const r = await renderMediaOnLambda({
-        region: REGIAO,
-        functionName: funcao,
-        serveUrl,
-        composition: "Presente",
-        inputProps: preparo.props,
-        codec: "h264",
-        crf: 26,
-        scale: ESCALA,
-        imageFormat: "jpeg",
-        privacy: "private",
-        maxRetries: 2,
-        concurrency: LAMBDAS_POR_RENDER,
-        outName: `${videoId}.mp4`,
-        downloadBehavior: { type: "download", fileName: "video-serenata.mp4" },
-      });
-      await db()
-        .from("videos")
-        .update({
-          status: "renderizando",
-          render_id: r.renderId,
-          render_bucket: r.bucketName,
-          erro: null,
-        })
-        .eq("id", videoId);
-      return { renderId: r.renderId, bucketName: r.bucketName };
-    });
-
-    // ── 3. ESPERA TERMINAR ─────────────────────────────────────────
-    // Cada Lambda faz ~3,4 quadros/s: com 6 delas, uma música de 3,5 min leva
-    // ~6 min (medido 24/09). 40 voltas de 30s = 20 min de teto, abaixo dos
-    // 900s + folga da Lambda: passou disso, algo travou e é melhor falhar alto.
+    // ── 2 e 3. DISPARA NA LAMBDA E ESPERA TERMINAR ─────────────────
+    //
+    // ATÉ 3 RENDERS, e não 1 (27/09). A AWS recusa no MEIO do render quando a
+    // cota de Lambdas simultâneas estoura ("AWS Concurrency limit reached /
+    // Rate Exceeded"): três vídeos PAGOS morreram assim de 25 a 27/09. O
+    // `retries` do Inngest não salvava, porque repetia só a leitura do
+    // progresso de um render que já estava morto; o render em si nunca era
+    // refeito. Agora esse erro específico espera 2 minutos (a cota esvaziar)
+    // e dispara um render novo. Qualquer outro erro continua falhando alto.
+    //
+    // A primeira tentativa mantém os nomes de passo de antes, pra um render
+    // que já estava no ar durante o deploy não se perder na memória do Inngest.
+    const MAX_RENDERS = 3;
     let saida: { bucket: string; key: string } | null = null;
-    for (let i = 0; i < 40 && !saida; i++) {
-      await step.sleep(`espera-${i}`, "30s");
-      const p = await step.run(`progresso-${i}`, async () => {
-        const { funcao } = configLambda();
-        const prog = await getRenderProgress({
+    // O render que deu certo, pra limpar o S3 dele no fim.
+    let ultimoRender: { renderId: string; bucketName: string } | null = null;
+    for (let t = 1; t <= MAX_RENDERS && !saida; t++) {
+      const suf = t === 1 ? "" : `-t${t}`;
+      if (t > 1) await step.sleep(`respiro${suf}`, "2m");
+
+      const render = await step.run(`iniciar-render${suf}`, async () => {
+        const { funcao, serveUrl } = configLambda();
+        const r = await renderMediaOnLambda({
           region: REGIAO,
           functionName: funcao,
-          bucketName: render.bucketName,
-          renderId: render.renderId,
+          serveUrl,
+          composition: "Presente",
+          inputProps: preparo.props,
+          codec: "h264",
+          crf: 26,
+          scale: ESCALA,
+          imageFormat: "jpeg",
+          privacy: "private",
+          maxRetries: 2,
+          concurrency: LAMBDAS_POR_RENDER,
+          outName: `${videoId}.mp4`,
+          downloadBehavior: { type: "download", fileName: "video-serenata.mp4" },
         });
-        if (prog.fatalErrorEncountered) {
-          throw new Error(
-            `render falhou: ${prog.errors?.[0]?.message?.slice(0, 300) ?? "sem detalhe"}`,
-          );
-        }
-        return prog.done && prog.outKey && prog.outBucket
-          ? { bucket: prog.outBucket, key: prog.outKey }
-          : null;
+        await db()
+          .from("videos")
+          .update({
+            status: "renderizando",
+            render_id: r.renderId,
+            render_bucket: r.bucketName,
+            erro: null,
+          })
+          .eq("id", videoId);
+        return { renderId: r.renderId, bucketName: r.bucketName };
       });
-      saida = p;
+      ultimoRender = render;
+
+      // Cada Lambda faz ~3,4 quadros/s: com 6 delas, uma música de 3,5 min leva
+      // ~6 min (medido 24/09). 40 voltas de 30s = 20 min de teto, abaixo dos
+      // 900s + folga da Lambda: passou disso, algo travou e é melhor falhar alto.
+      for (let i = 0; i < 40 && !saida; i++) {
+        await step.sleep(`espera${suf}-${i}`, "30s");
+        const p = await step.run(`progresso${suf}-${i}`, async () => {
+          const { funcao } = configLambda();
+          const prog = await getRenderProgress({
+            region: REGIAO,
+            functionName: funcao,
+            bucketName: render.bucketName,
+            renderId: render.renderId,
+          });
+          if (prog.fatalErrorEncountered) {
+            const msg = `render falhou: ${prog.errors?.[0]?.message?.slice(0, 300) ?? "sem detalhe"}`;
+            if (/Concurrency limit|Rate Exceeded/i.test(msg) && t < MAX_RENDERS) {
+              return { refazer: msg };
+            }
+            throw new Error(msg);
+          }
+          return prog.done && prog.outKey && prog.outBucket
+            ? { bucket: prog.outBucket, key: prog.outKey }
+            : null;
+        });
+        if (p && "refazer" in p) {
+          console.warn(
+            `[renderizar-video] ${videoId}: cota da AWS estourou, novo render (${t + 1}/${MAX_RENDERS})`,
+          );
+          break;
+        }
+        saida = p;
+      }
     }
-    if (!saida) throw new Error("render passou de 10 minutos");
+    if (!saida) throw new Error("render não terminou (cota da AWS ou mais de 20 minutos)");
     const arquivo = saida;
 
     // ── 4. TRAZ PRO SUPABASE ───────────────────────────────────────
@@ -345,11 +372,13 @@ export const renderizarVideo = inngest.createFunction(
       // Limpa o S3. Se falhar, o ciclo de vida do bucket do Remotion apaga
       // depois; não é motivo pra refazer a entrega.
       try {
-        await deleteRender({
-          region: REGIAO,
-          bucketName: render.bucketName,
-          renderId: render.renderId,
-        });
+        if (ultimoRender) {
+          await deleteRender({
+            region: REGIAO,
+            bucketName: ultimoRender.bucketName,
+            renderId: ultimoRender.renderId,
+          });
+        }
       } catch (err) {
         console.error("[video] deleteRender falhou (ignorado):", err);
       }
