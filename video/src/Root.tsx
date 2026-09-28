@@ -75,6 +75,7 @@ export const RemotionRoot: React.FC = () => {
       id="Mix"
       component={Mix}
       durationInFrames={Math.round(duracaoMix() * FPS)}
+      calculateMetadata={({ props }) => ({ durationInFrames: Math.round(duracaoMix(props.blocos) * FPS) })}
       fps={FPS}
       width={1080}
       height={1920}

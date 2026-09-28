@@ -63,6 +63,8 @@ export type Trecho = {
   topo?: Array<[number, string]>;
   /** Legenda de baixo (cobre a antiga do casal). */
   baixo?: string;
+  /** Fonte deitada (16:9): corta o centro pra encher a tela vertical. */
+  horizontal?: boolean;
 };
 
 export const TRECHOS: Trecho[] = [
@@ -264,7 +266,14 @@ export function Clipe({ t, primeiro, pulso }: { t: Trecho; primeiro: boolean; pu
   return (
     <AbsoluteFill style={{ backgroundColor: "black" }}>
       <AbsoluteFill style={{ transform: `scale(${zoom})` }}>
-        <OffthreadVideo src={staticFile(t.src)} startFrom={Math.round(t.de * FPS)} muted />
+        <OffthreadVideo
+          src={staticFile(t.src)}
+          startFrom={Math.round(t.de * FPS)}
+          muted
+          // Vídeo deitado (o das reações da home) vira vertical cortando o
+          // centro: a pessoa está no meio do quadro, as bordas são sofá.
+          style={t.horizontal ? { width: "100%", height: "100%", objectFit: "cover" } : undefined}
+        />
       </AbsoluteFill>
       {/* Vinheta leve: tira o ar de vídeo de celular cru. */}
       <AbsoluteFill

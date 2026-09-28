@@ -24,7 +24,7 @@ import { CARTAO_S, Clipe, Final, MOSAICO_S, usePulso, type Trecho } from "./Comp
 const FPS = 30;
 const AUDIO = "anuncio/demo-v1.mp3";
 
-type Bloco = { tipo: "clipe"; t: Trecho } | { tipo: "produto" };
+export type Bloco = { tipo: "clipe"; t: Trecho } | { tipo: "produto" };
 
 // Tempo do bloco "produto": o roteiro `produto` do Anuncio (letra 5,5 +
 // música 6 + recebe 5). Se o roteiro mudar lá, muda aqui.
@@ -84,13 +84,20 @@ export const BLOCOS: Bloco[] = [
 ];
 
 const duracaoBloco = (b: Bloco) => (b.tipo === "produto" ? PRODUTO_S : b.t.ate - b.t.de);
-export const duracaoMix = () => BLOCOS.reduce((s, b) => s + duracaoBloco(b), 0) + MOSAICO_S + CARTAO_MIX_S;
+export const duracaoMix = (blocos: Bloco[] = BLOCOS) => blocos.reduce((s, b) => s + duracaoBloco(b), 0) + MOSAICO_S + CARTAO_MIX_S;
 
 export type PropsMix = {
   /** Segundo da música de demonstração em que o vídeo começa. */
   inicioAudio: number;
   /** A demonstração (Bianca: letra, karaokê), a mesma das versões g. */
   anuncio: PropsAnuncio;
+  /**
+   * A sequência de reações e o "como funciona". Sem ela, a do Mix A. As
+   * variações trocam o GANCHO (o primeiro bloco) e o que precisar pra a
+   * mesma cena não aparecer duas vezes; o miolo fica, pra o teste medir o
+   * gancho e não outra coisa.
+   */
+  blocos?: Bloco[];
 };
 
 /** Flash branco curto na entrada do "como funciona", igual aos cortes. */
@@ -99,7 +106,7 @@ const Flash: React.FC = () => {
   return <AbsoluteFill style={{ backgroundColor: "white", opacity: interpolate(f, [0, 7], [0.7, 0], { extrapolateRight: "clamp" }) }} />;
 };
 
-export const Mix: React.FC<PropsMix> = ({ inicioAudio, anuncio }) => {
+export const Mix: React.FC<PropsMix> = ({ inicioAudio, anuncio, blocos: sequencia = BLOCOS }) => {
   const { durationInFrames } = useVideoConfig();
   const frame = useCurrentFrame();
   const pulso = usePulso(frame, inicioAudio);
@@ -109,7 +116,7 @@ export const Mix: React.FC<PropsMix> = ({ inicioAudio, anuncio }) => {
   });
 
   let desde = 0;
-  const blocos = BLOCOS.map((b, i) => {
+  const blocos = sequencia.map((b, i) => {
     const dur = Math.round(duracaoBloco(b) * FPS);
     const inicioS = desde / FPS;
     const el =
