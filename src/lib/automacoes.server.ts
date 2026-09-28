@@ -173,14 +173,14 @@ export const AUTOMACOES: Automacao[] = [
     fase: "antes",
     gatilho: "a cada 30 min",
     quemRecebe:
-      "Quem gerou o código PIX e não pagou, 10 min depois. Um segundo toque 48h depois do primeiro. Janela de 72h, teto de dois toques.",
+      "Quem gerou o código PIX e não pagou, 10 min depois. Segundo toque ~20h depois do primeiro e terceiro ~52h depois do segundo (~72h no total). Teto de três toques.",
     remetente: "transacional",
     arquivo: "inngest/functions/pixNaoPago.ts",
     emails: [
       {
         template: "pix_nao_pago",
         nome: "Seu PIX está aqui",
-        quando: "10 min depois de gerar o PIX · repete uma vez 48h depois",
+        quando: "10 min depois de gerar o PIX · repete em ~20h e em ~72h",
         idiomas: ["pt", "es"],
       },
     ],
@@ -242,7 +242,7 @@ export const AUTOMACOES: Automacao[] = [
     nome: "Lembrete: monte o presente",
     fase: "depois",
     gatilho: "de hora em hora",
-    quemRecebe: "Quem pagou entre 3h e 96h atrás e ainda não abriu o editor. Um só.",
+    quemRecebe: "Quem pagou entre 1h e 96h atrás e ainda não abriu o editor. Um só.",
     quemNao: "Quem já montou (esse recebe o 'Guarde o link').",
     remetente: "transacional",
     arquivo: "inngest/functions/lembrarPresente.ts",
@@ -250,7 +250,7 @@ export const AUTOMACOES: Automacao[] = [
       {
         template: "lembrar_presente",
         nome: "O presente está esperando você montar",
-        quando: "3h depois da compra, sem montar",
+        quando: "1h depois da compra, sem montar",
         idiomas: ["pt", "es"],
       },
     ],

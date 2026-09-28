@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
+import { todasAsPaginas } from "../lib/paginar.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
@@ -95,14 +96,20 @@ export const ofertaVideo = inngest.createFunction(
     const candidatos = await step.run("achar-candidatos", async () => {
       const sb = db();
       const agora = Date.now();
-      const { data: pedidos } = await sb
-        .from("pedidos")
-        .select("email, musica_id, quiz_response_id, paid_at")
-        .eq("status", "pago")
-        .not("musica_id", "is", null)
-        .gte("paid_at", new Date(agora - MAX_DIAS * 86400000).toISOString())
-        .lte("paid_at", new Date(agora - MIN_DIAS * 86400000).toISOString())
-        .order("paid_at", { ascending: false });
+      // PAGINADO (28/09): sem isto a janela parava nas 1.000 compras mais
+      // recentes e o resto nunca recebia a oferta. Ver inngest/lib/paginar.ts.
+      const pedidos = await todasAsPaginas<{ email: string | null; musica_id: string | null; quiz_response_id: string | null; paid_at: string }>((de, ate) =>
+        sb
+          .from("pedidos")
+          .select("email, musica_id, quiz_response_id, paid_at")
+          .eq("status", "pago")
+          .not("musica_id", "is", null)
+          .gte("paid_at", new Date(agora - MAX_DIAS * 86400000).toISOString())
+          .lte("paid_at", new Date(agora - MIN_DIAS * 86400000).toISOString())
+          .order("paid_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(de, ate),
+      );
 
       const out: Array<{
         email: string;
@@ -113,6 +120,16 @@ export const ofertaVideo = inngest.createFunction(
         tipo: Tipo;
       }> = [];
       const conta = { comFoto: 0, semFoto: 0 };
+      // Quem JÁ recebeu cada tipo, numa consulta só por tipo. Com a janela
+      // paginada são milhares de compras, e perguntar uma a uma estouraria o
+      // tempo da função.
+      const ofertados: Record<Tipo, Set<string>> = { comFoto: new Set(), semFoto: new Set() };
+      for (const t of ["comFoto", "semFoto"] as Tipo[]) {
+        const evs = await todasAsPaginas<{ event_data: { musica_id?: string } | null }>((de, ate) =>
+          sb.from("funnel_events").select("event_data").eq("event_name", MARCA[t]).order("id", { ascending: true }).range(de, ate),
+        );
+        for (const e of evs) if (e.event_data?.musica_id) ofertados[t].add(e.event_data.musica_id);
+      }
       const vistos = new Set<string>();
 
       for (const p of pedidos ?? []) {
@@ -120,6 +137,7 @@ export const ofertaVideo = inngest.createFunction(
           break;
         if (!p.email || !p.musica_id || vistos.has(p.musica_id)) continue;
         vistos.add(p.musica_id);
+        if (ofertados.comFoto.has(p.musica_id) && ofertados.semFoto.has(p.musica_id)) continue;
 
         const { data: temVideo } = await sb
           .from("videos")
@@ -138,6 +156,7 @@ export const ofertaVideo = inngest.createFunction(
         const fotos = (m.foto_path ? 1 : 0) + ((m.galeria as string[] | null) ?? []).length;
         const tipo: Tipo = fotos > 0 ? "comFoto" : "semFoto";
         if (conta[tipo] >= MAX_POR_RODADA[tipo]) continue;
+        if (ofertados[tipo].has(p.musica_id)) continue;
         if (
           tipo === "semFoto" &&
           Date.parse(p.paid_at as string) > agora - MIN_DIAS_SEM_FOTO * 86400000

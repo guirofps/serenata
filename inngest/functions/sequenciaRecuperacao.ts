@@ -505,15 +505,20 @@ export const sequenciaRecuperacao = inngest.createFunction(
       //
       // Uma consulta a mais por rodada é barata; tratar comprador como
       // abandonador é o tipo de erro que a pessoa conta pros outros.
-      const { data: comprasAgora } = await sb
-        .from("pedidos")
-        .select("quiz_response_id, email")
-        .eq("status", "pago");
-      const jaComprou = new Set(
-        (comprasAgora ?? []).map((x) => x.quiz_response_id).filter(Boolean),
+      //
+      // PAGINADO (28/09): esta consulta lia só as primeiras 1.000 das 5.000+
+      // compras (teto silencioso do PostgREST), então a trava deixava passar
+      // a maioria dos compradores. Um "volta e compra" pra quem comprou é o
+      // erro que esta trava existe pra impedir.
+      const comprasAgora = await paginado<{ quiz_response_id: string | null; email: string | null }>(
+        sb,
+        "pedidos",
+        "id, quiz_response_id, email",
+        (q) => q.eq("status", "pago"),
       );
+      const jaComprou = new Set(comprasAgora.map((x) => x.quiz_response_id).filter(Boolean));
       const emailComprou = new Set(
-        (comprasAgora ?? []).map((x) => (x.email ?? "").toLowerCase()).filter(Boolean),
+        comprasAgora.map((x) => (x.email ?? "").toLowerCase()).filter(Boolean),
       );
 
       for (const p of fila) {

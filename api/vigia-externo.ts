@@ -39,6 +39,7 @@ import { Resend } from "resend";
 import { segredoConfere } from "./lib/segredo.js";
 import { lerOsSinais, assuntoDoAlerta } from "../src/lib/sinais-geracao.js";
 import { trilhoMudo, MINUTOS_MUDO } from "../src/lib/sinais-pagamento.js";
+import { escadaMuda, ESCADA_MUDA_H } from "../src/lib/sinais-email.js";
 import { donosMais } from "../src/lib/donos.js";
 
 // DOIS ENDEREÇOS, igual ao vigia de dentro. Este alerta existe pra uma
@@ -241,6 +242,49 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
             `<li>cobrancas criadas nesses ${MINUTOS_MUDO} min: ${pixGeradosNaJanela ?? 0}</li>` +
             `<li>dessas, ja passaram de 20 min sem pagar: ${maduras ?? 0}</li>` +
             `</ul>`,
+        });
+      }
+    }
+
+    // ── A ESCADA DE RECUPERAÇÃO, QUE PARA SEM DAR ERRO ───────────
+    //
+    // Ver `sinais-email.ts`: duas paradas silenciosas em setembro, a última
+    // deixou 4.475 pessoas com música pronta sem nenhum e-mail. Mora aqui e
+    // não num cron do Inngest porque a escada É um cron do Inngest.
+    const { count: enviosEscada } = await sb
+      .from("funnel_events")
+      .select("id", { count: "exact", head: true })
+      .eq("event_name", "email_sequencia_enviado")
+      .gte("created_at", new Date(agora - ESCADA_MUDA_H * 3600000).toISOString());
+    const { count: letras48h } = await sb
+      .from("funnel_events")
+      .select("id", { count: "exact", head: true })
+      .eq("event_name", "email_letra_enviado")
+      .gte("created_at", new Date(agora - 48 * 3600000).toISOString());
+    const ve = escadaMuda({ enviosNasUltimasHoras: enviosEscada ?? 0, letras48h: letras48h ?? 0 });
+    if (ve.avisar && process.env.RESEND_API_KEY) {
+      // Um aviso a cada 12h: parada de escada custa venda, não é incêndio.
+      const chaveEscada = `alerta-escada:${new Date(agora - 3 * 3600000).toISOString().slice(0, 10)}:${new Date(agora - 3 * 3600000).getUTCHours() < 12 ? "a" : "b"}`;
+      let primeiraEscada = true;
+      try {
+        const { data } = await sb.rpc("consumir_limite", { p_chave: chaveEscada, p_janela_s: 43200, p_teto: 1 });
+        primeiraEscada = data !== false;
+      } catch {
+        primeiraEscada = true;
+      }
+      if (primeiraEscada) {
+        await new Resend(process.env.RESEND_API_KEY).emails.send({
+          from: "Serenata <contato@serenatagift.com>",
+          to: PARA,
+          subject: `📭 Escada de recuperação parada há ${ESCADA_MUDA_H}h`,
+          html:
+            `<p style="font-size:17px"><strong>${ve.motivo}</strong></p>` +
+            `<p>É a sequência que manda e-mail pra quem tem a música pronta e não comprou ` +
+            `(<code>inngest/functions/sequenciaRecuperacao.ts</code>). Ela roda a cada 30 min e ` +
+            `tem milhares de pessoas na fila, então zero envio em ${ESCADA_MUDA_H}h é parada, não fila vazia.</p>` +
+            `<p><strong>Onde olhar:</strong> as execuções de <code>sequencia-recuperacao</code> no painel do Inngest ` +
+            `(o log diz quantos aptos e quantos barrados em cada rodada). Em setembro ela parou duas vezes ` +
+            `sem nenhum erro.</p>`,
         });
       }
     }

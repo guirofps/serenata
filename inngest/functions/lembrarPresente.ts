@@ -21,9 +21,11 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 
 const SITE = "https://www.serenatagift.com";
 
-// Janela: 3h dá tempo da pessoa montar sozinha sem receber cobrança à toa;
-// 96h evita ressuscitar compra velha e parecer spam.
-const MIN_H = 3;
+// Janela: 1h (era 3h até 28/09). Medido de 14 a 27/09: 49% dos compradores
+// não tinham aberto o editor 3h depois de pagar, e o upsell acontece quase
+// todo na primeira hora (40 dos 64 vídeos). Lembrar em 1h pega a pessoa ainda
+// com o presente na cabeça. 96h evita ressuscitar compra velha e parecer spam.
+const MIN_H = 1;
 const MAX_H = 96;
 
 function db() {

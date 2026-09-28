@@ -78,13 +78,22 @@ import { woovi } from "../../src/lib/woovi.js";
 // moeda. Quando o volume justificar, é uma variante a mais aqui.
 
 const MIN_MIN = 10;
-/** Quantos toques no máximo, e quanto tempo entre eles. Ver `podeMandar`. */
-const MAX_TOQUES = 2;
-const SEGUNDO_TOQUE_H = 48;
-// Janela de 72h, e não mais 24: o segundo toque sai 48h depois do primeiro,
-// então a pessoa precisa continuar visível na busca até lá. O que impede o
-// e-mail de virar cobrança não é mais a janela, é o teto de dois toques.
-const MAX_H = 72;
+/**
+ * Quantos toques no máximo, e quanto tempo entre eles. Ver `podeMandar`.
+ *
+ * TRÊS TOQUES: 10 min, ~20h e ~72h (28/09, decisão do dono). Medido de 14 a
+ * 27/09: o 1º toque (10 min) converte 10,2% (64/628) e o 2º, que saía 48h
+ * depois, só 2,8% (15/544). O código do Asaas continua valendo muito além
+ * disso, então o limite nunca foi o código: era a atenção da pessoa, que
+ * esfria rápido. O 2º vem pro dia seguinte (20h), e o 3º fecha em ~72h.
+ */
+const MAX_TOQUES = 3;
+/** Horas depois do toque anterior: [antes do 2º, antes do 3º]. */
+const ESPERA_ENTRE_TOQUES_H = [20, 52];
+// Janela de 80h: a pessoa precisa continuar visível na busca até o 3º toque
+// (~72h depois do primeiro). O que impede o e-mail de virar cobrança não é a
+// janela, é o teto de três toques.
+const MAX_H = 80;
 // Teto por rodada, pelo mesmo motivo do `volteCriar`: `serenatagift.com` é
 // domínio novo, e pico de volume em remetente sem histórico é a assinatura de
 // lista comprada. A 12 por rodada de meia hora, a fila de ~39/dia se esvazia
@@ -152,22 +161,22 @@ async function toquesJaDados(sb: ReturnType<typeof db>, quizId: string) {
 }
 
 /**
- * Pode mandar agora? Um toque, e um segundo 48h depois — e nada além disso.
+ * Pode mandar agora? Até três toques: 10 min, ~20h e ~72h — e nada além disso.
  *
- * O SEGUNDO EXISTE porque o primeiro sai 20 minutos depois do abandono, e
- * quem estava no meio de outra coisa naquele minuto pode nunca ter aberto.
- * Quarenta e oito horas cai no dia seguinte, num horário provavelmente
- * diferente, e ainda dentro da validade do código PIX (~55h) — que é o que
- * torna o segundo toque uma continuação e não um recomeço.
+ * O SEGUNDO EXISTE porque o primeiro sai minutos depois do abandono, e quem
+ * estava no meio de outra coisa naquele minuto pode nunca ter aberto. Vinte
+ * horas cai no dia seguinte, num horário diferente, enquanto a intenção
+ * ainda está quente (a 48h ele convertia 2,8%; ver MAX_TOQUES).
  *
- * O TERCEIRO NÃO EXISTE. Quem não voltou em dois toques não vai voltar por
- * insistência, e a diferença entre lembrete e perseguição é exatamente essa.
- * Depois disso a pessoa segue na escada, que é outro assunto e outro texto.
+ * O TERCEIRO fecha a janela em ~72h. Depois dele, nada: a diferença entre
+ * lembrete e perseguição é o teto, e a pessoa segue na escada, que é outro
+ * assunto e outro texto.
  */
 function podeMandar(toques: { quantos: number; ultimo: number }, agora: number) {
   if (toques.quantos === 0) return true;
   if (toques.quantos >= MAX_TOQUES) return false;
-  return agora - toques.ultimo >= SEGUNDO_TOQUE_H * 3600000;
+  const esperaH = ESPERA_ENTRE_TOQUES_H[toques.quantos - 1] ?? Infinity;
+  return agora - toques.ultimo >= esperaH * 3600000;
 }
 
 /**
