@@ -49,7 +49,17 @@ const COPY: Record<IdiomaEmail, {
   },
 };
 
-export function assuntoLetraPronta(nome: string, locale: IdiomaEmail = "pt") {
+/**
+ * TESTE DE ASSUNTO (28/09, aprovado pelo dono). Metade recebe o assunto de
+ * sempre (A) e metade um que puxa o gancho que mais vende nos anúncios: a
+ * prévia cantada (B). Medido de 14 a 27/09 no A: 20,4% de abertura e 6,9% de
+ * clique em 12.888 envios, e 9,3% de quem clicou comprou depois do clique.
+ * A variante vai no evento `email_letra_enviado` e na tag do Resend.
+ * Só português; o espanhol fica no A.
+ */
+export type VarianteAssuntoLetra = "a" | "b";
+export function assuntoLetraPronta(nome: string, locale: IdiomaEmail = "pt", variante: VarianteAssuntoLetra = "a") {
+  if (locale === "pt" && variante === "b") return `${nome} ganhou uma música: ouça um trecho cantado`;
   return COPY[locale].assunto(nome);
 }
 

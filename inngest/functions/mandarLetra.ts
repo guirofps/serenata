@@ -217,12 +217,20 @@ export const mandarLetra = inngest.createFunction(
         const linkPrevia = `${SITE}/retomar?s=${encodeURIComponent(p.sessao)}`;
         const linkDescadastro = `${SITE}/descadastrar?s=${encodeURIComponent(p.sessao)}&lang=${p.locale}`;
 
+        // TESTE DE ASSUNTO (28/09): metade A, metade B, pelo último caractere
+        // do id do quiz (estável: a mesma pessoa cai sempre no mesmo lado).
+        // O B cita o nome no começo, então sem nome real fica no A: "quem você
+        // ama ganhou uma música" não é frase.
+        const nomeReal = p.nome !== "quem você ama" && p.nome !== "esa persona";
+        const variante: "a" | "b" =
+          p.locale === "pt" && nomeReal && parseInt(p.quizId.slice(-1), 16) % 2 === 1 ? "b" : "a";
+
         const { data: enviado, error } = await resend.emails.send({
       // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
       // (entregue, aberto, clicado, devolvido), e e o unico jeito de
       // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
       // pessoa e nem sempre vem no evento.
-      tags: [{ name: "template", value: "letra_pronta" }],
+      tags: [{ name: "template", value: "letra_pronta" }, { name: "variante", value: variante }],
           // ── DOMÍNIO RAIZ, desde 02/09 ────────────────────────
           //
           // Ele saía pelo subdomínio de recuperação porque vai pra quem ainda
@@ -248,7 +256,7 @@ export const mandarLetra = inngest.createFunction(
           // Desde 25/09 aponta pra `/api/descadastro`, que aceita o toque
           // único (POST) do provedor; a página `/descadastrar` não aceitava.
           headers: cabecalhosDescadastro(p.email),
-          subject: assuntoLetraPronta(p.nome, p.locale),
+          subject: assuntoLetraPronta(p.nome, p.locale, variante),
           html: emailLetraPronta({ ...p, linkPrevia, linkDescadastro }),
         });
         if (error) {
@@ -269,7 +277,7 @@ export const mandarLetra = inngest.createFunction(
         await sb.from("funnel_events").insert({
           session_id: p.sessao || null,
           event_name: "email_letra_enviado",
-          event_data: { quiz_response_id: p.quizId, email: p.email, locale: p.locale },
+          event_data: { quiz_response_id: p.quizId, email: p.email, locale: p.locale, variante_assunto: variante },
         });
       }
       return n;

@@ -39,16 +39,21 @@ const COPY: Record<
     rodape: string;
   }
 > = {
+  // 28/09, aprovado pelo dono: o texto passa a abrir pela PRÉVIA e pela letra
+  // grátis, os dois ganchos que mais vendem nos anúncios. Medido de 14 a
+  // 27/09 com o texto antigo: quem abria e NÃO clicava convertia 0,92%,
+  // menos do que quem nem abria (1,78%). O e-mail não dava motivo pra voltar.
+  // O botão leva pro `/retomar`, que é exatamente a tela da letra e da prévia.
   pt: {
-    assunto: (n) => `A música de ${n} está gravada e é sua`,
+    assunto: (n) => `Ouça a música de ${n} antes de pagar`,
     titulo: (n) => `A música de <em style="color:#7d2b3a;">${n}</em> já existe.`,
     corpo:
-      "Ela foi gravada com a história que você contou, com os detalhes que só vocês dois sabem. Está aqui, inteira, esperando você.",
+      "A letra é sua, de graça, e você pode ouvir um trecho cantado antes de decidir qualquer coisa. Ela foi gravada com a história que você contou, com os detalhes que só vocês dois sabem.",
     // O QUE ELA LEVA, e não o que ela paga. Quem parou na tela do gateway
     // parou porque o preço apareceu antes de a entrega ficar clara.
     lembrete:
       "Você recebe a música completa nas duas versões gravadas, a página presente com link e QR Code pra enviar, e o arquivo MP3 pra guardar pra sempre.",
-    botao: "OUVIR E LIBERAR A MINHA MÚSICA",
+    botao: "OUVIR O TRECHO CANTADO",
     rodapeAviso:
       "A letra continua sua de qualquer jeito, e o link não expira.<br>Se travou alguma coisa na hora de pagar, é só responder este e-mail.",
     rodape: "Serenata · uma música feita da história de quem você ama",
