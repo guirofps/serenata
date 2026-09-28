@@ -5,6 +5,7 @@ import { Presente } from "./Presente";
 import type { PropsPresente } from "./props";
 import { Anuncio, duracaoDoRoteiro, type PropsAnuncio } from "./Anuncio";
 import { Compilado, duracaoCompilado } from "./Compilado";
+import { Mix, duracaoMix } from "./Mix";
 
 /**
  * O vídeo dura o que a MÚSICA dura, medido no próprio MP3.
@@ -69,6 +70,15 @@ export const RemotionRoot: React.FC = () => {
       width={1080}
       height={1920}
       defaultProps={{ inicioAudio: 48.6 }}
+    />
+    <Composition
+      id="Mix"
+      component={Mix}
+      durationInFrames={Math.round(duracaoMix() * FPS)}
+      fps={FPS}
+      width={1080}
+      height={1920}
+      defaultProps={{ inicioAudio: 48.6, anuncio: EXEMPLO_ANUNCIO }}
     />
     <Composition
       id="Presente"

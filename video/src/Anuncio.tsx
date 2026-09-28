@@ -59,6 +59,17 @@ export type PropsAnuncio = {
   textos?: Partial<Record<"conta" | "letra" | "musica" | "recebe" | "video" | "reacoes" | "presente" | "fecho", Frase>>;
   /** Os dois trechos do `reacoes.mp4` da cena de reações do meio. */
   reacoesInicios?: [number, number];
+  /**
+   * Os passos do fechamento ("Conte a história", "Veja a letra grátis e ouça
+   * a prévia", "Se amar, mande de presente"). Sem eles, o fechamento antigo.
+   */
+  passos?: string[];
+  /**
+   * Sem a trilha própria: quando o anúncio vira um PEDAÇO de outra montagem
+   * (o `Mix`), a música toca lá fora, uma só, e `inicioAudio` só serve pra
+   * a letra e a batida daqui baterem com ela.
+   */
+  semAudio?: boolean;
 };
 
 type Frase = { reta: string; italico: string };
@@ -84,7 +95,7 @@ const useFrase = (k: keyof typeof TEXTOS_PADRAO) => React.useContext(TextosCtx)[
 // ela recebendo, reações de novo e o fechamento. Sem "como funciona" longo:
 // no TikTok o que segura é a emoção, e a explicação cabe numa cena.
 type TipoCena = "gancho" | "conta" | "letra" | "musica" | "recebe" | "video" | "reacoes" | "presente" | "fecho";
-export type NomeRoteiro = "completo" | "curto";
+export type NomeRoteiro = "completo" | "curto" | "vendedor" | "produto";
 const ROTEIROS: Record<NomeRoteiro, Array<[TipoCena, number]>> = {
   completo: [
     ["gancho", 6.5],
@@ -103,6 +114,24 @@ const ROTEIROS: Record<NomeRoteiro, Array<[TipoCena, number]>> = {
     ["recebe", 6],
     ["reacoes", 6],
     ["fecho", 5],
+  ],
+  // O VENDEDOR (28/09): o curto tinha perdido a cena da música, e o dono
+  // apontou que é exatamente o que mais vende: ver a letra de graça, OUVIR a
+  // prévia antes de pagar, e só então virar presente. As três em sequência,
+  // e o fechamento repete como passos.
+  vendedor: [
+    ["gancho", 4.5],
+    ["letra", 6],
+    ["musica", 6.5],
+    ["recebe", 5.5],
+    ["reacoes", 5],
+    ["fecho", 5.5],
+  ],
+  // Só o "como funciona", pra entrar no meio das reações do `Mix`.
+  produto: [
+    ["letra", 5.5],
+    ["musica", 6],
+    ["recebe", 5],
   ],
 };
 export const duracaoDoRoteiro = (r: NomeRoteiro = "completo") => ROTEIROS[r].reduce((s, [, d]) => s + d, 0);
@@ -524,7 +553,7 @@ const CenaPresente: React.FC<{ para: string }> = ({ para }) => {
   );
 };
 
-const CenaFecho: React.FC = () => {
+const CenaFecho: React.FC<{ passos?: string[] }> = ({ passos }) => {
   const { d, n, ini } = useCena();
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -540,9 +569,46 @@ const CenaFecho: React.FC = () => {
       <div style={{ fontFamily: PLAYFAIR, fontStyle: "italic", fontWeight: 600, color: OURO, fontSize: 86, lineHeight: 1.15, opacity: e(0.45), transform: `translateY(${(1 - e(0.45)) * 30}px)` }}>
         {fecho.italico}
       </div>
+      {passos?.length ? (
+        <div style={{ marginTop: 56, display: "flex", flexDirection: "column", gap: 26, alignItems: "stretch", width: 860 }}>
+          {passos.map((p, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 26,
+                textAlign: "left",
+                opacity: e(0.7 + i * 0.25),
+                transform: `translateX(${(1 - e(0.7 + i * 0.25)) * -40}px)`,
+              }}
+            >
+              <div
+                style={{
+                  flexShrink: 0,
+                  width: 64,
+                  height: 64,
+                  borderRadius: "50%",
+                  background: OURO,
+                  color: FUNDO,
+                  fontFamily: POPPINS,
+                  fontWeight: 700,
+                  fontSize: 34,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {i + 1}
+              </div>
+              <div style={{ fontFamily: POPPINS, fontWeight: 600, color: CREME, fontSize: 40, lineHeight: 1.2 }}>{p}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div
         style={{
-          marginTop: 80,
+          marginTop: passos?.length ? 60 : 80,
           padding: "34px 70px",
           borderRadius: 999,
           background: OURO,
@@ -550,8 +616,8 @@ const CenaFecho: React.FC = () => {
           fontFamily: POPPINS,
           fontWeight: 700,
           fontSize: 44,
-          opacity: e(0.8),
-          transform: `scale(${0.9 + 0.1 * e(0.8)})`,
+          opacity: e(passos?.length ? 1.5 : 0.8),
+          transform: `scale(${0.9 + 0.1 * e(passos?.length ? 1.5 : 0.8)})`,
           boxShadow: "0 20px 60px rgba(232,196,106,0.35)",
         }}
       >
@@ -595,17 +661,17 @@ export const Anuncio: React.FC<PropsAnuncio> = (props) => {
       case "presente":
         return <CenaPresente para={props.para} />;
       case "fecho":
-        return <CenaFecho />;
+        return <CenaFecho passos={props.passos} />;
     }
   };
 
   return (
     <AbsoluteFill style={{ backgroundColor: FUNDO }}>
-      <Audio
+      {props.semAudio ? null : <Audio
         src={audioSrc}
         startFrom={Math.round(props.inicioAudio * fps)}
         volume={(fr) => interpolate(fr, [0, 8, durationInFrames - 30, durationInFrames], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}
-      />
+      />}
       {/* Brilho quente de fundo, que respira com os graves. */}
       <AbsoluteFill
         style={{

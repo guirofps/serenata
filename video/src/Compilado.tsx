@@ -51,7 +51,7 @@ const OURO = "#e8c46a";
 const FPS = 30;
 const AUDIO = "anuncio/demo-v1.mp3";
 
-type Trecho = {
+export type Trecho = {
   src: string;
   /** Segundo de início e fim no arquivo original. */
   de: number;
@@ -105,9 +105,10 @@ export const TRECHOS: Trecho[] = [
 // O fim: as quatro reações juntas, e o cartão por cima delas. Os trechos dos
 // quadradinhos foram escolhidos onde o original ainda não tem legenda nem
 // tela final (conferido quadro a quadro).
-const MOSAICO_S = 3.0;
-const CARTAO_S = 4.8;
-const TILES: Array<{ src: string; de: number; congelaEm?: number }> = [
+export const MOSAICO_S = 3.0;
+export const CARTAO_S = 4.8;
+export type Tile = { src: string; de: number; congelaEm?: number };
+export const TILES: Tile[] = [
   { src: "compilado/pai-filha.mp4", de: 27.5 },
   // Janela limpa curta: a legenda vermelha antiga do topo vai até ~20,5s e a
   // de baixo ("Faça você também") entra aos ~23,1s. Toca de 20,6 e congela
@@ -121,7 +122,7 @@ const duracaoTrechos = () => TRECHOS.reduce((s, t) => s + (t.ate - t.de), 0);
 export const duracaoCompilado = () => duracaoTrechos() + MOSAICO_S + CARTAO_S;
 
 /** Graves da música, 0 a 1, pra tudo respirar na batida. */
-function usePulso(frame: number, inicioAudio: number): number {
+export function usePulso(frame: number, inicioAudio: number): number {
   const audio = useAudioData(staticFile(AUDIO));
   if (!audio) return 0;
   const b = visualizeAudio({
@@ -247,7 +248,7 @@ function Caixa({
   );
 }
 
-function Clipe({ t, primeiro, pulso }: { t: Trecho; primeiro: boolean; pulso: number }) {
+export function Clipe({ t, primeiro, pulso }: { t: Trecho; primeiro: boolean; pulso: number }) {
   const frame = useCurrentFrame();
   const dur = (t.ate - t.de) * FPS;
   // Zoom lento + soco de entrada no corte + respiro na batida.
@@ -279,7 +280,16 @@ function Clipe({ t, primeiro, pulso }: { t: Trecho; primeiro: boolean; pulso: nu
 }
 
 /** As quatro reações em grade 2x2, e o cartão final por cima delas. */
-function Final({ pulso }: { pulso: number }) {
+export function Final({
+  pulso,
+  tiles = TILES,
+  passos,
+}: {
+  pulso: number;
+  tiles?: Tile[];
+  /** Com passos, eles entram no lugar da frase de apoio do cartão (o `Mix`). */
+  passos?: string[];
+}) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const noCartao = frame - Math.round(MOSAICO_S * FPS);
@@ -294,7 +304,7 @@ function Final({ pulso }: { pulso: number }) {
   return (
     <AbsoluteFill style={{ backgroundColor: "black" }}>
       <AbsoluteFill style={{ filter: `blur(${borrao}px)` }}>
-        {TILES.map((t, i) => {
+        {tiles.map((t, i) => {
           const s = spring({ frame: frame - i * 4, fps, config: { damping: 13, stiffness: 170 } });
           const limite = t.congelaEm ? Math.round((t.congelaEm - t.de) * FPS) : 0;
           return (
@@ -380,21 +390,61 @@ function Final({ pulso }: { pulso: number }) {
           >
             <TextoAnimado texto="Transforme a história de vocês em *música*" frame={noCartao - 6} corBase={CREME} />
           </div>
-          <div
-            style={{
-              marginTop: 40,
-              fontFamily: POPPINS,
-              fontWeight: 600,
-              fontSize: 44,
-              lineHeight: 1.35,
-              color: CREME,
-              opacity: 0.9 * entra(22),
-              transform: `translateY(${(1 - entra(22)) * 24}px)`,
-            }}
-          >
-            Você conta a história.
-            <br />A letra sai na hora, de graça.
-          </div>
+          {passos?.length ? (
+            <div style={{ marginTop: 48, display: "flex", flexDirection: "column", gap: 24, width: 880 }}>
+              {passos.map((p, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 24,
+                    textAlign: "left",
+                    opacity: entra(18 + i * 7),
+                    transform: `translateX(${(1 - entra(18 + i * 7)) * -40}px)`,
+                  }}
+                >
+                  <div
+                    style={{
+                      flexShrink: 0,
+                      width: 62,
+                      height: 62,
+                      borderRadius: "50%",
+                      background: OURO,
+                      color: "#3a101a",
+                      fontFamily: POPPINS,
+                      fontWeight: 800,
+                      fontSize: 32,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {i + 1}
+                  </div>
+                  <div style={{ fontFamily: POPPINS, fontWeight: 600, fontSize: 40, lineHeight: 1.2, color: CREME }}>
+                    {p}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                marginTop: 40,
+                fontFamily: POPPINS,
+                fontWeight: 600,
+                fontSize: 44,
+                lineHeight: 1.35,
+                color: CREME,
+                opacity: 0.9 * entra(22),
+                transform: `translateY(${(1 - entra(22)) * 24}px)`,
+              }}
+            >
+              Você conta a história.
+              <br />A letra sai na hora, de graça.
+            </div>
+          )}
           <div
             style={{
               marginTop: 70,
