@@ -3,12 +3,18 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase-client";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
-import { minhaIndicacao, pedirSaque, type MinhaIndicacao } from "@/lib/indicacao-fns";
+import {
+  minhaIndicacao,
+  pedirSaque,
+  trocarSaldoPorMusica,
+  type MinhaIndicacao,
+} from "@/lib/indicacao-fns";
 import { CARENCIA_DIAS, reaisDeCentavos } from "@/lib/indicacao";
 import { trackEvent } from "@/lib/track";
-import { ArrowLeft, Check, Copy, Gift, Loader2, Share2, Wallet } from "lucide-react";
+import { ArrowLeft, Check, Copy, Gift, Loader2, Music, Share2, Wallet } from "lucide-react";
 
-// INDIQUE E GANHE: o link de quem já comprou, o saldo e o saque.
+// INDIQUE E GANHE: o link de quem já comprou, o saldo, a troca por música e
+// o saque.
 //
 // Uma tela só, e na ordem em que a pessoa pergunta: o que eu ganho, qual é o
 // meu link, quanto eu tenho, como eu saco. As regras que decidem dinheiro não
@@ -189,7 +195,8 @@ function Painel({
           <strong className="text-[var(--tinta)]">{dados.pctDesconto}% de desconto</strong> na
           primeira música. Você ganha{" "}
           <strong className="text-[var(--tinta)]">{dados.pctComissao}% do que ela pagar</strong>, e
-          saca por PIX a partir de {reaisDeCentavos(dados.minimoCentavos)}.
+          troca por músicas novas ({reaisDeCentavos(dados.musicaCentavos)} cada) ou saca por PIX a
+          partir de {reaisDeCentavos(dados.minimoCentavos)}.
         </p>
       </div>
 
@@ -243,6 +250,10 @@ function Painel({
         />
         <Numero rotulo="Disponível" valor={dados.disponivelCentavos} destaque />
       </div>
+
+      {/* A TROCA POR MÚSICA vem ANTES do PIX: chega muito antes (3 indicações
+          contra 10) e não espera os 30 dias. */}
+      <TrocaMusica dados={dados} token={token} aoTrocar={aoAtualizar} />
 
       <Caixa>
         <p className="flex items-center gap-2 font-medium" style={{ fontSize: "var(--t-sm)" }}>
@@ -326,18 +337,22 @@ function Painel({
               <li key={`s${i}`} className="flex items-center justify-between gap-3 py-3">
                 <span className="min-w-0">
                   <span className="block" style={{ fontSize: "var(--t-sm)" }}>
-                    Saque por PIX
+                    {q.tipo === "musica" ? "Trocado por 1 música" : "Saque por PIX"}
                   </span>
                   <span
                     className="block text-[var(--tinta-suave)]"
                     style={{ fontSize: "var(--t-xs)" }}
                   >
-                    {data(q.quando)} ·{" "}
-                    {q.status === "solicitado"
-                      ? "em análise"
-                      : q.status === "pago"
-                        ? "pago"
-                        : "não aprovado"}
+                    {data(q.quando)}
+                    {q.tipo === "musica"
+                      ? ""
+                      : ` · ${
+                          q.status === "solicitado"
+                            ? "em análise"
+                            : q.status === "pago"
+                              ? "pago"
+                              : "não aprovado"
+                        }`}
                   </span>
                 </span>
                 <span
@@ -364,11 +379,132 @@ function Painel({
           não contam.
         </p>
         <p>
-          O valor fica {CARENCIA_DIAS} dias a liberar, que é o prazo de reembolso. Se a compra for
-          reembolsada, ele sai do seu saldo.
+          O valor fica {CARENCIA_DIAS} dias a liberar pro saque por PIX, que é o prazo de
+          reembolso. Pra trocar por música não precisa esperar. Se a compra for reembolsada, o valor
+          sai do seu saldo.
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * Troca R$ 28 do saldo por uma música nova. Dois toques (trocar, confirmar):
+ * o saldo sai na hora e não volta, então um toque sem querer não pode gastar.
+ */
+function TrocaMusica({
+  dados,
+  token,
+  aoTrocar,
+}: {
+  dados: Extract<MinhaIndicacao, { ok: true }>;
+  token: string;
+  aoTrocar: () => void;
+}) {
+  const [fase, setFase] = useState<"parado" | "confirmar" | "trocando" | "feito">("parado");
+  const [erro, setErro] = useState<string | null>(null);
+  const preco = dados.musicaCentavos;
+  const podeTrocar = dados.saldoTotalCentavos >= preco;
+  const falta = Math.max(0, preco - dados.saldoTotalCentavos);
+
+  async function trocar() {
+    setErro(null);
+    setFase("trocando");
+    try {
+      const r = await trocarSaldoPorMusica({ data: { token } });
+      if (r.ok) {
+        trackEvent("indique_trocou_musica", { valor: preco });
+        setFase("feito");
+        aoTrocar();
+        return;
+      }
+      setErro(
+        r.motivo === "saldo-insuficiente"
+          ? "O saldo mudou. Atualiza a página."
+          : "Não consegui fazer a troca agora. Tenta de novo em alguns minutos.",
+      );
+    } catch {
+      setErro("Não consegui fazer a troca agora. Tenta de novo em alguns minutos.");
+    }
+    setFase("parado");
+  }
+
+  return (
+    <Caixa>
+      <p className="flex items-center gap-2 font-medium" style={{ fontSize: "var(--t-sm)" }}>
+        <Music className="h-4 w-4 text-[var(--acento)]" /> Trocar por uma música nova
+      </p>
+      {fase === "feito" ? (
+        <>
+          <p
+            className="mt-2 text-[var(--tinta-suave)]"
+            style={{ fontSize: "var(--t-sm)", lineHeight: 1.5 }}
+          >
+            Pronto, você ganhou uma música nova. Ela já está nas suas músicas, é só criar.
+          </p>
+          <Link
+            to="/dashboard"
+            className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[var(--raio)] bg-[var(--acento)] font-medium text-white"
+            style={{ fontSize: "var(--t-sm)" }}
+          >
+            <Music className="h-4 w-4" /> Criar minha música
+          </Link>
+        </>
+      ) : podeTrocar ? (
+        <>
+          <p
+            className="mt-2 text-[var(--tinta-suave)]"
+            style={{ fontSize: "var(--t-sm)", lineHeight: 1.5 }}
+          >
+            Use {reaisDeCentavos(preco)} do seu saldo numa música nova completa: letra, as duas
+            gravações, a página com QR Code e o MP3. Não precisa esperar liberar.
+          </p>
+          {erro && (
+            <p className="mt-2 text-red-700" style={{ fontSize: "var(--t-xs)" }}>
+              {erro}
+            </p>
+          )}
+          <button
+            onClick={() => (fase === "confirmar" ? trocar() : setFase("confirmar"))}
+            disabled={fase === "trocando"}
+            className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[var(--raio)] bg-[var(--acento)] font-medium text-white disabled:opacity-50"
+            style={{ fontSize: "var(--t-sm)" }}
+          >
+            {fase === "trocando" && <Loader2 className="h-4 w-4 animate-spin" />}
+            {fase === "confirmar"
+              ? `Confirmar: usar ${reaisDeCentavos(preco)} do saldo`
+              : `Trocar ${reaisDeCentavos(preco)} por uma música`}
+          </button>
+          {fase === "confirmar" && (
+            <button
+              onClick={() => setFase("parado")}
+              className="mt-2 w-full text-center text-[var(--tinta-suave)] underline"
+              style={{ fontSize: "var(--t-xs)" }}
+            >
+              cancelar
+            </button>
+          )}
+        </>
+      ) : (
+        <>
+          <p
+            className="mt-2 text-[var(--tinta-suave)]"
+            style={{ fontSize: "var(--t-sm)", lineHeight: 1.5 }}
+          >
+            Com {reaisDeCentavos(preco)} de saldo você troca por uma música nova completa, sem
+            esperar liberar. Faltam {reaisDeCentavos(falta)}.
+          </p>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--tinta-fraca)]/25">
+            <div
+              className="h-full rounded-full bg-[var(--acento)]"
+              style={{
+                width: `${Math.min(100, Math.max(0, (dados.saldoTotalCentavos / preco) * 100))}%`,
+              }}
+            />
+          </div>
+        </>
+      )}
+    </Caixa>
   );
 }
 

@@ -27,6 +27,14 @@ export const CARENCIA_DIAS = 30;
 export const SAQUE_MINIMO_CENTAVOS = 10_000;
 
 /**
+ * Quanto do saldo vira 1 música nova (28/09). É o preço da "música extra"
+ * (`OFERTAS` em `creditos.ts`): a troca vale exatamente o que a pessoa
+ * pagaria por ela, nem mais nem menos. Repetido na função
+ * `trocar_saldo_por_musica` da migração, e o teste confere os três.
+ */
+export const MUSICA_COM_SALDO_CENTAVOS = 2_800;
+
+/**
  * O alfabeto do código: sem 0/O, 1/I/L. O código é lido em voz alta e
  * digitado de um print, e é aí que "O" e "0" viram suporte.
  */

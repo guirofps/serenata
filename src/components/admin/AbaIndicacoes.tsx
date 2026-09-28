@@ -59,13 +59,17 @@ export function AbaIndicacoes() {
 
   return (
     <div className="space-y-8">
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
         <Cartao rotulo="Links criados" valor={String(dados.codigos)} />
         <Cartao rotulo="Compras por convite" valor={String(dados.comprasComConvite)} />
         <Cartao rotulo="Desconto dado" valor={reaisDeCentavos(dados.descontoDadoCentavos)} />
         <Cartao rotulo="Comissão a liberar" valor={reaisDeCentavos(dados.aLiberarCentavos)} />
         <Cartao rotulo="Comissão liberada" valor={reaisDeCentavos(dados.liberadoCentavos)} />
         <Cartao rotulo="Pago em saques" valor={reaisDeCentavos(dados.pagoEmSaquesCentavos)} />
+        <Cartao
+          rotulo="Trocado por música"
+          valor={`${dados.musicasTrocadas} · ${reaisDeCentavos(dados.trocadoEmMusicasCentavos)}`}
+        />
       </section>
 
       <section className="space-y-3">

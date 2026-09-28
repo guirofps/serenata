@@ -105,6 +105,9 @@ export const creditoParado = inngest.createFunction(
         const q = Number(l.quantidade ?? 0);
         // `uso` vem como quantidade positiva no razão; o sinal é a origem.
         saldo.set(e, (saldo.get(e) ?? 0) + (l.origem === "uso" ? -Math.abs(q || 1) : q));
+        // Só `compra` marca a data, de propósito: o crédito trocado pelo saldo
+        // de indicação (origem `indicacao`) não recebe este lembrete, porque
+        // o texto diz "você comprou / já pagou", e ele não pagou.
         if (l.origem === "compra") compradoEm.set(e, l.created_at);
       }
 

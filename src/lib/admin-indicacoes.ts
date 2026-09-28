@@ -41,6 +41,9 @@ export type PainelIndicacoes = {
   aLiberarCentavos: number;
   liberadoCentavos: number;
   pagoEmSaquesCentavos: number;
+  /** Saldo trocado por música (tipo `musica`): não é dinheiro que saiu. */
+  trocadoEmMusicasCentavos: number;
+  musicasTrocadas: number;
   saques: SaqueAdmin[];
   recentes: ComissaoAdmin[];
 };
@@ -115,10 +118,15 @@ export const carregarIndicacoes = createServerFn({ method: "POST" }).handler(
       created_at: string;
       resolvido_em: string | null;
       nota: string | null;
+      tipo?: string | null;
     }>;
+    // A troca por música nasce "paga" e não é dinheiro que o dono transferiu:
+    // fora da fila e fora do "pago em saques", com contador próprio.
+    const trocas = linhasSaque.filter((s) => s.tipo === "musica");
+    const saquesPix = linhasSaque.filter((s) => s.tipo !== "musica");
 
     // O nome no PIX de quem indica, pra pôr ao lado do nome de quem comprou.
-    const emails = [...new Set(linhasSaque.map((s) => s.email))];
+    const emails = [...new Set(saquesPix.map((s) => s.email))];
     const pagadorPorEmail = new Map<string, string>();
     if (emails.length) {
       const { data } = await db
@@ -143,10 +151,12 @@ export const carregarIndicacoes = createServerFn({ method: "POST" }).handler(
       ),
       aLiberarCentavos: aLiberar,
       liberadoCentavos: liberado,
-      pagoEmSaquesCentavos: linhasSaque
+      trocadoEmMusicasCentavos: trocas.reduce((s, q) => s + q.valor_centavos, 0),
+      musicasTrocadas: trocas.length,
+      pagoEmSaquesCentavos: saquesPix
         .filter((s) => s.status === "pago")
         .reduce((s, q) => s + q.valor_centavos, 0),
-      saques: linhasSaque.map((s) => ({
+      saques: saquesPix.map((s) => ({
         id: s.id,
         email: s.email,
         valorCentavos: s.valor_centavos,

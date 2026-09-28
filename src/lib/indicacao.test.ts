@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { OFERTAS } from "./creditos";
 import {
   CARENCIA_DIAS,
+  MUSICA_COM_SALDO_CENTAVOS,
   PCT_COMISSAO,
   PCT_DESCONTO,
   SAQUE_MINIMO_CENTAVOS,
@@ -21,6 +25,20 @@ describe("indicação: os números combinados com o dono", () => {
     expect(PCT_COMISSAO).toBe(30);
     expect(CARENCIA_DIAS).toBe(30);
     expect(SAQUE_MINIMO_CENTAVOS).toBe(10_000);
+  });
+
+  // A troca vale o preço da música extra. Se o preço dela mudar, a troca
+  // muda junto (aqui E na migração), senão o saldo compra mais barato que a
+  // loja, ou mais caro.
+  it("1 música custa R$ 28 do saldo, o mesmo preço da música extra", () => {
+    const extra = OFERTAS.find((o) => o.id === "extra");
+    expect(MUSICA_COM_SALDO_CENTAVOS).toBe(Math.round((extra?.precoBrl ?? 0) * 100));
+    const sql = readFileSync(
+      join(__dirname, "../../supabase/migrations/20260928000000_indicacao_troca_musica.sql"),
+      "utf8",
+    );
+    expect(sql).toContain(`< ${MUSICA_COM_SALDO_CENTAVOS} then`);
+    expect(sql).toContain(`values (v_email, ${MUSICA_COM_SALDO_CENTAVOS}, 'musica'`);
   });
 });
 

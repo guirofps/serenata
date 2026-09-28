@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { emailDaSessao } from "@/lib/conta-sessao";
 import { conviteDaCompra, jaComprou } from "@/lib/indicacao-db";
 import {
+  MUSICA_COM_SALDO_CENTAVOS,
   PCT_COMISSAO,
   PCT_DESCONTO,
   SAQUE_MINIMO_CENTAVOS,
@@ -54,6 +55,10 @@ export type MinhaIndicacao =
       pctComissao: number;
       pctDesconto: number;
       minimoCentavos: number;
+      /** Quanto do saldo vira 1 música nova (R$ 28). */
+      musicaCentavos: number;
+      /** Tudo que a pessoa tem, liberado ou não: é o que a troca por música usa. */
+      saldoTotalCentavos: number;
       pendenteCentavos: number;
       disponivelCentavos: number;
       sacadoCentavos: number;
@@ -67,6 +72,7 @@ export type MinhaIndicacao =
         quando: string;
         valorCentavos: number;
         status: "solicitado" | "pago" | "recusado";
+        tipo: "pix" | "musica";
       }>;
     }
   | { ok: false; motivo: "sem-sessao" | "sem-compra" | "erro" };
@@ -123,7 +129,7 @@ export const minhaIndicacao = createServerFn({ method: "POST" })
           .limit(50),
         db
           .from("indicacao_saques")
-          .select("valor_centavos, status, created_at")
+          .select("valor_centavos, status, tipo, created_at")
           .eq("email", email)
           .order("created_at", { ascending: false })
           .limit(20),
@@ -132,6 +138,13 @@ export const minhaIndicacao = createServerFn({ method: "POST" })
       const n = (v: unknown) => Number(v ?? 0) || 0;
       const agora = Date.now();
 
+      // A TROCA POR MÚSICA PODE USAR O "A LIBERAR" (ver a migração
+      // 20260928000000), e aí o disponível do banco fica negativo até o
+      // pendente liberar. Pra tela isso não é dívida: é a liberar a menos.
+      // O total não muda; muda só de que gaveta a troca saiu.
+      const total = n(s.pendente_centavos) + n(s.disponivel_centavos);
+      const livre = Math.max(0, Math.min(n(s.disponivel_centavos), total));
+
       return {
         ok: true,
         codigo,
@@ -139,8 +152,10 @@ export const minhaIndicacao = createServerFn({ method: "POST" })
         pctComissao: PCT_COMISSAO,
         pctDesconto: PCT_DESCONTO,
         minimoCentavos: SAQUE_MINIMO_CENTAVOS,
-        pendenteCentavos: n(s.pendente_centavos),
-        disponivelCentavos: n(s.disponivel_centavos),
+        musicaCentavos: MUSICA_COM_SALDO_CENTAVOS,
+        saldoTotalCentavos: Math.max(0, total),
+        pendenteCentavos: Math.max(0, total - livre),
+        disponivelCentavos: livre,
         sacadoCentavos: n(s.sacado_centavos),
         // NENHUM DADO DO CONVIDADO. Quem indica vê que alguém comprou, quando
         // e quanto rendeu; não vê e-mail nem nome de quem usou o link. O
@@ -163,6 +178,7 @@ export const minhaIndicacao = createServerFn({ method: "POST" })
           quando: q.created_at as string,
           valorCentavos: q.valor_centavos as number,
           status: q.status as "solicitado" | "pago" | "recusado",
+          tipo: (q.tipo === "musica" ? "musica" : "pix") as "pix" | "musica",
         })),
       };
     } catch (err) {
@@ -203,4 +219,32 @@ export const pedirSaque = createServerFn({ method: "POST" })
       ok: true,
       valorCentavos: Number((linha as { valor_centavos?: number }).valor_centavos) || 0,
     };
+  });
+
+export type ResultadoTroca =
+  | { ok: true; creditos: number }
+  | { ok: false; motivo: "sem-sessao" | "saldo-insuficiente" | "erro" };
+
+/**
+ * Troca R$ 28 do saldo de indicação por 1 crédito (uma música nova).
+ *
+ * Como o saque: o e-mail sai da SESSÃO, nunca do parâmetro, e a conta do
+ * saldo, a trava e o crédito moram numa função só do banco
+ * (`trocar_saldo_por_musica`), na mesma transação.
+ */
+export const trocarSaldoPorMusica = createServerFn({ method: "POST" })
+  .validator((data: { token: string }) => data)
+  .handler(async ({ data }): Promise<ResultadoTroca> => {
+    const email = await emailDaSessao(data.token);
+    if (!email) return { ok: false, motivo: "sem-sessao" };
+    const db = supabaseAdmin();
+    const { error } = await db.rpc("trocar_saldo_por_musica", { p_email: email }).single();
+    if (error) {
+      if (error.message.includes("saldo-insuficiente"))
+        return { ok: false, motivo: "saldo-insuficiente" };
+      console.error("[indicacao] troca por música falhou:", error.message);
+      return { ok: false, motivo: "erro" };
+    }
+    const { data: saldo } = await db.rpc("saldo_creditos", { p_email: email });
+    return { ok: true, creditos: Number(saldo) || 1 };
   });
