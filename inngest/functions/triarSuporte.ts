@@ -11,8 +11,7 @@
 import { inngest } from "../client.js";
 import { triar, responder, type Caso } from "../lib/suporte.js";
 import { createClient } from "@supabase/supabase-js";
-import { DONOS } from "../../src/lib/donos.js";
-import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
 
 function db() {
@@ -88,10 +87,8 @@ export const triarSuporte = inngest.createFunction(
         const chave = process.env.RESEND_API_KEY;
         if (!chave) return;
         const { Resend } = await import("resend");
-        await new Resend(chave).emails.send({
-          from: MARCA_ATIVA.remetenteTransacional,
-          to: [...DONOS],
-          subject: `Suporte: ${paraVoce.length} ${paraVoce.length === 1 ? "e-mail precisa" : "e-mails precisam"} de você`,
+        await avisarDonos({
+          assunto: `Suporte: ${paraVoce.length} ${paraVoce.length === 1 ? "e-mail precisa" : "e-mails precisam"} de você`,
           html:
             `<p style="font-family:Helvetica,Arial,sans-serif;">` +
             `Respondi <strong>${enviados.length}</strong> sozinho. ` +

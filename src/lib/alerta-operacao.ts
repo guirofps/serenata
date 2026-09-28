@@ -1,6 +1,4 @@
-import { Resend } from "resend";
-import { DONOS } from "./donos.js";
-import { MARCA_ATIVA } from "./marca-identidade.js";
+import { avisarDonos } from "./avisar-donos.js";
 
 // O AVISO DE QUE A OPERAÇÃO PAROU.
 //
@@ -67,12 +65,8 @@ function passouDaJanela(chave: string): boolean {
  */
 async function enviar(assunto: string, html: string): Promise<void> {
   try {
-    const chave = process.env.RESEND_API_KEY;
-    if (!chave) return;
-    await new Resend(chave).emails.send({
-      from: MARCA_ATIVA.remetenteTransacional,
-      to: [...DONOS],
-      subject: assunto,
+    await avisarDonos({
+      assunto: assunto,
       html,
     });
   } catch (err) {

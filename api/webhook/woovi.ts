@@ -30,20 +30,15 @@ import { enviarVendaUtmify } from "../lib/utmify.js";
 import { venderNoTiktok } from "../lib/tiktok-eventos.js";
 import { OFERTAS } from "../../src/lib/creditos.js";
 import { Resend } from "resend";
-import { DONOS } from "../../src/lib/donos.js";
-import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
 // Mesmo molde do `perfectpay.ts`. Duplicado de proposito e nao extraido: sao
 // dois webhooks que precisam sobreviver um ao outro, e a unica coisa que
 // compartilham aqui e o endereco do dono.
 async function alertarDono(assunto: string, html: string) {
   try {
-    const chave = process.env.RESEND_API_KEY;
-    if (!chave) return;
-    await new Resend(chave).emails.send({
-      from: MARCA_ATIVA.remetenteTransacional,
-      to: [...DONOS],
-      subject: assunto,
+    await avisarDonos({
+      assunto: assunto,
       html,
     });
   } catch (err) {

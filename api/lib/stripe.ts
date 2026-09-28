@@ -26,7 +26,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "./entrega.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
-import { DONOS } from "../../src/lib/donos.js";
+import { avisarDonos } from "../../src/lib/avisar-donos.js";
 import { venderNoTiktok } from "./tiktok-eventos.js";
 
 const API = "https://api.stripe.com/v1";
@@ -153,18 +153,14 @@ function taxaEmCentavosDaVenda(s: SessaoStripe): number | null {
 }
 
 async function alertarDono(assunto: string, html: string) {
-  try {
-    const chave = process.env.RESEND_API_KEY;
-    if (!chave) return;
-    await new Resend(chave).emails.send({
-      from: MARCA_ATIVA.remetenteTransacional,
-      to: [...DONOS],
-      subject: `[${MARCA_ATIVA.nome}] ${assunto}`,
-      html,
-    });
-  } catch (err) {
-    console.error("[stripe] alerta ao dono falhou:", err);
-  }
+  // Passa pelo `avisarDonos`, que manda por e-mail E WhatsApp. Este helper
+  // nasceu mandando só e-mail, e o guard de `avisar-donos.test.ts` o pegou no
+  // rebase — que é exatamente o caso que o teste existe pra pegar: alerta novo
+  // que chega na caixa e não no celular, sem nada acender.
+  //
+  // O prefixo da MARCA fica: com Serenata e Ballad no mesmo código, "PAROU:
+  // sem crédito" sem dizer de quem é manda o dono procurar no lugar errado.
+  await avisarDonos({ assunto: `[${MARCA_ATIVA.nome}] ${assunto}`, html });
 }
 
 export type ResultadoConfirmacao =

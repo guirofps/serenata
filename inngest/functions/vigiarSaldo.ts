@@ -1,7 +1,5 @@
 ﻿import { inngest } from "../client.js";
-import { Resend } from "resend";
-import { DONOS } from "../../src/lib/donos.js";
-import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
 // VIGIA DO SALDO do kie.ai.
 //
@@ -86,12 +84,10 @@ export const vigiarSaldo = inngest.createFunction(
       const chave = process.env.RESEND_API_KEY;
       if (!chave) throw new Error("RESEND_API_KEY ausente");
       const acabou = musicas === 0;
-      await new Resend(chave).emails.send({
-        from: MARCA_ATIVA.remetenteTransacional,
-        to: [...DONOS],
+      await avisarDonos({
         // Assunto direto: este e-mail chega no meio de outros e precisa ser
         // lido no título, sem abrir.
-        subject: acabou
+        assunto: acabou
           ? "PAROU: sem crédito no kie.ai, nenhuma música está sendo gerada"
           : `Crédito do kie.ai acabando: restam ${musicas} músicas${diasRestantes !== null ? ` (~${diasRestantes.toFixed(1)} dia${diasRestantes < 2 ? "" : "s"})` : ""}`,
         html: `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;font-size:15px;line-height:1.6;color:#2a1518;">

@@ -13,8 +13,8 @@ import { assinaturaDoVideo, entradaDaMusica } from "../../src/lib/assinatura-vid
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { emailVideoPronto, assuntoVideoPronto } from "../../emails/video-pronto.js";
 import type { PropsPresente } from "../../video/src/props.js";
-import { DONOS } from "../../src/lib/donos.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
 // O VÍDEO-PRESENTE, do pagamento ao MP4 no bucket.
 //
@@ -73,12 +73,8 @@ function configLambda(): { funcao: string; serveUrl: string } {
 
 async function alertarDono(assunto: string, html: string) {
   try {
-    const chave = process.env.RESEND_API_KEY;
-    if (!chave) return;
-    await new Resend(chave).emails.send({
-      from: MARCA_ATIVA.remetenteTransacional,
-      to: [...DONOS],
-      subject: assunto,
+    await avisarDonos({
+      assunto: assunto,
       html,
     });
   } catch (err) {

@@ -33,7 +33,6 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { segredoConfere } from "./lib/segredo.js";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "./lib/entrega.js";
 import { woovi } from "../src/lib/woovi.js";
@@ -41,7 +40,7 @@ import { asaasPix, consultarPorReferencia } from "../src/lib/asaas-pix.js";
 import { creditarUpsell } from "./lib/creditar-upsell.js";
 import { ofertaDaReferencia } from "../src/lib/creditos.js";
 import { donosMais } from "../src/lib/donos.js";
-import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+import { avisarDonos } from "../src/lib/avisar-donos.js";
 
 const PARA = donosMais("agenciarocketfy@gmail.com");
 
@@ -306,10 +305,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     }
 
     if (semEntrega.length && process.env.RESEND_API_KEY) {
-      await new Resend(process.env.RESEND_API_KEY).emails.send({
-        from: MARCA_ATIVA.remetenteTransacional,
-        to: PARA,
-        subject: `📦 ${semEntrega.length} comprador(es) pagaram e ficaram sem o e-mail de entrega`,
+      await avisarDonos({
+        extras: PARA,
+        assunto: `📦 ${semEntrega.length} comprador(es) pagaram e ficaram sem o e-mail de entrega`,
         html:
           `<p><strong>Estes pagaram, a música ficou pronta DEPOIS, e ninguém avisou.</strong> ` +
           `Acabei de mandar a entrega.</p>` +
@@ -326,10 +324,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     // Conserto silencioso esconde a causa. Cada linha aqui é um webhook que
     // se perdeu, e é isso que precisa ser investigado — não o conserto.
     if (consertados.length && process.env.RESEND_API_KEY) {
-      await new Resend(process.env.RESEND_API_KEY).emails.send({
-        from: MARCA_ATIVA.remetenteTransacional,
-        to: PARA,
-        subject: `💸 ${consertados.length} pagamento(s) que o webhook perdeu — já liberados`,
+      await avisarDonos({
+        extras: PARA,
+        assunto: `💸 ${consertados.length} pagamento(s) que o webhook perdeu — já liberados`,
         html:
           `<p><strong>Achei ${consertados.length} pessoa(s) que pagaram e o nosso banco não sabia.</strong> ` +
           `Já marquei como pago e disparei a entrega.</p>` +

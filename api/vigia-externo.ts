@@ -35,13 +35,12 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { segredoConfere } from "./lib/segredo.js";
 import { lerOsSinais, assuntoDoAlerta } from "../src/lib/sinais-geracao.js";
 import { trilhoMudo, MINUTOS_MUDO } from "../src/lib/sinais-pagamento.js";
 import { escadaMuda, ESCADA_MUDA_H } from "../src/lib/sinais-email.js";
 import { donosMais } from "../src/lib/donos.js";
-import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+import { avisarDonos } from "../src/lib/avisar-donos.js";
 
 // DOIS ENDEREÇOS, igual ao vigia de dentro. Este alerta existe pra uma
 // decisão com hora marcada (pausar as campanhas), e e-mail que empaca num
@@ -221,10 +220,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         primeiraPag = true;
       }
       if (primeiraPag) {
-        await new Resend(process.env.RESEND_API_KEY).emails.send({
-          from: MARCA_ATIVA.remetenteTransacional,
-          to: PARA,
-          subject: `💸 ${minutosSemPagamento} min sem NENHUM pagamento entrar`,
+        await avisarDonos({
+          extras: PARA,
+          assunto: `💸 ${minutosSemPagamento} min sem NENHUM pagamento entrar`,
           html:
             `<p style="font-size:17px"><strong>${vp.motivo}</strong></p>` +
             `<p>O funil esta gerando cobranca normalmente. O que pode ter parado e a LIQUIDACAO ` +
@@ -274,10 +272,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         primeiraEscada = true;
       }
       if (primeiraEscada) {
-        await new Resend(process.env.RESEND_API_KEY).emails.send({
-          from: MARCA_ATIVA.remetenteTransacional,
-          to: PARA,
-          subject: `📭 Escada de recuperação parada há ${ESCADA_MUDA_H}h`,
+        await avisarDonos({
+          extras: PARA,
+          assunto: `📭 Escada de recuperação parada há ${ESCADA_MUDA_H}h`,
           html:
             `<p style="font-size:17px"><strong>${ve.motivo}</strong></p>` +
             `<p>É a sequência que manda e-mail pra quem tem a música pronta e não comprou ` +
@@ -324,10 +321,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           : veredito.motivo === "provedor-recusando"
             ? falhas
             : diagnostico.totalPresas;
-      await new Resend(process.env.RESEND_API_KEY).emails.send({
-        from: MARCA_ATIVA.remetenteTransacional,
-        to: PARA,
-        subject: assuntoDoAlerta(veredito.motivo, n),
+      await avisarDonos({
+        extras: PARA,
+        assunto: assuntoDoAlerta(veredito.motivo, n),
         html:
           `<p style="font-size:17px"><strong>Pause as campanhas do Google agora.</strong> ` +
           `Enquanto elas rodam, cada lead que entra vira música que não sai.</p>` +

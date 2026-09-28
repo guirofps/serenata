@@ -1,7 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
-import { DONOS } from "../../src/lib/donos.js";
-import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
 // O DISJUNTOR DE GASTO DO SUNO.
 //
@@ -104,12 +102,8 @@ async function avisarUmaVezPorDia(sb: SupabaseClient, teto: number): Promise<voi
     const primeira = await cabe(sb, `alerta-teto-musica:${diaBr()}`, 1);
     if (!primeira) return;
 
-    const chave = process.env.RESEND_API_KEY;
-    if (!chave) return;
-    await new Resend(chave).emails.send({
-      from: MARCA_ATIVA.remetenteTransacional,
-      to: [...DONOS],
-      subject: `🔌 Disjuntor ligou: ${teto} músicas hoje, parei de gerar pra quem não pagou`,
+    await avisarDonos({
+      assunto: `🔌 Disjuntor ligou: ${teto} músicas hoje, parei de gerar pra quem não pagou`,
       html:
         `<p><strong>O teto diário de geração foi atingido: ${teto} músicas.</strong></p>` +
         `<p>A partir de agora, e até a virada do dia, o funil PAROU de gerar música ` +
@@ -146,12 +140,8 @@ async function avisarPerto(sb: SupabaseClient, teto: number): Promise<void> {
     // Cruzou. A trava do e-mail é a mesma dos outros: contador de teto 1.
     if (!(await cabe(sb, `alerta-perto-musica:${diaBr()}`, 1))) return;
 
-    const chave = process.env.RESEND_API_KEY;
-    if (!chave) return;
-    await new Resend(chave).emails.send({
-      from: MARCA_ATIVA.remetenteTransacional,
-      to: [...DONOS],
-      subject: `⚠️ 80% do teto de músicas usado hoje (${alerta} de ${teto})`,
+    await avisarDonos({
+      assunto: `⚠️ 80% do teto de músicas usado hoje (${alerta} de ${teto})`,
       html:
         `<p><strong>Já foram ${alerta} das ${teto} músicas do dia.</strong> ` +
         `Ainda está gerando normal, mas no ritmo de hoje o disjuntor desarma antes ` +

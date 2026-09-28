@@ -24,8 +24,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { DONOS } from "../../src/lib/donos.js";
 import { MARCA_ATIVA, remetenteEDaMarca } from "../../src/lib/marca-identidade.js";
+import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -305,10 +305,8 @@ export default async function handler(req: Req, res: Res) {
             : { data: null };
 
           const { Resend } = await import("resend");
-          await new Resend(chave).emails.send({
-            from: MARCA_ATIVA.remetenteTransacional,
-            to: [...DONOS],
-            subject: `🔴 COMPRADOR não recebeu o e-mail: ${para}`,
+          await avisarDonos({
+            assunto: `🔴 COMPRADOR não recebeu o e-mail: ${para}`,
             html:
               `<p><strong>O e-mail de entrega voltou. Essa pessoa pagou e não sabe onde está a música dela.</strong></p>` +
               `<p>E-mail: ${para}<br>` +

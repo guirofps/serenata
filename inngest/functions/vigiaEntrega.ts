@@ -1,8 +1,7 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
-import { DONOS } from "../../src/lib/donos.js";
-import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
 // A ENTREGA QUE SAI E NÃO CHEGA.
 //
@@ -116,10 +115,8 @@ export const vigiaEntrega = inngest.createFunction(
         )
         .join("");
 
-      await new Resend(chave).emails.send({
-        from: MARCA_ATIVA.remetenteTransacional,
-        to: [...DONOS],
-        subject: `🔴 ${orfaos.length} entrega${orfaos.length > 1 ? "s" : ""} sem confirmação de recebimento`,
+      await avisarDonos({
+        assunto: `🔴 ${orfaos.length} entrega${orfaos.length > 1 ? "s" : ""} sem confirmação de recebimento`,
         html:
           `<p><strong>O e-mail de entrega saiu e o provedor nunca confirmou que chegou.</strong> ` +
           `Não é bounce nem reclamação: é silêncio, que foi o caso do Sandro em 19/08 — ` +

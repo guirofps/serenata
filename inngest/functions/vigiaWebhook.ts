@@ -1,8 +1,7 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { donosMais } from "../../src/lib/donos.js";
-import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
 // O VIGIA DO WEBHOOK: avisa quando o gateway para de falar com a gente.
 //
@@ -147,10 +146,9 @@ export const vigiaWebhook = inngest.createFunction(
         const chave = process.env.RESEND_API_KEY;
         const dono = donosMais(process.env.EMAIL_DONO ?? "agenciarocketfy@gmail.com");
         if (chave) {
-          await new Resend(chave).emails.send({
-            from: MARCA_ATIVA.remetenteTransacional,
-            to: dono,
-            subject: `🔴 ${v.nome}: webhook mudo há ${minutosMudo} minutos`,
+          await avisarDonos({
+            extras: dono,
+            assunto: `🔴 ${v.nome}: webhook mudo há ${minutosMudo} minutos`,
             html:
               `<p><strong>${quantas}+ cobranças criadas na ${v.nome} nos últimos ` +
               `${SILENCIO_MIN} minutos, e nenhum evento do webhook dela em ` +

@@ -1,9 +1,8 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { lerOsSinais as avaliarSinais } from "../../src/lib/sinais-geracao.js";
 import { donosMais } from "../../src/lib/donos.js";
-import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
 // O VIGIA DA GERAÇÃO — e ele CONSERTA antes de avisar.
 //
@@ -266,10 +265,9 @@ export const vigiaGeracao = inngest.createFunction(
       const chave = process.env.RESEND_API_KEY;
       if (!chave) return;
       const pagos = diagnostico.presas.filter((m) => m.pago).length;
-      await new Resend(chave).emails.send({
-        from: MARCA_ATIVA.remetenteTransacional,
-        to: PARA,
-        subject: maioriaFalhando
+      await avisarDonos({
+        extras: PARA,
+        assunto: maioriaFalhando
           ? `🔴 PAUSE AS CAMPANHAS — o provedor está recusando (${diagnostico.falhas} falhas)`
           : `🔴 PAUSE AS CAMPANHAS — a geração de música parou (${diagnostico.totalPresas} presas)`,
         html:

@@ -25,8 +25,8 @@ import { pareceTypo, sugerirEmail } from "../../src/lib/email-typo.js";
 import { reconhecerOferta, PRODUTO_PRINCIPAL, OFERTAS } from "../../src/lib/creditos.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { segredoConfere } from "../lib/segredo.js";
-import { DONOS } from "../../src/lib/donos.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -103,12 +103,8 @@ function escaparHtml(s: string): string {
 
 async function alertarDono(assunto: string, html: string) {
   try {
-    const chave = process.env.RESEND_API_KEY;
-    if (!chave) return;
-    await new Resend(chave).emails.send({
-      from: MARCA_ATIVA.remetenteTransacional,
-      to: [...DONOS],
-      subject: assunto,
+    await avisarDonos({
+      assunto: assunto,
       html,
     });
   } catch (err) {

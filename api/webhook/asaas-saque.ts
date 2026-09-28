@@ -29,9 +29,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { segredoConfere } from "../lib/segredo.js";
-import { Resend } from "resend";
-import { DONOS } from "../../src/lib/donos.js";
-import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -45,12 +43,8 @@ type Res = ServerResponse & {
 
 async function avisar(assunto: string, html: string) {
   try {
-    const chave = process.env.RESEND_API_KEY;
-    if (!chave) return;
-    await new Resend(chave).emails.send({
-      from: MARCA_ATIVA.remetenteTransacional,
-      to: [...DONOS],
-      subject: assunto,
+    await avisarDonos({
+      assunto: assunto,
       html,
     });
   } catch (err) {

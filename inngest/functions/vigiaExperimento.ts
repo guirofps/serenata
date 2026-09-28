@@ -1,8 +1,6 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
-import { DONOS } from "../../src/lib/donos.js";
-import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
 // O EXPERIMENTO QUE DERRUBA A VENDA, DESLIGADO SEM NINGUÉM OLHANDO.
 //
@@ -54,12 +52,8 @@ export function zDiferenca(a: number, na: number, b: number, nb: number): number
 }
 
 async function avisar(assunto: string, html: string) {
-  const chave = process.env.RESEND_API_KEY;
-  if (!chave) return;
-  await new Resend(chave).emails.send({
-    from: MARCA_ATIVA.remetenteTransacional,
-    to: [...DONOS],
-    subject: assunto,
+  await avisarDonos({
+    assunto: assunto,
     html,
   });
 }
