@@ -12,7 +12,7 @@
 // ── POR QUE A COMISSÃO SAI DO VALOR PAGO, E NÃO DO PREÇO ─────────
 //
 // O convidado já pagou com 10% de desconto, e pode ter levado o vídeo ou o
-// quadro junto. 20% do que entrou de verdade é a única base que nunca paga
+// quadro junto. 30% do que entrou de verdade é a única base que nunca paga
 // comissão sobre dinheiro que não existiu.
 //
 // ── SE MUDAR UM NÚMERO AQUI, MUDE NA MIGRAÇÃO ────────────────────

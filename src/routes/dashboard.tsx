@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase-client";
+import { PCT_COMISSAO, PCT_DESCONTO } from "@/lib/indicacao";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { tp } from "@/lib/textos-presente";
 import { Logo } from "@/components/marca/Logo";
@@ -343,13 +344,14 @@ function Dashboard() {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block font-medium" style={{ fontSize: "var(--t-sm)" }}>
-                Indique e ganhe 20%
+                Indique e ganhe {PCT_COMISSAO}%
               </span>
               <span
                 className="mt-0.5 block text-[var(--tinta-suave)]"
                 style={{ fontSize: "var(--t-xs)", lineHeight: 1.4 }}
               >
-                Seu amigo ganha 10% de desconto, e você recebe 20% do que ele pagar.
+                Seu amigo ganha {PCT_DESCONTO}% de desconto, e você recebe {PCT_COMISSAO}% do
+                que ele pagar.
               </span>
             </span>
             <ChevronRight className="h-5 w-5 shrink-0 text-[var(--tinta-suave)]" />

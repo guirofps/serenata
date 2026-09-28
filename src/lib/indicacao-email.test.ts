@@ -110,3 +110,46 @@ describe("a copy", () => {
     expect(txt.length).toBeGreaterThan(120);
   });
 });
+
+// ── O GUARD DA TELA, e ele nasceu de um escape ──────────────────
+//
+// Quando a comissão passou de 20% pra 30%, o painel do comprador continuou
+// dizendo "Indique e ganhe 20%" por dois commits. O guard que eu tinha escrito
+// cobria o E-MAIL e o SQL, e a TELA passou por baixo — o número estava cravado
+// à mão no JSX, e nada nunca ia acender por causa disso.
+//
+// A regra: nenhuma porcentagem de indicação aparece escrita em lugar nenhum
+// da interface. Ou vem de `PCT_COMISSAO`/`PCT_DESCONTO`, ou não vem.
+describe("nenhuma tela escreve a porcentagem na mão", () => {
+  it("não existe número de indicação cravado em src/", async () => {
+    const { execFileSync } = await import("node:child_process");
+    let saida = "";
+    try {
+      saida = execFileSync(
+        "grep",
+        [
+          "-rnE",
+          "([Ii]ndique e ganhe|ganhe|recebe|comissão de) [0-9]{1,2}%|[0-9]{1,2}% (do que|de comissão)",
+          "--include=*.tsx",
+          "--include=*.ts",
+          // A INTERFACE, não o arquivo de regras: em `indicacao.ts` o número
+          // aparece em comentário explicando a própria regra, e ali ele DEVE
+          // aparecer — é a definição, não uma cópia dela.
+          "src/routes",
+          "src/components",
+        ],
+        { encoding: "utf-8", cwd: process.cwd() },
+      );
+    } catch {
+      saida = "";
+    }
+    const infratores = saida
+      .split("\n")
+      .filter(Boolean)
+      .filter((l) => !/\.test\.ts:/.test(l));
+    expect(
+      infratores,
+      "interpole PCT_COMISSAO / PCT_DESCONTO de src/lib/indicacao.ts",
+    ).toEqual([]);
+  });
+});
