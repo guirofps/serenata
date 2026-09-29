@@ -7,6 +7,8 @@ import { IdentificacaoDoVendedor } from "@/components/quiz/IdentificacaoDoVended
 import { BUMPS, TEXTO_BUMP, type ItemBump } from "@/lib/bump";
 import { mascaraTelefone, telefoneValido } from "@/lib/telefone";
 import { varianteDe } from "@/lib/experimentos";
+import { sugerirEmail } from "@/lib/email-typo";
+import { trackEvent } from "@/lib/track";
 
 // O preco sai do MESMO catalogo que o servidor usa pra compor a cobranca
 // (`src/lib/bump.ts`). Cravar o valor aqui deixaria a tela e a cobranca livres
@@ -176,6 +178,31 @@ export function ResumoDoPedido({
         {editando && !valido && (
           <p className="mt-1 text-xs text-amber-700">Confere esse endereço.</p>
         )}
+        {/* ── "VOCÊ QUIS DIZER…?" TAMBÉM AQUI (28/09) ─────────────
+            O quiz já sugere a correção, mas dá pra ignorar. Em dois dias, dois
+            compradores pagaram com `@gmail.co` e a entrega foi pro nada: um
+            abriu contestação em potencial, o outro ficou sem a música. Esta é
+            a última tela antes do dinheiro sair, e aqui o aviso aparece MESMO
+            sem a pessoa tocar em "trocar". Sugere, não bloqueia, pelo mesmo
+            motivo do quiz: domínio de empresa é imprevisível. */}
+        {(() => {
+          const sugestao = sugerirEmail(valor);
+          if (!sugestao || sugestao === valor.trim().toLowerCase()) return null;
+          return (
+            <button
+              type="button"
+              onClick={() => {
+                trackEvent("email_typo_corrigido", { de: valor, para: sugestao, onde: "resumo" });
+                setValor(sugestao);
+                setEditando(false);
+              }}
+              className="mt-2 w-full rounded-lg bg-amber-50 px-3 py-2 text-left text-xs text-amber-900 ring-1 ring-amber-200"
+            >
+              Esse e-mail parece ter um erro. Você quis dizer{" "}
+              <strong className="font-semibold underline underline-offset-2">{sugestao}</strong>? Toque pra corrigir.
+            </button>
+          );
+        })()}
       </div>
 
       {/* ── O CÓDIGO TAMBÉM NO WHATSAPP ────────────────────

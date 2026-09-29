@@ -7,6 +7,20 @@ import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.j
 import { emailQuaseComprou, assuntoQuaseComprou } from "../../emails/quase-comprou.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
+import { literalLike } from "../../src/lib/sql-like.js";
+
+/** A pessoa (por e-mail, qualquer quiz) comprou nos últimos 14 dias? */
+async function pessoaJaComprou(sb: ReturnType<typeof db>, email: string): Promise<boolean> {
+  const { data } = await sb
+    .from("pedidos")
+    .select("id, email")
+    .ilike("email", literalLike(email))
+    .eq("status", "pago")
+    .gte("paid_at", new Date(Date.now() - 14 * 86400000).toISOString())
+    .limit(5);
+  // Confere em JS também: o `ilike` é sem caixa, e aqui o alvo é a pessoa.
+  return (data ?? []).some((x) => String(x.email ?? "").trim().toLowerCase() === email.trim().toLowerCase());
+}
 
 // CLICOU EM COMPRAR E NÃO GEROU PEDIDO NENHUM.
 //
@@ -188,6 +202,13 @@ export const quaseComprou = inngest.createFunction(
           .limit(1)
           .maybeSingle();
         if (pedido?.id) continue;
+
+        // A PESSOA JÁ COMPROU, por outro quiz? A trava acima é por quiz, e não
+        // basta: em 28/09 um cliente pagou a SEGUNDA música dele e continuou
+        // recebendo o "libere a sua música" da PRIMEIRA, cujo botão leva ao
+        // pagamento. Pra quem acabou de comprar isso é pedir pra pagar de
+        // novo. Mesma trava do `pixNaoPago`: e-mail sem caixa, 14 dias.
+        if (await pessoaJaComprou(sb, q.email as string)) continue;
 
         if (await jaAvisado(sb, q.id)) continue;
 
