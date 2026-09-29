@@ -733,9 +733,13 @@ com coração, mesmo vinho, traço fino. Kit em `docs/marca/ballad/`.
   nas DUAS listas só se servir pros dois.
 - **Stripe:** Embedded Checkout (`CheckoutStripe.tsx`, `stripe-checkout.ts`,
   `api/lib/stripe.ts`, `api/webhook/stripe.ts`). Mesmas travas do PIX.
-  Chaves de TESTE hoje; webhook de teste registrado. Na virada pra live:
-  chaves live + registrar o webhook live + `payment_method_domains` live.
-  Idempotência da sessão: a chave tem versão (`v2`); mexeu no corpo, sobe.
+  LIVE desde 29/09, na conta Stripe que o dono já tinha (nome público de
+  outro negócio, "WPBN", descritor STRIPEONLINE; ele troca depois). Por
+  isso cada cobrança leva `statement_descriptor_suffix: "BALLADGIFT"`.
+  Webhook e domínios (Apple/Google Pay) registrados em live e em teste. As
+  chaves de teste ficam em `.env.ballad.local` como `STRIPE_TEST_*`, e o
+  servidor local (`scratch/dev-ballad.mjs`) usa SÓ elas: o local nunca cobra.
+  Idempotência da sessão: a chave tem versão (`v3`); mexeu no corpo, sobe.
 - **Resend:** mesma conta, chave própria restrita ao balladgift.com, webhook
   próprio. O webhook de cada site ignora eventos do domínio do outro.
 - **Google Ads:** a tag da Serenata NUNCA carrega na Ballad
