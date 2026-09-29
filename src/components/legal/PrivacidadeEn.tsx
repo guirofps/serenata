@@ -73,7 +73,7 @@ export function PrivacidadeEn() {
           <strong>Technical and ad data.</strong> Things like your device and browser type, your IP
           address, the pages you visit on our site, the site that sent you to us, and the tracking
           parameters in the link you clicked (such as UTM tags and ad click IDs like Google's
-          gclid). This tells us which ads work.
+          gclid or TikTok's ttclid). This tells us which ads work.
         </p>
         <p>
           <strong>What we DON'T ask for:</strong> your Social Security number, home address, date of
@@ -129,6 +129,11 @@ export function PrivacidadeEn() {
             <strong>Google Ads</strong>, for ad measurement. We send the ad click ID and the
             purchase amount, never your story or your lyrics.
           </li>
+          <li>
+            <strong>TikTok</strong>, for ad measurement. When you came from a TikTok ad, we send the
+            ad click ID, the purchase amount and a scrambled (hashed) version of your email, never
+            your story or your lyrics.
+          </li>
         </ul>
         <p>
           We may also share information if the law requires it, or to protect our rights and the
@@ -161,7 +166,7 @@ export function PrivacidadeEn() {
       <Secao n={7} titulo="Cookies and ad measurement">
         <p>
           We use your browser's local storage to remember where you stopped in the quiz and which
-          version of the site you saw. We use Google Ads tags to measure where visits and purchases
+          version of the site you saw. We use Google Ads and TikTok tags to measure where visits and purchases
           come from.
         </p>
         <p>
