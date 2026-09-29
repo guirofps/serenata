@@ -744,7 +744,17 @@ com coração, mesmo vinho, traço fino. Kit em `docs/marca/ballad/`.
   próprio. O webhook de cada site ignora eventos do domínio do outro.
 - **Google Ads:** a tag da Serenata NUNCA carrega na Ballad
   (`google-ads.ts`). A dela entra por `VITE_GOOGLE_ADS_ID` e
-  `VITE_GOOGLE_ADS_CONVERSAO` no projeto balladgift.
+  `VITE_GOOGLE_ADS_CONVERSAO` no projeto balladgift. Conta "Projeto GM2"
+  (1060198776), ação "Compra Ballad (site)", contada pela TAG no `/obrigado`
+  (o Stripe sempre volta pra lá). **Upload de conversão pela API não existe
+  pra conta nova**: `UploadClickConversions` devolve
+  `CUSTOMER_NOT_ALLOWLISTED` e manda usar a Data Manager API, que pede o
+  escopo `datamanager` que o nosso refresh token não tem.
+- **TikTok:** pixel próprio (Pixel + Events API), `TIKTOK_PIXEL_ID`,
+  `VITE_TIKTOK_PIXEL_ID` e `TIKTOK_ACCESS_TOKEN` no projeto. A venda pelo
+  servidor sai em `confirmarSessaoStripe`, só com `ttclid`, igual à Serenata.
+  "Enhanced data postback" DESLIGADO no painel: ele lê o conteúdo da página,
+  e no quiz isso é a história e a letra.
 - **Deploy:** hoje pela CLI, apontando pro projeto (sem git):
   `VERCEL_ORG_ID=team_hEMUGcKgu8uIFM9yueV0K5si VERCEL_PROJECT_ID=prj_zJaeX2faBotnX45q7OuUMZFeJqsp vercel deploy --prod`
   e depois `curl -X PUT https://www.balladgift.com/api/inngest`. O
