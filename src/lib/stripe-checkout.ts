@@ -112,14 +112,21 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
           client_reference_id: quiz.id,
           metadata: { quiz_id: quiz.id, musica_id: musica.id, session_id: sessionId },
           payment_intent_data: {
+            // O NOME NA FATURA DO CARTÃO. A conta do Stripe ainda tem o
+            // descritor de outro negócio ("STRIPEONLI"), e "não reconheço esta
+            // cobrança" é o motivo nº 1 de chargeback nos EUA. O sufixo por
+            // cobrança faz a fatura dizer "STRIPEONLI* BALLADGIFT" (prefixo +
+            // sufixo cabem nos 22 caracteres). Some quando a conta ganhar o
+            // descritor próprio, e não atrapalha se ficar.
+            statement_descriptor_suffix: "BALLADGIFT",
             description: `${MARCA_ATIVA.nome} · ${musica.titulo ?? "song"}`,
             metadata: { quiz_id: quiz.id, musica_id: musica.id },
           },
           return_url: `${urlDoSite()}/obrigado?session_id={CHECKOUT_SESSION_ID}`,
         },
-        // `v2`: a versão dos PARÂMETROS. O Stripe recusa a mesma chave com corpo
+        // `v3`: a versão dos PARÂMETROS. O Stripe recusa a mesma chave com corpo
         // diferente, então mexeu no corpo desta chamada, sobe a versão.
-        { idempotencia: `ballad-checkout:v2:${quiz.id}:${centavos}` },
+        { idempotencia: `ballad-checkout:v3:${quiz.id}:${centavos}` },
       );
       let sessao: { id: string; client_secret: string } | null = null;
       for (let tentativa = 0; !sessao; tentativa++) {
