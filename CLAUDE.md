@@ -713,6 +713,11 @@ diferencial lá. "Serenata" também não serve: o americano lê como mariachi.
 **Logo:** só a palavra BALLAD (a Serenata também não leva "Gift"), mesma onda
 com coração, mesmo vinho, traço fino. Kit em `docs/marca/ballad/`.
 
+**Quem vende, nos termos em inglês:** por ora a MESMA empresa da Serenata
+(CNPJ 45.835.258/0001-46, São Caetano do Sul/SP), decisão provisória do dono
+em 29/09, que vai trocar depois. Nome de pessoa física não aparece, igual à
+Serenata, que mostra só a marca e o CNPJ.
+
 ## Em aberto
 
 - Nome e marca
