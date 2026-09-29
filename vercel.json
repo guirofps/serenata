@@ -3,9 +3,6 @@
   "framework": null,
   "buildCommand": "npm run build",
   "outputDirectory": "dist/client",
-  "regions": [
-    "gru1"
-  ],
   "headers": [
     {
       "source": "/(.*)",
