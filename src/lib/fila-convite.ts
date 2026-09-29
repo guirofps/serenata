@@ -41,16 +41,32 @@ export type Convidado = {
  * Os candidatos, já sem quem não pode receber, um por e-mail e no máximo
  * `lote`.
  *
- * O idioma NÃO é filtrado aqui: ele é conferido depois, só sobre o lote que
- * vai sair, porque puxar o `locale` da base inteira de `quiz_responses` pra
- * decidir sobre 40 pessoas custaria dezenas de milhares de linhas por rodada.
- * Ver `somenteBrasileiros`.
+ * ── O IDIOMA ENTRA ANTES DO CORTE, E ISSO É UM CONSERTO ─────────
+ *
+ * A primeira versão cortava em `lote` e SÓ DEPOIS tirava o funil espanhol.
+ * Parecia economia (resolver o `locale` de 5 pessoas em vez da base inteira) e
+ * era bloqueio de cabeça de fila: o espanhol ocupava a vaga, era descartado, e
+ * como nunca era marcado como enviado VOLTAVA a ocupar a mesma vaga na rodada
+ * seguinte. Pra sempre.
+ *
+ * Medido em produção, rodada a rodada: 4, 4, 4, 3, 3, 2, 2, 2, 2, 2. Não era
+ * um número fixo — eles se ACUMULAVAM na cabeça, e a curva ia pra zero, onde
+ * o disparo pararia sozinho sem nada falhar e sem nada no log.
+ *
+ * Por isso `quizNaoPt` chega pronto e a exclusão acontece ANTES do `slice`.
  */
 export function montarFila(args: {
   pagos: PedidoPago[];
   /** descadastros + excluídos + endereços que voltaram, tudo junto. */
   bloqueados: Iterable<string>;
   codigos: CodigoExistente[];
+  /**
+   * Os `quiz_response_id` que NÃO são do funil português.
+   *
+   * ENTRA AQUI, ANTES DO CORTE, e a posição é o conserto inteiro — ver o
+   * comentário acima.
+   */
+  quizNaoPt: Set<string>;
   lote: number;
 }): Convidado[] {
   const bloqueado = new Set([...args.bloqueados].map((e) => e.trim().toLowerCase()));
@@ -67,6 +83,11 @@ export function montarFila(args: {
   for (const p of [...args.pagos].sort((a, b) => a.created_at.localeCompare(b.created_at))) {
     const email = (p.email ?? "").trim().toLowerCase();
     if (!email || bloqueado.has(email) || jaRecebeu.has(email)) continue;
+    // Sem `quizId` a pessoa FICA: pedido antigo sem quiz vinculado é do funil
+    // brasileiro (o espanhol nasceu depois), e os dois erros não custam o
+    // mesmo — deixar de convidar um comprador legítimo é receita perdida em
+    // silêncio, que é o erro que ninguém vai investigar.
+    if (p.quiz_response_id && args.quizNaoPt.has(p.quiz_response_id)) continue;
     const antes = porEmail.get(email);
     porEmail.set(email, {
       // Pedido novo sem nome não apaga o nome que o anterior tinha.
@@ -81,25 +102,6 @@ export function montarFila(args: {
     quizId: v.quizId,
     codigo: codigoDe.get(email) ?? null,
   }));
-}
-
-/**
- * Tira quem comprou fora do funil português.
- *
- * O programa é pt: o funil espanhol cobra em DÓLAR, e a trigger da comissão
- * recusa `locale <> 'pt'`. Um convite pra essas pessoas prometeria uma
- * comissão que o banco nunca vai creditar.
- *
- * Sem `quizId` a pessoa FICA: o pedido antigo sem quiz vinculado é do funil
- * brasileiro (o espanhol nasceu depois), e o custo dos dois erros não é o
- * mesmo — deixar de convidar um comprador legítimo é receita perdida em
- * silêncio, e é o erro que ninguém vai investigar.
- */
-export function somenteBrasileiros(
-  fila: Convidado[],
-  locais: Map<string, string | null>,
-): Convidado[] {
-  return fila.filter((c) => !c.quizId || (locais.get(c.quizId) ?? "pt") === "pt");
 }
 
 // ── A RAMPA, porque 4.660 de uma vez dobra o domínio ─────────────

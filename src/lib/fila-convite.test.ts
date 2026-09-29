@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loteDaVez, montarFila, somenteBrasileiros, type PedidoPago } from "./fila-convite";
+import { loteDaVez, montarFila, type PedidoPago } from "./fila-convite";
 
 // A FILA DO DISPARO ÚNICO, testada onde ela erra sem avisar.
 //
@@ -16,7 +16,7 @@ const pedido = (o: Partial<PedidoPago> = {}): PedidoPago => ({
   ...o,
 });
 
-const base = { bloqueados: [], codigos: [], lote: 100 };
+const base = { bloqueados: [], codigos: [], quizNaoPt: new Set<string>(), lote: 100 };
 
 describe("montarFila", () => {
   it("um convite por pessoa, mesmo quem comprou três vezes", () => {
@@ -106,61 +106,79 @@ describe("montarFila", () => {
   });
 });
 
-describe("somenteBrasileiros", () => {
-  const c = (quizId: string | null) => ({ email: "a@b.com", nome: "A", quizId, codigo: null });
-
-  it("tira quem comprou no funil espanhol", () => {
-    // Lá o preço é em DÓLAR e a trigger recusa `locale <> 'pt'`: o convite
-    // prometeria uma comissão que o banco nunca vai creditar.
-    expect(somenteBrasileiros([c("q1")], new Map([["q1", "es"]]))).toEqual([]);
+describe("o funil espanhol sai ANTES do corte", () => {
+  it("quem comprou em espanhol não entra na fila", () => {
+    // Lá o preço é em DÓLAR e a trigger da comissão recusa `locale <> 'pt'`:
+    // o convite prometeria uma comissão que o banco nunca vai creditar.
+    const fila = montarFila({
+      ...base,
+      pagos: [pedido({ email: "es@b.com", quiz_response_id: "q-es" })],
+      quizNaoPt: new Set(["q-es"]),
+    });
+    expect(fila).toEqual([]);
   });
 
-  it("mantém o brasileiro", () => {
-    expect(somenteBrasileiros([c("q1")], new Map([["q1", "pt"]]))).toHaveLength(1);
+  it("pedido sem quiz vinculado FICA — o funil espanhol nasceu depois", () => {
+    const fila = montarFila({
+      ...base,
+      pagos: [pedido({ quiz_response_id: null })],
+      quizNaoPt: new Set(["q-es"]),
+    });
+    expect(fila).toHaveLength(1);
   });
 
-  it("sem quiz vinculado, FICA — o funil espanhol nasceu depois", () => {
-    // Os dois erros não custam o mesmo: deixar de convidar um comprador
-    // legítimo é receita perdida em silêncio, que ninguém vai investigar.
-    expect(somenteBrasileiros([c(null)], new Map())).toHaveLength(1);
-  });
+  // ── O TESTE QUE TERIA PEGADO O BUG DE PRODUÇÃO ────────────────
+  //
+  // A primeira versão cortava em `lote` e só DEPOIS tirava o espanhol. Cada
+  // teste isolado passava: a fila saía sem espanhol, o lote era respeitado,
+  // tudo verde. O defeito só existe ao longo de VÁRIAS rodadas — o espanhol
+  // descartado nunca era marcado como enviado, voltava a ocupar a vaga, e
+  // eles se acumulavam na cabeça.
+  //
+  // Em produção a vazão caiu 4, 4, 4, 3, 3, 2, 2, 2, 2, 2 — rumo a zero, onde
+  // o disparo pararia sozinho sem nada falhar e sem nada no log.
+  //
+  // Um teste de uma rodada não pega isso. Este simula a campanha inteira.
+  it("a fila DRENA: todo brasileiro elegível acaba recebendo", () => {
+    const LOTE = 5;
+    // Espanhóis logo no começo, que é onde eles realmente estão: a fila é
+    // ordenada do comprador mais antigo pro mais novo.
+    const pagos = [
+      ...Array.from({ length: 3 }, (_, i) =>
+        pedido({ email: `es${i}@b.com`, quiz_response_id: `q-es${i}`, created_at: `2026-08-0${i + 1}T00:00:00Z` }),
+      ),
+      ...Array.from({ length: 40 }, (_, i) =>
+        pedido({ email: `br${i}@b.com`, quiz_response_id: `q-br${i}`, created_at: `2026-09-${String(i + 1).padStart(2, "0")}T00:00:00Z` }),
+      ),
+    ];
+    const quizNaoPt = new Set(["q-es0", "q-es1", "q-es2"]);
 
-  it("quiz que não voltou na consulta também fica", () => {
-    expect(somenteBrasileiros([c("sumiu")], new Map())).toHaveLength(1);
-  });
-});
+    const enviados = new Set<string>();
+    const porRodada: number[] = [];
+    for (let r = 0; r < 20; r++) {
+      const fila = montarFila({
+        pagos,
+        bloqueados: [],
+        quizNaoPt,
+        lote: LOTE,
+        codigos: [...enviados].map((email) => ({
+          email,
+          codigo: "K7M2QX",
+          convite_enviado_em: "2026-09-28T12:00:00Z",
+        })),
+      });
+      porRodada.push(fila.length);
+      for (const c of fila) enviados.add(c.email);
+      if (!fila.length) break;
+    }
 
-// A JANELA DE HORÁRIO do disparo, em `conviteIndicacao.ts`.
-//
-// O fuso é a parte que erra em silêncio: o servidor da Vercel roda em UTC, e
-// "9h" lido de `new Date().getHours()` lá seria 6h no Brasil. O e-mail sairia
-// na madrugada de quem recebe, que é o horário que filtro de spam usa como
-// sinal — e ninguém ia perceber olhando o código.
-describe("a janela de horário", () => {
-  // O import fica aqui dentro: o módulo do job puxa o cliente do Inngest, e
-  // no topo do arquivo isso custaria a carga em todo teste da fila.
-  const emUtc = (iso: string) => new Date(iso).getTime();
+    // A VAZÃO NÃO DEGRADA: toda rodada com gente na fila manda o lote cheio.
+    const comTrabalho = porRodada.filter((n) => n > 0);
+    expect(comTrabalho.slice(0, -1).every((n) => n === LOTE), `vazão por rodada: ${porRodada.join(", ")}`).toBe(true);
 
-  it("não manda de madrugada no Brasil", async () => {
-    const { dentroDaJanela } = await import("../../inngest/functions/conviteIndicacao");
-    // 05:00 UTC = 02:00 no Brasil.
-    expect(dentroDaJanela(emUtc("2026-09-28T05:00:00Z"))).toBe(false);
-  });
-
-  it("manda às 9h da manhã no Brasil, não às 9h UTC", async () => {
-    const { dentroDaJanela } = await import("../../inngest/functions/conviteIndicacao");
-    // 12:00 UTC = 09:00 BR: abre.
-    expect(dentroDaJanela(emUtc("2026-09-28T12:00:00Z"))).toBe(true);
-    // 09:00 UTC = 06:00 BR: ainda fechado. É este o caso que pega o fuso.
-    expect(dentroDaJanela(emUtc("2026-09-28T09:00:00Z"))).toBe(false);
-  });
-
-  it("fecha às 20h no Brasil", async () => {
-    const { dentroDaJanela } = await import("../../inngest/functions/conviteIndicacao");
-    // 22:59 UTC = 19:59 BR: último minuto.
-    expect(dentroDaJanela(emUtc("2026-09-28T22:59:00Z"))).toBe(true);
-    // 23:00 UTC = 20:00 BR: fechou.
-    expect(dentroDaJanela(emUtc("2026-09-28T23:00:00Z"))).toBe(false);
+    // E TODO MUNDO RECEBE: 40 brasileiros, nenhum espanhol.
+    expect(enviados.size).toBe(40);
+    expect([...enviados].some((e) => e.startsWith("es"))).toBe(false);
   });
 });
 

@@ -5,7 +5,7 @@ import { cabecalhosDescadastro, linkDescadastroUmClique } from "../lib/descadast
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { assuntoIndicacao, emailIndicacao, textoIndicacao } from "../../emails/indicacao.js";
 import { gerarCodigo, linkDoConvite } from "../../src/lib/indicacao.js";
-import { loteDaVez, montarFila, somenteBrasileiros } from "../../src/lib/fila-convite.js";
+import { loteDaVez, montarFila } from "../../src/lib/fila-convite.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 
 // O CONVITE DE INDICAÇÃO, disparo único pra quem já comprou (27/09/2026).
@@ -115,7 +115,7 @@ export const conviteIndicacao = inngest.createFunction(
     const fila = await step.run("montar-fila", async () => {
       const sb = db();
 
-      const [pagos, fora, excl, mortos, codigos] = await Promise.all([
+      const [pagos, fora, excl, mortos, codigos, naoPt] = await Promise.all([
         // Mesma régua de `jaComprou`: compra de verdade, não crédito nem manual.
         paginado<{
           email: string | null;
@@ -145,6 +145,16 @@ export const conviteIndicacao = inngest.createFunction(
           undefined,
           "email",
         ),
+        // OS QUIZZES QUE NÃO SÃO PT, só o `id`.
+        //
+        // Custa uma leitura a mais por rodada e conserta o bloqueio de cabeça
+        // de fila: antes o espanhol era descartado DEPOIS do corte e voltava a
+        // ocupar a vaga na rodada seguinte, pra sempre. Medido em produção, a
+        // vazão caía 4, 4, 4, 3, 3, 2, 2… rumo a zero.
+        //
+        // Só `id`, e a `sequenciaRecuperacao` já pagina esta mesma tabela a
+        // cada 30 minutos com bem mais colunas — não é leitura nova pro banco.
+        paginado<{ id: string }>(sb, "quiz_responses", "id", (q) => q.neq("locale", "pt")),
       ]);
 
       // A DECISÃO mora em `src/lib/fila-convite.ts`, pura e testada. Aqui
@@ -163,24 +173,14 @@ export const conviteIndicacao = inngest.createFunction(
       const lote = loteDaVez(jaEnviados, override);
       if (lote <= 0) return [];
 
-      const fila = montarFila({
+      return montarFila({
         pagos,
         bloqueados: [...fora, ...excl, ...mortos].map((x) => x.email),
         codigos,
+        quizNaoPt: new Set(naoPt.map((q) => q.id)),
         lote,
       });
 
-      // O idioma é conferido SÓ sobre o lote que vai sair: puxar o `locale` da
-      // base inteira de `quiz_responses` pra decidir sobre 40 pessoas custaria
-      // dezenas de milhares de linhas por rodada.
-      const ids = fila.map((c) => c.quizId).filter(Boolean) as string[];
-      const locais = new Map<string, string | null>();
-      if (ids.length) {
-        const { data } = await sb.from("quiz_responses").select("id, locale").in("id", ids);
-        for (const q of data ?? []) locais.set(q.id as string, (q.locale as string) ?? null);
-      }
-
-      return somenteBrasileiros(fila, locais);
     });
 
     if (!fila.length) return { enviados: 0, motivo: "fila-vazia" };
