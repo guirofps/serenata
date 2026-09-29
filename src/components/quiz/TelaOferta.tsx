@@ -9,7 +9,7 @@ import { getOrCreateSessionId, getStoredAttribution } from "@/lib/session-contex
 import { conviteDaSessao } from "@/lib/indicacao-fns";
 import { descontoDoConvite, reaisDeCentavos } from "@/lib/indicacao";
 import { trackEvent, trackEventOnce } from "@/lib/track";
-import { checkoutTiktok } from "@/lib/tiktok-pixel";
+import { carrinhoTiktok, checkoutTiktok } from "@/lib/tiktok-pixel";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { TEMA_CLARO } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
@@ -519,6 +519,8 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   // checkout" ficariam colados e a tela não serviria de medida.
   useEffect(() => {
     trackEventOnce("oferta_vista", "v1");
+    // O "pôr no carrinho" pro TikTok: abriu a oferta. Ver `carrinhoTiktok`.
+    carrinhoTiktok({ valor: meuPlano(locale).valor, moeda: locale === "pt" ? "BRL" : "USD" });
   }, []);
 
   // ── O CONVITE DE UM AMIGO (member get member) ─────────────────

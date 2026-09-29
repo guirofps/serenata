@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { statusMusica } from "@/lib/gerar-letra";
 import { getOrCreateSessionId } from "@/lib/session-context";
+import { vitrineTiktok } from "@/lib/tiktok-pixel";
+import { meuPlano } from "@/lib/preco";
 import { MusicaKaraoke, type PalavraAlinhada } from "@/components/quiz/MusicaKaraoke";
 import { KaraokePlayer } from "@/components/quiz/KaraokePlayer";
 import { ProgressoGeracao } from "@/components/quiz/ProgressoGeracao";
@@ -95,6 +97,9 @@ export function MusicaDaSessao({
           setAudioUrl(r.audioUrl);
           setWords(r.timestamps ?? null);
           trackEventOnce("musica_pronta", "v1");
+          // O "ver o produto" pro TikTok: a música da pessoa pronta. Ver
+          // `vitrineTiktok` (o funil completo que o painel cobra).
+          vitrineTiktok({ valor: meuPlano(locale).valor, moeda: locale === "pt" ? "BRL" : "USD" });
           return; // para o polling
         }
         // Guarda e SEGUE: a prévia é ganho de espera, não fim de polling.

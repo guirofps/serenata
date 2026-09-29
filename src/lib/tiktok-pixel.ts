@@ -21,6 +21,8 @@
 // deles igual ao gtag. `/obrigado` fica de fora da lista, como já fica pro
 // Google, porque é lá que a conversão acontece.
 
+import { MARCA_ATIVA } from "@/lib/marca-identidade";
+
 /** O pixel só existe se a conta existir. Ver o bloco acima. */
 export const TIKTOK_PIXEL_ID: string | undefined =
   (import.meta.env?.VITE_TIKTOK_PIXEL_ID as string | undefined)?.trim() || undefined;
@@ -71,7 +73,7 @@ export function compraTiktok(args: {
   if (typeof window === "undefined" || !window.ttq) return;
   const id = args.eventId?.trim() || undefined;
   window.ttq.track(
-    "CompletePayment",
+    MARCA_ATIVA.eventoCompraTiktok,
     {
       value: args.valor ?? 38,
       currency: args.moeda ?? "BRL",
@@ -88,4 +90,33 @@ export function checkoutTiktok(args: { valor?: number; moeda?: "BRL" | "USD" }) 
     value: args.valor ?? 38,
     currency: args.moeda ?? "BRL",
   });
+}
+
+// ── O FUNIL COMPLETO QUE O TIKTOK COBRA (29/09) ──────────────────
+//
+// O painel da Ballad acusou "Missing events" (crítico): pra vertical de
+// comércio ele espera ViewContent → AddToCart → Purchase, e sem os degraus do
+// meio o algoritmo só aprende com a venda, que é rara no começo. No nosso
+// funil os degraus existem, só não tinham nome de comércio:
+//
+// - ViewContent: a música da pessoa ficou pronta e tocável. É a hora em que
+//   ela "vê o produto", que aqui é o presente dela, não uma vitrine.
+// - AddToCart: abriu a oferta ("I want X's song"). Declarou que quer.
+// - InitiateCheckout: clicou em pagar (já existia, `checkoutTiktok`).
+//
+// Valem pra qualquer visitante, como o InitiateCheckout: é assim que o pixel
+// monta público. Sem pixel carregado, não fazem nada.
+
+const PRODUTO = [{ content_type: "product", content_id: "musica-personalizada", content_name: "Musica personalizada" }];
+
+/** A música da sessão ficou pronta: o "ver o produto" do nosso funil. */
+export function vitrineTiktok(args: { valor?: number; moeda?: "BRL" | "USD" }) {
+  if (typeof window === "undefined" || !window.ttq) return;
+  window.ttq.track("ViewContent", { value: args.valor ?? 38, currency: args.moeda ?? "BRL", contents: PRODUTO });
+}
+
+/** Abriu a oferta: o "pôr no carrinho" do nosso funil. */
+export function carrinhoTiktok(args: { valor?: number; moeda?: "BRL" | "USD" }) {
+  if (typeof window === "undefined" || !window.ttq) return;
+  window.ttq.track("AddToCart", { value: args.valor ?? 38, currency: args.moeda ?? "BRL", contents: PRODUTO });
 }

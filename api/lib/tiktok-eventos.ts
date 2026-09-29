@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // A VENDA CONTADA DO SERVIDOR, QUANDO O GATEWAY APROVA.
 //
@@ -89,7 +90,7 @@ export async function venderNoTiktok(v: VendaTiktok): Promise<{ ok: boolean; mot
         event_source_id: pixel,
         data: [
           {
-            event: "CompletePayment",
+            event: MARCA_ATIVA.eventoCompraTiktok,
             // O horário do PAGAMENTO, não o de agora. Webhook pode chegar
             // atrasado, e a plataforma atribui pelo instante que recebe.
             event_time: Math.floor((v.quando ?? new Date()).getTime() / 1000),

@@ -38,6 +38,13 @@ export type Marca = {
   dominiosDeEnvio: readonly string[];
   /** Imagem de compartilhamento (og:image) do site e do presente sem foto. */
   imagemCompartilhar: string;
+  /**
+   * O nome do evento de compra no TikTok. A Serenata nasceu no
+   * `CompletePayment` e as campanhas dela otimizam por ele: trocar lá zera o
+   * aprendizado. O pixel da Ballad (29/09) é novo, e o painel novo do TikTok
+   * só lista `Purchase` como evento de compra pra otimizar.
+   */
+  eventoCompraTiktok: "CompletePayment" | "Purchase";
 };
 
 export const MARCAS: Record<ChaveMarca, Marca> = {
@@ -53,6 +60,7 @@ export const MARCAS: Record<ChaveMarca, Marca> = {
     responderPara: "contato@serenatagift.com",
     dominiosDeEnvio: ["serenatagift.com", "envio.serenatagift.com"],
     imagemCompartilhar: "/og-presente.jpg",
+    eventoCompraTiktok: "CompletePayment",
   },
   ballad: {
     chave: "ballad",
@@ -69,6 +77,7 @@ export const MARCAS: Record<ChaveMarca, Marca> = {
     responderPara: "support@balladgift.com",
     dominiosDeEnvio: ["balladgift.com"],
     imagemCompartilhar: "/ballad/og-presente.jpg",
+    eventoCompraTiktok: "Purchase",
   },
 };
 
