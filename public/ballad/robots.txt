@@ -1,0 +1,26 @@
+# Ballad Gift — balladgift.com
+#
+# O mesmo critério da Serenata: só a home e o quiz fazem sentido num
+# buscador. Presentes (/p/) são vida privada de cliente; a área logada e o
+# interno ficam de fora. Servido no lugar do robots.txt da Serenata por um
+# redirect com condição de host no vercel.json.
+
+User-agent: *
+Allow: /$
+Allow: /criar
+Allow: /termos
+Allow: /privacidade
+
+Disallow: /p/
+Disallow: /editar/
+Disallow: /retomar
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /recuperar
+Disallow: /login
+Disallow: /auth/
+Disallow: /obrigado
+Disallow: /descadastrar
+Disallow: /api/
+
+Sitemap: https://www.balladgift.com/ballad/sitemap.xml

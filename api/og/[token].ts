@@ -32,7 +32,7 @@ function db() {
 /** Fallback da marca, pra presente que ainda não tem foto. */
 function semFoto(res: Res, origem: string) {
   res.statusCode = 302;
-  res.setHeader("Location", `${origem}/og-presente.jpg`);
+  res.setHeader("Location", `${origem}${MARCA_ATIVA.imagemCompartilhar}`);
   res.end();
 }
 

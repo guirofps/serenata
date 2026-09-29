@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { rotuloDaSecao } from "@/lib/karaoke-linhas";
 
 // Exibição da letra no reveal.
 //
@@ -32,7 +33,7 @@ export function KaraokePlayer({ letra }: { letra: string; genero?: string }) {
             key={i}
             className="pt-3 text-[11px] uppercase tracking-widest text-muted-foreground/60"
           >
-            {l.texto.replace(/[[\]]/g, "")}
+            {rotuloDaSecao(l.texto)}
           </p>
         ) : (
           <p key={i} className="text-[15px] leading-relaxed">

@@ -1,4 +1,5 @@
 import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+import { semComentarios } from "./sem-comentarios.js";
 // E-mail do LINK DE ACESSO (magic link) à conta do comprador.
 //
 // É a porta da área dele: o link entra logado e leva ao painel, onde estão
@@ -133,7 +134,8 @@ export function emailAcesso(args: {
           </table>
         </td></tr>`
     : "";
-  return `<!DOCTYPE html>
+  // Comentário do modelo não vai pro cliente: ver `sem-comentarios.ts`.
+  return semComentarios(`<!DOCTYPE html>
 <html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto}</title></head>
 <body style="margin:0;padding:0;background-color:#f2e9dc;font-family:Georgia,'Times New Roman',serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2e9dc;padding:40px 16px;">
@@ -187,5 +189,5 @@ ${listaPresentes}
       </p>
     </td></tr>
   </table>
-</body></html>`;
+</body></html>`);
 }

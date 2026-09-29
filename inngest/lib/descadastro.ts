@@ -44,7 +44,7 @@ export function cabecalhosDescadastro(email: string): Record<string, string> {
   const link = linkDescadastroUmClique(email);
   if (!link) return {};
   return {
-    "List-Unsubscribe": `<${link}>, <mailto:contato@serenatagift.com?subject=descadastrar>`,
+    "List-Unsubscribe": `<${link}>, <mailto:${MARCA_ATIVA.emailContato}?subject=${MARCA_ATIVA.chave === "ballad" ? "unsubscribe" : "descadastrar"}>`,
     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
   };
 }

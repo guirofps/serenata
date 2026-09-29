@@ -36,6 +36,8 @@ export type Marca = {
   responderPara: string;
   /** Domínios de onde esta marca manda e-mail (o raiz e os subdomínios de envio). */
   dominiosDeEnvio: readonly string[];
+  /** Imagem de compartilhamento (og:image) do site e do presente sem foto. */
+  imagemCompartilhar: string;
 };
 
 export const MARCAS: Record<ChaveMarca, Marca> = {
@@ -50,6 +52,7 @@ export const MARCAS: Record<ChaveMarca, Marca> = {
     remetenteRecuperacao: "Serenata <ola@envio.serenatagift.com>",
     responderPara: "contato@serenatagift.com",
     dominiosDeEnvio: ["serenatagift.com", "envio.serenatagift.com"],
+    imagemCompartilhar: "/og-presente.jpg",
   },
   ballad: {
     chave: "ballad",
@@ -65,6 +68,7 @@ export const MARCAS: Record<ChaveMarca, Marca> = {
     remetenteRecuperacao: "Ballad Gift <hello@balladgift.com>",
     responderPara: "support@balladgift.com",
     dominiosDeEnvio: ["balladgift.com"],
+    imagemCompartilhar: "/ballad/og-presente.jpg",
   },
 };
 

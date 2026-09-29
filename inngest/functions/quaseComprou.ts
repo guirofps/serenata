@@ -172,7 +172,7 @@ export const quaseComprou = inngest.createFunction(
 
       const out: Array<{
         email: string; nome: string; titulo: string;
-        link: string; quizId: string; locale: "pt" | "es";
+        link: string; quizId: string; locale: "pt" | "es" | "en";
       }> = [];
       const vistos = new Set<string>();
 
@@ -224,7 +224,8 @@ export const quaseComprou = inngest.createFunction(
         if (!m || m.status !== "pronta") continue;
 
         // O idioma vem do registro: cron não tem requisição de onde deduzir.
-        const locale = (q as { locale?: string }).locale === "es" ? "es" : "pt";
+        const bruto = (q as { locale?: string }).locale;
+        const locale = bruto === "es" ? "es" : bruto === "en" ? "en" : "pt";
 
         // ── PRA ONDE ESTE E-MAIL MANDA ──────────────────────────
         //
@@ -248,12 +249,17 @@ export const quaseComprou = inngest.createFunction(
         // existe na Perfect Pay. Mandar pro nosso PIX cobraria em reais.
         const sessao = q.session_id as string | null;
         let link: string;
-        if (locale === "pt" && sessao) {
+        // O inglês (Ballad Gift) também volta pro NOSSO funil: lá o checkout
+        // é o Stripe na própria oferta, e o `/retomar` repõe o braço de preço.
+        if ((locale === "pt" || locale === "en") && sessao) {
           const u = new URL(`${SITE}/retomar`);
           u.searchParams.set("s", sessao);
           u.searchParams.set("de", "quase");
           link = u.toString();
         } else {
+          // Sem sessão não há como voltar pro funil, e a Ballad não tem
+          // checkout hospedado pra onde mandar: fica de fora.
+          if (locale === "en") continue;
           const braco =
             ((q.attribution as { exp?: Record<string, string> } | null)?.exp?.preco as string) ??
             null;
@@ -267,12 +273,12 @@ export const quaseComprou = inngest.createFunction(
 
         out.push({
           email: q.email as string,
-          locale: locale as "pt" | "es",
+          locale,
           // `.trim()`: o nome do quiz vem com espaço sobrando ("Cardoso ").
           nome:
             ((q.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-            (locale === "es" ? "quien vos querés" : "quem você ama"),
-          titulo: m.titulo ?? "Sua música",
+            (locale === "es" ? "quien vos querés" : locale === "en" ? "someone you love" : "quem você ama"),
+          titulo: m.titulo ?? (locale === "en" ? "Your song" : "Sua música"),
           link,
           quizId: q.id as string,
         });
@@ -325,7 +331,13 @@ export const quaseComprou = inngest.createFunction(
             link: c.link,
             locale: c.locale,
           }),
-          text:
+          text: c.locale === "en"
+            ? `${c.nome}'s song already exists: it was recorded from the story you told.\n\n` +
+              `You get the full song in both versions, the gift page with a link and ` +
+              `QR code, and the MP3 to keep.\n\n` +
+              `${c.link}\n\n` +
+              `The lyrics are yours either way, and the link never expires.`
+            :
             `A música de ${c.nome} já existe: foi gravada com a história que você contou.\n\n` +
             `Você recebe a música completa nas duas versões, a página presente com link e ` +
             `QR Code, e o MP3 pra guardar.\n\n` +

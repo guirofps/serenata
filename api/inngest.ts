@@ -53,6 +53,9 @@ const DA_BALLAD = [
   vigiaGeracao,
   vigiaEntrega,
   limparAudioAntigo,
+  // A recuperação de quem clicou em comprar e não pagou: manda de volta pro
+  // funil em inglês (`/retomar`), sem cupom e sem PIX.
+  quaseComprou,
 ];
 
 // Adapter "inngest/node" (req/res nativo), não "inngest/next": no Inngest v4 o

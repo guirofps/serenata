@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { type Locale } from "@/lib/i18n";
 import { t as textos } from "@/lib/textos";
 import { trackEvent, trackEventOnce } from "@/lib/track";
+import { rotuloDaSecao } from "@/lib/karaoke-linhas";
 
 // Karaokê REAL: a música cantada + cada palavra acendendo no instante em que
 // é cantada (alignedWords do kie.ai, precisão de ms — R$ 0,013 por música).
@@ -45,7 +46,7 @@ function montarLinhas(words: PalavraAlinhada[]): Linha[] {
       if (!texto) continue;
       if (/^\[.*\]$/.test(texto)) {
         empurra();
-        linhas.push({ tipo: "marcador", texto: texto.replace(/[[\]]/g, "") });
+        linhas.push({ tipo: "marcador", texto: rotuloDaSecao(texto) });
       } else {
         atual.palavras.push({ texto, start: w.start, end: w.end, idx: idx++ });
       }
@@ -271,7 +272,7 @@ export function MusicaKaraoke({
                     key={i}
                     className="pt-3 text-[11px] uppercase tracking-widest text-muted-foreground/60"
                   >
-                    {linha.trim().replace(/[[\]]/g, "")}
+                    {rotuloDaSecao(linha.trim())}
                   </p>
                 ) : (
                   <p key={i} className="text-[15px] leading-relaxed">

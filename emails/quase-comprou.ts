@@ -1,3 +1,5 @@
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+import { semComentarios } from "./sem-comentarios.js";
 // CLICOU EM COMPRAR E NÃO CHEGOU NEM A GERAR O PEDIDO.
 //
 // ── O BURACO, MEDIDO EM 27/08 ────────────────────────────────────
@@ -25,7 +27,8 @@
 // Mesma regra do PIX e da escada: descontar meia hora depois ensina que basta
 // hesitar. O link leva ao MESMO preço que ela viu, lido da config viva.
 
-type IdiomaEmail = "pt" | "es";
+// `en` é a Ballad Gift (EUA), com a copy adaptada do português.
+type IdiomaEmail = "pt" | "es" | "en";
 
 const COPY: Record<
   IdiomaEmail,
@@ -58,6 +61,18 @@ const COPY: Record<
       "A letra continua sua de qualquer jeito, e o link não expira.<br>Se travou alguma coisa na hora de pagar, é só responder este e-mail.",
     rodape: "Serenata · uma música feita da história de quem você ama",
   },
+  en: {
+    assunto: (n) => `Hear ${n}'s song before you pay`,
+    titulo: (n) => `${n}'s song <em style="color:#7d2b3a;">already exists</em>.`,
+    corpo:
+      "The lyrics are yours, free, and you can hear a sung preview before deciding anything. It was recorded from the story you told, with the details only the two of you know.",
+    lembrete:
+      "You get the full song in both recorded versions, the gift page with a link and QR code to send, and the MP3 file to keep forever.",
+    botao: "HEAR THE SUNG PREVIEW",
+    rodapeAviso:
+      "The lyrics are yours either way, and the link never expires.<br>If something got stuck when paying, just reply to this email.",
+    rodape: "Ballad Gift · a song made from the story of someone you love",
+  },
   es: {
     assunto: (n) => `La canción de ${n} ya está grabada y es tuya`,
     titulo: (n) => `La canción de <em style="color:#7d2b3a;">${n}</em> ya existe.`,
@@ -85,8 +100,8 @@ export function emailQuaseComprou(args: {
 }): string {
   const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
   const { nome, titulo, link } = args;
-  return `<!DOCTYPE html>
-<html lang="${args.locale === "es" ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>
+  return semComentarios(`<!DOCTYPE html>
+<html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>
 <body style="margin:0;padding:0;background-color:#f2e9dc;font-family:Georgia,'Times New Roman',serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2e9dc;padding:40px 16px;">
     <tr><td align="center">
@@ -96,7 +111,7 @@ export function emailQuaseComprou(args: {
         <tr><td style="padding:34px 34px 6px;text-align:center;">
           <!-- Logo em TEXTO: Gmail e Apple Mail bloqueiam imagem de remetente
                novo. Ver o comentário longo em presente-pronto.ts. -->
-          <div style="margin:0 auto 16px;font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:3px;color:#7d2b3a;text-align:center;">SERENATA</div>
+          <div style="margin:0 auto 16px;font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:3px;color:#7d2b3a;text-align:center;">${MARCA_ATIVA.nome.toUpperCase()}</div>
           <h1 style="margin:0;color:#2a1518;font-size:25px;font-weight:normal;line-height:1.32;">
             ${C.titulo(nome)}
           </h1>
@@ -131,5 +146,5 @@ export function emailQuaseComprou(args: {
       </p>
     </td></tr>
   </table>
-</body></html>`;
+</body></html>`);
 }

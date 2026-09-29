@@ -6,6 +6,7 @@
 // nenhum pagamento aprovado virou pedido. Está no CLAUDE.md e eu repeti.
 import { linkSuporte } from "../src/lib/suporte-whatsapp.js";
 import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+import { semComentarios } from "./sem-comentarios.js";
 
 // O domínio, escrito aqui e não deduzido: e-mail não tem `window.location`, e
 // caminho relativo em HTML de e-mail não resolve em cliente nenhum.
@@ -200,7 +201,11 @@ export function emailPresentePronto(args: {
         locale: args.locale === "es" ? "es" : "pt",
         titulo,
       });
-  return `<!DOCTYPE html>
+  // Os comentários do modelo são pra quem MANTÉM, não pra quem recebe: saem
+  // do HTML enviado. O Yahoo já exibiu um deles pra uma cliente (ver
+  // `emails-comentarios.test.ts`), e na Ballad eles citavam a Serenata e o
+  // PIX no código-fonte do e-mail. Visualmente o e-mail é o mesmo.
+  return semComentarios(`<!DOCTYPE html>
 <html lang="${args.locale === "es" ? "es" : ingles ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>
 <body style="margin:0;padding:0;background-color:#f2e9dc;font-family:Georgia,'Times New Roman',serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2e9dc;padding:40px 16px;">
@@ -381,5 +386,5 @@ export function emailPresentePronto(args: {
       </p>
     </td></tr>
   </table>
-</body></html>`;
+</body></html>`);
 }

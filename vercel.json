@@ -83,6 +83,20 @@
       "maxDuration": 60
     }
   },
+  "redirects": [
+    {
+      "source": "/robots.txt",
+      "has": [{ "type": "host", "value": "(www\\.)?balladgift\\.com" }],
+      "destination": "/ballad/robots.txt",
+      "permanent": false
+    },
+    {
+      "source": "/sitemap.xml",
+      "has": [{ "type": "host", "value": "(www\\.)?balladgift\\.com" }],
+      "destination": "/ballad/sitemap.xml",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/inngest",

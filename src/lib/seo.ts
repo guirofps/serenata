@@ -68,12 +68,12 @@ export function linksDeIdioma(locale: Locale, pagina: "home" | "criar" = "home")
  * 01/08 do outro lado e nunca trouxe pra cá.
  */
 export const METATAGS_COMPARTILHAR = [
-  { property: "og:image", content: `${SITE}/og-presente.jpg` },
+  { property: "og:image", content: `${SITE}${MARCA_ATIVA.imagemCompartilhar}` },
   { property: "og:image:width", content: "1200" },
   { property: "og:image:height", content: "1200" },
   { property: "og:site_name", content: MARCA.nome },
   { name: "twitter:card", content: "summary_large_image" },
-  { name: "twitter:image", content: `${SITE}/og-presente.jpg` },
+  { name: "twitter:image", content: `${SITE}${MARCA_ATIVA.imagemCompartilhar}` },
 ];
 
 /**
@@ -102,7 +102,7 @@ export function dadosEstruturados(locale: Locale) {
         : "Conte a história de alguém querido e receba a letra na hora, de graça. A música cantada chega numa página pronta pra enviar, com karaokê, fotos e QR Code.",
     brand: { "@type": "Brand", name: MARCA.nome },
     url: URLS[locale].home,
-    image: `${SITE}/og-presente.jpg`,
+    image: `${SITE}${MARCA_ATIVA.imagemCompartilhar}`,
     offers: {
       "@type": "Offer",
       // O preço sai do catálogo de moeda, nunca cravado aqui. Já ficou pra
