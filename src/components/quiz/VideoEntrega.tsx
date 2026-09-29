@@ -1,5 +1,6 @@
 import { type Locale } from "@/lib/i18n";
 import { t } from "@/lib/textos";
+import { MARCA } from "@/lib/marca";
 // COMO O PRESENTE CHEGA, enquanto a música grava.
 //
 // Gravação real de uma entrega: a conversa no WhatsApp com o link, o toque, a
@@ -17,6 +18,16 @@ import { t } from "@/lib/textos";
 // buraco justamente na hora mais delicada.
 
 
+// A BALLAD GIFT (EUA) tem o dela: a conversa é no iMessage (não existe
+// WhatsApp lá) com a mensagem pronta que o próprio editor sugere, e a página é
+// a do exemplo "Yellow Dress, Every Time", com a letra em inglês acendendo.
+// Sem resposta inventada na conversa: é demonstração do produto, não
+// depoimento. Gravado por `scratch/entrega-en/gravar.mjs` (29/09).
+const VIDEO =
+  MARCA.chave === "ballad"
+    ? { src: "/ballad/video/entrega.mp4", poster: "/ballad/video/entrega-poster.jpg" }
+    : { src: "/video/entrega.mp4", poster: "/video/entrega-poster.jpg" };
+
 export function VideoEntrega({ locale = "pt" }: { locale?: Locale }) {
   const T = t(locale);
   return (
@@ -30,8 +41,8 @@ export function VideoEntrega({ locale = "pt" }: { locale?: Locale }) {
         style={{ boxShadow: "0 18px 38px -18px rgba(42,21,24,0.5)" }}
       >
         <video
-          src="/video/entrega.mp4"
-          poster="/video/entrega-poster.jpg"
+          src={VIDEO.src}
+          poster={VIDEO.poster}
           autoPlay
           muted
           loop
