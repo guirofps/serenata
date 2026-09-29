@@ -26,6 +26,14 @@ export type Attribution = {
   utm_content?: string;
   utm_term?: string;
   gclid?: string;
+  /**
+   * Os identificadores de clique do Google quando NÃO vem `gclid`: tráfego de
+   * iPhone (app e web) chega com `gbraid`/`wbraid` por causa das regras de
+   * privacidade da Apple. O upload de conversão aceita os dois; sem eles,
+   * venda vinda de iPhone chegava ao servidor sem clique pra casar.
+   */
+  gbraid?: string;
+  wbraid?: string;
   fbclid?: string;
   /**
    * O identificador do clique no TikTok.
@@ -174,6 +182,8 @@ function hasCapturedTouch(attr: Attribution): boolean {
       attr.utm_content ||
       attr.utm_term ||
       attr.gclid ||
+      attr.gbraid ||
+      attr.wbraid ||
       attr.fbclid ||
       attr.ttclid ||
       attr.referrer,
@@ -195,6 +205,8 @@ export function captureFirstTouchAttribution(): Attribution | null {
   const utm_content = sp.get("utm_content") ?? undefined;
   const utm_term = sp.get("utm_term") ?? undefined;
   const gclid = sp.get("gclid") ?? undefined;
+  const gbraid = sp.get("gbraid") ?? undefined;
+  const wbraid = sp.get("wbraid") ?? undefined;
   const fbclid = sp.get("fbclid") ?? undefined;
   const ttclid = sp.get("ttclid") ?? undefined;
   const referrer = document.referrer || undefined;
@@ -206,6 +218,8 @@ export function captureFirstTouchAttribution(): Attribution | null {
     utm_content ||
     utm_term ||
     gclid ||
+    gbraid ||
+    wbraid ||
     fbclid ||
     ttclid;
   if (!hasAnyUtm && !referrer) return null;
@@ -219,6 +233,8 @@ export function captureFirstTouchAttribution(): Attribution | null {
     utm_content,
     utm_term,
     gclid,
+    gbraid,
+    wbraid,
     fbclid,
     ttclid,
     referrer,

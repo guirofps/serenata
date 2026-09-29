@@ -27,6 +27,7 @@ import { Resend } from "resend";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "./entrega.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { DONOS } from "../../src/lib/donos.js";
+import { venderNoTiktok } from "./tiktok-eventos.js";
 
 const API = "https://api.stripe.com/v1";
 
@@ -261,6 +262,23 @@ export async function confirmarSessaoStripe(
   if (email) {
     const r = await mandarEmailDeEntrega(sb, { email, musica, nomePagador: s.customer_details?.name });
     if (!r.ok) console.error("[stripe] e-mail de entrega falhou:", r.erro);
+  }
+
+  // A VENDA PRO TIKTOK, pelo servidor. Mesma régua da Serenata: SÓ com
+  // `ttclid` (venda de outro canal mandada pro TikTok inflava o painel dele,
+  // ver a memória do gate por ttclid). `eventId` = id da sessão do Stripe, o
+  // MESMO que o pixel usa na /obrigado: os dois se deduplicam. Nunca joga.
+  const { data: q } = await sb.from("quiz_responses").select("attribution").eq("id", quizId).maybeSingle();
+  const ttclid = (q?.attribution as { ttclid?: string } | null)?.ttclid;
+  if (ttclid) {
+    const t = await venderNoTiktok({
+      eventId: s.id,
+      valor: (s.amount_total ?? 0) / 100,
+      moeda: "USD",
+      email,
+      ttclid,
+    });
+    await sb.from("funnel_events").insert({ event_name: "tiktok_venda_servidor", event_data: { sessao: s.id, ...t } });
   }
   return { ok: true, entregue: true, quizId };
 }
