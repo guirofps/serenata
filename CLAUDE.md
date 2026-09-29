@@ -713,6 +713,45 @@ diferencial lá. "Serenata" também não serve: o americano lê como mariachi.
 **Logo:** só a palavra BALLAD (a Serenata também não leva "Gift"), mesma onda
 com coração, mesmo vinho, traço fino. Kit em `docs/marca/ballad/`.
 
+### Como a Ballad roda (montado em 29/09)
+
+- **Marca = env.** `VITE_MARCA=ballad` no projeto `balladgift` da Vercel.
+  `src/lib/marca-identidade.ts` (sem imports, lido por site, api e Inngest)
+  decide nome, domínio, remetentes; `LOCALE_PADRAO` vira `en`. Sem a env é
+  Serenata, então esquecer a env nunca derruba o site que vende.
+- **Idioma `en` é o funil BRASILEIRO adaptado**, não o espanhol (decisão do
+  dono): `quiz-flow-en.ts`, `letra-prompt-en.ts`, gêneros `*_en` em
+  `generos.ts`, `EN` em `textos.ts`/`textos-presente.ts`, `HomeEn.tsx` (cópia
+  estrutural da home BR). Sem WhatsApp, sem PIX, sem contador de famílias.
+- **Banco:** Supabase próprio em us-east-1 (`ssmykmiftqpbrxpduflg`),
+  migrations com histórico CERTO (ali `db push` funciona; aplicar com
+  `scratch/ballad-migrar.mjs`). Padrão da coluna `locale` = 'en' lá.
+  A linha `preco` de `experimentos` é em DÓLAR: A=$19 (100%), B=$24 peso 0.
+  Quem cobra lê essa linha; a tela também (`usaConfigViva` em `preco.ts`).
+- **Inngest:** ambiente próprio `ballad` na conta paga. `api/inngest.ts`
+  registra só `DA_BALLAD` (gerar, letra, repescar, vigias). Função nova entra
+  nas DUAS listas só se servir pros dois.
+- **Stripe:** Embedded Checkout (`CheckoutStripe.tsx`, `stripe-checkout.ts`,
+  `api/lib/stripe.ts`, `api/webhook/stripe.ts`). Mesmas travas do PIX.
+  Chaves de TESTE hoje; webhook de teste registrado. Na virada pra live:
+  chaves live + registrar o webhook live + `payment_method_domains` live.
+  Idempotência da sessão: a chave tem versão (`v2`); mexeu no corpo, sobe.
+- **Resend:** mesma conta, chave própria restrita ao balladgift.com, webhook
+  próprio. O webhook de cada site ignora eventos do domínio do outro.
+- **Google Ads:** a tag da Serenata NUNCA carrega na Ballad
+  (`google-ads.ts`). A dela entra por `VITE_GOOGLE_ADS_ID` e
+  `VITE_GOOGLE_ADS_CONVERSAO` no projeto balladgift.
+- **Deploy:** hoje pela CLI, apontando pro projeto (sem git):
+  `VERCEL_ORG_ID=team_hEMUGcKgu8uIFM9yueV0K5si VERCEL_PROJECT_ID=prj_zJaeX2faBotnX45q7OuUMZFeJqsp vercel deploy --prod`
+  e depois `curl -X PUT https://www.balladgift.com/api/inngest`. O
+  `.vercelignore` existe pra CLI não levar `.env*` nem `scratch/`.
+- **Exemplos:** seis músicas geradas pelo funil da própria Ballad
+  (`scratch/ballad-exemplos.mts`), dados em `src/lib/exemplos-en.ts`, capas
+  geradas (pessoas que não existem) em `public/ballad/exemplos/`.
+- **Testar pagamento:** cartão de teste só no LOCALHOST (config `ballad` do
+  `.claude/launch.json`, `scratch/dev-ballad.mjs`), nunca no domínio público.
+  Testado de ponta a ponta em 29/09: webhook, pedido pago, taxa, e-mail.
+
 **Quem vende, nos termos em inglês:** por ora a MESMA empresa da Serenata
 (CNPJ 45.835.258/0001-46, São Caetano do Sul/SP), decisão provisória do dono
 em 29/09, que vai trocar depois. Nome de pessoa física não aparece, igual à
