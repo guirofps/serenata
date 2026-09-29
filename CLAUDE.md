@@ -685,6 +685,34 @@ parametrizada: melhoria numa não aparece na outra. Foi escolha (parametrizar
 1.700 linhas em 8 componentes de madrugada, sem revisão, numa página que
 está vendendo). Fundir quando o teste provar que vale.
 
+## Expansão EUA: Ballad Gift (29/09/2026)
+
+Marca irmã pro mercado americano, `balladgift.com` (registrado 29/09).
+
+**Mesmo repositório, dois deploys.** Nada de fork: cada conserto (webhook,
+vigia, disjuntor, trava de e-mail) teria que ser feito duas vezes, e a home
+espanhola já mostra o que acontece com páginas irmãs. A marca vira
+configuração por projeto da Vercel; o funil brasileiro não muda nada, a mesma
+regra que valeu pro `/es`.
+
+| | Serenata | Ballad Gift |
+|---|---|---|
+| Vercel | projeto atual | projeto novo, mesmo repo |
+| Supabase | atual | **projeto novo, isolado** |
+| Pagamento | Asaas | Stripe (USD) |
+| Inngest | app atual | app separado |
+| Google Ads | conta atual | conta nova na mesma MCC |
+| kie.ai / Claude | mesmas contas | mesmas contas |
+
+**Por que não "Serenade".** `sendaserenade.com` já roda o nosso modelo nos
+EUA: letra grátis, US$ 18,99 pra gravar (3 por US$ 48,99), refação e
+reembolso, CD impresso US$ 24,99. E diz com todas as letras que não dá pra
+ouvir antes de comprar. A nossa prévia cantada e a página-presente são o
+diferencial lá. "Serenata" também não serve: o americano lê como mariachi.
+
+**Logo:** só a palavra BALLAD (a Serenata também não leva "Gift"), mesma onda
+com coração, mesmo vinho, traço fino. Kit em `docs/marca/ballad/`.
+
 ## Em aberto
 
 - Nome e marca
