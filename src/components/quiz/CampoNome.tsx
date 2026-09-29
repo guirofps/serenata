@@ -22,14 +22,28 @@ import { t } from "@/lib/textos";
 type TextQuestion = Extract<QuestionStep, { input: "text" }>;
 
 /** O eco: como o valor vai soar cantado. `{v}` marca onde ele entra. */
-function Eco({ rotulo, modelo, valor }: { rotulo: string; modelo?: string; valor: string }) {
+// O modelo padrão do eco. O inglês tem o seu; pt e es seguem com o de sempre.
+const MODELO_PADRAO_PT = "“{v}, essa música é pra você…”";
+const MODELO_PADRAO_EN = "“{v}, this song is for you…”";
+
+function Eco({
+  rotulo,
+  modelo,
+  valor,
+  locale,
+}: {
+  rotulo: string;
+  modelo?: string;
+  valor: string;
+  locale?: Locale;
+}) {
   return (
     <div className="rounded-xl border border-primary/15 bg-secondary/40 px-4 py-3 text-center">
       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
         {rotulo}
       </p>
       <p className="mt-1 text-lg leading-snug" style={{ fontFamily: FONTES.display }}>
-        {(modelo ?? "“{v}, essa música é pra você…”").split("{v}").map((pedaco, i) => (
+        {(modelo ?? (locale === "en" ? MODELO_PADRAO_EN : MODELO_PADRAO_PT)).split("{v}").map((pedaco, i) => (
           <span key={i}>
             {i > 0 && <span className="font-medium">{valor}</span>}
             <span className="text-muted-foreground">{pedaco}</span>
@@ -117,7 +131,7 @@ export function CampoNome({
       />
 
       {step.eco && texto && (
-        <Eco rotulo={step.eco} modelo={step.ecoModelo} valor={texto} />
+        <Eco rotulo={step.eco} modelo={step.ecoModelo} valor={texto} locale={locale} />
       )}
 
       {composto && (
@@ -157,7 +171,7 @@ export function CampoNome({
             className="text-center"
           />
           {extra.eco && valorExtra.trim() && (
-            <Eco rotulo={extra.eco} modelo={extra.ecoModelo} valor={valorExtra.trim()} />
+            <Eco rotulo={extra.eco} modelo={extra.ecoModelo} valor={valorExtra.trim()} locale={locale} />
           )}
         </div>
       )}

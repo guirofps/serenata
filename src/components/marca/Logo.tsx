@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { MARCA } from "@/lib/marca";
 
 // Logotipo da SERENATA — escolhido em 23/07.
 //
@@ -26,9 +27,15 @@ import { cn } from "@/lib/utils";
 //
 // 777x160 cobre a maior exibição (h-20 = 80px) em tela 2x. 41 KB: o playbook
 // da Movify põe a página abaixo de 1,5 MB em 4G.
-const ARQUIVO = "/img/logo-serenata.webp";
-// Proporção real do arquivo (777x160), declarada pra não causar CLS.
-const RAZAO = 777 / 160;
+// A BALLAD GIFT (EUA) tem a sua, no mesmo desenho (onda com coração, vinho,
+// traço fino), só com a palavra BALLAD. Kit em `docs/marca/ballad/`. Lá o
+// escuro é um SEGUNDO arquivo, em creme: o filtro que clareia o vinho da
+// Serenata deixava o traço fino da Ballad cinza e sem contraste.
+const BALLAD = MARCA.chave === "ballad";
+const ARQUIVO = BALLAD ? "/ballad/logo.webp" : "/img/logo-serenata.webp";
+const ARQUIVO_ESCURO = BALLAD ? "/ballad/logo-clara.webp" : ARQUIVO;
+// Proporção real do arquivo (777x160 e 560x137), declarada pra não causar CLS.
+const RAZAO = BALLAD ? 560 / 137 : 777 / 160;
 
 export function Logo({
   className,
@@ -51,15 +58,15 @@ export function Logo({
 
   return (
     <img
-      src={ARQUIVO}
-      alt="Serenata"
+      src={escuro ? ARQUIVO_ESCURO : ARQUIVO}
+      alt={MARCA.nome}
       width={Math.round(alturaPx * RAZAO)}
       height={alturaPx}
       // A logo é o LCP do header: carrega cedo, sem lazy.
       fetchPriority="high"
       className={cn(altura, "w-auto select-none", className)}
       style={
-        escuro
+        escuro && !BALLAD
           ? // Clareia o vinho e realça o ouro sobre a noite, sem precisar de
             // um segundo arquivo.
             { filter: "brightness(1.9) saturate(0.85)" }

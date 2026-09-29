@@ -4,6 +4,7 @@ import {
   Outlet,
   Link,
   createRootRouteWithContext,
+  redirect,
   useRouter,
   useRouterState,
   HeadContent,
@@ -28,22 +29,47 @@ import {
 import { trackEvent } from "@/lib/track";
 import { rotaSensivel } from "@/lib/rotas-sensiveis";
 import { TIKTOK_PIXEL_ID, scriptTiktok } from "@/lib/tiktok-pixel";
+import { GOOGLE_ADS_ID } from "@/lib/google-ads";
+import { LOCALE_PADRAO, TAG_IDIOMA } from "@/lib/i18n";
+import { MARCA } from "@/lib/marca";
+
+// ── O QUE NÃO EXISTE NA BALLAD GIFT ───────────────────────────────
+//
+// O mesmo código serve os dois sites, então as rotas da Serenata também
+// existem no domínio da Ballad: a home espanhola, a landing de SEO em
+// português, o link de influencer, o quadro e o PIX. Abertas lá, mostrariam
+// português (ou espanhol) com a marca americana. Na Ballad elas voltam pra
+// home; na Serenata esta lista não faz nada.
+const SO_DA_SERENATA =
+  /^\/(es(\/|$)|gleysi|musica-personalizada-para-esposa|indique|meu-quadro|quadro\/|pix\/|oferta\/|credito\/|demo-musica|marca)/;
+
+const NAO_ACHEI_EN = {
+  titulo: "Page not found",
+  texto: "The page you're looking for doesn't exist or has moved.",
+  voltar: "Back to home",
+  erroTitulo: "This page didn't load",
+  erroTexto: "Something went wrong on our end. Try again or go back home.",
+  tentar: "Try again",
+};
 
 function NotFoundComponent() {
+  const en = LOCALE_PADRAO === "en";
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Página não encontrada</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">
+          {en ? NAO_ACHEI_EN.titulo : "Página não encontrada"}
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          A página que você procura não existe ou foi movida.
+          {en ? NAO_ACHEI_EN.texto : "A página que você procura não existe ou foi movida."}
         </p>
         <div className="mt-6">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Voltar ao início
+            {en ? NAO_ACHEI_EN.voltar : "Voltar ao início"}
           </Link>
         </div>
       </div>
@@ -54,15 +80,16 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  const en = LOCALE_PADRAO === "en";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          Essa página não carregou
+          {en ? NAO_ACHEI_EN.erroTitulo : "Essa página não carregou"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Algo deu errado do nosso lado. Tente de novo ou volte para o início.
+          {en ? NAO_ACHEI_EN.erroTexto : "Algo deu errado do nosso lado. Tente de novo ou volte para o início."}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -72,13 +99,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Tentar de novo
+            {en ? NAO_ACHEI_EN.tentar : "Tentar de novo"}
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Voltar ao início
+            {en ? NAO_ACHEI_EN.voltar : "Voltar ao início"}
           </a>
         </div>
       </div>
@@ -87,6 +114,11 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  beforeLoad: ({ location }) => {
+    if (LOCALE_PADRAO === "en" && SO_DA_SERENATA.test(location.pathname)) {
+      throw redirect({ to: "/" });
+    }
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -118,20 +150,41 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         name: "viewport",
         content: "width=device-width, initial-scale=1, interactive-widget=resizes-content",
       },
-      { title: "Uma música feita da sua história" },
-      {
-        name: "description",
-        content:
-          "Conte a história de alguém querido e receba a letra de uma música personalizada na hora, de graça.",
-      },
+      // O título e a descrição de quem não define os seus. Por marca: na Ballad
+      // Gift (EUA) a aba do navegador dizia português em toda página sem head.
+      ...(LOCALE_PADRAO === "en"
+        ? [
+            { title: `${MARCA.nome} · A song made from your story` },
+            {
+              name: "description",
+              content:
+                "Tell the story of someone you love and get the lyrics to a personalized song in seconds, free.",
+            },
+          ]
+        : [
+            { title: "Uma música feita da sua história" },
+            {
+              name: "description",
+              content:
+                "Conte a história de alguém querido e receba a letra de uma música personalizada na hora, de graça.",
+            },
+          ]),
       { property: "og:type", content: "website" },
     ],
     links: [
       // Favicon da marca (coração-ouro na noite, onda sonora vinho). SVG pros
       // navegadores modernos; PNG 32 e apple-touch pro resto e pra tela inicial.
-      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
-      { rel: "icon", href: "/favicon-32.png", type: "image/png", sizes: "32x32" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      // A Ballad Gift (EUA) tem os dela em `public/ballad/`.
+      ...(MARCA.chave === "ballad"
+        ? [
+            { rel: "icon", href: "/ballad/favicon-32.png", type: "image/png", sizes: "32x32" },
+            { rel: "apple-touch-icon", href: "/ballad/apple-touch-icon.png" },
+          ]
+        : [
+            { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+            { rel: "icon", href: "/favicon-32.png", type: "image/png", sizes: "32x32" },
+            { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+          ]),
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       {
@@ -181,7 +234,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
     // cliente, e o CSS tem o `:not([data-exp-...])` como rede). O que não é
     // inofensivo é o console cheio: erro de verdade some no meio do barulho, e
     // foi assim que a queda de 4 horas do `/api/inngest` passou despercebida.
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html lang={TAG_IDIOMA[LOCALE_PADRAO]} suppressHydrationWarning>
       <head>
         <HeadContent />
         {/* TESTE A/B — os três <script>/<style> abaixo precisam ser a
@@ -209,15 +262,17 @@ function RootShell({ children }: { children: React.ReactNode }) {
             FORA das rotas sensíveis (`rotas-sensiveis.ts`). A /obrigado, que é
             onde a conversão acontece, não está na lista — o funil de medição
             continua inteiro. */}
-        {podeMedir && (
+        {/* O id é da MARCA (`google-ads.ts`): a Ballad Gift nunca carrega a
+            conta da Serenata, e sem o id dela não carrega tag nenhuma. */}
+        {podeMedir && GOOGLE_ADS_ID && (
           <>
             <script
               async
-              src="https://www.googletagmanager.com/gtag/js?id=AW-16919557808"
+              src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`}
             />
             <script
               dangerouslySetInnerHTML={{
-                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','AW-16919557808');`,
+                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GOOGLE_ADS_ID}');`,
               }}
             />
           </>
@@ -275,6 +330,9 @@ function carregarUtmify() {
   // precisa medir (a origem do clique) acontece no funil, nunca no editor nem
   // nos painéis. Ver `rotas-sensiveis.ts`.
   if (rotaSensivel(window.location.pathname)) return;
+  // A UTMify é a conta brasileira de atribuição. Na Ballad Gift (EUA) ela
+  // mediria venda americana no painel da Serenata.
+  if (MARCA.chave !== "serenata") return;
   // NÃO BASTA ESPERAR O ROOT MONTAR. As rotas são carregadas em `lazy`, então
   // elas hidratam DEPOIS do root: um script que já esteja reescrevendo links
   // pega a próxima rota no meio da hidratação e o problema volta, só que mais

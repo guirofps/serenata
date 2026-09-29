@@ -2,7 +2,7 @@
 // (que resolve o alias `@`) e pelo cron do Inngest, que roda como ESM puro na
 // Vercel e NÃO resolve alias. É a mesma razão pela qual `email-typo.ts` também
 // não importa nada. O tipo abaixo é a cópia local de `Locale`.
-type Locale = "pt" | "es";
+type Locale = "pt" | "es" | "en";
 
 // O CUPOM DA RECUPERAÇÃO, num lugar só.
 //
@@ -27,7 +27,8 @@ type Locale = "pt" | "es";
 
 export type Cupom = { codigo: string; texto: string; de: string; por: string };
 
-const CUPONS: Record<Locale, Cupom> = {
+// Sem cupom no inglês: a Ballad não tem régua de recuperação com desconto.
+const CUPONS: Partial<Record<Locale, Cupom>> = {
   pt: { codigo: "SRN27", texto: "R$ 10", de: "R$ 38", por: "R$ 28" },
   es: { codigo: "SRN7", texto: "20%", de: "US$ 9,90", por: "US$ 7,92" },
 };
@@ -40,7 +41,8 @@ export function cupomAtivo(locale: Locale, agora = new Date()): Cupom | null {
   // depende de fuso, que aqui não importa (a diferença é de um dia, e o
   // gateway é quem decide de verdade).
   if (agora.toISOString().slice(0, 10) > VALE_ATE) return null;
-  return CUPONS[locale] ?? CUPONS.pt;
+  if (locale === "en") return null;
+  return CUPONS[locale] ?? CUPONS.pt ?? null;
 }
 
 /**

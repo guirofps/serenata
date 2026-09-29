@@ -20,6 +20,8 @@ import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
 import { varianteDe, EXP_PROVA_BLOCOS } from "@/lib/experimentos";
 import { PixTransparente } from "@/components/quiz/PixTransparente";
+import { CheckoutStripe } from "@/components/quiz/CheckoutStripe";
+import { MARCA } from "@/lib/marca";
 import { SorteioSemanal } from "@/components/quiz/SorteioSemanal";
 import { DepoimentoContato } from "@/components/quiz/DepoimentoContato";
 import { Variante } from "@/components/Variante";
@@ -222,7 +224,116 @@ const DUVIDAS_ES = [
   },
 ];
 
+// ── INGLÊS (Ballad Gift, EUA) ──────────────────────────────────────
+// A partir do PORTUGUÊS, item por item. Sem WhatsApp (o link vai por
+// mensagem de texto) e com a caixa de bombom trocada pelo cartão e o
+// embrulho, que é o que se tem na mão num presente nos EUA.
+const ENTREGAVEIS_EN = [
+  {
+    Icone: Music,
+    titulo: "The full song, sung",
+    detalhe:
+      "Start to finish, no cuts. And in two different recordings of the same lyrics, so you can pick the one that moves you most.",
+  },
+  {
+    Icone: Images,
+    titulo: "The gift page, with your photos",
+    detalhe:
+      "Up to 12 photos that change on their own as the song turns. This page is what you send, not a loose file.",
+  },
+  {
+    Icone: Sparkles,
+    titulo: "Sing-along lyrics, word by word",
+    detalhe:
+      "Each word lights up the exact moment it's sung. Whoever gets it can follow along and sing with it.",
+  },
+  {
+    Icone: QrCode,
+    titulo: "A link and QR code to give it",
+    detalhe:
+      "Text them the link, or print the QR code and put it on a card or gift box. The digital gift becomes one you hand over.",
+  },
+  {
+    Icone: Download,
+    titulo: "The MP3 to download and keep",
+    detalhe: "The song lives on your phone, to play whenever you want, online or off.",
+  },
+  {
+    Icone: RefreshCw,
+    titulo: "Not quite right? We'll redo it",
+    detalhe:
+      "After you buy, request a change from your account: swap a line, change the style or the voice. We re-record it and send you the new version.",
+  },
+  {
+    Icone: Pencil,
+    titulo: "You design the gift your way",
+    detalhe:
+      "Pick the page color, an on-screen touch and write a line of your own. Change it as many times as you like.",
+  },
+  {
+    Icone: InfinityIcon,
+    titulo: "It's yours forever",
+    detalhe: "The page never expires and the link never stops working. One-time payment, no subscription.",
+  },
+];
+
+const DUVIDAS_EN = [
+  {
+    p: "Is it a one-time payment or a subscription?",
+    r: "One time. You pay once and the song is yours forever. No monthly fee, no auto-renewal, and we don't store your card.",
+  },
+  {
+    p: "How long does it take?",
+    r: "Up to 30 minutes, usually under 5. We email you as soon as it's ready, and you can also put the gift together right here on screen.",
+  },
+  {
+    p: "Will the song match the lyrics I read?",
+    r: "Yes. These exact lyrics are what gets sung, word for word. Nothing gets swapped after you pay.",
+  },
+  {
+    p: "What if I don't like the recording?",
+    r: "You get two versions of the same lyrics with different performances, and you choose which one plays when they open it. If neither works, reply to the email and we'll make it right.",
+  },
+  {
+    p: "How do I give the gift?",
+    r: "Once it's ready, we give you the link and a message to copy and paste into a text. You're the one who gives it.",
+  },
+];
+
 const COPY = {
+  en: {
+    entregaveis: ENTREGAVEIS_EN,
+    duvidas: DUVIDAS_EN,
+    voltar: "Back to my song",
+    eyebrow: "one step left",
+    titulo: (n: string) => `${n}'s song is recorded.`,
+    sub: "You heard a preview. It keeps going, and it ends exactly the way you wrote it.",
+    daLetra: (n: string) => `from the lyrics you wrote for ${n}`,
+    oQueLeva: "What you get",
+    provaLegenda: "real reactions from people who heard a song we made",
+    provaSelo: "real reactions",
+    ancora:
+      "Commissioning an original song from a songwriter starts at $300 and takes weeks.",
+    hojePor: "today for",
+    pagamentoUnico: "One-time payment. Not a subscription.",
+    conversao: "",
+    cta: (n: string) => `I want ${n}'s song`,
+    ctaCurto: "Get the song",
+    creditoTitulo: (n: number) => (n === 1 ? "You have 1 credit" : `You have ${n} credits`),
+    creditoSub: "This song is already paid for. Just unlock it.",
+    creditoCta: "Use my credit and unlock",
+    creditoCtaCurto: "Use my credit",
+    creditoLabel: "already paid",
+    creditoValor: "$0",
+    creditoIndo: "Unlocking...",
+    abrindo: "Opening payment…",
+    abrindoCurto: "Opening…",
+    gateway: "Card, Apple Pay or Google Pay. Secure one-time payment",
+    antesDePagar: "Before you pay",
+    suporte: "Any questions, write to",
+    respondemos: ". A real person answers.",
+    unicoLabel: "one-time payment",
+  },
   pt: {
     entregaveis: ENTREGAVEIS_PT,
     duvidas: DUVIDAS_PT,
@@ -393,8 +504,12 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     valor: number;
   } | null>(null);
   const [aberta, setAberta] = useState<number | null>(null);
+  // O pagamento da Ballad Gift. Guarda só o preço já formatado, pro título da
+  // folha: quem decide o valor cobrado é o servidor (`stripe-checkout.ts`).
+  const [pagandoComStripe, setPagandoComStripe] = useState<string | null>(null);
   const nome =
-    (respostas.nome as string)?.trim() || (locale === "es" ? "quien vos querés" : "quem você ama");
+    (respostas.nome as string)?.trim() ||
+    (locale === "es" ? "quien vos querés" : locale === "en" ? "someone you love" : "quem você ama");
   // Só mostra desconto se o cupom da store for MESMO o da recuperação: um
   // código digitado na URL por curiosidade não pode reescrever o preço da tela.
   const doFunil = cupomAtivo(locale);
@@ -540,14 +655,18 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       setErroCredito(
         locale === "es"
           ? "No pudimos usar tu crédito ahora. Inténtalo de nuevo en un momento."
-          : "Não deu pra usar seu crédito agora. Tente de novo daqui a pouco.",
+          : locale === "en"
+            ? "We couldn't use your credit right now. Please try again in a moment."
+            : "Não deu pra usar seu crédito agora. Tente de novo daqui a pouco.",
       );
       setIndo(false);
     } catch {
       setErroCredito(
         locale === "es"
           ? "No pudimos usar tu crédito ahora. Inténtalo de nuevo en un momento."
-          : "Não deu pra usar seu crédito agora. Tente de novo daqui a pouco.",
+          : locale === "en"
+            ? "We couldn't use your credit right now. Please try again in a moment."
+            : "Não deu pra usar seu crédito agora. Tente de novo daqui a pouco.",
       );
       setIndo(false);
     }
@@ -709,7 +828,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     //
     // Vale pra QUALQUER visitante, não só pra quem veio do TikTok: é assim
     // que o pixel monta público. Ele só existe se o pixel carregou.
-    checkoutTiktok({ valor: plano.valor, moeda: locale === "es" ? "USD" : "BRL" });
+    checkoutTiktok({ valor: plano.valor, moeda: locale === "pt" ? "BRL" : "USD" });
 
     // ── O CHECKOUT TRANSPARENTE ──────────────────────────────────
     //
@@ -766,6 +885,15 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       return;
     }
 
+    // BALLAD GIFT (EUA): o Stripe, na própria página. Nunca o redirect da
+    // Perfect Pay, que é produto em real e de outra marca.
+    if (locale === "en") {
+      trackEvent("stripe_checkout_pediu", { valor: plano.valor });
+      setPagandoComStripe(plano.texto);
+      setIndo(false);
+      return;
+    }
+
     irParaCheckout({
       email: email || undefined,
       telefone: whatsapp || undefined,
@@ -812,6 +940,17 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
             />
           </div>
         </div>
+      )}
+
+      {pagandoComStripe && (
+        <CheckoutStripe
+          precoTexto={pagandoComStripe}
+          aoFechar={() => setPagandoComStripe(null)}
+          aoSemMusica={() => {
+            setPagandoComStripe(null);
+            esperarMusica("checkout");
+          }}
+        />
       )}
 
       <button
@@ -939,12 +1078,16 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
               <RefreshCw className="h-4 w-4 animate-spin text-primary" />
               {locale === "es"
                 ? "Estamos terminando de grabar tu canción"
-                : "Estamos terminando de gravar a sua música"}
+                : locale === "en"
+                  ? "We're finishing recording your song"
+                  : "Estamos terminando de gravar a sua música"}
             </p>
             <p className="mt-1 text-xs leading-snug text-muted-foreground">
               {locale === "es"
                 ? "No te cobramos por algo que todavía no existe. Quédate aquí: en cuanto esté, el pago se abre solo."
-                : "A gente não cobra por algo que ainda não existe. Fica aqui: assim que ficar pronta, o pagamento abre sozinho."}
+                : locale === "en"
+                  ? "We never charge for something that doesn't exist yet. Stay here: as soon as it's ready, the payment opens on its own."
+                  : "A gente não cobra por algo que ainda não existe. Fica aqui: assim que ficar pronta, o pagamento abre sozinho."}
             </p>
             <p className="mt-2 text-xs font-medium tabular-nums text-primary">
               {Math.floor(esperaSeg / 60)}:{String(esperaSeg % 60).padStart(2, "0")}
@@ -958,18 +1101,22 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
             <p className="text-sm font-semibold text-amber-900">
               {locale === "es"
                 ? "La grabación está tardando más de lo normal"
-                : "A gravação está demorando mais que o normal"}
+                : locale === "en"
+                  ? "The recording is taking longer than usual"
+                  : "A gravação está demorando mais que o normal"}
             </p>
             <p className="mt-1 text-xs leading-snug text-amber-800/80">
               {locale === "es"
                 ? "Tu letra está guardada y la canción sigue en la fila. Te la mandamos por correo en cuanto salga, y no pagas nada hasta escucharla."
-                : "A sua letra está guardada e a música continua na fila. Mandamos por e-mail assim que sair, e você não paga nada antes de ouvir."}
+                : locale === "en"
+                  ? "Your lyrics are saved and the song is still in line. We'll email it to you as soon as it's done, and you pay nothing until you hear it."
+                  : "A sua letra está guardada e a música continua na fila. Mandamos por e-mail assim que sair, e você não paga nada antes de ouvir."}
             </p>
             <button
               onClick={aoVoltar}
               className="mt-2 text-xs font-semibold text-amber-900 underline underline-offset-4"
             >
-              {locale === "es" ? "Volver a mi letra" : "Voltar pra minha letra"}
+              {locale === "es" ? "Volver a mi letra" : locale === "en" ? "Back to my lyrics" : "Voltar pra minha letra"}
             </button>
           </div>
         )}
@@ -1074,10 +1221,10 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       <p className="text-center text-xs leading-relaxed text-muted-foreground">
         {C.suporte}{" "}
         <a
-          href="mailto:contato@serenatagift.com"
+          href={`mailto:${MARCA.emailContato}`}
           className="text-primary underline underline-offset-2"
         >
-          contato@serenatagift.com
+          {MARCA.emailContato}
         </a>
         {C.respondemos}
       </p>

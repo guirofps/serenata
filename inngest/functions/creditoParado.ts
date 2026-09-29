@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { REMETENTE_TRANSACIONAL } from "../../emails/remetentes.js";
 import { emailCreditoParado, assuntoCreditoParado } from "../../emails/credito-parado.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // QUEM COMPROU CRÉDITO E NÃO USOU.
 //
@@ -29,7 +30,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 
 // 48 HORAS de carência, o dobro do quadro. Montar o quadro é um clique; usar
 // o crédito é contar outra história inteira, e isso ninguém faz na mesma noite

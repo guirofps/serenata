@@ -40,4 +40,9 @@ export const GARANTIA: Record<
     texto: "¿No quedaste satisfecho? Reembolso total, sin preguntas.",
     curto: `garantía de ${DIAS_GARANTIA} días · reembolso sin preguntas`,
   },
+  en: {
+    titulo: `${DIAS_GARANTIA}-day money-back guarantee`,
+    texto: "Not happy with it? Full refund, no questions asked.",
+    curto: `${DIAS_GARANTIA}-day money-back guarantee · no questions asked`,
+  },
 };

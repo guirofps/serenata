@@ -4,6 +4,7 @@ import { gatewayPix } from "@/lib/criar-pix";
 import { ErroGateway } from "@/lib/gateway";
 import { conferirOferta } from "@/lib/oferta-assinada";
 import { OFERTA, type DegrauEscada } from "../../emails/escada";
+import { MARCA_ATIVA } from "./marca-identidade.js";
 
 // O PIX DO DEGRAU DA ESCADA.
 //
@@ -126,7 +127,7 @@ export const criarPixOferta = createServerFn({ method: "POST" })
     const refFinal = cobranca.idExterno;
     const site = process.env.VITE_APP_URL?.startsWith("http")
       ? process.env.VITE_APP_URL
-      : "https://www.serenatagift.com";
+      : MARCA_ATIVA.url;
 
     const { error } = await db.from("pedidos").upsert(
       {

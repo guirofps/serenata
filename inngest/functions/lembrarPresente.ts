@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailLembretePresente, assuntoLembrete } from "../../emails/lembrete-presente.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // LEMBRETE de quem pagou e não montou o presente.
 //
@@ -19,7 +20,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 // Por que no Inngest e não no cron da Vercel: o plano Hobby limita cron a uma
 // vez por dia, e o Inngest agenda por conta própria sem esse teto.
 
-const SITE = "https://www.serenatagift.com";
+const SITE = MARCA_ATIVA.url;
 
 // Janela: 1h (era 3h até 28/09). Medido de 14 a 27/09: 49% dos compradores
 // não tinham aberto o editor 3h depois de pagar, e o upsell acontece quase
@@ -144,7 +145,7 @@ export const lembrarPresente = inngest.createFunction(
       // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
       // pessoa e nem sempre vem no evento.
       tags: [{ name: "template", value: "lembrar_presente" }],
-          from: "Serenata <contato@serenatagift.com>",
+          from: MARCA_ATIVA.remetenteTransacional,
           to: [c.email],
           headers: cabecalhosDescadastro(c.email),
           subject: assuntoLembrete(c.nome, c.locale),

@@ -8,6 +8,7 @@ import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.j
 import { emailQuadro, assuntoQuadro } from "../../emails/quadro-na-parede.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { literalLike } from "../../src/lib/sql-like.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O QUADRO, sete dias depois da compra.
 //
@@ -54,7 +55,7 @@ import { literalLike } from "../../src/lib/sql-like.js";
 // a cobrança lá dentro sem pedir login.
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 const linkDoQuadro = (tokenEdicao: string) => `${SITE}/editar/${tokenEdicao}?de=quadro`;
 
 const MIN_DIAS = 7;

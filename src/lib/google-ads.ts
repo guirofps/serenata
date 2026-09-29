@@ -10,8 +10,27 @@
 // a ficar ABAIXO do real — o que é seguro (não infla resultado), mas precisa
 // ser lembrado ao comparar com o painel da Perfect Pay, que é a verdade.
 
-export const GOOGLE_ADS_ID = "AW-16919557808";
-const CONVERSAO = "AW-16919557808/pSbhCOqvttkcELDt74M_";
+import { MARCA_ATIVA } from "./marca-identidade.js";
+
+// ── A CONTA DE ANÚNCIO É DA MARCA ─────────────────────────────────
+//
+// Um repositório, dois sites. Com o id cravado, a Ballad Gift (EUA) carregaria
+// a tag da Serenata e contaria venda em dólar na conta brasileira: o Smart
+// Bidding daqui aprenderia com tráfego americano, que é o jeito mais caro de
+// estragar uma campanha que está vendendo.
+//
+// Na Serenata os valores de sempre, sem configuração. Na Ballad, só com as
+// envs do projeto dela; sem elas não carrega tag nenhuma (melhor não medir
+// que medir na conta errada).
+const ENV = (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
+export const GOOGLE_ADS_ID: string | null =
+  MARCA_ATIVA.chave === "serenata"
+    ? "AW-16919557808"
+    : ENV.VITE_GOOGLE_ADS_ID?.trim() || null;
+const CONVERSAO: string | null =
+  MARCA_ATIVA.chave === "serenata"
+    ? "AW-16919557808/pSbhCOqvttkcELDt74M_"
+    : ENV.VITE_GOOGLE_ADS_CONVERSAO?.trim() || null;
 
 declare global {
   interface Window {
@@ -116,7 +135,7 @@ export function conversaoCompra(args: {
   moeda?: "BRL" | "USD";
   transactionId?: string;
 }) {
-  if (typeof window === "undefined" || !window.gtag) return;
+  if (typeof window === "undefined" || !window.gtag || !CONVERSAO) return;
   const id = idDaTransacao(args.transactionId);
   window.gtag("event", "conversion", {
     send_to: CONVERSAO,

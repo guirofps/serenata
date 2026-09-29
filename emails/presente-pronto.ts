@@ -5,10 +5,11 @@
 // Foi exatamente o que aconteceu em 18/08: o webhook ficou 5h29 fora do ar e
 // nenhum pagamento aprovado virou pedido. Está no CLAUDE.md e eu repeti.
 import { linkSuporte } from "../src/lib/suporte-whatsapp.js";
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
 
 // O domínio, escrito aqui e não deduzido: e-mail não tem `window.location`, e
 // caminho relativo em HTML de e-mail não resolve em cliente nenhum.
-const SITE = "https://www.serenatagift.com";
+const SITE = MARCA_ATIVA.url;
 
 ﻿// E-mail que o comprador recebe quando o pagamento é confirmado.
 //
@@ -19,10 +20,15 @@ const SITE = "https://www.serenatagift.com";
 // Estética: papel e vinho (o mundo claro da marca). Tabelas e estilo inline
 // porque cliente de e-mail não entende flex nem folha externa.
 
-type IdiomaEmail = "pt" | "es";
+// `en` é a Ballad Gift (EUA). A copy inglesa foi adaptada do PORTUGUÊS, e
+// deixa de fora tudo o que só existe no Brasil: WhatsApp, a segunda música a
+// R$ 28 e a oferta do quadro (os dois saem por PIX).
+type IdiomaEmail = "pt" | "es" | "en";
 
 // A copy do e-mail, por idioma. Ele é ENTREGA, não marketing: quem recebe já
 // pagou, e o único trabalho aqui é levar a pessoa ao editor.
+//
+// Campo de oferta VAZIO some do e-mail em vez de sair como bloco sem texto.
 const COPY: Record<IdiomaEmail, {
   assunto: (n: string) => string;
   titulo: (n: string) => string;
@@ -32,6 +38,7 @@ const COPY: Record<IdiomaEmail, {
   ajuda: string; ajudaBotao: string;
   quadroTitulo: string; quadroTexto: string; quadroBotao: string;
   meuQuadroTitulo: string; meuQuadroTexto: string; meuQuadroBotao: string;
+  videoTitulo: string; videoTexto: string; videoBotao: string;
   outraMusica: string; outraMusicaLink: string;
 }> = {
   pt: {
@@ -65,6 +72,10 @@ const COPY: Record<IdiomaEmail, {
     meuQuadroTexto:
       "Você já pagou por ele. É a letra e a foto de vocês numa folha A4, com o QR Code que toca a música. Escolhe a foto, a gente monta o PDF, e você manda imprimir.",
     meuQuadroBotao: "MONTAR O MEU QUADRO",
+    videoTitulo: "O seu vídeo já está pago",
+    videoTexto:
+      "Ele é feito das fotos de vocês. Suba as fotos na página, dê o play pra conferir e toque em \"Gerar meu vídeo\".",
+    videoBotao: "SUBIR AS FOTOS E GERAR",
     comPressa:
       "E este é o link <strong style=\"color:#2a1518;\">que você manda pra ela</strong>. O presente já funciona do jeito que está, mesmo sem a foto:",
     verPresente: "ABRIR A PÁGINA QUE EU VOU MANDAR",
@@ -102,17 +113,60 @@ const COPY: Record<IdiomaEmail, {
     meuQuadroTexto:
       "Ya lo pagaste. Es la letra y la foto de ustedes en una hoja A4, con el código QR que reproduce la canción. Elegís la foto, armamos el PDF y lo mandás a imprimir.",
     meuQuadroBotao: "ARMAR MI CUADRO",
+    // O bloco do vídeo sempre saiu em português também no espanhol. Fica
+    // igual de propósito: mudar aqui é mudar o e-mail que já está no ar.
+    videoTitulo: "O seu vídeo já está pago",
+    videoTexto:
+      "Ele é feito das fotos de vocês. Suba as fotos na página, dê o play pra conferir e toque em \"Gerar meu vídeo\".",
+    videoBotao: "SUBIR AS FOTOS E GERAR",
     // O precio va en real porque el cobro va en real (Perfect Pay), igual que
     // en el panel. Ver el comentario de `outraMusica` en pt.
     outraMusica: "¿Hay alguien más que merece una? La segunda sale por R$ 28, y no rehacés nada: contás la historia y la canción queda lista.",
     outraMusicaLink: "quiero una canción más",
     rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
+  en: {
+    assunto: (n) => `${n}'s song is ready`,
+    titulo: (n) => `<em style="color:#7d2b3a;">${n}</em>'s song is ready.`,
+    faltaSo: "Just one thing left:", montar: "set up the gift",
+    coloque:
+      "Add a photo and write a few words of your own. That's what turns the page into something only the two of you understand. <strong style=\"color:#2a1518;\">This is also where you download the song as an MP3.</strong>",
+    botao: "SET UP THE GIFT AND GET THE MP3 →",
+    guarde:
+      "This is YOUR link, so hold on to it. It's where you edit the page and download the song, anytime you like.",
+    duasVersoes:
+      "There are TWO recordings of the same lyrics. Listen to both at the link above and pick the one that will play for them.",
+    // Sem WhatsApp: nos EUA o canal é só e-mail.
+    semAnexo:
+      "The song isn't attached to this email: it lives at these links, and they're yours forever.",
+    comPressa:
+      "And this is the link <strong style=\"color:#2a1518;\">you send to them</strong>, by text message or however you like. The gift already works just as it is, even without a photo:",
+    verPresente: "OPEN THE PAGE I'LL SEND",
+    // O socorro em inglês é por e-mail, não por WhatsApp.
+    ajuda: "Couldn't open your song? Just reply to this email or write to us.",
+    ajudaBotao: MARCA_ATIVA.emailContato,
+    // Sem oferta de quadro: ele é impresso e pago por PIX, só existe no Brasil.
+    quadroTitulo: "",
+    quadroTexto: "",
+    quadroBotao: "",
+    meuQuadroTitulo: "Your print is waiting for you to set it up",
+    meuQuadroTexto:
+      "You've already paid for it. It's the lyrics and your photo on a letter-size page, with a QR code that plays the song. Pick the photo, we'll make the PDF, and you send it to print.",
+    meuQuadroBotao: "SET UP MY PRINT",
+    videoTitulo: "Your video is already paid for",
+    videoTexto:
+      "It's made from your photos. Upload the photos to the page, press play to check it, and tap \"Create my video\".",
+    videoBotao: "UPLOAD THE PHOTOS AND CREATE",
+    // Sem a segunda música a R$ 28: é produto do Brasil, cobrado por PIX.
+    outraMusica: "",
+    outraMusicaLink: "",
+    rodape: `${MARCA_ATIVA.nome} · a song made from the story of someone you love`,
+  },
 };
 
 /** O assunto, no idioma da venda. */
 export function assuntoPresentePronto(nome: string, locale: IdiomaEmail = "pt") {
-  return COPY[locale].assunto(nome);
+  return (COPY[locale] ?? COPY.pt).assunto(nome);
 }
 
 export function emailPresentePronto(args: {
@@ -136,14 +190,18 @@ export function emailPresentePronto(args: {
   const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
   const { nome, titulo, linkEditor, linkPresente } = args;
   const jaTemQuadro = args.temQuadroPraMontar === true;
+  const ingles = args.locale === "en";
   // Devolve null quando o número não está configurado, e aí o bloco de ajuda
   // não é renderizado: melhor sem canal do que com um link que não abre.
-  const linkZap = linkSuporte({
-    locale: args.locale === "es" ? "es" : "pt",
-    titulo,
-  });
+  // Em inglês não existe WhatsApp: o socorro vira o e-mail de contato.
+  const linkAjuda = ingles
+    ? `mailto:${MARCA_ATIVA.emailContato}`
+    : linkSuporte({
+        locale: args.locale === "es" ? "es" : "pt",
+        titulo,
+      });
   return `<!DOCTYPE html>
-<html lang="${args.locale === "es" ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>
+<html lang="${args.locale === "es" ? "es" : ingles ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>
 <body style="margin:0;padding:0;background-color:#f2e9dc;font-family:Georgia,'Times New Roman',serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2e9dc;padding:40px 16px;">
     <tr><td align="center">
@@ -163,7 +221,7 @@ export function emailPresentePronto(args: {
                A marca e uma palavra numa serifa com espacejamento. Texto
                renderiza igual em todo cliente, nunca bloqueia, nunca quebra,
                e nao pesa 50 KB. -->
-          <div style="margin:0 auto 16px;font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:3px;color:#7d2b3a;text-align:center;">SERENATA</div>
+          <div style="margin:0 auto 16px;font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:3px;color:#7d2b3a;text-align:center;">${MARCA_ATIVA.nome.toUpperCase()}</div>
           <h1 style="margin:0;color:#2a1518;font-size:25px;font-weight:normal;line-height:1.32;">
             ${C.titulo(nome)}
           </h1>
@@ -241,12 +299,12 @@ export function emailPresentePronto(args: {
           ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;border-top:1px solid rgba(42,21,24,0.10);">
         <tr><td style="padding-top:22px;" align="center">
           <p style="margin:0;font-size:17px;color:#2a1518;font-family:Georgia,'Times New Roman',serif;">
-            O seu vídeo já está pago
+            ${C.videoTitulo}
           </p>
           <p style="margin:8px 0 0;font-size:14px;line-height:1.55;color:rgba(42,21,24,0.7);font-family:Helvetica,Arial,sans-serif;">
-            Ele é feito das fotos de vocês. Suba as fotos na página, dê o play pra conferir e toque em "Gerar meu vídeo".
+            ${C.videoTexto}
           </p>
-          <a href="${linkEditor}?de=video_entrega#video" style="display:inline-block;margin-top:14px;padding:13px 24px;border-radius:999px;background:#7d2b3a;color:#ffffff;text-decoration:none;font-weight:600;font-size:13px;font-family:Helvetica,Arial,sans-serif;">SUBIR AS FOTOS E GERAR</a>
+          <a href="${linkEditor}?de=video_entrega#video" style="display:inline-block;margin-top:14px;padding:13px 24px;border-radius:999px;background:#7d2b3a;color:#ffffff;text-decoration:none;font-weight:600;font-size:13px;font-family:Helvetica,Arial,sans-serif;">${C.videoBotao}</a>
         </td></tr>
       </table>`
           : ""
@@ -300,10 +358,12 @@ export function emailPresentePronto(args: {
            Este é o mesmo erro que enterrou o pacote: ele só aparecia na conta,
            e 84% dos compradores nunca entram nela. Pelo token a pessoa cai no
            bloco com o PIX aberto, sem login nenhum. -->
-      <p style="margin:22px 0 0;color:rgba(42,21,24,0.6);font-size:13px;line-height:1.5;font-family:Helvetica,Arial,sans-serif;">
+      ${
+        // Em inglês a linha não existe: o pacote é produto do Brasil, por PIX.
+        C.outraMusica ? `<p style="margin:22px 0 0;color:rgba(42,21,24,0.6);font-size:13px;line-height:1.5;font-family:Helvetica,Arial,sans-serif;">
         ${C.outraMusica}
         <a href="${linkEditor}#outra-musica" style="color:#7d2b3a;font-weight:600;text-decoration:underline;white-space:nowrap;">${C.outraMusicaLink}</a>
-      </p>
+      </p>` : ""}
 
       <!-- O SOCORRO, no e-mail e não só no site.
            Medido em 18/08: 248 dos 294 compradores nunca entraram na conta.
@@ -311,9 +371,9 @@ export function emailPresentePronto(args: {
            ajuda; ela está olhando pra ESTE e-mail, e é aqui que o canal
            precisa estar. Sem isso, quem digitou o e-mail errado ou não achou
            o link simplesmente some, e a gente só descobre pelo ticket. -->
-      ${linkZap ? `<p style="margin:20px 0 0;padding-top:16px;border-top:1px solid rgba(42,21,24,0.08);color:rgba(42,21,24,0.65);font-size:13px;line-height:1.5;font-family:Helvetica,Arial,sans-serif;">
+      ${linkAjuda ? `<p style="margin:20px 0 0;padding-top:16px;border-top:1px solid rgba(42,21,24,0.08);color:rgba(42,21,24,0.65);font-size:13px;line-height:1.5;font-family:Helvetica,Arial,sans-serif;">
         ${C.ajuda}<br>
-        <a href="${linkZap}" style="display:inline-block;margin-top:8px;color:#7d2b3a;font-weight:600;text-decoration:underline;">${C.ajudaBotao}</a>
+        <a href="${linkAjuda}" style="display:inline-block;margin-top:8px;color:#7d2b3a;font-weight:600;text-decoration:underline;">${C.ajudaBotao}</a>
       </p>` : ""}
 
       <p style="margin:18px 0 0;color:rgba(42,21,24,0.4);font-size:11px;font-family:Helvetica,Arial,sans-serif;">

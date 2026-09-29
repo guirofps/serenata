@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { DONOS } from "../../src/lib/donos.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O DISJUNTOR DE GASTO DO SUNO.
 //
@@ -106,7 +107,7 @@ async function avisarUmaVezPorDia(sb: SupabaseClient, teto: number): Promise<voi
     const chave = process.env.RESEND_API_KEY;
     if (!chave) return;
     await new Resend(chave).emails.send({
-      from: "Serenata <contato@serenatagift.com>",
+      from: MARCA_ATIVA.remetenteTransacional,
       to: [...DONOS],
       subject: `🔌 Disjuntor ligou: ${teto} músicas hoje, parei de gerar pra quem não pagou`,
       html:
@@ -148,7 +149,7 @@ async function avisarPerto(sb: SupabaseClient, teto: number): Promise<void> {
     const chave = process.env.RESEND_API_KEY;
     if (!chave) return;
     await new Resend(chave).emails.send({
-      from: "Serenata <contato@serenatagift.com>",
+      from: MARCA_ATIVA.remetenteTransacional,
       to: [...DONOS],
       subject: `⚠️ 80% do teto de músicas usado hoje (${alerta} de ${teto})`,
       html:

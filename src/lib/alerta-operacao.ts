@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { DONOS } from "./donos.js";
+import { MARCA_ATIVA } from "./marca-identidade.js";
 
 // O AVISO DE QUE A OPERAÇÃO PAROU.
 //
@@ -69,7 +70,7 @@ async function enviar(assunto: string, html: string): Promise<void> {
     const chave = process.env.RESEND_API_KEY;
     if (!chave) return;
     await new Resend(chave).emails.send({
-      from: "Serenata <contato@serenatagift.com>",
+      from: MARCA_ATIVA.remetenteTransacional,
       to: [...DONOS],
       subject: assunto,
       html,

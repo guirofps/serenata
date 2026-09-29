@@ -5,6 +5,7 @@ import { Resend } from "resend";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { emailVolteCriar, assuntoVolteCriar } from "../../emails/volte-criar.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // RECOMPRA: convida quem já comprou a criar a próxima música.
 //
@@ -36,7 +37,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 // diferença entre convite e perseguição é exatamente essa. O registro fica em
 // `funnel_events`, por e-mail, então quem comprou duas vezes não recebe dois.
 
-const SITE = "https://www.serenatagift.com";
+const SITE = MARCA_ATIVA.url;
 
 const MIN_DIAS = 5;
 const MAX_DIAS = 30;

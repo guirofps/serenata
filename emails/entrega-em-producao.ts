@@ -30,7 +30,10 @@
 //    dois minutos. Quem pede desculpa cedo demais transforma espera normal em
 //    problema. Se de fato demorar, quem pede desculpa é o `desculpa-atraso`.
 
-type IdiomaEmail = "pt" | "es";
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+
+// `en` é a Ballad Gift (EUA), com a copy adaptada do português.
+type IdiomaEmail = "pt" | "es" | "en";
 
 const COPY: Record<IdiomaEmail, {
   assunto: (n: string) => string;
@@ -65,6 +68,18 @@ const COPY: Record<IdiomaEmail, {
       "Este enlace ya es tuyo y no cambia. La página avisa sola cuando entre el audio, y es por ahí que armas el regalo y descargas el MP3.",
     rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
+  en: {
+    assunto: (n) => `Payment confirmed: ${n}'s song is being recorded`,
+    titulo: "We got your payment. Your song is being recorded right now.",
+    confirmado:
+      "Everything is all set with your order. The lyrics are already written, and right now they're being sung. This is the last step.",
+    quanto:
+      "It usually takes less than 5 minutes. If our provider has a queue, it can take up to 30. You don't need to do anything or keep refreshing: as soon as it's ready, we'll send you another email with everything.",
+    botao: "FOLLOW ALONG ON MY LINK →",
+    rodapeAviso:
+      "This link is already yours and it won't change. The page lets you know on its own when the audio is in, and it's where you set up the gift and download the MP3.",
+    rodape: `${MARCA_ATIVA.nome} · a song made from the story of someone you love`,
+  },
 };
 
 export function assuntoEmProducao(nome: string, locale: IdiomaEmail = "pt") {
@@ -79,7 +94,7 @@ export function emailEmProducao(args: {
   const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
 
   return `<!DOCTYPE html>
-<html lang="${args.locale === "es" ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#faf5ee;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf5ee;padding:32px 16px;">
     <tr><td align="center">

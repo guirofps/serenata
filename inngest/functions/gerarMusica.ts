@@ -5,6 +5,7 @@ import { acharGenero, estiloParaSuno } from "../../src/lib/generos.js";
 import { podeGerar } from "../lib/disjuntor.js";
 import { musicaDoQuiz, mandarEmailDeEntrega } from "../../api/lib/entrega.js";
 import { DONOS } from "../../src/lib/donos.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // Job de geração da música. Portado de scratch/pipeline-completo.mjs, que já
 // rodou de ponta a ponta na mão (3 músicas aprovadas).
@@ -428,7 +429,7 @@ export const gerarMusica = inngest.createFunction(
               ? `provedor recusou 4x${motivoRecusa ? `: ${motivoRecusa}` : ""}`
               : "timeout no provedor";
             await new Resend(chave).emails.send({
-              from: "Serenata <contato@serenatagift.com>",
+              from: MARCA_ATIVA.remetenteTransacional,
               to: [...DONOS],
               subject: `🔴 COMPRADOR sem música: ${musica.titulo ?? "sem título"}`,
               html:

@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Documento, Secao, SUPORTE } from "@/components/legal/Documento";
+import { META_PRIVACIDADE_EN, PrivacidadeEn } from "@/components/legal/PrivacidadeEn";
+import { LOCALE_PADRAO } from "@/lib/i18n";
 
 // POLÍTICA DE PRIVACIDADE.
 //
@@ -18,17 +20,27 @@ import { Documento, Secao, SUPORTE } from "@/components/legal/Documento";
 // que o titular entende, que é o que a LGPD pede. Advogado revisar antes de
 // virar tese em processo continua sendo boa ideia.
 
+// Na Ballad Gift (EUA) o site inteiro é inglês, e a política também: o
+// documento em inglês é outro texto, ADAPTADO pro consumidor americano, e
+// mora em `components/legal/`. Na Serenata nada muda.
+const EN = LOCALE_PADRAO === "en";
+
 export const Route = createFileRoute("/privacidade")({
-  component: Pagina,
+  component: EN ? PrivacidadeEn : Pagina,
   head: () => ({
-    meta: [
-      { title: "Política de Privacidade · Serenata" },
-      {
-        name: "description",
-        content:
-          "Como a Serenata coleta, usa e protege os seus dados. Quais dados, por quanto tempo, com quem são compartilhados e como pedir exclusão.",
-      },
-    ],
+    meta: EN
+      ? [
+          { title: META_PRIVACIDADE_EN.title },
+          { name: "description", content: META_PRIVACIDADE_EN.description },
+        ]
+      : [
+          { title: "Política de Privacidade · Serenata" },
+          {
+            name: "description",
+            content:
+              "Como a Serenata coleta, usa e protege os seus dados. Quais dados, por quanto tempo, com quem são compartilhados e como pedir exclusão.",
+          },
+        ],
   }),
 });
 

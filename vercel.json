@@ -29,7 +29,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "geolocation=(), camera=(), payment=(), interest-cohort=()"
+          "value": "geolocation=(), camera=(), payment=(self \"https://js.stripe.com\"), interest-cohort=()"
         }
       ]
     },

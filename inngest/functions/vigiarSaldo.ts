@@ -1,6 +1,7 @@
 ﻿import { inngest } from "../client.js";
 import { Resend } from "resend";
 import { DONOS } from "../../src/lib/donos.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // VIGIA DO SALDO do kie.ai.
 //
@@ -86,7 +87,7 @@ export const vigiarSaldo = inngest.createFunction(
       if (!chave) throw new Error("RESEND_API_KEY ausente");
       const acabou = musicas === 0;
       await new Resend(chave).emails.send({
-        from: "Serenata <contato@serenatagift.com>",
+        from: MARCA_ATIVA.remetenteTransacional,
         to: [...DONOS],
         // Assunto direto: este e-mail chega no meio de outros e precisa ser
         // lido no título, sem abrir.

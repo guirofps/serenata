@@ -11,8 +11,9 @@
 // tem, e por isso sobe pro dono.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { literalLike } from "../../src/lib/sql-like.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
-const SITE = "https://www.serenatagift.com";
+const SITE = MARCA_ATIVA.url;
 const MCP = "https://mcp.mail.hostinger.com/mcp";
 
 export type Caso = {

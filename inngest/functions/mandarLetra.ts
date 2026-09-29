@@ -6,6 +6,16 @@ import { emailLetraPronta, assuntoLetraPronta } from "../../emails/letra-pronta.
 import { REMETENTE_TRANSACIONAL } from "../../emails/remetentes.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { normalizarLocale, type Locale } from "../../src/lib/i18n.js";
+
+// O nome de quem não disse o nome, por idioma. Mora aqui em cima porque o
+// teste de assunto precisa reconhecer quando o nome é o genérico.
+const NOME_GENERICO: Record<Locale, string> = {
+  pt: "quem você ama",
+  es: "esa persona",
+  en: "someone you love",
+};
 
 // MANDA A LETRA por e-mail — a promessa que o quiz faz e que nunca foi
 // cumprida ("o e-mail é só pra você não perder").
@@ -18,7 +28,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 // letra não precisa de e-mail; chegar enquanto ela está ali é ruído. Vinte
 // minutos é depois de a maioria ter saído e antes de esquecer.
 
-const SITE = "https://www.serenatagift.com";
+const SITE = MARCA_ATIVA.url;
 const ESPERAR_MIN = 20;
 const OLHAR_ATE_DIAS = 30;
 // Teto por rodada. Não é sobre custo: `envio.serenatagift.com` é um domínio
@@ -131,7 +141,7 @@ export const mandarLetra = inngest.createFunction(
 
       const out: Array<{
         quizId: string; sessao: string; email: string; nome: string;
-        titulo: string; letra: string; locale: "pt" | "es";
+        titulo: string; letra: string; locale: Locale;
       }> = [];
 
       for (const l of leads ?? []) {
@@ -165,14 +175,16 @@ export const mandarLetra = inngest.createFunction(
 
         if (await jaMandou(sb, l.id)) continue;
 
-        const locale = l.locale === "es" ? "es" : "pt";
+        // Sem idioma gravado, cai no padrão da marca (pt na Serenata, en na
+        // Ballad Gift).
+        const locale = normalizarLocale(l.locale);
         const r = (l.respostas ?? {}) as Record<string, string>;
         out.push({
           quizId: l.id,
           sessao: l.session_id ?? "",
           email: l.email,
-          nome: r.nome?.trim() || (locale === "es" ? "esa persona" : "quem você ama"),
-          titulo: m.titulo ?? (locale === "es" ? "Tu canción" : "Sua música"),
+          nome: r.nome?.trim() || NOME_GENERICO[locale],
+          titulo: m.titulo ?? (locale === "es" ? "Tu canción" : locale === "en" ? "Your song" : "Sua música"),
           letra: m.letra,
           locale,
         });
@@ -220,8 +232,9 @@ export const mandarLetra = inngest.createFunction(
         // TESTE DE ASSUNTO (28/09): metade A, metade B, pelo último caractere
         // do id do quiz (estável: a mesma pessoa cai sempre no mesmo lado).
         // O B cita o nome no começo, então sem nome real fica no A: "quem você
-        // ama ganhou uma música" não é frase.
-        const nomeReal = p.nome !== "quem você ama" && p.nome !== "esa persona";
+        // ama ganhou uma música" não é frase. O teste é só em português: o
+        // espanhol e o inglês saem sempre no A.
+        const nomeReal = !Object.values(NOME_GENERICO).includes(p.nome);
         const variante: "a" | "b" =
           p.locale === "pt" && nomeReal && parseInt(p.quizId.slice(-1), 16) % 2 === 1 ? "b" : "a";
 

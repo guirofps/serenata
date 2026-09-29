@@ -31,6 +31,7 @@ import { venderNoTiktok } from "../lib/tiktok-eventos.js";
 import { OFERTAS } from "../../src/lib/creditos.js";
 import { Resend } from "resend";
 import { DONOS } from "../../src/lib/donos.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // Mesmo molde do `perfectpay.ts`. Duplicado de proposito e nao extraido: sao
 // dois webhooks que precisam sobreviver um ao outro, e a unica coisa que
@@ -40,7 +41,7 @@ async function alertarDono(assunto: string, html: string) {
     const chave = process.env.RESEND_API_KEY;
     if (!chave) return;
     await new Resend(chave).emails.send({
-      from: "Serenata <contato@serenatagift.com>",
+      from: MARCA_ATIVA.remetenteTransacional,
       to: [...DONOS],
       subject: assunto,
       html,

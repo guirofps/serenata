@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { REMETENTE_TRANSACIONAL } from "../../emails/remetentes.js";
 import { emailQuadroParado, assuntoQuadroParado } from "../../emails/quadro-parado.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // QUEM PAGOU O QUADRO E NÃO MONTOU.
 //
@@ -37,7 +38,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 
 // 20 HORAS DE CARÊNCIA. Quem comprou agora ainda está com a aba aberta; um
 // e-mail dizendo "você esqueceu" cinco minutos depois da compra é ofensa, não

@@ -14,6 +14,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { emailVideoPronto, assuntoVideoPronto } from "../../emails/video-pronto.js";
 import type { PropsPresente } from "../../video/src/props.js";
 import { DONOS } from "../../src/lib/donos.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O VÍDEO-PRESENTE, do pagamento ao MP4 no bucket.
 //
@@ -39,7 +40,7 @@ import { DONOS } from "../../src/lib/donos.js";
 const REGIAO = (process.env.REMOTION_AWS_REGION ?? "us-east-1") as AwsRegion;
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 // A URL assinada precisa viver o render inteiro (minutos). Um dia sobra.
 const VALIDADE_URL_S = 60 * 60 * 24;
 // 720x1280: no celular não se distingue do 1080 e o arquivo fica ~7x menor.
@@ -75,7 +76,7 @@ async function alertarDono(assunto: string, html: string) {
     const chave = process.env.RESEND_API_KEY;
     if (!chave) return;
     await new Resend(chave).emails.send({
-      from: "Serenata <contato@serenatagift.com>",
+      from: MARCA_ATIVA.remetenteTransacional,
       to: [...DONOS],
       subject: assunto,
       html,
@@ -425,7 +426,7 @@ export const renderizarVideo = inngest.createFunction(
       const linkVideo = `${SITE}/editar/${preparo.tokenEdicao}#video`;
       const { data: enviado, error } = await new Resend(chave).emails.send({
         tags: [{ name: "template", value: "video_pronto" }],
-        from: "Serenata <contato@serenatagift.com>",
+        from: MARCA_ATIVA.remetenteTransacional,
         to: [preparo.email],
         subject: assuntoVideoPronto(preparo.titulo, preparo.locale),
         html: emailVideoPronto({ titulo: preparo.titulo, linkVideo, locale: preparo.locale }),

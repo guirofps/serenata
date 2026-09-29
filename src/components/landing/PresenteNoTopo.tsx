@@ -3,6 +3,9 @@ import { Efeitos } from "@/components/presente/Efeitos";
 import { CORES, FONTES } from "@/lib/marca";
 import { Play } from "lucide-react";
 import { type Locale } from "@/lib/i18n";
+import { exemploEn } from "@/lib/exemplos-en";
+
+const PAI_EN = exemploEn("en-dad");
 
 // O PRESENTE, ACIMA DA DOBRA.
 //
@@ -43,6 +46,15 @@ const T: Record<
       "Café coado, o dia já quer começar",
       "Domingo de churrasco, a família inteira",
     ],
+  },
+  // Ballad Gift: o pai, como no português, com os versos gerados pelo funil
+  // dela (`exemplos-en.ts`).
+  en: {
+    foto: PAI_EN?.capa ?? "",
+    nome: PAI_EN?.nome ?? "Dad",
+    rotulo: "a song for",
+    legenda: "This is what they get, right on their phone.",
+    versos: PAI_EN?.versos ?? [],
   },
   es: {
     foto: "/img/exemplos/mae.webp",

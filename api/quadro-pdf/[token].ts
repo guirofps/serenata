@@ -55,6 +55,7 @@ import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -85,7 +86,7 @@ function db() {
  * dele.
  */
 function base(): string {
-  return (process.env.VITE_APP_URL ?? "https://www.serenatagift.com").replace(/\/+$/, "");
+  return (process.env.VITE_APP_URL ?? MARCA_ATIVA.url).replace(/\/+$/, "");
 }
 
 /** Nome de arquivo que uma pessoa reconhece na pasta de downloads. */

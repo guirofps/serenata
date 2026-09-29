@@ -1,10 +1,11 @@
 import { moldura } from "./sequencia.js";
 import { assinarOferta } from "../src/lib/oferta-assinada.js";
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
 
 /** O domínio do site. O e-mail sai de cron, sem requisição de onde deduzir. */
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 
 // A ESCADA DE RECUPERAÇÃO — dez e-mails, quatro preços descendo.
 //

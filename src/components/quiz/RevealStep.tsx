@@ -420,7 +420,7 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
 
   // fase "revelando" — a música já está sendo gerada; mostra o presente.
   const letra = fase.letra;
-  const nome = (respostas.nome as string) || "você";
+  const nome = (respostas.nome as string) || (locale === "en" ? "you" : "você");
   const bracoZap = varianteDe("zap_previa");
   const zapNaPrevia = bracoZap !== "A" && bracoZap !== FORA;
 

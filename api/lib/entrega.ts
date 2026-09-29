@@ -31,10 +31,12 @@ import { emailPresentePronto, assuntoPresentePronto } from "../../emails/present
 import { emailEmProducao, assuntoEmProducao } from "../../emails/entrega-em-producao.js";
 import { literalLike } from "../../src/lib/sql-like.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { normalizarLocale } from "../../src/lib/i18n.js";
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 
 export type MusicaDaEntrega = {
   id: string;
@@ -118,14 +120,16 @@ export async function mandarEmailDeEntrega(
       : { data: null };
 
     // O IDIOMA DA VENDA vem do registro, não da requisição: um webhook não
-    // tem navegador, cabeçalho nem rota de onde deduzir.
-    const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
+    // tem navegador, cabeçalho nem rota de onde deduzir. Sem idioma gravado,
+    // cai no padrão da marca (pt na Serenata, en na Ballad Gift).
+    const locale = normalizarLocale((q as { locale?: string } | null)?.locale);
+    const ingles = locale === "en";
     // `.trim()`: o nome digitado no quiz costuma vir com espaço sobrando
     // ("Cardoso "), e o assunto saía com espaço duplo.
     const nome =
       ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
       args.nomePagador?.trim() ||
-      (locale === "es" ? "quien tú quieres" : "quem você ama");
+      (locale === "es" ? "quien tú quieres" : ingles ? "someone you love" : "quem você ama");
 
     // ── ELA JÁ COMPROU O QUADRO? ──────────────────────────────
     //
@@ -184,11 +188,15 @@ export async function mandarEmailDeEntrega(
     if (!(args.musica.status === "pronta" && args.musica.audio_path)) {
       const { data: aviso, error: erroAviso } = await new Resend(chave).emails.send({
         tags: [{ name: "template", value: "entrega_em_producao" }],
-        from: "Serenata <contato@serenatagift.com>",
+        from: MARCA_ATIVA.remetenteTransacional,
         to: [args.email],
         subject: assuntoEmProducao(nome, locale),
         html: emailEmProducao({ nome, linkEditor, locale }),
-        text: `Recebemos o seu pagamento. A música de ${nome} está sendo gravada agora.\n\nNormalmente leva menos de 5 minutos. Se o nosso fornecedor estiver com fila, pode chegar a 30. Você não precisa fazer nada: assim que ficar pronta, mandamos outro e-mail com tudo.\n\nSEU LINK (ele já é seu e não muda, a página avisa sozinha quando o áudio entrar):\n${linkEditor}`,
+        // O texto puro sempre saiu em português, inclusive no espanhol. Fica
+        // assim de propósito; só o inglês ganha o seu.
+        text: ingles
+          ? `We got your payment. ${nome}'s song is being recorded right now.\n\nIt usually takes less than 5 minutes. If our provider has a queue, it can take up to 30. You don't need to do anything: as soon as it's ready, we'll send you another email with everything.\n\nYOUR LINK (it's already yours and won't change; the page lets you know on its own when the audio is in):\n${linkEditor}`
+          : `Recebemos o seu pagamento. A música de ${nome} está sendo gravada agora.\n\nNormalmente leva menos de 5 minutos. Se o nosso fornecedor estiver com fila, pode chegar a 30. Você não precisa fazer nada: assim que ficar pronta, mandamos outro e-mail com tudo.\n\nSEU LINK (ele já é seu e não muda, a página avisa sozinha quando o áudio entrar):\n${linkEditor}`,
       });
       if (erroAviso) throw new Error(erroAviso.message);
       await registrarEnvio(sb, {
@@ -205,19 +213,30 @@ export async function mandarEmailDeEntrega(
       // jeito de medir DEPOIS qual e-mail performou: o assunto carrega o nome
       // da pessoa e nem sempre vem no evento.
       tags: [{ name: "template", value: "entrega" }],
-      from: "Serenata <contato@serenatagift.com>",
+      from: MARCA_ATIVA.remetenteTransacional,
       to: [args.email],
       subject: assuntoPresentePronto(nome, locale),
       html: emailPresentePronto({
         nome,
-        titulo: args.musica.titulo ?? "Sua música",
+        titulo: args.musica.titulo ?? (ingles ? "Your song" : "Sua música"),
         linkEditor,
         linkPresente,
         temQuadroPraMontar,
         temVideoPraGerar,
         locale,
       }),
-      text: `A música de ${nome} está pronta.\n\nSEU LINK (monte o presente e baixe o MP3):\n${linkEditor}\n\nO LINK QUE VOCÊ MANDA PRA ELA:\n${linkPresente}\n\nSão DUAS gravações da mesma letra: ouça as duas no primeiro link e escolha a que vai tocar pra ela.\n\nA música não vai anexada e não mandamos por WhatsApp: ela mora nesses links, e eles são seus pra sempre.${
+      // Em inglês: sem WhatsApp, e quadro e vídeo só entram se forem dela.
+      text: ingles
+        ? `${nome}'s song is ready.\n\nYOUR LINK (set up the gift and download the MP3):\n${linkEditor}\n\nTHE LINK YOU SEND TO THEM (by text message or however you like):\n${linkPresente}\n\nThere are TWO recordings of the same lyrics: listen to both at the first link and pick the one that will play for them.\n\nThe song isn't attached to this email: it lives at these links, and they're yours forever.${
+            temQuadroPraMontar
+              ? `\n\nYOUR PRINT: you've already paid for it, and it just needs to be set up. It's at the same link above: ${linkEditor}?de=quadro`
+              : ""
+          }${
+            temVideoPraGerar
+              ? `\n\nYOUR VIDEO: it's already paid for. Upload the photos to the page and tap "Create my video": ${linkEditor}#video`
+              : ""
+          }\n\nNeed help? Just reply to this email or write to ${MARCA_ATIVA.emailContato}.`
+        : `A música de ${nome} está pronta.\n\nSEU LINK (monte o presente e baixe o MP3):\n${linkEditor}\n\nO LINK QUE VOCÊ MANDA PRA ELA:\n${linkPresente}\n\nSão DUAS gravações da mesma letra: ouça as duas no primeiro link e escolha a que vai tocar pra ela.\n\nA música não vai anexada e não mandamos por WhatsApp: ela mora nesses links, e eles são seus pra sempre.${
         temQuadroPraMontar
           ? `
 

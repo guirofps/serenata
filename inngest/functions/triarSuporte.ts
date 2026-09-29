@@ -12,6 +12,7 @@ import { inngest } from "../client.js";
 import { triar, responder, type Caso } from "../lib/suporte.js";
 import { createClient } from "@supabase/supabase-js";
 import { DONOS } from "../../src/lib/donos.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 
 function db() {
@@ -88,7 +89,7 @@ export const triarSuporte = inngest.createFunction(
         if (!chave) return;
         const { Resend } = await import("resend");
         await new Resend(chave).emails.send({
-          from: "Serenata <contato@serenatagift.com>",
+          from: MARCA_ATIVA.remetenteTransacional,
           to: [...DONOS],
           subject: `Suporte: ${paraVoce.length} ${paraVoce.length === 1 ? "e-mail precisa" : "e-mails precisam"} de você`,
           html:

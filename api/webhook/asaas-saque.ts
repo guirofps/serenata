@@ -31,6 +31,7 @@ import { createClient } from "@supabase/supabase-js";
 import { segredoConfere } from "../lib/segredo.js";
 import { Resend } from "resend";
 import { DONOS } from "../../src/lib/donos.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -47,7 +48,7 @@ async function avisar(assunto: string, html: string) {
     const chave = process.env.RESEND_API_KEY;
     if (!chave) return;
     await new Resend(chave).emails.send({
-      from: "Serenata <contato@serenatagift.com>",
+      from: MARCA_ATIVA.remetenteTransacional,
       to: [...DONOS],
       subject: assunto,
       html,

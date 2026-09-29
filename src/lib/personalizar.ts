@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { type Locale, normalizarLocale } from "@/lib/i18n";
 
 // Personalização da página-presente pelo COMPRADOR.
 //
@@ -12,7 +13,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export type PresenteEditavel = {
   /** Idioma da venda. Decide a moldura do editor. */
-  locale: "pt" | "es";
+  locale: Locale;
   titulo: string;
   nome: string;
   dedicatoria: string | null;
@@ -151,12 +152,13 @@ export const carregarParaEditar = createServerFn({ method: "GET" })
 
     // O idioma da venda: o editor abre por link de e-mail, sem prefixo de
     // rota de onde deduzir. Ver a migration 20260807000000_locale.
-    const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
+    const locale = normalizarLocale((q as { locale?: string } | null)?.locale);
 
     return {
-      locale: locale as "pt" | "es",
-      titulo: m.titulo ?? "Sua música",
-      nome: r.nome ?? "você",
+      locale,
+      // O inglês ganha o seu; pt e es seguem com o de sempre.
+      titulo: m.titulo ?? (locale === "en" ? "Your song" : "Sua música"),
+      nome: r.nome ?? (locale === "en" ? "you" : "você"),
       dedicatoria: m.dedicatoria,
       fotoUrl: await urlDaFoto(m.foto_path),
       galeria: await assinarGaleria(m.galeria),

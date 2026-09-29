@@ -1,3 +1,4 @@
+import { MARCA_ATIVA } from "./marca-identidade.js";
 // SEM IMPORTS, de propósito: o mesmo motivo do `cupom.ts`. Este arquivo é lido
 // pelo site, pelas server functions e pela migração (que repete as mesmas
 // constantes em SQL, ver `20260926000000_indicacao.sql`).
@@ -95,7 +96,7 @@ export function comissaoDe(pagoCentavos: number): number {
  * dentro da home, este link para de dar desconto EM SILÊNCIO: o convidado
  * paga cheio e o indicador fica sem comissão, sem erro em lugar nenhum.
  */
-export function linkDoConvite(codigo: string, site = "https://www.serenatagift.com"): string {
+export function linkDoConvite(codigo: string, site = MARCA_ATIVA.url): string {
   return `${site}/criar?ref=${codigo}`;
 }
 

@@ -3,6 +3,7 @@ import { extrairJsonTolerante } from "@/lib/json-tolerante";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { MODELO_LETRA, registrarCustoLetra, type UsoClaude } from "@/lib/custos";
 import { dispararGeracaoMusica } from "@/lib/gerar-letra";
+import { MARCA_ATIVA } from "./marca-identidade.js";
 
 // AJUSTE DE LETRA E REGRAVAÇÃO, na mão de quem está falando com o cliente.
 //
@@ -186,7 +187,7 @@ export const letraParaAjuste = createServerFn({ method: "POST" })
       assinarAudio(m.audio_path_v2),
     ]);
 
-    const SITE = "https://www.serenatagift.com";
+    const SITE = MARCA_ATIVA.url;
     return {
       musicaId: m.id,
       titulo: m.titulo,

@@ -31,6 +31,7 @@ import { assuntoVideoPronto, emailVideoPronto } from "../../emails/video-pronto"
 import { assuntoVideoOferta, emailVideoOferta } from "../../emails/video-oferta";
 import { assuntoVideoEsperando, emailVideoEsperando } from "../../emails/video-esperando";
 import { assuntoLembreteData, emailLembreteData } from "../../emails/lembrete-data";
+import { MARCA_ATIVA } from "./marca-identidade.js";
 
 // O CATÁLOGO DAS AUTOMAÇÕES DE E-MAIL, do jeito que elas rodam hoje.
 //
@@ -478,7 +479,7 @@ export async function carregarAutomacoes(janela: {
 // código. Os links apontam pro site com tokens de mentira, pra ninguém
 // clicar num preview e cair na conta de alguém.
 
-const SITE = "https://www.serenatagift.com";
+const SITE = MARCA_ATIVA.url;
 
 const EXEMPLO = {
   nome: "Maria",

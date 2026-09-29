@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { emailDaSessao } from "@/lib/conta-sessao";
 import { literalLike } from "@/lib/sql-like";
+import { type Locale, LOCALE_PADRAO, normalizarLocale } from "@/lib/i18n";
 
 // O QUADRO DA PESSOA: o que ela comprou, de qual música é, e o que falta.
 //
@@ -42,7 +43,7 @@ export type MeusQuadros = {
    * que o painel usa. Sem isto a tela sai em português pra quem comprou no
    * funil mexicano e abriu o link do quadro direto.
    */
-  locale: "pt" | "es";
+  locale: Locale;
   /** Quantos direitos comprados e ainda não amarrados a uma música. */
   paraMontar: number;
   /** Os quadros já confirmados, pra ela voltar e reimprimir. */
@@ -136,7 +137,7 @@ async function quemE(
 export const meusQuadros = createServerFn({ method: "POST" })
   .validator((data: { token: string }) => data)
   .handler(async ({ data }): Promise<MeusQuadros> => {
-    const vazio: MeusQuadros = { locale: "pt", paraMontar: 0, prontos: [], musicas: [] };
+    const vazio: MeusQuadros = { locale: LOCALE_PADRAO, paraMontar: 0, prontos: [], musicas: [] };
     const email = await emailDaSessao(data.token);
     if (!email) return vazio;
 
@@ -182,7 +183,7 @@ export const meusQuadros = createServerFn({ method: "POST" })
     }
 
     return {
-      locale: (musicas ?? [])[0]?.locale === "es" ? "es" : "pt",
+      locale: normalizarLocale((musicas ?? [])[0]?.locale),
       paraMontar: linhas.filter((q) => !q.musica_id).length,
       prontos: linhas
         .filter((q) => q.musica_id)

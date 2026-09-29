@@ -5,7 +5,7 @@ import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
 import { Loader2, Mail, Check } from "lucide-react";
-import { type Locale, caminho } from "@/lib/i18n";
+import { type Locale, LOCALE_PADRAO, caminho } from "@/lib/i18n";
 import { OfereceIdioma } from "@/components/OfereceIdioma";
 import { SugestoesDominio } from "@/components/quiz/SugestoesDominio";
 
@@ -56,7 +56,31 @@ const COPY = {
     enviarLink: "Enviar link de acceso",
     enviando: "enviando…",
   },
+  en: {
+    confira: "Check your email",
+    aCaminho:
+      "If this email has a song of yours, your sign-in link is on the way. It logs you straight in, no password.",
+    maisRecente: "Open the most recent email.",
+    avisoLink:
+      "If you ask for another link, the previous one stops working. It can take up to 2 minutes, and sometimes it lands in spam.",
+    pedirEm: (s: number) => `You can ask for another in ${s}s`,
+    pedirDeNovo: "ask again or use another email",
+    entrar: "Sign in to your account",
+    entrarSub:
+      "Use the email you gave when you created the song. We'll send you a link that signs you in, no password.",
+    falhou: "I couldn't send it right now.",
+    placeholder: "you@email.com",
+    enviarLink: "Send sign-in link",
+    enviando: "sending…",
+  },
 } as const;
+
+// "Você quis dizer" também estava cravado no JSX, fora do dicionário.
+const QUIS_DIZER: Record<Locale, string> = {
+  pt: "Você quis dizer",
+  es: "¿Quisiste decir",
+  en: "Did you mean",
+};
 
 const DOMINIOS = ["gmail.com", "hotmail.com", "outlook.com", "icloud.com", "yahoo.com.br"];
 
@@ -87,7 +111,7 @@ function esperaRestante(): number {
   return Math.max(0, Math.ceil((ate - Date.now()) / 1000));
 }
 
-export function Login({ locale = "pt" }: { locale?: Locale }) {
+export function Login({ locale = LOCALE_PADRAO }: { locale?: Locale }) {
   const C = COPY[locale] ?? COPY.pt;
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -147,13 +171,13 @@ export function Login({ locale = "pt" }: { locale?: Locale }) {
       });
       if (!r.ok && r.status !== 200) {
         const j = (await r.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error ?? "Não consegui enviar agora.");
+        throw new Error(j.error ?? C.falhou);
       }
       setEstado("enviado");
       localStorage.setItem(ESPERA_KEY, String(Date.now() + ESPERA_S * 1000));
       setEspera(ESPERA_S);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Não consegui enviar agora.");
+      setErro(err instanceof Error ? err.message : C.falhou);
       setEstado("parado");
     }
   }
@@ -261,7 +285,8 @@ export function Login({ locale = "pt" }: { locale?: Locale }) {
                     className="mt-2 pl-5 text-[var(--tinta-suave)]"
                     style={{ fontSize: "var(--t-sm)" }}
                   >
-                    Você quis dizer <span className="text-[var(--acento)]">{sugestao}</span>?
+                    {QUIS_DIZER[locale] ?? QUIS_DIZER.pt}{" "}
+                    <span className="text-[var(--acento)]">{sugestao}</span>?
                   </button>
                 )}
               </div>

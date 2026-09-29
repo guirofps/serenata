@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { normalizarLocale } from "@/lib/i18n";
 export { diasAte, hojeEmBrasilia } from "@/lib/datas-calendario";
 
 // DATAS QUE ELA NÃO PODE ESQUECER: aniversários e datas de namoro que ela
@@ -57,7 +58,7 @@ async function donoDoToken(tokenEdicao: string): Promise<{ email: string; locale
     email = (q?.email as string | null) ?? null;
   }
   return email
-    ? { email: email.trim().toLowerCase(), locale: (m.locale as string) === "es" ? "es" : "pt" }
+    ? { email: email.trim().toLowerCase(), locale: normalizarLocale(m.locale) }
     : null;
 }
 

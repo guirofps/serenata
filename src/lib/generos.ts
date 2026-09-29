@@ -290,6 +290,59 @@ const ES_AR: Genero[] = [
     estiloSuno: "canción infantil suave, caja de música, ukulele, clima dulce" },
 ];
 
+// ── INGLÊS (EUA), pra Ballad Gift ────────────────────────────────
+//
+// Outra lista, não tradução. Parte da lógica do português (o que se dá de
+// presente é romântico e emotivo, e a fé pesa: gospel é o nº 1 no Brasil) e
+// troca os gêneros pelos que o americano ouve. Country entra alto porque é o
+// gênero do presente pra mãe, pro pai e pro casal no interior, e é o que a
+// Send a Serenade (o concorrente de lá) mais mostra nos exemplos.
+//
+// Ordem por PALPITE, ainda sem dado: 71% das compras da Serenata são pra
+// esposa ou namorada, então a balada romântica vem na frente. Reordenar pelo
+// painel quando houver volume, como foi feito no português em 17/08.
+//
+// Todo `value` leva `_en`: o teste de colisão proíbe o mesmo valor com estilo
+// diferente entre listas, e "pop" ou "rock" já existem no português.
+const EN: Genero[] = [
+  { value: "love_ballad_en", label: "Love ballad", emoji: "💕",
+    rotuloPrompt: "romantic pop ballad",
+    estiloSuno: "romantic pop ballad, piano and soft strings, heartfelt, cinematic and intimate" },
+  { value: "country_en", label: "Country", emoji: "🤠",
+    rotuloPrompt: "country love song",
+    estiloSuno: "modern country love song, acoustic guitar, pedal steel, warm storytelling, heartfelt" },
+  { value: "acoustic_en", label: "Acoustic / singer-songwriter", emoji: "🎙️",
+    rotuloPrompt: "acoustic singer-songwriter",
+    estiloSuno: "intimate acoustic singer-songwriter, fingerpicked guitar, slow tempo, minimal arrangement, tender vocal" },
+  { value: "rnb_en", label: "R&B / soul", emoji: "🌙",
+    rotuloPrompt: "R&B soul love song",
+    estiloSuno: "smooth R&B soul ballad, warm keys, soft groove, silky vocal, romantic and intimate" },
+  { value: "gospel_en", label: "Gospel / Christian", emoji: "📖",
+    rotuloPrompt: "gospel / contemporary Christian",
+    estiloSuno: "contemporary Christian gospel, piano and organ, strings, soft choir, reverent and uplifting" },
+  { value: "pop_en", label: "Pop", emoji: "✨",
+    rotuloPrompt: "upbeat pop",
+    estiloSuno: "bright modern pop, catchy melody, clean production, warm and joyful" },
+  { value: "folk_en", label: "Folk / Americana", emoji: "🪕",
+    rotuloPrompt: "folk americana",
+    estiloSuno: "warm folk americana, acoustic guitar and banjo, gentle harmonies, nostalgic storytelling" },
+  { value: "rock_ballad_en", label: "Rock ballad", emoji: "🤘",
+    rotuloPrompt: "rock power ballad",
+    estiloSuno: "rock power ballad, soft distorted electric guitar, steady drums, emotional vocal, big chorus" },
+  { value: "soft_rock_en", label: "Soft rock / classic", emoji: "📻",
+    rotuloPrompt: "70s and 80s soft rock",
+    estiloSuno: "classic soft rock, electric piano, mellow guitar, warm 70s and 80s feel, tender vocal" },
+  { value: "jazz_en", label: "Jazz / swing", emoji: "🎷",
+    rotuloPrompt: "romantic jazz standard",
+    estiloSuno: "romantic jazz standard, upright bass, brushed drums, piano, smooth crooner vocal, timeless" },
+  { value: "hiphop_en", label: "Hip-hop / rap", emoji: "🎤",
+    rotuloPrompt: "melodic hip-hop love song",
+    estiloSuno: "melodic hip-hop love song, soft boom-bap beat, piano, sung hook and heartfelt rap verses" },
+  { value: "kids_en", label: "Kids / lullaby", emoji: "⭐",
+    rotuloPrompt: "gentle children's song",
+    estiloSuno: "gentle children's song, music box, ukulele, sweet and soothing" },
+];
+
 // O `acharGenero` varre ESTE objeto, então as TRÊS listas espanholas precisam
 // estar aqui dentro mesmo quando só uma está no ar. Uma música gerada na
 // campanha LatAm é aberta meses depois; se o valor dela sumisse do mapa, a
@@ -299,6 +352,7 @@ const TODAS: Record<string, Genero[]> = {
   es: ES,
   es_espanha: ES_ESPANHA,
   es_ar: ES_AR,
+  en: EN,
 };
 
 export function generos(locale: Locale): Genero[] {
@@ -365,14 +419,22 @@ export function estiloParaSuno(args: {
   // que existe: melhor ele do que nada.
   if (!g) return String(args.estiloDoModelo ?? args.genero ?? "").trim();
 
-  const voz =
-    args.voz === "feminina" ? "voz feminina" : args.voz === "masculina" ? "voz masculina" : null;
+  // Gênero em inglês pede a voz em inglês: o estilo inteiro sai numa língua
+  // só, e o Suno lê "female vocals" do mesmo jeito que o resto da string.
+  const ingles = EN.includes(g);
+  const voz = ingles
+    ? args.voz === "feminina" ? "female vocals" : args.voz === "masculina" ? "male vocals" : null
+    : args.voz === "feminina" ? "voz feminina" : args.voz === "masculina" ? "voz masculina" : null;
 
   // O timbre que o modelo escolheu ("grave e emotiva", "suave e calorosa"),
   // sem os adjetivos de ARRANJO que sao justamente os que derrapam.
-  const timbre = String(args.estiloDoModelo ?? "").match(
-    /voz\s+(?:masculina|feminina)\s+([a-zà-ú]+(?:\s+e\s+[a-zà-ú]+)?)/i,
-  )?.[1];
+  const timbre = ingles
+    ? String(args.estiloDoModelo ?? "").match(
+        /(?:male|female)\s+vocals?,?\s+([a-z]+(?:\s+and\s+[a-z]+)?)/i,
+      )?.[1]
+    : String(args.estiloDoModelo ?? "").match(
+        /voz\s+(?:masculina|feminina)\s+([a-zà-ú]+(?:\s+e\s+[a-zà-ú]+)?)/i,
+      )?.[1];
 
   return [g.estiloSuno, voz && timbre ? `${voz} ${timbre}` : voz]
     .filter(Boolean)

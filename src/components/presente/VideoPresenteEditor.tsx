@@ -9,6 +9,7 @@ import {
 } from "@/lib/video-presente";
 import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
 import { trackEvent, trackEventOnce } from "@/lib/track";
+import { MARCA } from "@/lib/marca";
 
 // O VÍDEO-PRESENTE, dentro da montagem da página.
 //
@@ -56,7 +57,7 @@ const TEXTOS = {
     atualizar: "Atualizar meu vídeo",
     falhou:
       "Deu um problema pra montar o seu vídeo. A gente já foi avisado e resolve sem custo nenhum.",
-    ajuda: "Se quiser falar com a gente: contato@serenatagift.com",
+    ajuda: `Se quiser falar com a gente: ${MARCA.emailContato}`,
   },
   es: {
     titulo: "Tu página también se volvió video",
@@ -80,7 +81,7 @@ const TEXTOS = {
     mudou: "Cambiaste la página después del video. ¿Quieres que quede igual?",
     atualizar: "Actualizar mi video",
     falhou: "Hubo un problema al armar tu video. Ya nos enteramos y lo resolvemos sin costo.",
-    ajuda: "Si quieres escribirnos: contato@serenatagift.com",
+    ajuda: `Si quieres escribirnos: ${MARCA.emailContato}`,
   },
 } as const;
 

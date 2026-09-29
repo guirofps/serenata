@@ -78,11 +78,35 @@ const T = {
       falhou: "No se pudo enviar ahora. Inténtalo de nuevo en un momento.",
     } as Record<string, string>,
   },
+  en: {
+    abrir: "Not quite right? We'll redo it",
+    titulo: "Adjust my song",
+    quantas: (n: number) => (n === 1 ? "You have 1 adjustment included" : `You have ${n} adjustments`),
+    oQue: "What would you like to change?",
+    dica: "Write it your way. E.g. “I didn't love the part about the trip, I'd like it to talk about the day we met”.",
+    estiloLabel: "Want to change the style?",
+    vozLabel: "And the voice?",
+    opcional: "Optional. If you don't pick anything, we keep what's there.",
+    manter: "Keep",
+    enviar: "Redo my song",
+    enviando: "Sending it to the studio...",
+    aviso: "This is your only included adjustment. The previous song stays saved, you don't lose anything.",
+    pronto: "Request sent. The new version will be ready in 1 or 2 minutes, and the previous one stays saved.",
+    erros: {
+      curto: "Write a little more about what to change.",
+      "sem-direito": "You've already used the included adjustment on this song.",
+      gravando: "Your song is already being re-recorded. Wait for it to be ready.",
+      "nao-pago": "Adjustments are available after purchase.",
+      "nao-encontrada": "I couldn't find this song.",
+      vago: "Tell me what you'd like in its place, too. Your adjustment is still saved.",
+      falhou: "Couldn't send it right now. Try again in a moment.",
+    } as Record<string, string>,
+  },
 };
 
 const VOZES = [
-  { value: "feminina", label: "Voz feminina", labelEs: "Voz femenina", emoji: "👩" },
-  { value: "masculina", label: "Voz masculina", labelEs: "Voz masculina", emoji: "👨" },
+  { value: "feminina", label: "Voz feminina", labelEs: "Voz femenina", labelEn: "Female voice", emoji: "👩" },
+  { value: "masculina", label: "Voz masculina", labelEs: "Voz masculina", labelEn: "Male voice", emoji: "👨" },
 ];
 
 export function PedirRefacao({
@@ -92,7 +116,7 @@ export function PedirRefacao({
   tokenEdicao: string;
   locale?: Locale;
 }) {
-  const t = T[locale === "es" ? "es" : "pt"];
+  const t = T[locale === "es" ? "es" : locale === "en" ? "en" : "pt"];
   const [estado, setEstado] = useState<{ pago: boolean; restantes: number; gravando: boolean } | null>(
     null,
   );
@@ -209,7 +233,7 @@ export function PedirRefacao({
         <button onClick={() => setVoz("")} className={chip(!voz)}>{t.manter}</button>
         {VOZES.map((v) => (
           <button key={v.value} onClick={() => setVoz(v.value)} className={chip(voz === v.value)}>
-            {v.emoji} {locale === "es" ? v.labelEs : v.label}
+            {v.emoji} {locale === "es" ? v.labelEs : locale === "en" ? v.labelEn : v.label}
           </button>
         ))}
       </div>

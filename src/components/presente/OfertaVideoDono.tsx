@@ -20,7 +20,8 @@ export function OfertaVideoDono({
   locale,
 }: {
   tokenPublico: string;
-  locale: "pt" | "es";
+  // Só o português compra o vídeo (PIX, em real); es e en nunca veem.
+  locale: "pt" | "es" | "en";
 }) {
   const [edicao, setEdicao] = useState<string | null>(null);
   const [estado, setEstado] = useState<EstadoVideo | null | undefined>(undefined);

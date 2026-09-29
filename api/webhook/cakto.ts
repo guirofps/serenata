@@ -17,6 +17,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto.js";
 import { segredoConfere } from "../lib/segredo.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 type Req = IncomingMessage & { method?: string; body?: unknown; headers: Record<string, string | string[] | undefined> };
 type Res = ServerResponse & { status: (c: number) => Res; json: (b: unknown) => void };
@@ -30,7 +31,7 @@ function db() {
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 
 type Item = {
   offer_type?: string;
@@ -216,7 +217,7 @@ export default async function handler(req: Req, res: Res) {
         const linkEditor = `${SITE}/editar/${musica.token_edicao}`;
         const linkPresente = `${SITE}/p/${musica.token}`;
         const { error } = await new Resend(chave).emails.send({
-          from: "Serenata <contato@serenatagift.com>",
+          from: MARCA_ATIVA.remetenteTransacional,
           to: [email],
           // Sem emoji no assunto: emoji tende a mandar pra aba Promoções,
           // ainda mais em remetente novo.

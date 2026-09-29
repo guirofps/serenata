@@ -19,6 +19,7 @@ import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.j
 import { pareceTypo } from "../../src/lib/email-typo.js";
 import { cupomAtivo } from "../../src/lib/cupom.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // A SEQUENCIA DE RECUPERACAO: hoje so o e-mail 2 (ver ULTIMO_EMAIL).
 //
@@ -33,7 +34,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 // O que autorizou escrever isto: 216 envios do e-mail 1 produziram 7 compras,
 // 18 cliques em comprar e UM descadastro. A caixa de entrada aguenta.
 
-const SITE = "https://www.serenatagift.com";
+const SITE = MARCA_ATIVA.url;
 
 // Espaçamento, contado a partir do e-mail ANTERIOR de cada pessoa.
 //

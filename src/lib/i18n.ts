@@ -18,10 +18,16 @@
 // e-mails saem de webhook e cron, sem navegador. Por isso o idioma é gravado
 // no banco no primeiro passo do quiz. Ver a migration 20260807000000_locale.
 
-export const LOCALES = ["pt", "es"] as const;
+import { chaveDaMarca } from "./marca-identidade.js";
+
+export const LOCALES = ["pt", "es", "en"] as const;
 export type Locale = (typeof LOCALES)[number];
 
-export const LOCALE_PADRAO: Locale = "pt";
+// O idioma padrão é o da MARCA do deploy: português na Serenata, inglês na
+// Ballad Gift (EUA). A Ballad é outro site, com outro domínio e outro banco,
+// e lá não existe português: todo caminho sem idioma explícito cai em inglês.
+// Na Serenata nada muda: `pt` continua sendo o padrão em todo lugar.
+export const LOCALE_PADRAO: Locale = chaveDaMarca() === "ballad" ? "en" : "pt";
 
 /** Aceita qualquer coisa vinda do banco/URL e devolve um idioma válido. */
 export function normalizarLocale(v: unknown): Locale {
@@ -37,6 +43,8 @@ export function normalizarLocale(v: unknown): Locale {
  * com "es" e o funil inteiro trocar de idioma sozinho.
  */
 export function localeDaRota(pathname: string): Locale {
+  // Na Ballad o site inteiro é inglês, inclusive um `/es` digitado.
+  if (LOCALE_PADRAO === "en") return "en";
   return /^\/es(\/|$)/.test(pathname) ? "es" : LOCALE_PADRAO;
 }
 
@@ -48,7 +56,9 @@ export function localeDaRota(pathname: string): Locale {
  */
 export function caminho(rota: string, locale: Locale): string {
   const limpo = rota.startsWith("/") ? rota : `/${rota}`;
-  if (locale === LOCALE_PADRAO) return limpo;
+  // Só o espanhol tem prefixo. O inglês é o idioma padrão do site dele (a
+  // Ballad), então as rotas são as mesmas, sem prefixo nenhum.
+  if (locale !== "es" || locale === LOCALE_PADRAO) return limpo;
   return limpo === "/" ? "/es" : `/es${limpo}`;
 }
 
@@ -58,6 +68,7 @@ export const TAG_IDIOMA: Record<Locale, string> = {
   // es-MX e não es-ES: o teste é no México, e o reconhecimento de voz
   // do navegador erra bastante quando o sotaque não bate com a tag.
   es: "es-MX",
+  en: "en-US",
 };
 
 /** Moeda e formato do preço. */
@@ -81,6 +92,12 @@ export const MOEDA: Record<
   // imposto dá US$ 0,69 e o cliente vê exatamente US$ 9,90 — o que ele leu.
   // A ancoragem contra a Cántale (US$ 12,99) continua de pé.
   es: { simbolo: "US$", valor: 9.9, texto: "US$ 9,90", ancora: "US$ 24" },
+  // Ballad Gift (EUA). US$ 19 contra os US$ 18,99 da Send a Serenade, o
+  // concorrente que roda o nosso modelo lá, mas que NÃO deixa ouvir antes de
+  // comprar: a prévia cantada é o que justifica não entrar por baixo. O Stripe
+  // cobra exatamente isto (sem imposto somado no caixa), então o anunciado é
+  // o total. A âncora é a mesma proporção da Serenata (38 contra 97).
+  en: { simbolo: "$", valor: 19, texto: "$19", ancora: "$49" },
 };
 
 /**
@@ -90,8 +107,11 @@ export const MOEDA: Record<
  * não termina, o que falta CAI em português em vez de sumir da tela. Uma frase
  * na língua errada é um bug feio; uma tela em branco é uma venda perdida.
  */
-export type PorIdioma<T> = { pt: T; es?: T };
+export type PorIdioma<T> = { pt: T; es?: T; en?: T };
 
+// O inglês também cai no português quando falta, pelo mesmo motivo do
+// espanhol. Mas lá isso é bug de verdade (o americano não lê nada), e o teste
+// `ingles-completo.test.ts` existe pra que nenhuma tela do funil chegue lá.
 export function escolher<T>(v: PorIdioma<T>, locale: Locale): T {
-  return (locale === "es" ? v.es : v.pt) ?? v.pt;
+  return (locale === "es" ? v.es : locale === "en" ? v.en : v.pt) ?? v.pt;
 }

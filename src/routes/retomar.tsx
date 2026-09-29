@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { useQuizStore } from "@/lib/quiz-store";
 import { TEMA_CLARO, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
-import { normalizarLocale, caminho } from "@/lib/i18n";
+import { type Locale, LOCALE_PADRAO, normalizarLocale, caminho } from "@/lib/i18n";
 import { trackEvent } from "@/lib/track";
 import { novaSessao, adotarSessao } from "@/lib/session-context";
 import { Loader2 } from "lucide-react";
@@ -53,7 +53,8 @@ const buscarSessao = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const locale = lead.locale === "es" ? ("es" as const) : ("pt" as const);
+    // Qualquer idioma válido da coluna, inclusive o inglês da Ballad.
+    const locale: Locale = normalizarLocale(lead.locale);
     if (!m?.letra) return { erro: "sem_letra" as Falha, locale };
 
     // Na MESMA ida ao servidor: esta sessão já virou venda? Ver o comentário
@@ -119,6 +120,12 @@ const COPY = {
     erroSub: "El link pudo venir cortado en el correo. Puedes hacer una nueva en menos de dos minutos, gratis.",
     botao: "Crear mi canción",
   },
+  en: {
+    indo: "opening your lyrics…",
+    erro: "I couldn't find these lyrics.",
+    erroSub: "The link may have been cut off in the email. You can make new ones in under two minutes, for free.",
+    botao: "Create my song",
+  },
 } as const;
 
 export const Route = createFileRoute("/retomar")({
@@ -137,7 +144,7 @@ function Retomar() {
   const { s, cupom } = Route.useSearch();
   const navigate = useNavigate();
   const [erro, setErro] = useState(false);
-  const [locale, setLocale] = useState<"pt" | "es">("pt");
+  const [locale, setLocale] = useState<Locale>(LOCALE_PADRAO);
 
   useEffect(() => {
     if (!s) {

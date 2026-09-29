@@ -16,6 +16,13 @@ import { OfereceIdioma } from "@/components/OfereceIdioma";
 import { linksDeIdioma, METATAGS_COMPARTILHAR, dadosEstruturados } from "@/lib/seo";
 import { Play, ArrowRight, Menu, X } from "lucide-react";
 import { ZapFlutuante } from "@/components/marca/ZapFlutuante";
+import { HomeEn } from "@/components/landing/HomeEn";
+import { LOCALE_PADRAO } from "@/lib/i18n";
+
+// Na Ballad Gift (EUA) a raiz é a home em INGLÊS (`HomeEn`), escolhida pelo
+// idioma do deploy. É decidido no build: a home é pré-renderizada, e cada
+// projeto da Vercel constrói com a sua `VITE_MARCA`.
+const INGLES = LOCALE_PADRAO === "en";
 
 // Landing da Serenata — mundo CLARO.
 //
@@ -27,7 +34,7 @@ import { ZapFlutuante } from "@/components/marca/ZapFlutuante";
 // qualquer coisa. Por isso tem uma música real, tocável, aqui.
 
 export const Route = createFileRoute("/")({
-  head: () => ({
+  head: () => (INGLES ? headEn() : {
     meta: [
       { title: `${MARCA.nome} · ${MARCA.promessa}` },
       {
@@ -47,8 +54,32 @@ export const Route = createFileRoute("/")({
     ],
     scripts: [{ type: "application/ld+json", children: JSON.stringify(dadosEstruturados("pt")) }],
   }),
-  component: Home,
+  component: INGLES ? HomeEn : Home,
 });
+
+function headEn() {
+  const titulo = `${MARCA.nome} · A song made from the story of someone you love`;
+  return {
+    meta: [
+      { title: titulo },
+      {
+        name: "description",
+        content:
+          "Tell the story of someone you love and get the lyrics to a personalized song in seconds, free. The full song becomes a gift page you can send.",
+      },
+      { property: "og:title", content: titulo },
+      { property: "og:type", content: "website" },
+      ...METATAGS_COMPARTILHAR,
+    ],
+    links: [
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" as const },
+      { rel: "stylesheet", href: FONTES.googleFonts },
+      ...linksDeIdioma("en"),
+    ],
+    scripts: [{ type: "application/ld+json", children: JSON.stringify(dadosEstruturados("en")) }],
+  };
+}
 
 const PASSOS = [
   {

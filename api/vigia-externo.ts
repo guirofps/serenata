@@ -41,6 +41,7 @@ import { lerOsSinais, assuntoDoAlerta } from "../src/lib/sinais-geracao.js";
 import { trilhoMudo, MINUTOS_MUDO } from "../src/lib/sinais-pagamento.js";
 import { escadaMuda, ESCADA_MUDA_H } from "../src/lib/sinais-email.js";
 import { donosMais } from "../src/lib/donos.js";
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
 
 // DOIS ENDEREÇOS, igual ao vigia de dentro. Este alerta existe pra uma
 // decisão com hora marcada (pausar as campanhas), e e-mail que empaca num
@@ -221,7 +222,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       }
       if (primeiraPag) {
         await new Resend(process.env.RESEND_API_KEY).emails.send({
-          from: "Serenata <contato@serenatagift.com>",
+          from: MARCA_ATIVA.remetenteTransacional,
           to: PARA,
           subject: `💸 ${minutosSemPagamento} min sem NENHUM pagamento entrar`,
           html:
@@ -274,7 +275,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       }
       if (primeiraEscada) {
         await new Resend(process.env.RESEND_API_KEY).emails.send({
-          from: "Serenata <contato@serenatagift.com>",
+          from: MARCA_ATIVA.remetenteTransacional,
           to: PARA,
           subject: `📭 Escada de recuperação parada há ${ESCADA_MUDA_H}h`,
           html:
@@ -324,7 +325,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
             ? falhas
             : diagnostico.totalPresas;
       await new Resend(process.env.RESEND_API_KEY).emails.send({
-        from: "Serenata <contato@serenatagift.com>",
+        from: MARCA_ATIVA.remetenteTransacional,
         to: PARA,
         subject: assuntoDoAlerta(veredito.motivo, n),
         html:

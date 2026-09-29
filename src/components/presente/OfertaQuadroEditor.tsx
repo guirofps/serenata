@@ -35,7 +35,7 @@ export function OfertaQuadroEditor({
   locale = "pt",
   tokenEdicao,
 }: {
-  locale?: "pt" | "es";
+  locale?: "pt" | "es" | "en";
   /**
    * O token do link do editor. É ele que prova a posse da música e permite
    * gerar o PIX aqui dentro, sem login.
@@ -46,8 +46,9 @@ export function OfertaQuadroEditor({
   tokenEdicao?: string;
 }) {
   // O quadro só existe em real: oferecer em espanhol mostraria preço em real
-  // pra quem comprou em dólar e levaria a um checkout que não é dela.
-  if (locale === "es") return null;
+  // pra quem comprou em dólar e levaria a um checkout que não é dela. O
+  // mesmo vale pro inglês (Ballad): só o português compra o quadro.
+  if (locale !== "pt") return null;
 
   const oferta = OFERTAS.find((o) => o.id === "quadro");
   if (!oferta) return null;

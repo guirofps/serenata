@@ -7,6 +7,7 @@ import { meuPlano } from "@/lib/preco";
 import { useQuizStore } from "@/lib/quiz-store";
 import { buscarPresenteDaCompra, type PresenteDaCompra } from "@/lib/pos-compra";
 import { sessaoJaPagou, entrarNaConta } from "@/lib/coautoria";
+import { confirmarCheckoutStripe } from "@/lib/stripe-checkout";
 import { marcarSessaoGasta, getOrCreateSessionId, getStoredAttribution } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
@@ -28,6 +29,37 @@ import { Check, Mail, Inbox, Pencil, Loader2, ArrowRight } from "lucide-react";
 
 
 const COPY = {
+  // Ballad Gift (EUA), a partir do português. Sem WhatsApp: o link vai por
+  // mensagem de texto, e o suporte é o e-mail.
+  en: {
+    confirmado: "payment confirmed",
+    tudoCerto: "All set. The song is yours.",
+    faltaUmPasso: "One step left, and it's right below.",
+    enviamos: "We sent", seuEmail: "your email",
+    oLinkPraMontar: "the link to put the gift together. It'll arrive in a moment.",
+    preparando: "Getting your gift ready…",
+    proximoPasso: "next step",
+    monteOPresente: (n?: string | null) => `Put together ${n ? `${n}'s gift` : "the gift"}`,
+    escolhaGravacao:
+      "Pick the recording, add your photos together and a line of your own. It takes two minutes.",
+    entregaPorLink:
+      "Your song doesn't arrive on its own: it's behind this button. We don't send files by text or as email attachments.",
+    montarBotao: "Put the gift together",
+    entrarBotao: "Go to my account",
+    aindaSaindo: "The recording is still coming out of the oven. Go ahead and start: it shows up on its own when it's ready.",
+    tambemMandamos: "We also sent this link to",
+    praNaoPerder: ", so you don't lose it. If you can't find it, check Promotions and Spam.",
+    naoAchou: "Can't find the email within a minute?",
+    ondeOlhar: 'Check the Promotions tab and your Spam folder. If it\'s there, mark it "not spam" and move it to your Inbox, so the next ones arrive straight away.',
+    passos: [
+      `Open the email from ${MARCA.nome} (check spam too).`,
+      "Click the link and put the gift together: a photo and a line of your own.",
+      "Copy the ready link and send it to the one you love.",
+    ],
+    semPressa: "No rush: the link above is also in your email and never expires. ",
+    podeFechar: "You can close this page, the email arrives on its own. ",
+    qualquerCoisa: "Anything at all, just reply to the email or write to us at",
+  },
   pt: {
     confirmado: "pagamento confirmado",
     tudoCerto: "Deu tudo certo. Sua música é sua.",
@@ -96,8 +128,30 @@ const COPY = {
   },
 } as const;
 
-export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; email?: string; code?: string }) {
+export function Obrigado({
+  locale = "pt",
+  email,
+  code,
+  sessaoStripe,
+}: {
+  locale?: Locale;
+  email?: string;
+  code?: string;
+  /** O `session_id` que o Stripe devolve no `return_url` (Ballad Gift). */
+  sessaoStripe?: string;
+}) {
   const C = COPY[locale] ?? COPY.pt;
+  // Ballad Gift: o Stripe pode trazer a pessoa de volta ANTES do webhook. A
+  // confirmação aqui só adianta a entrega (a trava no banco impede entregar
+  // duas vezes); quem mostra o botão continua sendo `sessaoJaPagou`, abaixo.
+  const confirmouStripe = useRef(false);
+  useEffect(() => {
+    if (!sessaoStripe || confirmouStripe.current) return;
+    confirmouStripe.current = true;
+    confirmarCheckoutStripe({ data: { sessaoId: sessaoStripe } })
+      .then((r) => trackEvent("obrigado_stripe_confirmado", { pago: r.pago }))
+      .catch(() => {});
+  }, [sessaoStripe]);
   // O WHATSAPP DO SUPORTE, aqui e não antes.
   //
   // 248 dos 294 compradores nunca entraram na conta (medido em 18/08): quem
@@ -170,12 +224,12 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
     const plano = meuPlano(locale, { temCupom: Boolean(useQuizStore.getState().cupom) });
     conversaoCompra({
       valor: plano.valor,
-      moeda: locale === "es" ? "USD" : "BRL",
+      moeda: locale === "pt" ? "BRL" : "USD",
       // `code` é o que a Perfect Pay devolve no redirect. No checkout
       // transparente não existe redirect de gateway, então a própria tela do
       // PIX guarda a referência antes de mandar a pessoa pra cá. Sem um dos
       // dois, `transaction_id` sai vazio e um F5 conta a venda de novo.
-      transactionId: code ?? transacaoGuardada(),
+      transactionId: code ?? sessaoStripe ?? transacaoGuardada(),
     });
     // TikTok recebe a MESMA venda, com o MESMO id de dedupe. Duas escadas
     // paralelas sairiam de sincronia no primeiro conserto, e aí o Google
@@ -191,8 +245,8 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
     if (getStoredAttribution()?.ttclid) {
       compraTiktok({
         valor: plano.valor,
-        moeda: locale === "es" ? "USD" : "BRL",
-        eventId: code ?? transacaoGuardada(),
+        moeda: locale === "pt" ? "BRL" : "USD",
+        eventId: code ?? sessaoStripe ?? transacaoGuardada(),
       });
     }
     // Esta sessão já virou venda. Quem voltar ao /criar por qualquer caminho
@@ -200,7 +254,7 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
     // Marcado DEPOIS da conversão de propósito: o evento de venda tem que
     // sair na sessão que gerou a venda.
     marcarSessaoGasta();
-  }, [presente, code, locale]);
+  }, [presente, code, sessaoStripe, locale]);
 
   // Busca o presente pra dar o botão AQUI em vez de mandar a pessoa caçar
   // e-mail. Faz polling porque o redirect chega antes do webhook: a pessoa
@@ -426,7 +480,7 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
             atendente recebe "oi" e gasta três mensagens perguntando quem é;
             assim ele já procura e responde. É esse trabalho que o botão
             existe pra poupar. */}
-        {(() => {
+        {locale !== "en" && (() => {
           const zap = linkSuporte({
             locale: locale === "es" ? "es" : "pt",
             motivo: "receber",
@@ -467,6 +521,9 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
             cartão inteiro fica no editor, que é depois. Aqui é só uma porta
             visível pra quem já sabe que quer outra, que é o caso de quem
             comprou pensando em duas pessoas. */}
+        {/* A segunda música (e o pacote barato dela) é produto brasileiro,
+            em PIX. Na Ballad Gift não existe ainda. */}
+        {locale !== "en" && (
         <div className="mt-10 text-center">
           <ConviteOutraMusica
             locale={locale === "es" ? "es" : "pt"}
@@ -487,6 +544,7 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
             />
           )}
         </div>
+        )}
 
         <p
           className="mt-8 text-center text-[var(--tinta-suave)]"
@@ -497,11 +555,11 @@ export function Obrigado({ locale = "pt", email, code }: { locale?: Locale; emai
             : C.podeFechar}
           {C.qualquerCoisa}{" "}
           <a
-            href="mailto:contato@serenatagift.com"
+            href={`mailto:${MARCA.emailContato}`}
             // Mesmo tratamento: 44px sem empurrar a frase em volta.
             className="-my-3 inline-flex h-11 items-center py-3 text-[var(--acento)] underline underline-offset-2"
           >
-            contato@serenatagift.com
+            {MARCA.emailContato}
           </a>
           .
         </p>

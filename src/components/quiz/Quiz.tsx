@@ -15,7 +15,7 @@ import {
   totalQuestions,
 } from "@/lib/flow-engine";
 import { quizFlow, QUIZ_SKIP } from "@/lib/quiz-flow";
-import { type Locale, TAG_IDIOMA } from "@/lib/i18n";
+import { type Locale, TAG_IDIOMA, caminho } from "@/lib/i18n";
 import { t } from "@/lib/textos";
 import { sugerirEmail } from "@/lib/email-typo";
 import { carimbarExperimentos } from "@/lib/experimentos";
@@ -66,7 +66,7 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
   const navigate = useNavigate();
   const QUIZ_FLOW = quizFlow(locale);
   const T = t(locale);
-  const rota = locale === "es" ? "/es/criar" : "/criar";
+  const rota = caminho("/criar", locale);
   const respostas = useQuizStore((s) => s.respostas);
   const setResposta = useQuizStore((s) => s.setResposta);
   const email = useQuizStore((s) => s.email);
@@ -86,7 +86,8 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
   // caminho de quem volta pelo histórico ou por link, exatamente a pessoa que
   // menos pode ver o site tropeçar.
   const nomePessoa =
-    (respostas.nome as string)?.trim() || (locale === "es" ? "esa persona" : "essa pessoa");
+    (respostas.nome as string)?.trim() ||
+    (locale === "es" ? "esa persona" : locale === "en" ? "this person" : "essa pessoa");
   const preencher = (s?: string) => s?.replace(/\{nome\}/g, nomePessoa);
   const qNum = questionNumber(QUIZ_FLOW, idx);
   // Posição no FUNIL (não é o mesmo que o número da pergunta): o passo de
@@ -789,6 +790,24 @@ function ReviewScreen({ locale, onGerar }: { locale: Locale; onGerar: () => void
   const respostas = useQuizStore((s) => s.respostas);
   const T = t(locale);
   const ordem = ["relacao", "nome", "filhos", "ocasiao", "estilo", "voz", "historia1", "historia2", "recado"];
+  // O RÓTULO, não o valor gravado. Em inglês o valor é português (\`esposa\`,
+  // \`casamento\`, \`country_en\`, \`masculina\`): é o contrato com o banco e o
+  // prompt, e aparecia cru nesta tela. No português a tela segue como sempre
+  // (o valor já é uma palavra da língua; ajustar lá é outra conversa).
+  const rotuloDe = (campo: string, valor: string): string => {
+    if (locale !== "en") return valor;
+    type Opcao = { value: string; label: string };
+    for (const passo of quizFlow(locale)) {
+      if (!isQuestion(passo)) continue;
+      // Só os passos de chip têm opções; o tipo é uma união, então lê solto.
+      const p = passo as { field?: string; options?: Opcao[]; extraChips?: { field: string; options: Opcao[] } };
+      const achado =
+        (p.field === campo ? p.options : undefined)?.find((o) => o.value === valor) ??
+        (p.extraChips?.field === campo ? p.extraChips.options : undefined)?.find((o) => o.value === valor);
+      if (achado) return achado.label;
+    }
+    return valor;
+  };
   return (
     <div className="space-y-6 text-center">
       <div className="space-y-2">
@@ -804,7 +823,9 @@ function ReviewScreen({ locale, onGerar }: { locale: Locale; onGerar: () => void
                 {T.rotulos[k] ?? k}
               </span>
               <p className="mt-0.5 font-medium">
-                {Array.isArray(respostas[k]) ? (respostas[k] as string[]).join(", ") : (respostas[k] as string)}
+                {Array.isArray(respostas[k])
+                  ? (respostas[k] as string[]).map((v) => rotuloDe(k, v)).join(", ")
+                  : rotuloDe(k, respostas[k] as string)}
               </p>
             </div>
           ))}

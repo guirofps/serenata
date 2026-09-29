@@ -17,6 +17,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { conferirOferta } from "../src/lib/oferta-assinada.js";
 import { OFERTA, type DegrauEscada } from "../emails/escada.js";
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
 
 type Req = IncomingMessage & { method?: string; url?: string };
 type Res = ServerResponse & {
@@ -26,7 +27,7 @@ type Res = ServerResponse & {
 };
 
 export default function handler(req: Req, res: Res) {
-  const url = new URL(req.url ?? "/", "https://www.serenatagift.com");
+  const url = new URL(req.url ?? "/", MARCA_ATIVA.url);
   const token = url.searchParams.get("t") ?? "";
   const aberto = conferirOferta(token);
 

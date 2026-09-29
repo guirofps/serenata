@@ -41,6 +41,7 @@ import { asaasPix, consultarPorReferencia } from "../src/lib/asaas-pix.js";
 import { creditarUpsell } from "./lib/creditar-upsell.js";
 import { ofertaDaReferencia } from "../src/lib/creditos.js";
 import { donosMais } from "../src/lib/donos.js";
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
 
 const PARA = donosMais("agenciarocketfy@gmail.com");
 
@@ -306,7 +307,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
     if (semEntrega.length && process.env.RESEND_API_KEY) {
       await new Resend(process.env.RESEND_API_KEY).emails.send({
-        from: "Serenata <contato@serenatagift.com>",
+        from: MARCA_ATIVA.remetenteTransacional,
         to: PARA,
         subject: `📦 ${semEntrega.length} comprador(es) pagaram e ficaram sem o e-mail de entrega`,
         html:
@@ -326,7 +327,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     // se perdeu, e é isso que precisa ser investigado — não o conserto.
     if (consertados.length && process.env.RESEND_API_KEY) {
       await new Resend(process.env.RESEND_API_KEY).emails.send({
-        from: "Serenata <contato@serenatagift.com>",
+        from: MARCA_ATIVA.remetenteTransacional,
         to: PARA,
         subject: `💸 ${consertados.length} pagamento(s) que o webhook perdeu — já liberados`,
         html:

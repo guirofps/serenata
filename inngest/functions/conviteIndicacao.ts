@@ -7,6 +7,7 @@ import { assuntoIndicacao, emailIndicacao, textoIndicacao } from "../../emails/i
 import { gerarCodigo, linkDoConvite } from "../../src/lib/indicacao.js";
 import { loteDaVez, montarFila } from "../../src/lib/fila-convite.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O CONVITE DE INDICAÇÃO, disparo único pra quem já comprou (27/09/2026).
 //
@@ -42,7 +43,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 
 // O tamanho do lote NÃO é constante: sobe sozinho conforme a base vai sendo
 // coberta (`loteDaVez`, em `fila-convite.ts`), e pode ser travado a qualquer

@@ -1,5 +1,6 @@
 ﻿import { createServerFn } from "@tanstack/react-start";
 import { type Locale, normalizarLocale } from "@/lib/i18n";
+import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { extrairJsonTolerante } from "@/lib/json-tolerante";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { MODELO_LETRA, MODELO_LETRA_CURTA, registrarCustoLetra, type UsoClaude } from "@/lib/custos";
@@ -271,7 +272,10 @@ function respostasSanitizadas(respostas: Record<string, unknown>, locale: Locale
   //
   // `letra-prompt.ts` já tinha `fallbackNome` por idioma; ele nunca era usado
   // porque esta função preenchia antes.
-  return { ...respostas, nome: nome || (locale === "es" ? "esa persona" : "essa pessoa") };
+  return {
+    ...respostas,
+    nome: nome || (locale === "es" ? "esa persona" : locale === "en" ? "this person" : "essa pessoa"),
+  };
 }
 
 // ── ETAPA 1: dois refrões ────────────────────────────────────────
@@ -308,6 +312,20 @@ ${refrao}
 Escribe la letra completa alrededor de él (intro corta, versos, puente, outro) usando las marcas [Short Intro - máx 8s] [Verse 1] [Chorus] [Verse 2] [Chorus] [Bridge] [Chorus] [Outro]. Responde SOLO con JSON válido: {"titulo","letra","estilo_suno","verso_destaque"}`,
     aprimorar:
       'Aquí está una letra de canción. Mejórala: haz las imágenes más concretas, corta cualquier cliché, ajusta el ritmo de las líneas. MANTÉN la estructura (las marcas [Verse], [Chorus], etc.) y el coro exactamente como están. Responde SOLO con JSON válido: {"letra"}',
+  },
+  // Inglês (Ballad Gift). As chaves do JSON continuam em português: é o
+  // contrato com o código que lê a resposta, não texto pro modelo cantar.
+  en: {
+    refroes:
+      'Write TWO chorus options for this song that are clearly different from each other: one more direct and one more lyrical, each anchored in a DIFFERENT concrete detail from the story. Each chorus has 4 lines. Also give a title and the estilo_suno (the style prompt for the music generator, in English). Reply ONLY with valid JSON: {"titulo","estilo_suno","refroes":["chorus 1","chorus 2"]}',
+    montar: (refrao) =>
+      `The CHORUS has already been chosen. Use EXACTLY this chorus, without changing a single word, every time [Chorus] appears:
+
+${refrao}
+
+Write the full lyrics around it (short intro, verses, bridge, outro) using the tags [Short Intro - max 8s] [Verse 1] [Chorus] [Verse 2] [Chorus] [Bridge] [Chorus] [Outro]. Reply ONLY with valid JSON: {"titulo","letra","estilo_suno","verso_destaque"}`,
+    aprimorar:
+      'Here are song lyrics. Improve them: make the images more concrete, cut any cliché, tighten the rhythm of the lines. KEEP the structure (the [Verse], [Chorus] tags etc.) and the chorus exactly as they are. Reply ONLY with valid JSON: {"letra"}',
   },
 };
 
@@ -836,13 +854,13 @@ export const entrarNaConta = createServerFn({ method: "POST" })
       .select("locale")
       .eq("id", quizId)
       .maybeSingle();
-    const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
+    const locale = normalizarLocale((q as { locale?: string } | null)?.locale);
 
     // Garante a conta. Idempotente: se já existe, dá "already registered" e a
     // gente segue — o generateLink funciona pra conta existente.
     await db.auth.admin.createUser({ email, email_confirm: true });
 
-    const SITE = "https://www.serenatagift.com";
+    const SITE = MARCA_ATIVA.url;
     const { data: linkData, error } = await db.auth.admin.generateLink({
       type: "magiclink",
       email,

@@ -17,6 +17,7 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 type Req = IncomingMessage & { method?: string; query?: Record<string, string | string[]>; url?: string };
 type Res = ServerResponse & { status: (c: number) => Res; json: (b: unknown) => void; send: (b: unknown) => void };
@@ -47,7 +48,7 @@ export default async function handler(req: Req, res: Res) {
   const host = (req.headers["x-forwarded-host"] as string) ?? (req.headers.host as string);
   const origem =
     process.env.VITE_APP_URL?.replace(/\/$/, "") ??
-    (process.env.NODE_ENV === "production" ? "https://www.serenatagift.com" : `${proto}://${host}`);
+    (process.env.NODE_ENV === "production" ? MARCA_ATIVA.url : `${proto}://${host}`);
 
   // Sanidade de formato, não defesa: o caminho do arquivo no bucket vem da
   // LINHA DO BANCO, nunca da URL, então não existe travessia de caminho a

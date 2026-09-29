@@ -11,6 +11,7 @@ import {
   primeiroNome,
   templateDaOcasiao,
 } from "../../src/lib/ocasioes.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // RECOMPRA POR DATA DO CALENDÁRIO.
 //
@@ -54,7 +55,7 @@ import {
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 
 // Teto por rodada, pelo mesmo motivo dos outros disparos: pico de volume é
 // o que assina lista comprada. A fila do Dia das Crianças tem ~590 pessoas

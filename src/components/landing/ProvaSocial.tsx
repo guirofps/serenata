@@ -32,6 +32,11 @@ const T: Record<Locale, { prazo: string; amado: (n: string) => string }> = {
     prazo: "Entregado con amor en minutos",
     amado: (n) => `${n} familias`,
   },
+  // Só pra satisfazer o tipo: o bloco NÃO aparece em inglês (ver o `return`).
+  en: {
+    prazo: "Delivered with love in minutes",
+    amado: (n) => `${n} families`,
+  },
 };
 
 export function ProvaSocial({
@@ -64,6 +69,10 @@ export function ProvaSocial({
    */
   compacto?: boolean;
 }) {
+  // A BALLAD GIFT (EUA) não mostra este bloco: o contador e os rostos são da
+  // Serenata. Numa marca que ainda não vendeu, "+1,274 families" seria alegação
+  // inventada, o tipo que derruba conta no Google Ads (CLAUDE.md, riscos).
+  if (locale === "en") return null;
   const t = T[locale] ?? T.pt;
 
   const estrelas = (

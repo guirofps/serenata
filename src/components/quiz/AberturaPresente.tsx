@@ -9,6 +9,7 @@ import { CORES, FONTES, TEMA_CLARO } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
 import { ehEspanha, ehArgentina } from "@/lib/mercado-es";
 import { trackEvent } from "@/lib/track";
+import { exemploEn, audioDoExemplo } from "@/lib/exemplos-en";
 
 // O mesmo bucket publico que a landing usa em `ExemplosReais`: trechos de 45s.
 const AUDIO_BASE =
@@ -129,6 +130,21 @@ const COPY: Record<
       "e o mundo mudou de lugar",
     ],
   },
+  en: {
+    tituloAntes: "A song made from the ",
+    tituloOuro: "story",
+    tituloDepois: " of someone you love",
+    // A mesma promessa da portuguesa, no mesmo tamanho: ver a nota dela.
+    explicacao: "You tell the story. The song is ready in 1 minute, free.",
+    cta: "CREATE MY FREE SONG",
+    rotulo: "a song for",
+    ouvir: "Play a preview of this song",
+    pausar: "Pause",
+    // Substituídos por `EXEMPLO_EN` logo abaixo, que vem do funil da Ballad.
+    nome: "Emily",
+    foto: "/ballad/exemplos/en-wife.webp",
+    versos: [],
+  },
   es: {
     tituloAntes: "Una canción hecha de la ",
     tituloOuro: "historia",
@@ -200,6 +216,12 @@ const COPY: Record<
 // LATAM: "El Pedazo de Pastel", do banco, com capa própria de exemplo.
 //
 // A capa é a mesma nos dois: foto de casal não carrega afirmação de país.
+// INGLÊS (Ballad Gift): o exemplo de ESPOSA, pelo mesmo motivo do português
+// (71% das compras da Serenata são pra esposa ou namorada). Sai de
+// `exemplos-en.ts`, que é gerado pelo funil da própria Ballad: enquanto os
+// versos não existirem, o cartão mostra a promessa sem trecho.
+const EXEMPLO_EN = exemploEn("en-wife");
+
 const EXEMPLO_ES = {
   espanha: {
     nome: "Marta",
@@ -243,7 +265,9 @@ export function AberturaPresente({
   const C =
     locale === "es"
       ? { ...base, ...EXEMPLO_ES[ehEspanha() ? "espanha" : ehArgentina() ? "argentina" : "latam"] }
-      : base;
+      : locale === "en" && EXEMPLO_EN
+        ? { ...base, nome: EXEMPLO_EN.nome, foto: EXEMPLO_EN.capa, versos: EXEMPLO_EN.versos }
+        : base;
   const [t, setT] = useState(0);
 
   // ── O PLAY PASSA A TOCAR ─────────────────────────────────────────
@@ -269,7 +293,10 @@ export function AberturaPresente({
   // ES fica de fora de propósito: o cartão espanhol mostra três exemplos por
   // mercado (Ceci, Marta, Argentina) e o bucket só tem `es-bolero`, que é
   // outra música. Áudio errado embaixo do nome certo é pior que play mudo.
-  const slug = locale === "es" ? null : "isabela";
+  // Inglês: só com o exemplo já gerado (senão o play ficaria mudo embaixo
+  // de um nome, que é o defeito descrito logo acima).
+  const slug =
+    locale === "es" ? null : locale === "en" ? (EXEMPLO_EN?.titulo ? EXEMPLO_EN.slug : null) : "isabela";
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [tocando, setTocando] = useState(false);
   const [ouviu, setOuviu] = useState(false);
@@ -287,7 +314,7 @@ export function AberturaPresente({
       setTocando(false);
       return;
     }
-    if (!a.src) a.src = `${AUDIO_BASE}/${slug}.mp3`;
+    if (!a.src) a.src = locale === "en" ? audioDoExemplo(slug) : `${AUDIO_BASE}/${slug}.mp3`;
     try {
       await a.play();
       setTocando(true);

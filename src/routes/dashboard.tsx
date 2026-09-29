@@ -18,6 +18,7 @@ import { BlocoQuadro } from "@/components/conta/BlocoQuadro";
 import { BlocoVideo } from "@/components/conta/BlocoVideo";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { urlDaMusica } from "@/lib/personalizar";
+import { type Locale, LOCALE_PADRAO, normalizarLocale, caminho } from "@/lib/i18n";
 import {
   Loader2, Pencil, ExternalLink, Plus, LogOut, Music, Sparkles, Frame, Lock, ChevronRight, Gift,
 } from "lucide-react";
@@ -33,7 +34,8 @@ import {
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
-      { title: `Sua conta · ${MARCA.nome}` },
+      // Sem música carregada ainda: o título vai no idioma da marca do deploy.
+      { title: `${LOCALE_PADRAO === "en" ? "Your account" : "Sua conta"} · ${MARCA.nome}` },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
@@ -62,6 +64,16 @@ const QUANDO = new Intl.DateTimeFormat("pt-BR", {
   minute: "2-digit",
   timeZone: "America/Sao_Paulo",
 });
+// Nos EUA: mês antes do dia, e o fuso do próprio aparelho (o país tem seis;
+// a lista só aparece no navegador, depois da sessão, então não há SSR pra
+// divergir).
+const QUANDO_EN = new Intl.DateTimeFormat("en-US", {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "numeric",
+  minute: "2-digit",
+});
+const quando = (locale: Locale, d: Date) => (locale === "en" ? QUANDO_EN : QUANDO).format(d);
 
 // A COR do status é do idioma nenhum; o texto vem do dicionário.
 const COR_STATUS: Record<string, string> = {
@@ -79,7 +91,7 @@ function Dashboard() {
   // O idioma da CONTA é o da música mais recente. É a única pista disponível
   // aqui: `/dashboard` não tem prefixo de rota, e quem compra nos dois funis
   // vê o painel na língua da última compra.
-  const locale = musicas[0]?.locale === "es" ? ("es" as const) : ("pt" as const);
+  const locale = normalizarLocale(musicas[0]?.locale);
   const T = tp(locale);
   const [nome, setNome] = useState<string>("");
   const [email, setEmail] = useState<string>("");
@@ -254,7 +266,7 @@ function Dashboard() {
             className="inline-flex items-center gap-1.5 text-[var(--tinta-suave)] transition-colors hover:text-[var(--tinta)]"
             style={{ fontSize: "var(--t-sm)" }}
           >
-            <LogOut className="h-4 w-4" /> sair
+            <LogOut className="h-4 w-4" /> {locale === "en" ? T.sair : "sair"}
             </button>
           </div>
         </div>
@@ -447,7 +459,7 @@ function Dashboard() {
                 sair (uma `letraFinal` velha de funil abandonado apareceria na
                 revelação do quiz novo). */}
             <Link
-              to={locale === "es" ? "/es/criar" : "/criar"}
+              to={caminho("/criar", locale) as never}
               onClick={() => {
                 novaSessao();
                 reset();
@@ -582,7 +594,7 @@ function Dashboard() {
                           className="mt-0.5 text-[var(--tinta-suave)]"
                           style={{ fontSize: "var(--t-xs)" }}
                         >
-                          {T.criadaEm} {QUANDO.format(new Date(m.created_at))}
+                          {T.criadaEm} {quando(locale, new Date(m.created_at))}
                         </p>
                       </div>
                     </div>
@@ -610,9 +622,9 @@ function Dashboard() {
                           obterUrl={async () =>
                             (await urlDaMusica({ data: { tokenEdicao: m.token_edicao } })).url
                           }
-                          titulo={m.titulo ?? "musica"}
+                          titulo={m.titulo ?? (locale === "en" ? "song" : "musica")}
                           nome=""
-                          locale={m.locale === "es" ? "es" : "pt"}
+                          locale={normalizarLocale(m.locale)}
                         />
                         <a
                           href={`/p/${m.token}`}
@@ -632,12 +644,12 @@ function Dashboard() {
           </>
         )}
 
-        {/* O CONVITE ANTIGO, agora SO no ES. No BR ele sumiu porque mandava
+        {/* O CONVITE ANTIGO, agora SO fora do BR (ES e EN). No BR ele sumiu porque mandava
             pro funil no preco cheio mesmo com credito na conta. No ES nao
             existe credito nenhum pra atropelar, e sem ele o painel de la
             ficaria sem nenhum caminho pra criar outra musica. */}
         {!carregando && !temOfertas && musicas.length > 0 && (
-          <ConviteOutraMusica locale="es" origem="dashboard" />
+          <ConviteOutraMusica locale={locale === "en" ? "en" : "es"} origem="dashboard" />
         )}
       </main>
     </div>

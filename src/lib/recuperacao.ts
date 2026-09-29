@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { termoParaOr } from "@/lib/sql-like";
+import { MARCA_ATIVA } from "./marca-identidade.js";
 
 // A FILA DE CARRINHO ABANDONADO, e o botão que libera o acesso.
 //
@@ -13,7 +14,7 @@ import { termoParaOr } from "@/lib/sql-like";
 // Por isso ela mostra o que serve pra CONVERSAR (nome, telefone, pra quem é a
 // música, quanto tempo faz) e nada de dinheiro.
 
-const SITE = "https://www.serenatagift.com";
+const SITE = MARCA_ATIVA.url;
 
 export type Abandonado = {
   pedidoId: string;
@@ -1137,8 +1138,8 @@ export const liberarAcesso = createServerFn({ method: "POST" })
         const chave = process.env.RESEND_API_KEY;
         if (chave) {
           await new Resend(chave).emails.send({
-            from: "Serenata <contato@serenatagift.com>",
-            replyTo: "contato@serenatagift.com",
+            from: MARCA_ATIVA.remetenteTransacional,
+            replyTo: MARCA_ATIVA.responderPara,
             to: [p.email],
             subject: assuntoPresentePronto(nome, locale),
             html: emailPresentePronto({

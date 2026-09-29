@@ -306,7 +306,7 @@ export default async function handler(req: Req, res: Res) {
 
           const { Resend } = await import("resend");
           await new Resend(chave).emails.send({
-            from: "Serenata <contato@serenatagift.com>",
+            from: MARCA_ATIVA.remetenteTransacional,
             to: [...DONOS],
             subject: `🔴 COMPRADOR não recebeu o e-mail: ${para}`,
             html:

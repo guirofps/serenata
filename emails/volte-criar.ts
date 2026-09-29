@@ -1,3 +1,4 @@
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
 // Declarado aqui, como nos outros templates deste diretório: eles não
 // compartilham um módulo de tipos, e criar um só pra isto seria mexer em seis
 // arquivos que funcionam.
@@ -86,7 +87,7 @@ const COPY: Record<
   },
 };
 
-const SITE = "https://www.serenatagift.com";
+const SITE = MARCA_ATIVA.url;
 
 export function assuntoVolteCriar(nome: string, locale: IdiomaEmail = "pt") {
   return (COPY[locale] ?? COPY.pt).assunto(nome);

@@ -276,7 +276,125 @@ const AR: Partial<TextosPresente> = {
   semMusicas: "Todavía no tenés ninguna canción.",
 };
 
-const POR_IDIOMA: Record<Locale, TextosPresente> = { pt: PT, es: ES };
+// INGLÊS, pra Ballad Gift (EUA), a partir do português. Nada de WhatsApp: o
+// link vai por mensagem de texto, e "enviar" é o menu de compartilhar do
+// celular. A caixa de bombom do QR vira o cartão e o embrulho, que é o que
+// o americano tem na mão num presente.
+const EN: TextosPresente = {
+  umaMusicaPara: "a song for",
+  umPresente: "A gift",
+  descricao: (n?: string) =>
+    n ? `A song made just for ${n}.` : "A song made just for you.",
+  ogTitulo: (n?: string) => (n ? `A song for ${n}` : "A gift"),
+  soVoceVe: "only you can see this",
+  toqueParaOuvir: "tap to listen",
+  feitoCom: "made with",
+  conviteTitulo: "Someone you love deserves one of these?",
+  conviteSub: "Tell your story and the lyrics are ready in seconds, free.",
+  conviteBotao: "Create a song",
+  ariaTocar: "Play",
+  ariaPausar: "Pause",
+  versaoN: (n: number) => `Version ${n}`,
+  seloNova: "new version",
+  removerFotoConfirma: "Remove this photo from the gift?",
+  anterioresTitulo: "Earlier versions",
+  anterioresTexto: "The recordings from before your change. They're saved: if you prefer one of them, just let us know.",
+  anterioresVer: "Listen to earlier versions",
+  anterioresPedido: "You asked for:",
+  eEssa: "this one",
+  escolherEsta: "choose this one",
+  ouvir: "Play",
+  pausar: "Pause",
+  baixarQr: "download the QR code",
+  qrAlt: (n: string) => `QR code for ${n}'s gift`,
+  verComoVaiVer: "See it the way they will",
+  previa: "preview",
+  dedicatoriaPlaceholder: (n: string) => `For you, ${n}. With all my love.`,
+  baixarMusica: "Download the song",
+  guardarOuEnviar: "Keep it or send it",
+  comoBaixa: "how do I download it?",
+  ajudaCelular:
+    "The MP3 goes to your downloads. To send it straight to someone, use the share button.",
+  ajudaDesktop: "The MP3 goes to your computer's downloads folder.",
+  baixarOuEnviar: "Download or send the song",
+  enviarMusica: "Share the song",
+  preparandoAudio: "preparing the audio…",
+  pronto: "ready",
+  posicaoMusica: "Song position",
+  suaConta: "your account",
+  suaMusicaPronta: "your song is ready",
+  agoraMonte: (n: string) => `Now put together ${n}'s gift`,
+  umaFotoUmaFrase:
+    "One photo and one line from you. That's what turns the page into something only the two of you understand.",
+  qualGravacao: "Which recording do you like best?",
+  fizemosDuas:
+    "We made two. Listen to both and pick the one that moves you most. It's the one that plays when they open it.",
+  escolhida: "chosen",
+  aCorDaPagina: "Page color",
+  aCorTexto: "It's the color of the play button, the lyrics that light up and the progress bar. See it in the preview.",
+  umEfeito: "A touch on screen",
+  umEfeitoTexto: "It drifts over the photo while the song plays. Subtle, to move them without the clutter.",
+  aFotoDaCapa: "Cover photo",
+  aFotoTexto: "It sits behind the name. Photos of faces work best.",
+  trocarFoto: "Change photo", escolherFoto: "Choose a photo", remover: "Remove",
+  asFotosQuePassam: "Photos that play with the song",
+  asFotosTexto: (max: number) =>
+    `They sit behind the lyrics and change as the song turns. The photo switches right as the chorus comes in. Up to ${max}.`,
+  adicionarMais: "Add more photos", escolherFotos: "Choose photos",
+  umaFraseSua: "A line from you",
+  umaFraseTexto: "It shows up under the play button. It's the only thing on the page written by you.",
+  agoraEntregar: "Now all that's left is to give it",
+  copieEMande: "Copy it and text it to them. You're the one giving the gift.",
+  mensagemPronta: (link: string) =>
+    `I made you a song. It's yours, only yours, and it's about us.
+
+${link}`,
+  copiado: "Copied!", copiarMensagem: "Copy message",
+  prefereMao: "Rather give it in person?",
+  qrTexto:
+    "Print this code and put it on a card, a gift box or the wrapping. They point their camera at it and the song opens.",
+  erroFoto: "Couldn't save the photo.",
+  erroUsarFoto: "Couldn't use that photo.",
+  erroFotos: "Couldn't use those photos.",
+  erroSalvarFotos: "Couldn't save the photos.",
+  erroFrase: "Couldn't save your line.",
+  erroCopiar: "Couldn't copy. Select the text and copy it manually.",
+  galeriaCheia: (n: number) => `The gallery is already full (${n} photos).`,
+  linkNaoExiste: "This edit link doesn't exist.",
+  confiraLink: "Check the link you got by email.",
+  ola: (n: string) => `Hi, ${n}`,
+  suasMusicas: "Your songs",
+  credito: "credit",
+  creditos: "credits",
+  abaMusicas: "My songs",
+  abaCriar: "Create",
+  abaQuadro: "Print",
+  abaVideo: "Video",
+  seloDesconto: "-26%",
+  seloQuadro: "new",
+  chamadaQuadroTitulo: "A print to hang on the wall",
+  chamadaQuadroSub: "Your song's lyrics and your photo, on paper",
+  confirmandoPix: "Confirming your payment. This takes less than a minute.",
+  criarComCredito: (n: number) =>
+    n === 1 ? "Create a new song (1 credit)" : `Create a new song (${n} credits)`,
+  criarSemCredito: "Create a new song",
+  quadroPronto1: "You have 1 print to design",
+  quadroPronto: (n: number) => `You have ${n} prints to design`,
+  quadroProntoSub: "Pick the song and save the PDF to print",
+  painelSub: "Your songs live here. Tap one to put the gift together or see its page.",
+  carregando: "loading…",
+  semMusicas: "You don't have any songs yet.",
+  criarPrimeira: "Create my first song",
+  suaMusica: "Your song",
+  presenteMontado: " · gift ready",
+  criadaEm: "created on",
+  verPagina: "View page",
+  montarBotao: "Put the gift together",
+  sair: "Sign out",
+  status: { pronta: "ready", gerando: "creating…", aguardando: "in line", falhou: "failed" } as Record<string, string>,
+};
+
+const POR_IDIOMA: Record<Locale, TextosPresente> = { pt: PT, es: ES, en: EN };
 
 export function tp(locale: Locale): TextosPresente {
   if (locale === "es" && ehArgentina()) return { ...ES, ...AR };

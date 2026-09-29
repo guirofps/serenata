@@ -52,6 +52,25 @@ const T: Record<
       { emoji: "🤍", titulo: "Aquele que “não chora”", texto: "O durão que se desmancha ao ouvir, em música, o que você nunca teve coragem de dizer na frente dele." },
     ],
   },
+  // Ballad Gift (EUA), a partir do português. "O pai que a vida deu" vira a
+  // família que se escolhe (stepdad, the aunt who raised you), que é como o
+  // americano diz isso.
+  en: {
+    selo: "who this gift is for",
+    titulo: ["Every gift ends up in a drawer.", "Except the one they keep listening to."],
+    sub: "A song with their name, your memories together and the thing we always forget to say out loud. They'll play it again, show it to everyone and keep it for life.",
+    cta: "Create their song",
+    rodape: "The lyrics are ready in seconds, free. You only pay if you love it.",
+    exemplo: "See a finished gift (example) →",
+    casos: [
+      { emoji: "🎂", titulo: "The birthday", texto: "The song that plays when the candles go out. And the one they'll play again every birthday after this one." },
+      { emoji: "🕊️", titulo: "In loving memory", texto: "A tribute for someone who's gone, but is still your mom, your dad, your grandpa." },
+      { emoji: "🧡", titulo: "The family you choose", texto: "The stepdad, the stepmom, the aunt who raised you. The one who did, by choice, what nobody asked." },
+      { emoji: "✈️", titulo: "Someone far away", texto: "Out of sight, close to your heart. The song reaches where you can't." },
+      { emoji: "💍", titulo: "Love of many years", texto: "Someone who's heard “I love you” a thousand times and never the way only a song can say it." },
+      { emoji: "🤍", titulo: "The one who “doesn't cry”", texto: "The tough one who melts hearing, in a song, what you never had the nerve to say to his face." },
+    ],
+  },
   es: {
     selo: "para quién es este regalo",
     titulo: ["Todo regalo termina guardado.", "Menos el que se sigue escuchando."],

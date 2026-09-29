@@ -45,6 +45,10 @@ const COPY: Record<Locale, { olho: string; frase: string }> = {
     olho: "reacciones reales de quien la escuchó",
     frase: "La letra y un pedazo de la canción, gratis. Los lees y escuchas antes de decidir nada.",
   },
+  en: {
+    olho: "real reactions from people who heard one",
+    frase: "The lyrics and a sung preview, free. You read and listen before deciding anything.",
+  },
 };
 
 export function AberturaProva({ locale = "pt" }: { locale?: Locale }) {

@@ -15,6 +15,7 @@ import { OfertaVideoDono } from "@/components/presente/OfertaVideoDono";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LOCALE_PADRAO, caminho } from "@/lib/i18n";
 
 // A PÁGINA PRESENTE — o entregável.
 //
@@ -82,7 +83,11 @@ export const Route = createFileRoute("/p/$token")({
         // Não atrapalha a entrega: `noindex` fala com buscador, e o WhatsApp
         // continua lendo as tags og logo abaixo pra montar a prévia do link.
         { name: "robots", content: "noindex, nofollow" },
-        { title: nome ? `${titulo} · para ${nome}` : titulo },
+        {
+          title: nome
+            ? `${titulo} · ${loaderData?.locale === "en" ? "for" : "para"} ${nome}`
+            : titulo,
+        },
         { name: "description", content: descricao },
         { property: "og:title", content: nome ? T.ogTitulo(nome) : titulo },
         { property: "og:description", content: descricao },
@@ -115,8 +120,28 @@ export const Route = createFileRoute("/p/$token")({
   // 2. Fala nos DOIS idiomas. Aqui não dá pra saber o locale — o token não
   //    resolveu, então não há registro de onde tirar idioma —, e metade das
   //    vendas internacionais é de quem não lê português.
+  //
+  // 3. Na Ballad (EUA) o site inteiro é inglês: lá sai só a versão em inglês,
+  //    sem português nem espanhol.
   notFoundComponent: () => (
     <main className="grid min-h-screen place-items-center bg-[#0d0a08] px-6 text-center">
+      {LOCALE_PADRAO === "en" ? (
+        <div className="max-w-sm">
+          <p className="text-2xl text-white/80">This link looks incomplete.</p>
+          <p className="mt-2 text-sm text-white/45">
+            Long links sometimes get cut off by email or text messages.
+            Try opening it again straight from the button in the original message.
+          </p>
+          <p className="mt-7 text-xs text-white/35">
+            <a
+              href={`mailto:${MARCA.emailContato}`}
+              className="underline underline-offset-4 hover:text-white/60"
+            >
+              {MARCA.emailContato}
+            </a>
+          </p>
+        </div>
+      ) : (
       <div className="max-w-sm">
         <p className="text-2xl text-white/80">Esse link parece incompleto.</p>
         <p className="mt-2 text-sm text-white/45">
@@ -131,13 +156,14 @@ export const Route = createFileRoute("/p/$token")({
         </p>
         <p className="mt-7 text-xs text-white/35">
           <a
-            href="mailto:contato@serenatagift.com"
+            href={`mailto:${MARCA.emailContato}`}
             className="underline underline-offset-4 hover:text-white/60"
           >
-            contato@serenatagift.com
+            {MARCA.emailContato}
           </a>
         </p>
       </div>
+      )}
     </main>
   ),
 });
@@ -605,7 +631,8 @@ function PaginaPresente() {
                 locale={p?.locale ?? "pt"}
               />
             </div>
-            <OfertaVideoDono tokenPublico={token} locale={p?.locale === "es" ? "es" : "pt"} />
+            {/* O vídeo é vendido por PIX, em real: só o português vê. */}
+            {p?.locale === "pt" && <OfertaVideoDono tokenPublico={token} locale="pt" />}
           </div>
         </div>
       )}
@@ -631,7 +658,7 @@ function PaginaPresente() {
             </p>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-white/50">{T.conviteSub}</p>
             <a
-              href={`${p?.locale === "es" ? "/es/criar" : "/criar"}?utm_source=presente&utm_medium=convite&utm_campaign=pagina_presente`}
+              href={`${caminho("/criar", p?.locale ?? "pt")}?utm_source=presente&utm_medium=convite&utm_campaign=pagina_presente`}
               onClick={() => trackEvent("convite_presente_click", { locale: p?.locale ?? "pt" })}
               className="mt-5 inline-flex h-12 items-center justify-center rounded-full bg-[color:var(--presente-destaque)] px-7 text-sm font-semibold text-[#0d0a08]"
             >

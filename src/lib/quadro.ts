@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { emailDaSessao } from "@/lib/conta-sessao";
 import { literalLike } from "@/lib/sql-like";
+import { MARCA_ATIVA } from "./marca-identidade.js";
 
 // O QUADRO: a página presente virando uma folha A4 pra imprimir e emoldurar.
 //
@@ -93,7 +94,7 @@ Obrigada por me encontrar`,
   dedicatoria: "Pra você, com todo amor. ❤️",
   fotoUrl: "/img/exemplo-pai.webp",
   corDestaque: null,
-  linkPresente: "https://www.serenatagift.com",
+  linkPresente: MARCA_ATIVA.url,
   // O exemplo imprime: é a vitrine, e vitrine que não deixa ver não vende.
   acesso: "confirmado",
   musicaId: null,
@@ -176,7 +177,9 @@ export const carregarQuadro = createServerFn({ method: "POST" })
       dedicatoria: m.dedicatoria,
       fotoUrl,
       corDestaque: m.cor_destaque,
-      linkPresente: `https://www.serenatagift.com/p/${m.token}`,
+      // O domínio da MARCA do deploy: na Ballad o QR do quadro abriria a
+      // Serenata, que nem tem esta música no banco.
+      linkPresente: `${MARCA_ATIVA.url}/p/${m.token}`,
       acesso,
       musicaId: m.id,
     };

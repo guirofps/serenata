@@ -1,3 +1,4 @@
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
 // E-mail do LINK DE ACESSO (magic link) à conta do comprador.
 //
 // É a porta da área dele: o link entra logado e leva ao painel, onde estão
@@ -7,7 +8,8 @@
 // Estética: papel e vinho (mundo claro da marca), tudo inline porque cliente
 // de e-mail não entende folha externa.
 
-type IdiomaEmail = "pt" | "es";
+// `en` é a Ballad Gift (EUA), com a copy adaptada do português.
+type IdiomaEmail = "pt" | "es" | "en";
 
 /** Um presente já pronto desta conta, pra listar como link direto. */
 export type PresenteDoAcesso = { titulo: string | null; tokenEdicao: string };
@@ -53,14 +55,30 @@ const COPY: Record<IdiomaEmail, {
       "Estos links son tuyos y no expiran. Guardá este correo.",
     semTitulo: "Tu canción",
   },
+  en: {
+    assunto: `Your ${MARCA_ATIVA.nome} sign-in link`,
+    titulo: "Sign in to your account",
+    corpo:
+      "Just tap the button below. You'll go straight to your account, no password needed: the songs you created, the editor for each gift, and the download for each one.",
+    botao: "SIGN IN →",
+    aviso: (m) =>
+      `This link can only be used once and expires in ${m} minutes. If you didn't ask for it, you can safely ignore this email.`,
+    rodape: `${MARCA_ATIVA.nome} · a song made from the story of someone you love`,
+    soUltimo:
+      "Asked for the link more than once? Always use the MOST RECENT email. As soon as you ask for a new one, the older ones stop working.",
+    atalhoTitulo: "Or go straight there, without signing in:",
+    atalhoCorpo:
+      "These links are yours and they don't expire. Keep this email.",
+    semTitulo: "Your song",
+  },
 };
 
 /** O assunto, no idioma da conta. */
 export function assuntoAcesso(locale: IdiomaEmail = "pt") {
-  return COPY[locale].assunto;
+  return (COPY[locale] ?? COPY.pt).assunto;
 }
 
-const SITE = "https://www.serenatagift.com";
+const SITE = MARCA_ATIVA.url;
 
 // O título vem da IA e passa por uma história escrita pelo usuário. Nada disso
 // é confiável dentro de HTML.
@@ -116,7 +134,7 @@ export function emailAcesso(args: {
         </td></tr>`
     : "";
   return `<!DOCTYPE html>
-<html lang="${args.locale === "es" ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto}</title></head>
+<html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto}</title></head>
 <body style="margin:0;padding:0;background-color:#f2e9dc;font-family:Georgia,'Times New Roman',serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2e9dc;padding:40px 16px;">
     <tr><td align="center">
@@ -133,7 +151,7 @@ export function emailAcesso(args: {
                A marca e uma palavra numa serifa com espacejamento. Texto
                renderiza igual em todo cliente, nunca bloqueia, nunca quebra,
                e nao pesa 50 KB. -->
-          <div style="margin:0 auto 16px;font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:3px;color:#7d2b3a;text-align:center;">SERENATA</div>
+          <div style="margin:0 auto 16px;font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:3px;color:#7d2b3a;text-align:center;">${MARCA_ATIVA.nome.toUpperCase()}</div>
           <h1 style="margin:0;color:#2a1518;font-size:25px;font-weight:normal;line-height:1.32;">
             ${C.titulo}
           </h1>

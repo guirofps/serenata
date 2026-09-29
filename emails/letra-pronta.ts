@@ -14,7 +14,11 @@
 //   - não tem urgência inventada. Nada de "sua letra expira".
 //   - não pede nada. O único link leva ela de volta a ouvir o que já é dela.
 
-type IdiomaEmail = "pt" | "es";
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+
+// `en` é a Ballad Gift (EUA). A copy inglesa foi adaptada do PORTUGUÊS, que é
+// o validado, e não do espanhol.
+type IdiomaEmail = "pt" | "es" | "en";
 
 const COPY: Record<IdiomaEmail, {
   assunto: (n: string) => string;
@@ -47,6 +51,17 @@ const COPY: Record<IdiomaEmail, {
     descadastrar: "ya no quiero recibir",
     rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
+  en: {
+    assunto: (n) => `The lyrics you wrote for ${n}`,
+    titulo: (n) => `The lyrics for ${n}, so you don't lose them`,
+    intro:
+      "You wrote this just a little while ago. It's yours, and it stays yours. Keep this email.",
+    botao: "HEAR A SUNG PREVIEW →",
+    depois:
+      "The recording of these lyrics is ready and waiting for you. You can listen to part of it without paying a thing.",
+    descadastrar: "unsubscribe",
+    rodape: `${MARCA_ATIVA.nome} · a song made from the story of someone you love`,
+  },
 };
 
 /**
@@ -55,12 +70,12 @@ const COPY: Record<IdiomaEmail, {
  * prévia cantada (B). Medido de 14 a 27/09 no A: 20,4% de abertura e 6,9% de
  * clique em 12.888 envios, e 9,3% de quem clicou comprou depois do clique.
  * A variante vai no evento `email_letra_enviado` e na tag do Resend.
- * Só português; o espanhol fica no A.
+ * Só português; o espanhol e o inglês ficam num assunto só.
  */
 export type VarianteAssuntoLetra = "a" | "b";
 export function assuntoLetraPronta(nome: string, locale: IdiomaEmail = "pt", variante: VarianteAssuntoLetra = "a") {
   if (locale === "pt" && variante === "b") return `${nome} ganhou uma música: ouça um trecho cantado`;
-  return COPY[locale].assunto(nome);
+  return (COPY[locale] ?? COPY.pt).assunto(nome);
 }
 
 /** Marcações do Suno ([Chorus], [Verse 1]) não vão pro e-mail: são instrução
@@ -89,7 +104,7 @@ export function emailLetraPronta(args: {
     .join("<br>");
 
   return `<!DOCTYPE html>
-<html lang="${args.locale === "es" ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#faf5ee;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf5ee;padding:32px 16px;">
     <tr><td align="center">

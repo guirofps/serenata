@@ -31,6 +31,26 @@ export function EditorLetra({
   locale?: Locale;
 }) {
   const T = t(locale);
+  // O cabeçalho e o botão de aprimorar tinham o texto cravado no JSX. O inglês ganha o seu;
+  // pt e es continuam lendo exatamente o que liam.
+  const B =
+    locale === "en"
+      ? {
+          quaseLa: "Almost there",
+          essaELetra: "These are your lyrics",
+          mudeOQueQuiser: "Change anything you like, every word is yours. This is what becomes the song.",
+          melhorando: "Polishing…",
+          jaMelhorada: "Already polished",
+          melhorar: "Polish with AI",
+        }
+      : {
+          quaseLa: "Quase lá",
+          essaELetra: "Essa é a sua letra",
+          mudeOQueQuiser: "Mude o que quiser, cada palavra é sua. É ela que vira música.",
+          melhorando: "Melhorando…",
+          jaMelhorada: "Já melhorada",
+          melhorar: "Melhorar com IA",
+        };
   const [letra, setLetra] = useState(letraInicial);
   const [aprimorando, setAprimorando] = useState(false);
   const [jaAprimorou, setJaAprimorou] = useState(false);
@@ -75,16 +95,16 @@ export function EditorLetra({
     <div className="flex flex-col gap-5">
       <div className="text-center">
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-          Quase lá
+          {B.quaseLa}
         </p>
         <h1
           className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl"
           style={{ fontFamily: FONTES.display }}
         >
-          Essa é a sua letra
+          {B.essaELetra}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Mude o que quiser, cada palavra é sua. É ela que vira música.
+          {B.mudeOQueQuiser}
         </p>
       </div>
 
@@ -143,15 +163,15 @@ export function EditorLetra({
       >
         {aprimorando ? (
           <>
-            <Loader2 className="h-4 w-4 animate-spin" /> Melhorando…
+            <Loader2 className="h-4 w-4 animate-spin" /> {B.melhorando}
           </>
         ) : jaAprimorou ? (
           <>
-            <Sparkles className="h-4 w-4" /> Já melhorada
+            <Sparkles className="h-4 w-4" /> {B.jaMelhorada}
           </>
         ) : (
           <>
-            <Sparkles className="h-4 w-4" /> Melhorar com IA
+            <Sparkles className="h-4 w-4" /> {B.melhorar}
           </>
         )}
       </button>

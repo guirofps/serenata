@@ -5,7 +5,7 @@ import { entrarComGoogle } from "@/lib/admin-auth";
 import { destinoDoCallback } from "@/lib/auth-destino";
 import { TEMA_CLARO, MARCA } from "@/lib/marca";
 import { Loader2 } from "lucide-react";
-import { normalizarLocale, caminho } from "@/lib/i18n";
+import { normalizarLocale, caminho, LOCALE_PADRAO } from "@/lib/i18n";
 
 // Aterrissagem do magic link. O Supabase manda de volta pra cá com um `?code=`
 // (fluxo PKCE) ou, em alguns casos, um `#access_token` no hash (implicit).
@@ -23,7 +23,11 @@ export const Route = createFileRoute("/auth/callback")({
     destino: destinoDoCallback(busca.destino),
   }),
   head: () => ({
-    meta: [{ title: `Entrando · ${MARCA.nome}` }, { name: "robots", content: "noindex, nofollow" }],
+    // O título sai antes de ler o `lang`; vai no idioma da marca do deploy.
+    meta: [
+      { title: `${LOCALE_PADRAO === "en" ? "Signing in" : "Entrando"} · ${MARCA.nome}` },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
   }),
   component: Callback,
 });
@@ -44,6 +48,14 @@ const COPY = {
     maisRecente: "abre el más reciente",
     pedirNovo: "pedir un link nuevo",
     entrando: "entrando…",
+  },
+  en: {
+    naoVale: "This link doesn't work anymore.",
+    porque:
+      "Each link works only once, and asking for a new one turns off the previous one. If you got more than one email, open the most recent one before asking for another.",
+    maisRecente: "open the most recent one",
+    pedirNovo: "ask for a new link",
+    entrando: "signing in…",
   },
 } as const;
 
@@ -167,7 +179,7 @@ function Callback() {
             className="mt-3 text-[var(--tinta-suave)]"
             style={{ fontSize: "var(--t-sm)", lineHeight: 1.6 }}
           >
-            {C.porque.split(C.maisRecente).map((pedaco, i) => (
+            {C.porque.split(C.maisRecente).map((pedaco: string, i: number) => (
               <span key={i}>
                 {i > 0 && <strong className="text-[var(--tinta)]">{C.maisRecente}</strong>}
                 {pedaco}

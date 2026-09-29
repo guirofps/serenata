@@ -153,7 +153,7 @@ export function BotaoGuardar({
       await navigator.share({
         files: [file],
         title: titulo,
-        text: `Uma música feita para ${nome} 🎁`,
+        text: locale === "en" ? `A song made for ${nome} 🎁` : `Uma música feita para ${nome} 🎁`,
       });
       setEstado("ok");
       setTimeout(() => setEstado("parado"), 2500);

@@ -2,6 +2,7 @@ import type { FlowStep, SkipMap } from "@/lib/flow-engine";
 import type { Locale } from "@/lib/i18n";
 import { generos } from "@/lib/generos";
 import { QUIZ_FLOW_ES } from "@/lib/quiz-flow-es";
+import { QUIZ_FLOW_EN } from "@/lib/quiz-flow-en";
 import { comVoseo } from "@/lib/quiz-flow-ar";
 import { ehArgentina } from "@/lib/mercado-es";
 
@@ -352,6 +353,7 @@ export const QUIZ_SKIP: SkipMap = {};
 // ── Despacho por idioma ───────────────────────────────────────────
 // O português é o default em todo caminho: idioma desconhecido cai em PT.
 export function quizFlow(locale: Locale): FlowStep[] {
+  if (locale === "en") return QUIZ_FLOW_EN;
   if (locale !== "es") return QUIZ_FLOW_PT;
   // O MERCADO decide a redação, do mesmo jeito que já decide o prompt da letra
   // (`systemDaLetra`), os gêneros (`generos`) e o exemplo da abertura. Este era

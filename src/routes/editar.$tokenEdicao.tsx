@@ -29,6 +29,8 @@ import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
 import { ImagePlus, Trash2, Check, Copy, ExternalLink, Loader2, X, Play, Pause, MessageCircle } from "lucide-react";
 import { PedirRefacao } from "@/components/presente/PedirRefacao";
+import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
+import { LOCALE_PADRAO, type Locale } from "@/lib/i18n";
 
 // A ÁREA DO COMPRADOR — onde o presente deixa de ser um render e vira o
 // documento dela.
@@ -41,6 +43,53 @@ import { PedirRefacao } from "@/components/presente/PedirRefacao";
 // entregue é a noite. A passagem entre os dois é a narrativa da marca.
 
 const MAX_DEDICATORIA = 280;
+
+// O nome da cor em inglês. `nomeCor` (marca.ts) só conhece pt e es; a chave
+// é a mesma do banco, então basta um mapa aqui.
+const NOME_COR_EN: Record<string, string> = {
+  ambar: "Amber",
+  rose: "Rosé",
+  coral: "Coral",
+  lavanda: "Lavender",
+  ceu: "Sky",
+  menta: "Mint",
+};
+
+// As poucas frases do editor que moravam direto no JSX. pt e es seguem
+// exatamente como estavam; só o inglês é novo.
+const MIUDOS: Record<Locale, {
+  removerFoto: (n: number) => string;
+  caracteres: (n: number) => string;
+  salvando: string;
+  salvo: string;
+  alteracoesSalvas: string;
+  ajuda: string;
+}> = {
+  pt: {
+    removerFoto: (n) => `Remover foto ${n}`,
+    caracteres: (n) => `${n} caracteres`,
+    salvando: "salvando…",
+    salvo: "salvo",
+    alteracoesSalvas: "alterações salvas",
+    ajuda: "Precisa de ajuda? Escreva pra ",
+  },
+  es: {
+    removerFoto: (n) => `Remover foto ${n}`,
+    caracteres: (n) => `${n} caracteres`,
+    salvando: "salvando…",
+    salvo: "salvo",
+    alteracoesSalvas: "alterações salvas",
+    ajuda: "¿Necesitas ayuda? Escríbenos a ",
+  },
+  en: {
+    removerFoto: (n) => `Remove photo ${n}`,
+    caracteres: (n) => `${n} characters left`,
+    salvando: "saving…",
+    salvo: "saved",
+    alteracoesSalvas: "changes saved",
+    ajuda: "Need help? Email us at ",
+  },
+};
 
 export const Route = createFileRoute("/editar/$tokenEdicao")({
   loader: async ({ params }) => {
@@ -58,12 +107,13 @@ export const Route = createFileRoute("/editar/$tokenEdicao")({
     ],
   }),
   component: Editor,
+  // Sem registro não há coluna de idioma: vai no idioma da marca do deploy.
   notFoundComponent: () => (
     <main className="grid min-h-screen place-items-center bg-[#faf5ee] px-6 text-center">
       <div>
-        <p className="text-xl text-[#2a1518]">Esse link de edição não existe.</p>
+        <p className="text-xl text-[#2a1518]">{tp(LOCALE_PADRAO).linkNaoExiste}</p>
         <p className="mt-2 text-sm text-[#2a1518]/60">
-          Confira o link que você recebeu por e-mail.
+          {tp(LOCALE_PADRAO).confiraLink}
         </p>
       </div>
     </main>
@@ -72,14 +122,23 @@ export const Route = createFileRoute("/editar/$tokenEdicao")({
 
 function Editor() {
   const p = Route.useLoaderData();
-  const T = tp(p?.locale ?? "pt");
+  const locale: Locale = p?.locale ?? "pt";
+  const T = tp(locale);
+  const M = MIUDOS[locale] ?? MIUDOS.pt;
+  const en = locale === "en";
+  // Os upsells deste editor (quadro, vídeo, música extra) são cobrados por
+  // PIX, em real. Fora do Brasil eles não existem.
+  const br = locale === "pt";
   const { tokenEdicao } = Route.useParams();
-  const tz = TEXTO_SUPORTE[p?.locale === "es" ? "es" : "pt"];
-  const linkZap = linkSuporte({
-    locale: p?.locale === "es" ? "es" : "pt",
-    titulo: p.titulo,
-    token: p.tokenPublico?.slice(0, 8),
-  });
+  const tz = TEXTO_SUPORTE[locale === "es" ? "es" : "pt"];
+  // Nada de WhatsApp no produto americano: lá o suporte é só por e-mail.
+  const linkZap = en
+    ? null
+    : linkSuporte({
+        locale: locale === "es" ? "es" : "pt",
+        titulo: p.titulo,
+        token: p.tokenPublico?.slice(0, 8),
+      });
 
   // Marca este navegador como dono do presente. É o que faz o botão de baixar
   // a música aparecer também na página pública, pra quem volta atrás do MP3
@@ -545,9 +604,9 @@ function Editor() {
                       key={c.chave}
                       type="button"
                       onClick={() => escolherCor(c.oklch)}
-                      aria-label={nomeCor(c, p?.locale ?? "pt")}
+                      aria-label={en ? NOME_COR_EN[c.chave] : nomeCor(c, locale)}
                       aria-pressed={escolhida}
-                      title={nomeCor(c, p?.locale ?? "pt")}
+                      title={en ? NOME_COR_EN[c.chave] : nomeCor(c, locale)}
                       // 44px É O MÍNIMO PRA DEDO, e a bolinha tinha 40. A cor
                       // continua com 40 (seis delas maiores não caberiam numa
                       // fileira de celular estreito); o que cresceu foi a área
@@ -601,7 +660,7 @@ function Editor() {
                       )}
                       style={{ fontSize: "var(--t-sm)" }}
                     >
-                      {rotuloEfeito(op, p?.locale === "es" ? "es" : "pt")}
+                      {rotuloEfeito(op, locale)}
                     </button>
                   );
                 })}
@@ -713,7 +772,7 @@ function Editor() {
                           if (!window.confirm(T.removerFotoConfirma)) return;
                           tirarDaGaleria(g.caminho);
                         }}
-                        aria-label={`Remover foto ${i + 1}`}
+                        aria-label={M.removerFoto(i + 1)}
                         className="absolute right-0 top-0 -m-2 grid h-11 w-11 place-items-center p-2"
                       >
                         <span className="grid h-7 w-7 place-items-center rounded-full bg-[var(--tinta)]/70 text-[var(--papel)] transition-colors duration-150 hover:bg-[var(--acento)]">
@@ -776,7 +835,7 @@ function Editor() {
                   )}
                   style={{ fontSize: "var(--t-xs)" }}
                 >
-                  {restam} caracteres
+                  {M.caracteres(restam)}
                 </span>
                 {/* Salva sozinha: aqui só o retorno visual, sem botão. */}
                 <span
@@ -785,11 +844,11 @@ function Editor() {
                 >
                   {fraseStatus === "salvando" ? (
                     <>
-                      <Loader2 className="h-3 w-3 animate-spin" /> salvando…
+                      <Loader2 className="h-3 w-3 animate-spin" /> {M.salvando}
                     </>
                   ) : fraseStatus === "salvo" ? (
                     <>
-                      <Check className="h-3 w-3" /> salvo
+                      <Check className="h-3 w-3" /> {M.salvo}
                     </>
                   ) : null}
                 </span>
@@ -809,10 +868,12 @@ function Editor() {
                 a página e o vídeo são a mesma montagem, e a prévia toca com as
                 fotos e a frase que ela acabou de escolher aqui em cima, mudando
                 na hora. O e-mail de "vídeo pronto" aponta pra cá (#video). Some
-                sozinho enquanto o render não está configurado. */}
+                sozinho enquanto o render não está configurado.
+                Fora no inglês: o vídeo em HD é vendido por PIX. */}
+            {!en && (
             <VideoPresenteEditor
               tokenEdicao={tokenEdicao}
-              locale={p?.locale === "es" ? "es" : "pt"}
+              locale={locale === "es" ? "es" : "pt"}
               fotos={fotosDoVideo}
               titulo={p.titulo}
               dedicatoria={dedicatoria}
@@ -821,6 +882,7 @@ function Editor() {
               para={p.nome ?? undefined}
               subindoFotos={subindoGaleria}
             />
+            )}
 
             {/* entrega */}
             <section className="rounded-3xl border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-6">
@@ -845,7 +907,7 @@ function Editor() {
                   numa caixa de bombom, e o digital ganha corpo sem logística
                   nenhuma da nossa parte. */}
               <div className="mt-6 flex flex-col items-center gap-4 rounded-[var(--raio-lg)] border border-[var(--tinta-fraca)]/30 bg-[var(--papel)] p-5 sm:flex-row sm:items-center sm:text-left">
-                <QrCode url={linkPublico} nome={p.nome} locale={p?.locale ?? "pt"} />
+                <QrCode url={linkPublico} nome={p.nome} locale={locale} />
                 <div>
                   <p className="font-medium" style={{ fontSize: "var(--t-sm)" }}>
                     {T.prefereMao}
@@ -886,7 +948,7 @@ function Editor() {
                     titulo={p.titulo}
                     nome={p.nome}
                     comDica
-                    locale={p?.locale ?? "pt"}
+                    locale={locale}
                   />
                 )}
               </div>
@@ -894,7 +956,7 @@ function Editor() {
 
             {/* DATAS: depois da entrega, que é a tarefa desta tela. Só em
                 português por enquanto (o lembrete sai em português). */}
-            {p?.locale !== "es" && <DatasEspeciais tokenEdicao={tokenEdicao} nomeSugerido={p.nome ?? undefined} />}
+            {br && <DatasEspeciais tokenEdicao={tokenEdicao} nomeSugerido={p.nome ?? undefined} />}
           </div>
 
           {/* ── PRÉVIA AO VIVO ────────────────────────────────── */}
@@ -974,7 +1036,7 @@ function Editor() {
                   className="mt-3 hidden items-center justify-center gap-1.5 text-[var(--tinta-suave)] lg:flex"
                   style={{ fontSize: "var(--t-xs)" }}
                 >
-                  <Check className="h-3.5 w-3.5" /> alterações salvas
+                  <Check className="h-3.5 w-3.5" /> {M.alteracoesSalvas}
                 </p>
               )}
             </div>
@@ -994,10 +1056,12 @@ function Editor() {
 
               A "mais uma música" continua nos e-mails de entrega e recompra,
               onde não compete com nada. */}
-          <OfertaQuadroEditor
-            locale={p?.locale === "es" ? "es" : "pt"}
-            tokenEdicao={tokenEdicao}
-          />
+          {!en && (
+            <OfertaQuadroEditor
+              locale={locale === "es" ? "es" : "pt"}
+              tokenEdicao={tokenEdicao}
+            />
+          )}
 
           {/* E a "mais uma música" volta, mas como LINHA e não como bloco.
               O comentário acima continua valendo: um quarto CARTÃO aqui vira
@@ -1012,11 +1076,20 @@ function Editor() {
                  contra R$ 896) porque a única porta visível levava ao
                  `/criar`. */}
           <div id="outra-musica" style={{ scrollMarginTop: "5rem" }}>
-            <AtalhoOutraMusica
-              locale={p?.locale === "es" ? "es" : "pt"}
-              tokenEdicao={tokenEdicao}
-              origem="editor"
-            />
+            {/* No inglês o atalho pago (PIX, em real) não existe: fica o
+                convite de criar outra pelo funil, que é o mesmo destino do
+                link do e-mail. */}
+            {en ? (
+              <div className="mt-6 text-center">
+                <ConviteOutraMusica locale="en" origem="editor" variante="discreto" />
+              </div>
+            ) : (
+              <AtalhoOutraMusica
+                locale={locale === "es" ? "es" : "pt"}
+                tokenEdicao={tokenEdicao}
+                origem="editor"
+              />
+            )}
           </div>
         </div>
 
@@ -1030,10 +1103,7 @@ function Editor() {
         {/* O AJUSTE, no fim da página e fechado por padrão.
             A ação daqui é montar o presente; perguntar "o que você não
             gostou?" no meio disso planta dúvida em quem estava satisfeito. */}
-        <PedirRefacao
-          tokenEdicao={tokenEdicao}
-          locale={p?.locale === "es" ? "es" : "pt"}
-        />
+        <PedirRefacao tokenEdicao={tokenEdicao} locale={locale} />
 
         {linkZap ? (
           <div className="mx-auto mt-12 max-w-md text-center">
@@ -1057,12 +1127,12 @@ function Editor() {
             className="mx-auto mt-12 max-w-md text-center text-[var(--tinta-suave)]"
             style={{ fontSize: "var(--t-sm)" }}
           >
-            {p?.locale === "es" ? "¿Necesitas ayuda? Escríbenos a " : "Precisa de ajuda? Escreva pra "}
+            {M.ajuda}
             <a
-              href="mailto:contato@serenatagift.com"
+              href={`mailto:${MARCA.emailContato}`}
               className="text-[var(--acento)] underline underline-offset-2"
             >
-              contato@serenatagift.com
+              {MARCA.emailContato}
             </a>
           </p>
         )}

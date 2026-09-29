@@ -14,10 +14,11 @@
 // ficam de fora: são o que a pessoa pagou pra receber.
 
 import { createHmac } from "node:crypto";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 
 export function assinaturaDescadastro(email: string): string | null {
   const segredo = process.env.RECUPERACAO_SECRET;

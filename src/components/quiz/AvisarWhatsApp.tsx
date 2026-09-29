@@ -87,6 +87,9 @@ export function AvisarWhatsApp({
   const [erro, setErro] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
+  // Nada de WhatsApp no produto americano (Ballad): lá o contato é só por
+  // e-mail. Depois dos hooks, pra ordem deles não mudar entre renders.
+  if (locale === "en") return null;
   if (estado === "dispensado" || jaTinha) return null;
 
   if (estado === "salvo") {

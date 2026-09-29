@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { lerOsSinais as avaliarSinais } from "../../src/lib/sinais-geracao.js";
 import { donosMais } from "../../src/lib/donos.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O VIGIA DA GERAÇÃO — e ele CONSERTA antes de avisar.
 //
@@ -266,7 +267,7 @@ export const vigiaGeracao = inngest.createFunction(
       if (!chave) return;
       const pagos = diagnostico.presas.filter((m) => m.pago).length;
       await new Resend(chave).emails.send({
-        from: "Serenata <contato@serenatagift.com>",
+        from: MARCA_ATIVA.remetenteTransacional,
         to: PARA,
         subject: maioriaFalhando
           ? `🔴 PAUSE AS CAMPANHAS — o provedor está recusando (${diagnostico.falhas} falhas)`

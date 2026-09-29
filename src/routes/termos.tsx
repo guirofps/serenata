@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Documento, Secao, SUPORTE } from "@/components/legal/Documento";
+import { META_TERMOS_EN, TermosEn } from "@/components/legal/TermosEn";
+import { LOCALE_PADRAO } from "@/lib/i18n";
 import { DIAS_GARANTIA } from "@/lib/garantia";
 
 // TERMOS DE USO.
@@ -21,17 +23,27 @@ import { DIAS_GARANTIA } from "@/lib/garantia";
 // exclusividade de melodia. Esconder isso seria vender coisa diferente da
 // entregue, e é o tipo de omissão que vira reembolso e processo.
 
+// Na Ballad Gift (EUA) o site inteiro é inglês, e os termos também: o
+// documento em inglês é outro texto, ADAPTADO pro consumidor americano, e
+// mora em `components/legal/`. Na Serenata nada muda.
+const EN = LOCALE_PADRAO === "en";
+
 export const Route = createFileRoute("/termos")({
-  component: Pagina,
+  component: EN ? TermosEn : Pagina,
   head: () => ({
-    meta: [
-      { title: "Termos de Uso · Serenata" },
-      {
-        name: "description",
-        content:
-          "O que a Serenata entrega, em quanto tempo, como funciona a garantia de 7 dias e o que você pode fazer com a sua música.",
-      },
-    ],
+    meta: EN
+      ? [
+          { title: META_TERMOS_EN.title },
+          { name: "description", content: META_TERMOS_EN.description },
+        ]
+      : [
+          { title: "Termos de Uso · Serenata" },
+          {
+            name: "description",
+            content:
+              "O que a Serenata entrega, em quanto tempo, como funciona a garantia de 7 dias e o que você pode fazer com a sua música.",
+          },
+        ],
   }),
 });
 

@@ -8,6 +8,7 @@ import { emailQuaseComprou, assuntoQuaseComprou } from "../../emails/quase-compr
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
 import { literalLike } from "../../src/lib/sql-like.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 /** A pessoa (por e-mail, qualquer quiz) comprou nos últimos 14 dias? */
 async function pessoaJaComprou(sb: ReturnType<typeof db>, email: string): Promise<boolean> {
@@ -109,7 +110,7 @@ async function jaAvisado(sb: ReturnType<typeof db>, quizId: string) {
 // e em produção host de requisição não pode decidir destino.
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 
 const CHECKOUT_ES = "https://go.centerpag.com/PPU38CQF4HJ";
 

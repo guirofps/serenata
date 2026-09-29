@@ -1,10 +1,39 @@
 import { Link } from "@tanstack/react-router";
 import { Logo } from "@/components/marca/Logo";
-import { TEMA_CLARO } from "@/lib/marca";
+import { MARCA, TEMA_CLARO } from "@/lib/marca";
 import { EMPRESA, cnpjFormatado } from "@/lib/empresa";
+import { LOCALE_PADRAO } from "@/lib/i18n";
 
-/** O canal único. Decisão registrada no CLAUDE.md: só e-mail no lançamento. */
-export const SUPORTE = "contato@serenatagift.com";
+/**
+ * O canal único. Decisão registrada no CLAUDE.md: só e-mail no lançamento.
+ * Vem da marca do deploy: `contato@serenatagift.com` na Serenata,
+ * `support@balladgift.com` na Ballad.
+ */
+export const SUPORTE = MARCA.emailContato;
+
+// A moldura fala o idioma do site. Na Serenata é português, sempre (o `/es`
+// não tem termos próprios); na Ballad é inglês. O idioma vem do deploy, e não
+// da rota, porque os dois documentos existem uma vez só por site.
+const EN = LOCALE_PADRAO === "en";
+
+// O espaço fica DENTRO da string, e não entre duas chaves no JSX: assim o
+// português sai com os mesmos nós de texto de antes, e o HTML da Serenata não
+// muda nem um byte.
+const MOLDURA = EN
+  ? {
+      atualizado: "Last updated: ",
+      // O americano não sabe o que é CNPJ: diz primeiro que é empresa
+      // brasileira, e o número vem depois, como identificação.
+      empresa: `${MARCA.nome} is operated by a company registered in Brazil`,
+      duvidas: "Questions or requests:",
+      voltar: "Back to the site",
+    }
+  : {
+      atualizado: "Última atualização: ",
+      empresa: EMPRESA.nome,
+      duvidas: "Dúvidas ou pedidos:",
+      voltar: "Voltar para o site",
+    };
 
 // A MOLDURA DOS DOCUMENTOS LEGAIS.
 //
@@ -24,7 +53,10 @@ export function Documento({
   children,
 }: {
   titulo: string;
-  /** `27 de agosto de 2026`. À vista, porque documento sem data não vale nada. */
+  /**
+   * `27 de agosto de 2026` (ou `September 29, 2026` na Ballad). À vista,
+   * porque documento sem data não vale nada.
+   */
   atualizado: string;
   children: React.ReactNode;
 }) {
@@ -37,7 +69,7 @@ export function Documento({
 
         <h1 className="mt-8 font-display text-3xl font-semibold leading-tight">{titulo}</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Última atualização: {atualizado}
+          {MOLDURA.atualizado}{atualizado}
         </p>
 
         <div className="prose-serenata mt-8 space-y-6 text-[15px] leading-relaxed">
@@ -45,17 +77,21 @@ export function Documento({
         </div>
 
         <div className="mt-12 border-t border-primary/10 pt-6 text-sm text-muted-foreground">
-          <p className="font-medium text-foreground">{EMPRESA.nome}</p>
-          <p>CNPJ {cnpjFormatado()}</p>
+          <p className="font-medium text-foreground">{MOLDURA.empresa}</p>
+          {EN ? (
+            <p>CNPJ (Brazilian company ID) {cnpjFormatado()}, São Caetano do Sul, SP, Brazil</p>
+          ) : (
+            <p>CNPJ {cnpjFormatado()}</p>
+          )}
           <p className="mt-2">
-            Dúvidas ou pedidos:{" "}
+            {MOLDURA.duvidas}{" "}
             <a href={`mailto:${SUPORTE}`} className="text-primary underline underline-offset-4">
               {SUPORTE}
             </a>
           </p>
           <p className="mt-4">
             <Link to="/" className="underline underline-offset-4">
-              Voltar para o site
+              {MOLDURA.voltar}
             </Link>
           </p>
         </div>

@@ -26,7 +26,13 @@ import { Check, ChevronDown, Gift, Clock, Sparkles, Link2, ArrowRight } from "lu
 // site clonado — e o mexicano lê isso no segundo em que decide se confia.
 export function ProvaImediata({ locale = "pt" }: { locale?: Locale }) {
   const fatos =
-    locale === "es"
+    locale === "en"
+      ? [
+          { valor: "~6s", label: "to get your lyrics" },
+          { valor: "~1min", label: "to record the song" },
+          { valor: "100%", label: "made from your story" },
+        ]
+      : locale === "es"
       ? [
           { valor: "~6s", label: "para tener la letra" },
           { valor: "~1min", label: "para grabar la canción" },
@@ -67,7 +73,17 @@ export function ProvaImediata({ locale = "pt" }: { locale?: Locale }) {
 
 // ── 03 · DOR ── objeção: "isso é pra mim?"
 // Nomeada com as palavras que a pessoa usaria (§3.1).
-export function Dor() {
+// Inglês (Ballad Gift): a mesma dor, com o que se dá de presente nos EUA
+// (vela, cartão de loja, gift card) no lugar do perfume e da caneca.
+const DOR_EN = {
+  titulo: "Every year, the same question: what do I get them?",
+  p1: "They already have the candle. Flowers wilt in three days. The gift card ends up in a drawer.",
+  p2: "In the end you grab something, hand it over a little awkwardly, and two months later nobody remembers what it was.",
+  p3: "Not because you don't care. It's because a gift that moves someone has to be about them, and that takes work.",
+};
+
+export function Dor({ locale = "pt" }: { locale?: Locale }) {
+  if (locale === "en") return <DorTexto t={DOR_EN} />;
   return (
     <section style={{ paddingBlock: "var(--secao)" }}>
       <div className="mx-auto max-w-2xl px-6 text-center">
@@ -99,10 +115,41 @@ export function Dor() {
   );
 }
 
+function DorTexto({ t }: { t: typeof DOR_EN }) {
+  return (
+    <section style={{ paddingBlock: "var(--secao)" }}>
+      <div className="mx-auto max-w-2xl px-6 text-center">
+        <h2
+          className="text-balance"
+          style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-3xl)", lineHeight: 1.15 }}
+        >
+          {t.titulo}
+        </h2>
+        <div
+          className="mx-auto mt-7 max-w-lg space-y-3 text-left text-[var(--tinta-suave)]"
+          style={{ fontSize: "var(--t-base)", lineHeight: 1.6 }}
+        >
+          <p>{t.p1}</p>
+          <p>{t.p2}</p>
+          <p className="font-medium text-[var(--tinta)]">{t.p3}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── 05 · BENEFÍCIOS ── objeção: "o que eu ganho?"
 // Benefício, não feature: o que muda pra ela, não o que o sistema faz.
-export function Beneficios() {
-  const itens = [
+export function Beneficios({ locale = "pt" }: { locale?: Locale }) {
+  const en = locale === "en";
+  const itens = en
+    ? [
+        { icone: Sparkles, titulo: "They'll know it's theirs", texto: "The lyrics mention the nickname, the Sunday pancakes, the road trip you took. No way to mistake it for a song on the radio." },
+        { icone: Gift, titulo: "There's no other like it", texto: "Every song is written and recorded from scratch, from your story. Nobody in the world has received this one." },
+        { icone: Clock, titulo: "You don't need to know anything", texto: "No need to write well, sing or have ideas. Tell the story your way. You can even talk instead of typing." },
+        { icone: Link2, titulo: "Easy to give", texto: "You get a link to a ready-made page. Text it to them and it opens with the song playing and the lyrics lighting up." },
+      ]
+    : [
     {
       icone: Sparkles,
       titulo: "Ela vai saber que é dela",
@@ -138,7 +185,7 @@ export function Beneficios() {
           className="text-center text-balance"
           style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-3xl)", lineHeight: 1.15 }}
         >
-          Por que uma música não se esquece
+          {en ? "Why a song is never forgotten" : "Por que uma música não se esquece"}
         </h2>
         <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-6 sm:mt-12 sm:gap-x-10 sm:gap-y-9">
           {itens.map((b) => (
@@ -182,8 +229,19 @@ export function Beneficios() {
 //
 // A ancoragem não sumiu do funil, mudou de lugar: ela vive na `TelaOferta`,
 // colada no preço que aquela pessoa vai ver, que é onde ancoragem funciona.
-export function Oferta() {
-  const inclui = [
+export function Oferta({ locale = "pt" }: { locale?: Locale }) {
+  const en = locale === "en";
+  const inclui = en
+    ? [
+        "The lyrics, made from your story (free, before you decide)",
+        "A sung preview of the song, to hear before you pay",
+        "The full song, recorded and sung",
+        "Two versions, you pick your favorite",
+        "The gift page with a link to send",
+        "The MP3 file to download and keep",
+        "A QR code to print and put on a physical gift",
+      ]
+    : [
     "A letra, feita da sua história (grátis, antes de decidir)",
     "Um trecho da música cantado, pra ouvir antes de pagar",
     "A música gravada e cantada, completa",
@@ -200,14 +258,15 @@ export function Oferta() {
             className="text-balance"
             style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-3xl)", lineHeight: 1.15 }}
           >
-            O presente que vão esquecer, e o que não vão
+            {en ? "The gift they'll forget, and the one they won't" : "O presente que vão esquecer, e o que não vão"}
           </h2>
           <p
             className="mx-auto mt-4 max-w-md text-balance text-[var(--tinta-suave)]"
             style={{ fontSize: "var(--t-base)", lineHeight: 1.6 }}
           >
-            Uma música feita da história de vocês não vai pro fundo da gaveta.
-            Ela fica no celular, na data, no dia ruim.
+            {en
+              ? "A song made from your story doesn't end up at the back of a drawer. It stays on their phone, on the anniversary, on the hard days."
+              : "Uma música feita da história de vocês não vai pro fundo da gaveta. Ela fica no celular, na data, no dia ruim."}
           </p>
         </div>
 
@@ -217,7 +276,7 @@ export function Oferta() {
             className="text-center text-[var(--tinta-suave)]"
             style={{ fontSize: "var(--t-sm)" }}
           >
-            Você paga uma vez e leva
+            {en ? "Pay once and you get" : "Você paga uma vez e leva"}
           </p>
           <ul className="mt-5 space-y-2 sm:mt-6 sm:space-y-3">
             {inclui.map((i) => (
@@ -236,25 +295,28 @@ export function Oferta() {
               className="mx-auto max-w-md text-balance"
               style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-xl)", lineHeight: 1.3 }}
             >
-              Você lê a letra inteira e ouve um trecho cantado{" "}
-              <span className="texto-ouro">antes de pagar</span>.
+              {en ? "You read the full lyrics and hear a sung preview" : "Você lê a letra inteira e ouve um trecho cantado"}{" "}
+              <span className="texto-ouro">{en ? "before you pay" : "antes de pagar"}</span>.
             </p>
             <p className="mt-3 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
-              pagamento único · sem mensalidade · a página fica sua pra sempre
+              {en
+                ? "one-time payment · no subscription · the page is yours forever"
+                : "pagamento único · sem mensalidade · a página fica sua pra sempre"}
             </p>
 
             <Link
               to="/criar"
               className="cta mt-6 inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-medium"
             >
-              Criar minha música <ArrowRight className="h-4 w-4" />
+              {en ? "Create my song" : "Criar minha música"} <ArrowRight className="h-4 w-4" />
             </Link>
             <p
               className="mx-auto mt-5 max-w-md text-[var(--tinta-suave)]"
               style={{ fontSize: "var(--t-sm)", lineHeight: 1.6 }}
             >
-              Se não for a cara da pessoa, não paga nada, e ainda pode pedir pra
-              reescrever de graça.
+              {en
+                ? "If it doesn't feel like them, you pay nothing, and you can still ask for a free rewrite."
+                : "Se não for a cara da pessoa, não paga nada, e ainda pode pedir pra reescrever de graça."}
             </p>
           </div>
         </div>
@@ -291,9 +353,19 @@ const PERGUNTAS = [
   },
 ];
 
-export function FAQ() {
+const PERGUNTAS_EN = [
+  { q: "What if the lyrics aren't good?", a: "You read them before paying anything. If you don't like them, you can ask for a free rewrite. And if it still doesn't feel like them, just don't continue. You pay nothing for the lyrics." },
+  { q: "How long does it take?", a: "The lyrics are ready in seconds. The recorded song takes about 1 minute. You don't have to wait on a screen: if you leave, we'll email you when it's ready." },
+  { q: "Is the song really only mine?", a: "Yes. It's written and recorded from scratch from the story you told. It's not a catalog, not a template with the name swapped. Nobody else gets this song." },
+  { q: "Do I need to be a good writer?", a: "No. The simpler and truer, the better. A small detail (the nickname, the Sunday breakfast, their funny habit) is worth more than pretty writing. You can also talk instead of typing." },
+  { q: "How do I give it to them?", a: "You get a link to a ready-made page: the song playing, the lyrics lighting up on the beat and their name on the cover. Text it to them, or print the QR code and put it on a gift. You're the one who gives it." },
+  { q: "What if they don't like it?", a: "You're the one who knows them. That's why the lyrics come first: you read them and decide if that's them. It's the same care as picking a gift, except here you check before you pay." },
+];
+
+export function FAQ({ locale = "pt" }: { locale?: Locale }) {
   // Primeira já aberta (§3.5).
   const [aberta, setAberta] = useState<number | null>(0);
+  const lista = locale === "en" ? PERGUNTAS_EN : PERGUNTAS;
   return (
     <section
       id="faq"
@@ -305,10 +377,10 @@ export function FAQ() {
           className="text-center text-balance"
           style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-3xl)", lineHeight: 1.15 }}
         >
-          Perguntas que todo mundo faz
+          {locale === "en" ? "Questions everyone asks" : "Perguntas que todo mundo faz"}
         </h2>
         <div className="mt-10 divide-y divide-[var(--tinta-fraca)]/35 border-y border-[var(--tinta-fraca)]/35">
-          {PERGUNTAS.map((p, i) => {
+          {lista.map((p, i) => {
             const on = aberta === i;
             return (
               <div key={p.q}>

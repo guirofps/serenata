@@ -1,0 +1,26 @@
+# O QUE NUNCA SOBE NUM DEPLOY PELA CLI.
+#
+# O deploy da Serenata vem do git, e o git já ignora tudo isto. A Ballad Gift
+# (EUA) sobe pela CLI (`vercel deploy` apontando pro projeto balladgift), que
+# empacota a PASTA, não o repositório: sem esta lista iriam junto os `.env`
+# com as chaves de produção e 1,8 GB de `scratch/`. Espelha o `.gitignore`;
+# só entra aqui o que já está fora do git, então o deploy por git não muda.
+node_modules
+dist
+dist-ssr
+.output
+.vinxi
+.tanstack
+.nitro
+*.local
+.env
+.env.*
+*.log
+.claude
+.agent
+.vercel
+scratch
+materiais
+backup-angelical
+public/exemplos
+supabase/.temp

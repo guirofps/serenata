@@ -6,8 +6,9 @@
 // (`#outra-musica`), e não o funil inteiro a preço cheio.
 
 import type { TipoData } from "../src/lib/datas-especiais";
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
 
-const SITE = "https://www.serenatagift.com";
+const SITE = MARCA_ATIVA.url;
 
 function frase(nome: string, tipo: TipoData): string {
   if (tipo === "namoro") return `o aniversário de namoro com ${nome}`;

@@ -3,6 +3,7 @@ import { Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type Locale } from "@/lib/i18n";
 import { t } from "@/lib/textos";
+import { EXEMPLOS_EN, audioDoExemplo } from "@/lib/exemplos-en";
 
 // "Enquanto a sua fica pronta, ouça outras" — a jogada da tela de espera do
 // LoveTune, e a mais honesta dela: enquanto o Suno grava (~2min), a pessoa
@@ -17,6 +18,10 @@ import { t } from "@/lib/textos";
 // existe no repertório dele. Os exemplos ES vieram do teste de validação
 // (mariachi, banda, balada), gerados pelo mesmo pipeline.
 const CLIPES: Record<Locale, ReadonlyArray<{ slug: string; titulo: string; para: string }>> = {
+  // Ballad Gift: os gerados pelo funil dela, ver `exemplos-en.ts`.
+  en: EXEMPLOS_EN.filter((e) => e.titulo)
+    .slice(0, 3)
+    .map((e) => ({ slug: e.slug, titulo: e.titulo, para: e.para })),
   pt: [
     { slug: "rose", titulo: "Domingo de Rose", para: "para a mãe" },
     { slug: "isabela", titulo: "Desde a Escola, Isabela", para: "para a esposa" },
@@ -37,9 +42,12 @@ const CLIPES: Record<Locale, ReadonlyArray<{ slug: string; titulo: string; para:
 const AUDIO_BASE =
   "https://ouwijepgctgtfzrrwpvt.supabase.co/storage/v1/object/public/exemplos";
 
+
+
 export function OuvirEnquantoEspera({ locale = "pt" }: { locale?: Locale }) {
   const T = t(locale);
   const clipes = CLIPES[locale] ?? CLIPES.pt;
+  const urlDo = (slug: string) => (locale === "en" ? audioDoExemplo(slug) : `${AUDIO_BASE}/${slug}.mp3`);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [tocando, setTocando] = useState<string | null>(null);
 
@@ -59,7 +67,7 @@ export function OuvirEnquantoEspera({ locale = "pt" }: { locale?: Locale }) {
       setTocando(null);
       return;
     }
-    a.src = `${AUDIO_BASE}/${slug}.mp3`;
+    a.src = urlDo(slug);
     try {
       await a.play();
       setTocando(slug);
@@ -68,6 +76,10 @@ export function OuvirEnquantoEspera({ locale = "pt" }: { locale?: Locale }) {
       setTocando(null);
     }
   }
+
+  // Sem exemplo gerado ainda (Ballad no primeiro dia), some em vez de mostrar
+  // um título vazio.
+  if (!clipes.length) return null;
 
   return (
     <div>

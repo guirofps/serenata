@@ -11,6 +11,7 @@ import { asaasPix } from "@/lib/asaas-pix";
 import { ErroGateway, type GatewayPix } from "@/lib/gateway";
 import { conviteDaCompra } from "@/lib/indicacao-db";
 import { descontoDoConvite } from "@/lib/indicacao";
+import { MARCA_ATIVA } from "./marca-identidade.js";
 
 // GERA O PIX DO CHECKOUT TRANSPARENTE.
 //
@@ -40,7 +41,7 @@ import { descontoDoConvite } from "@/lib/indicacao";
 /** O domínio do site, pro link que a pessoa recebe por e-mail. */
 function urlDoSite(): string {
   const u = process.env.VITE_APP_URL;
-  return u?.startsWith("http") ? u : "https://www.serenatagift.com";
+  return u?.startsWith("http") ? u : MARCA_ATIVA.url;
 }
 
 /**

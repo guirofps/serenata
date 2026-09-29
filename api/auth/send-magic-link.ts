@@ -22,6 +22,8 @@ import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailAcesso, assuntoAcesso } from "../../emails/acesso.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { normalizarLocale } from "../../src/lib/i18n.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -40,7 +42,7 @@ function db() {
 // A origem para onde o magic link volta. Em produção é o domínio real; em
 // `vercel dev` é o host da requisição (localhost). Nunca confiar num host
 // arbitrário pra produção, então só aceita o header quando não há env.
-const SITE_CANONICO = "https://www.serenatagift.com";
+const SITE_CANONICO = MARCA_ATIVA.url;
 
 function origem(req: Req): string {
   const env = process.env.VITE_APP_URL;
@@ -177,8 +179,10 @@ export default async function handler(req: Req, res: Res) {
     // O idioma da conta é o do lead MAIS RECENTE com este e-mail. Não existe
     // outra fonte: o pedido de link chega de um formulário que só tem e-mail,
     // e alguém pode ter comprado nos dois funis.
-    const locale =
-      (quizzes ?? [])[0]?.locale === "es" ? ("es" as const) : ("pt" as const);
+    //
+    // `normalizarLocale` e não um "es senão pt": sem idioma gravado, cai no
+    // padrão da MARCA (pt na Serenata, en na Ballad Gift).
+    const locale = normalizarLocale((quizzes ?? [])[0]?.locale);
 
     // As músicas prontas viram LINKS DIRETOS no e-mail. O magic link é de uso
     // único, expira, e é morto por qualquer pedido novo: três formas de falhar
@@ -274,35 +278,45 @@ export default async function handler(req: Req, res: Res) {
       tokenEdicao: m.token_edicao,
     }));
     const site = origem(req);
+    const ingles = locale === "en";
     const linhasPresentes = presentes.length
       ? "\n\n" +
-        (locale === "es" ? "O entra directo, sin cuenta:" : "Ou vá direto, sem entrar na conta:") +
+        (locale === "es"
+          ? "O entra directo, sin cuenta:"
+          : ingles
+            ? "Or go straight there, without signing in:"
+            : "Ou vá direto, sem entrar na conta:") +
         "\n" +
         presentes
-          .map((p) => `${p.titulo?.trim() || "Sua música"}: ${site}/editar/${p.tokenEdicao}`)
+          .map((p) => `${p.titulo?.trim() || (ingles ? "Your song" : "Sua música")}: ${site}/editar/${p.tokenEdicao}`)
           .join("\n")
       : "";
     const avisoUltimo =
       locale === "es"
         ? "\n\nSi pediste el link más de una vez, usa el correo MÁS RECIENTE: al pedir uno nuevo, los anteriores dejan de funcionar."
-        : "\n\nSe você pediu o link mais de uma vez, use o e-mail MAIS RECENTE: ao pedir um novo, os anteriores param de funcionar.";
+        : ingles
+          ? "\n\nIf you asked for the link more than once, use the MOST RECENT email: as soon as you ask for a new one, the older ones stop working."
+          : "\n\nSe você pediu o link mais de uma vez, use o e-mail MAIS RECENTE: ao pedir um novo, os anteriores param de funcionar.";
+    // O começo do texto puro sempre saiu em português, inclusive no espanhol.
+    // Fica assim de propósito; só o inglês ganha o seu.
+    const inicioTexto = ingles
+      ? `Sign in to your ${MARCA_ATIVA.nome} account, no password needed:\n${actionLink}\n\n` +
+        `This link can only be used once and expires in 60 minutes. If you didn't ask for it, you can ignore this email.`
+      : `Entrar na sua conta Serenata, sem senha:\n${actionLink}\n\n` +
+        `Este link é de uso único e expira em 60 minutos. Se não foi você que pediu, pode ignorar este e-mail.`;
     const { error: erroEmail } = await new Resend(chave).emails.send({
       // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
       // (entregue, aberto, clicado, devolvido), e e o unico jeito de
       // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
       // pessoa e nem sempre vem no evento.
       tags: [{ name: "template", value: "magic_link" }],
-      from: "Serenata <contato@serenatagift.com>",
+      from: MARCA_ATIVA.remetenteTransacional,
       to: [email],
       subject: assuntoAcesso(locale),
       html: emailAcesso({ link: actionLink, locale, presentes }),
       // Versão em texto puro: e-mail só-HTML tem mais cara de spam. O
       // multipart/alternative melhora a entrega, ainda mais em domínio novo.
-      text:
-        `Entrar na sua conta Serenata, sem senha:\n${actionLink}\n\n` +
-        `Este link é de uso único e expira em 60 minutos. Se não foi você que pediu, pode ignorar este e-mail.` +
-        avisoUltimo +
-        linhasPresentes,
+      text: inicioTexto + avisoUltimo + linhasPresentes,
     });
     if (erroEmail) {
       console.error("[magic-link] envio falhou:", erroEmail.message);

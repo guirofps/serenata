@@ -10,7 +10,7 @@
 // A Ballad Gift (EUA) veste a mesma identidade visual: o nome, o domínio e os
 // e-mails vêm da marca ativa do deploy (`marca-identidade.ts`).
 
-import { MARCA_ATIVA } from "./marca-identidade";
+import { MARCA_ATIVA } from "./marca-identidade.js";
 
 export const MARCA = MARCA_ATIVA;
 

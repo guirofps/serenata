@@ -1,5 +1,11 @@
 ﻿import { FONTES } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
+import { exemploEn } from "@/lib/exemplos-en";
+
+// O exemplo em inglês é o do pai, igual ao português. Os versos são os que
+// o funil da Ballad gerou (`exemplos-en.ts`); vazios até gerar.
+const PAI_EN = exemploEn("en-dad");
+const versosEn = [...(PAI_EN?.versos ?? []), "", "", "", ""].slice(0, 4) as [string, string, string, string];
 import { Music, Images, QrCode, Download, Play, ArrowUpRight } from "lucide-react";
 
 // O DIFERENCIAL que a home não estava mostrando: o entregável não é um MP3, é
@@ -47,6 +53,23 @@ const T: Record<
       { icone: Images, titulo: "As fotos de vocês deslizando", texto: "As fotos passam junto com a canção e trocam nas viradas da música." },
       { icone: QrCode, titulo: "Link e QR Code pra entregar", texto: "Manda no WhatsApp, ou imprime o QR e cola num cartão ou numa caixa de bombom." },
       { icone: Download, titulo: "O MP3 pra baixar e guardar", texto: "A música é sua pra sempre, e a página fica no ar pra reabrir quando quiser." },
+    ],
+  },
+  en: {
+    olho: "the whole gift",
+    titulo: ["It's not just a song.", "It's the page you send."],
+    sub: "Others send an audio file that gets lost in a text thread. Here, whoever gets it opens a link and lives a moment: the song, the lyrics lighting up, your photos together and their name on the cover.",
+    cta: "Open an example gift",
+    foto: PAI_EN?.capa ?? "",
+    rotulo: "a song for",
+    nome: PAI_EN?.nome ?? "Dad",
+    versos: versosEn,
+    legenda: "This is how the gift opens. Tap to see it live.",
+    itens: [
+      { icone: Music, titulo: "The song playing with the lyrics lighting up", texto: "Word by word, right on the beat of the vocal. Real sing-along, not captions." },
+      { icone: Images, titulo: "Your photos gliding by", texto: "The photos move with the song and change as the music turns." },
+      { icone: QrCode, titulo: "A link and QR code to give it", texto: "Text it to them, or print the QR and put it on a card or a gift box." },
+      { icone: Download, titulo: "The MP3 to download and keep", texto: "The song is yours forever, and the page stays up to reopen any time." },
     ],
   },
   es: {

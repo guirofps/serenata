@@ -2,6 +2,7 @@ import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { DONOS } from "../../src/lib/donos.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // A ENTREGA QUE SAI E NÃO CHEGA.
 //
@@ -116,7 +117,7 @@ export const vigiaEntrega = inngest.createFunction(
         .join("");
 
       await new Resend(chave).emails.send({
-        from: "Serenata <contato@serenatagift.com>",
+        from: MARCA_ATIVA.remetenteTransacional,
         to: [...DONOS],
         subject: `🔴 ${orfaos.length} entrega${orfaos.length > 1 ? "s" : ""} sem confirmação de recebimento`,
         html:

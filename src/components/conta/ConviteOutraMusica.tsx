@@ -42,7 +42,7 @@ export function ConviteOutraMusica({
   origem,
   variante = "cartao",
 }: {
-  locale: "pt" | "es";
+  locale: "pt" | "es" | "en";
   /** Em que tela o convite foi clicado. É o que permite saber se ele vende. */
   origem: "editor" | "obrigado" | "dashboard";
   /** `cartao` tem moldura e texto de oferta; `discreto` é só o link. */
@@ -50,6 +50,8 @@ export function ConviteOutraMusica({
 }) {
   const reset = useQuizStore((s) => s.reset);
   const es = locale === "es";
+  // Inglês (Ballad Gift): mesma promessa do português, rota sem prefixo.
+  const en = locale === "en";
 
   const sair = () => {
     trackEvent("recompra_click", { origem, locale });
@@ -58,6 +60,7 @@ export function ConviteOutraMusica({
   };
 
   const destino = es ? "/es/criar" : "/criar";
+  const outra = en ? "Create another song" : es ? "Crear otra canción" : "Criar outra música";
 
   if (variante === "discreto") {
     return (
@@ -70,7 +73,7 @@ export function ConviteOutraMusica({
         style={{ fontSize: "var(--t-sm)" }}
       >
         <Plus className="h-4 w-4" />
-        {es ? "Crear otra canción" : "Criar outra música"}
+        {outra}
       </Link>
     );
   }
@@ -78,7 +81,7 @@ export function ConviteOutraMusica({
   return (
     <section className="mt-10 rounded-2xl border border-[var(--tinta-fraca)]/40 p-6 text-center">
       <p className="font-semibold text-[var(--tinta)]" style={{ fontSize: "var(--t-lg)" }}>
-        {es ? "¿Quién más merece una?" : "Quem mais merece uma?"}
+        {en ? "Who else deserves one?" : es ? "¿Quién más merece una?" : "Quem mais merece uma?"}
       </p>
       {/*
         A promessa é a MESMA do funil, e é verdadeira: a letra sai de graça de
@@ -87,7 +90,9 @@ export function ConviteOutraMusica({
         que o checkout não pratica é o jeito mais rápido de virar reembolso.
       */}
       <p className="mx-auto mt-2 max-w-sm text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
-        {es
+        {en
+          ? "The lyrics are free again. Tell me about someone else and see how it turns out, without paying a thing."
+          : es
           ? "La letra vuelve a ser gratis. Cuéntame de otra persona y ve cómo queda, sin pagar nada."
           : "A letra sai de graça de novo. Conte de outra pessoa e veja como fica, sem pagar nada."}
       </p>
@@ -97,7 +102,7 @@ export function ConviteOutraMusica({
         className="cta mt-5 inline-flex h-12 items-center justify-center gap-2 rounded-full border-0 px-8"
       >
         <Plus className="h-4 w-4" />
-        {es ? "Crear otra canción" : "Criar outra música"}
+        {outra}
       </Link>
     </section>
   );

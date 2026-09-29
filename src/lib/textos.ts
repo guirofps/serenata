@@ -391,7 +391,150 @@ const AR: Partial<Textos> = {
   zapInvalido: "Revisá el número, parece que falta un dígito.",
 };
 
-const POR_IDIOMA: Record<Locale, Textos> = { pt: PT, es: ES };
+// INGLÊS, pra Ballad Gift (EUA). Redigido a partir do PORTUGUÊS, que é o
+// funil validado, e não do espanhol. Mesma promessa, mesma ordem, mesmos
+// números (letra grátis, trecho cantado antes de pagar, 1 minuto).
+//
+// O que muda de verdade, e não é tradução:
+//   - Nada de WhatsApp. Nos EUA o presente vai por mensagem de texto
+//     (SMS/iMessage). Os campos `zap*` existem só pra satisfazer o tipo: o
+//     bloco que os usa não aparece na Ballad.
+//   - Sem travessão na copy, igual à regra do funil brasileiro.
+const EN: Textos = {
+  continuar: "Continue",
+  verMinhaLetra: "See my lyrics",
+  voltar: "Back",
+  tudoCerto: "All good?",
+  ultimaConferida: "One last look before we write the lyrics.",
+  escreverLetra: "Write my free lyrics",
+  emailPlaceholder: "you@email.com",
+  emailQuisDizer: "Did you mean",
+  barraRotulo: "Create my song",
+  barraTitulo: "The lyrics and a sung preview, free",
+  barraSub: "You only pay for the full song and the gift page",
+  oPresenteDe: "The gift for",
+  quemVoceAma: "someone you love",
+  estaNascendo: "is starting to come to life.",
+  reacoesLegenda: "Real reactions from people who heard a song we made.",
+
+  oQueVaiMontar: "what you'll get in 1 minute",
+  musicaCantada: "sung song",
+  paginaComFotos: "page with photos",
+  karaoke: "sing-along lyrics",
+  qrCode: "QR code",
+
+  semIdeia: "Not sure where to start? Tap one to begin the sentence.",
+  faltamChars: (n: number) => `Write a little more, ${n} characters to go`,
+  duasLinhas: "Two or three lines are plenty",
+  perfeito: "Perfect ✓",
+  frasesDeVerdade: "Write in real sentences, at least 3 words.",
+  palavrasReais: "Use real words, avoid stray numbers and symbols.",
+  naoRepita: "Avoid repeating the same character over and over.",
+  preferoFalar: "I'd rather say it out loud",
+  pararGravar: "Stop recording",
+  naoLembro: "Nothing comes to mind right now, skip this",
+
+  avisoComposto: (primeiro: string) =>
+    `First and last name will both be sung. If you call them ${primeiro}, it sounds better in the song.`,
+  usarSo: (primeiro: string) => `Use just “${primeiro}”`,
+
+  opcao: (n: number) => `Option ${n}`,
+  outraOpcao: "See other options",
+  gerandoOutras: "Writing new ones…",
+  suaLetraSeuJeito: "Your lyrics, your way",
+  qualRefrao: "Which chorus feels right?",
+  refraoSub: "It's the part that gets sung the most. Pick the one that moves you, you can tweak everything later.",
+  usarEsteRefrao: "Use this chorus",
+  linkEQrEnviar: "link + QR code to send",
+  assimVaiReceber: "This is how {n} will receive it",
+  estaPronta: "It's ready",
+  preparandoSua: "Getting your song ready…",
+  melhorarComIA: "polish with AI",
+  falhouMelhorar: "Couldn't polish it right now. Your lyrics stay as they are.",
+
+  loadingLetra: [
+    "Reading your story…",
+    "Looking for the details only you two share…",
+    "Writing two takes on the chorus…",
+  ],
+  loadingRefrao: "Writing the lyrics around your chorus…",
+  loadingMusica: [
+    "Finding the key of your story…",
+    "Giving the words a rhythm…",
+    "Putting on the finishing touches…",
+  ],
+  sendoCantada: "being sung",
+  gravandoVoz: "Recording the vocals…",
+  quasePronta: "Almost ready…",
+  prontaBang: "Ready!",
+  ajustandoDetalhes: "fine-tuning the details",
+  completa: "complete",
+  esperaOuvirOutras: "meanwhile, listen to others",
+  levaDoisMinutos: "It takes about 1 minute. Listen to a few others below while yours gets ready.",
+  isSoQueVaiEnviar: "this is what you'll send",
+  comoVaiChegar: "You text them the link. They tap it, and the lyrics light up with the music, over your photos together.",
+  prontaEmBreve: "As soon as the recording is ready, you'll hear a preview right here.",
+  demorouMais: "The recording is taking longer than expected",
+  avisamosPorEmail: "We'll email you as soon as it's ready.",
+
+  ouviuPedacinho: "You heard a little piece…",
+  musicaContinua: "The song keeps going…",
+  canteJunto: "Sing along, it's your song",
+  ouvirAMusica: "Play the song",
+  ariaOuvir: "Play",
+  ariaPausar: "Pause",
+  desbloqueieCompleta:
+    "Unlock the full song + the gift page to send + the MP3 to keep.",
+  desbloquearBotao: "Unlock my song",
+  popupTitulo: "Love it? This song is yours.",
+  popupTexto:
+    "It's already fully recorded, with the lyrics you wrote. You only heard the beginning here.",
+  popupItens: [
+    "The full song, in both versions",
+    "The gift page with your photos and QR code",
+    "The MP3 to keep forever",
+  ],
+  popupCta: "I want the full song",
+  popupDepois: "Not now",
+  temMaisLetra: "more lyrics below",
+  faltaResponder: "Answer this one to continue",
+  bloqueioEmailVazio: "Enter your email to get the lyrics",
+  bloqueioEmailErrado: "Something's off with that email. Missing the @ or a dot?",
+  bloqueioChips: "Tap one of the options above",
+  bloqueioTexto: "Fill in this field to continue",
+  compradorCampo: "Your name",
+  compradorPlaceholder: "what should we call you",
+  zapTitulo: "Order updates by text?",
+  zapTexto: "Ballad Gift only contacts you about this order.",
+  zapCampo: "Your phone (optional)",
+  zapBotao: "Text me",
+  zapDispensar: "Email only",
+  zapInvalido: "Double-check the number, a digit seems to be missing.",
+  zapPronto: "Saved ✓",
+  zapSpam: "Your song always arrives by email. Check your spam and Promotions tabs too.",
+  umaMusicaPra: "a song for",
+  linkEQr: "link + QR code to share",
+  queroCantada: (n: string) => `I want ${n}'s song sung`,
+  aPartirDe: (preco: string) =>
+    `From ${preco}, one-time payment. The lyrics are yours either way.`,
+
+  naoConsegui: "Couldn't write it right now. Please try again.",
+  naoMontei: "Couldn't put the lyrics together. Please try again.",
+  naoPreparei: "Couldn't prepare the song. Please try again.",
+  tentarDeNovo: "Try again",
+  faltouImportante: "The most important part is missing",
+  precisoDaHistoria:
+    "I need the story to write lyrics that are theirs alone. Shall we go back so you can tell me?",
+  contarAHistoria: "Tell the story",
+
+  rotulos: {
+    relacao: "For", nome: "Name", ocasiao: "Occasion", estilo: "Style",
+    voz: "Voice", tom: "Mood", historia1: "About them", historia2: "A memory",
+    recado: "Your message", filhos: "Kids mentioned",
+  } as Record<string, string>,
+};
+
+const POR_IDIOMA: Record<Locale, Textos> = { pt: PT, es: ES, en: EN };
 
 /** Os textos da moldura no idioma dado. Idioma desconhecido cai em português. */
 export function t(locale: Locale): Textos {

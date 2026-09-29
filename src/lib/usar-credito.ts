@@ -5,6 +5,7 @@ import { emailDaSessao } from "@/lib/conta-sessao";
 import { donoPorTokenEdicao } from "@/lib/dono-por-token";
 import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto";
 import { registrarEnvio } from "@/lib/registro-email";
+import { MARCA_ATIVA } from "./marca-identidade.js";
 
 // O RESGATE DO CRÉDITO: a única porta que entrega uma música sem cobrar.
 //
@@ -175,7 +176,7 @@ export const usarCredito = createServerFn({ method: "POST" })
         const nome =
           ((quiz.respostas ?? {}) as Record<string, string>).nome?.trim() ||
           (locale === "es" ? "quien vos querés" : "quem você ama");
-        const site = process.env.SITE_URL ?? "https://www.serenatagift.com";
+        const site = process.env.SITE_URL ?? MARCA_ATIVA.url;
         const linkEditor = `${site}/editar/${musica.token_edicao}`;
         const linkPresente = `${site}/p/${musica.token}`;
         const { data: enviado, error: erroEnvio } = await new Resend(chave).emails.send({
@@ -184,7 +185,7 @@ export const usarCredito = createServerFn({ method: "POST" })
       // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
       // pessoa e nem sempre vem no evento.
       tags: [{ name: "template", value: "entrega_credito" }],
-          from: "Serenata <contato@serenatagift.com>",
+          from: MARCA_ATIVA.remetenteTransacional,
           to: [email],
           subject: assuntoPresentePronto(nome, locale),
           html: emailPresentePronto({

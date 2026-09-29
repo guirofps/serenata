@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailGuardeOLink, assuntoGuardeOLink } from "../../emails/guarde-o-link.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O CAMINHO DE VOLTA, três dias depois da compra.
 //
@@ -36,7 +37,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 // com a palavra "links" no assunto pra ela encontrar na busca meses depois.
 // Repetir isso não melhora a busca, só gasta reputação.
 
-const SITE = "https://www.serenatagift.com";
+const SITE = MARCA_ATIVA.url;
 
 const MIN_DIAS = 3;
 // A janela fecha em 20 dias pra não ressuscitar compra velha, e fecha ANTES do
@@ -171,7 +172,7 @@ export const guardeOLink = inngest.createFunction(
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "guarde_o_link" }],
-          from: "Serenata <contato@serenatagift.com>",
+          from: MARCA_ATIVA.remetenteTransacional,
           to: [c.email],
           headers: cabecalhosDescadastro(c.email),
           subject: assuntoGuardeOLink(c.nome, c.locale),

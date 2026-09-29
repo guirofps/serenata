@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { TEMA_CLARO, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
-import { normalizarLocale } from "@/lib/i18n";
+import { normalizarLocale, LOCALE_PADRAO } from "@/lib/i18n";
 import { Check, Loader2 } from "lucide-react";
 
 // DESCADASTRO em um clique.
@@ -56,6 +56,15 @@ const COPY = {
     erroCorpo: "Puede que se haya copiado a la mitad. Responde el correo y te sacamos de la lista a mano.",
     saindo: "saliendo de la lista…",
   },
+  en: {
+    titulo: "Done, you're off the list.",
+    corpo: "We won't send any more reminder emails to this address.",
+    ressalva:
+      "If you buy a song, the delivery email still arrives. That one isn't marketing, it's your order.",
+    erro: "I couldn't find this link.",
+    erroCorpo: "It may have been copied only halfway. Reply to the email and we'll take you off the list by hand.",
+    saindo: "taking you off the list…",
+  },
 } as const;
 
 export const Route = createFileRoute("/descadastrar")({
@@ -65,7 +74,7 @@ export const Route = createFileRoute("/descadastrar")({
   }),
   head: () => ({
     meta: [
-      { title: `Descadastrar · ${MARCA.nome}` },
+      { title: `${LOCALE_PADRAO === "en" ? "Unsubscribe" : "Descadastrar"} · ${MARCA.nome}` },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),

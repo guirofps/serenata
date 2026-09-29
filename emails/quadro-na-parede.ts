@@ -1,3 +1,4 @@
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
 // O QUADRO, uma semana depois da compra.
 //
 // ── POR QUE UM E-MAIL SÓ PRO QUADRO ──────────────────────────────
@@ -27,7 +28,7 @@
 
 type IdiomaEmail = "pt" | "es";
 
-const SITE = "https://www.serenatagift.com";
+const SITE = MARCA_ATIVA.url;
 
 const COPY: Record<
   IdiomaEmail,

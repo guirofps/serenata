@@ -13,16 +13,16 @@
 
 // A `chave` é o que fica no banco e NUNCA muda de idioma; só o rótulo muda.
 export const EFEITOS = [
-  { chave: "nenhum", rotulo: "Nenhum", rotuloEs: "Ninguno" },
-  { chave: "coracoes", rotulo: "Corações 💗", rotuloEs: "Corazones 💗" },
-  { chave: "estrelas", rotulo: "Estrelas ✨", rotuloEs: "Estrellas ✨" },
-  { chave: "petalas", rotulo: "Pétalas 🌸", rotuloEs: "Pétalos 🌸" },
-  { chave: "luzes", rotulo: "Luzes 🕯️", rotuloEs: "Luces 🕯️" },
+  { chave: "nenhum", rotulo: "Nenhum", rotuloEs: "Ninguno", rotuloEn: "None" },
+  { chave: "coracoes", rotulo: "Corações 💗", rotuloEs: "Corazones 💗", rotuloEn: "Hearts 💗" },
+  { chave: "estrelas", rotulo: "Estrelas ✨", rotuloEs: "Estrellas ✨", rotuloEn: "Stars ✨" },
+  { chave: "petalas", rotulo: "Pétalas 🌸", rotuloEs: "Pétalos 🌸", rotuloEn: "Petals 🌸" },
+  { chave: "luzes", rotulo: "Luzes 🕯️", rotuloEs: "Luces 🕯️", rotuloEn: "Candlelight 🕯️" },
 ] as const;
 
 /** O rótulo do efeito no idioma da venda. */
-export function rotuloEfeito(e: (typeof EFEITOS)[number], locale: "pt" | "es") {
-  return locale === "es" ? e.rotuloEs : e.rotulo;
+export function rotuloEfeito(e: (typeof EFEITOS)[number], locale: "pt" | "es" | "en") {
+  return locale === "es" ? e.rotuloEs : locale === "en" ? e.rotuloEn : e.rotulo;
 }
 
 // Partículas fixas (nada de Math.random, que quebraria o SSR).

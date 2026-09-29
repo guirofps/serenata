@@ -33,13 +33,35 @@ import { conviteIndicacao } from "../inngest/functions/conviteIndicacao.js";
 import { videoPendente } from "../inngest/functions/videoPendente.js";
 import { lembrarDatas } from "../inngest/functions/lembrarDatas.js";
 
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+
+// ── NA BALLAD GIFT (EUA), SÓ O QUE ELA TEM ────────────────────────
+//
+// O mesmo código publica as funções nos DOIS deploys, cada um no seu ambiente
+// do Inngest. Tudo que é PIX, Perfect Pay, WhatsApp, oferta em real ou régua
+// de recuperação brasileira rodaria lá como cron, mandando e-mail em
+// português, com preço em real, pra cliente americano. A Ballad registra só a
+// espinha do produto: gerar a música, mandar a letra, repescar e vigiar.
+//
+// Função nova que servir pros dois entra nas DUAS listas, de propósito: o
+// padrão da Ballad é ficar de fora até alguém decidir que ela serve lá.
+const DA_BALLAD = [
+  healthcheck,
+  gerarMusica,
+  mandarLetra,
+  repescarFalhadas,
+  vigiaGeracao,
+  vigiaEntrega,
+  limparAudioAntigo,
+];
+
 // Adapter "inngest/node" (req/res nativo), não "inngest/next": no Inngest v4 o
 // adapter next virou web-style (Request -> Response) e nunca escreve no res de
 // uma function Vercel Node — o request pendura para sempre. Foi exatamente o
 // modo de falha silenciosa dos repos anteriores.
 export default serve({
   client: inngest,
-  functions: [
+  functions: MARCA_ATIVA.chave === "ballad" ? DA_BALLAD : [
     healthcheck,
     gerarMusica,
     lembrarPresente,

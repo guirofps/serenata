@@ -13,6 +13,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { literalLike } from "../../src/lib/sql-like.js";
 import { diasAte, hojeEmBrasilia } from "../../src/lib/datas-calendario.js";
 import type { TipoData } from "../../src/lib/datas-especiais.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O LEMBRETE DAS DATAS que ela cadastrou no editor ("me avise nessa data").
 //
@@ -28,7 +29,7 @@ import type { TipoData } from "../../src/lib/datas-especiais.js";
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 const ANTECEDENCIA = 10;
 const MESES = [
   "janeiro",

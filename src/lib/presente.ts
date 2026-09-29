@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { type Locale, normalizarLocale } from "@/lib/i18n";
 
 // Carrega a página presente pelo token público.
 //
@@ -9,7 +10,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export type Presente = {
   /** Idioma da venda. Decide a moldura da página e do editor. */
-  locale: "pt" | "es";
+  locale: Locale;
   titulo: string;
   letra: string;
   nome: string;
@@ -105,13 +106,13 @@ export const carregarPresente = createServerFn({ method: "GET" })
     // O IDIOMA vem do registro. É a única fonte possível: esta página é
     // aberta pelo PRESENTEADO, que nunca passou pelo funil e recebeu um link
     // sem prefixo nenhum. Ver a migration 20260807000000_locale.
-    const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
+    const locale = normalizarLocale((q as { locale?: string } | null)?.locale);
 
     return {
       locale,
-      titulo: m.titulo ?? (locale === "es" ? "Tu canción" : "Sua música"),
+      titulo: m.titulo ?? (locale === "es" ? "Tu canción" : locale === "en" ? "Your song" : "Sua música"),
       letra: m.letra ?? "",
-      nome: r.nome ?? (locale === "es" ? "ti" : "você"),
+      nome: r.nome ?? (locale === "es" ? "ti" : locale === "en" ? "you" : "você"),
       relacao: r.relacao ?? null,
       ocasiao: r.ocasiao ?? null,
       // A história vira o "encarte" do disco.

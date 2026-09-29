@@ -12,6 +12,7 @@ import {
 } from "../../emails/video-oferta.js";
 import { emailFotosVideo, assuntoFotosVideo, textoFotosVideo } from "../../emails/fotos-video.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O VÍDEO, no dia seguinte à compra, pra quem já subiu foto.
 //
@@ -52,7 +53,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 const linkDoVideo = (tokenEdicao: string) => `${SITE}/editar/${tokenEdicao}?de=video#video`;
 
 const MIN_DIAS = 1;

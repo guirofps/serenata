@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { type Locale, LOCALES, localeDaRota } from "@/lib/i18n";
+import { type Locale, LOCALE_PADRAO, localeDaRota } from "@/lib/i18n";
 import { ArrowRight } from "lucide-react";
 
 // "¿Prefieres español?" — a rede pra quem cai no idioma errado.
@@ -42,7 +42,15 @@ export function lembrarIdioma(locale: Locale) {
 const ROTULO: Record<Locale, string> = {
   pt: "Ver em português",
   es: "¿Prefieres español?",
+  en: "View in English",
 };
+
+// O que ESTE site oferece. A Serenata fala português e espanhol; a Ballad Gift
+// (EUA) é outro site, só inglês. Sem este filtro, um navegador em inglês
+// visitando a Serenata ganharia um "View in English" que leva pra home em
+// português (o inglês não existe neste domínio), e na Ballad um navegador em
+// português ganharia um link pra uma página que não existe.
+const OFERECIDOS: readonly Locale[] = LOCALE_PADRAO === "en" ? [] : ["pt", "es"];
 
 export function OfereceIdioma() {
   // Renderiza vazio no servidor e no primeiro render do cliente: o localStorage
@@ -60,7 +68,7 @@ export function OfereceIdioma() {
     } catch {
       visto = null;
     }
-    if (visto && LOCALES.includes(visto as Locale)) {
+    if (visto && OFERECIDOS.includes(visto as Locale)) {
       if (visto !== atual) setOutro(visto as Locale);
       return;
     }
@@ -68,7 +76,7 @@ export function OfereceIdioma() {
     // Sem lembrança: o idioma do navegador. `navigator.language` vem como
     // "es-MX", "pt-BR", "en-US" — interessa só o prefixo.
     const doNavegador = (navigator.language || "").slice(0, 2).toLowerCase();
-    if (LOCALES.includes(doNavegador as Locale) && doNavegador !== atual) {
+    if (OFERECIDOS.includes(doNavegador as Locale) && doNavegador !== atual) {
       setOutro(doNavegador as Locale);
     }
   }, []);

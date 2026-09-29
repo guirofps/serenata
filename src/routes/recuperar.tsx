@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { AjusteLetra } from "@/components/recuperacao/AjusteLetra";
 import { HistoricoCliente } from "@/components/recuperacao/HistoricoCliente";
 import { MessageCircle, Play, Pause, Check, Loader2, Copy, Clock, Download } from "lucide-react";
+import { MARCA_ATIVA } from "../lib/marca-identidade.js";
 
 // TELA DE RECUPERAÇÃO DE CARRINHO ABANDONADO.
 //
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/recuperar")({
   component: Recuperar,
 });
 
-const SITE_PUBLICO = "https://www.serenatagift.com";
+const SITE_PUBLICO = MARCA_ATIVA.url;
 
 const RELACAO: Record<string, string> = {
   mae: "mãe", pai: "pai", esposa: "esposa", marido: "marido",

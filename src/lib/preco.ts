@@ -128,6 +128,18 @@ export const PLANOS: Record<Locale, Record<string, Plano>> = {
       checkout: "https://go.centerpag.com/PPU38CQF4HJ",
     },
   },
+  // BALLAD GIFT (EUA). O `checkout` não é link: o pagamento é o Stripe na
+  // própria página (`CheckoutStripe`), e o campo só existe porque o tipo exige
+  // e `planoCompleto` recusa plano com ele vazio. O preço VIVO vem da config
+  // do banco da Ballad, como no português; isto é só o que vale sem ela.
+  en: {
+    A: {
+      texto: MOEDA.en.texto,
+      valor: MOEDA.en.valor,
+      ancora: MOEDA.en.ancora,
+      checkout: "stripe",
+    },
+  },
 };
 
 // ── A CONFIG VIVA, NÃO O CATÁLOGO EM CÓDIGO ───────────────────────
@@ -149,6 +161,18 @@ export const PLANOS: Record<Locale, Record<string, Plano>> = {
  * `configAtual()` pras duas funções). Ver `variantesComPlano` mais abaixo
  * pra por que essa igualdade importa.
  */
+/**
+ * Quais idiomas leem o preço da config viva do banco.
+ *
+ * O português, e o INGLÊS: cada um é o idioma padrão do seu deploy, e a
+ * tabela `experimentos` do deploy é a MESMA que o servidor lê pra cobrar
+ * (`criar-pix.ts`, `stripe-checkout.ts`). Tela e caixa lendo a mesma linha é
+ * o que impede o "lê 19, paga 24". O espanhol segue fora, no catálogo.
+ */
+function usaConfigViva(locale: Locale): boolean {
+  return locale === "pt" || locale === "en";
+}
+
 function experimentoPrecoDaConfig(): ExperimentoConfigPublica | undefined {
   return configAtual().find((e) => e.id === EXP_PRECO);
 }
@@ -211,7 +235,7 @@ function planosDaConfig(): Record<string, Plano> | null {
  * catálogo.
  */
 export function planoControle(locale: Locale = LOCALE_PADRAO): Plano {
-  if (locale === "pt") {
+  if (usaConfigViva(locale)) {
     const nomeControle = experimentoPrecoDaConfig()?.variantes[0]?.nome;
     const plano = nomeControle ? planosDaConfig()?.[nomeControle] : undefined;
     if (plano) return plano;
@@ -222,7 +246,7 @@ export function planoControle(locale: Locale = LOCALE_PADRAO): Plano {
 
 /** O plano de uma variante nomeada. Desconhecida cai no controle. */
 export function planoDe(locale: Locale, variante: string): Plano {
-  if (locale === "pt") {
+  if (usaConfigViva(locale)) {
     const daConfig = planosDaConfig();
     if (daConfig) return daConfig[variante] ?? planoControle(locale);
   }
@@ -253,7 +277,7 @@ export function planoDe(locale: Locale, variante: string): Plano {
  * feito em cima do catálogo em código, que é o que sempre existiu aqui.
  */
 export function variantesComPlano(locale: Locale): string[] {
-  if (locale === "pt") {
+  if (usaConfigViva(locale)) {
     const daConfig = planosDaConfig();
     if (daConfig) return Object.keys(daConfig);
   }
@@ -296,7 +320,7 @@ export function varianteDePreco(
   locale: Locale = LOCALE_PADRAO,
   opcoes?: { temCupom?: boolean },
 ): string {
-  if (locale !== "pt") return "A";
+  if (!usaConfigViva(locale)) return "A";
   if (opcoes?.temCupom) return "A";
   const v = varianteDe(EXP_PRECO);
   return variantesComPlano(locale).includes(v) ? v : "A";

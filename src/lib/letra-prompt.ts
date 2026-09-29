@@ -9,6 +9,7 @@ import {
   VOZ_ES,
 } from "@/lib/letra-prompt-es";
 import { ehEspanha, ehArgentina } from "./mercado-es.js";
+import { LETRA_SYSTEM_EN, RELACAO_EN, OCASIAO_EN, VOZ_EN, TOM_EN } from "@/lib/letra-prompt-en";
 
 // Prompt de geração de letra (de prompts/letra.md). System estável e cacheável;
 // respostas do quiz vão por último (cache é casamento de prefixo — nada de
@@ -193,6 +194,16 @@ const ROTULOS = {
     fallbackNome: "esa persona", fallbackRelacao: "persona querida",
     fallbackOcasiao: "momento especial", fallbackLivre: "a elección del compositor",
   },
+  en: {
+    homenageado: "Honoree", relacao: "Relationship to the person ordering",
+    ocasiao: "Occasion", genero: "Music genre", voz: "Voice",
+    historia: "Story told", recado: "Special message (may be empty)",
+    tom: "Requested mood",
+    filhosCitar: "Kids to mention by name, exactly as written",
+    filhosNao: "Kids: do not mention any child by name.",
+    fallbackNome: "this person", fallbackRelacao: "loved one",
+    fallbackOcasiao: "a special moment", fallbackLivre: "songwriter's choice",
+  },
 } as const;
 
 // Sanitiza o nome do homenageado (bug da Cantoria: injetar nome sem checar).
@@ -208,13 +219,14 @@ export function buildUserMessage(
 ): string {
   const L = ROTULOS[locale] ?? ROTULOS.pt;
   const es = locale === "es";
+  const en = locale === "en";
   const nome = sanitizeNome(respostas.nome) || L.fallbackNome;
   const relacao =
-    (es ? RELACAO_ES : RELACAO)[String(respostas.relacao)] ?? L.fallbackRelacao;
+    (en ? RELACAO_EN : es ? RELACAO_ES : RELACAO)[String(respostas.relacao)] ?? L.fallbackRelacao;
   const ocasiao =
-    (es ? OCASIAO_ES : OCASIAO)[String(respostas.ocasiao)] ?? L.fallbackOcasiao;
+    (en ? OCASIAO_EN : es ? OCASIAO_ES : OCASIAO)[String(respostas.ocasiao)] ?? L.fallbackOcasiao;
   const genero = acharGenero(String(respostas.estilo))?.rotuloPrompt ?? L.fallbackLivre;
-  const voz = (es ? VOZ_ES : VOZ)[String(respostas.voz)] ?? L.fallbackLivre;
+  const voz = (en ? VOZ_EN : es ? VOZ_ES : VOZ)[String(respostas.voz)] ?? L.fallbackLivre;
   const historia = [respostas.historia1, respostas.historia2]
     .filter(Boolean)
     .join("\n\n");
@@ -226,8 +238,9 @@ export function buildUserMessage(
   const filhos = String(respostas.filhos ?? "").trim();
   const linhaFilhos = filhos ? `${L.filhosCitar}: ${filhos}` : L.filhosNao;
   const tom = TOM[String(respostas.tom ?? "")];
-  const linhaTom = tom ? `
-${L.tom}: ${tom[locale] ?? tom.pt}` : "";
+  const textoTom = en ? TOM_EN[String(respostas.tom ?? "")] : tom ? (locale === "es" ? tom.es : tom.pt) : undefined;
+  const linhaTom = textoTom ? `
+${L.tom}: ${textoTom}` : "";
 
   return `${L.homenageado}: ${nome}
 ${L.relacao}: ${relacao}
@@ -252,6 +265,7 @@ ${recado}`;
  * proíbe por escrito exatamente as formas que a Espanha exige.
  */
 export function systemDaLetra(locale: Locale): string {
+  if (locale === "en") return LETRA_SYSTEM_EN;
   if (locale !== "es") return LETRA_SYSTEM;
   if (ehEspanha()) return LETRA_SYSTEM_ES_ESPANHA;
   if (ehArgentina()) return LETRA_SYSTEM_ES_AR;

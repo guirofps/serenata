@@ -8,6 +8,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
 import { literalLike } from "../../src/lib/sql-like.js";
 import { woovi } from "../../src/lib/woovi.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O PIX GERADO QUE NÃO FOI PAGO.
 //
@@ -395,7 +396,7 @@ export const pixNaoPago = inngest.createFunction(
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "pix_nao_pago" }],
-          from: "Serenata <contato@serenatagift.com>",
+          from: MARCA_ATIVA.remetenteTransacional,
           to: [c.email],
           headers: cabecalhosDescadastro(c.email),
           subject: assuntoPixNaoPago(c.nome, c.locale),

@@ -2,6 +2,7 @@
 import { MARCA } from "@/lib/marca";
 import { EXPERIMENTOS } from "@/lib/experimentos";
 import { PLANOS } from "@/lib/preco";
+import { MARCA_ATIVA } from "./marca-identidade.js";
 
 /**
  * Se dá pra anunciar um preço em público neste idioma.
@@ -28,15 +29,27 @@ function precoEhPublico(locale: Locale): boolean {
 // versões de idioma da mesma página, elas competem entre si e o Google escolhe
 // uma — normalmente a errada para metade do público.
 
-const SITE = "https://www.serenatagift.com";
+const SITE = MARCA_ATIVA.url;
 
 const URLS: Record<Locale, { home: string; criar: string }> = {
   pt: { home: `${SITE}/`, criar: `${SITE}/criar` },
   es: { home: `${SITE}/es`, criar: `${SITE}/es/criar` },
+  // Ballad Gift (EUA): outro domínio, sem prefixo. O `SITE` já é o dela.
+  en: { home: `${SITE}/`, criar: `${SITE}/criar` },
 };
 
 /** Canonical + o par de idiomas. Vai no `links` do head da rota. */
 export function linksDeIdioma(locale: Locale, pagina: "home" | "criar" = "home") {
+  // A Ballad é um site só de inglês e NÃO é versão de idioma da Serenata:
+  // outro domínio, outra marca, outro preço. Declarar hreflang cruzado diria
+  // ao Google que são a mesma página, e a de lá competiria com a daqui.
+  if (locale === "en") {
+    return [
+      { rel: "canonical", href: URLS.en[pagina] },
+      { rel: "alternate", hrefLang: "en-US", href: URLS.en[pagina] },
+      { rel: "alternate", hrefLang: "x-default", href: URLS.en[pagina] },
+    ];
+  }
   return [
     { rel: "canonical", href: URLS[locale][pagina] },
     { rel: "alternate", hrefLang: "pt-BR", href: URLS.pt[pagina] },
@@ -73,13 +86,20 @@ export const METATAGS_COMPARTILHAR = [
  */
 export function dadosEstruturados(locale: Locale) {
   const es = locale === "es";
+  const en = locale === "en";
   return {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: es ? "Canción personalizada + página regalo" : "Música personalizada + página presente",
-    description: es
-      ? "Cuenta la historia de alguien que quieres y recibe la letra al instante, gratis. La canción cantada llega en una página lista para enviar, con karaoke, fotos y código QR."
-      : "Conte a história de alguém querido e receba a letra na hora, de graça. A música cantada chega numa página pronta pra enviar, com karaokê, fotos e QR Code.",
+    name: en
+      ? "Personalized song + gift page"
+      : es
+        ? "Canción personalizada + página regalo"
+        : "Música personalizada + página presente",
+    description: en
+      ? "Tell the story of someone you love and get the lyrics in seconds, free. The sung song arrives on a gift page ready to send, with sing-along lyrics, photos and a QR code."
+      : es
+        ? "Cuenta la historia de alguien que quieres y recibe la letra al instante, gratis. La canción cantada llega en una página lista para enviar, con karaoke, fotos y código QR."
+        : "Conte a história de alguém querido e receba a letra na hora, de graça. A música cantada chega numa página pronta pra enviar, com karaokê, fotos e QR Code.",
     brand: { "@type": "Brand", name: MARCA.nome },
     url: URLS[locale].home,
     image: `${SITE}/og-presente.jpg`,
@@ -105,7 +125,7 @@ export function dadosEstruturados(locale: Locale) {
       ...(precoEhPublico(locale)
         ? {
             price: MOEDA[locale].valor.toFixed(2),
-            priceCurrency: es ? "USD" : "BRL",
+            priceCurrency: es || en ? "USD" : "BRL",
           }
         : {}),
       availability: "https://schema.org/InStock",

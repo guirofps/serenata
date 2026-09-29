@@ -11,6 +11,7 @@ import {
 } from "../../src/lib/resumo-diario.js";
 import { assuntoResumoDiario, emailResumoDiario } from "../../emails/resumo-diario.js";
 import { DONOS } from "../../src/lib/donos.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O FECHAMENTO DO DIA, por e-mail, toda manhã, pro dono e pro sócio.
 //
@@ -205,7 +206,7 @@ export const resumoDiario = inngest.createFunction(
       const chave = process.env.RESEND_API_KEY;
       if (!chave) throw new Error("RESEND_API_KEY ausente");
       const { data, error } = await new Resend(chave).emails.send({
-        from: "Serenata <contato@serenatagift.com>",
+        from: MARCA_ATIVA.remetenteTransacional,
         to: para,
         subject: assuntoResumoDiario(dia, hoje),
         html: emailResumoDiario({

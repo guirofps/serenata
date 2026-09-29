@@ -9,6 +9,7 @@ import {
   textoVideoEsperando,
 } from "../../emails/video-esperando.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // NINGUÉM PAGA PELO VÍDEO E FICA SEM ELE.
 //
@@ -26,7 +27,7 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 const LEMBRETE_H = 24;
 const AUTOMATICO_H = 72;
 const PRESO_MIN = 30;

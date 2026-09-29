@@ -6,6 +6,7 @@ import { gatewayPix } from "@/lib/criar-pix";
 import { cpfValido, soDigitosCpf } from "@/lib/cpf";
 import { ErroGateway } from "@/lib/gateway";
 import { OFERTAS, type Oferta } from "@/lib/creditos";
+import { MARCA_ATIVA } from "./marca-identidade.js";
 
 // O PIX DOS UPSELLS: música extra, três músicas e quadro.
 //
@@ -44,7 +45,7 @@ import { OFERTAS, type Oferta } from "@/lib/creditos";
 /** O domínio do site, pro link que vai no e-mail de PIX abandonado. */
 function urlDoSite(): string {
   const u = process.env.VITE_APP_URL;
-  return u?.startsWith("http") ? u : "https://www.serenatagift.com";
+  return u?.startsWith("http") ? u : MARCA_ATIVA.url;
 }
 
 /**

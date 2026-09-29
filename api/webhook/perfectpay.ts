@@ -26,6 +26,7 @@ import { reconhecerOferta, PRODUTO_PRINCIPAL, OFERTAS } from "../../src/lib/cred
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { segredoConfere } from "../lib/segredo.js";
 import { DONOS } from "../../src/lib/donos.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -44,7 +45,7 @@ function db() {
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
-  : "https://www.serenatagift.com";
+  : MARCA_ATIVA.url;
 
 // Os UTMs da venda saem do NOSSO banco (captura first-touch), não do que o
 // gateway ecoa: é o dado mais confiável que temos da origem do clique.
@@ -105,7 +106,7 @@ async function alertarDono(assunto: string, html: string) {
     const chave = process.env.RESEND_API_KEY;
     if (!chave) return;
     await new Resend(chave).emails.send({
-      from: "Serenata <contato@serenatagift.com>",
+      from: MARCA_ATIVA.remetenteTransacional,
       to: [...DONOS],
       subject: assunto,
       html,
@@ -864,7 +865,7 @@ export default async function handler(req: Req, res: Res) {
           // unico jeito de medir DEPOIS qual e-mail performou: o assunto
           // carrega o nome da pessoa e nem sempre vem no evento.
           tags: [{ name: "template", value: "entrega" }],
-          from: "Serenata <contato@serenatagift.com>",
+          from: MARCA_ATIVA.remetenteTransacional,
           to: [email],
           subject: assuntoPresentePronto(nome, locale),
           html: emailPresentePronto({
