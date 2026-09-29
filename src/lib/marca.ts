@@ -6,17 +6,13 @@
 //   (serifada com contraste), intimidade (silêncio em volta do conteúdo).
 //
 // Não é "app de música" (frio, neon, techy). É presente afetivo.
+//
+// A Ballad Gift (EUA) veste a mesma identidade visual: o nome, o domínio e os
+// e-mails vêm da marca ativa do deploy (`marca-identidade.ts`).
 
-export const MARCA = {
-  nome: "Serenata",
-  dominio: "serenatagift.com",
-  // Origem canônica, COM www: é o host que o site serve de verdade e o que
-  // sai nos links enviados. Precisa ser absoluta porque o robô de prévia do
-  // WhatsApp não resolve caminho relativo em og:image.
-  url: "https://www.serenatagift.com",
-  // O que a marca promete, em uma linha.
-  promessa: "Uma música feita da história de quem você ama",
-} as const;
+import { MARCA_ATIVA } from "./marca-identidade";
+
+export const MARCA = MARCA_ATIVA;
 
 // ── Paleta ────────────────────────────────────────────────────────
 // DOIS mundos, de propósito — e a passagem de um pro outro é a narrativa:

@@ -47,17 +47,23 @@
 // A separação é feita em DNS (DKIM e SPF próprios em `envio.serenatagift.com`),
 // então os provedores tratam os dois como remetentes distintos de verdade.
 
+//
+// Os endereços vêm da marca do deploy (`src/lib/marca-identidade.ts`): na
+// Serenata são exatamente os de sempre; na Ballad Gift, os @balladgift.com.
+
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+
 /**
  * O que a pessoa PEDIU ou COMPROU: entrega da música, magic link, lembrete de
  * montar, quadro pago, e a letra grátis do quiz.
  */
-export const REMETENTE_TRANSACIONAL = "Serenata <contato@serenatagift.com>";
+export const REMETENTE_TRANSACIONAL = MARCA_ATIVA.remetenteTransacional;
 
 /**
  * O que ninguém pediu: a escada de descontos, o "quase comprou", a oferta do
  * quadro e o "volte a criar". Só oferta entra aqui.
  */
-export const REMETENTE_RECUPERACAO = "Serenata <ola@envio.serenatagift.com>";
+export const REMETENTE_RECUPERACAO = MARCA_ATIVA.remetenteRecuperacao;
 
 /**
  * Pra onde a resposta vai.
@@ -66,4 +72,4 @@ export const REMETENTE_RECUPERACAO = "Serenata <ola@envio.serenatagift.com>";
  * `reply_to`, quem responde a recuperação escreve pro vazio, e a resposta de
  * um cliente é a coisa mais valiosa que um disparo produz.
  */
-export const RESPONDER_PARA = "contato@serenatagift.com";
+export const RESPONDER_PARA = MARCA_ATIVA.responderPara;

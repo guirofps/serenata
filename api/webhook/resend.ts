@@ -25,6 +25,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { DONOS } from "../../src/lib/donos.js";
+import { MARCA_ATIVA, remetenteEDaMarca } from "../../src/lib/marca-identidade.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -138,9 +139,39 @@ export default async function handler(req: Req, res: Res) {
     }
   }
 
+  async function envioRegistrado(emailId: string | null): Promise<boolean> {
+    if (!emailId) return false;
+    try {
+      const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!url || !key) return false;
+      const { data } = await createClient(url, key, { auth: { persistSession: false } })
+        .from("emails_enviados")
+        .select("email_id")
+        .eq("email_id", emailId)
+        .maybeSingle();
+      return !!data;
+    } catch {
+      return false;
+    }
+  }
+
   const tipo = ev.type ?? "desconhecido"; // "email.opened"
   const d = ev.data ?? {};
   const para = Array.isArray(d.to) ? d.to[0] : d.to;
+
+  // UMA CONTA DO RESEND, DUAS MARCAS. O webhook recebe os eventos da conta
+  // inteira: sem este filtro, a devolução de um e-mail da Ballad Gift entraria
+  // na lista de mortos da Serenata, e cada abertura dela sujaria o funil daqui.
+  //
+  // Com `from`, decide o domínio. Sem `from` (o Resend nem sempre ecoa todos
+  // os campos, ver o `assunto` abaixo), a Serenata processa como sempre fez,
+  // e a Ballad só aceita envio que ELA registrou: a marca que está vendendo
+  // não perde evento por causa da que está começando.
+  const deOutraMarca = d.from
+    ? !remetenteEDaMarca(d.from)
+    : MARCA_ATIVA.chave !== "serenata" && !(await envioRegistrado(d.email_id ?? null));
+  if (deOutraMarca) return res.status(200).json({ ok: true, ignorado: "outra marca" });
 
   try {
     const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
