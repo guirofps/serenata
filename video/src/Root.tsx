@@ -7,7 +7,6 @@ import { Anuncio, duracaoDoRoteiro, type PropsAnuncio } from "./Anuncio";
 import { Compilado, duracaoCompilado } from "./Compilado";
 import { Mix, duracaoMix } from "./Mix";
 import { FinalBallad, FINAL_BALLAD_S } from "./FinalBallad";
-import { FinalBallad, FINAL_BALLAD_S } from "./FinalBallad";
 
 /**
  * O vídeo dura o que a MÚSICA dura, medido no próprio MP3.
