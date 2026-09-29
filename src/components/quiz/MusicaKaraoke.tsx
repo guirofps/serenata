@@ -197,6 +197,42 @@ export function MusicaKaraoke({
   }, [popup]);
 
   // O clique é o gesto que libera o áudio (iOS bloqueia autoplay).
+  // ── A TROCA DA PRÉVIA PELO ARQUIVO FINAL NÃO PODE PARAR A MÚSICA ──
+  //
+  // A tela revela pela PRÉVIA (o stream que chega ~40s antes) e, quando o
+  // arquivo final fica pronto, `audioUrl` muda. Trocar o `src` de um <audio>
+  // tocando faz o navegador recomeçar do zero e PARAR: a pessoa apertava play,
+  // ouvia uns segundos e a música morria no meio (visto pelo dono na Ballad em
+  // 29/09; na Serenata é o mesmo código, só com janela menor).
+  //
+  // Agora a troca guarda o segundo e o estado: carrega o arquivo novo, volta
+  // pro mesmo ponto e, se estava tocando, continua sozinha. A trava dos 40s
+  // continua valendo, porque ela olha o `currentTime`, não o arquivo.
+  const [fonte, setFonte] = useState(audioUrl);
+  const retomar = useRef<{ em: number; tocando: boolean } | null>(null);
+  useEffect(() => {
+    if (audioUrl === fonte) return;
+    const a = audioRef.current;
+    if (a && (a.currentTime > 0 || !a.paused)) {
+      retomar.current = { em: a.currentTime, tocando: !a.paused };
+    }
+    setFonte(audioUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioUrl]);
+  function aoCarregar(e: React.SyntheticEvent<HTMLAudioElement>) {
+    const a = e.currentTarget;
+    setDur(a.duration || 0);
+    const r = retomar.current;
+    if (!r) return;
+    retomar.current = null;
+    a.currentTime = r.em;
+    if (r.tocando) {
+      a.play()
+        .then(() => setTocando(true))
+        .catch(() => setTocando(false));
+    }
+  }
+
   async function alternar() {
     const a = audioRef.current;
     if (!a || travou) return;
@@ -218,9 +254,9 @@ export function MusicaKaraoke({
     <div className="space-y-4">
       <audio
         ref={audioRef}
-        src={audioUrl}
+        src={fonte}
         preload="auto"
-        onLoadedMetadata={(e) => setDur(e.currentTarget.duration || 0)}
+        onLoadedMetadata={aoCarregar}
       />
 
       {/* Player */}

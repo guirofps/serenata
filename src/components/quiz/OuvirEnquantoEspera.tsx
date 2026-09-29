@@ -17,11 +17,14 @@ import { EXEMPLOS_EN, audioDoExemplo } from "@/lib/exemplos-en";
 // sertanejo aprende a coisa errada sobre o que vai receber — e sertanejo não
 // existe no repertório dele. Os exemplos ES vieram do teste de validação
 // (mariachi, banda, balada), gerados pelo mesmo pipeline.
-const CLIPES: Record<Locale, ReadonlyArray<{ slug: string; titulo: string; para: string }>> = {
+// `capa` só existe quando a imagem NÃO mora em `/img/exemplos/<slug>.webp`
+// (o caminho dos exemplos da Serenata). Sem ela, a Ballad mostrava a capa
+// quebrada: as dela ficam em `public/ballad/exemplos/`.
+const CLIPES: Record<Locale, ReadonlyArray<{ slug: string; titulo: string; para: string; capa?: string }>> = {
   // Ballad Gift: os gerados pelo funil dela, ver `exemplos-en.ts`.
   en: EXEMPLOS_EN.filter((e) => e.titulo)
     .slice(0, 3)
-    .map((e) => ({ slug: e.slug, titulo: e.titulo, para: e.para })),
+    .map((e) => ({ slug: e.slug, titulo: e.titulo, para: e.para, capa: e.capa })),
   pt: [
     { slug: "rose", titulo: "Domingo de Rose", para: "para a mãe" },
     { slug: "isabela", titulo: "Desde a Escola, Isabela", para: "para a esposa" },
@@ -104,7 +107,7 @@ export function OuvirEnquantoEspera({ locale = "pt" }: { locale?: Locale }) {
               >
                 <span className="relative shrink-0">
                   <img
-                    src={`/img/exemplos/${c.slug}.webp`}
+                    src={c.capa ?? `/img/exemplos/${c.slug}.webp`}
                     alt=""
                     width={52}
                     height={52}
