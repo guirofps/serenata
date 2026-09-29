@@ -139,7 +139,7 @@ export function usePulso(frame: number, inicioAudio: number): number {
 }
 
 /** Texto com *destaque* em dourado, palavra por palavra entrando. */
-function TextoAnimado({ texto, frame, corBase }: { texto: string; frame: number; corBase: string }) {
+export function TextoAnimado({ texto, frame, corBase }: { texto: string; frame: number; corBase: string }) {
   // Cada palavra é uma lista de pedaços: "música*..." vira "música" dourado
   // colado em "..." branco, sem espaço no meio.
   let ouro = false;

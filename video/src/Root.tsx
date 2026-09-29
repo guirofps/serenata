@@ -6,6 +6,8 @@ import type { PropsPresente } from "./props";
 import { Anuncio, duracaoDoRoteiro, type PropsAnuncio } from "./Anuncio";
 import { Compilado, duracaoCompilado } from "./Compilado";
 import { Mix, duracaoMix } from "./Mix";
+import { FinalBallad, FINAL_BALLAD_S } from "./FinalBallad";
+import { FinalBallad, FINAL_BALLAD_S } from "./FinalBallad";
 
 /**
  * O vídeo dura o que a MÚSICA dura, medido no próprio MP3.
@@ -81,6 +83,9 @@ export const RemotionRoot: React.FC = () => {
       height={1920}
       defaultProps={{ inicioAudio: 48.6, anuncio: EXEMPLO_ANUNCIO }}
     />
+    {/* Cartão final dos criativos da Ballad: 9:16 e 4:5, os dois formatos que chegam. */}
+    <Composition id="FinalBallad" component={FinalBallad} durationInFrames={Math.round(FINAL_BALLAD_S * FPS)} fps={FPS} width={1080} height={1920} defaultProps={{}} />
+    <Composition id="FinalBallad45" component={FinalBallad} durationInFrames={Math.round(FINAL_BALLAD_S * FPS)} fps={FPS} width={1080} height={1350} defaultProps={{}} />
     <Composition
       id="Presente"
       component={Presente}
