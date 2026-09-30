@@ -4,6 +4,7 @@ import { MODELO_LETRA, registrarCustoLetra } from "@/lib/custos";
 import { dispararGeracaoMusica } from "@/lib/gerar-letra";
 import { chamarClaude } from "@/lib/recuperacao-letra";
 import { cobrarUso, TETO_REFACAO } from "@/lib/limite-uso.server";
+import { acharGenero } from "@/lib/generos";
 
 // A REFAÇÃO DO CLIENTE: "não ficou do meu jeito, refaz".
 //
@@ -61,7 +62,8 @@ export type ResultadoRefacao =
        * `vago`           — o pedido não dá para aplicar sem inventar fato.
        * `falhou`         — erro nosso.
        */
-      erro: "nao-encontrada" | "nao-pago" | "sem-direito" | "gravando" | "curto" | "vago" | "falhou";
+      erro:
+        "nao-encontrada" | "nao-pago" | "sem-direito" | "gravando" | "curto" | "vago" | "falhou";
       /**
        * Só em `vago`: o que faltou no pedido para conseguir aplicar.
        *
@@ -75,9 +77,17 @@ export const pedirRefacao = createServerFn({ method: "POST" })
   .validator((data: PedidoRefacao) => data)
   .handler(async ({ data }): Promise<ResultadoRefacao> => {
     const pedido = (data.pedido ?? "").trim();
+    // VOZ E ESTILO SÃO PEDIDO COMPLETO SOZINHOS (30/09). Quem só quer voz
+    // masculina não tem o que escrever sobre a letra, e era barrado aqui ou
+    // como "vago" mais abaixo. Estilo vale só se for um gênero do catálogo:
+    // é ele que a gravação lê (`musicas.genero`), e texto solto não chegava lá.
+    const novoGenero = acharGenero(data.estilo)?.value ?? null;
+    const novaVoz = data.voz === "feminina" || data.voz === "masculina" ? data.voz : null;
+    const mudaSom = Boolean(novoGenero || novaVoz);
     // Teto de tamanho: o campo é livre e vai pro Claude. Uma ordem de grandeza
     // acima do uso real, então só aparece pra quem está tentando outra coisa.
-    if (pedido.length < 3 || pedido.length > 2000) return { ok: false, erro: "curto" };
+    if (pedido.length > 2000 || (pedido.length < 3 && !mudaSom))
+      return { ok: false, erro: "curto" };
 
     const db = supabaseAdmin();
     const { data: m } = await db
@@ -132,68 +142,99 @@ export const pedirRefacao = createServerFn({ method: "POST" })
         pedido,
       });
 
-      // ── REESCREVE ──────────────────────────────────────────
-      const extras: string[] = [];
-      if (data.estilo?.trim()) extras.push(`Novo estilo pedido: ${data.estilo.trim()}`);
-      if (data.voz?.trim()) extras.push(`Nova voz pedida: ${data.voz.trim()}`);
-      const { texto, uso } = await chamarClaude(
-        `LETRA ATUAL:\n${m.letra}\n\nPEDIDO DO CLIENTE:\n${pedido}` +
-          (extras.length ? `\n\n${extras.join("\n")}` : ""),
-      );
-      const j = JSON.parse(
-        texto.slice(texto.indexOf("{"), texto.lastIndexOf("}") + 1),
-      ) as { letra?: string; titulo?: string; mudou?: string[]; aviso?: string };
-      const nova = (j.letra ?? "").trim();
-      if (!nova) throw new Error("modelo não devolveu letra");
-
-      // ── O PEDIDO FOI VAGO DEMAIS? ────────────────────────────
-      //
-      // O `SYSTEM_AJUSTE` tem uma saída de emergência: "se o pedido for vago
-      // demais para aplicar sem inventar, devolva a letra intacta e diga o que
-      // falta". Ele cumpre isso preenchendo `aviso` e deixando `mudou` vazio.
-      //
-      // Até 01/09 este código lia só `letra` e `titulo`, e a saída de
-      // emergência ia pro lixo: a letra IDÊNTICA era salva como se fosse nova,
-      // a refação era marcada como usada e a música era regravada igual.
-      //
-      // O custo disso tem nome. Hudson, 31/08: pediu "não gostei do trecho que
-      // fala sobre o bolo de fubá" sem dizer o que queria no lugar. Trocar
-      // exigia inventar, o modelo avisou, o aviso foi ignorado, e ele ouviu a
-      // mesma música com o mesmo fubá e sem direito a outro ajuste. Refez o
-      // quiz inteiro e pagou R$ 38 de novo. Na segunda vez ele escreveu o que
-      // queria no lugar, e funcionou de primeira.
-      //
-      // Todo pedido no formato "não gostei de X", sem dizer o substituto, caía
-      // aqui e queimava a refação em silêncio.
-      //
-      // Letra IDÊNTICA também conta como falha, mesmo sem aviso: se nada mudou,
-      // não há o que regravar, e gastar o direito seria cobrar por nada.
-      const aviso = (j.aviso ?? "").trim();
-      const mudou = Array.isArray(j.mudou) ? j.mudou.filter((x) => String(x).trim()) : [];
-      const igual = nova === (m.letra ?? "").trim();
-      if (aviso || !mudou.length || igual) {
-        // Desfaz o arquivamento, que aconteceu ANTES da chamada. Sem isto
-        // sobraria uma versão órfã ocupando esta `ordem`: a próxima tentativa
-        // esbarraria nela e o histórico contaria um ajuste que não houve.
-        await db.from("versoes_musica").delete().eq("musica_id", m.id).eq("ordem", ordem);
-        console.warn("[refacao] pedido vago, direito preservado", {
-          musica: m.id,
-          temAviso: Boolean(aviso),
-          mudou: mudou.length,
-          igual,
-        });
-        return {
-          ok: false,
-          erro: "vago",
-          falta: aviso || "Me diz também o que você quer no lugar desse trecho.",
+      // ── REESCREVE (só se houver pedido sobre a letra) ──────
+      let nova = (m.letra ?? "").trim();
+      let tituloNovo: string = m.titulo;
+      if (pedido.length >= 3) {
+        const extras: string[] = [];
+        if (data.estilo?.trim()) extras.push(`Novo estilo pedido: ${data.estilo.trim()}`);
+        if (data.voz?.trim()) extras.push(`Nova voz pedida: ${data.voz.trim()}`);
+        const { texto, uso } = await chamarClaude(
+          `LETRA ATUAL:\n${m.letra}\n\nPEDIDO DO CLIENTE:\n${pedido}` +
+            (extras.length ? `\n\n${extras.join("\n")}` : ""),
+        );
+        const j = JSON.parse(texto.slice(texto.indexOf("{"), texto.lastIndexOf("}") + 1)) as {
+          letra?: string;
+          titulo?: string;
+          mudou?: string[];
+          aviso?: string;
         };
+        const reescrita = (j.letra ?? "").trim();
+        if (!reescrita) throw new Error("modelo não devolveu letra");
+
+        // ── O PEDIDO FOI VAGO DEMAIS? ────────────────────────────
+        //
+        // O `SYSTEM_AJUSTE` tem uma saída de emergência: "se o pedido for vago
+        // demais para aplicar sem inventar, devolva a letra intacta e diga o que
+        // falta". Ele cumpre isso preenchendo `aviso` e deixando `mudou` vazio.
+        //
+        // Até 01/09 este código lia só `letra` e `titulo`, e a saída de
+        // emergência ia pro lixo: a letra IDÊNTICA era salva como se fosse nova,
+        // a refação era marcada como usada e a música era regravada igual.
+        //
+        // O custo disso tem nome. Hudson, 31/08: pediu "não gostei do trecho que
+        // fala sobre o bolo de fubá" sem dizer o que queria no lugar. Trocar
+        // exigia inventar, o modelo avisou, o aviso foi ignorado, e ele ouviu a
+        // mesma música com o mesmo fubá e sem direito a outro ajuste. Refez o
+        // quiz inteiro e pagou R$ 38 de novo. Na segunda vez ele escreveu o que
+        // queria no lugar, e funcionou de primeira.
+        //
+        // Todo pedido no formato "não gostei de X", sem dizer o substituto, caía
+        // aqui e queimava a refação em silêncio.
+        //
+        // Letra IDÊNTICA também conta como falha, mesmo sem aviso: se nada mudou,
+        // não há o que regravar, e gastar o direito seria cobrar por nada.
+        const aviso = (j.aviso ?? "").trim();
+        const mudou = Array.isArray(j.mudou) ? j.mudou.filter((x) => String(x).trim()) : [];
+        const igual = reescrita === (m.letra ?? "").trim();
+        await registrarCustoLetra({
+          quizResponseId: m.quiz_response_id,
+          modelo: MODELO_LETRA,
+          uso,
+        });
+        if (!(aviso || !mudou.length || igual)) {
+          nova = reescrita;
+          tituloNovo = j.titulo?.trim() || m.titulo;
+        } else if (!mudaSom) {
+          // Desfaz o arquivamento, que aconteceu ANTES da chamada. Sem isto
+          // sobraria uma versão órfã ocupando esta `ordem`: a próxima tentativa
+          // esbarraria nela e o histórico contaria um ajuste que não houve.
+          await db.from("versoes_musica").delete().eq("musica_id", m.id).eq("ordem", ordem);
+          console.warn("[refacao] pedido vago, direito preservado", {
+            musica: m.id,
+            temAviso: Boolean(aviso),
+            mudou: mudou.length,
+            igual,
+          });
+          return {
+            ok: false,
+            erro: "vago",
+            falta: aviso || "Me diz também o que você quer no lugar desse trecho.",
+          };
+        }
+        // Letra vaga MAS com voz/estilo novos: regrava só o som, letra intacta.
+        // Era aqui que "quero voz masculina" morria como "vago" (202 recusas
+        // desde 01/09) e virava regravação à mão pelo suporte.
       }
 
-      await registrarCustoLetra({
-        quizResponseId: m.quiz_response_id,
-        modelo: MODELO_LETRA,
-        uso,
-      });
+      // ── VOZ E ESTILO NO LUGAR QUE A GRAVAÇÃO LÊ ─────────────
+      // A voz sai de `quiz_responses.respostas.voz` e o gênero de
+      // `musicas.genero` (ver `gerarMusica`). Até 30/09 a refação gravava o
+      // estilo em `estilo_suno`, que o `estiloParaSuno` descarta, e a voz em
+      // lugar nenhum: a música voltava com a mesma voz e o mesmo ritmo.
+      if (novaVoz) {
+        const { data: q } = await db
+          .from("quiz_responses")
+          .select("respostas")
+          .eq("id", m.quiz_response_id)
+          .maybeSingle();
+        await db
+          .from("quiz_responses")
+          .update({
+            respostas: { ...((q?.respostas as Record<string, unknown>) ?? {}), voz: novaVoz },
+          })
+          .eq("id", m.quiz_response_id);
+      }
 
       // ── GRAVA E MANDA REGRAVAR ─────────────────────────────
       // Os áudios antigos são LIMPOS da linha principal (já estão arquivados),
@@ -203,8 +244,8 @@ export const pedirRefacao = createServerFn({ method: "POST" })
         .from("musicas")
         .update({
           letra: nova,
-          titulo: j.titulo?.trim() || m.titulo,
-          estilo_suno: data.estilo?.trim() || m.estilo_suno,
+          titulo: tituloNovo,
+          ...(novoGenero ? { genero: novoGenero } : {}),
           audio_path: null,
           audio_path_v2: null,
           timestamps: null,

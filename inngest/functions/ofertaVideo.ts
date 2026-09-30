@@ -61,7 +61,9 @@ const MIN_DIAS_SEM_FOTO = 2;
 const MAX_DIAS = 14;
 // Teto por rodada, por tipo. Eram 6 no total, mas 10 rodadas x 6 = 60/dia não
 // davam conta de ~65 compradores/dia com foto; com os sem foto a fila dobra.
-const MAX_POR_RODADA = { comFoto: 8, semFoto: 6 };
+// 30/09: as vendas quase dobraram (200 a 290 compradores/dia) e o teto de
+// 14/rodada (140/dia) passou a segurar a fila. Com foto, 25% compram o vídeo.
+const MAX_POR_RODADA = { comFoto: 20, semFoto: 15 };
 const MARCA = { comFoto: "oferta_video_enviada", semFoto: "convite_fotos_video_enviado" } as const;
 type Tipo = keyof typeof MARCA;
 

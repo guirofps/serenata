@@ -251,7 +251,8 @@ export function PedirRefacao({
       </p>
       <button
         onClick={enviar}
-        disabled={indo || pedido.trim().length < 3}
+        // Só voz ou só estilo já é pedido completo (o servidor aceita desde 30/09).
+        disabled={indo || (pedido.trim().length < 3 && !estilo && !voz)}
         className="cta mt-2 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border-0 font-medium disabled:opacity-45"
       >
         {indo ? (<><Loader2 className="h-4 w-4 animate-spin" /> {t.enviando}</>) : (<><RefreshCw className="h-4 w-4" /> {t.enviar}</>)}
