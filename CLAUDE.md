@@ -790,7 +790,7 @@ caractere do id do quiz (braço recalculável na leitura).
 | e-mail `entrega` variante | 30/09 | e-mail de sempre × "ouvir e baixar", fotos pelo que fazem, link do ajuste | abertura/clique, editor aberto, fotos subidas, vídeo vendido, suporte | 07/10 | sim, se ganhar |
 | `bump_quadro` | 25/09 | A sem bump; V e C ZERADOS em 30/09 (canibalizavam o vídeo do editor) | vídeo por comprador e receita por lead | confirmar em 07/10 | Ballad não tem bump |
 | assunto `letra_pronta` | 28/09 | assunto de sempre × nome na frente | abertura e venda em 48h | já pode ler | sim, se ganhar |
-| criativos Google 28/09 (g8, g9, Mix E) | 28/09 | regra: CPA < R$ 34 fica | CPA real do banco | 01/10 | - |
+| criativos Google 28/09 (g8, g9, Mix E) | 28/09 | LIDO 30/09: PERDERAM. Cada um ~R$ 105-120 e 1 venda (CPA > R$ 100, lead R$ 8,60-10,90) contra o controle Vid 5 no mesmo público (R$ 31/venda, R$ 2,44/lead). Os três PAUSADOS em 30/09 | CPA real do banco | encerrado | - |
 | PMAX/DG Ângulos | 28/09 | - | CPA real | 03/10 | - |
 | Ballad: 10 campanhas EUA | 29/09 | um criativo por campanha | clique → lead, depois CPA < US$ 15. Só 1 de 24 visitas pagas passou da abertura (Serenata 43-53%); desde 30/09 mede `abertura_tempo` (5/15/30s) e `abertura_rolou` pra separar clique acidental de rejeição | 01/10 | é a Ballad |
 | `email_confirma` | 30/09 | e-mail do quiz como era × folha "Confere o seu e-mail" (e-mail grande, domínio conferido no DNS, aviso sem bloquear) | % que deixa e-mail, bounce da `letra_pronta`, receita por lead, `email_confirma_corrigir` | 07/10 | já roda nas duas |
