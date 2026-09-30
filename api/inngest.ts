@@ -57,6 +57,9 @@ const DA_BALLAD = [
   // A recuperação de quem clicou em comprar e não pagou: manda de volta pro
   // funil em inglês (`/retomar`), sem cupom e sem PIX.
   quaseComprou,
+  // O gasto do Google pro painel (custo por venda e ROAS por campanha). Lê a
+  // conta de `GOOGLE_ADS_CUSTOMER_ID`, que no projeto da Ballad é a Projeto GM2.
+  puxarMetricasAds,
 ];
 
 // Adapter "inngest/node" (req/res nativo), não "inngest/next": no Inngest v4 o

@@ -3,7 +3,7 @@ import { FORA } from "@/lib/experimentos";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { QUIZ_FLOW } from "@/lib/quiz-flow";
 import { isQuestion } from "@/lib/flow-engine";
-import { PRECOS } from "@/lib/custos";
+import { cambioDoDia } from "@/lib/cambio";
 
 // 12 créditos por geração (2 versões). Da tabela pública do kie.ai.
 const CREDITO_POR_MUSICA = 12;
@@ -64,6 +64,8 @@ export type Painel = {
     receitaUsd: number;
     /** Receita convertida pra real ao câmbio de `cambioUsdBrl`, pra margem. */
     receitaConvertidaBrl: number;
+    /** A cotação usada na conversão acima (a do dia; a fixa se a fonte falhar). */
+    cambioUsdBrl: number;
     ticketMedioBrl: number;
     custoTotalBrl: number;
     margemBrl: number;
@@ -812,6 +814,14 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
 
   const localeDoQuiz = new Map<string, string>();
   for (const l of leadsCru) localeDoQuiz.set(l.id, l.locale === "es" ? "es" : "pt");
+  // QUEM PAGOU EM DÓLAR: o funil espanhol (Perfect Pay) e a Ballad inteira
+  // (Stripe, `locale = en`). Separado do mapa acima, que decide o FILTRO de
+  // funil: a Ballad tem banco próprio, então lá todo lead cai em "pt" no
+  // filtro e mesmo assim precisa ser somado como dólar.
+  const pagouEmDolar = new Set(
+    leadsCru.filter((l) => l.locale === "es" || l.locale === "en").map((l) => l.id),
+  );
+  const cambio = await cambioDoDia();
 
   // A regra 2 (idioma pelo caminho do page_view) agora vive dentro de
   // `admin_eventos_resumo`, junto dos eventos que ela filtra. O mapa que
@@ -880,14 +890,14 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
   // Perfect Pay cobra em real, o internacional em dólar. Não há coluna de
   // moeda em `pedidos`, e não precisa haver — o vínculo já existe.
   const valorDe = (p: Pedido) => (p.valor_centavos ?? 0) / 100;
-  const ehEs = (p: Pedido) => localeDoQuiz.get(p.quiz_response_id ?? "") === "es";
-  /** O valor em real, convertendo dólar ao câmbio dos custos. */
-  const valorEmBrl = (p: Pedido) => valorDe(p) * (ehEs(p) ? PRECOS.cambioUsdBrl : 1);
+  const ehEs = (p: Pedido) => pagouEmDolar.has(p.quiz_response_id ?? "");
+  /** O valor em real, convertendo dólar pela cotação do dia (`cambio.ts`). */
+  const valorEmBrl = (p: Pedido) => valorDe(p) * (ehEs(p) ? cambio : 1);
   const receitaBrl = pagos.filter((p) => !ehEs(p)).reduce((s, p) => s + valorDe(p), 0);
   const receitaUsd = pagos.filter(ehEs).reduce((s, p) => s + valorDe(p), 0);
   // Só pra margem, e com o câmbio na tela: os nossos custos são todos em
   // real (Claude e kie.ai cobram em dólar mas já entram convertidos).
-  const receita = receitaBrl + receitaUsd * PRECOS.cambioUsdBrl;
+  const receita = receitaBrl + receitaUsd * cambio;
   const custoTotal = custosF.reduce((s, c) => s + Number(c.custo_brl ?? 0), 0);
 
   // "Começou o quiz" vem da LINHA em quiz_responses, não do evento
@@ -1417,6 +1427,7 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
       receitaBrl,
       receitaUsd,
       receitaConvertidaBrl: receita,
+      cambioUsdBrl: cambio,
       ticketMedioBrl: pagos.length ? receita / pagos.length : 0,
       custoTotalBrl: custoTotal,
       margemBrl: receita - custoTotal,
@@ -1496,7 +1507,7 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
         return {
           quando: String(p.paid_at ?? p.created_at),
           email: p.email,
-          valorBrl: (p.valor_centavos ?? 0) / 100,
+          valorBrl: valorEmBrl(p),
           gateway: p.gateway,
           musica: p.musica_id ? (musicaPorId.get(p.musica_id)?.titulo ?? null) : null,
           origem: l ? chaveOrigem(l.attribution).origem : null,
@@ -1589,20 +1600,26 @@ async function serieAnterior(j: Janela, filtro: FunilFiltro): Promise<PontoSerie
     // O idioma decide a moeda, e ele mora no lead — não em `pedidos`.
     const ids = [...new Set(pagos.map((p) => p.quiz_response_id).filter(Boolean))] as string[];
     const locales = new Map<string, string>();
+    // Dólar: o funil espanhol e a Ballad (`en`). A mesma regra do resumo.
+    const emDolar = new Set<string>();
     if (ids.length) {
       const { data: leads } = await db.from("quiz_responses").select("id, locale").in("id", ids);
-      for (const l of leads ?? []) locales.set(String(l.id), l.locale === "es" ? "es" : "pt");
+      for (const l of leads ?? []) {
+        locales.set(String(l.id), l.locale === "es" ? "es" : "pt");
+        if (l.locale === "es" || l.locale === "en") emDolar.add(String(l.id));
+      }
     }
+    const cambio = await cambioDoDia();
 
     const vendas = pagos
       .filter(
         (p) => filtro === "todos" || (locales.get(p.quiz_response_id ?? "") ?? "pt") === filtro,
       )
       .map((p) => {
-        const ehEs = locales.get(p.quiz_response_id ?? "") === "es";
+        const dolar = emDolar.has(p.quiz_response_id ?? "");
         return {
           quando: Date.parse(String(p.paid_at ?? p.created_at)),
-          brl: ((p.valor_centavos ?? 0) / 100) * (ehEs ? PRECOS.cambioUsdBrl : 1),
+          brl: ((p.valor_centavos ?? 0) / 100) * (dolar ? cambio : 1),
         };
       })
       .filter((v) => Number.isFinite(v.quando));
