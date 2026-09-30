@@ -148,6 +148,15 @@ export function AbaIndicacaoLinks() {
           link dez vezes aparece uma. Link que vendeu aparece aqui mesmo sem clique registrado —
           bloqueador de anúncio derruba o evento, não o pedido.
         </p>
+        {/* A PERGUNTA QUE A TELA FEZ ALGUÉM ABRIR O CÓDIGO PRA RESPONDER.
+            "Compraram" aqui e "Compras por convite" em Saques dão números
+            diferentes de propósito, e nada na tela dizia isso. */}
+        <p className="text-xs leading-relaxed text-[var(--tinta-suave)]">
+          <strong>Comprou</strong> pode passar de "Compras por convite" na aba de Saques, e as duas
+          estão certas: comissão só nasce na PRIMEIRA compra do convidado. Quem já era cliente e
+          voltou pelo link é venda que o link trouxe, e não é comissão. A diferença entre as duas
+          colunas é esse caso.
+        </p>
       </section>
     </div>
   );
