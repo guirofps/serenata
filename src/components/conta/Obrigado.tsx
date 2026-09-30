@@ -199,6 +199,9 @@ export function Obrigado({
   // Trava de disparo único da conversão: a venda só é contada uma vez, mesmo
   // que o `presente` seja setado de novo ou o React remonte o efeito.
   const jaContou = useRef(false);
+  // Crédito e cortesia chegam aqui como "pago", mas sem dinheiro: não viram
+  // conversão de anúncio.
+  const semDinheiro = useRef(false);
 
   // O BOTÃO PRINCIPAL: loga a pessoa na conta e cai no painel (/dashboard),
   // sem passar pelo e-mail. Nasceu pra cortar MED — o público mais velho paga,
@@ -239,6 +242,10 @@ export function Obrigado({
     // compra REAL, então gatilhar nele conta só pagamento confirmado.
     if (!presente || jaContou.current) return;
     jaContou.current = true;
+    if (semDinheiro.current) {
+      marcarSessaoGasta();
+      return;
+    }
     // O valor e a moeda saem do PLANO desta venda, não de um número cravado.
     //
     // Com o teste A/B de preço rodando, "o preço" deixou de ser um número só:
@@ -330,6 +337,7 @@ export function Obrigado({
         const s = await sessaoJaPagou({ data: { sessionId: getOrCreateSessionId() } });
         if (!vivo) return;
         if (s.pago && s.tokenEdicao) {
+          semDinheiro.current = !s.dinheiroEntrou;
           setPresente({
             tokenEdicao: s.tokenEdicao,
             token: s.token ?? "",

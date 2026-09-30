@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { emailPlausivel } from "@/lib/email-limpo";
 import { useFarolDaFolha } from "@/lib/farol-folha";
 import { Check, CreditCard, Loader2, Mail, MessageCircle, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -109,7 +110,7 @@ export function ResumoDoPedido({
   // numero unico e virar dois grupos com remedios opostos. Ver `farol-folha.ts`.
   const farol = useFarolDaFolha();
   const g = GARANTIA.pt;
-  const valido = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(valor.trim());
+  const valido = emailPlausivel(valor);
 
   return (
     <div className="space-y-5">

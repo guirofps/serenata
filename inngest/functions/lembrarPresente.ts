@@ -56,6 +56,8 @@ async function jaLembrado(sb: ReturnType<typeof db>, musicaId: string) {
 export const lembrarPresente = inngest.createFunction(
   {
     id: "lembrar-presente",
+    // Uma rodada por vez: duas sobrepostas montam a mesma fila e mandam em dobro.
+    concurrency: { limit: 1 },
     retries: 1,
     // No Inngest v4 o gatilho vive na CONFIG, não num segundo argumento.
     triggers: [{ cron: "0 * * * *" }], // de hora em hora

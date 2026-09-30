@@ -151,6 +151,8 @@ async function checkoutDoBraco(
 export const quaseComprou = inngest.createFunction(
   {
     id: "quase-comprou",
+    // Uma rodada por vez: duas sobrepostas montam a mesma fila e mandam em dobro.
+    concurrency: { limit: 1 },
     retries: 1,
     // No Inngest v4 o gatilho vive na CONFIG, não num segundo argumento.
     triggers: [{ cron: "50 * * * *" }], // de hora em hora, fora do minuto cheio

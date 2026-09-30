@@ -88,6 +88,8 @@ async function jaOfertado(sb: ReturnType<typeof db>, musicaId: string, tipo: Tip
 export const ofertaVideo = inngest.createFunction(
   {
     id: "oferta-video",
+    // Uma rodada por vez: duas sobrepostas montam a mesma fila e mandam em dobro.
+    concurrency: { limit: 1 },
     retries: 1,
     triggers: [{ cron: "50 13-22 * * *" }], // 10h50 às 19h50 de Brasília, fora do minuto cheio
   },

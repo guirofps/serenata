@@ -61,7 +61,11 @@ const buscarPix = createServerFn({ method: "POST" })
     const { data: p } = await supabaseAdmin()
       .from("pedidos")
       .select("status, pix_codigo, pix_expira, valor_centavos, musica_id")
-      .eq("payment_id", `woovi:${data.referencia}`)
+      // Asaas também (auditoria 30/09): desde 11/09 o link do e-mail de PIX
+      // não pago é `/pix/pay_...` do Asaas, e a busca só por `woovi:` dava
+      // "Não achei esse PIX" pra todo mundo.
+      .in("payment_id", [`woovi:${data.referencia}`, `asaas:${data.referencia}`])
+      .limit(1)
       .maybeSingle();
 
     if (!p) return { ok: false, motivo: "nao-achei", upsell };

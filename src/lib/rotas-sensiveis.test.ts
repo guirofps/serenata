@@ -12,6 +12,9 @@ describe("rotaSensivel — onde script de terceiro não entra", () => {
     // cobrança e a tela mostra o copia-e-cola. Nenhum dos dois tem por que
     // ser copiado pro servidor do Google.
     expect(rotaSensivel("/pix/serenata:45669d37-3985-45d8-9193-a16683c8e821")).toBe(true);
+
+    expect(rotaSensivel("/oferta/abc.2.deadbeef")).toBe(true);
+    expect(rotaSensivel("/es/oferta/abc.2.deadbeef")).toBe(true);
     expect(rotaSensivel("/auth/callback")).toBe(true);
   });
 

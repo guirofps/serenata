@@ -81,13 +81,41 @@ function readCookie(name: string): string | null {
   return match ? decodeURIComponent(match[2]) : null;
 }
 
+const COMPRA_EM_ANDAMENTO_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Tem letra ou e-mail no quiz guardado, e a sessão ainda não virou venda. */
+function compraEmAndamento(): boolean {
+  try {
+    if (localStorage.getItem(SESSION_GASTA_KEY)) return false;
+    const cru = localStorage.getItem("mp_quiz");
+    if (!cru) return false;
+    const st = (JSON.parse(cru) as { state?: { email?: unknown; letraFinal?: unknown } }).state;
+    return Boolean(st?.letraFinal || st?.email);
+  } catch {
+    return false;
+  }
+}
+
 export function getOrCreateSessionId(): string {
   if (typeof window === "undefined") return "ssr";
   const agora = Date.now();
   let id = localStorage.getItem(SESSION_KEY);
   const ultimoToque = Number(localStorage.getItem(SESSION_TS_KEY) ?? 0);
   // Sem carimbo (id gravado antes deste TTL existir) conta como expirado.
-  if (!id || !ultimoToque || agora - ultimoToque > SESSION_TTL_MS) {
+  //
+  // EXCETO com uma compra em andamento (auditoria 30/09): quem ouviu a prévia
+  // e voltou 31 min depois ganhava sessão nova, a oferta recriava a música do
+  // zero e a pessoa pagava por outra gravação, diferente da que ouviu (~100
+  // por semana). Com letra ou e-mail no quiz e a sessão ainda não virada
+  // venda, o id do funil vale 7 dias. Quem já comprou gira no /criar, por
+  // `novaSessao()`, como sempre.
+  const expirou = !ultimoToque || agora - ultimoToque > SESSION_TTL_MS;
+  const segura =
+    Boolean(id) &&
+    Boolean(ultimoToque) &&
+    agora - ultimoToque < COMPRA_EM_ANDAMENTO_TTL_MS &&
+    compraEmAndamento();
+  if (!id || (expirou && !segura)) {
     id = crypto.randomUUID();
     localStorage.setItem(SESSION_KEY, id);
   }

@@ -27,6 +27,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { avisarDonos } from "../../src/lib/avisar-donos.js";
 import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto.js";
 import { emailEmProducao, assuntoEmProducao } from "../../emails/entrega-em-producao.js";
 import { literalLike } from "../../src/lib/sql-like.js";
@@ -269,6 +270,50 @@ O SEU VÍDEO: já está pago. Suba as fotos na página e toque em "Gerar meu ví
     });
     return { ok: true, emailId: enviado?.id ?? null };
   } catch (err) {
-    return { ok: false, erro: err instanceof Error ? err.message : String(err) };
+    const erro = err instanceof Error ? err.message : String(err);
+    await avisarEntregaFalhou(sb, args.email, erro);
+    return { ok: false, erro };
+  }
+}
+
+/**
+ * Quem PAGOU e não recebeu tem que virar grito, não `console.error`.
+ *
+ * Auditoria de 30/09: dois PIX pagos (e-mails "@gmail..com" e
+ * "@gmail.com66996534277") ficaram sem entrega nenhuma, porque os quatro
+ * caminhos que chamam esta função ignoravam o `{ ok: false }`. O aviso mora
+ * AQUI pra valer pra todos eles de uma vez.
+ *
+ * Uma vez por endereço em 3 dias: o vigia de pagamento tenta de novo a cada
+ * 30 min, e um alarme que repete vira alarme que ninguém lê.
+ */
+async function avisarEntregaFalhou(sb: SupabaseClient, email: string, erro: string) {
+  try {
+    const para = email.trim().toLowerCase();
+    const desde = new Date(Date.now() - 3 * 86400000).toISOString();
+    const { data: ja } = await sb
+      .from("funnel_events")
+      .select("id")
+      .eq("event_name", "entrega_falhou_aviso")
+      .gte("created_at", desde)
+      .contains("event_data", { para })
+      .limit(1);
+    if ((ja ?? []).length > 0) return;
+    await sb.from("funnel_events").insert({
+      session_id: "sistema",
+      event_name: "entrega_falhou_aviso",
+      event_data: { para, erro: erro.slice(0, 300) },
+    });
+    const esc = (x: string) =>
+      x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    await avisarDonos({
+      assunto: "Comprador PAGOU e o e-mail de entrega falhou",
+      html:
+        `<p>O e-mail de entrega não saiu para <strong>${esc(email)}</strong>.</p>` +
+        `<p>Motivo: ${esc(erro.slice(0, 300))}</p>` +
+        `<p>Quase sempre é e-mail digitado errado. Corrigir o endereço no pedido e reenviar a entrega.</p>`,
+    });
+  } catch (e) {
+    console.error("[entrega] aviso de falha também falhou:", e);
   }
 }

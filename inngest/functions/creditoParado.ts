@@ -82,6 +82,8 @@ async function jaAvisado(sb: ReturnType<typeof db>, email: string) {
 export const creditoParado = inngest.createFunction(
   {
     id: "credito-parado",
+    // Uma rodada por vez: duas sobrepostas montam a mesma fila e mandam em dobro.
+    concurrency: { limit: 1 },
     retries: 1,
     triggers: [{ cron: "50 14-23 * * *" }],
   },

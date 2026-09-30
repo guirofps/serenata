@@ -1,5 +1,6 @@
 import { inngest } from "../client.js";
-import { cabecalhosDescadastro } from "../lib/descadastro.js";
+import { cabecalhosDescadastro, linkDescadastroUmClique } from "../lib/descadastro.js";
+import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
@@ -76,6 +77,8 @@ function db() {
 export const ocasiaoCalendario = inngest.createFunction(
   {
     id: "ocasiao-calendario",
+    // Uma rodada por vez: duas sobrepostas montam a mesma fila e mandam em dobro.
+    concurrency: { limit: 1 },
     retries: 1,
     // Cron do Inngest é UTC e o Brasil é UTC-3: 12h-23h UTC dá 9h-20h aqui.
     // E-mail de venda que chega às 3 da manhã é lido às 9 junto com outros
@@ -183,14 +186,31 @@ export const ocasiaoCalendario = inngest.createFunction(
     let enviados = 0;
     for (const p of fila) {
       await step.run(`mandar-${ocasiao.slug}-${p.email}`, async () => {
+        // Rechecagem NA HORA do envio (auditoria 30/09): a busca acima lê
+        // listas que o PostgREST corta em 1000 linhas e ignorava a tabela
+        // `descadastros` (onde o um-clique grava). Aqui a pergunta é por
+        // pessoa, e não tem teto que esconda ninguém.
+        const sbEnvio = db();
+        if (await estaBloqueado(sbEnvio, p.email)) return;
+        const { data: ja } = await sbEnvio
+          .from("emails_enviados")
+          .select("id")
+          .eq("template", template)
+          .eq("para", p.email)
+          .limit(1);
+        if ((ja ?? []).length > 0) return;
+
         const resend = new Resend(process.env.RESEND_API_KEY);
         const linkCriar = `${SITE}${p.locale === "es" ? "/es/criar" : "/criar"}?de=ocasiao&o=${ocasiao.slug}`;
-        const linkDescadastro = `${SITE}/descadastrar?email=${encodeURIComponent(p.email)}`;
+        // `/descadastrar?email=` não existia (a rota só aceita `?s=`): o link
+        // caía na tela de erro. O um-clique assinado é o mesmo do cabeçalho.
+        const linkDescadastro = linkDescadastroUmClique(p.email) ?? `${SITE}/descadastrar`;
 
         const r = await resend.emails.send({
           from: REMETENTE_RECUPERACAO,
           replyTo: RESPONDER_PARA,
           to: p.email,
+          headers: cabecalhosDescadastro(p.email),
           subject: assuntoOcasiao(p.filho, p.locale),
           html: emailOcasiao({
             filho: p.filho,
@@ -202,6 +222,13 @@ export const ocasiaoCalendario = inngest.createFunction(
             locale: p.locale,
           }),
         });
+
+        if (r.error) {
+          // Sem registro: a próxima rodada tenta de novo. Lançar derrubaria o
+          // resto da fila junto.
+          console.error("[ocasiao] resend recusou:", r.error.message);
+          return;
+        }
 
         // O registro é a trava: sem ele a pessoa recebe de novo na próxima
         // rodada, daqui a uma hora.

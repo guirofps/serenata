@@ -46,7 +46,10 @@ export function trackEventOnce(
   eventData: Record<string, unknown> = {},
 ): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
-  const chave = `${DEDUPE_PREFIX}${eventName}:${dedupeKey}`;
+  // Uma vez por SESSÃO, não por navegador (auditoria 30/09): a chave sem a
+  // sessão valia pra sempre naquele aparelho, e o segundo quiz no mesmo
+  // celular (o que mais converte) sumia de quiz_started, oferta_vista etc.
+  const chave = `${DEDUPE_PREFIX}${getOrCreateSessionId()}:${eventName}:${dedupeKey}`;
   try {
     if (localStorage.getItem(chave)) return Promise.resolve();
     localStorage.setItem(chave, "1");

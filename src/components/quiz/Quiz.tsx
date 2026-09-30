@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
+import { emailPlausivel } from "@/lib/email-limpo";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   isIntro,
@@ -351,7 +352,7 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
         return Boolean(step.opcional) || Boolean((v as string)?.trim());
       if (step.input === "story") return storyIsValid(step, v as string);
     }
-    if (isContact(step)) return /.+@.+\..+/.test(email ?? "");
+    if (isContact(step)) return emailPlausivel(email ?? "");
     return true;
   })();
 
@@ -793,10 +794,10 @@ function ReviewScreen({ locale, onGerar }: { locale: Locale; onGerar: () => void
   const ordem = ["relacao", "nome", "filhos", "ocasiao", "estilo", "voz", "historia1", "historia2", "recado"];
   // O RÓTULO, não o valor gravado. Em inglês o valor é português (\`esposa\`,
   // \`casamento\`, \`country_en\`, \`masculina\`): é o contrato com o banco e o
-  // prompt, e aparecia cru nesta tela. No português a tela segue como sempre
-  // (o valor já é uma palavra da língua; ajustar lá é outra conversa).
+  // prompt, e aparecia cru nesta tela. No português e no espanhol também
+  // aparecia ("sertanejo_univ", "declaracao", "avo_f"), na última tela antes
+  // da letra (auditoria 30/09): agora vale pra todo idioma.
   const rotuloDe = (campo: string, valor: string): string => {
-    if (locale !== "en") return valor;
     type Opcao = { value: string; label: string };
     for (const passo of quizFlow(locale)) {
       if (!isQuestion(passo)) continue;

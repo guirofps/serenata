@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
+import { bracoCobravel } from "@/lib/braco-cobravel";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { OFERTAS } from "@/lib/creditos";
 import { centavosComCupom } from "@/lib/cupom";
-import { semPontoNoFim } from "@/lib/email-limpo";
+import { emailPlausivel, semPontoNoFim } from "@/lib/email-limpo";
 import { BUMPS, ehItemBump, referenciaComItem, valorComItem, type ItemBump } from "@/lib/bump";
 import { cpfValido, soDigitosCpf } from "@/lib/cpf";
 import { paraE164, telefoneValido } from "@/lib/telefone";
@@ -66,7 +67,7 @@ async function valorCentavosDaSessao(
     nome?: string;
     plano?: { valor?: number | string };
   }>;
-  const achado = variantes.find((v) => v.nome === braco) ?? variantes.find((v) => v.nome === "A");
+  const achado = bracoCobravel(variantes, braco);
   const valor = Number(achado?.plano?.valor);
   if (!Number.isFinite(valor) || valor <= 0) return null;
   return Math.round(valor * 100);
@@ -301,7 +302,7 @@ export const criarPix = createServerFn({ method: "POST" })
     const emailVale =
       !!emailNovo &&
       emailNovo.length <= 254 &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailNovo) &&
+      emailPlausivel(emailNovo) &&
       emailNovo !== (quiz.email as string | null);
     if (emailVale) {
       const { error } = await db

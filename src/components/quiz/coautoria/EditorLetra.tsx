@@ -77,7 +77,9 @@ export function EditorLetra({
     setAprimorando(true);
     setErro(null);
     try {
-      const r = await aprimorarLetra({ data: { sessionId: getOrCreateSessionId(), letra } });
+      // O idioma vai junto (auditoria 30/09): sem ele o espanhol era aprimorado
+      // com instrução em português, e o modelo podia traduzir a letra.
+      const r = await aprimorarLetra({ data: { sessionId: getOrCreateSessionId(), letra, locale } });
       setLetra(r.letra);
       setJaAprimorou(true);
       trackEventOnce("letra_aprimorada", "v1");

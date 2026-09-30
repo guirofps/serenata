@@ -79,7 +79,7 @@ async function jaMandou(sb: ReturnType<typeof db>, quizId: string) {
 }
 
 export const mandarLetra = inngest.createFunction(
-  { id: "mandar-letra", retries: 1, triggers: [{ cron: "*/5 * * * *" }] },
+  { id: "mandar-letra", retries: 1, concurrency: { limit: 1 }, triggers: [{ cron: "*/5 * * * *" }] },
   async ({ step }) => {
     const fila = await step.run("montar-fila", async () => {
       const sb = db();

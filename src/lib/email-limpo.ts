@@ -13,3 +13,16 @@ export function semPontoNoFim(email: string): string {
   if (arroba < 0) return limpo;
   return limpo.slice(0, arroba + 1) + limpo.slice(arroba + 1).replace(/\.{2,}/g, ".");
 }
+
+/**
+ * O formato mínimo de um endereço que pode receber e-mail: algo@dominio.tld,
+ * com o TLD só de letras (ou IDN `xn--`). Não julga domínio (isso é sugestão,
+ * `sugerirEmail`, que não bloqueia): só barra o que NUNCA é válido.
+ *
+ * Auditoria de 30/09: `/.+@.+\..+/` e `[^\s@]{2,}` aprovavam
+ * "@gmail.com66996534277" (telefone colado no fim), e esse comprador pagou e
+ * não recebeu a música. TLD com dígito não existe.
+ */
+export function emailPlausivel(email: string): boolean {
+  return /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.([a-z]{2,24}|xn--[a-z0-9-]{2,59})$/i.test(email.trim());
+}

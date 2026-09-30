@@ -1,12 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
+import { bracoCobravel } from "@/lib/braco-cobravel";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { asaas } from "@/lib/asaas";
 import { ErroGateway, type DadosCartao, type TitularCartao } from "@/lib/gateway-cartao";
 import { BUMPS, ehItemBump, valorComItem, type ItemBump } from "@/lib/bump";
 import { centavosComCupom } from "@/lib/cupom";
+import { emailPlausivel, semPontoNoFim } from "@/lib/email-limpo";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../../api/lib/entrega";
 import { liberarItensDoBump } from "../../api/lib/creditar-upsell";
+import { venderNoTiktok } from "../../api/lib/tiktok-eventos";
 import { conviteDaCompra } from "@/lib/indicacao-db";
 import { descontoDoConvite } from "@/lib/indicacao";
 
@@ -53,7 +56,7 @@ import { descontoDoConvite } from "@/lib/indicacao";
  */
 export function checkoutAntigoDoBraco(variantes: unknown, braco: string): string | null {
   const lista = (variantes ?? []) as Array<{ nome?: string; plano?: { checkout?: unknown } }>;
-  const achado = lista.find((v) => v.nome === braco) ?? lista.find((v) => v.nome === "A");
+  const achado = bracoCobravel(lista, braco);
   const url = achado?.plano?.checkout;
   if (typeof url !== "string") return null;
   try {
@@ -81,7 +84,7 @@ async function valorCentavosDaSessao(
     nome?: string;
     plano?: { valor?: number | string };
   }>;
-  const achado = variantes.find((v) => v.nome === braco) ?? variantes.find((v) => v.nome === "A");
+  const achado = bracoCobravel(variantes, braco);
   const valor = Number(achado?.plano?.valor);
   return {
     centavos: Number.isFinite(valor) && valor > 0 ? Math.round(valor * 100) : null,
@@ -183,6 +186,25 @@ export const cobrarCartao = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!musica?.id) return { ok: false, erro: "sem-musica" };
 
+    // O E-MAIL DA VENDA: o que a pessoa digitou no formulário vence o do quiz
+    // quando é válido, igual ao PIX (auditoria 30/09). Antes o do quiz sempre
+    // ganhava, e quem corrigiu um endereço errado no cartão recebia a entrega
+    // no endereço errado.
+    const emailForm = data.titular.email ? semPontoNoFim(data.titular.email).toLowerCase() : "";
+    const emailTrocou =
+      emailForm.length > 0 &&
+      emailForm.length <= 254 &&
+      emailPlausivel(emailForm) &&
+      emailForm !== ((quiz.email as string | null) ?? "").toLowerCase();
+    if (emailTrocou) {
+      const { error: erroEmail } = await db
+        .from("quiz_responses")
+        .update({ email: emailForm })
+        .eq("id", quiz.id);
+      if (erroEmail) console.error("[criar-cartao] trocar e-mail falhou:", erroEmail.message);
+    }
+    const emailDaVenda: string = emailTrocou ? emailForm : ((quiz.email as string | null) ?? data.titular.email);
+
     const { centavos: semCupom } = await valorCentavosDaSessao(db, quiz.attribution);
     if (!semCupom) return { ok: false, erro: "sem-preco" };
     const base = centavosComCupom(semCupom, data.cupom);
@@ -202,7 +224,7 @@ export const cobrarCartao = createServerFn({ method: "POST" })
       base === semCupom
         ? await conviteDaCompra(db, {
             attribution: quiz.attribution,
-            email: (quiz.email as string | null) ?? data.titular.email,
+            email: emailDaVenda,
             locale: quiz.locale as string | null,
           })
         : null;
@@ -312,7 +334,7 @@ export const cobrarCartao = createServerFn({ method: "POST" })
         gateway: "asaas",
         status: r.confirmado ? "pago" : "pendente",
         status_gateway: r.statusCru,
-        email: quiz.email ?? data.titular.email,
+        email: emailDaVenda,
         titular_pix: data.titular.nome,
         telefone: (quiz.whatsapp as string | null) || data.titular.telefone,
         valor_centavos: valorCentavos,
@@ -359,7 +381,7 @@ export const cobrarCartao = createServerFn({ method: "POST" })
     // webhook, idempotente, então os dois podem chamar a mesma venda.
     if (r.confirmado && item) {
       const erros = await liberarItensDoBump(db, {
-        email: (quiz.email as string | null) ?? data.titular.email,
+        email: emailDaVenda,
         pedidoId: (gravado as { id?: string } | null)?.id ?? null,
         musicaId: musica.id,
         video: BUMPS[item].video,
@@ -374,13 +396,35 @@ export const cobrarCartao = createServerFn({ method: "POST" })
         if (musicaPronta) {
           await refazerSeFaltou(db, musicaPronta);
           await mandarEmailDeEntrega(db, {
-            email: (quiz.email as string | null) ?? data.titular.email,
+            email: emailDaVenda,
             musica: musicaPronta,
             nomePagador: data.titular.nome,
           });
         }
       } catch (err) {
         console.error("[cartao] entrega falhou:", (err as Error).message);
+      }
+    }
+
+    // ── O TIKTOK PELO SERVIDOR ────────────────────────────────
+    //
+    // Mesmo bloco do webhook do Asaas, que nunca chegava a rodar pro cartão:
+    // o pedido nasce pago aqui e o webhook sai cedo (auditoria 30/09, 21
+    // vendas com ttclid e zero eventos). Só na primeira confirmação, só com
+    // ttclid, e com o id CRU da cobrança, que é o mesmo que a /obrigado usa.
+    if (r.confirmado && !jaExiste?.paid_at) {
+      const ttclid = (quiz.attribution as { ttclid?: string } | null)?.ttclid;
+      if (ttclid) {
+        const tiktok = await venderNoTiktok({
+          eventId: r.idExterno,
+          valor: valorCentavos / 100,
+          moeda: "BRL",
+          email: emailDaVenda,
+          telefone: ((quiz.whatsapp as string | null) || data.titular.telefone) ?? null,
+          ttclid,
+          quando: new Date(),
+        });
+        if (!tiktok.ok) console.error("[cartao] tiktok não subiu:", tiktok.motivo);
       }
     }
 

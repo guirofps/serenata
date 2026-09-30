@@ -625,8 +625,14 @@ export const sessaoJaPagou = createServerFn({ method: "POST" })
       temLetra: boolean;
       token: string | null;
       tokenEdicao: string | null;
+      /**
+       * `false` quando o pedido pago é crédito ou cortesia (R$ 0). A tela de
+       * obrigado NÃO manda conversão pro Google e pro TikTok nesse caso: eles
+       * aprendiam uma venda de R$ 38 que não existiu (auditoria 30/09).
+       */
+      dinheiroEntrou: boolean;
     }> => {
-      const vazio = { pago: false, temLetra: false, token: null, tokenEdicao: null };
+      const vazio = { pago: false, temLetra: false, token: null, tokenEdicao: null, dinheiroEntrou: false };
       const db = supabaseAdmin();
       const quizId = await quizIdDaSessao(data.sessionId);
       if (!quizId) return vazio;
@@ -634,7 +640,7 @@ export const sessaoJaPagou = createServerFn({ method: "POST" })
       const [{ data: pedido }, { data: m }] = await Promise.all([
         db
           .from("pedidos")
-          .select("id")
+          .select("id, dinheiro_entrou, valor_centavos")
           .eq("quiz_response_id", quizId)
           .eq("status", "pago")
           .limit(1)
@@ -654,6 +660,7 @@ export const sessaoJaPagou = createServerFn({ method: "POST" })
         temLetra: Boolean(m?.letra),
         token: m?.token ?? null,
         tokenEdicao: m?.token_edicao ?? null,
+        dinheiroEntrou: Boolean(pedido) && pedido?.dinheiro_entrou !== false && (pedido?.valor_centavos ?? 1) > 0,
       };
     },
   );

@@ -204,6 +204,8 @@ async function checkoutDoValor(
 export const pixNaoPago = inngest.createFunction(
   {
     id: "pix-nao-pago",
+    // Uma rodada por vez: duas sobrepostas montam a mesma fila e mandam em dobro.
+    concurrency: { limit: 1 },
     retries: 1,
     // No Inngest v4 o gatilho vive na CONFIG, não num segundo argumento.
     triggers: [{ cron: "*/30 * * * *" }], // de meia em meia hora
@@ -404,6 +406,9 @@ export const pixNaoPago = inngest.createFunction(
             nome: c.nome,
             titulo: c.titulo,
             linkCheckout: c.linkCheckout,
+            // Faltava (auditoria 30/09): o código era calculado, ia só no
+            // texto puro, e o HTML caía sempre no botão sem copia-e-cola.
+            codigo: c.codigo,
             locale: c.locale,
           }),
           text:

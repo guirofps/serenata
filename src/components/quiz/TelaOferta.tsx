@@ -781,10 +781,13 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
         return;
       }
       try {
-        const { existe } = await temMusicaDaSessao({
+        const { existe, status } = await temMusicaDaSessao({
           data: { sessionId: getOrCreateSessionId() },
         });
-        if (!existe) return;
+        // PRONTA, não só existente (auditoria 30/09): a linha da música nasce
+        // 5s depois de recriada e ainda está gerando. Liberar o pagamento
+        // ali era cobrar antes de produzir, a regra que não se quebra.
+        if (!existe || status !== "pronta") return;
         parar();
         trackEvent("espera_musica_resolvida", {
           origem,
@@ -824,10 +827,10 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     }
     setIndo(true);
     try {
-      const { existe } = await temMusicaDaSessao({
+      const { existe, status } = await temMusicaDaSessao({
         data: { sessionId: getOrCreateSessionId() },
       });
-      if (!existe) {
+      if (!existe || status !== "pronta") {
         trackEvent("checkout_barrado_sem_musica", { locale });
         esperarMusica("checkout");
         return;

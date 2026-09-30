@@ -10,6 +10,7 @@ const reais = (v: number) => `R$ ${v.toFixed(2).replace(".", ",").replace(/,00$/
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { useQuizStore } from "@/lib/quiz-store";
 import { trackEvent } from "@/lib/track";
+import { guardarTransacao } from "@/lib/google-ads";
 import { PixPagamento } from "@/components/quiz/PixPagamento";
 import { ResumoDoPedido } from "@/components/quiz/ResumoDoPedido";
 import { Button } from "@/components/ui/button";
@@ -187,6 +188,10 @@ export function PixTransparente({
       });
       if (r.ok) {
         trackEvent("cartao_pago", { pago: r.pago });
+        // O MESMO id que o servidor manda pro TikTok (dedupe) e que a /obrigado
+        // usa como transaction_id. Sem isto ela pegava a referência de um PIX
+        // antigo da mesma aba, ou nenhuma, e cada F5 contava de novo.
+        if (r.pago) guardarTransacao(r.idExterno);
         window.location.href = "/obrigado";
         return;
       }

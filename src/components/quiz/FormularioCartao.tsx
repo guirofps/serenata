@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { emailPlausivel } from "@/lib/email-limpo";
 import { CreditCard, Loader2, Lock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GARANTIA } from "@/lib/garantia";
@@ -108,7 +109,7 @@ export function FormularioCartao({
     cpf: cpfValido(cpf.valor) || "Confere o CPF.",
     cep: cepValido(cep.valor) || "O CEP tem 8 números.",
     numEnd: numEnd.valor.trim().length >= 1 || "Falta o número.",
-    email: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.valor) || "Confere o e-mail.",
+    email: emailPlausivel(email.valor) || "Confere o e-mail.",
     tel: telefoneValido(tel.valor, "pt") || "Confere o telefone com DDD.",
   } as const;
   const tudoOk = Object.values(regras).every((r) => r === true);

@@ -120,7 +120,13 @@ export const gerarMusica = inngest.createFunction(
     // lado do provedor, cujo limite de taxa a gente não conhece — e descobrir
     // esse limite em produção, num funil que gera antes de cobrar, custaria
     // música falhada em vez de música na espera.
-    concurrency: { limit: 25 },
+    //
+    // E UMA por música (auditoria 30/09): o vigia e a repescagem podiam
+    // redisparar uma música que já estava gerando, e as duas execuções
+    // gravavam no mesmo `v1.mp3` (áudio de uma, timestamps da outra, e o
+    // Suno pago duas vezes). Com a chave, a segunda espera a primeira
+    // terminar e sai pelo `jaPronta`.
+    concurrency: [{ limit: 25 }, { key: "event.data.musicaId", limit: 1 }],
     retries: 2,
     triggers: [{ event: "musica/gerar" }],
   },

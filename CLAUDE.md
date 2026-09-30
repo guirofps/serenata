@@ -793,12 +793,27 @@ caractere do id do quiz (braço recalculável na leitura).
 | criativos Google 28/09 (g8, g9, Mix E) | 28/09 | regra: CPA < R$ 34 fica | CPA real do banco | 01/10 | - |
 | PMAX/DG Ângulos | 28/09 | - | CPA real | 03/10 | - |
 | Ballad: 10 campanhas EUA | 29/09 | um criativo por campanha | clique → lead, depois CPA < US$ 15. Só 1 de 24 visitas pagas passou da abertura (Serenata 43-53%); desde 30/09 mede `abertura_tempo` (5/15/30s) e `abertura_rolou` pra separar clique acidental de rejeição | 01/10 | é a Ballad |
+| Ballad: destino home × /criar | 30/09 | grupo original (/criar) × grupo "Home \| EUA" (mesmo vídeo e copy, destino `/`) nas 9 campanhas aprovadas (`scratch/ballad-ads-grupo-home.mjs`) | por grupo (`utm_medium` = id do grupo): passou da abertura, lead, CPA | 02/10 | é a Ballad; se a home ganhar, testar na Serenata |
 | Bounce: letra no domínio raiz × subdomínio | aguardando Postmaster | decidir com a reputação do Gmail | reputação, abertura da entrega | ~02/10 | idem |
 
 **Consertos sem teste (30/09):** bump pago no cartão não liberava vídeo nem
 quadro (10 liberados à mão); vídeo pago saía desfocado (JPEG 95, CRF 20);
 refação de voz/estilo era recusada e, quando passava, não mudava nada;
 teto dos e-mails de vídeo 14 → 35 por rodada.
+
+**Consertos da auditoria de 30/09 (sem teste):** braço de preço com peso 0
+é cobrado como o controle (`braco-cobravel.ts`; `?exp=preco:C1` cobrava
+R$ 9); `/oferta/` em rotas sensíveis; código copia-e-cola no HTML do
+`pix_nao_pago`; `/pix/<ref>` acha PIX do Asaas (dava "não achei" pra todos
+desde 11/09); geração com trava de 1 por música; crons de e-mail com
+concorrência 1; e-mail de ocasião com descadastro que funciona e trava de
+descadastrados; `trackEventOnce` por sessão, não por navegador; crédito e
+cortesia não viram conversão no Google/TikTok; entrega que falha avisa os
+donos; `emailPlausivel` barra TLD com número; cartão usa o e-mail corrigido
+no formulário e sobe a venda pro TikTok pelo servidor; sessão com compra em
+andamento não gira aos 30 min (vale 7 dias); oferta só libera pagamento com
+a música PRONTA; revisão mostra rótulo, não valor cru; "Melhorar com IA"
+recebe o idioma.
 
 ## Em aberto
 

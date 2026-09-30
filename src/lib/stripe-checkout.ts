@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { bracoCobravel } from "@/lib/braco-cobravel";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { MOEDA } from "@/lib/i18n";
 import { MARCA_ATIVA } from "@/lib/marca-identidade";
@@ -19,7 +20,7 @@ async function valorCentavosDaSessao(
   const braco = (attribution as { exp?: Record<string, string> } | null)?.exp?.preco ?? "A";
   const { data } = await db.from("experimentos").select("variantes").eq("id", "preco").maybeSingle();
   const variantes = (data?.variantes ?? []) as Array<{ nome?: string; plano?: { valor?: number | string } }>;
-  const achado = variantes.find((v) => v.nome === braco) ?? variantes.find((v) => v.nome === "A");
+  const achado = bracoCobravel(variantes, braco);
   const valor = Number(achado?.plano?.valor);
   // Sem linha no banco, o preço do catálogo. NUNCA um número vindo do cliente.
   const reais = Number.isFinite(valor) && valor > 0 ? valor : MOEDA.en.valor;

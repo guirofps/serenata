@@ -242,7 +242,7 @@ async function paginado<T>(
 }
 
 export const sequenciaRecuperacao = inngest.createFunction(
-  { id: "sequencia-recuperacao", retries: 1, triggers: [{ cron: "*/30 * * * *" }] },
+  { id: "sequencia-recuperacao", retries: 1, concurrency: { limit: 1 }, triggers: [{ cron: "*/30 * * * *" }] },
   async ({ step }) => {
     const fila = await step.run("montar-fila", async () => {
       const sb = db();
