@@ -722,7 +722,7 @@ com coração, mesmo vinho, traço fino. Kit em `docs/marca/ballad/`.
 - **Idioma `en` é o funil BRASILEIRO adaptado**, não o espanhol (decisão do
   dono): `quiz-flow-en.ts`, `letra-prompt-en.ts`, gêneros `*_en` em
   `generos.ts`, `EN` em `textos.ts`/`textos-presente.ts`, `HomeEn.tsx` (cópia
-  estrutural da home BR). Sem WhatsApp, sem PIX, sem contador de famílias.
+  estrutural da home BR). Sem WhatsApp e sem PIX. A prova social (contador, estrelas, rostos) é a MESMA da Serenata: os clientes são da empresa (dono, 30/09).
 - **Banco:** Supabase próprio em us-east-1 (`ssmykmiftqpbrxpduflg`),
   migrations com histórico CERTO (ali `db push` funciona; aplicar com
   `scratch/ballad-migrar.mjs`). Padrão da coluna `locale` = 'en' lá.
