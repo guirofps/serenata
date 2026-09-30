@@ -302,7 +302,14 @@ export const renderizarVideo = inngest.createFunction(
           composition: "Presente",
           inputProps: preparo.props,
           codec: "h264",
-          crf: 26,
+          // QUALIDADE (30/09): a Cleide pagou o vídeo e reclamou que saiu
+          // "desfocado", com a prévia do editor perfeita. Eram duas compressões
+          // em série: cada quadro virava JPEG a 80 (o padrão) e o vídeo saía a
+          // CRF 26 (635 kbps num 720p com zoom e desfoque em movimento). A
+          // prévia roda sem nenhuma das duas. O tamanho continua segurado pela
+          // ESCALA (720p), não pela compressão.
+          crf: 20,
+          jpegQuality: 95,
           scale: ESCALA,
           imageFormat: "jpeg",
           privacy: "private",
