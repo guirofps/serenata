@@ -111,6 +111,30 @@ const ENTREGAVEIS_PT = [
   },
 ];
 
+// TESTE `duvidas_pagamento` (30/09): as dúvidas de quem NÃO pagou, tiradas
+// do suporte (294 pessoas em 70 dias): achou que era grátis, quer pagar
+// depois, pediu boleto, desconfiou do nome no PIX. No braço B elas abrem o
+// FAQ; no A o FAQ fica como era. Leitura: conversão da oferta e mensagens
+// de não-compradores pro suporte, por braço.
+const DUVIDAS_PAGAMENTO_PT = [
+  {
+    p: "A música é grátis?",
+    r: "A letra é grátis, e você ouve um trecho cantado antes de decidir. A música completa, nas duas gravações, com a página do presente e o MP3, é o que você paga aqui.",
+  },
+  {
+    p: "Posso pagar depois?",
+    r: "Pode. A sua música fica guardada e o link do e-mail da letra não expira. Quando quiser, é só voltar por ele e pagar.",
+  },
+  {
+    p: "Tem boleto?",
+    r: "Por enquanto não. Dá pra pagar com PIX ou com cartão de crédito, e a música libera na hora.",
+  },
+  {
+    p: "Por que o PIX aparece no nome de uma pessoa?",
+    r: "O PIX sai no nome do responsável pela Serenata, e não com o nome da marca. É normal e é seguro: a música é liberada assim que o pagamento entra, e você pode falar com a gente em contato@serenatagift.com.",
+  },
+];
+
 const DUVIDAS_PT = [
   {
     p: "É cobrança única ou assinatura?",
@@ -1199,7 +1223,10 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       <div>
         <h2 className="mb-3 text-center font-display text-xl font-semibold">{C.antesDePagar}</h2>
         <div className="divide-y rounded-2xl border bg-card">
-          {C.duvidas.map((d, i) => (
+          {(locale === "pt" && varianteDe("duvidas_pagamento") === "B"
+            ? [...DUVIDAS_PAGAMENTO_PT, ...C.duvidas]
+            : C.duvidas
+          ).map((d, i) => (
             <div key={d.p}>
               <button
                 onClick={() => setAberta(aberta === i ? null : i)}

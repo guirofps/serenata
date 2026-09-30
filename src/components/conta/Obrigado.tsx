@@ -10,6 +10,7 @@ import { sessaoJaPagou, entrarNaConta } from "@/lib/coautoria";
 import { confirmarCheckoutStripe } from "@/lib/stripe-checkout";
 import { marcarSessaoGasta, getOrCreateSessionId, getStoredAttribution } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
+import { varianteDe } from "@/lib/experimentos";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
@@ -39,13 +40,22 @@ const COPY = {
     oLinkPraMontar: "the link to put the gift together. It'll arrive in a moment.",
     preparando: "Getting your gift ready…",
     proximoPasso: "next step",
+    prontoKicker: "all set",
     monteOPresente: (n?: string | null) => `Put together ${n ? `${n}'s gift` : "the gift"}`,
+    prontoTitulo: (n?: string | null) => `${n ? `${n}'s song` : "Your song"} is ready`,
     escolhaGravacao:
       "Pick the recording, add your photos together and a line of your own. It takes two minutes.",
     entregaPorLink:
       "Your song doesn't arrive on its own: it's behind this button. We don't send files by text or as email attachments.",
     montarBotao: "Put the gift together",
     entrarBotao: "Go to my account",
+    ouvirBotao: "Listen to my full song",
+    depoisDeAbrir: "There you download the MP3, add your photos and get the link to send.",
+    copiarLink: "Copy the gift link",
+    copiado: "Link copied",
+    enviarZap: null,
+    zapTexto: (n?: string | null) => `I made a song for ${n ?? "you"}. Tap to listen:`,
+    contaDiscreta: "Prefer to come back later? Go to my account",
     aindaSaindo: "The recording is still coming out of the oven. Go ahead and start: it shows up on its own when it's ready.",
     tambemMandamos: "We also sent this link to",
     praNaoPerder: ", so you don't lose it. If you can't find it, check Promotions and Spam.",
@@ -68,13 +78,17 @@ const COPY = {
     oLinkPraMontar: "o link pra montar o presente. Ele chega em instantes.",
     preparando: "Preparando o seu presente…",
     proximoPasso: "o próximo passo",
+    prontoKicker: "tudo pronto",
     monteOPresente: (n?: string | null) => `Monte o presente${n ? ` de ${n}` : ""}`,
+    prontoTitulo: (n?: string | null) => `A música${n ? ` de ${n}` : ""} está pronta`,
     // "e veja virar vídeo" é o motivo a mais pra montar AGORA, e não uma
     // oferta: a ação desta tela continua UMA (ver o comentário do convite
     // discreto no fim do arquivo). A venda do vídeo mora no editor, embaixo
     // da prévia, com as fotos que ela acabou de subir.
+    // Sem "e veja virar vídeo" desde 30/09: o vídeo é um produto pago à parte
+    // (R$ 24,90), e a promessa gerava ticket de quem esperava ele de graça.
     escolhaGravacao:
-      "Escolha a gravação, ponha as fotos de vocês e uma frase sua. Leva dois minutos, e você já vê a página virar vídeo com a música.",
+      "Escolha a gravação, ponha as fotos de vocês e uma frase sua. Leva dois minutos.",
     // A ENTREGA É POR LINK, e isso precisa estar escrito.
     // Em 26/08, cinco dos sete tickets do dia eram gente esperando a música
     // chegar sozinha — por WhatsApp ou anexa no e-mail. O produto estava
@@ -84,6 +98,13 @@ const COPY = {
       "A sua música não chega sozinha: ela está neste botão. Não mandamos arquivo por WhatsApp nem anexo no e-mail.",
     montarBotao: "Montar o presente",
     entrarBotao: "Entrar na minha conta",
+    ouvirBotao: "Ouvir minha música completa",
+    depoisDeAbrir: "Lá você baixa o MP3, sobe as fotos de vocês e pega o link pra mandar.",
+    copiarLink: "Copiar o link do presente",
+    copiado: "Link copiado",
+    enviarZap: "Enviar pelo WhatsApp",
+    zapTexto: (n?: string | null) => `Fiz uma música pra ${n ?? "você"}. Toca aqui pra ouvir:`,
+    contaDiscreta: "Prefere voltar depois? Entrar na minha conta",
     aindaSaindo: "A gravação ainda está saindo do forno. Pode ir montando: ela aparece sozinha quando ficar pronta.",
     tambemMandamos: "Também mandamos esse link para",
     praNaoPerder: ", pra você não perder. Se não achar, olhe em Promoções e no Spam.",
@@ -106,12 +127,21 @@ const COPY = {
     oLinkPraMontar: "el link para armar el regalo. Llega en un momento.",
     preparando: "Preparando tu regalo…",
     proximoPasso: "el siguiente paso",
+    prontoKicker: "todo listo",
     monteOPresente: (n?: string | null) => `Arma el regalo${n ? ` de ${n}` : ""}`,
+    prontoTitulo: (n?: string | null) => `La canción${n ? ` de ${n}` : ""} está lista`,
     escolhaGravacao: "Elige la grabación, pon las fotos de ustedes y una frase tuya. Toma dos minutos.",
     entregaPorLink:
       "Tu canción no llega sola: está en este botón. No mandamos archivos por WhatsApp ni adjuntos por correo.",
     montarBotao: "Armar el regalo",
     entrarBotao: "Entrar a mi cuenta",
+    ouvirBotao: "Escuchar mi canción completa",
+    depoisDeAbrir: "Ahí descargas el MP3, subes sus fotos y copias el link para mandar.",
+    copiarLink: "Copiar el link del regalo",
+    copiado: "Link copiado",
+    enviarZap: "Enviar por WhatsApp",
+    zapTexto: (n?: string | null) => `Hice una canción para ${n ?? "ti"}. Tócala aquí:`,
+    contaDiscreta: "¿Prefieres volver después? Entrar a mi cuenta",
     aindaSaindo: "La grabación todavía se está terminando. Puedes ir armando: aparece sola cuando esté lista.",
     tambemMandamos: "También mandamos ese link a",
     praNaoPerder: ", para que no lo pierdas. Si no lo encuentras, revisa Promociones y Spam.",
@@ -162,6 +192,10 @@ export function Obrigado({
   const [presente, setPresente] = useState<PresenteDaCompra | null>(null);
   const [procurando, setProcurando] = useState(true);
   const [entrando, setEntrando] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  // Teste A/B da tela pós-compra (30/09). Lido no render: o `<html>` já vem
+  // carimbado com o braço sorteado, então não há pisca entre A e B.
+  const direto = varianteDe("obrigado_direto") === "B";
   // Trava de disparo único da conversão: a venda só é contada uma vez, mesmo
   // que o `presente` seja setado de novo ou o React remonte o efeito.
   const jaContou = useRef(false);
@@ -379,13 +413,13 @@ export function Obrigado({
         {presente && (
           <div className="mt-8 rounded-[var(--raio-lg)] border-2 border-[var(--acento)]/30 bg-[var(--acento)]/5 p-6 text-center">
             <p className="text-[11px] uppercase tracking-[0.25em] text-[var(--acento)]">
-              {C.proximoPasso}
+              {direto ? C.prontoKicker : C.proximoPasso}
             </p>
             <p
               className="mt-2"
               style={{ fontFamily: FONTES.display, fontSize: "var(--t-xl)", lineHeight: 1.25 }}
             >
-              {C.monteOPresente(presente.nome)}
+              {direto ? C.prontoTitulo(presente.nome) : C.monteOPresente(presente.nome)}
             </p>
             <p
               className="mx-auto mt-2 max-w-xs text-[var(--tinta-suave)]"
@@ -393,16 +427,85 @@ export function Obrigado({
             >
               {C.escolhaGravacao}
             </p>
+            {/* DIRETO NO EDITOR, SEM LOGIN (30/09).
+                O botão era "Entrar na minha conta", que passa por magic link
+                até o painel, e só de lá se chega ao editor. Medido no suporte:
+                194 compradores escreveram "paguei e cadê a música", metade em
+                menos de 30 minutos, e só 23% deles tinham chegado ao editor.
+                O link com o token é a credencial (é o mesmo do e-mail), e é lá
+                que a música toca inteira, o MP3 baixa e as fotos sobem. O
+                login continua, embaixo, pra quem quer voltar depois.
+
+                EM TESTE (`obrigado_direto`): A é a tela de antes (botão da
+                conta), B é esta. Leitura: comprador que abre o editor em 1h,
+                ticket de "cadê a música" por comprador e vídeo vendido. */}
+            {!direto ? (
+              <button
+                type="button"
+                onClick={entrarNaMinhaConta}
+                disabled={entrando}
+                className="cta mt-5 inline-flex items-center gap-2 rounded-full px-8 py-4 font-medium disabled:opacity-70"
+                style={{ fontSize: "var(--t-base)" }}
+              >
+                {entrando ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                {C.entrarBotao}
+              </button>
+            ) : (
+            <>
+            <a
+              href={`/editar/${presente.tokenEdicao}`}
+              onClick={() => trackEvent("obrigado_ouvir_click", {})}
+              className="cta mt-5 inline-flex items-center gap-2 rounded-full px-8 py-4 font-medium"
+              style={{ fontSize: "var(--t-base)" }}
+            >
+              <ArrowRight className="h-4 w-4" />
+              {C.ouvirBotao}
+            </a>
+            <p className="mx-auto mt-2 max-w-xs text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)", lineHeight: 1.55 }}>
+              {C.depoisDeAbrir}
+            </p>
+            {presente.token && (
+              <div className="mt-4 flex flex-col items-stretch gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const link = `${window.location.origin}/p/${presente.token}`;
+                    navigator.clipboard?.writeText(link).then(() => setCopiado(true)).catch(() => {});
+                    trackEvent("obrigado_copiar_link", {});
+                  }}
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-[var(--acento)]/40 font-medium"
+                  style={{ fontSize: "var(--t-sm)" }}
+                >
+                  {copiado ? C.copiado : C.copiarLink}
+                </button>
+                {C.enviarZap && (
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(
+                      `${C.zapTexto(presente.nome)} ${typeof window !== "undefined" ? window.location.origin : MARCA.url}/p/${presente.token}`,
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackEvent("obrigado_enviar_zap", {})}
+                    className="inline-flex h-11 items-center justify-center rounded-full font-medium text-white"
+                    style={{ fontSize: "var(--t-sm)", background: "#25D366" }}
+                  >
+                    {C.enviarZap}
+                  </a>
+                )}
+              </div>
+            )}
             <button
               type="button"
               onClick={entrarNaMinhaConta}
               disabled={entrando}
-              className="cta mt-5 inline-flex items-center gap-2 rounded-full px-8 py-4 font-medium disabled:opacity-70"
-              style={{ fontSize: "var(--t-base)" }}
+              className="mt-4 inline-flex items-center gap-1 underline underline-offset-2 text-[var(--tinta-suave)] disabled:opacity-60"
+              style={{ fontSize: "var(--t-xs)" }}
             >
-              {entrando ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-              {C.entrarBotao}
+              {entrando && <Loader2 className="h-3 w-3 animate-spin" />}
+              {C.contaDiscreta}
             </button>
+            </>
+            )}
             {presente.gerando && (
               <p className="mt-3 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
                 {C.aindaSaindo}

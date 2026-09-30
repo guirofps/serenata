@@ -208,11 +208,19 @@ export async function mandarEmailDeEntrega(
       return { ok: true, emailId: aviso?.id ?? null };
     }
 
+    // TESTE A/B DO E-MAIL DE ENTREGA (30/09): metade B pelo último caractere
+    // do id do quiz, o mesmo critério do teste de assunto da letra (a mesma
+    // pessoa cai sempre no mesmo lado, e a leitura recalcula o braço pelo id).
+    // Só português. Ver `variante` em `emails/presente-pronto.ts`.
+    const qid = args.musica.quiz_response_id ?? "";
+    const varianteEntrega: "a" | "b" =
+      locale === "pt" && qid && parseInt(qid.slice(-1), 16) % 2 === 1 ? "b" : "a";
+
     const { data: enviado, error } = await new Resend(chave).emails.send({
       // A ETIQUETA DO ENVIO, que o Resend devolve em todo evento. É o único
       // jeito de medir DEPOIS qual e-mail performou: o assunto carrega o nome
       // da pessoa e nem sempre vem no evento.
-      tags: [{ name: "template", value: "entrega" }],
+      tags: [{ name: "template", value: "entrega" }, { name: "variante", value: varianteEntrega }],
       from: MARCA_ATIVA.remetenteTransacional,
       to: [args.email],
       subject: assuntoPresentePronto(nome, locale),
@@ -224,6 +232,7 @@ export async function mandarEmailDeEntrega(
         temQuadroPraMontar,
         temVideoPraGerar,
         locale,
+        variante: varianteEntrega,
       }),
       // Em inglês: sem WhatsApp, e quadro e vídeo só entram se forem dela.
       text: ingles

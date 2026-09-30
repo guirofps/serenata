@@ -1103,7 +1103,10 @@ function Editor() {
         {/* O AJUSTE, no fim da página e fechado por padrão.
             A ação daqui é montar o presente; perguntar "o que você não
             gostou?" no meio disso planta dúvida em quem estava satisfeito. */}
-        <PedirRefacao tokenEdicao={tokenEdicao} locale={locale} />
+        {/* Âncora do "Peça o ajuste aqui" do e-mail de entrega (30/09). */}
+        <div id="ajustar" style={{ scrollMarginTop: "5rem" }}>
+          <PedirRefacao tokenEdicao={tokenEdicao} locale={locale} />
+        </div>
 
         {linkZap ? (
           <div className="mx-auto mt-12 max-w-md text-center">

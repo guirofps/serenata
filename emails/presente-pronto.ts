@@ -187,8 +187,16 @@ export function emailPresentePronto(args: {
   /** O vídeo veio no checkout (bump) e espera as fotos pra ser gerado. */
   temVideoPraGerar?: boolean;
   locale?: IdiomaEmail;
+  /**
+   * TESTE A/B (30/09), só em português. B leva a pessoa a OUVIR primeiro
+   * ("cadê a música" foi o motivo nº 1 do suporte) e pede as fotos pelo que
+   * elas fazem (quem sobe foto compra o vídeo 25% das vezes; só 46% sobem),
+   * com um link direto pro ajuste. A é o e-mail de sempre.
+   */
+  variante?: "a" | "b";
 }): string {
   const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
+  const b = args.variante === "b" && (args.locale ?? "pt") === "pt";
   const { nome, titulo, linkEditor, linkPresente } = args;
   const jaTemQuadro = args.temQuadroPraMontar === true;
   const ingles = args.locale === "en";
@@ -234,13 +242,17 @@ export function emailPresentePronto(args: {
         </td></tr>
 
         <tr><td style="padding:22px 36px 4px;color:rgba(42,21,24,0.75);font-size:15px;line-height:1.7;">
-          ${C.faltaSo} <strong style="color:#2a1518;">${C.montar}</strong>.
-          ${C.coloque}
+          ${
+            b
+              ? `Ela está no seu link, <strong style="color:#2a1518;">completa, nas duas gravações</strong>, pra ouvir e baixar o MP3 agora. Depois, <strong style="color:#2a1518;">suba 3 ou mais fotos de vocês</strong>: elas passam na página enquanto a música toca, e é isso que deixa o presente com a cara de vocês.`
+              : `${C.faltaSo} <strong style="color:#2a1518;">${C.montar}</strong>.
+          ${C.coloque}`
+          }
         </td></tr>
 
         <tr><td align="center" style="padding:26px 36px 8px;">
           <a href="${linkEditor}" style="display:inline-block;background:#7d2b3a;color:#faf5ee;text-decoration:none;font-size:16px;font-family:Helvetica,Arial,sans-serif;font-weight:bold;padding:16px 34px;border-radius:999px;">
-            ${C.botao}
+            ${b ? "OUVIR E BAIXAR A MÚSICA COMPLETA →" : C.botao}
           </a>
         </td></tr>
 
@@ -254,7 +266,12 @@ export function emailPresentePronto(args: {
         <tr><td style="padding:0 36px 26px;text-align:center;">
           <p style="margin:0;display:inline-block;padding:9px 14px;border-radius:8px;background:rgba(125,43,58,0.06);color:#7d2b3a;font-size:12px;line-height:1.55;font-family:Helvetica,Arial,sans-serif;">
             ${C.duasVersoes}
-          </p>
+          </p>${
+            b
+              ? `
+          <p style="margin:12px 0 0;font-size:13px;line-height:1.55;font-family:Helvetica,Arial,sans-serif;color:rgba(42,21,24,0.6);">Quer mudar alguma coisa na música, a voz ou o estilo? <a href="${linkEditor}#ajustar" style="color:#7d2b3a;font-weight:600;">Peça o ajuste aqui</a>, está incluído.</p>`
+              : ""
+          }
         </td></tr>
 
         <tr><td style="padding:0 36px;"><div style="height:1px;background:rgba(42,21,24,0.12);"></div></td></tr>
