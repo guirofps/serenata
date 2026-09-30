@@ -19,7 +19,6 @@ import { supabase } from "@/lib/supabase-client";
 import { AbaFinanceiro } from "@/components/admin/AbaFinanceiro";
 import { AbaAutomacoes } from "@/components/admin/AbaAutomacoes";
 import { AbaIndicacoes } from "@/components/admin/AbaIndicacoes";
-import { PRECOS } from "@/lib/custos";
 import { entrarAdmin, sairAdmin } from "@/lib/admin-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -989,13 +988,16 @@ function Corpo({
                   apoio="duas moedas, não somadas"
                 />
               ) : t.receitaUsd > 0 ? (
+                // Só dólar (a Ballad inteira, ou o filtro espanhol): em REAL,
+                // pela cotação do dia, pra conversar com o gasto do Google, que
+                // sai em real. O dólar de verdade fica embaixo, à vista.
                 <Cartao
                   rotulo="Receita"
-                  valor={usd(t.receitaUsd)}
+                  valor={brl(t.receitaConvertidaBrl)}
                   destaque
-                  atual={t.receitaUsd}
-                  anterior={a?.receitaUsd}
-                  apoio={`ticket ${usd(t.receitaUsd / Math.max(1, t.vendas))}`}
+                  atual={t.receitaConvertidaBrl}
+                  anterior={a?.receitaConvertidaBrl}
+                  apoio={`${usd(t.receitaUsd)} · US$ 1 = ${brl(t.cambioUsdBrl)}`}
                 />
               ) : (
                 <Cartao
@@ -1112,8 +1114,8 @@ function Corpo({
               {t.receitaUsd > 0 && (
                 <>
                   {" "}
-                  A margem converte o dólar a R$ {PRECOS.cambioUsdBrl.toFixed(2)} (o mesmo câmbio
-                  dos custos). A receita acima não é convertida.
+                  O dólar vira real pela cotação do dia (US$ 1 = R$ {t.cambioUsdBrl.toFixed(2)})
+                  na margem, no ROAS e nas campanhas.
                 </>
               )}
             </p>
