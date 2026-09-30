@@ -416,6 +416,7 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
 
       {/* Corpo do passo */}
       <div ref={corpoRef} className="flex flex-1 flex-col justify-center">
+        {isIntro(step) && locale === "en" && <MedirAbertura />}
         {isIntro(step) && (
           <AberturaPresente
             locale={locale}
@@ -845,4 +846,33 @@ function ReviewScreen({ locale, onGerar }: { locale: Locale; onGerar: () => void
       </div>
     </div>
   );
+}
+
+/**
+ * QUANTO TEMPO O VISITANTE FICA NA ABERTURA, E SE ROLA (30/09, só Ballad).
+ *
+ * Nas primeiras 24 visitas pagas da Ballad, 1 passou da abertura, contra 43%
+ * (Google) e 53% (TikTok) na Serenata. Duas explicações, e sem isto não dá pra
+ * separar: clique acidental de Shorts/TikTok (sai em 1 a 2s) ou a tela não
+ * convence (fica, lê e vai embora). Só mede, não muda nada na tela. Uma vez
+ * por sessão cada marca, pra não inflar `funnel_events`.
+ */
+function MedirAbertura() {
+  useEffect(() => {
+    const timers = [5, 15, 30].map((s) =>
+      window.setTimeout(() => void trackEventOnce("abertura_tempo", `${s}s`, { segundos: s }), s * 1000),
+    );
+    const aoRolar = () => {
+      if (window.scrollY > 80) {
+        void trackEventOnce("abertura_rolou", "v1", {});
+        window.removeEventListener("scroll", aoRolar);
+      }
+    };
+    window.addEventListener("scroll", aoRolar, { passive: true });
+    return () => {
+      timers.forEach((t) => window.clearTimeout(t));
+      window.removeEventListener("scroll", aoRolar);
+    };
+  }, []);
+  return null;
 }

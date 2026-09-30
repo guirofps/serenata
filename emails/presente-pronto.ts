@@ -139,7 +139,8 @@ const COPY: Record<IdiomaEmail, {
       "There are TWO recordings of the same lyrics. Listen to both at the link above and pick the one that will play for them.",
     // Sem WhatsApp: nos EUA o canal é só e-mail.
     semAnexo:
-      "The song isn't attached to this email: it lives at these links, and they're yours forever.",
+      // A linha da fatura: ver a mesma pergunta no FAQ da oferta (TelaOferta).
+      "The song isn't attached to this email: it lives at these links, and they're yours forever. On your card statement, the charge shows as STRIPEONLI* BALLADGIFT.",
     comPressa:
       "And this is the link <strong style=\"color:#2a1518;\">you send to them</strong>, by text message or however you like. The gift already works just as it is, even without a photo:",
     verPresente: "OPEN THE PAGE I'LL SEND",

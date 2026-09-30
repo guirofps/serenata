@@ -306,6 +306,15 @@ const DUVIDAS_EN = [
     p: "Is it a one-time payment or a subscription?",
     r: "One time. You pay once and the song is yours forever. No monthly fee, no auto-renewal, and we don't store your card.",
   },
+  // A FATURA (30/09). A conta Stripe ainda leva o nome de outro negócio, e o
+  // prefixo sai cortado em 10 letras: na fatura aparece "STRIPEONLI*
+  // BALLADGIFT". Americano que não reconhece a cobrança abre chargeback
+  // (US$ 15 cada e marca a conta), então dizer antes é mais barato. Trocar
+  // esta resposta quando o dono renomear a conta Stripe.
+  {
+    p: "How will the charge appear on my card?",
+    r: "As STRIPEONLI* BALLADGIFT. It's a single charge through Stripe, our payment processor, with no subscription.",
+  },
   {
     p: "How long does it take?",
     r: "Up to 30 minutes, usually under 5. We email you as soon as it's ready, and you can also put the gift together right here on screen.",
