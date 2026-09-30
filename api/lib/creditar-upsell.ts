@@ -166,3 +166,32 @@ export async function liberarVideoDoBump(
   if (error && error.code !== "23505") return error.message;
   return null;
 }
+
+/**
+ * LIBERA O QUE FOI COMPRADO NO BUMP: o vídeo (esperando as fotos) e o quadro.
+ *
+ * UM lugar só, chamado pelos DOIS caminhos que pagam o pedido base: o webhook
+ * do Asaas (PIX) e o `criar-cartao.ts` (cartão, que confirma na hora). Até
+ * 30/09 isto morava só no webhook, depois da trava "pedido já pago, sai
+ * cedo" — e o cartão grava o pedido como pago ANTES do webhook chegar. Os 10
+ * bumps pagos no cartão em setembro ficaram sem vídeo e sem quadro.
+ *
+ * Idempotente pelos índices únicos das duas tabelas (23505 = já existia), então
+ * os dois caminhos podem chamar a mesma venda sem duplicar nada. Devolve os
+ * erros pra quem chamou decidir como gritar.
+ */
+export async function liberarItensDoBump(
+  sb: SupabaseClient,
+  args: { email: string; pedidoId: string | null; musicaId: string | null; video: boolean; quadro: boolean },
+): Promise<string[]> {
+  const erros: string[] = [];
+  if (args.video) {
+    const e = await liberarVideoDoBump(sb, args);
+    if (e) erros.push(`vídeo: ${e}`);
+  }
+  if (args.quadro) {
+    const { error } = await sb.from("quadros").insert({ email: args.email, pedido_id: args.pedidoId });
+    if (error && error.code !== "23505") erros.push(`quadro: ${error.message}`);
+  }
+  return erros;
+}

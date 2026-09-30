@@ -30,7 +30,7 @@ import { asaas } from "../../src/lib/asaas.js";
 import { segredoConfere } from "../lib/segredo.js";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../lib/entrega.js";
 import { venderNoTiktok } from "../lib/tiktok-eventos.js";
-import { creditarUpsell, liberarVideoDoBump } from "../lib/creditar-upsell.js";
+import { creditarUpsell, liberarItensDoBump } from "../lib/creditar-upsell.js";
 import { ofertaDaReferencia } from "../../src/lib/creditos.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
@@ -292,30 +292,17 @@ export default async function handler(req: Req, res: Res) {
   // â”€â”€ O QUADRO COMPRADO JUNTO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // O video do bump (bracos V e C): nasce esperando as fotos. Ver
   // `liberarVideoDoBump`. Pela coluna do pedido que NOS gravamos.
-  if (existente?.bump_video === true && existente.email) {
-    const erroVideo = await liberarVideoDoBump(sb, {
+  // Pelo módulo comum: o cartão libera o mesmo bump na hora, em `criar-cartao.ts`.
+  if ((existente?.bump_video === true || existente?.bump_quadro === true) && existente.email) {
+    const erros = await liberarItensDoBump(sb, {
       email: existente.email,
       pedidoId: pedido?.id ?? null,
       musicaId: musica?.id ?? null,
+      video: existente.bump_video === true,
+      quadro: existente.bump_quadro === true,
     });
-    if (erroVideo) {
-      await alertarDono(
-        "Video pago no bump e NAO liberado",
-        `<p>${erroVideo}<br>${existente.email} · ${paymentId}</p>`,
-      );
-    }
-  }
-
-  if (existente?.bump_quadro === true && existente.email) {
-    const { error } = await sb.from("quadros").insert({
-      email: existente.email,
-      pedido_id: pedido?.id ?? null,
-    });
-    if (error && error.code !== "23505") {
-      await alertarDono(
-        "Quadro pago no cartÃ£o e NÃƒO liberado",
-        `<p>${error.message}<br>${existente.email} Â· ${paymentId}</p>`,
-      );
+    if (erros.length) {
+      await alertarDono("Bump pago e NAO liberado", `<p>${erros.join("<br>")}<br>${existente.email} · ${paymentId}</p>`);
     }
   }
 

@@ -6,6 +6,7 @@ import { ErroGateway, type DadosCartao, type TitularCartao } from "@/lib/gateway
 import { BUMPS, ehItemBump, valorComItem, type ItemBump } from "@/lib/bump";
 import { centavosComCupom } from "@/lib/cupom";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../../api/lib/entrega";
+import { liberarItensDoBump } from "../../api/lib/creditar-upsell";
 import { conviteDaCompra } from "@/lib/indicacao-db";
 import { descontoDoConvite } from "@/lib/indicacao";
 
@@ -305,7 +306,7 @@ export const cobrarCartao = createServerFn({ method: "POST" })
       .eq("payment_id", `asaas:${r.idExterno}`)
       .maybeSingle();
 
-    const { error } = await db.from("pedidos").upsert(
+    const { data: gravado, error } = await db.from("pedidos").upsert(
       {
         payment_id: `asaas:${r.idExterno}`,
         gateway: "asaas",
@@ -327,7 +328,7 @@ export const cobrarCartao = createServerFn({ method: "POST" })
         ...(r.confirmado && !jaExiste ? { paid_at: new Date().toISOString() } : {}),
       },
       { onConflict: "payment_id" },
-    );
+    ).select("id").maybeSingle();
     if (error) {
       // A COBRANÇA JÁ PASSOU no gateway. Sumir com o resultado seria cobrar e
       // não registrar — o pior desfecho possível. Grita no log e devolve o
@@ -350,6 +351,23 @@ export const cobrarCartao = createServerFn({ method: "POST" })
     // A entrega NUNCA derruba a resposta: se o e-mail falhar, a pessoa pagou e
     // precisa ver a confirmação mesmo assim. O erro vira log e o webhook (ou o
     // painel) reenvia.
+    // ── O BUMP, NA HORA TAMBÉM ───────────────────────────────
+    //
+    // O webhook sai cedo quando o pedido já está pago, e aqui ele já nasce
+    // pago: se o bump não for liberado AQUI, não é liberado nunca. Foi o que
+    // aconteceu com os 10 bumps pagos no cartão até 30/09. Mesmo módulo do
+    // webhook, idempotente, então os dois podem chamar a mesma venda.
+    if (r.confirmado && item) {
+      const erros = await liberarItensDoBump(db, {
+        email: (quiz.email as string | null) ?? data.titular.email,
+        pedidoId: (gravado as { id?: string } | null)?.id ?? null,
+        musicaId: musica.id,
+        video: BUMPS[item].video,
+        quadro: BUMPS[item].quadro,
+      });
+      if (erros.length) console.error("[cartao] bump pago e NÃO liberado:", erros.join(" | "), r.idExterno);
+    }
+
     if (r.confirmado) {
       try {
         const musicaPronta = await musicaDoQuiz(db, quiz.id);
