@@ -19,7 +19,8 @@ import { quizFlow, QUIZ_SKIP } from "@/lib/quiz-flow";
 import { type Locale, TAG_IDIOMA, caminho } from "@/lib/i18n";
 import { t } from "@/lib/textos";
 import { sugerirEmail } from "@/lib/email-typo";
-import { carimbarExperimentos } from "@/lib/experimentos";
+import { carimbarExperimentos, varianteDe } from "@/lib/experimentos";
+import { dominioRecebeEmail } from "@/lib/dominio-email";
 import { AberturaPresente } from "@/components/quiz/AberturaPresente";
 import { lembrarIdioma } from "@/components/OfereceIdioma";
 import { useQuizStore } from "@/lib/quiz-store";
@@ -260,6 +261,12 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
   //     responde se e validacao, se e um passo especifico, ou se e outra
   //     coisa.
   const [avisoBloqueio, setAvisoBloqueio] = useState(false);
+  // TESTE `email_confirma` (30/09): B confere o domínio no DNS e mostra o
+  // e-mail grande antes de seguir. 97 de 112 compradores com e-mail que
+  // voltou tinham o domínio certo e o erro ANTES do @, que só a pessoa lendo
+  // o próprio endereço pega.
+  const [confirmarEmail, setConfirmarEmail] = useState<{ email: string; recebe: boolean; dominio: string | null } | null>(null);
+  const [conferindoEmail, setConferindoEmail] = useState(false);
 
   // O TECLADO ESTÁ COBRINDO O BOTÃO?
   //
@@ -320,6 +327,47 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
   //
   // O `validateStory` ja dizia o que faltava (inclusive quantos caracteres);
   // o que faltava era chips, contato e texto terem a mesma cortesia.
+  function seguirDoContato() {
+    // O E-MAIL SÓ EXISTE AQUI.
+    //
+    // A captura de lead roda no useEffect da TROCA de passo,
+    // ou seja, quando a pessoa CHEGA no contato — com o campo
+    // ainda vazio. Ela digita, clica, e vai pra revisão, que
+    // não é question nem contact e não dispara captura
+    // nenhuma. O e-mail digitado nunca era gravado.
+    //
+    // Medido em 07/08: de 150 pessoas que chegaram neste
+    // passo, só 65 (43%) tinham e-mail no banco. Os 43% eram
+    // quem voltava pro passo e refazia o efeito. As outras 85
+    // digitaram e a gente perdeu — e é exatamente a lista de
+    // quem abandona o checkout.
+    captureLeadProgress({
+      currentStep: passoFunil,
+      furthestStep: passoFunil,
+      respostas,
+      email,
+      locale,
+    });
+    navigate({ to: rota, search: { step: "revisao" } } as never);
+  }
+
+  async function abrirConfirmacaoEmail() {
+    if (conferindoEmail) return;
+    const alvo = (email ?? "").trim();
+    setConferindoEmail(true);
+    let r = { recebe: true, dominio: null as string | null };
+    try {
+      r = await dominioRecebeEmail({ data: { email: alvo } });
+    } catch {
+      // Falha aberta: sem a consulta, só a confirmação visual.
+    }
+    setConferindoEmail(false);
+    // Fecha o teclado: a folha de confirmação é a próxima coisa a ler.
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    setConfirmarEmail({ email: alvo, recebe: r.recebe, dominio: r.dominio });
+    trackEvent("email_confirma_mostrou", { recebe: r.recebe, locale });
+  }
+
   function motivoBloqueio(): string {
     if (isContact(step)) {
       return (email ?? "").trim() ? T.bloqueioEmailErrado : T.bloqueioEmailVazio;
@@ -748,32 +796,13 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
                   }
                 : isContact(step)
                 ? () => {
-                    // O E-MAIL SÓ EXISTE AQUI.
-                    //
-                    // A captura de lead roda no useEffect da TROCA de passo,
-                    // ou seja, quando a pessoa CHEGA no contato — com o campo
-                    // ainda vazio. Ela digita, clica, e vai pra revisão, que
-                    // não é question nem contact e não dispara captura
-                    // nenhuma. O e-mail digitado nunca era gravado.
-                    //
-                    // Medido em 07/08: de 150 pessoas que chegaram neste
-                    // passo, só 65 (43%) tinham e-mail no banco. Os 43% eram
-                    // quem voltava pro passo e refazia o efeito. As outras 85
-                    // digitaram e a gente perdeu — e é exatamente a lista de
-                    // quem abandona o checkout.
-                    captureLeadProgress({
-                      currentStep: passoFunil,
-                      furthestStep: passoFunil,
-                      respostas,
-                      email,
-                      locale,
-                    });
-                    navigate({ to: rota, search: { step: "revisao" } } as never);
+                    if (varianteDe("email_confirma") === "B") void abrirConfirmacaoEmail();
+                    else seguirDoContato();
                   }
                 : goNext
             }
           >
-            {isContact(step) ? T.verMinhaLetra : T.continuar}
+            {isContact(step) ? (conferindoEmail ? "…" : T.verMinhaLetra) : T.continuar}
           </Button>
           {avisoBloqueio && !canAdvance && (
             <p className="mt-2 text-center text-sm font-medium text-destructive">
@@ -782,7 +811,101 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
           )}
         </div>
       )}
+
+      {confirmarEmail && (
+        <ConfirmarEmail
+          locale={locale}
+          email={confirmarEmail.email}
+          recebe={confirmarEmail.recebe}
+          dominio={confirmarEmail.dominio}
+          onCerto={() => {
+            trackEvent("email_confirma_ok", { recebe: confirmarEmail.recebe, locale });
+            setConfirmarEmail(null);
+            seguirDoContato();
+          }}
+          onCorrigir={() => {
+            trackEvent("email_confirma_corrigir", { recebe: confirmarEmail.recebe, locale });
+            setConfirmarEmail(null);
+            window.setTimeout(() => corpoRef.current?.querySelector<HTMLElement>("input")?.focus(), 50);
+          }}
+        />
+      )}
     </main>
+  );
+}
+
+// ── TESTE `email_confirma`: a folha que mostra o e-mail antes de seguir ──
+//
+// Grande e sozinho na tela, porque o erro que ela pega (letra trocada antes
+// do @) só aparece pra quem LÊ o próprio endereço com calma. Não bloqueia:
+// "está certo" sempre segue, mesmo com o domínio que o DNS não achou.
+const TEXTO_CONFIRMA = {
+  pt: {
+    titulo: "Confere o seu e-mail",
+    vai: "A sua letra e a sua música vão chegar em:",
+    aviso: (d: string) => `Esse endereço parece não existir: "${d}" não recebe e-mail.`,
+    certo: "Está certo, continuar",
+    corrigir: "Corrigir",
+  },
+  es: {
+    titulo: "Revisa tu correo",
+    vai: "Tu letra y tu canción van a llegar a:",
+    aviso: (d: string) => `Esta dirección parece no existir: "${d}" no recibe correos.`,
+    certo: "Está bien, continuar",
+    corrigir: "Corregir",
+  },
+  en: {
+    titulo: "Double-check your email",
+    vai: "Your lyrics and your song will be sent to:",
+    aviso: (d: string) => `This address looks wrong: "${d}" doesn't receive email.`,
+    certo: "That's right, continue",
+    corrigir: "Fix it",
+  },
+} as const;
+
+function ConfirmarEmail(props: {
+  locale: Locale;
+  email: string;
+  recebe: boolean;
+  dominio: string | null;
+  onCerto: () => void;
+  onCorrigir: () => void;
+}) {
+  const T = TEXTO_CONFIRMA[props.locale] ?? TEXTO_CONFIRMA.pt;
+  // Com o domínio que não existe, o botão principal vira "corrigir": é o
+  // caminho certo quase sempre, mas "continuar" fica a um toque.
+  const [principal, secundario] = props.recebe
+    ? [
+        { texto: T.certo, acao: props.onCerto },
+        { texto: T.corrigir, acao: props.onCorrigir },
+      ]
+    : [
+        { texto: T.corrigir, acao: props.onCorrigir },
+        { texto: T.certo, acao: props.onCerto },
+      ];
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="w-full max-w-md space-y-4 rounded-t-2xl bg-background p-6 text-center shadow-xl sm:rounded-2xl">
+        <h2 className="font-display text-xl font-semibold">{T.titulo}</h2>
+        <p className="text-sm text-muted-foreground">{T.vai}</p>
+        <p className="break-all rounded-lg bg-muted px-3 py-3 text-lg font-semibold">{props.email}</p>
+        {!props.recebe && props.dominio && (
+          <p className="text-sm font-medium text-destructive">{T.aviso(props.dominio)}</p>
+        )}
+        <div className="flex flex-col gap-2 pt-1">
+          <Button className="h-12 w-full" onClick={principal.acao}>
+            {principal.texto}
+          </Button>
+          <Button variant="ghost" className="w-full" onClick={secundario.acao}>
+            {secundario.texto}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 

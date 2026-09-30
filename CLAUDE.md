@@ -793,6 +793,7 @@ caractere do id do quiz (braço recalculável na leitura).
 | criativos Google 28/09 (g8, g9, Mix E) | 28/09 | regra: CPA < R$ 34 fica | CPA real do banco | 01/10 | - |
 | PMAX/DG Ângulos | 28/09 | - | CPA real | 03/10 | - |
 | Ballad: 10 campanhas EUA | 29/09 | um criativo por campanha | clique → lead, depois CPA < US$ 15. Só 1 de 24 visitas pagas passou da abertura (Serenata 43-53%); desde 30/09 mede `abertura_tempo` (5/15/30s) e `abertura_rolou` pra separar clique acidental de rejeição | 01/10 | é a Ballad |
+| `email_confirma` | 30/09 | e-mail do quiz como era × folha "Confere o seu e-mail" (e-mail grande, domínio conferido no DNS, aviso sem bloquear) | % que deixa e-mail, bounce da `letra_pronta`, receita por lead, `email_confirma_corrigir` | 07/10 | já roda nas duas |
 | Ballad: destino home × /criar | 30/09 | grupo original (/criar) × grupo "Home \| EUA" (mesmo vídeo e copy, destino `/`) nas 9 campanhas aprovadas (`scratch/ballad-ads-grupo-home.mjs`) | por grupo (`utm_medium` = id do grupo): passou da abertura, lead, CPA | 02/10 | é a Ballad; se a home ganhar, testar na Serenata |
 | Bounce: letra no domínio raiz × subdomínio | aguardando Postmaster | decidir com a reputação do Gmail | reputação, abertura da entrega | ~02/10 | idem |
 
