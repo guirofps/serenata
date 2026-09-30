@@ -3,7 +3,7 @@ import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
-import { emailGuardeOLink, assuntoGuardeOLink } from "../../emails/guarde-o-link.js";
+import { emailGuardeOLink, assuntoGuardeOLink, textoGuardeOLinkEn } from "../../emails/guarde-o-link.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
@@ -102,7 +102,7 @@ export const guardeOLink = inngest.createFunction(
 
       const out: Array<{
         email: string; nome: string; titulo: string;
-        linkEditor: string; linkPresente: string; musicaId: string; locale: "pt" | "es";
+        linkEditor: string; linkPresente: string; musicaId: string; locale: "pt" | "es" | "en";
         quizId: string | null;
       }> = [];
       const vistos = new Set<string>();
@@ -142,16 +142,18 @@ export const guardeOLink = inngest.createFunction(
           : { data: null };
 
         // O idioma vem do registro: cron não tem requisição de onde deduzir.
-        // Ver a migration 20260807000000_locale.
-        const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
+        // Ver a migration 20260807000000_locale. `en` é a Ballad Gift, onde
+        // o padrão da coluna já é 'en'.
+        const bruto = (q as { locale?: string } | null)?.locale;
+        const locale = bruto === "es" ? "es" : bruto === "en" ? "en" : "pt";
 
         out.push({
           email: p.email,
-          locale: locale as "pt" | "es",
+          locale,
           nome:
             ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-            (locale === "es" ? "quien vos querés" : "quem você ama"),
-          titulo: m.titulo ?? "Sua música",
+            (locale === "es" ? "quien vos querés" : locale === "en" ? "someone you love" : "quem você ama"),
+          titulo: m.titulo ?? (locale === "en" ? "Your song" : "Sua música"),
           linkEditor: `${SITE}/editar/${m.token_edicao}`,
           linkPresente: `${SITE}/p/${m.token}`,
           musicaId: m.id,
@@ -185,7 +187,9 @@ export const guardeOLink = inngest.createFunction(
             linkPresente: c.linkPresente,
             locale: c.locale,
           }),
-          text:
+          text: c.locale === "en"
+            ? textoGuardeOLinkEn({ nome: c.nome, linkEditor: c.linkEditor, linkPresente: c.linkPresente })
+            :
             `Guarde este e-mail: são os dois links da música de ${c.nome}.\n\n` +
             `SEU LINK (baixar o MP3 e editar a página):\n${c.linkEditor}\n\n` +
             `O LINK QUE VOCÊ MANDA PRA ELA:\n${c.linkPresente}\n\n` +

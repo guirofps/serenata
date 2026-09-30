@@ -33,7 +33,11 @@
 // e o e-mail de entrega os apresentava como principal e secundário, o que não
 // diz a ninguém qual é qual.
 
-type IdiomaEmail = "pt" | "es";
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+
+// `en` é a Ballad Gift (EUA), com a copy adaptada do português: sem
+// WhatsApp (lá o canal é mensagem de texto) e com a marca do deploy.
+type IdiomaEmail = "pt" | "es" | "en";
 
 const COPY: Record<
   IdiomaEmail,
@@ -85,11 +89,45 @@ const COPY: Record<
       "Consejo: en el celu, el botón de descargar abre la pantalla de compartir y mandás el audio directo por WhatsApp.<br>¿Perdiste algo? Respondé este correo y lo resolvemos.",
     rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
+  en: {
+    assunto: (n) => `Your links for ${n}'s song (save this email)`,
+    titulo: "Save this email.",
+    corpo:
+      "It's just so you never lose the way back. Your song doesn't expire and the page stays online, but the purchase email gets buried fast in your inbox. There are two links, and each one does something different.",
+    seuLinkTitulo: "1 · The link that's YOURS",
+    seuLinkTexto:
+      "This is where you <strong>download the MP3</strong> of the song and edit the page (change the photo, the message, pick the recording). Don't send this link to anyone.",
+    seuLinkBotao: "DOWNLOAD THE SONG / EDIT",
+    delaTitulo: "2 · The link you SEND",
+    delaTexto:
+      "This is the gift itself. Whoever opens it sees the tribute with the photo and the song playing. This is the one that goes in the text message.",
+    delaBotao: "OPEN THE GIFT PAGE",
+    rodapeAviso:
+      "Tip: on your phone, the download button opens the share sheet, so you can send the audio straight in a text.<br>Lost something? Reply to this email and we'll sort it out.",
+    rodape: `${MARCA_ATIVA.nome} · a song made from the story of someone you love`,
+  },
 };
 
 /** O assunto, no idioma da venda. */
 export function assuntoGuardeOLink(nome: string, locale: IdiomaEmail = "pt") {
-  return COPY[locale].assunto(nome);
+  return (COPY[locale] ?? COPY.pt).assunto(nome);
+}
+
+/**
+ * A versão em texto puro do inglês (Ballad Gift). O texto do português segue
+ * escrito no próprio job, como sempre foi.
+ */
+export function textoGuardeOLinkEn(args: {
+  nome: string;
+  linkEditor: string;
+  linkPresente: string;
+}): string {
+  return (
+    `Save this email: these are the two links for ${args.nome}'s song.\n\n` +
+    `YOUR LINK (download the MP3 and edit the page):\n${args.linkEditor}\n\n` +
+    `THE LINK YOU SEND TO THEM:\n${args.linkPresente}\n\n` +
+    `Your song doesn't expire and the page stays online.`
+  );
 }
 
 export function emailGuardeOLink(args: {
@@ -121,7 +159,7 @@ export function emailGuardeOLink(args: {
         </td></tr>`;
 
   return `<!DOCTYPE html>
-<html lang="${args.locale === "es" ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>
+<html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>
 <body style="margin:0;padding:0;background-color:#f2e9dc;font-family:Georgia,'Times New Roman',serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2e9dc;padding:40px 16px;">
     <tr><td align="center">
@@ -129,7 +167,7 @@ export function emailGuardeOLink(args: {
         <tr><td height="4" style="background:linear-gradient(90deg,#7d2b3a,#c9a227);"></td></tr>
 
         <tr><td style="padding:34px 34px 6px;text-align:center;">
-          <div style="margin:0 auto 16px;font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:3px;color:#7d2b3a;text-align:center;">SERENATA</div>
+          <div style="margin:0 auto 16px;font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:3px;color:#7d2b3a;text-align:center;">${MARCA_ATIVA.nome.toUpperCase()}</div>
           <h1 style="margin:0;color:#2a1518;font-size:25px;font-weight:normal;line-height:1.32;">
             ${C.titulo}
           </h1>

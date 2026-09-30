@@ -3,7 +3,7 @@ import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
-import { emailLembretePresente, assuntoLembrete } from "../../emails/lembrete-presente.js";
+import { emailLembretePresente, assuntoLembrete, textoLembreteEn } from "../../emails/lembrete-presente.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
@@ -75,7 +75,7 @@ export const lembrarPresente = inngest.createFunction(
 
       const out: Array<{
         email: string; nome: string; titulo: string; linkEditor: string;
-        musicaId: string; locale: "pt" | "es"; quizId: string | null;
+        musicaId: string; locale: "pt" | "es" | "en"; quizId: string | null;
       }> = [];
 
       for (const p of pedidos ?? []) {
@@ -105,18 +105,20 @@ export const lembrarPresente = inngest.createFunction(
           : { data: null };
 
         // O idioma vem do registro: um cron não tem requisição de onde
-        // deduzir. Ver a migration 20260807000000_locale.
-        const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
+        // deduzir. Ver a migration 20260807000000_locale. `en` é a Ballad
+        // Gift, onde o padrão da coluna já é 'en'.
+        const bruto = (q as { locale?: string } | null)?.locale;
+        const locale = bruto === "es" ? "es" : bruto === "en" ? "en" : "pt";
 
         out.push({
           email: p.email,
-          locale: locale as "pt" | "es",
+          locale,
           // `.trim()`: nome digitado no quiz vem com espaço sobrando ("Cardoso ")
           // e o assunto sairia com espaço duplo.
           nome:
             ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-            (locale === "es" ? "quien vos querés" : "quem você ama"),
-          titulo: m.titulo ?? "Sua música",
+            (locale === "es" ? "quien vos querés" : locale === "en" ? "someone you love" : "quem você ama"),
+          titulo: m.titulo ?? (locale === "en" ? "Your song" : "Sua música"),
           linkEditor: `${SITE}/editar/${m.token_edicao}`,
           musicaId: m.id,
           quizId: p.quiz_response_id ?? null,
@@ -152,7 +154,9 @@ export const lembrarPresente = inngest.createFunction(
           headers: cabecalhosDescadastro(c.email),
           subject: assuntoLembrete(c.nome, c.locale),
           html: emailLembretePresente({ nome: c.nome, titulo: c.titulo, linkEditor: c.linkEditor, locale: c.locale }),
-          text:
+          text: c.locale === "en"
+            ? textoLembreteEn({ nome: c.nome, linkEditor: c.linkEditor })
+            :
             `A música de ${c.nome} está pronta, mas a página ainda não foi montada.\n\n` +
             `Escolha a gravação, ponha as fotos e escreva uma frase sua:\n${c.linkEditor}\n\n` +
             `Não tem pressa: a música é sua e o link não expira.`,

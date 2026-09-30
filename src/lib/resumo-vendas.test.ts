@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { balanco, brl, desdeMeiaNoiteBr, meiaNoiteBr, textoDoAviso } from "./resumo-vendas";
+import { balanco, brl, desdeMeiaNoiteBr, meiaNoiteBr, textoDoAviso, usd } from "./resumo-vendas";
 
 // O AVISO DE VENDAS, testado no FUSO — que é onde ele mente calado.
 //
@@ -130,5 +130,31 @@ describe("brl", () => {
     expect(brl(123450)).toBe("R$ 1.234,50");
     expect(brl(3800)).toBe("R$ 38,00");
     expect(brl(0)).toBe("R$ 0,00");
+  });
+});
+
+// A BALLAD GIFT manda pro mesmo WhatsApp. O aviso dela precisa dizer de quem
+// é e cobrar na moeda certa: lá `valor_centavos` é centavo de DÓLAR.
+describe("o aviso da Ballad Gift", () => {
+  const agora = t("2026-09-29T01:00:00Z");
+  const b = { vendas: 2, centavos: 3800, vendasOntem: 1, centavosOntem: 1900 };
+
+  it("sem opção é exatamente o texto da Serenata", () => {
+    expect(textoDoAviso(b, agora, {})).toBe(textoDoAviso(b, agora));
+    expect(textoDoAviso(b, agora, undefined)).toBe(textoDoAviso(b, agora));
+  });
+
+  it("em dólar e com a marca na frente, sem nenhum R$", () => {
+    const msg = textoDoAviso(b, agora, { marca: "Ballad Gift", moeda: "USD" });
+    expect(msg.split("\n")[0]).toBe("*[Ballad Gift] Vendas de hoje*");
+    expect(msg).toContain("2 vendas · US$ 38,00");
+    expect(msg).toContain("ontem a esta hora: 1 · US$ 19,00");
+    expect(msg).toContain("ticket médio US$ 19,00");
+    expect(msg).not.toContain("R$");
+  });
+
+  it("usd escreve igual ao brl, só troca o símbolo", () => {
+    expect(usd(123450)).toBe("US$ 1.234,50");
+    expect(usd(1900)).toBe("US$ 19,00");
   });
 });

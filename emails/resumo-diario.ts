@@ -20,8 +20,30 @@ export function rotuloDoDia(dia: string): string {
   return `${DIAS[d.getUTCDay()]}, ${dia.slice(8, 10)}/${dia.slice(5, 7)}`;
 }
 
-export function assuntoResumoDiario(dia: string, r: Resumo): string {
-  return `Fechamento ${dia.slice(8, 10)}/${dia.slice(5, 7)}: ${brl0(r.receitaBrl)} em ${r.vendas} vendas, lucro ${brl0(r.lucroBrl)}`;
+/**
+ * O que muda de uma marca pra outra. Sem isto (o padrão), o e-mail é
+ * EXATAMENTE o da Serenata de sempre.
+ *
+ * Na Ballad Gift a receita chega em dólar e é convertida pro real ANTES da
+ * conta (o gasto do Google e o custo de produção são em real), então o
+ * e-mail diz o câmbio usado, e as réguas de CPA são as dela, não as R$ 33,80
+ * da Serenata.
+ */
+export type MarcaDoResumo = {
+  /** Vai no assunto entre colchetes e no cabeçalho. */
+  nome: string;
+  /** Câmbio usado pra converter a receita em dólar. Aparece como nota. */
+  cambioUsdBrl?: number;
+  /** CPA acima disto fica vermelho. */
+  cpaLimiteBrl: number;
+  /** Gasto sem venda acima disto fica vermelho. */
+  semVendaBrl: number;
+  /** Origem do site, pro link do painel. */
+  url: string;
+};
+
+export function assuntoResumoDiario(dia: string, r: Resumo, marca?: MarcaDoResumo): string {
+  return `${marca ? `[${marca.nome}] ` : ""}Fechamento ${dia.slice(8, 10)}/${dia.slice(5, 7)}: ${brl0(r.receitaBrl)} em ${r.vendas} vendas, lucro ${brl0(r.lucroBrl)}`;
 }
 
 const td = "padding:6px 8px;border-bottom:1px solid #eee;font-size:14px;";
@@ -39,8 +61,12 @@ export function emailResumoDiario(args: {
   media7: { receitaBrl: number; vendas: number; lucroBrl: number; ticketBrl: number } | null;
   /** Saques de indicação esperando o dono pagar (PIX manual). */
   saques?: { n: number; centavos: number } | null;
+  /** A marca, quando NÃO é a Serenata. Ver `MarcaDoResumo`. */
+  marca?: MarcaDoResumo;
 }): string {
-  const { dia, hoje: r, ontem, media7, saques } = args;
+  const { dia, hoje: r, ontem, media7, saques, marca } = args;
+  const cpaLimite = marca?.cpaLimiteBrl ?? 33.8;
+  const semVenda = marca?.semVendaBrl ?? 76;
 
   const linhaTopo = (
     rotulo: string,
@@ -71,14 +97,18 @@ export function emailResumoDiario(args: {
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f6f3ee;padding:20px 10px;"><tr><td align="center">
 <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:12px;padding:22px 18px;">
 <tr><td>
-  <div style="font-size:12px;letter-spacing:2px;color:#7d2b3a;">SERENATA · FECHAMENTO DO DIA</div>
+  <div style="font-size:12px;letter-spacing:2px;color:#7d2b3a;">${marca ? marca.nome.toUpperCase() : "SERENATA"} · FECHAMENTO DO DIA</div>
   <h2 style="margin:6px 0 2px;font-size:22px;">${rotuloDoDia(dia)}</h2>
-  <div style="font-size:13px;color:#777;">Dia inteiro, horário de Brasília.</div>
+  <div style="font-size:13px;color:#777;">Dia inteiro, horário de Brasília.</div>${
+    marca?.cambioUsdBrl
+      ? `<div style="font-size:13px;color:#777;">Vendas cobradas em dólar, convertidas a ${brl(marca.cambioUsdBrl)} por US$ 1.</div>`
+      : ""
+  }
   ${
     saques && saques.n > 0
       ? `<div style="margin-top:14px;padding:10px 12px;border-radius:8px;background:#fff4e0;color:#7a4b00;font-size:14px;">
       <b>${saques.n} ${saques.n === 1 ? "saque de indicação esperando" : "saques de indicação esperando"}</b> pagamento, ${brl(saques.centavos / 100)} no total.
-      <a href="https://www.serenatagift.com/admin?aba=indicacoes" style="color:#7a4b00;">Abrir no painel</a>
+      <a href="${marca?.url ?? "https://www.serenatagift.com"}/admin?aba=indicacoes" style="color:#7a4b00;">Abrir no painel</a>
     </div>`
       : ""
   }
@@ -140,13 +170,17 @@ export function emailResumoDiario(args: {
     <tr><th style="${th}">campanha</th><th style="${thN}">gasto</th><th style="${thN}">vendas</th><th style="${thN}">CPA</th></tr>
     ${r.porCampanha
       .map((c) => {
-        const ruim = c.cpaBrl == null ? c.gastoBrl >= 76 : c.cpaBrl > 33.8;
+        const ruim = c.cpaBrl == null ? c.gastoBrl >= semVenda : c.cpaBrl > cpaLimite;
         const cor = ruim ? "color:#b3261e;" : "";
-        return `<tr><td style="${td}">${c.nome}</td><td style="${tdN}">${brl0(c.gastoBrl)}</td><td style="${tdN}">${c.vendas}</td><td style="${tdN}${cor}">${c.cpaBrl != null ? brl(c.cpaBrl) : c.vendas === 0 && c.gastoBrl >= 76 ? "sem venda" : "-"}</td></tr>`;
+        return `<tr><td style="${td}">${c.nome}</td><td style="${tdN}">${brl0(c.gastoBrl)}</td><td style="${tdN}">${c.vendas}</td><td style="${tdN}${cor}">${c.cpaBrl != null ? brl(c.cpaBrl) : c.vendas === 0 && c.gastoBrl >= semVenda ? "sem venda" : "-"}</td></tr>`;
       })
       .join("")}
   </table>
-  <div style="font-size:12px;color:#777;margin-top:6px;">Vermelho: CPA acima do break-even (R$ 33,80), ou R$ 76 gastos sem venda.</div>
+  <div style="font-size:12px;color:#777;margin-top:6px;">${
+    marca
+      ? `Vermelho: CPA acima do alvo (${brl(cpaLimite)}), ou ${brl0(semVenda)} gastos sem venda.`
+      : "Vermelho: CPA acima do break-even (R$ 33,80), ou R$ 76 gastos sem venda."
+  }</div>
 </td></tr></table>
 </td></tr></table>
 </body></html>`;

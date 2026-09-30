@@ -12,7 +12,10 @@
 // a música não expira. Cobrar de quem já comprou é o jeito mais rápido de
 // virar reclamação.
 
-type IdiomaEmail = "pt" | "es";
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+
+// `en` é a Ballad Gift (EUA), com a copy adaptada do português.
+type IdiomaEmail = "pt" | "es" | "en";
 
 const COPY: Record<IdiomaEmail, {
   assunto: (n: string) => string; titulo: (n: string) => string;
@@ -38,11 +41,33 @@ const COPY: Record<IdiomaEmail, {
       "Sin prisa: la canción es tuya y el link no expira.<br>¿Te atoraste en algo? Responde este correo y lo resolvemos.",
     rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
+  en: {
+    assunto: (n) => `${n}'s song is waiting for you`,
+    titulo: (n) => `<em style="color:#7d2b3a;">${n}</em>'s song is ready and waiting.`,
+    corpo:
+      "I noticed you haven't set up the page yet. You're almost there: pick the recording, add your photos, and write a few words of your own. It takes about two minutes, and it's what turns the song into a gift.",
+    botao: "SET UP THE GIFT →",
+    rodapeAviso:
+      "No rush: the song is yours and the link never expires.<br>Stuck on something? Reply to this email and we'll sort it out.",
+    rodape: `${MARCA_ATIVA.nome} · a song made from the story of someone you love`,
+  },
 };
 
 /** O assunto, no idioma da venda. */
 export function assuntoLembrete(nome: string, locale: IdiomaEmail = "pt") {
-  return COPY[locale].assunto(nome);
+  return (COPY[locale] ?? COPY.pt).assunto(nome);
+}
+
+/**
+ * A versão em texto puro do inglês (Ballad Gift). O texto do português segue
+ * escrito no próprio job, como sempre foi.
+ */
+export function textoLembreteEn(args: { nome: string; linkEditor: string }): string {
+  return (
+    `${args.nome}'s song is ready, but the page hasn't been set up yet.\n\n` +
+    `Pick the recording, add the photos, and write a few words of your own:\n${args.linkEditor}\n\n` +
+    `No rush: the song is yours and the link never expires.`
+  );
 }
 
 export function emailLembretePresente(args: {
@@ -54,7 +79,7 @@ export function emailLembretePresente(args: {
   const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
   const { nome, titulo, linkEditor } = args;
   return `<!DOCTYPE html>
-<html lang="${args.locale === "es" ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>
+<html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>
 <body style="margin:0;padding:0;background-color:#f2e9dc;font-family:Georgia,'Times New Roman',serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2e9dc;padding:40px 16px;">
     <tr><td align="center">
@@ -71,7 +96,7 @@ export function emailLembretePresente(args: {
                A marca e uma palavra numa serifa com espacejamento. Texto
                renderiza igual em todo cliente, nunca bloqueia, nunca quebra,
                e nao pesa 50 KB. -->
-          <div style="margin:0 auto 16px;font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:3px;color:#7d2b3a;text-align:center;">SERENATA</div>
+          <div style="margin:0 auto 16px;font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:3px;color:#7d2b3a;text-align:center;">${MARCA_ATIVA.nome.toUpperCase()}</div>
           <h1 style="margin:0;color:#2a1518;font-size:25px;font-weight:normal;line-height:1.32;">
             ${C.titulo(nome)}
           </h1>

@@ -9,7 +9,11 @@ import {
   type PedidoDoDia,
   type Resumo,
 } from "../../src/lib/resumo-diario.js";
-import { assuntoResumoDiario, emailResumoDiario } from "../../emails/resumo-diario.js";
+import {
+  assuntoResumoDiario,
+  emailResumoDiario,
+  type MarcaDoResumo,
+} from "../../emails/resumo-diario.js";
 import { DONOS } from "../../src/lib/donos.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
@@ -32,6 +36,31 @@ const PARA = [...DONOS];
 // lá porque aquele arquivo puxa o cliente do app pelo alias `@/`, que o
 // bundle das funções não resolve.
 const CAMBIO_USD_BRL = 5.4;
+
+// ── NA BALLAD GIFT (29/09) ────────────────────────────────────────
+//
+// O mesmo job roda no Inngest da Ballad, com o banco DELA. Lá TODO pedido é
+// em dólar (Stripe, `valor_centavos` e `taxa_centavos` em centavo de dólar),
+// enquanto o gasto do Google (`metricas_campanha.custo_brl`, conta em real) e
+// o custo de produção (`custos.custo_brl`) seguem em real. Somar os dois crus
+// daria lucro de mentira, então a receita é convertida antes, pelo mesmo
+// câmbio do funil espanhol, e o e-mail diz qual foi.
+//
+// O assunto leva "[Ballad Gift]" na frente: os dois fechamentos chegam na
+// mesma caixa, na mesma hora. As réguas de vermelho são as da Ballad: CPA
+// acima de US$ 15 (a regra das campanhas dos EUA, ver o CLAUDE.md) e o dobro
+// disso gasto sem venda. Na Serenata nada muda: sem `MARCA`, o e-mail é o de
+// sempre, byte a byte.
+const NA_BALLAD = MARCA_ATIVA.chave === "ballad";
+const MARCA: MarcaDoResumo | undefined = NA_BALLAD
+  ? {
+      nome: MARCA_ATIVA.nome,
+      cambioUsdBrl: CAMBIO_USD_BRL,
+      cpaLimiteBrl: 15 * CAMBIO_USD_BRL,
+      semVendaBrl: 30 * CAMBIO_USD_BRL,
+      url: MARCA_ATIVA.url,
+    }
+  : undefined;
 
 function db() {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -108,7 +137,8 @@ async function resumoDoDia(sb: Db, dia: string): Promise<Resumo> {
 
   const linhas: PedidoDoDia[] = pedidos.map((p) => {
     const q = p.quiz_response_id ? quiz.get(p.quiz_response_id) : undefined;
-    const fator = q?.locale === "es" ? CAMBIO_USD_BRL : 1;
+    // Na Ballad é dólar SEMPRE, até pedido sem quiz casado (upsell do editor).
+    const fator = NA_BALLAD || q?.locale === "es" ? CAMBIO_USD_BRL : 1;
     return {
       paymentId: p.payment_id,
       valorBrl: ((p.valor_centavos ?? 0) / 100) * fator,
@@ -208,7 +238,7 @@ export const resumoDiario = inngest.createFunction(
       const { data, error } = await new Resend(chave).emails.send({
         from: MARCA_ATIVA.remetenteTransacional,
         to: para,
-        subject: assuntoResumoDiario(dia, hoje),
+        subject: assuntoResumoDiario(dia, hoje, MARCA),
         html: emailResumoDiario({
           dia,
           hoje,
@@ -220,6 +250,7 @@ export const resumoDiario = inngest.createFunction(
             ticketBrl: media("ticketBrl"),
           },
           saques,
+          marca: MARCA,
         }),
         tags: [{ name: "template", value: "resumo_diario" }],
       });

@@ -1,4 +1,9 @@
-type IdiomaEmail = "pt" | "es";
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+
+// `en` é a Ballad Gift (EUA). Lá não existe a escada de descontos do
+// português (sem PIX, sem cupom, e a `/oferta/<token>` é só PIX): a régua é
+// esta aqui, em preço cheio, e todo botão volta pro funil pelo `/retomar`.
+type IdiomaEmail = "pt" | "es" | "en";
 
 // A SEQUÊNCIA DE RECUPERAÇÃO — e-mails 2, 3 e 4.
 //
@@ -35,6 +40,19 @@ const COPY: Record<
     a2Intro: string;
     a2Corpo: string;
     a2Botao: string;
+    /**
+     * 2, pra quem TOCOU a prévia. Só o inglês tem: o português usa o
+     * `PASSO_2_OUVIU` da escada, e o espanhol segue com o texto único. Ver a
+     * nota "O DEGRAU 2 TEM DUAS VERSÕES" em `escada.ts`: dizer "você foi
+     * embora antes da gravação" pra quem ouviu é contar uma história falsa.
+     */
+    a2Ouviu?: {
+      assunto: (n: string) => string;
+      titulo: (n: string) => string;
+      intro: (n: string) => string;
+      corpo: (n: string) => string;
+      botao: string;
+    };
     // 3 · não é um arquivo, é uma página
     a3Assunto: (n: string) => string;
     a3Titulo: string;
@@ -43,8 +61,9 @@ const COPY: Record<
     a3Botao: string;
     // 4 · encerramento
     a4Assunto: (n: string) => string;
-  a4Cupom: (texto: string, por: string) => string;
-  a4CupomBotao: string;
+  // Opcionais: a Ballad não tem cupom (`cupom.ts` devolve null pro inglês).
+  a4Cupom?: (texto: string, por: string) => string;
+  a4CupomBotao?: string;
     a4Titulo: string;
     a4Intro: string;
     a4Corpo: string;
@@ -126,6 +145,49 @@ const COPY: Record<
     rodape: "Serenata · una canción hecha de la historia de quien vos querés",
     sair: "ya no quiero recibir",
   },
+  // A Ballad Gift. Mesma regra dos outros dois: cada e-mail traz um fato que a
+  // pessoa não sabia, nenhum inventa prazo, e nenhum oferece desconto.
+  en: {
+    a2Assunto: (n) => `The song you wrote for ${n} has been recorded`,
+    a2Titulo: (n) => `<em style="color:#7d2b3a;">${n}</em>'s song has been recorded.`,
+    a2Intro:
+      "You read the lyrics and left before the recording was finished. It's finished now.",
+    a2Corpo:
+      "It's your lyrics, sung, exactly the way you wrote them. You can hear part of it right now without paying anything, and decide after you listen. Hearing it is different from reading it.",
+    a2Botao: "HEAR THE SUNG PREVIEW →",
+    a2Ouviu: {
+      assunto: (n) => `The rest of ${n}'s song`,
+      titulo: (n) => `You stopped at the best part of <em style="color:#7d2b3a;">${n}</em>'s song.`,
+      intro: () =>
+        "The preview cuts off at the chorus on purpose, and it's a little cruel: that's exactly where the song starts becoming what it is.",
+      corpo: (n) =>
+        `What comes next you haven't heard yet: the second verse, the part where ${n}'s name comes back, and the ending. And there's something the preview doesn't show: there are TWO recordings of your lyrics, each sung a little differently. You choose which one plays when ${n} opens the link.`,
+      botao: "HEAR THE WHOLE SONG →",
+    },
+
+    a3Assunto: (n) => `${n}'s gift isn't a file`,
+    a3Titulo: "It's not an MP3 you send in a text.",
+    a3Intro:
+      "People who read the lyrics and leave imagine they'll get a music file. That's not it. It's a page the person opens on their phone:",
+    a3Itens: [
+      "The song starts playing on its own when they open the link.",
+      "The lyrics light up word by word, in time with the singing.",
+      "Your photos play in the background, changing with the turns of the song.",
+      "A QR code to print and tape to a box of chocolates, if you'd rather hand it over in person.",
+    ],
+    a3Botao: "SEE HOW IT LOOKS →",
+
+    a4Assunto: (n) => `Last email about ${n}'s song`,
+    a4Titulo: "This is the last email I'll send you.",
+    a4Intro:
+      "You wrote lyrics here and didn't go any further. That's okay, it happens, and I won't push more than this.",
+    a4Corpo:
+      "The lyrics are still yours and the link keeps working, with no expiration date. If you ever feel like it, just open it. And if you stopped not because you changed your mind but because something didn't work, reply to this email and tell me what happened. A real person reads it.",
+    a4Botao: "OPEN MY LYRICS →",
+
+    rodape: `${MARCA_ATIVA.nome} · a song made from the story of someone you love`,
+    sair: "unsubscribe",
+  },
 };
 
 /** Qual e-mail da sequência: 2, 3 ou 4. */
@@ -135,8 +197,11 @@ export function assuntoSequencia(
   n: NumeroDaSequencia,
   nome: string,
   locale: IdiomaEmail = "pt",
+  /** Tocou a prévia? Só muda o 2, e só no idioma que tem `a2Ouviu`. */
+  ouviu?: boolean,
 ): string {
   const C = COPY[locale] ?? COPY.pt;
+  if (n === 2 && ouviu && C.a2Ouviu) return C.a2Ouviu.assunto(nome);
   return n === 2 ? C.a2Assunto(nome) : n === 3 ? C.a3Assunto(nome) : C.a4Assunto(nome);
 }
 
@@ -156,7 +221,7 @@ export function moldura(args: {
 }): string {
   const C = COPY[args.locale] ?? COPY.pt;
   return `<!DOCTYPE html>
-<html lang="${args.locale === "es" ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${args.preheader}</title></head>
+<html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${args.preheader}</title></head>
 <body style="margin:0;padding:0;background:#faf5ee;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf5ee;padding:32px 16px;">
     <tr><td align="center">
@@ -208,6 +273,8 @@ export function emailSequencia(args: {
    * outra coisa que um e-mail que diz "sua letra está lá".
    */
   verso?: string | null;
+  /** Tocou a prévia? Só muda o 2, e só no idioma que tem `a2Ouviu`. */
+  ouviu?: boolean;
 }): string {
   const locale = args.locale ?? "pt";
   const C = COPY[locale] ?? COPY.pt;
@@ -231,6 +298,19 @@ export function emailSequencia(args: {
       </table>`
       : "";
 
+
+  if (args.numero === 2 && args.ouviu && C.a2Ouviu) {
+    const o = C.a2Ouviu;
+    return moldura({
+      locale,
+      preheader: o.assunto(args.nome),
+      titulo: o.titulo(args.nome),
+      miolo: p(o.intro(args.nome)) + citacao(args.verso) + p(o.corpo(args.nome)),
+      botao: o.botao,
+      link: args.link,
+      linkDescadastro: args.linkDescadastro,
+    });
+  }
 
   if (args.numero === 2) {
     return moldura({
