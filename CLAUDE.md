@@ -771,6 +771,35 @@ com coração, mesmo vinho, traço fino. Kit em `docs/marca/ballad/`.
 em 29/09, que vai trocar depois. Nome de pessoa física não aparece, igual à
 Serenata, que mostra só a marca e o CNPJ.
 
+## Testes em andamento (LER NO COMEÇO DE TODA SESSÃO)
+
+**Regra do dono (30/09):** toda funcionalidade ou fluxo novo entra como
+teste A/B, com A = como era. O dono precisa ser LEMBRADO das leituras (no
+começo da sessão, quando a data chegar). Vencedor validado na Serenata vai
+pro funil da Ballad (coluna "Ballad"). Conserto de defeito não precisa de
+teste, mas entra na lista de baixo pra se saber o que mudou.
+
+Braços de funil moram em `experimentos` (sorteio colado no visitante, braço
+gravado em `attribution.exp`); e-mail divide pela paridade do último
+caractere do id do quiz (braço recalculável na leitura).
+
+| teste | desde | A × B | mede | 1ª leitura | Ballad |
+|---|---|---|---|---|---|
+| `obrigado_direto` | 30/09 | botão "Entrar na conta" × "Ouvir minha música completa" direto no editor + copiar link + WhatsApp | abriu o editor em 1h, "cadê a música" no suporte por comprador, vídeo por comprador | 07/10 | sim, se ganhar |
+| `duvidas_pagamento` | 30/09 | FAQ de sempre × grátis/pagar depois/boleto/nome no PIX no topo | conversão da oferta, suporte de não-compradores | 07/10 | adaptar (cartão, dólar) |
+| e-mail `entrega` variante | 30/09 | e-mail de sempre × "ouvir e baixar", fotos pelo que fazem, link do ajuste | abertura/clique, editor aberto, fotos subidas, vídeo vendido, suporte | 07/10 | sim, se ganhar |
+| `bump_quadro` | 25/09 | A sem bump; V e C ZERADOS em 30/09 (canibalizavam o vídeo do editor) | vídeo por comprador e receita por lead | confirmar em 07/10 | Ballad não tem bump |
+| assunto `letra_pronta` | 28/09 | assunto de sempre × nome na frente | abertura e venda em 48h | já pode ler | sim, se ganhar |
+| criativos Google 28/09 (g8, g9, Mix E) | 28/09 | regra: CPA < R$ 34 fica | CPA real do banco | 01/10 | - |
+| PMAX/DG Ângulos | 28/09 | - | CPA real | 03/10 | - |
+| Ballad: 10 campanhas EUA | 29/09 | um criativo por campanha | clique → lead, depois CPA < US$ 15 | 01/10 | é a Ballad |
+| Bounce: letra no domínio raiz × subdomínio | aguardando Postmaster | decidir com a reputação do Gmail | reputação, abertura da entrega | ~02/10 | idem |
+
+**Consertos sem teste (30/09):** bump pago no cartão não liberava vídeo nem
+quadro (10 liberados à mão); vídeo pago saía desfocado (JPEG 95, CRF 20);
+refação de voz/estilo era recusada e, quando passava, não mudava nada;
+teto dos e-mails de vídeo 14 → 35 por rodada.
+
 ## Em aberto
 
 - Nome e marca
