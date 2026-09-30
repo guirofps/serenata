@@ -74,6 +74,24 @@ export function brl(centavos: number): string {
 }
 
 /**
+ * "US$ 1.234,50". Mesma escrita do `brl`, só que em dólar: é o que a Ballad
+ * Gift cobra (`pedidos.valor_centavos` lá é centavo de DÓLAR), e o aviso é
+ * lido pelo mesmo dono, em português.
+ */
+export function usd(centavos: number): string {
+  return "US$ " + brl(centavos).slice(3);
+}
+
+/**
+ * De qual marca é o aviso, e em que moeda ela cobra.
+ *
+ * Sem isto (o padrão), o texto é EXATAMENTE o de sempre da Serenata. Com as
+ * duas marcas mandando pro mesmo WhatsApp, a da Ballad leva o nome na frente,
+ * senão "3 vendas" chega sem dizer de onde.
+ */
+export type OpcoesAviso = { marca?: string; moeda?: "BRL" | "USD" };
+
+/**
  * A mensagem do WhatsApp. Curta de propósito: ela é lida na notificação,
  * sem abrir, e `*` é negrito no WhatsApp.
  *
@@ -82,21 +100,22 @@ export function brl(centavos: number): string {
  * depois de uma queda do provedor, seria ruído celebrando uma recuperação
  * contra um dia quebrado.
  */
-export function textoDoAviso(b: Balanco, agora: number): string {
+export function textoDoAviso(b: Balanco, agora: number, opcoes: OpcoesAviso = {}): string {
   const hora = new Date(agora - BR_MS).getUTCHours();
   const titulo = hora < 18 ? "Vendas até agora" : "Vendas de hoje";
+  const dinheiro = opcoes.moeda === "USD" ? usd : brl;
 
   const linhas = [
-    `*${titulo}*`,
+    `*${opcoes.marca ? `[${opcoes.marca}] ` : ""}${titulo}*`,
     "",
-    `${b.vendas} ${b.vendas === 1 ? "venda" : "vendas"} · ${brl(b.centavos)}`,
+    `${b.vendas} ${b.vendas === 1 ? "venda" : "vendas"} · ${dinheiro(b.centavos)}`,
   ];
 
   if (b.vendasOntem > 0) {
     const d = b.vendas - b.vendasOntem;
     const pct = Math.round((d / b.vendasOntem) * 100);
     const seta = d > 0 ? "↑" : d < 0 ? "↓" : "→";
-    linhas.push(`ontem a esta hora: ${b.vendasOntem} · ${brl(b.centavosOntem)}`);
+    linhas.push(`ontem a esta hora: ${b.vendasOntem} · ${dinheiro(b.centavosOntem)}`);
     linhas.push(`${seta} ${d === 0 ? "igual" : `${Math.abs(pct)}%`}`);
   } else {
     linhas.push("ontem a esta hora: nenhuma");
@@ -104,7 +123,7 @@ export function textoDoAviso(b: Balanco, agora: number): string {
 
   if (b.vendas > 0) {
     linhas.push("");
-    linhas.push(`ticket médio ${brl(Math.round(b.centavos / b.vendas))}`);
+    linhas.push(`ticket médio ${dinheiro(Math.round(b.centavos / b.vendas))}`);
   }
 
   return linhas.join("\n");

@@ -2,6 +2,17 @@ import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { avisarWhats } from "../../src/lib/avisar-donos.js";
 import { balanco, meiaNoiteBr, textoDoAviso } from "../../src/lib/resumo-vendas.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+
+// ── NA BALLAD GIFT (29/09) ────────────────────────────────────────
+//
+// O mesmo job roda no Inngest da Ballad, lendo o banco DELA. Duas coisas
+// mudam lá, e só lá: `valor_centavos` é centavo de DÓLAR (sai "US$", nunca
+// "R$"), e o texto leva o nome da marca na frente, porque os dois avisos caem
+// no mesmo WhatsApp. O horário continua o de Brasília: quem lê é o dono.
+// Na Serenata, sem opção nenhuma, o texto é byte a byte o de sempre.
+const OPCOES_DA_MARCA =
+  MARCA_ATIVA.chave === "ballad" ? { marca: MARCA_ATIVA.nome, moeda: "USD" as const } : undefined;
 
 // O PULSO DE VENDAS NO WHATSAPP: 12h e 22h (27/09/2026, pedido do dono).
 //
@@ -54,7 +65,7 @@ export const avisoVendas = inngest.createFunction(
         pago_em: p.paid_at as string,
         valor_centavos: p.valor_centavos as number | null,
       }));
-      return textoDoAviso(balanco(vendas, agora), agora);
+      return textoDoAviso(balanco(vendas, agora), agora, OPCOES_DA_MARCA);
     });
 
     await step.run("mandar", async () => {

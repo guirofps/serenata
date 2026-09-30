@@ -56,7 +56,11 @@ const ESPERA_H: Record<number, number> = {
  * escada é escrita em português — traduzir seria outro trabalho, não uma
  * passada de tradutor.
  */
-function esperaDe(numero: number, locale: "pt" | "es"): number {
+// O INGLÊS (Ballad Gift) também fica na régua curta daqui, com as mesmas
+// esperas do espanhol (24h e 72h): a escada é de desconto, e a Ballad não
+// tem desconto nenhum. E lá a recuperação sai do domínio RAIZ (a marca ainda
+// não tem subdomínio de envio), então espaçar mais é proteger a entrega.
+function esperaDe(numero: number, locale: "pt" | "es" | "en"): number {
   if (locale === "pt" && numero in ESPERA_ESCADA) {
     return ESPERA_ESCADA[numero as DegrauEscada];
   }
@@ -112,7 +116,16 @@ function esperaDe(numero: number, locale: "pt" | "es"): number {
 // (degraus 5 a 11, R$ 29 → R$ 19 → R$ 9) tinha acabado de começar a sair, com
 // 27 envios. Cortar em 3 mata esse teste antes de ele rodar. Voltar é trocar
 // o 3 por 6 aqui: são dois degraus de R$ 29 e nada mais.
-function ultimoEmailDe(locale: "pt" | "es"): number {
+//
+// ── O INGLÊS (Ballad Gift) PARA NO 3, SEM DESCONTO ───────────────
+//
+// Mesmo tamanho do português (a letra e mais dois), mas com o conteúdo da
+// régua curta: o 2 é "a música foi gravada" (ou o resto dela, pra quem ouviu
+// a prévia) e o 3 é "não é um arquivo, é uma página", que é justamente o que
+// a Ballad tem e o concorrente de lá não tem. O degrau 3 do português é
+// desconto pela `/oferta/`, que é só PIX: não existe lá. O 4 (encerramento)
+// está escrito e fica desligado; ligar é trocar o 3 por 4 aqui.
+function ultimoEmailDe(locale: "pt" | "es" | "en"): number {
   return locale === "es" ? 2 : 3;
 }
 
@@ -338,7 +351,7 @@ export const sequenciaRecuperacao = inngest.createFunction(
         nome: string;
         /** Degrau da régua. Até 4 no espanhol, até 11 no português. */
         numero: number;
-        locale: "pt" | "es";
+        locale: "pt" | "es" | "en";
         /** Um trecho da letra QUE ELA ESCREVEU, pra ir dentro do e-mail. */
         verso: string | null;
         /** Tocou a prévia? Decide qual das duas versões do degrau 2 sai. */
@@ -370,8 +383,12 @@ export const sequenciaRecuperacao = inngest.createFunction(
         // o português vai até o degrau 11 com a espera da escada, o espanhol
         // para no 2 com a espera antiga. Enquanto ele era lido depois, os dois
         // funis eram medidos pela mesma régua.
-        const locale = l.locale === "es" ? "es" : "pt";
+        const locale = l.locale === "es" ? "es" : l.locale === "en" ? "en" : "pt";
         if (numero >= ultimoEmailDe(locale)) continue; // a régua acabou
+        // Sem sessão, o botão do inglês não tem pra onde voltar: a Ballad não
+        // tem checkout hospedado, e `/retomar` sem `s` cai na tela de erro.
+        // Mesma trava do `quaseComprou`.
+        if (locale === "en" && !l.session_id) continue;
         const proximo = numero + 1;
 
         const horas = (agora - quando) / 3600000;
@@ -382,7 +399,9 @@ export const sequenciaRecuperacao = inngest.createFunction(
           quando,
           sessao: l.session_id ?? "",
           email: l.email,
-          nome: r.nome?.trim() || (locale === "es" ? "esa persona" : "quem você ama"),
+          nome:
+            r.nome?.trim() ||
+            (locale === "es" ? "esa persona" : locale === "en" ? "someone you love" : "quem você ama"),
           numero: proximo,
           locale,
           verso: null,
@@ -411,15 +430,19 @@ export const sequenciaRecuperacao = inngest.createFunction(
       // PostgREST. Para assim que a rodada enche.
       const LOTE = 150;
       let barrados = 0;
+      // Desconto só existe na escada do PORTUGUÊS. O degrau 3 do inglês é
+      // preço cheio, e sem esta trava ele seria barrado como se fosse o R$ 29.
+      const comDescontoDe = (o: { numero: number; locale: string }) =>
+        o.locale === "pt" && temDesconto(o.numero as DegrauEscada);
       for (let i = 0; i < aptos.length && out.length < MAX_POR_RODADA; i += LOTE) {
         const lote = aptos.slice(i, i + LOTE);
-        const comDesconto = lote.filter((o) => temDesconto(o.numero as DegrauEscada));
+        const comDesconto = lote.filter(comDescontoDe);
         const engajou = comDesconto.length
           ? await quemEngajou(sb, comDesconto.map((o) => o.quizId))
           : new Set<string>();
         for (const o of lote) {
           if (out.length >= MAX_POR_RODADA) break;
-          if (temDesconto(o.numero as DegrauEscada) && !engajou.has(o.quizId)) {
+          if (comDescontoDe(o) && !engajou.has(o.quizId)) {
             barrados += 1;
             continue;
           }
@@ -561,6 +584,8 @@ export const sequenciaRecuperacao = inngest.createFunction(
         // `linkDeCompra` carrega o `src` — é ele que casa o pagamento com a
         // música já gravada no webhook, e sem ele a compra vira "pago sem
         // música casada".
+        // O inglês (Ballad Gift) nunca entra aqui: sem desconto e sem PIX, o
+        // botão dele é sempre o `/retomar`, no preço que ela viu na oferta.
         const naEscada = p.locale === "pt" && p.numero >= 2 && p.numero <= 11;
         const link = naEscada
           ? linkDeCompra(p.numero as DegrauEscada, p.sessao, p.email)
@@ -588,7 +613,7 @@ export const sequenciaRecuperacao = inngest.createFunction(
           headers: cabecalhosDescadastro(p.email),
           subject: naEscada
             ? assuntoEscada(p.numero as DegrauEscada, p.nome, p.ouviu)
-            : assuntoSequencia(p.numero as NumeroDaSequencia, p.nome, p.locale),
+            : assuntoSequencia(p.numero as NumeroDaSequencia, p.nome, p.locale, p.ouviu),
           html: naEscada
             ? emailEscada({
                 numero: p.numero as DegrauEscada,
@@ -605,6 +630,8 @@ export const sequenciaRecuperacao = inngest.createFunction(
                 linkDescadastro,
                 locale: p.locale,
                 verso: p.verso,
+                // Só o inglês tem a versão "ouviu" do 2; nos outros não muda nada.
+                ouviu: p.ouviu,
               }),
         });
         if (error) {

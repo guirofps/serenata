@@ -63,6 +63,22 @@ const DA_BALLAD = [
   // O vídeo-presente, vendido pelo Stripe no editor desde 30/09: o render na
   // Lambda e o e-mail "your video is ready". Precisa das REMOTION_* no projeto.
   renderizarVideo,
+  // Pós-compra em inglês (30/09): o lembrete de montar a página (quem pagou e
+  // não mexeu) e o "guarde seus links" (quem montou), com a copy `en`.
+  lembrarPresente,
+  guardeOLink,
+  // A recuperação de quem recebeu a letra e não comprou: na Ballad é a régua
+  // curta em preço cheio (2 e 3), sem a escada de desconto do português e
+  // sem `/oferta/` (que é só PIX). Todo botão volta pelo `/retomar`.
+  sequenciaRecuperacao,
+  // Os números do dia pro dono, em português: o pulso do WhatsApp em dólar e
+  // o fechamento das 07h03 com a receita convertida, os dois com "[Ballad
+  // Gift]" na frente pra não se misturar com os da Serenata.
+  avisoVendas,
+  resumoDiario,
+  // Na Ballad o vigia olha o Stripe: venda confirmada sem o webhook falar, e
+  // sessão paga lá com pedido pendente aqui.
+  vigiaWebhook,
 ];
 
 // Adapter "inngest/node" (req/res nativo), não "inngest/next": no Inngest v4 o
