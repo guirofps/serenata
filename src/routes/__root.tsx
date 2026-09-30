@@ -373,8 +373,17 @@ function RootComponent() {
     stampVariantIntoAttribution(variant);
     // O `?ref=` do link de indicação. Antes do page_view, pelo mesmo motivo
     // da variante: todo evento já sai sabendo que ela veio por convite.
-    carimbarIndicacao();
+    const convite = carimbarIndicacao();
     trackEvent("page_view", { is_landing: true });
+    // O CLIQUE NO CONVITE, contado uma vez por chegada com `?ref=` na URL.
+    //
+    // Sem dedupe de propósito: `trackEventOnce` guardaria a marca no mesmo
+    // navegador que já ignora o segundo clique, e o painel voltaria a medir
+    // "pessoas" achando que mede cliques. Quem deduplica é a consulta.
+    //
+    // Nome novo, fora dos doze que `admin_eventos_resumo` filtra: não entra em
+    // nenhuma conta do painel de funil, só na aba de indicações.
+    if (convite) trackEvent("convite_clique", { ref: convite });
     // DEPOIS de tudo montado. Ver o comentário de `carregarUtmify`: rodando
     // antes da hidratação ele quebrava a página inteira.
     carregarUtmify();

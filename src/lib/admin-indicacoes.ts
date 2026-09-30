@@ -200,3 +200,92 @@ export const resolverSaque = createServerFn({ method: "POST" })
     if (!linhas?.length) return { ok: false, erro: "esse saque já foi resolvido" };
     return { ok: true };
   });
+
+// ── OS LINKS, UM A UM ────────────────────────────────────────────
+//
+// A aba de cima responde "quanto o programa custou". Esta responde "o programa
+// está acontecendo?", que é outra pergunta: 193 links criados e uma venda pode
+// ser um programa que não converte OU um programa que ninguém divulgou, e os
+// dois pedem remédios opostos.
+//
+// A conta inteira mora na RPC (migration 20260929100000). Somar `funnel_events`
+// aqui no Node é exatamente o que derrubou o /admin em 17/08.
+
+export type LinkIndicacao = {
+  codigo: string;
+  dono: string;
+  criadoEm: string;
+  /** Evento `convite_clique`: exato, mas só existe a partir de 29/09. */
+  cliques: number;
+  /** Reconstruído dos `page_view` antigos. Cobre todo o histórico. */
+  pessoas: number;
+  quizzes: number;
+  letras: number;
+  pagos: number;
+  receitaCentavos: number;
+  comissaoCentavos: number;
+};
+
+export type PainelLinks = {
+  /** Só os que tiveram alguma coisa; a RPC já filtra e já ordena. */
+  links: LinkIndicacao[];
+  totalCodigos: number;
+  /** Preenchido quando a RPC não respondeu. Ver o comentário abaixo. */
+  erro?: string;
+};
+
+type LinhaLink = {
+  codigo: string;
+  dono: string | null;
+  criado_em: string;
+  cliques: number | string;
+  pessoas: number | string;
+  quizzes: number | string;
+  letras: number | string;
+  pagos: number | string;
+  receita_centavos: number | string;
+  comissao_centavos: number | string;
+};
+
+// `bigint` volta do PostgREST como STRING (ele não arrisca perder precisão em
+// JSON). Sem isto, `cliques` chega "12" e `a + b` vira "12" + "3" = "123".
+const n = (v: number | string | null | undefined) => Number(v ?? 0) || 0;
+
+export const carregarLinksIndicacao = createServerFn({ method: "POST" }).handler(
+  async (): Promise<PainelLinks> => {
+    const { exigirAdmin } = await import("@/lib/admin-auth.server");
+    exigirAdmin();
+    const db = supabaseAdmin();
+
+    const [links, codigos] = await Promise.all([
+      db.rpc("admin_indicacao_links"),
+      db.from("indicacao_codigos").select("email", { count: "exact", head: true }),
+    ]);
+
+    // ── QUANDO A RPC NÃO EXISTE ──────────────────────────────────
+    //
+    // O deploy e a migration são dois atos separados aqui (o `db push` deste
+    // projeto não passa, o SQL é aplicado à mão), e a ordem entre eles não é
+    // garantida. Lançar faria a aba inteira virar uma mensagem de erro do
+    // Postgres; devolver a razão deixa a tela dizer o que falta fazer.
+    if (links.error) {
+      return { links: [], totalCodigos: codigos.count ?? 0, erro: links.error.message };
+    }
+
+    return {
+      totalCodigos: codigos.count ?? 0,
+      links: ((links.data ?? []) as LinhaLink[]).map((l) => ({
+        codigo: l.codigo,
+        dono: l.dono ?? "—",
+        criadoEm: l.criado_em,
+        cliques: n(l.cliques),
+        pessoas: n(l.pessoas),
+        quizzes: n(l.quizzes),
+        letras: n(l.letras),
+        pagos: n(l.pagos),
+        receitaCentavos: n(l.receita_centavos),
+        comissaoCentavos: n(l.comissao_centavos),
+      })),
+    };
+  },
+);

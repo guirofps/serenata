@@ -299,14 +299,23 @@ export function stampVariantIntoAttribution(variant: QuizVariant): void {
  *
  * Código fora do formato não é gravado: o valor vai pro banco e pra eventos,
  * e o que não é código não tem por que viajar.
+ *
+ * DEVOLVE o código que veio NA URL, e não o que ficou guardado. Quem chama
+ * usa isso pra registrar o clique, e clique é chegada pela URL: a pessoa que
+ * abre o mesmo link cinco vezes clicou cinco vezes, mesmo que o storage não
+ * mude nenhuma delas. Contar pelo storage foi o que deixou o painel sem
+ * número de clique até 29/09.
  */
-export function carimbarIndicacao(): void {
-  if (typeof window === "undefined") return;
+export function carimbarIndicacao(): string | null {
+  if (typeof window === "undefined") return null;
+  let codigo: string | null = null;
   try {
-    const codigo = normalizarCodigo(new URLSearchParams(window.location.search).get("ref"));
-    if (!codigo) return;
+    codigo = normalizarCodigo(new URLSearchParams(window.location.search).get("ref"));
+    if (!codigo) return null;
     const existing = getStoredAttribution();
-    if (existing?.ref === codigo) return;
+    // Já é o mesmo código: nada a regravar. O RETORNO não muda por isso — ver
+    // o comentário acima, é a URL que diz que houve clique, não o storage.
+    if (existing?.ref === codigo) return codigo;
     const base: Attribution = existing ?? { captured_at: new Date().toISOString() };
     localStorage.setItem(
       ATTRIBUTION_KEY,
@@ -316,6 +325,7 @@ export function carimbarIndicacao(): void {
     // localStorage bloqueado (aba anônima, cota): sem convite, preço cheio.
     // Não pode derrubar a montagem da raiz, que é quem chama isto.
   }
+  return codigo;
 }
 
 export function getDevice(): DeviceBucket {

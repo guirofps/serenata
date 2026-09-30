@@ -6,6 +6,7 @@ import {
   type PainelIndicacoes,
   type SaqueAdmin,
 } from "@/lib/admin-indicacoes";
+import { AbaIndicacaoLinks } from "@/components/admin/AbaIndicacaoLinks";
 import { reaisDeCentavos } from "@/lib/indicacao";
 import { FONTES } from "@/lib/marca";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ const quando = (iso: string) => QUANDO.format(new Date(iso));
 export function AbaIndicacoes() {
   const [dados, setDados] = useState<PainelIndicacoes | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [sub, setSub] = useState<"saques" | "links">("saques");
 
   async function carregar() {
     try {
@@ -45,20 +47,65 @@ export function AbaIndicacoes() {
     void carregar();
   }, []);
 
-  if (erro) {
+  // O SELETOR VEM ANTES DO CARREGAMENTO, de propósito. Pendurar as sub-abas
+  // dentro do `if (!dados)` faria a falha de uma engolir a outra: saque que não
+  // carrega deixaria a aba de links inalcançável, e elas não dependem uma da
+  // outra em nada. Mesma lição do cabeçalho do /admin.
+  const seletor = (
+    <div className="flex gap-1 rounded-full border border-[var(--tinta-fraca)]/40 p-1 text-sm">
+      {(
+        [
+          ["saques", "Saques"],
+          ["links", "Links"],
+        ] as const
+      ).map(([id, nome]) => (
+        <button
+          key={id}
+          onClick={() => setSub(id)}
+          className={cn(
+            "rounded-full px-4 py-1.5",
+            sub === id ? "bg-[var(--acento)] text-white" : "text-[var(--tinta-suave)]",
+          )}
+        >
+          {nome}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (sub === "links") {
     return (
-      <div className="rounded-2xl border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        {erro}
+      <div className="space-y-6">
+        {seletor}
+        <AbaIndicacaoLinks />
       </div>
     );
   }
-  if (!dados) return <p className="text-sm text-[var(--tinta-suave)]">carregando...</p>;
+
+  if (erro) {
+    return (
+      <div className="space-y-6">
+        {seletor}
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {erro}
+        </div>
+      </div>
+    );
+  }
+  if (!dados)
+    return (
+      <div className="space-y-6">
+        {seletor}
+        <p className="text-sm text-[var(--tinta-suave)]">carregando...</p>
+      </div>
+    );
 
   const abertos = dados.saques.filter((s) => s.status === "solicitado");
   const resolvidos = dados.saques.filter((s) => s.status !== "solicitado");
 
   return (
     <div className="space-y-8">
+      {seletor}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
         <Cartao rotulo="Links criados" valor={String(dados.codigos)} />
         <Cartao rotulo="Compras por convite" valor={String(dados.comprasComConvite)} />
