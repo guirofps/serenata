@@ -23,19 +23,29 @@ const ROSTOS = [1, 2, 3, 4, 5];
 const FAMILIAS = "+1.274";
 const CONTADOR = "+998";
 
-const T: Record<Locale, { prazo: string; amado: (n: string) => string }> = {
+const T: Record<Locale, { prazo: string; amadoPor: string; amado: (n: string) => string; estrelas: string; numero: string }> = {
   pt: {
     prazo: "Entregue com amor em minutos",
+    amadoPor: "Amado por",
     amado: (n) => `${n} famílias`,
+    estrelas: "cinco estrelas",
+    numero: FAMILIAS,
   },
   es: {
     prazo: "Entregado con amor en minutos",
+    amadoPor: "Amado por",
     amado: (n) => `${n} familias`,
+    estrelas: "cinco estrellas",
+    numero: FAMILIAS,
   },
-  // Só pra satisfazer o tipo: o bloco NÃO aparece em inglês (ver o `return`).
+  // Os clientes são os MESMOS nas duas marcas: é o mesmo produto, do mesmo
+  // estúdio (decisão do dono, 30/09). Só a pontuação do número muda.
   en: {
     prazo: "Delivered with love in minutes",
+    amadoPor: "Loved by",
     amado: (n) => `${n} families`,
+    estrelas: "five stars",
+    numero: FAMILIAS.replace(".", ","),
   },
 };
 
@@ -69,14 +79,10 @@ export function ProvaSocial({
    */
   compacto?: boolean;
 }) {
-  // A BALLAD GIFT (EUA) não mostra este bloco: o contador e os rostos são da
-  // Serenata. Numa marca que ainda não vendeu, "+1,274 families" seria alegação
-  // inventada, o tipo que derruba conta no Google Ads (CLAUDE.md, riscos).
-  if (locale === "en") return null;
   const t = T[locale] ?? T.pt;
 
   const estrelas = (
-    <div className="flex gap-0.5" aria-label="cinco estrelas">
+    <div className="flex gap-0.5" aria-label={t.estrelas}>
       {[0, 1, 2, 3, 4].map((i) => (
         <Star
           key={i}
@@ -138,8 +144,7 @@ export function ProvaSocial({
 
   const amado = (
     <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
-      {/* "Amado por" é igual nos dois idiomas; só o substantivo muda. */}
-      Amado por <strong className="text-[var(--tinta)]">{t.amado(FAMILIAS)}</strong>
+      {t.amadoPor} <strong className="text-[var(--tinta)]">{t.amado(t.numero)}</strong>
     </p>
   );
 

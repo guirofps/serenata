@@ -10,6 +10,7 @@ import { Entregavel } from "@/components/landing/Entregavel";
 import { ProQuemE } from "@/components/landing/ProQuemE";
 import { BarraCTA } from "@/components/landing/BarraCTA";
 import { PresenteNoTopo } from "@/components/landing/PresenteNoTopo";
+import { ProvaSocial } from "@/components/landing/ProvaSocial";
 import { useProfundidadeRolagem } from "@/lib/rolagem";
 import { exemploEn } from "@/lib/exemplos-en";
 import { ArrowRight, Menu, X } from "lucide-react";
@@ -24,9 +25,10 @@ import { ArrowRight, Menu, X } from "lucide-react";
 // brasileira e não recebe as melhorias. Esta é CÓPIA ESTRUTURAL de propósito,
 // com a copy redigida em inglês.
 //
-// O que sai de propósito: o contador de famílias (é da Serenata, ver
-// `ProvaSocial`), o botão de WhatsApp (não existe nos EUA) e a seleção de
-// idioma (a Ballad é um site só de inglês).
+// O que sai: o botão de WhatsApp (não existe nos EUA) e a seleção de idioma
+// (a Ballad é um site só de inglês). A prova social FICA: os clientes são os
+// mesmos e o produto é o mesmo (dono, 30/09). Tirar prova, contador ou
+// depoimento de uma marca é decisão do dono, nunca de quem adapta o código.
 //
 // DÍVIDA, a mesma da home espanhola: melhoria feita na home brasileira não
 // aparece aqui sozinha. Quando a Ballad provar que vende, fundir as duas.
@@ -174,6 +176,10 @@ export function HomeEn() {
             <p className="mt-3 text-sm text-[var(--tinta-suave)]">
               The lyrics and a sung preview are free. You only pay for the full song and the gift page ready to send.
             </p>
+
+            {/* A mesma prova social da home portuguesa, no mesmo lugar: os
+                clientes são os mesmos, é o mesmo produto (dono, 30/09). */}
+            <ProvaSocial locale="en" />
 
             <div className="mt-8 lg:hidden">
               <PresenteNoTopo locale="en" />
