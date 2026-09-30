@@ -792,7 +792,7 @@ caractere do id do quiz (braço recalculável na leitura).
 | assunto `letra_pronta` | 28/09 | assunto de sempre × nome na frente | abertura e venda em 48h | já pode ler | sim, se ganhar |
 | criativos Google 28/09 (g8, g9, Mix E) | 28/09 | regra: CPA < R$ 34 fica | CPA real do banco | 01/10 | - |
 | PMAX/DG Ângulos | 28/09 | - | CPA real | 03/10 | - |
-| Ballad: 10 campanhas EUA | 29/09 | um criativo por campanha | clique → lead, depois CPA < US$ 15 | 01/10 | é a Ballad |
+| Ballad: 10 campanhas EUA | 29/09 | um criativo por campanha | clique → lead, depois CPA < US$ 15. Só 1 de 24 visitas pagas passou da abertura (Serenata 43-53%); desde 30/09 mede `abertura_tempo` (5/15/30s) e `abertura_rolou` pra separar clique acidental de rejeição | 01/10 | é a Ballad |
 | Bounce: letra no domínio raiz × subdomínio | aguardando Postmaster | decidir com a reputação do Gmail | reputação, abertura da entrega | ~02/10 | idem |
 
 **Consertos sem teste (30/09):** bump pago no cartão não liberava vídeo nem
