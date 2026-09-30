@@ -60,6 +60,9 @@ const DA_BALLAD = [
   // O gasto do Google pro painel (custo por venda e ROAS por campanha). Lê a
   // conta de `GOOGLE_ADS_CUSTOMER_ID`, que no projeto da Ballad é a Projeto GM2.
   puxarMetricasAds,
+  // O vídeo-presente, vendido pelo Stripe no editor desde 30/09: o render na
+  // Lambda e o e-mail "your video is ready". Precisa das REMOTION_* no projeto.
+  renderizarVideo,
 ];
 
 // Adapter "inngest/node" (req/res nativo), não "inngest/next": no Inngest v4 o

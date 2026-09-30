@@ -16,7 +16,7 @@ export type PropsPresente = {
   dedicatoria: string;
   /** Duração do vídeo em segundos (a música inteira + o card de fechamento). */
   duracaoS: number;
-  locale: "pt" | "es";
+  locale: "pt" | "es" | "en";
   /** Quem ganha o presente ("Daiane"). Abre o vídeo e sai em itálico dourado na letra. */
   para?: string;
   /**

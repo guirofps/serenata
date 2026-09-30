@@ -8,6 +8,8 @@ import {
   type EstadoVideo,
 } from "@/lib/video-presente";
 import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
+import { FolhaStripeVideo } from "@/components/presente/FolhaStripeVideo";
+import { precoVideoUsdTexto } from "@/lib/stripe-upsell";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { MARCA } from "@/lib/marca";
 
@@ -83,6 +85,30 @@ const TEXTOS = {
     falhou: "Hubo un problema al armar tu video. Ya nos enteramos y lo resolvemos sin costo.",
     ajuda: `Si quieres escribirnos: ${MARCA.emailContato}`,
   },
+  // Ballad Gift (30/09): o mesmo bloco, vendido pelo Stripe em dólar.
+  en: {
+    titulo: "Your page can also be a video",
+    sub: "The photos you picked moving to the rhythm of your song, with the lyrics lighting up word by word. See how it looks.",
+    semFoto: "Pick a few photos of you two and watch the video build itself right here, to the rhythm of your song.",
+    escolherFotos: "Choose photos",
+    semFotoFino: "You can pick several at once, up to 12. They also go on the gift page.",
+    cta: "Get the HD video",
+    fino: "No preview watermark, ready to download, text to them or post on Instagram. Changed a photo? The video follows.",
+    montando: "We're making your video",
+    montandoSub: "It takes a few minutes. You can close this page: we'll email you when it's ready.",
+    pagoTitulo: "Your video is paid for",
+    pagoSub:
+      "It uses the photos and the message above. Hit play to check it and, when it looks the way you want, tap create.",
+    pagoSemFoto:
+      "Add your photos above first: the video is made from them. Without photos, it uses the Ballad background.",
+    gerar: "Create my video",
+    pronto: "Your video",
+    baixar: "Download the video",
+    mudou: "You changed the page after the video. Want it to match?",
+    atualizar: "Update my video",
+    falhou: "Something went wrong making your video. We've been notified and will fix it at no cost.",
+    ajuda: `Need help? ${MARCA.emailContato}`,
+  },
 } as const;
 
 export function VideoPresenteEditor({
@@ -97,7 +123,7 @@ export function VideoPresenteEditor({
   subindoFotos = false,
 }: {
   tokenEdicao: string;
-  locale?: "pt" | "es";
+  locale?: "pt" | "es" | "en";
   /** As fotos da página, AO VIVO do editor: capa primeiro, galeria depois. */
   fotos: string[];
   titulo: string;
@@ -413,7 +439,10 @@ export function VideoPresenteEditor({
   if (!mostraOferta) return null;
   const oferta = OFERTAS.find((o) => o.id === "video");
   if (!oferta) return null;
-  const precoTexto = `R$ ${oferta.precoBrl.toFixed(2).replace(".", ",")}`;
+  // Ballad: dólar, pelo Stripe. Sem preço em dólar no catálogo, sem oferta.
+  const precoUsd = locale === "en" ? precoVideoUsdTexto() : null;
+  if (locale === "en" && !precoUsd) return null;
+  const precoTexto = precoUsd ?? `R$ ${oferta.precoBrl.toFixed(2).replace(".", ",")}`;
   const semFoto = fotos.length === 0;
 
   return (
@@ -456,7 +485,20 @@ export function VideoPresenteEditor({
         </>
       )}
 
-      {folhaAberta && (
+      {folhaAberta && locale === "en" && (
+        <FolhaStripeVideo
+          tokenEdicao={tokenEdicao}
+          precoTexto={precoTexto}
+          aoPagar={() => {
+            setFolhaAberta(false);
+            setPagou(true);
+            trackEvent("video_presente_pago", { origem: "editor", gateway: "stripe" });
+            setTimeout(() => void atualizar(), 3000);
+          }}
+          aoFechar={() => setFolhaAberta(false)}
+        />
+      )}
+      {folhaAberta && locale !== "en" && (
         <FolhaPixUpsell
           ofertaId="video"
           titulo={t.titulo}

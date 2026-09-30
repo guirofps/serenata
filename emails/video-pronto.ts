@@ -4,7 +4,7 @@
 // O botão leva pro EDITOR pelo token, não pro painel: 84% dos compradores
 // nunca entram na conta, e o editor abre sem login nenhum.
 
-type Idioma = "pt" | "es";
+type Idioma = "pt" | "es" | "en";
 
 const COPY = {
   pt: {
@@ -25,6 +25,15 @@ const COPY = {
     guarde: "Este link es tuyo y no vence. Guarda este correo.",
     rodape: "Serenata · una canción hecha de la historia de quien amas",
   },
+  en: {
+    assunto: (titulo: string) => `Your video for "${titulo}" is ready`,
+    titulo: "Your video is ready",
+    texto:
+      "Your photos moving to the rhythm of the song, with the lyrics lighting up word by word. You can watch it, download it and text it to them or post it right now.",
+    botao: "WATCH AND DOWNLOAD THE VIDEO",
+    guarde: "This link is yours and never expires. Keep this email.",
+    rodape: "Ballad Gift · a song made from the story of someone you love",
+  },
 } as const;
 
 export function assuntoVideoPronto(titulo: string, locale: Idioma = "pt"): string {
@@ -38,14 +47,14 @@ export function emailVideoPronto(args: {
 }): string {
   const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
   return `<!DOCTYPE html>
-<html lang="${args.locale === "es" ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.titulo}</title></head>
+<html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.titulo}</title></head>
 <body style="margin:0;padding:0;background-color:#f2e9dc;font-family:Georgia,'Times New Roman',serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2e9dc;padding:40px 16px;">
     <tr><td align="center">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#faf5ee;border:1px solid rgba(42,21,24,0.14);border-radius:16px;overflow:hidden;">
         <tr><td height="4" style="background:linear-gradient(90deg,#7d2b3a,#c9a227);"></td></tr>
         <tr><td style="padding:34px 34px 6px;text-align:center;">
-          <div style="margin:0 auto 16px;font-size:22px;letter-spacing:3px;color:#7d2b3a;">SERENATA</div>
+          <div style="margin:0 auto 16px;font-size:22px;letter-spacing:3px;color:#7d2b3a;">${args.locale === "en" ? "BALLAD" : "SERENATA"}</div>
           <h1 style="margin:0;color:#2a1518;font-size:25px;font-weight:normal;line-height:1.32;">${C.titulo}</h1>
           <p style="margin:12px 0 0;color:rgba(42,21,24,0.6);font-size:15px;">“${args.titulo}”</p>
         </td></tr>

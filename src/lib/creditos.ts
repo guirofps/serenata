@@ -40,6 +40,11 @@ export type Oferta = {
   /** Quantas músicas novas o crédito libera. O quadro e o vídeo não dão crédito. */
   creditos: number;
   precoBrl: number;
+  /**
+   * O preço na Ballad Gift (EUA), em dólar, cobrado pelo Stripe. Sem ele a
+   * oferta não existe lá. Só o vídeo tem, por enquanto (30/09/2026).
+   */
+  precoUsd?: number;
   /** Link de checkout da Perfect Pay. */
   checkout: string;
   /**
@@ -127,6 +132,9 @@ export const OFERTAS: Oferta[] = [
     // cartão em vez de mandar a pessoa pra lugar nenhum.
     creditos: 0,
     precoBrl: 24.9,
+    // Mesma proporção do Brasil (R$ 24,90 sobre R$ 38 = 65% do preço base),
+    // sobre os US$ 19: US$ 12.
+    precoUsd: 12,
     checkout: "",
     productCode: "",
   },

@@ -99,7 +99,7 @@ type Preparo =
       email: string;
       titulo: string;
       tokenEdicao: string;
-      locale: "pt" | "es";
+      locale: "pt" | "es" | "en";
       quizId: string | null;
       props: PropsPresente;
       assinatura: string;
@@ -221,7 +221,7 @@ export const renderizarVideo = inngest.createFunction(
         email: v.email as string,
         titulo: (m.titulo as string | null) ?? "Sua música",
         tokenEdicao: m.token_edicao as string,
-        locale: m.locale === "es" ? "es" : "pt",
+        locale: m.locale === "es" ? "es" : m.locale === "en" ? "en" : "pt",
         quizId: (m.quiz_response_id as string | null) ?? null,
         props: {
           audioUrl,
@@ -230,7 +230,7 @@ export const renderizarVideo = inngest.createFunction(
           titulo: (m.titulo as string | null) ?? "",
           dedicatoria: (m.dedicatoria as string | null) ?? "",
           duracaoS,
-          locale: m.locale === "es" ? "es" : "pt",
+          locale: m.locale === "es" ? "es" : m.locale === "en" ? "en" : "pt",
           para: para || undefined,
         },
         assinatura,
@@ -433,7 +433,7 @@ export const renderizarVideo = inngest.createFunction(
         to: [preparo.email],
         subject: assuntoVideoPronto(preparo.titulo, preparo.locale),
         html: emailVideoPronto({ titulo: preparo.titulo, linkVideo, locale: preparo.locale }),
-        text: `${preparo.locale === "es" ? "Tu video está listo" : "O vídeo de vocês está pronto"}:\n${linkVideo}`,
+        text: `${preparo.locale === "es" ? "Tu video está listo" : preparo.locale === "en" ? "Your video is ready" : "O vídeo de vocês está pronto"}:\n${linkVideo}`,
       });
       if (error) console.error("[video] e-mail recusado pelo Resend:", error.message);
       await registrarEnvio(db(), {

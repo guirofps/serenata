@@ -1,3 +1,4 @@
+import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { montarKaraoke } from "@/lib/karaoke-video";
@@ -94,7 +95,7 @@ export const videoDoEditor = createServerFn({ method: "POST" })
       const [tocar, baixar] = await Promise.all([
         bucket.createSignedUrl(v.video_path as string, SETE_DIAS),
         bucket.createSignedUrl(v.video_path as string, SETE_DIAS, {
-          download: "video-serenata.mp4",
+          download: `video-${MARCA_ATIVA.chave === "ballad" ? "ballad" : "serenata"}.mp4`,
         }),
       ]);
       url = tocar.data?.signedUrl ?? null;

@@ -51,7 +51,7 @@ export default function PreviaVideo({
   titulo: string;
   dedicatoria: string;
   duracaoReserva: number;
-  locale: "pt" | "es";
+  locale: "pt" | "es" | "en";
   para?: string;
   /** Vídeo já pago (comprado no checkout): a prévia sai sem a marca. */
   semMarca?: boolean;
@@ -190,7 +190,7 @@ export default function PreviaVideo({
           style={{ fontSize: "var(--t-sm)" }}
         >
           <Volume2 className="h-4 w-4" />
-          {locale === "es" ? "Toca para escuchar" : "Toque pra ouvir"}
+          {locale === "es" ? "Toca para escuchar" : locale === "en" ? "Tap to listen" : "Toque pra ouvir"}
         </span>
       )}
     </div>

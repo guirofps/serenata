@@ -869,11 +869,11 @@ function Editor() {
                 fotos e a frase que ela acabou de escolher aqui em cima, mudando
                 na hora. O e-mail de "vídeo pronto" aponta pra cá (#video). Some
                 sozinho enquanto o render não está configurado.
-                Fora no inglês: o vídeo em HD é vendido por PIX. */}
-            {!en && (
+                No inglês (Ballad) é vendido pelo Stripe, em dólar (30/09). */}
+            {(
             <VideoPresenteEditor
               tokenEdicao={tokenEdicao}
-              locale={locale === "es" ? "es" : "pt"}
+              locale={locale === "es" ? "es" : en ? "en" : "pt"}
               fotos={fotosDoVideo}
               titulo={p.titulo}
               dedicatoria={dedicatoria}

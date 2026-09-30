@@ -75,6 +75,7 @@ const tempoDeLeitura = (texto: string) => (texto ? clamp(texto.length / 14, 3, 1
 const TEXTOS = {
   pt: { para: "PARA", fecho: "uma música feita da história de vocês", previa: "PRÉVIA" },
   es: { para: "PARA", fecho: "una canción hecha de su historia", previa: "VISTA PREVIA" },
+  en: { para: "FOR", fecho: "a song made from your story", previa: "PREVIEW" },
 } as const;
 
 // ── Uma cena: a foto, do jeito que a montagem mandou ──────────────

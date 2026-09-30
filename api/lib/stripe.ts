@@ -28,6 +28,7 @@ import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "./entrega.j
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
 import { venderNoTiktok } from "./tiktok-eventos.js";
+import { creditarUpsell } from "./creditar-upsell.js";
 
 const API = "https://api.stripe.com/v1";
 
@@ -197,6 +198,11 @@ export async function confirmarSessaoStripe(
     );
     return { ok: false, motivo: "sem-pedido" };
   }
+  // UPSELL (o vídeo, vendido no editor): outro caminho de liberação, o mesmo
+  // `creditarUpsell` do PIX da Serenata. Sai antes do resto porque o pedido de
+  // upsell não tem quiz, e tudo abaixo é a entrega da música.
+  if (s.metadata?.tipo === "upsell") return confirmarUpsellStripe(sb, s, pedido);
+
   const quizId = String(pedido.quiz_response_id);
   if (pedido.status === "pago") return { ok: true, entregue: false, duplicado: true, quizId };
 
@@ -277,4 +283,70 @@ export async function confirmarSessaoStripe(
     await sb.from("funnel_events").insert({ event_name: "tiktok_venda_servidor", event_data: { sessao: s.id, ...t } });
   }
   return { ok: true, entregue: true, quizId };
+}
+
+/**
+ * UPSELL PAGO PELO STRIPE (o vídeo, vendido no editor da Ballad).
+ *
+ * Mesma forma da entrega da música: confere valor, vira o pedido de pendente
+ * pra pago numa escrita condicional (quem não virou não libera), e só então
+ * libera pelo `creditarUpsell`, o mesmo módulo do PIX da Serenata. O índice
+ * único de `videos` segura o reenvio do webhook.
+ */
+async function confirmarUpsellStripe(
+  sb: SupabaseClient,
+  s: SessaoStripe,
+  pedido: { id: string; status: string | null; valor_centavos: number | null; email: string | null },
+): Promise<ResultadoConfirmacao> {
+  if (pedido.status === "pago") return { ok: true, entregue: false, duplicado: true, quizId: "" };
+  if (s.amount_total !== pedido.valor_centavos) {
+    await alertarDono(
+      "Valor pago diferente do pedido (Stripe, upsell)",
+      `<p>Sessão <code>${s.id}</code>: pago ${s.amount_total}, pedido ${pedido.valor_centavos}. Vídeo NÃO liberado.</p>`,
+    );
+    return { ok: false, motivo: "valor-diferente" };
+  }
+  const email =
+    String(pedido.email ?? "").trim() || String(s.customer_details?.email ?? "").trim() || null;
+  const { data: virou } = await sb
+    .from("pedidos")
+    .update({
+      status: "pago",
+      status_gateway: "paid",
+      paid_at: new Date().toISOString(),
+      taxa_centavos: taxaEmCentavosDaVenda(s),
+      email,
+      nome_pagador: s.customer_details?.name ?? null,
+    })
+    .eq("id", pedido.id)
+    .eq("status", "pendente")
+    .select("id");
+  if (!virou?.length) return { ok: true, entregue: false, duplicado: true, quizId: "" };
+
+  const oferta = s.metadata?.oferta;
+  if (oferta !== "video" || !email) {
+    await alertarDono(
+      "Upsell pago sem o que liberar (Stripe)",
+      `<p>Sessão <code>${s.id}</code> paga, oferta <code>${oferta ?? "?"}</code>, e-mail ${email ? "ok" : "ausente"}. Liberar à mão.</p>`,
+    );
+    return { ok: true, entregue: false, quizId: "" };
+  }
+  const r = await creditarUpsell(sb, {
+    oferta: { id: "video", creditos: 0 },
+    email,
+    pedidoId: pedido.id,
+    nota: { gateway: "stripe", sessao: s.id },
+  });
+  if (r.erro || !r.video) {
+    await alertarDono(
+      "Vídeo pago e NÃO liberado (Stripe)",
+      `<p>Sessão <code>${s.id}</code>, pedido <code>${pedido.id}</code>: ${r.erro ?? "linha do vídeo não criada"}.</p>`,
+    );
+  }
+  await sb.from("funnel_events").insert({
+    event_name: "stripe_video_pago",
+    session_id: "sistema",
+    event_data: { sessao: s.id, pedido: pedido.id, video: r.video, erro: r.erro },
+  });
+  return { ok: true, entregue: r.video, quizId: "" };
 }
