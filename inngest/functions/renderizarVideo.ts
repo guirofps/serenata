@@ -108,6 +108,16 @@ type Preparo =
       caminhoAntigo: string | null;
     };
 
+/** Tamanho-alvo do MP4, com folga abaixo do teto de ~50 MB do upload do Storage. */
+const ALVO_MB = 44;
+
+/** A taxa de vídeo que faz o arquivo caber em ALVO_MB, entre 600 kbps e 2,5 Mbps. */
+export function taxaDeVideo(duracaoS: number): string {
+  const total = (ALVO_MB * 1e6 * 8) / Math.max(20, duracaoS) / 1000; // kbps no total
+  const video = Math.floor(total - 128 - 64); // menos o áudio e a sobra do contêiner
+  return `${Math.min(2500, Math.max(600, video))}k`;
+}
+
 export const renderizarVideo = inngest.createFunction(
   {
     id: "renderizar-video",
@@ -304,7 +314,15 @@ export const renderizarVideo = inngest.createFunction(
           // CRF 26 (635 kbps num 720p com zoom e desfoque em movimento). A
           // prévia roda sem nenhuma das duas. O tamanho continua segurado pela
           // ESCALA (720p), não pela compressão.
-          crf: 20,
+          //
+          // MAS O ARQUIVO TEM TETO (01/10): o upload do Storage recusa acima
+          // de ~50 MB, e com CRF 20 a música longa passava (10 vídeos pagos
+          // falharam em 30/09 com "exceeded the maximum allowed size"). CRF
+          // não controla tamanho; a taxa de bits controla. Ela sai da DURAÇÃO,
+          // mirando ALVO_MB (44 MB): música curta ganha até 2,5 Mbps, a longa
+          // desce só o necessário pra caber.
+          videoBitrate: taxaDeVideo(preparo.props.duracaoS),
+          audioBitrate: "128k",
           jpegQuality: 95,
           scale: ESCALA,
           imageFormat: "jpeg",
