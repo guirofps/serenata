@@ -196,7 +196,34 @@ export const vigiaGeracao = inngest.createFunction(
           .order("created_at", { ascending: true })
           .limit(MAX_REDISPARO * 3),
       ]);
-      const presas = [...(aguardando ?? []), ...(gerandoVelhas ?? [])];
+      // REFAÇÃO PARADA (01/10): a refação limpa o áudio e põe `gerando` numa
+      // música ANTIGA, com `gerada_em` da primeira gravação. As duas buscas
+      // acima não a enxergam (janela de 12h pelo `created_at`, `gerada_em`
+      // nulo), e em 30/09 duas compradoras ficaram sem música nenhuma por
+      // 22 horas. A marca da refação é `gerando` + áudio vazio + `gerada_em`
+      // preenchido; o relógio dela é a versão arquivada mais recente.
+      const { data: refeitas } = await sb
+        .from("musicas")
+        .select("id, titulo, quiz_response_id, created_at")
+        .eq("status", "gerando")
+        .is("audio_path", null)
+        .not("gerada_em", "is", null)
+        .not("letra", "is", null)
+        .limit(MAX_REDISPARO * 3);
+      const refacoesParadas: typeof aguardando = [];
+      for (const m of refeitas ?? []) {
+        const { data: v } = await sb
+          .from("versoes_musica")
+          .select("arquivada_em")
+          .eq("musica_id", m.id)
+          .order("arquivada_em", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const desde = Date.parse(String(v?.arquivada_em ?? m.created_at));
+        if (agora - desde >= GERANDO_MIN * 60000) refacoesParadas.push(m);
+      }
+
+      const presas = [...(aguardando ?? []), ...(gerandoVelhas ?? []), ...refacoesParadas];
 
       const lista: Array<{ id: string; titulo: string | null; pago: boolean }> = [];
       for (const m of presas ?? []) {
