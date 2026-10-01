@@ -755,10 +755,14 @@ com coração, mesmo vinho, traço fino. Kit em `docs/marca/ballad/`.
   servidor sai em `confirmarSessaoStripe`, só com `ttclid`, igual à Serenata.
   "Enhanced data postback" DESLIGADO no painel: ele lê o conteúdo da página,
   e no quiz isso é a história e a letra.
-- **Deploy:** hoje pela CLI, apontando pro projeto (sem git):
-  `VERCEL_ORG_ID=team_hEMUGcKgu8uIFM9yueV0K5si VERCEL_PROJECT_ID=prj_zJaeX2faBotnX45q7OuUMZFeJqsp vercel deploy --prod`
-  e depois `curl -X PUT https://www.balladgift.com/api/inngest`. O
-  `.vercelignore` existe pra CLI não levar `.env*` nem `scratch/`.
+- **Deploy:** desde 01/10 o projeto `balladgift` está LIGADO ao GitHub
+  (`guirofps/serenata`, branch `master`): o mesmo push publica as DUAS marcas.
+  Depois do push, `curl -X PUT https://www.balladgift.com/api/inngest` (e o da
+  Serenata). A CLI ainda funciona como plano B:
+  `VERCEL_ORG_ID=team_hEMUGcKgu8uIFM9yueV0K5si VERCEL_PROJECT_ID=prj_zJaeX2faBotnX45q7OuUMZFeJqsp vercel deploy --prod`.
+  SEM as duas variáveis, a CLI publica a SERENATA. O `.vercelignore` existe
+  pra não levar `.env*` nem `scratch/`. Em 01/10 a Vercel passou a recusar
+  build com TanStack Start vulnerável: manter `@tanstack/react-start` atualizado.
 - **Exemplos:** seis músicas geradas pelo funil da própria Ballad
   (`scratch/ballad-exemplos.mts`), dados em `src/lib/exemplos-en.ts`, capas
   geradas (pessoas que não existem) em `public/ballad/exemplos/`.
