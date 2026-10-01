@@ -242,8 +242,17 @@ export function buildUserMessage(
   const linhaTom = textoTom ? `
 ${L.tom}: ${textoTom}` : "";
 
+  // QUEM FALA COM QUEM (01/10): só "Relação com quem encomendou: neta" foi
+  // lido ao contrário em 18 músicas (6 em 3 dias), que abriam chamando a neta
+  // de "Vó". A direção vai escrita, com o exemplo do caso que errava.
+  const direcao = en
+    ? `(${nome} is the ${relacao} of the person ordering. The song is sung FROM the person ordering TO ${nome}: never call ${nome} by the role of the person ordering, e.g. never "Grandma" when ${nome} is the granddaughter.)`
+    : es
+      ? `(${nome} es ${relacao} de quien la encargó. La canción la canta quien la encargó PARA ${nome}: nunca llames a ${nome} por el papel de quien la encargó, por ejemplo nunca "abuela" cuando ${nome} es la nieta.)`
+      : `(${nome} é ${relacao} de quem encomendou. A música é cantada por quem encomendou PARA ${nome}: nunca chame ${nome} pelo papel de quem encomendou, por exemplo nunca "vó" quando ${nome} é a neta.)`;
+
   return `${L.homenageado}: ${nome}
-${L.relacao}: ${relacao}
+${L.relacao}: ${relacao} ${direcao}
 ${L.ocasiao}: ${ocasiao}
 ${L.genero}: ${genero}
 ${L.voz}: ${voz}${linhaTom}

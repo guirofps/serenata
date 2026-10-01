@@ -129,14 +129,31 @@ export const pedirRefacao = createServerFn({ method: "POST" })
       // Antes de qualquer escrita: se o Claude falhar depois, a pessoa
       // continua com a música dela intacta e o direito ainda não gasto.
       const ordem = (m.refacoes_usadas ?? 0) + 1;
+      // O ARQUIVO, não só o caminho (01/10): a gravação nova sai no mesmo
+      // `<id>/v1.mp3` com upsert, então guardar o caminho era guardar um
+      // ponteiro pro que ia ser sobrescrito (258 de 259 versões perdidas).
+      // Copia pra `<id>/versoes/<ordem>/`; se a cópia falhar, fica o caminho
+      // antigo, que é o comportamento de antes.
+      const guardarCopia = async (caminho: string | null, nome: string) => {
+        if (!caminho) return caminho;
+        const destino = `${m.id}/versoes/${ordem}/${nome}`;
+        const { error } = await db.storage.from("musicas").copy(caminho, destino);
+        if (error && !/exists/i.test(error.message)) {
+          console.error("[refacao] cópia da versão falhou:", caminho, error.message);
+          return caminho;
+        }
+        return destino;
+      };
+      const audioV1 = await guardarCopia(m.audio_path, "v1.mp3");
+      const audioV2 = await guardarCopia(m.audio_path_v2, "v2.mp3");
       await db.from("versoes_musica").insert({
         musica_id: m.id,
         ordem,
         letra: m.letra,
         titulo: m.titulo,
         estilo_suno: m.estilo_suno,
-        audio_path: m.audio_path,
-        audio_path_v2: m.audio_path_v2,
+        audio_path: audioV1,
+        audio_path_v2: audioV2,
         timestamps: m.timestamps,
         timestamps_v2: m.timestamps_v2,
         pedido,
@@ -192,10 +209,19 @@ export const pedirRefacao = createServerFn({ method: "POST" })
           modelo: MODELO_LETRA,
           uso,
         });
+        // O pedido FALA DA LETRA (incluir, nome, verso, frase...)? "mudar" e "trocar"
+        // ficam de fora: "quero mudar a voz" é pedido de SOM, não de letra.
+        // Aí letra intacta não pode virar "regrava só a voz": em 01/10 o Ronaldo
+        // pediu "incluir o nome dos filhos Samuel e João" junto com voz nova, a
+        // letra voltou igual, a voz mudou e o ajuste foi gasto calado.
+        const pedeLetra =
+          /\b(inclu|coloc|acrescent|adicion|remov|substitu|corrig|nome|verso|frase|letra|refr|trecho|palavra)/i.test(
+            pedido,
+          );
         if (!(aviso || !mudou.length || igual)) {
           nova = reescrita;
           tituloNovo = j.titulo?.trim() || m.titulo;
-        } else if (!mudaSom) {
+        } else if (!mudaSom || pedeLetra || aviso) {
           // Desfaz o arquivamento, que aconteceu ANTES da chamada. Sem isto
           // sobraria uma versão órfã ocupando esta `ordem`: a próxima tentativa
           // esbarraria nela e o histórico contaria um ajuste que não houve.

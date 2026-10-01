@@ -33,7 +33,7 @@ const COPY: Record<IdiomaEmail, {
     assunto: (n) => `A letra que você escreveu pra ${n}`,
     titulo: (n) => `A letra de ${n}, pra você não perder`,
     intro:
-      "Você escreveu isto agora há pouco. É sua, e continua sua — guarde este e-mail.",
+      "Você escreveu isto agora há pouco. É sua, e continua sua: guarde este e-mail.",
     botao: "OUVIR UM TRECHO CANTADO →",
     depois:
       "A gravação com esta letra está no ar, esperando você. Dá pra ouvir um pedaço sem pagar nada.",
@@ -44,7 +44,7 @@ const COPY: Record<IdiomaEmail, {
     assunto: (n) => `La letra que escribiste para ${n}`,
     titulo: (n) => `La letra de ${n}, para que no la pierdas`,
     intro:
-      "Escribiste esto hace un momento. Es tuya, y sigue siendo tuya — guarda este correo.",
+      "Escribiste esto hace un momento. Es tuya, y sigue siendo tuya: guarda este correo.",
     botao: "ESCUCHAR UN PEDAZO CANTADO →",
     depois:
       "La grabación con esta letra ya está lista, esperándote. Puedes escuchar un pedazo sin pagar nada.",

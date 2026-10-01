@@ -192,8 +192,31 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
     let sobra = "";
     let texto = "";
     let final: LetraGerada | null = null;
+    // ── O FLUXO PODE PARAR CALADO (01/10) ─────────────────────────
+    // O servidor responde 200 e o texto deixa de chegar: sem limite, a tela
+    // ficava em "escrevendo a letra" pra sempre e o caminho antigo nunca era
+    // tentado (o dono pegou isso testando a Ballad). Parado 25s, ou 75s no
+    // total, cancela e LANÇA: quem chama cai no `montarLetra`.
+    const inicio = Date.now();
+    const lerComLimite = () =>
+      Promise.race([
+        leitor.read(),
+        new Promise<never>((_, rej) =>
+          setTimeout(
+            () => rej(new Error("stream parado")),
+            Math.max(1000, Math.min(25_000, 75_000 - (Date.now() - inicio))),
+          ),
+        ),
+      ]);
     for (;;) {
-      const { done, value } = await leitor.read();
+      let pedaco: ReadableStreamReadResult<Uint8Array>;
+      try {
+        pedaco = await lerComLimite();
+      } catch (err) {
+        void leitor.cancel().catch(() => {});
+        throw err;
+      }
+      const { done, value } = pedaco;
       if (done) break;
       sobra += dec.decode(value, { stream: true });
       const linhas = sobra.split("\n");
