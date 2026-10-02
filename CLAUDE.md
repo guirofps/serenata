@@ -514,6 +514,29 @@ painel_eventos_dia`) e o cron refazer.
 - **`?vivo=1`** no `/admin` ignora o resumo. Pra conferir um dia, não pra 30.
 - Cada painel loga `[admin] painel …` com os tempos nos logs da Vercel.
 
+## /criar gospel (02/10/2026)
+
+`/criar?t=gospel` é a porta dos anúncios gospel. Desenho em
+`docs/superpowers/specs/2026-10-02-criar-gospel-design.md`.
+
+- **O tema mora em `respostas.tema` e `attribution.tema`** (`tema.ts`). O `?t=`
+  só decide a primeira tela; o quiz troca a URL a cada passo e o tema segue
+  pelas respostas. Só o funil `pt`: Ballad e `/es` ignoram.
+- **O quiz gospel é camada** (`quiz-flow-gospel.ts` sobre o `QUIZ_FLOW_PT`).
+  Passo `tipo` (louvor/presente); os passos `_louvor` gravam os MESMOS campos
+  dos originais e são exclusivos pelo `SKIP_GOSPEL`. Louvor grava
+  `relacao = "deus"` e `nome = "Deus"` (`aplicarTipo`).
+- **`furthest_step` do gospel está na escala do funil normal**
+  (`numeroCanonico`); o `tipo` vale 0 e não grava lead, como a abertura.
+- **Os 5 estilos gospel** moram fora da lista normal (`generosGospel`), mas o
+  `acharGenero` acha (chave `gospel_pt` do `TODAS`).
+- **O prompt do louvor vai na mensagem do usuário** (`LOUVOR_INSTRUCOES`), não
+  no system: o system é cacheado e o funil normal não muda.
+  `letra-prompt-gospel.test.ts` congela a mensagem sem tema em snapshot.
+- Oferta, e-mails e página presente NÃO mudaram (decisão do dono). O e-mail de
+  ocasião pula quem fez louvor.
+- Painel: seção "Gospel" (`admin-tema.ts`), só com lead gospel no período.
+
 ## Riscos conhecidos
 
 1. **Dependência de revendedor não oficial do Suno.** Zona cinzenta nos termos
@@ -848,6 +871,7 @@ caractere do id do quiz (braço recalculável na leitura).
 | Serenata: corte e escala de 02/10 | 02/10 | A "pausa de 30/09" (Vid 5 Visitantes/Busca/Casamento, Mix E, DG Ângulos) NUNCA mudou o status: o histórico da conta só mostra lance e horário. Pausadas DE VERDADE em 02/10, com mais Ads Novos 1-3, Video 2-vo e NOVO PB RMKT (~R$ 510/dia, CPA real R$ 50-200). Orçamento +20%: CAMPEÃO 2# 2500→3000, Ads Novos 4-6 420→500, CAMPEÃO 3# 180→215, Vid 5 Fãs de TV 110→130, Search 101→120 (CPA real 3d R$ 14-18, todas gastando ~100%). `scratch/_serenata-otimiza-02out.mjs`. Lição: pausa só conta depois de reler o status | CPA real das 5 que subiram; o total diário | 04/10 | - |
 | Ballad: campeões da Serenata dublados | 02/10 | 13 = Vid 5 e 14 = Video Fone, dublados em inglês (voz ElevenLabs "Kevin" + lip sync na dublagem do Higgsfield), música nova da Ballad, legendas em inglês; no 14 o logo da LoveTune foi removido e trocado pelo selo Ballad. Uma campanha cada, R$ 50/dia, mesmo molde de 29/09 (`scratch/ballad-ads-criar-02out.mjs`). Trocar a voz da dublagem por preset do Higgsfield (voice_change) estraga o sotaque: refazer sempre gerando a fala em voz americana e dublando por cima | começou o quiz, CPA contra o 08 | 04/10 | é a Ballad |
 | Ballad: leva de 02/10 (vendedor + PrayerSong) | 02/10 | 16/17/18 = g2/g4/g5 "vendedor" do TikTok da Serenata em inglês (Remotion, `idioma: "en"`, música de exemplo da Emily; `scratch/anuncio/_vendedor-ballad.mjs`). 20 a 24 = reações da PrayerSong subidas COMO ESTÃO (cartão final "PrayerSong.com"; o 21 com a marca no meio) por decisão do dono, porque o YouTube bateu o limite de uploads; versões limpas prontas em `Downloads/CRIATIVOS GRINGOS/BALLAD/ballad-2x-ps-*.mp4` (`montar.py p1..p5`) pra trocar se algum vender. Pausados 10 e 02 (~R$ 150 sem letra). Prontos e não subidos: 15 (Mix B) e 19 (g8). Ballad em ~R$ 600/dia | começou o quiz e venda por criativo; reprovação por marca de terceiro nos 20-24 | 04/10 | é a Ballad |
+| `/criar?t=gospel` | 02/10 | Não é A/B: porta própria dos anúncios gospel (louvor pra Deus ou presente com fé, 5 estilos gospel). Comparado contra o resto do funil na seção "Gospel" do painel | receita por lead do gospel contra o resto; louvor × presente | 09/10 | não (só Serenata) |
 | `email_confirma` | 30/09 | e-mail do quiz como era × folha "Confere o seu e-mail" (e-mail grande, domínio conferido no DNS, aviso sem bloquear) | % que deixa e-mail, bounce da `letra_pronta`, receita por lead, `email_confirma_corrigir` | 07/10 | já roda nas duas |
 | Ballad: destino home × /criar | 30/09 | grupo original (/criar) × grupo "Home \| EUA" (mesmo vídeo e copy, destino `/`) nas 9 campanhas aprovadas (`scratch/ballad-ads-grupo-home.mjs`) | por grupo (`utm_medium` = id do grupo): passou da abertura, lead, CPA | LIDO 02/10: /CRIAR VENCEU. Home: R$ 343, 41 visitas, 0 começaram o quiz. /criar: R$ 889, 92 visitas, 5 começaram, 2 checkouts. Os 9 grupos "Home \| EUA" pausados (`scratch/_ballad-pausar-home-02out.mjs`); campanhas novas já nascem só com /criar | encerrado | home NÃO vai pra Serenata |
 | Bounce: letra no domínio raiz × subdomínio | aguardando Postmaster | decidir com a reputação do Gmail | reputação, abertura da entrega | ~02/10 | idem |
