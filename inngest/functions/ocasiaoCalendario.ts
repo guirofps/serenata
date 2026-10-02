@@ -157,6 +157,10 @@ export const ocasiaoCalendario = inngest.createFunction(
 
         // Já fez pra essa relação? O e-mail não faz sentido pra ela.
         const relacao = String(respostas.relacao ?? "").toLowerCase();
+        // LOUVOR (quiz gospel): a música foi pra Deus. A oferta de ocasião
+        // cita a música anterior pelo nome do homenageado, e "a música de
+        // Deus" ali não faz sentido.
+        if (relacao === "deus") continue;
         if (ocasiao.pulaSeJaFezPara.some((r) => relacao.includes(r))) continue;
 
         // O campo que a ocasião exige, se exigir.

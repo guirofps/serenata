@@ -55,3 +55,10 @@ describe("telas do quiz gospel", () => {
     expect(ABERTURA).toContain('"denise"');
   });
 });
+
+describe("e-mail de ocasião", () => {
+  it("pula quem fez um louvor", () => {
+    const fonte = readFileSync("inngest/functions/ocasiaoCalendario.ts", "utf8");
+    expect(fonte).toMatch(/if \(relacao === "deus"\) continue;/);
+  });
+});
