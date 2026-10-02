@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generos, acharGenero } from "./generos";
+import { generos, acharGenero, generosGospel, estiloParaSuno } from "./generos";
 
 // O CATÁLOGO DE GÊNEROS, e o defeito silencioso que ele pode ter.
 //
@@ -62,5 +62,37 @@ describe("catálogo de gêneros", () => {
     const temMx = valores.some((v) => mexicanos.includes(v));
     const temEs = valores.some((v) => espanhois.includes(v));
     expect(temMx && temEs, "as duas famílias na mesma lista").toBe(false);
+  });
+});
+
+describe("estilos gospel", () => {
+  const VALORES = [
+    "gospel_adoracao",
+    "gospel_tradicional",
+    "gospel_pentecostal",
+    "gospel_sertanejo",
+    "gospel_pop",
+  ];
+
+  it("são os cinco, nesta ordem", () => {
+    expect(generosGospel().map((g) => g.value)).toEqual(VALORES);
+  });
+
+  it("o job da música acha cada um", () => {
+    for (const v of VALORES) expect(acharGenero(v)?.value).toBe(v);
+  });
+
+  it("não aparecem na lista normal do português", () => {
+    const normais = generos("pt").map((g) => g.value);
+    for (const v of VALORES) expect(normais).not.toContain(v);
+    expect(normais).toContain("gospel");
+  });
+
+  it("cabem no limite do Suno com a voz", () => {
+    for (const v of VALORES) {
+      const s = estiloParaSuno({ genero: v, voz: "feminina", estiloDoModelo: "voz feminina suave e calorosa" });
+      expect(s.length).toBeLessThanOrEqual(190);
+      expect(s.startsWith(acharGenero(v)!.estiloSuno)).toBe(true);
+    }
   });
 });

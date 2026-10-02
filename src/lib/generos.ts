@@ -343,6 +343,28 @@ const EN: Genero[] = [
     estiloSuno: "gentle children's song, music box, ukulele, sweet and soothing" },
 ];
 
+// ── GOSPEL (só no `/criar?t=gospel`, 02/10/2026) ──────────────────
+// Fora da lista normal de propósito: quem não veio pelo anúncio gospel
+// continua vendo o `gospel` de sempre entre os treze. Aqui o estilo É a
+// escolha principal, então ele se abre em cinco climas.
+const GOSPEL_PT: Genero[] = [
+  { value: "gospel_adoracao", label: "Adoração", emoji: "🙌",
+    rotuloPrompt: "gospel de adoração (worship)",
+    estiloSuno: "worship brasileiro, pads de teclado, guitarra com delay, bateria crescendo, clima de adoração congregacional" },
+  { value: "gospel_tradicional", label: "Gospel tradicional", emoji: "📖",
+    rotuloPrompt: "gospel tradicional, de hino",
+    estiloSuno: "gospel brasileiro tradicional, piano e órgão, coral, clima reverente de hino" },
+  { value: "gospel_pentecostal", label: "Pentecostal animado", emoji: "🔥",
+    rotuloPrompt: "gospel pentecostal animado",
+    estiloSuno: "gospel pentecostal brasileiro, teclado e metais, bateria animada, palmas, clima de celebração" },
+  { value: "gospel_sertanejo", label: "Sertanejo gospel", emoji: "🤠",
+    rotuloPrompt: "sertanejo gospel",
+    estiloSuno: "sertanejo gospel, violão e viola caipira, sanfona leve, dueto, clima de fé e gratidão" },
+  { value: "gospel_pop", label: "Pop gospel", emoji: "🎧",
+    rotuloPrompt: "pop gospel",
+    estiloSuno: "pop gospel brasileiro, violão e piano, batida pop suave, refrão marcante, clima inspirador" },
+];
+
 // O `acharGenero` varre ESTE objeto, então as TRÊS listas espanholas precisam
 // estar aqui dentro mesmo quando só uma está no ar. Uma música gerada na
 // campanha LatAm é aberta meses depois; se o valor dela sumisse do mapa, a
@@ -353,6 +375,9 @@ const TODAS: Record<string, Genero[]> = {
   es_espanha: ES_ESPANHA,
   es_ar: ES_AR,
   en: EN,
+  // Não é idioma: está aqui só pro `acharGenero` (job da música, página
+  // presente) achar os estilos gospel. `generos()` nunca devolve esta chave.
+  gospel_pt: GOSPEL_PT,
 };
 
 export function generos(locale: Locale): Genero[] {
@@ -362,6 +387,11 @@ export function generos(locale: Locale): Genero[] {
     return ES;
   }
   return TODAS[locale] ?? PT;
+}
+
+/** Os estilos do quiz gospel (`quiz-flow-gospel.ts`). */
+export function generosGospel(): Genero[] {
+  return GOSPEL_PT;
 }
 
 /**
