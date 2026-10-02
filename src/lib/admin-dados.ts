@@ -1088,6 +1088,12 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
       receitaBrl: number;
     }
   >();
+  // QUEM RECEBEU LETRA, num Set montado uma vez. Era uma busca na lista
+  // inteira de músicas por lead, aqui e de novo por experimento: leads ×
+  // músicas × experimentos comparações, 8 a 38s medidos em 7 dias
+  // (02/10/2026), crescendo com o quadrado do período. Mesma conta (lista
+  // crua de músicas, sem filtro de funil), agora linear.
+  const comMusica = new Set(musicas.map((m) => m.quiz_response_id));
   for (const l of leads) {
     const { origem, campanha } = chaveOrigem(l.attribution);
     const k = `${origem}|${campanha ?? ""}`;
@@ -1100,7 +1106,7 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
       receitaBrl: 0,
     };
     v.leads++;
-    if (musicas.some((m) => m.quiz_response_id === l.id)) v.letras++;
+    if (comMusica.has(l.id)) v.letras++;
     origemMap.set(k, v);
   }
   const porQuiz = new Map(leads.map((l) => [l.id, l]));
@@ -1251,7 +1257,7 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
         if (!v) continue;
         const linhaV = linha(v);
         linhaV.leads++;
-        if (musicas.some((m) => m.quiz_response_id === l.id)) linhaV.letras++;
+        if (comMusica.has(l.id)) linhaV.letras++;
       }
       for (const pedido of pagos) {
         const l = pedido.quiz_response_id ? porQuiz.get(pedido.quiz_response_id) : null;

@@ -113,3 +113,13 @@ describe("revisão final", () => {
     expect(TELA).toMatch(/somados dia a dia/);
   });
 });
+
+describe("sem laço quadrático no painel", () => {
+  it("quem recebeu letra sai de um Set, não de um `musicas.some` por lead", () => {
+    // Era `musicas.some(...)` dentro do laço de leads, e de novo uma vez por
+    // experimento: bilhões de comparações em 30 dias, 8 a 38s medidos em 7
+    // dias (02/10/2026), crescendo com o quadrado do período.
+    expect(DADOS).not.toMatch(/musicas\.some\(/);
+    expect(DADOS).toMatch(/comMusica\.has\(l\.id\)/);
+  });
+});
