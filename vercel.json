@@ -81,6 +81,9 @@
     },
     "api/vigia-pagamento.ts": {
       "maxDuration": 60
+    },
+    "api/painel-resumo.ts": {
+      "maxDuration": 300
     }
   },
   "redirects": [
@@ -143,6 +146,10 @@
     {
       "path": "/api/vigia-pagamento",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/painel-resumo",
+      "schedule": "7 * * * *"
     }
   ]
 }

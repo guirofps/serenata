@@ -37,3 +37,28 @@ describe("tela do admin", () => {
     expect(ate).toMatch(/enabled:\s*nucleo\.isSuccess\s*&&\s*!nucleo\.isPlaceholderData/);
   });
 });
+describe("cron do resumo diário", () => {
+  const VERCEL = JSON.parse(readFileSync("vercel.json", "utf8"));
+  const CRON = readFileSync("api/painel-resumo.ts", "utf8");
+
+  it("roda de hora em hora, com 300s de função", () => {
+    expect(VERCEL.crons).toContainEqual({ path: "/api/painel-resumo", schedule: "7 * * * *" });
+    expect(VERCEL.functions["api/painel-resumo.ts"]).toEqual({ maxDuration: 300 });
+  });
+
+  it("autentica pelo CRON_SECRET em tempo constante", () => {
+    expect(CRON).toMatch(/process\.env\.CRON_SECRET/);
+    expect(CRON).toMatch(/segredoConfere\(/);
+  });
+
+  it("não importa nada pelo alias @/ (api/ não resolve)", () => {
+    expect(CRON).not.toMatch(/from "@\//);
+    for (const f of [
+      "src/lib/painel-resumo.ts",
+      "src/lib/painel-fechar.ts",
+      "src/lib/ler-janela.ts",
+    ]) {
+      expect(readFileSync(f, "utf8"), f).not.toMatch(/from "@\//);
+    }
+  });
+});
