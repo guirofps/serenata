@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ehExemplo } from "./limparAudioAntigo";
+import { ehExemplo } from "../../inngest/functions/limparAudioAntigo";
 
 // Em 18/09 e 26/09 a limpeza apagou o áudio de 7 páginas de exemplo da home
 // (músicas nossas, sem pedido). Exemplo nunca entra na limpeza.
