@@ -49,7 +49,6 @@ export const Route = createFileRoute("/")({
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
-      { rel: "stylesheet", href: FONTES.googleFonts },
       ...linksDeIdioma("pt"),
     ],
     scripts: [{ type: "application/ld+json", children: JSON.stringify(dadosEstruturados("pt")) }],
@@ -74,7 +73,6 @@ function headEn() {
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" as const },
-      { rel: "stylesheet", href: FONTES.googleFonts },
       ...linksDeIdioma("en"),
     ],
     scripts: [{ type: "application/ld+json", children: JSON.stringify(dadosEstruturados("en")) }],

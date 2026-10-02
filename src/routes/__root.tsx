@@ -32,7 +32,8 @@ import { GA4_ID, scriptGuardaGa4 } from "@/lib/ga4";
 import { TIKTOK_PIXEL_ID, scriptTiktok } from "@/lib/tiktok-pixel";
 import { GOOGLE_ADS_ID } from "@/lib/google-ads";
 import { LOCALE_PADRAO, TAG_IDIOMA } from "@/lib/i18n";
-import { MARCA } from "@/lib/marca";
+import { FONTES, MARCA } from "@/lib/marca";
+import { rotaDeConversao, scriptCarregaGtag, scriptDepoisDaPagina, scriptFontes } from "@/lib/carregar-depois";
 
 // ── O QUE NÃO EXISTE NA BALLAD GIFT ───────────────────────────────
 //
@@ -188,10 +189,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           ]),
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Poppins:wght@400;500;600;700&display=swap",
-      },
+      // A folha da Google Fonts NÃO entra aqui: `<link rel=stylesheet>` no HTML
+      // trava a pintura (~0,8s no celular). Ela vem por script no <head>
+      // (`scriptFontes`, logo abaixo), que não trava.
       { rel: "stylesheet", href: appCss },
     ],
   }),
@@ -211,6 +211,8 @@ function RootShell({ children }: { children: React.ReactNode }) {
   // gating só no cliente chegaria tarde.
   const caminho = useRouterState({ select: (s) => s.location.pathname });
   const podeMedir = !rotaSensivel(caminho);
+  // Na página da venda, os pixels carregam na hora (ver `carregar-depois.ts`).
+  const imediato = rotaDeConversao(caminho);
   // A config isomórfica: no servidor vem do snapshot em memória (mantido
   // fresco pelo middleware, ver `src/start.ts`); no cliente, do
   // `window.__SRN_CFG__` que o <script> logo abaixo planta — ver o comentário
@@ -253,6 +255,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: scriptConfigGlobal(cfgExperimentos) }} />
         <script dangerouslySetInnerHTML={{ __html: scriptExperimentos(cfgExperimentos) }} />
         <style dangerouslySetInnerHTML={{ __html: cssExperimentos(cfgExperimentos) }} />
+        {/* Depois dos três do teste A/B: a porta dos scripts que esperam a
+            página carregar (gtag e TikTok, mais abaixo) e a fonte sem travar a
+            pintura. Ver `carregar-depois.ts`. */}
+        <script dangerouslySetInnerHTML={{ __html: scriptDepoisDaPagina() }} />
+        <script dangerouslySetInnerHTML={{ __html: scriptFontes(FONTES.googleFonts) }} />
         {/* Em rota sensível o referrer sai SÓ com a origem. Sem isto, a
             navegação de `/p/<token>` ou `/pix/<ref>` pra uma página medida
             entregaria o token ao gtag em `page_referrer` — o vazamento que já
@@ -282,10 +289,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
             {GA4_ID && (
               <script dangerouslySetInnerHTML={{ __html: scriptGuardaGa4(GA4_ID, PREFIXOS) }} />
             )}
-            <script
-              async
-              src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`}
-            />
+            {/* O arquivo de googletagmanager.com/gtag/js espera a página
+                (exceto na /obrigado); a fila `gtag()` logo abaixo nasce na hora. */}
+            <script dangerouslySetInnerHTML={{ __html: scriptCarregaGtag(GOOGLE_ADS_ID, imediato) }} />
             <script
               dangerouslySetInnerHTML={{
                 __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GOOGLE_ADS_ID}');`,
@@ -301,7 +307,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
             quebra, e no dia em que o id for configurado começa a medir sem
             precisar de deploy de código. Ver `tiktok-pixel.ts`. */}
         {podeMedir && TIKTOK_PIXEL_ID && (
-          <script dangerouslySetInnerHTML={{ __html: scriptTiktok(TIKTOK_PIXEL_ID) }} />
+          <script dangerouslySetInnerHTML={{ __html: scriptTiktok(TIKTOK_PIXEL_ID, imediato) }} />
         )}
         {/* UTMify NÃO fica aqui. Ver `carregarUtmify` mais abaixo: o script
             reescreve todo <a href> interno, e no HTML do servidor isso quebra
