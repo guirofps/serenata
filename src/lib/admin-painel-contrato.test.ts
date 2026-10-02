@@ -62,3 +62,30 @@ describe("cron do resumo diário", () => {
     }
   });
 });
+describe("painel lê o resumo diário", () => {
+  it("admin-dados soma os dias da tabela e só chama o RPC nas faixas vivas", () => {
+    expect(DADOS).toMatch(/from\("painel_eventos_dia"\)/);
+    expect(DADOS).toMatch(/fatiarJanela\(/);
+    expect(DADOS).toMatch(/faixasVivas\(/);
+    expect(DADOS).toMatch(/somarResumos\(/);
+  });
+
+  it("a regra de venda vem de ehVenda/sessoesQueCompraram, não é reescrita", () => {
+    expect(DADOS).toMatch(/sessoesQueCompraram\(/);
+    expect(DADOS).toMatch(/filter\(ehVenda\)/);
+    expect(DADOS).not.toMatch(/p\.status === "pago" && p\.dinheiro_entrou !== false/);
+  });
+
+  it("EventosResumo tem uma definição só", () => {
+    expect(DADOS).not.toMatch(/^type EventosResumo = \{/m);
+  });
+
+  it("a tela aceita ?vivo=1 e manda pro servidor", () => {
+    expect(TELA).toMatch(/vivo:\s*z\.coerce\.number\(\)\.optional\(\)/);
+    expect(TELA).toMatch(/vivo === 1/);
+  });
+
+  it("o cartão de Visitantes avisa que é soma por dia", () => {
+    expect(TELA).toMatch(/somados dia a dia/);
+  });
+});

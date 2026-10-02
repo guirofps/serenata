@@ -5,6 +5,14 @@ import { QUIZ_FLOW } from "@/lib/quiz-flow";
 import { isQuestion } from "@/lib/flow-engine";
 import { cambioDoDia } from "@/lib/cambio";
 import { filtroCursor, lerJanela } from "@/lib/ler-janela";
+import {
+  ehVenda,
+  faixasVivas,
+  fatiarJanela,
+  sessoesQueCompraram,
+  somarResumos,
+  type EventosResumo,
+} from "@/lib/painel-resumo";
 
 // 12 créditos por geração (2 versões). Da tabela pública do kie.ai.
 const CREDITO_POR_MUSICA = 12;
@@ -460,30 +468,6 @@ type Custo = {
   quiz_response_id: string | null;
   created_at: string;
 };
-/**
- * O que `admin_eventos_resumo` devolve (migration 20260817000000).
- *
- * Substituiu a leitura crua de funnel_events. Cada campo aqui era um `filter`
- * sobre 180 mil linhas no Node; agora é um `group by` no Postgres.
- */
-type EventosResumo = {
-  visitantes: number;
-  /** Sessões que abriram /criar (migration 20260817100000). Ver o degrau da
-   *  abertura mais abaixo. Opcional de propósito: se o painel subir antes da
-   *  migration, o campo vem `undefined` e o degrau cai pra "Começou o quiz"
-   *  em vez de zerar. */
-  sessoes_abertura?: number;
-  sessoes_oferta: number;
-  sessoes_checkout: number;
-  contagens: Record<string, number>;
-  por_entrada: Array<{
-    caminho: string;
-    visitantes: number;
-    quiz: number;
-    letras: number;
-    vendas: number;
-  }>;
-};
 type Pedido = {
   id: string;
   quiz_response_id: string | null;
@@ -498,7 +482,14 @@ type Pedido = {
   dinheiro_entrou?: boolean | null;
 };
 
-type ArgsPainel = { dias?: number; de?: string; ate?: string; funil?: FunilFiltro };
+type ArgsPainel = {
+  dias?: number;
+  de?: string;
+  ate?: string;
+  funil?: FunilFiltro;
+  /** `?vivo=1`: ignora o resumo diário e calcula tudo no banco. Auditoria. */
+  vivo?: boolean;
+};
 type Janela = { inicio: Date; fim: Date; dias: number };
 
 /**
@@ -637,6 +628,67 @@ function janelaAnterior(j: Janela): Janela {
     inicio: new Date(j.inicio.getTime() - deslocamento),
     fim: new Date(fimReal - deslocamento),
     dias: j.dias,
+  };
+}
+
+/**
+ * O RESUMO DE EVENTOS DA JANELA, sem agregar `funnel_events` inteiro.
+ *
+ * Dia fechado vem de `painel_eventos_dia` (o cron `api/painel-resumo.ts`
+ * preenche). As pontas da janela, e qualquer dia que ainda não esteja lá,
+ * vão ao vivo para `admin_eventos_resumo`, a MESMA função que o cron usa.
+ *
+ * Tabela inexistente ou ilegível cai no caminho de antes: tudo ao vivo.
+ */
+async function lerResumoEventos(
+  db: ReturnType<typeof supabaseAdmin>,
+  { inicio, fim }: { inicio: Date; fim: Date },
+  filtro: FunilFiltro,
+  sessoesVenda: string[],
+  vivo: boolean,
+): Promise<{
+  resumo: EventosResumo | null;
+  erro: string | null;
+  doResumo: number;
+  faixas: number;
+  faltando: number;
+}> {
+  const plano = fatiarJanela(inicio, fim, Date.now());
+  const prontos = new Map<string, EventosResumo>();
+
+  if (!vivo && plano.dias.length) {
+    const { data, error } = await db
+      .from("painel_eventos_dia")
+      .select("dia, resumo")
+      .eq("filtro", filtro)
+      .in("dia", plano.dias);
+    if (error) console.error("[admin] resumo diário ilegível, indo ao vivo:", error.message);
+    for (const linha of data ?? []) prontos.set(String(linha.dia), linha.resumo as EventosResumo);
+  }
+
+  const { faixas, faltando } = faixasVivas(plano, new Set(prontos.keys()));
+  const vivas = await Promise.all(
+    faixas.map((f) =>
+      db.rpc("admin_eventos_resumo", {
+        p_desde: f.inicio.toISOString(),
+        p_ate: f.fim.toISOString(),
+        p_filtro: filtro,
+        p_sessoes_venda: sessoesVenda,
+      }),
+    ),
+  );
+  const falha = vivas.find((v) => v.error);
+  const contagem = {
+    doResumo: prontos.size,
+    faixas: faixas.length,
+    faltando: vivo ? 0 : faltando.length,
+  };
+  if (falha?.error) return { resumo: null, erro: falha.error.message, ...contagem };
+
+  return {
+    resumo: somarResumos([...prontos.values(), ...vivas.map((v) => v.data as EventosResumo)]),
+    erro: null,
+    ...contagem,
   };
 }
 
@@ -805,7 +857,7 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
   // receita que nunca entraram em conta nenhuma. `dinheiro_entrou` é null
   // na venda normal do gateway, e só é `false` quando alguém disse que foi
   // cortesia — por isso a comparação é explícita contra `false`.
-  const pagos = pedidosF.filter((p) => p.status === "pago" && p.dinheiro_entrou !== false);
+  const pagos = pedidosF.filter(ehVenda);
   // Cobrança gerada e não paga: o Pix que a pessoa mandou criar e abandonou.
   // Passou a existir em 10/08, quando o webhook parou de descartar o aviso de
   // "aguardando pagamento" — antes disso esta lista é vazia por falta de
@@ -845,50 +897,37 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
   // As sessões que compraram vão JUNTO no pedido, porque a regra de o que
   // conta como venda (cortesia não conta) mora aqui em cima e duplicá-la no
   // SQL criaria uma segunda verdade sobre faturamento.
-  const sessoesVenda = [
-    ...new Set(
-      pagos
-        .map((p) => leads.find((l) => l.id === p.quiz_response_id)?.session_id)
-        .filter((s): s is string => Boolean(s)),
-    ),
-  ];
+  const sessoesVenda = sessoesQueCompraram(pedidos, leadsCru, filtro);
 
-  const { data: resumoCru, error: erroResumo } = await db.rpc("admin_eventos_resumo", {
-    p_desde: desde,
-    p_ate: ateISO,
-    p_filtro: filtro,
-    p_sessoes_venda: sessoesVenda,
-  });
+  const lido = await lerResumoEventos(
+    db,
+    { inicio, fim },
+    filtro,
+    sessoesVenda,
+    Boolean(data.vivo),
+  );
   const msEventos = Date.now() - t0 - msLeituras;
 
   // ── QUANDO O RESUMO NÃO VEM ──────────────────────────────────
   //
-  // A versão anterior fazia `throw`, com o argumento de que zeros mentiriam
-  // ("não vendeu nada hoje"). O argumento está certo e a conclusão estava
-  // errada: quem chama isto é a tela, que não trata a exceção — então o
-  // painel simplesmente PENDURAVA em "carregando", e ficou assim por horas
-  // em 27/08 sem ninguém saber por quê. Tela pendurada é pior que zeros E
-  // pior que erro: não diz nada e não deixa usar o resto.
-  //
-  // Agora o painel abre com o que TEM (faturamento, vendas, custo, campanha
-  // — tudo isso vem de `pedidos`, não daqui) e carrega um aviso dizendo qual
-  // parte falta. O número que sumiu fica visivelmente ausente, não fingido.
-  //
-  // Por que ele falha: `funnel_events` passou de 183 mil para 883 mil linhas
-  // em 30 dias (607 MB), e a janela de 30 dias é praticamente a tabela
-  // inteira — nenhum índice ajuda quando se lê tudo. Medido em 28/08: 3,3s em
-  // 1 dia, 22s em 7 dias, e o banco cancela em 14. O conserto de verdade é
-  // uma tabela de resumo por dia, alimentada por cron; isto aqui é a rede
-  // que impede o painel de cair enquanto ela não existe.
-  let avisoResumo: string | null = null;
-  if (erroResumo) {
-    console.error("[admin] resumo de eventos falhou:", erroResumo.message);
-    avisoResumo =
+  // (O porquê de não lançar continua o de 27/08: tela pendurada é pior que
+  // zeros E pior que erro. O painel abre com o que tem e diz o que falta.)
+  const avisos: string[] = [];
+  if (lido.erro) {
+    console.error("[admin] resumo de eventos falhou:", lido.erro);
+    avisos.push(
       `Os números de FUNIL (visitantes, passos, taxas) não carregaram nesta janela ` +
-      `de ${dias} dias: a consulta passou do tempo no banco. Faturamento, vendas e ` +
-      `campanhas abaixo estão corretos. Escolha um período menor para ver o funil.`;
+        `de ${dias} dias: a consulta passou do tempo no banco. Faturamento, vendas e ` +
+        `campanhas abaixo estão corretos. Escolha um período menor para ver o funil.`,
+    );
+  } else if (lido.faltando > 0) {
+    avisos.push(
+      `${lido.faltando} ${lido.faltando === 1 ? "dia" : "dias"} deste período ainda sem ` +
+        `resumo diário: o funil desses dias foi calculado ao vivo.`,
+    );
   }
-  const resumo = (resumoCru ?? {}) as EventosResumo;
+  const avisoResumo = avisos.length ? avisos.join(" ") : null;
+  const resumo = (lido.resumo ?? {}) as EventosResumo;
 
   // Visitante único: sessões distintas com page_view. É o denominador honesto
   // do funil (o total de page_view contaria a mesma pessoa várias vezes).
@@ -1339,7 +1378,8 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
   // UMA linha por painel, legível nos logs da Vercel. Sem e-mail, sem id, sem
   // valor: só onde foi o tempo. É ela que diz se 90 dias pede o próximo passo.
   console.log(
-    `[admin] painel ${dias}d ${filtro}: leituras ${msLeituras}ms · eventos ${msEventos}ms · total ${Date.now() - t0}ms`,
+    `[admin] painel ${dias}d ${filtro}: leituras ${msLeituras}ms · eventos ${msEventos}ms ` +
+      `(${lido.doResumo} dias do resumo, ${lido.faixas} faixas ao vivo${data.vivo ? ", vivo=1" : ""}) · total ${Date.now() - t0}ms`,
   );
 
   return {
@@ -1528,7 +1568,7 @@ async function serieAnterior(j: Janela, filtro: FunilFiltro): Promise<PontoSerie
       .limit(5000);
 
     // A MESMA regra de venda do resto do painel: cortesia não é faturamento.
-    const pagos = (pedidos ?? []).filter((p) => p.status === "pago" && p.dinheiro_entrou !== false);
+    const pagos = (pedidos ?? []).filter(ehVenda);
     if (!pagos.length) return montarSerie([], j, granularidadeDe(j.dias));
 
     // O idioma decide a moeda, e ele mora no lead — não em `pedidos`.
