@@ -51,10 +51,23 @@ export const Route = createFileRoute("/admin")({
     de: z.string().optional(),
     ate: z.string().optional(),
     funil: z.enum(["todos", "pt", "es"]).optional(),
+    // Auditoria do resumo diário: `?vivo=1` calcula o funil inteiro no banco,
+    // ignorando `painel_eventos_dia`. Só pra janela curta: em 30 dias ao vivo
+    // volta a estourar.
+    vivo: z.coerce.number().optional(),
     // A ABA na URL, como os campos acima: reload e botão voltar funcionam, e
     // dá pra mandar o link direto pra alguém já na aba certa.
     aba: z
-      .enum(["operacao", "origem", "vendas", "email", "automacoes", "testes", "financeiro", "indicacoes"])
+      .enum([
+        "operacao",
+        "origem",
+        "vendas",
+        "email",
+        "automacoes",
+        "testes",
+        "financeiro",
+        "indicacoes",
+      ])
       .optional(),
   }),
   head: () => ({
@@ -360,7 +373,7 @@ function hojeBr(deslocaDias = 0): string {
 }
 
 function Admin() {
-  const { dias, de, ate, funil, aba } = Route.useSearch();
+  const { dias, de, ate, funil, aba, vivo } = Route.useSearch();
   // Qual aba é usada. Só no `funnel_events`: `/admin` é rota sensível, então
   // o gtag nem carrega e `encaminharGa4` também não manda (decisão de 01/10).
   useEffect(() => {
@@ -399,13 +412,16 @@ function Admin() {
   // de graça, as três coisas que essa quebra precisa: cache por chave, os
   // números antigos no lugar enquanto os novos vêm, e uma consulta que só
   // dispara quando alguém olha.
-  const args = usandoDatas ? { de, ate, funil: filtro } : { dias: periodo, funil: filtro };
+  const aoVivo = vivo === 1 ? { vivo: true } : {};
+  const args = usandoDatas
+    ? { de, ate, funil: filtro, ...aoVivo }
+    : { dias: periodo, funil: filtro, ...aoVivo };
   // A chave é o recorte. Voltar pra uma janela já vista pinta na hora, com o
   // que está em cache, e revalida em segundo plano — com o `useEffect` a tela
   // esvaziava e esperava tudo de novo, mesmo pra um recorte visto há dez
   // segundos. O `staleTime` fica no padrão (zero) de propósito: é um painel de
   // faturamento, e servir número velho sem ir conferir é o erro caro aqui.
-  const janelaKey = [periodo, de ?? null, ate ?? null, filtro] as const;
+  const janelaKey = [periodo, de ?? null, ate ?? null, filtro, vivo === 1] as const;
 
   // `keepPreviousData` é o "mantém e esmaece": ao trocar o período os números
   // do recorte anterior continuam na tela até os novos chegarem, e o cabeçalho
@@ -424,9 +440,19 @@ function Admin() {
     ...comum,
   });
 
+  // DEPOIS DO NÚCLEO, nunca junto. O comparativo é um painel inteiro da
+  // janela anterior; disparado ao mesmo tempo, pedir 30 dias fazia o banco
+  // processar 60 de uma vez (02/10/2026). O `!isPlaceholderData` é o que
+  // segura a troca de período: com `keepPreviousData` o núcleo continua
+  // `isSuccess` enquanto busca o recorte novo.
   const comparativo = useQuery({
     queryKey: ["painel", "comparativo", ...janelaKey],
     queryFn: () => carregarComparativo({ data: args }),
+    // `!isFetching` e o foco desligado fecham as outras duas portas por onde os
+    // dois voltavam a correr juntos: voltar pra aba e o botão de atualizar
+    // (`carregar`, que só marca o comparativo como velho).
+    enabled: nucleo.isSuccess && !nucleo.isPlaceholderData && !nucleo.isFetching,
+    refetchOnWindowFocus: false,
     ...comum,
   });
 
@@ -458,7 +484,15 @@ function Admin() {
    * primeiras strings são diferentes. Nomes com hífen dariam um botão de
    * atualizar que atualiza um quarto do painel.
    */
-  const carregar = () => qc.invalidateQueries({ queryKey: ["painel"] });
+  const carregar = () => {
+    // O comparativo só fica marcado como velho: ele refaz sozinho quando o
+    // núcleo terminar (o `enabled` dele volta a valer), nunca ao mesmo tempo.
+    void qc.invalidateQueries({ queryKey: ["painel", "comparativo"], refetchType: "none" });
+    return qc.invalidateQueries({
+      queryKey: ["painel"],
+      predicate: (q) => q.queryKey[1] !== "comparativo",
+    });
+  };
 
   // FALHAR NÃO É O MESMO QUE NÃO ESTAR LOGADO — e agora são quatro falhas
   // possíveis, com pesos diferentes. A regra saiu daqui pra `admin-estado.ts`,
@@ -809,7 +843,7 @@ function Admin() {
           (dados ? (
             <Corpo
               dados={dados}
-              comparativo={comparativo.data ?? null}
+              comparativo={comparativo.isPlaceholderData ? null : (comparativo.data ?? null)}
               saldoKie={saldoKie.data}
               emails={emails.data}
               emailsCarregando={emails.isPending && aba === "email"}
@@ -1037,7 +1071,11 @@ function Corpo({
               <Cartao
                 rotulo="Visitantes"
                 valor={String(t.visitantes)}
-                apoio={`${t.quizIniciados} começaram o quiz`}
+                apoio={
+                  dados.periodoDias > 1
+                    ? `${t.quizIniciados} começaram o quiz · somados dia a dia`
+                    : `${t.quizIniciados} começaram o quiz`
+                }
                 atual={t.visitantes}
                 anterior={a?.visitantes}
               />
@@ -1120,8 +1158,8 @@ function Corpo({
               {t.receitaUsd > 0 && (
                 <>
                   {" "}
-                  O dólar vira real pela cotação do dia (US$ 1 = R$ {t.cambioUsdBrl.toFixed(2)})
-                  na margem, no ROAS e nas campanhas.
+                  O dólar vira real pela cotação do dia (US$ 1 = R$ {t.cambioUsdBrl.toFixed(2)}) na
+                  margem, no ROAS e nas campanhas.
                 </>
               )}
             </p>
@@ -1405,7 +1443,7 @@ function Corpo({
             pra saber qual das duas paga melhor. */}
           <Secao
             titulo="Qual página converte"
-            sub="Pela primeira página que a sessão abriu. Cada visitante conta uma vez só."
+            sub="Pela primeira página que a sessão abriu. Visitantes somados dia a dia; venda conta quando é no mesmo dia da visita."
           >
             <Tabela
               cabecalho={["Página de entrada", "Visitantes", "Quiz", "Letras", "Vendas", "Conv."]}
