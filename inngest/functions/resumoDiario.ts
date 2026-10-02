@@ -14,7 +14,7 @@ import {
   emailResumoDiario,
   type MarcaDoResumo,
 } from "../../emails/resumo-diario.js";
-import { DONOS } from "../../src/lib/donos.js";
+import { donosMais } from "../../src/lib/donos.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O FECHAMENTO DO DIA, por e-mail, toda manhã, pro dono e pro sócio.
@@ -31,7 +31,9 @@ import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 // Disparo manual, pra reenviar ou conferir um dia: evento
 // `resumo/diario.enviar` com `{ dia?: "AAAA-MM-DD", para?: string[] }`.
 
-const PARA = [...DONOS];
+// O Ralph saiu dos ALERTAS em 02/10 (chegavam demais), mas o resumo é um por
+// dia e ele continua recebendo.
+const PARA = donosMais("nosfer@gmail.com");
 // Mesmo câmbio de `PRECOS.cambioUsdBrl` (src/lib/custos.ts). Não importado de
 // lá porque aquele arquivo puxa o cliente do app pelo alias `@/`, que o
 // bundle das funções não resolve.

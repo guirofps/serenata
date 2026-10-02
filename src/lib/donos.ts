@@ -27,11 +27,14 @@
 //    (`../../src/lib/donos.js`), nunca o alias. Mesma razão.
 
 /**
- * Os donos do negócio. Todo alerta de operação vai pros dois.
+ * Quem recebe os alertas de operação por e-mail.
  *
- * `nosfer@gmail.com` entrou em 27/09 a pedido dele, depois da parada da letra.
+ * `nosfer@gmail.com` entrou em 27/09 a pedido dele, depois da parada da letra,
+ * e SAIU em 02/10, também a pedido: os alertas chegavam demais. Ele continua no
+ * resumo diário (`resumoDiario.ts`, um e-mail por dia) e no WhatsApp, que é
+ * outra lista (`CALLMEBOT_DONOS`).
  */
-export const DONOS: readonly string[] = ["guilhermerojasiqueira@gmail.com", "nosfer@gmail.com"];
+export const DONOS: readonly string[] = ["guilhermerojasiqueira@gmail.com"];
 
 /**
  * Os donos MAIS quem aquele alerta específico também avisa (a agência, um

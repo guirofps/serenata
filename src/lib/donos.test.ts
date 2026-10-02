@@ -3,9 +3,12 @@ import { execFileSync } from "node:child_process";
 import { DONOS, donosMais } from "./donos";
 
 describe("DONOS", () => {
-  it("os dois donos estão na lista", () => {
+  it("o Guilherme está na lista", () => {
     expect(DONOS).toContain("guilhermerojasiqueira@gmail.com");
-    expect(DONOS).toContain("nosfer@gmail.com");
+  });
+
+  it("o Ralph saiu dos alertas por e-mail (02/10, a pedido: chegava demais)", () => {
+    expect(DONOS).not.toContain("nosfer@gmail.com");
   });
 
   it("ninguém repetido — Resend cobra e duplica o e-mail recebido", () => {
@@ -21,8 +24,8 @@ describe("donosMais", () => {
   });
 
   it("não repete quem já é dono", () => {
-    const r = donosMais("nosfer@gmail.com");
-    expect(r.filter((e) => e === "nosfer@gmail.com")).toHaveLength(1);
+    const r = donosMais("guilhermerojasiqueira@gmail.com");
+    expect(r.filter((e) => e === "guilhermerojasiqueira@gmail.com")).toHaveLength(1);
   });
 
   it("env var ausente não vira destinatário em branco", () => {
@@ -49,7 +52,16 @@ describe("nenhum alerta escreve destinatário na mão", () => {
     try {
       saida = execFileSync(
         "grep",
-        ["-rnE", 'to:\\s*\\[\\s*"[^"]*@', "--include=*.ts", "--include=*.tsx", "src", "inngest", "api", "emails"],
+        [
+          "-rnE",
+          'to:\\s*\\[\\s*"[^"]*@',
+          "--include=*.ts",
+          "--include=*.tsx",
+          "src",
+          "inngest",
+          "api",
+          "emails",
+        ],
         { encoding: "utf-8", cwd: process.cwd() },
       );
     } catch {
