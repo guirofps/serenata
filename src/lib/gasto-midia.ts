@@ -10,6 +10,21 @@
 // o token cair. Num dia com dado da API, o "google" digitado à mão é ignorado,
 // senão o mesmo dinheiro contaria duas vezes.
 
+import { diaBr } from "./painel-resumo";
+
+/**
+ * Os DIAS (no Brasil) que uma janela cobre, pras tabelas guardadas por data
+ * (`gastos_ads`, `metricas_campanha`): o primeiro e o último, inclusivos.
+ *
+ * O fim da janela é exclusivo, então o último dia é o do instante logo antes
+ * dele. Cortar o ISO em UTC errava por fuso: meia-noite de Brasília é 03:00
+ * UTC, e a janela "ontem" terminava com a data de HOJE — o gasto de hoje
+ * entrava em ontem (02/10: painel R$ 8.433 contra R$ 5.473 do Google).
+ */
+export function diasDaJanela(inicio: Date, fim: Date): { de: string; ate: string } {
+  return { de: diaBr(inicio.getTime()), ate: diaBr(fim.getTime() - 1) };
+}
+
 export type GastoManual = { dia: string; origem: string; brl: number };
 /** Uma linha de `metricas_campanha`: uma campanha num dia. */
 export type GastoGoogleApi = { dia: string; brl: number };

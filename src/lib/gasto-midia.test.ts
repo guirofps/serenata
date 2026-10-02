@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { somarGasto } from "./gasto-midia";
+import { diasDaJanela, somarGasto } from "./gasto-midia";
 
 describe("somarGasto", () => {
   it("soma o Google da API com os lançamentos de outras origens", () => {
@@ -43,5 +43,26 @@ describe("somarGasto", () => {
 
   it("sem nada, zero", () => {
     expect(somarGasto([], [])).toEqual({ totalBrl: 0, googleApiBrl: 0, manualBrl: 0 });
+  });
+});
+
+describe("diasDaJanela (tabelas por DIA, no fuso de Brasília)", () => {
+  // Meia-noite de Brasília é 03:00 UTC. Cortar o fim da janela em UTC dava a
+  // data de HOJE pra janela "ontem", e o gasto de hoje entrava junto (02/10:
+  // painel R$ 8.433 contra R$ 5.473 do Google).
+  it("ontem é só ontem", () => {
+    const inicio = new Date("2026-10-01T03:00:00.000Z"); // 01/10 00:00 BRT
+    const fim = new Date("2026-10-02T03:00:00.000Z"); // 02/10 00:00 BRT
+    expect(diasDaJanela(inicio, fim)).toEqual({ de: "2026-10-01", ate: "2026-10-01" });
+  });
+  it("hoje até agora, inclusive depois das 21h (quando o UTC já virou)", () => {
+    const inicio = new Date("2026-10-02T03:00:00.000Z");
+    expect(diasDaJanela(inicio, new Date("2026-10-02T18:00:00.000Z"))).toEqual({ de: "2026-10-02", ate: "2026-10-02" });
+    expect(diasDaJanela(inicio, new Date("2026-10-03T01:30:00.000Z"))).toEqual({ de: "2026-10-02", ate: "2026-10-02" });
+  });
+  it("7 dias fechados", () => {
+    expect(
+      diasDaJanela(new Date("2026-09-25T03:00:00.000Z"), new Date("2026-10-02T03:00:00.000Z")),
+    ).toEqual({ de: "2026-09-25", ate: "2026-10-01" });
   });
 });

@@ -6,7 +6,7 @@ import { isQuestion } from "@/lib/flow-engine";
 import { cambioDoDia } from "@/lib/cambio";
 import { filtroCursor, lerJanela } from "@/lib/ler-janela";
 import { porTemaDe, type LinhaTema } from "@/lib/admin-tema";
-import { somarGasto } from "@/lib/gasto-midia";
+import { diasDaJanela, somarGasto } from "@/lib/gasto-midia";
 import {
   ehVenda,
   faixasVivas,
@@ -716,6 +716,9 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
   const db = supabaseAdmin();
   const desde = inicio.toISOString();
   const ateISO = fim.toISOString();
+  // As tabelas guardadas por DATA (gasto, métricas do Google) usam o dia de
+  // Brasília, nunca o ISO cortado em UTC (`diasDaJanela`).
+  const diasData = diasDaJanela(inicio, fim);
 
   // Cada janela é lida em fatias de um dia, por cursor `(created_at, id)`
   // (`ler-janela.ts`). A ordem de exibição continua reconstruída em JS depois.
@@ -850,8 +853,8 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
   const { data: gastosCru } = await db
     .from("gastos_ads")
     .select("dia, origem, valor_brl")
-    .gte("dia", desde.slice(0, 10))
-    .lte("dia", ateISO.slice(0, 10))
+    .gte("dia", diasData.de)
+    .lte("dia", diasData.ate)
     .order("dia", { ascending: false });
   const gastos = (gastosCru ?? []).map((g) => ({
     dia: String(g.dia),
@@ -873,8 +876,8 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
     const baseMet = db
       .from("metricas_campanha")
       .select("dia, campanha_id, custo_brl")
-      .gte("dia", desde.slice(0, 10))
-      .lte("dia", ateISO.slice(0, 10));
+      .gte("dia", diasData.de)
+      .lte("dia", diasData.ate);
     type LinhaMet = { dia: string; campanha_id: string; custo_brl: number | null };
     const { data: mets, error: erroMets }: { data: LinhaMet[] | null; error: { message: string } | null } = await (cursorMet
       ? baseMet.or(
@@ -1222,8 +1225,8 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
       .from("metricas_campanha")
       .select("campanha_id, custo_brl, cliques, impressoes")
       .in("campanha_id", idsCampanha)
-      .gte("dia", desde.slice(0, 10))
-      .lte("dia", ateISO.slice(0, 10));
+      .gte("dia", diasData.de)
+      .lte("dia", diasData.ate);
     for (const m of mets ?? []) {
       const k = String(m.campanha_id);
       const a = custoCampanha.get(k) ?? { custo: 0, cliques: 0, impressoes: 0 };

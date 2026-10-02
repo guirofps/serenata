@@ -140,3 +140,11 @@ describe("gasto do Google nos cartões (02/10)", () => {
     expect(readFileSync("src/routes/admin.tsx", "utf8")).toMatch(/gastoGoogleApiBrl/);
   });
 });
+
+describe("tabelas por dia usam o dia de Brasília (02/10)", () => {
+  it("nenhum corte de data em UTC nas consultas por dia", () => {
+    expect(DADOS).not.toMatch(/ateISO\.slice\(0, 10\)/);
+    expect(DADOS).not.toMatch(/desde\.slice\(0, 10\)/);
+    expect(DADOS).toMatch(/diasDaJanela\(inicio, fim\)/);
+  });
+});
