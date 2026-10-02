@@ -6,6 +6,7 @@ import { isQuestion } from "@/lib/flow-engine";
 import { cambioDoDia } from "@/lib/cambio";
 import { filtroCursor, lerJanela } from "@/lib/ler-janela";
 import { porTemaDe, type LinhaTema } from "@/lib/admin-tema";
+import { somarGasto } from "@/lib/gasto-midia";
 import {
   ehVenda,
   faixasVivas,
@@ -79,9 +80,13 @@ export type Painel = {
     ticketMedioBrl: number;
     custoTotalBrl: number;
     margemBrl: number;
-    // ── mídia (digitada em `gastos_ads`) ──
-    /** Gasto de anúncio no período. 0 quando não foi lançado. */
+    // ── mídia (Google pela API + o que foi digitado em `gastos_ads`) ──
+    /** Gasto de anúncio no período (`somarGasto`). 0 quando não há nenhum. */
     gastoAdsBrl: number;
+    /** A parte do Google que veio da API (`metricas_campanha`). */
+    gastoGoogleApiBrl: number;
+    /** A parte lançada à mão que entrou na conta. */
+    gastoManualBrl: number;
     /** Quanto custa trazer UMA venda. É a conta que decide se a operação vive. */
     cpaBrl: number;
     /** Receita dividida pelo gasto. Abaixo de 1 é prejuízo. */
@@ -856,7 +861,43 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
   // O gasto NÃO é filtrado por funil: o painel do Google não separa por
   // idioma, e inventar um rateio daria um CPA que parece preciso e não é.
   // Com o filtro em BR ou MX o número fica igual, e isso é honesto.
-  const gastoAds = gastos.reduce((s, g) => s + g.brl, 0);
+  //
+  // O GOOGLE VEM DA API (02/10): `metricas_campanha`, carregada de hora em
+  // hora pelo `puxarMetricasAds`. O manual vale pras outras origens e, pro
+  // Google, só no dia sem dado da API (`somarGasto`). Uma linha por campanha
+  // por dia passa de mil em 90 dias, então pagina — por CURSOR em
+  // (dia, campanha_id), nunca por OFFSET (ver `ler-janela.ts`).
+  const googleApi: { dia: string; brl: number }[] = [];
+  let cursorMet: { dia: string; campanha_id: string } | null = null;
+  for (;;) {
+    const baseMet = db
+      .from("metricas_campanha")
+      .select("dia, campanha_id, custo_brl")
+      .gte("dia", desde.slice(0, 10))
+      .lte("dia", ateISO.slice(0, 10));
+    type LinhaMet = { dia: string; campanha_id: string; custo_brl: number | null };
+    const { data: mets, error: erroMets }: { data: LinhaMet[] | null; error: { message: string } | null } = await (cursorMet
+      ? baseMet.or(
+          `dia.gt."${cursorMet.dia}",and(dia.eq."${cursorMet.dia}",campanha_id.gt."${cursorMet.campanha_id}")`,
+        )
+      : baseMet
+    )
+      .order("dia")
+      .order("campanha_id")
+      .limit(1000);
+    // Falha aqui não derruba o painel: sem a API, fica o que foi lançado.
+    if (erroMets) {
+      console.error("[admin] metricas_campanha não lida:", erroMets.message);
+      break;
+    }
+    const pagina: LinhaMet[] = mets ?? [];
+    for (const m of pagina) googleApi.push({ dia: String(m.dia), brl: Number(m.custo_brl ?? 0) });
+    if (pagina.length < 1000) break;
+    const ultima: LinhaMet = pagina[pagina.length - 1];
+    cursorMet = { dia: String(ultima.dia), campanha_id: String(ultima.campanha_id) };
+  }
+  const gasto = somarGasto(gastos, googleApi);
+  const gastoAds = gasto.totalBrl;
 
   // Liberação manual sem dinheiro (cortesia, acesso interno, teste) NÃO é
   // venda. O pedido precisa ficar `pago` pra música chegar no cliente, mas
@@ -1432,6 +1473,8 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
       taxaGeral: pct(pagos.length, abriramQuiz),
       custoPorVendaBrl: pagos.length ? custoTotal / pagos.length : 0,
       gastoAdsBrl: gastoAds,
+      gastoGoogleApiBrl: gasto.googleApiBrl,
+      gastoManualBrl: gasto.manualBrl,
       cpaBrl: pagos.length ? gastoAds / pagos.length : 0,
       roas: gastoAds > 0 ? receita / gastoAds : 0,
       lucroBrl: receita - custoTotal - gastoAds,

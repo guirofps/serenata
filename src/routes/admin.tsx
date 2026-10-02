@@ -1112,7 +1112,17 @@ function Corpo({
               <Cartao
                 rotulo="Gasto em anúncio"
                 valor={t.gastoAdsBrl > 0 ? brl(t.gastoAdsBrl) : "—"}
-                apoio={t.gastoAdsBrl > 0 ? "lançado à mão" : "lance abaixo pra ver o CPA"}
+                apoio={
+                  // De onde veio o número: o Google chega sozinho pela API
+                  // (`metricas_campanha`); o resto é o que foi lançado abaixo.
+                  t.gastoGoogleApiBrl > 0 && t.gastoManualBrl > 0
+                    ? "Google (API) + lançado à mão"
+                    : t.gastoGoogleApiBrl > 0
+                      ? "Google, puxado da API"
+                      : t.gastoManualBrl > 0
+                        ? "lançado à mão"
+                        : "lance abaixo pra ver o CPA"
+                }
                 atual={t.gastoAdsBrl > 0 ? t.gastoAdsBrl : undefined}
                 anterior={a?.gastoAdsBrl}
               />

@@ -132,3 +132,11 @@ describe("gospel no painel (02/10)", () => {
     expect(readFileSync("src/routes/admin.tsx", "utf8")).toMatch(/dados\.porTema/);
   });
 });
+
+describe("gasto do Google nos cartões (02/10)", () => {
+  it("o gasto do período soma a API do Google e os lançamentos", () => {
+    expect(DADOS).toMatch(/from\("metricas_campanha"\)\s*\.select\("dia, campanha_id, custo_brl"\)/);
+    expect(DADOS).toMatch(/somarGasto\(/);
+    expect(readFileSync("src/routes/admin.tsx", "utf8")).toMatch(/gastoGoogleApiBrl/);
+  });
+});
