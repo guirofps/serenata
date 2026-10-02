@@ -49,6 +49,14 @@ describe("o sinal do orquestrador mudo", () => {
     expect(lerOsSinais({ ...base, letrasNovas: 5, prontasNaJanela: 1, minutosSemProntas: 25 }).motivo).toBe("orquestrador-mudo");
   });
 
+  it("não grita com letra que acabou de chegar depois da calmaria", () => {
+    // 01/10/2026, Ballad: 2 letras de 30 segundos, última pronta havia 31 min.
+    // As duas saíram 13s e 62s depois do alerta.
+    expect(lerOsSinais({ ...base, letrasNovas: 2, letrasMaduras: 0, minutosSemProntas: 31 }).avisar).toBe(false);
+    // A mesma letra, 5 minutos depois e ainda sem música, é pane.
+    expect(lerOsSinais({ ...base, letrasNovas: 2, letrasMaduras: 1, minutosSemProntas: 36 }).motivo).toBe("orquestrador-mudo");
+  });
+
   it("sobrevive a nunca ter existido música", () => {
     // Banco novo, ou coluna vazia: `null` não pode virar alerta nem exceção.
     expect(lerOsSinais({ ...base, letrasNovas: 9, minutosSemProntas: null }).motivo).not.toBe("orquestrador-mudo");

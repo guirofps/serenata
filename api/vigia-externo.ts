@@ -36,7 +36,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { segredoConfere } from "./lib/segredo.js";
-import { lerOsSinais, assuntoDoAlerta } from "../src/lib/sinais-geracao.js";
+import { lerOsSinais, assuntoDoAlerta, MINUTOS_MATURA } from "../src/lib/sinais-geracao.js";
 import { trilhoMudo, MINUTOS_MUDO } from "../src/lib/sinais-pagamento.js";
 import { escadaMuda, ESCADA_MUDA_H } from "../src/lib/sinais-email.js";
 import { donosMais } from "../src/lib/donos.js";
@@ -98,6 +98,15 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       .gte("created_at", desde)
       .not("letra", "is", null);
 
+    // As que já tiveram tempo de virar música: é só a falta delas que conta
+    // como orquestrador mudo (ver `MINUTOS_MATURA`).
+    const { count: letrasMaduras } = await sb
+      .from("musicas")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", desde)
+      .lte("created_at", new Date(agora - MINUTOS_MATURA * 60000).toISOString())
+      .not("letra", "is", null);
+
     const { count: prontasNaJanela } = await sb
       .from("musicas")
       .select("id", { count: "exact", head: true })
@@ -141,6 +150,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       totalPresas: presas ?? 0,
       falhas,
       minutosSemProntas,
+      letrasMaduras: letrasMaduras ?? 0,
     };
     const veredito = lerOsSinais(diagnostico);
 

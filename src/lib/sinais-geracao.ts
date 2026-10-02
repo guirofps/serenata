@@ -42,6 +42,9 @@ export type MotivoAlerta =
  * relógio da última música pronta parou. Sem tráfego ele dorme, igual aos
  * outros, porque `letrasNovas` é a prova de que tem gente no funil.
  */
+/** Idade mínima de uma letra pra a falta da música dela contar como pane (o pipeline leva ~2 min). */
+export const MINUTOS_MATURA = 5;
+
 export function lerOsSinais(d: {
   letrasNovas: number;
   prontasNaJanela: number;
@@ -49,6 +52,8 @@ export function lerOsSinais(d: {
   falhas: number;
   /** Minutos desde que a última música ficou pronta. `null` = nenhuma, nunca. */
   minutosSemProntas?: number | null;
+  /** Letras da janela com mais de `MINUTOS_MATURA` de idade. Sem ele, vale `letrasNovas`. */
+  letrasMaduras?: number;
 }): { avisar: boolean; motivo: MotivoAlerta | null } {
   if (d.falhas >= 3 && d.falhas >= d.prontasNaJanela) {
     return { avisar: true, motivo: "provedor-recusando" };
@@ -68,7 +73,15 @@ export function lerOsSinais(d: {
   //
   // Ele exige `letrasNovas` maior que zero pelo mesmo motivo dos outros: sem
   // tráfego, "nenhuma música em 25 minutos" é madrugada, não é pane.
-  if (d.letrasNovas >= 1 && d.minutosSemProntas != null && d.minutosSemProntas >= 25) {
+  //
+  // E a letra precisa ter IDADE pra contar. Em 01/10/2026 o vigia da Ballad
+  // gritou "pause as campanhas" com duas letras escritas 30 segundos antes:
+  // a última música pronta tinha 31 minutos porque o tráfego estava baixo, e
+  // as duas ficaram prontas 13s e 62s depois do alerta. Com pouco tráfego,
+  // todo lead depois de 25 minutos de calmaria fazia isso. Letra com mais de
+  // `MINUTOS_MATURA` que não virou música é pane; letra de 30 segundos é fila.
+  const letrasQueJaDeviamTerSaido = d.letrasMaduras ?? d.letrasNovas;
+  if (letrasQueJaDeviamTerSaido >= 1 && d.minutosSemProntas != null && d.minutosSemProntas >= 25) {
     return { avisar: true, motivo: "orquestrador-mudo" };
   }
   return { avisar: false, motivo: null };
