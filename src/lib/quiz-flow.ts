@@ -5,6 +5,8 @@ import { QUIZ_FLOW_ES } from "@/lib/quiz-flow-es";
 import { QUIZ_FLOW_EN } from "@/lib/quiz-flow-en";
 import { comVoseo } from "@/lib/quiz-flow-ar";
 import { ehArgentina } from "@/lib/mercado-es";
+import { comGospel, SKIP_GOSPEL } from "@/lib/quiz-flow-gospel";
+import type { Tema } from "@/lib/tema";
 
 // Conteúdo do nosso quiz (Fase 1), conforme docs/quiz-fase1.md.
 // Enquadramento: é um PRESENTE/homenagem, não "uma música".
@@ -352,13 +354,23 @@ export const QUIZ_SKIP: SkipMap = {};
 
 // ── Despacho por idioma ───────────────────────────────────────────
 // O português é o default em todo caminho: idioma desconhecido cai em PT.
-export function quizFlow(locale: Locale): FlowStep[] {
+// O quiz gospel é o português com a camada de `quiz-flow-gospel.ts`. Montado
+// uma vez: o `Quiz` compara passos por referência entre renders.
+const QUIZ_FLOW_GOSPEL = comGospel(QUIZ_FLOW_PT);
+
+export function quizFlow(locale: Locale, tema?: Tema | null): FlowStep[] {
+  if (locale === "pt" && tema === "gospel") return QUIZ_FLOW_GOSPEL;
   if (locale === "en") return QUIZ_FLOW_EN;
   if (locale !== "es") return QUIZ_FLOW_PT;
   // O MERCADO decide a redação, do mesmo jeito que já decide o prompt da letra
   // (`systemDaLetra`), os gêneros (`generos`) e o exemplo da abertura. Este era
   // o quarto lugar, e era o único que tinha ficado de fora.
   return ehArgentina() ? comVoseo(QUIZ_FLOW_ES) : QUIZ_FLOW_ES;
+}
+
+/** A pulagem do fluxo: a do gospel troca os passos do louvor pelos de presente. */
+export function skipDoFluxo(tema?: Tema | null): SkipMap {
+  return tema === "gospel" ? SKIP_GOSPEL : QUIZ_SKIP;
 }
 
 /**
