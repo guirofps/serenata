@@ -119,12 +119,23 @@ conhecida, e o erro fica impossível por construção.
 | `letra_finalizada` | `generate_lead` | `RevealStep.tsx:260` | sem valor — lead grátis não tem preço |
 | `oferta_vista` | `view_item` | `TelaOferta.tsx:521` | `meuPlano(locale).valor`, já calculado ali pro TikTok |
 | `checkout_click` | `begin_checkout` | `TelaOferta.tsx:812` | `plano.valor` |
-| `pix_transparente_gerado` | `add_payment_info` | `PixTransparente.tsx:268` | `r.valorCentavos / 100` |
+| `pix_transparente_gerado` | `add_payment_info` | `PixTransparente.tsx:268` | `r.valorCentavos / 100`, em `BRL` (PIX só existe em real) |
 | `conversaoCompra` | `purchase` | `Obrigado.tsx:225` | `plano.valor` + `transaction_id` |
 
 **Moeda** sempre `locale === "pt" ? "BRL" : "USD"`, decidida no ponto de
 chamada, onde o locale é conhecido. É a regra que nasceu do bug de 13/08 (a
 conversão mandava `37 BRL` cravado em venda de dólar).
+
+**O lead conta uma vez por navegador**, como o `letra_finalizada` que ele
+substitui (`trackEventOnce`). A refação grátis finaliza a letra de novo; sem
+a dedupe, cada refação seria um lead a mais no GA4. Para isso o `track.ts`
+passa a exportar `primeiraVez(nome, chave)`, síncrono, e o `trackEventOnce`
+passa a usá-lo, sem mudar de comportamento.
+
+**Valor fora da unidade cheia não vira receita.** Nada que se vende aqui
+passa de R$ 1.000 (ticket R$ 38, US$ 19). Valor acima disso, zero, negativo
+ou `NaN` sai **sem** `value`: é centavo passado por engano, e o evento ainda
+conta como etapa sem envenenar a receita.
 
 **`botao_comprar` não é promovido.** Ele dispara no mesmo clique que o
 `checkout_click` (`TelaOferta.tsx:787` e `:812`). Promover os dois contaria toda
@@ -152,10 +163,14 @@ aceita objeto aninhado.
 
 O filtro tem **duas camadas**, porque cada uma sozinha deixa passar algo:
 
-1. **Pela chave.** Descarta `_fbp`, `_fbc` (identificadores do Meta: mandá-los
-   ao Google é entregar o identificador de uma plataforma de anúncio para
-   outra), `path` (o GA4 já tem `page_location`) e qualquer chave que case
-   `/email|token|telefone|phone|cpf|chave|senha|nome/i`.
+1. **Pela chave.** Descarta `fbp` e `fbc` (é assim que o `trackEvent` os
+   nomeia; `_fbp` e `_fbc` são os cookies, e também ficam de fora):
+   identificadores do Meta, e mandá-los ao Google é entregar o identificador
+   de uma plataforma de anúncio para outra. Descarta `path` (o GA4 já tem
+   `page_location`), os parâmetros que o GA4 trata como especiais (`value`,
+   `currency`, `transaction_id`, `send_to`, `items` — só as funções tipadas
+   podem pô-los, senão um payload qualquer viraria receita) e qualquer chave
+   que case `/email|token|telefone|phone|cpf|chave|senha|nome/i`.
 2. **Pela forma do valor.** Número e booleano passam. Texto só passa se
    parecer rótulo: `/^[A-Za-z0-9_.:-]{1,40}$/`. Passam `pt`, `A`,
    `sertanejo`, `pago`, `24109054263`. Não passam `Para Camila`,
@@ -191,10 +206,23 @@ caracteres, de 40.
   e os da landing são `<a href>` para os tokens de exemplo, que são públicos.
   Mas isso vale porque os links estão onde estão, não por regra.
 
-  A guarda: um efeito no `__root.tsx` define
-  `window['ga-disable-G-E2EKHK3RQF'] = !podeMedir` a cada troca de rota. É a
-  chave oficial do GA4; corta todo envio da propriedade, inclusive a medição
-  aprimorada, não importa como a pessoa chegou ali.
+  A guarda é `window['ga-disable-G-E2EKHK3RQF']`, a chave oficial do GA4,
+  que corta todo envio da propriedade, inclusive a medição aprimorada. **Quem
+  liga a chave é um script inline, injetado antes do `gtag`**
+  (`scriptGuardaGa4`, mesmo padrão do `scriptTiktok`): ele envolve
+  `history.pushState`/`replaceState` e ouve `popstate` em captura, e liga a
+  chave **sincronamente, antes** de a URL mudar.
+
+  Não é um efeito do React, e isso foi decidido lendo o roteador: o
+  `onBeforeNavigate` do TanStack Router é emitido dentro de `load()`
+  (`router-core/dist/esm/router.js:547`), que roda **depois** do
+  `history.push` (`:426`). Efeito ou evento do roteador chegariam depois da
+  troca de URL, que é o instante em que o GA4 registra o `page_view`.
+
+  Não deu para provar a temporização contra o `gtag` real antes da
+  implementação: ganchos instalados depois do carregamento não capturam o
+  envio dele. A prova fica para depois do deploy, nos relatórios do próprio
+  GA4 (ver "Verificação").
 - **Sem `window.gtag`** (bloqueador, SSR, rota sensível): no-op silencioso.
 
 ## O painel
@@ -226,13 +254,20 @@ Não dá pra fazer pela API que temos.
 
 ## Testes
 
+Régua do projeto (`vitest.config.ts`): só lógica pura, ambiente node, sem
+jsdom, sem render de componente. Os pontos de chamada nos componentes são
+cobertos por **testes de contrato** que leem o código-fonte (todo
+`trackEvent` de um nome promovido vem acompanhado da função tipada; a compra
+do GA4 sai do mesmo arquivo da conversão do Ads; o script da trava vem antes
+do `gtag` no `__root`).
+
 `src/lib/ga4.test.ts`, em ambiente **node, sem jsdom**. O
 `google-ads.test.ts` pede jsdom, que não está instalado, e falha antes de
 rodar; o núcleo puro (`montarParams`) e uma função `gtag` falsa em
 `globalThis.window` bastam aqui.
 
 - `attribution` achatado em `ref`/`utm_*`
-- truncamento em 100 caracteres e teto de 25 parâmetros
+- texto acima de 40 caracteres, com espaço ou com `@` descartado; teto de 25 parâmetros
 - `_fbp`, `_fbc`, e-mail e token **ausentes** da saída
 - no-op sem `gtag`, sem `GA4_ID` e em rota sensível
 - toda chamada leva `send_to: GA4_ID`
@@ -242,6 +277,16 @@ rodar; o núcleo puro (`montarParams`) e uma função `gtag` falsa em
 - nome em `PROMOVIDOS` não é encaminhado; `page_view` também não
 - nenhum nome encaminhado colide com reservado do GA4
 - `pagamentoGa4` recebendo 38 não vira 3800 — a unidade cheia é contrato
+
+## Verificação depois do deploy
+
+Pelo dono, nos relatórios do GA4, porque o token da API que temos não tem o
+escopo do Analytics:
+
+- **Tempo real**, ao abrir a oferta: aparece `view_item`.
+- **Explorar → Exploração livre**, dimensão "Local da página" contendo
+  `/editar/`, `/p/` ou `/pix/` nos 7 dias seguintes: **zero linhas**. É a prova
+  de que a trava funciona contra o `gtag` de verdade.
 
 ## Fora de escopo
 
