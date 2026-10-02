@@ -57,6 +57,8 @@ export type Attribution = {
    */
   ref?: string;
   ref_em?: string;
+  /** O tema do funil (`tema.ts`), carimbado no início do quiz. */
+  tema?: "gospel";
   captured_at: string;
 };
 
