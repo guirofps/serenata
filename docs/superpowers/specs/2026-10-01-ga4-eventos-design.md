@@ -126,8 +126,8 @@ conhecida, e o erro fica impossível por construção.
 chamada, onde o locale é conhecido. É a regra que nasceu do bug de 13/08 (a
 conversão mandava `37 BRL` cravado em venda de dólar).
 
-**O lead conta uma vez por navegador**, como o `letra_finalizada` que ele
-substitui (`trackEventOnce`). A refação grátis finaliza a letra de novo; sem
+**O lead conta uma vez por sessão**, como o `letra_finalizada` que ele
+substitui (`trackEventOnce`, por sessão desde a auditoria de 30/09). A refação grátis finaliza a letra de novo; sem
 a dedupe, cada refação seria um lead a mais no GA4. Para isso o `track.ts`
 passa a exportar `primeiraVez(nome, chave)`, síncrono, e o `trackEventOnce`
 passa a usá-lo, sem mudar de comportamento.

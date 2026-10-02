@@ -281,9 +281,9 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
         // que permite saber que existiu.
         if (!r?.musicaId) trackEvent("finalizar_sem_musica", { tentativa: 2 });
       }
-      // A letra grátis é quando a visita vira lead. Uma vez por navegador, a
-      // régua que o `trackEventOnce` dava: a refação grátis finaliza de novo,
-      // e sem a dedupe cada refação seria um lead a mais no GA4.
+      // A letra grátis é quando a visita vira lead. Uma vez por SESSÃO, a
+      // régua do `trackEventOnce` (auditoria 30/09): a refação grátis finaliza
+      // de novo, e sem a dedupe cada refação seria um lead a mais no GA4.
       if (primeiraVez("letra_finalizada", "v1")) {
         void trackEvent("letra_finalizada", { titulo: base.titulo });
         leadGa4();
