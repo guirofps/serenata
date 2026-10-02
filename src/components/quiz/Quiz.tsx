@@ -283,11 +283,14 @@ export function Quiz({
     navigate({ to: rota, search: { step: QUIZ_FLOW[i].id } } as never);
   }
   const goNext = () => {
-    const n = nextVisibleIndex(QUIZ_FLOW, idx, respostas, SKIP);
+    // As respostas DA STORE, não as do render: o avanço automático da variante
+    // B chama isto no mesmo toque que grava a resposta, e no `tipo` do gospel
+    // é a resposta que decide o próximo passo (louvor pula "pra quem").
+    const n = nextVisibleIndex(QUIZ_FLOW, idx, useQuizStore.getState().respostas, SKIP);
     if (n === -1) return; // fim → tratado na revisão
     goTo(n);
   };
-  const goPrev = () => goTo(prevVisibleIndex(QUIZ_FLOW, idx, respostas, SKIP));
+  const goPrev = () => goTo(prevVisibleIndex(QUIZ_FLOW, idx, useQuizStore.getState().respostas, SKIP));
 
   // ── POR QUE O BOTAO NAO AVANCOU ───────────────────────────────
   //

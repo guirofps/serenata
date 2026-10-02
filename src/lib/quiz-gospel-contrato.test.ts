@@ -62,3 +62,12 @@ describe("e-mail de ocasião", () => {
     expect(fonte).toMatch(/if \(relacao === "deus"\) continue;/);
   });
 });
+
+describe("revisão final (02/10)", () => {
+  // O avanço automático da variante B chama `goNext` no mesmo toque que grava
+  // o `tipo`: com as respostas do render, o louvor caía em "Pra quem".
+  it("a navegação lê as respostas da store, não as do render", () => {
+    expect(QUIZ).toMatch(/nextVisibleIndex\(QUIZ_FLOW, idx, useQuizStore\.getState\(\)\.respostas, SKIP\)/);
+    expect(QUIZ).toMatch(/prevVisibleIndex\(QUIZ_FLOW, idx, useQuizStore\.getState\(\)\.respostas, SKIP\)/);
+  });
+});
