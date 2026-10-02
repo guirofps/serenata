@@ -27,7 +27,8 @@ import {
   carimbarIndicacao,
 } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
-import { rotaSensivel } from "@/lib/rotas-sensiveis";
+import { PREFIXOS, rotaSensivel } from "@/lib/rotas-sensiveis";
+import { GA4_ID, scriptGuardaGa4 } from "@/lib/ga4";
 import { TIKTOK_PIXEL_ID, scriptTiktok } from "@/lib/tiktok-pixel";
 import { GOOGLE_ADS_ID } from "@/lib/google-ads";
 import { LOCALE_PADRAO, TAG_IDIOMA } from "@/lib/i18n";
@@ -252,6 +253,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: scriptConfigGlobal(cfgExperimentos) }} />
         <script dangerouslySetInnerHTML={{ __html: scriptExperimentos(cfgExperimentos) }} />
         <style dangerouslySetInnerHTML={{ __html: cssExperimentos(cfgExperimentos) }} />
+        {/* Em rota sensível o referrer sai SÓ com a origem. Sem isto, a
+            navegação de `/p/<token>` ou `/pix/<ref>` pra uma página medida
+            entregaria o token ao gtag em `page_referrer` — o vazamento que já
+            foi medido em produção no `/credito`. Política padrão do site:
+            `strict-origin-when-cross-origin` (vercel.json). */}
+        {!podeMedir && <meta name="referrer" content="strict-origin" />}
       </head>
       <body className="bg-background text-foreground">
         {children}
@@ -266,6 +273,15 @@ function RootShell({ children }: { children: React.ReactNode }) {
             conta da Serenata, e sem o id dela não carrega tag nenhuma. */}
         {podeMedir && GOOGLE_ADS_ID && (
           <>
+            {/* A trava do GA4 em rota sensível. O script inline executa
+                durante o parse do HTML, ANTES da hidratação: quando o SPA faz a
+                primeira navegação, a trava já envolve o pushState e liga
+                `ga-disable-<id>` antes de a URL mudar. A ordem em relação ao
+                gtag não importa e nem é controlável (o React 19 iça o
+                `<script async>` pro <head>). Ver `scriptGuardaGa4` em `ga4.ts`. */}
+            {GA4_ID && (
+              <script dangerouslySetInnerHTML={{ __html: scriptGuardaGa4(GA4_ID, PREFIXOS) }} />
+            )}
             <script
               async
               src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`}

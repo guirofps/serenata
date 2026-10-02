@@ -469,6 +469,28 @@ custo zero.
   carregamento). Grátis, teto de 5. Atualização que falha devolve o vídeo
   anterior. Arquivo novo a cada render: com o mesmo nome o CDN serve o velho.
 
+## GA4 (01/10/2026)
+
+Propriedade `G-E2EKHK3RQF`, destino da mesma tag do Ads (`GT-5TWGDWC6`).
+Código em `src/lib/ga4.ts`; desenho em
+`docs/superpowers/specs/2026-10-01-ga4-eventos-design.md`.
+
+- **A compra do GA4 é SECUNDÁRIA no Ads, nunca primária.** A mesma venda já é
+  contada pela importada (primária) e pela tag. Uma terceira fonte primária
+  faria o Smart Bidding comprar com um CPA que não existe.
+- **Todo `gtag` do `ga4.ts` leva `send_to`.** Sem ele o evento vai pra todos
+  os destinos da tag, inclusive o Ads.
+- **O GA4 não vê nada depois da `/obrigado`**: o pós-compra mora em rota
+  sensível. Upsell e AOV continuam no `funnel_events`.
+- **Evento promovido** (`PROMOVIDOS`) tem função tipada no ponto de chamada;
+  promover um novo exige os dois lados, e `ga4-contrato.test.ts` cobra.
+- **O `session_id` é credencial**: `/retomar?s=<id>` devolve e-mail, WhatsApp
+  e o token do editor. Nunca vai cru pra terceiro — como `transaction_id` sai
+  por hash (`hashDaSessao`), e rota que o leva na URL (`/oferta/`) é sensível.
+- **Configuração do GA4 que o código não alcança:** "Cliques de saída"
+  desligado (o WhatsApp da `/obrigado` leva nome e título da música) e
+  redação de e-mail e dos parâmetros `email`, `code`, `session_id`, `text`.
+
 ## Riscos conhecidos
 
 1. **Dependência de revendedor não oficial do Suno.** Zona cinzenta nos termos

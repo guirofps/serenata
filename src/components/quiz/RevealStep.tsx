@@ -10,7 +10,8 @@ import {
 import { getOrCreateSessionId } from "@/lib/session-context";
 import type { LetraGerada } from "@/lib/letra-prompt";
 import { useQuizStore } from "@/lib/quiz-store";
-import { trackEvent, trackEventOnce } from "@/lib/track";
+import { primeiraVez, trackEvent, trackEventOnce } from "@/lib/track";
+import { leadGa4 } from "@/lib/ga4";
 import { irParaCheckout } from "@/lib/checkout";
 import { Button } from "@/components/ui/button";
 import { MusicaDaSessao, type EstadoMusica } from "@/components/quiz/MusicaDaSessao";
@@ -280,7 +281,13 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
         // que permite saber que existiu.
         if (!r?.musicaId) trackEvent("finalizar_sem_musica", { tentativa: 2 });
       }
-      trackEventOnce("letra_finalizada", "v1", { titulo: base.titulo });
+      // A letra grátis é quando a visita vira lead. Uma vez por SESSÃO, a
+      // régua do `trackEventOnce` (auditoria 30/09): a refação grátis finaliza
+      // de novo, e sem a dedupe cada refação seria um lead a mais no GA4.
+      if (primeiraVez("letra_finalizada", "v1")) {
+        void trackEvent("letra_finalizada", { titulo: base.titulo });
+        leadGa4();
+      }
       // Guarda a letra final ANTES de revelar: é o que permite voltar pra
       // esta tela depois sem recomeçar a coautoria.
       useQuizStore.getState().setLetraFinal({

@@ -10,6 +10,7 @@ import { conviteDaSessao } from "@/lib/indicacao-fns";
 import { descontoDoConvite, reaisDeCentavos } from "@/lib/indicacao";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { carrinhoTiktok, checkoutTiktok } from "@/lib/tiktok-pixel";
+import { checkoutGa4, vitrineGa4 } from "@/lib/ga4";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { TEMA_CLARO } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
@@ -554,6 +555,9 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     trackEventOnce("oferta_vista", "v1");
     // O "pôr no carrinho" pro TikTok: abriu a oferta. Ver `carrinhoTiktok`.
     carrinhoTiktok({ valor: meuPlano(locale).valor, moeda: locale === "pt" ? "BRL" : "USD" });
+    // O mesmo degrau no GA4, com nome padrão. A cada abertura, como o do
+    // TikTok: `view_item` é por visualização, não por pessoa.
+    vitrineGa4({ valor: meuPlano(locale).valor, moeda: locale === "pt" ? "BRL" : "USD" });
   }, []);
 
   // ── O CONVITE DE UM AMIGO (member get member) ─────────────────
@@ -867,6 +871,11 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     // Vale pra QUALQUER visitante, não só pra quem veio do TikTok: é assim
     // que o pixel monta público. Ele só existe se o pixel carregou.
     checkoutTiktok({ valor: plano.valor, moeda: locale === "pt" ? "BRL" : "USD" });
+
+    // E no GA4, como `begin_checkout`. O `botao_comprar` (lá em cima) fica de
+    // fora de propósito: dispara no mesmo clique e contaria duas vezes — o
+    // erro que `admin-dados.ts` já documenta ("somava os dois nomes").
+    checkoutGa4({ valor: plano.valor, moeda: locale === "pt" ? "BRL" : "USD" });
 
     // ── O CHECKOUT TRANSPARENTE ──────────────────────────────────
     //

@@ -44,7 +44,9 @@ describe("conversaoCompra — o transaction_id nunca sai vazio", () => {
     // era exatamente aqui que a conversão sumia.
     localStorage.setItem("mp_session_id", "sess-xyz");
     conversaoCompra({ valor: 38 });
-    expect(pegarEvento()?.transaction_id).toBe("sess-xyz");
+    // Por hash, nunca cru: o session_id abre a conta pelo `/retomar?s=`.
+    expect(pegarEvento()?.transaction_id).toMatch(/^s_[a-z0-9]+$/);
+    expect(pegarEvento()?.transaction_id).not.toBe("sess-xyz");
   });
 
   it("NUNCA manda string vazia: sem nenhum id, OMITE o campo", () => {
