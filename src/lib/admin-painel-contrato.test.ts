@@ -123,3 +123,12 @@ describe("sem laço quadrático no painel", () => {
     expect(DADOS).toMatch(/comMusica\.has\(l\.id\)/);
   });
 });
+
+describe("gospel no painel (02/10)", () => {
+  it("lê tipo e tema dos leads e monta a seção", () => {
+    expect(DADOS).toMatch(/r_tipo:respostas->>tipo/);
+    expect(DADOS).toMatch(/r_tema:respostas->>tema/);
+    expect(DADOS).toMatch(/porTemaDe\(/);
+    expect(readFileSync("src/routes/admin.tsx", "utf8")).toMatch(/dados\.porTema/);
+  });
+});

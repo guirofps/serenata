@@ -1576,6 +1576,30 @@ function Corpo({
               )}
             </Tabela>
           </Secao>
+          {/* O GOSPEL (02/10): só aparece com lead de `/criar?t=gospel` no
+              período. Receita por lead é a coluna que decide se a porta
+              gospel vale o anúncio. */}
+          {dados.porTema?.length > 0 && (
+            <Secao titulo="Gospel" sub="Quem entrou por /criar?t=gospel, contra o resto do funil">
+              <Tabela cabecalho={["Tema", "Leads", "Letras", "Vendas", "Receita", "Conv.", "Receita/lead"]}>
+                {dados.porTema.map((l) => (
+                  <tr key={l.tema} className={cn(l.tema !== "resto" && "bg-[var(--acento)]/5")}>
+                    <td className="px-3 py-2.5 font-medium">{l.tema}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{l.leads}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{l.letras}</td>
+                    <td className="px-3 py-2.5 text-right font-medium tabular-nums">{l.vendas}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {l.receitaBrl > 0 ? brl(l.receitaBrl) : "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{pc(l.conversaoPct)}</td>
+                    <td className="px-3 py-2.5 text-right font-medium tabular-nums">
+                      {l.leads > 0 ? brl(l.receitaPorLeadBrl) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </Tabela>
+            </Secao>
+          )}
 
           <ImportarRelatorioAds />
         </>

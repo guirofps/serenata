@@ -5,6 +5,7 @@ import { QUIZ_FLOW } from "@/lib/quiz-flow";
 import { isQuestion } from "@/lib/flow-engine";
 import { cambioDoDia } from "@/lib/cambio";
 import { filtroCursor, lerJanela } from "@/lib/ler-janela";
+import { porTemaDe, type LinhaTema } from "@/lib/admin-tema";
 import {
   ehVenda,
   faixasVivas,
@@ -222,6 +223,9 @@ export type Painel = {
     /** Custo por venda NOSSA, não pela conversão que o Google conta. */
     cpaBrl: number | null;
   }>;
+
+  /** Quem entrou por `/criar?t=gospel` contra o resto (`admin-tema.ts`). Vazio sem lead gospel. */
+  porTema: LinhaTema[];
 
   /**
    * POR PÁGINA DE ENTRADA. Qual porta converte melhor.
@@ -441,7 +445,7 @@ type Lead = {
   session_id: string | null;
   /**
    * REMONTADO a partir de quatro campos extraídos no banco, e não o jsonb
-   * inteiro. Só tem `nome`, `relacao`, `estilo` e `ocasiao` — que é tudo o
+   * inteiro. Só tem `nome`, `relacao`, `estilo`, `ocasiao`, `tipo` e `tema` — que é tudo o
    * que o painel lê. A história que a pessoa escreveu NÃO vem, e é ela que
    * fazia esta consulta custar 5 segundos.
    */
@@ -758,7 +762,8 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
       "quiz_responses",
       "id, session_id, furthest_step, email, attribution, locale, created_at," +
         "r_nome:respostas->>nome, r_relacao:respostas->>relacao," +
-        "r_estilo:respostas->>estilo, r_ocasiao:respostas->>ocasiao",
+        "r_estilo:respostas->>estilo, r_ocasiao:respostas->>ocasiao," +
+        "r_tipo:respostas->>tipo, r_tema:respostas->>tema",
     ),
     janela<Musica>(
       "musicas",
@@ -824,6 +829,8 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
           relacao: c.r_relacao ?? undefined,
           estilo: c.r_estilo ?? undefined,
           ocasiao: c.r_ocasiao ?? undefined,
+          tipo: c.r_tipo ?? undefined,
+          tema: c.r_tema ?? undefined,
         } as Record<string, unknown>,
       };
     })
@@ -1212,6 +1219,13 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
     })
     .sort((a, b) => b.receitaBrl - a.receitaBrl || b.leads - a.leads);
 
+  // O GOSPEL (`/criar?t=gospel`): mesma leitura do porOrigem, por tema.
+  const porTema = porTemaDe(
+    leads,
+    pagos.map((p) => ({ quiz_response_id: p.quiz_response_id, receitaBrl: valorEmBrl(p) })),
+    comMusica,
+  );
+
   // ── OS TESTES A/B ────────────────────────────────────────────
   //
   // A variante viaja em `attribution.exp` desde que `carimbarExperimentos`
@@ -1426,6 +1440,7 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
     funil,
     porExperimento,
     porOrigem,
+    porTema,
     porEntrada,
     gastos,
 
