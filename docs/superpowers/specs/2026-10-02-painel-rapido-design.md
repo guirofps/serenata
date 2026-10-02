@@ -234,7 +234,7 @@ Puros, no Vitest (ambiente node, como o resto):
   linhas avança pelo cursor sem repetir nem pular; empate de `created_at`
   desempatado por `id`; erro numa fatia lança como antes.
 - A regra de sessões compradoras, já extraída: cortesia (`dinheiro_entrou =
-  false`) fica de fora; filtro `pt`/`es` respeitado.
+false`) fica de fora; filtro `pt`/`es` respeitado.
 - O planejador do cron (`diasAFazer(existentes, agora)`): dias faltando em
   ordem; recentes vencidos entram; dia de hoje nunca entra; recente
   atualizado há menos de 6h não entra.
