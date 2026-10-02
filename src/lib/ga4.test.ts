@@ -1,5 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GA4_ID, PROMOVIDOS, encaminharGa4, enviarEvento, montarParams } from "./ga4";
+import {
+  GA4_ID,
+  PROMOVIDOS,
+  checkoutGa4,
+  compraGa4,
+  encaminharGa4,
+  enviarEvento,
+  leadGa4,
+  montarParams,
+  pagamentoGa4,
+  vitrineGa4,
+} from "./ga4";
 
 // O GA4 É O SEGUNDO DESTINO DO FUNIL. Tudo aqui é sobre o que pode e o que
 // não pode sair do navegador rumo ao Google. O banco próprio (`funnel_events`)
@@ -170,5 +181,86 @@ describe("encaminharGa4", () => {
     em("/criar");
     for (const nome of PROMOVIDOS) encaminharGa4(nome, { valor: 38 });
     expect(gtag).not.toHaveBeenCalled();
+  });
+});
+
+describe("promoção tipada", () => {
+  it("generate_lead sai sem valor: lead grátis não tem preço", () => {
+    em("/criar");
+    leadGa4();
+    expect(gtag).toHaveBeenCalledWith("event", "generate_lead", { send_to: "G-E2EKHK3RQF" });
+  });
+
+  it("view_item e begin_checkout levam valor e moeda", () => {
+    em("/criar");
+    vitrineGa4({ valor: 38, moeda: "BRL" });
+    checkoutGa4({ valor: 19, moeda: "USD" });
+    expect(gtag).toHaveBeenNthCalledWith(1, "event", "view_item", {
+      value: 38,
+      currency: "BRL",
+      send_to: "G-E2EKHK3RQF",
+    });
+    expect(gtag).toHaveBeenNthCalledWith(2, "event", "begin_checkout", {
+      value: 19,
+      currency: "USD",
+      send_to: "G-E2EKHK3RQF",
+    });
+  });
+
+  it("add_payment_info leva o meio de pagamento", () => {
+    em("/criar");
+    pagamentoGa4({ valor: 38, moeda: "BRL", meio: "pix" });
+    expect(gtag).toHaveBeenCalledWith("event", "add_payment_info", {
+      value: 38,
+      currency: "BRL",
+      payment_type: "pix",
+      send_to: "G-E2EKHK3RQF",
+    });
+  });
+
+  it("centavos passados por engano não viram receita", () => {
+    em("/criar");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    pagamentoGa4({ valor: 3800, moeda: "BRL", meio: "pix" });
+    const params = gtag.mock.calls[0][2];
+    expect(params).not.toHaveProperty("value");
+    expect(params).not.toHaveProperty("currency");
+    expect(params).toMatchObject({ payment_type: "pix" });
+  });
+
+  it("valor inválido sai sem valor, nunca NaN", () => {
+    em("/criar");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    for (const valor of [Number.NaN, 0, -5, Number.POSITIVE_INFINITY]) {
+      gtag.mockClear();
+      checkoutGa4({ valor, moeda: "BRL" });
+      expect(gtag.mock.calls[0][2], String(valor)).toEqual({ send_to: "G-E2EKHK3RQF" });
+    }
+  });
+
+  it("purchase leva o transaction_id que veio", () => {
+    em("/obrigado");
+    compraGa4({ valor: 38, moeda: "BRL", transactionId: "pix_abc" });
+    expect(gtag).toHaveBeenCalledWith("event", "purchase", {
+      value: 38,
+      currency: "BRL",
+      transaction_id: "pix_abc",
+      send_to: "G-E2EKHK3RQF",
+    });
+  });
+
+  it("purchase sem id cai na sessão, pela MESMA escada da conversão do Ads", () => {
+    em("/obrigado");
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => (k === "mp_session_id" ? "sess-1" : null),
+    });
+    compraGa4({ valor: 38, moeda: "BRL" });
+    expect(gtag.mock.calls[0][2]).toMatchObject({ transaction_id: "sess-1" });
+  });
+
+  it("purchase sem id nenhum OMITE o campo, nunca manda vazio", () => {
+    em("/obrigado");
+    compraGa4({ valor: 38, moeda: "BRL" });
+    expect(gtag.mock.calls[0][2]).not.toHaveProperty("transaction_id");
   });
 });

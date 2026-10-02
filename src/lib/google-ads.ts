@@ -24,9 +24,7 @@ import { MARCA_ATIVA } from "./marca-identidade.js";
 // que medir na conta errada).
 const ENV = (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
 export const GOOGLE_ADS_ID: string | null =
-  MARCA_ATIVA.chave === "serenata"
-    ? "AW-16919557808"
-    : ENV.VITE_GOOGLE_ADS_ID?.trim() || null;
+  MARCA_ATIVA.chave === "serenata" ? "AW-16919557808" : ENV.VITE_GOOGLE_ADS_ID?.trim() || null;
 const CONVERSAO: string | null =
   MARCA_ATIVA.chave === "serenata"
     ? "AW-16919557808/pSbhCOqvttkcELDt74M_"
@@ -115,7 +113,9 @@ export function transacaoGuardada(): string | undefined {
  * OMITIDO. Sem id, o Google conta a conversão como única; com id vazio, ele
  * a joga fora. Omitir erra pra cima, e errar pra cima aqui é muito melhor.
  */
-function idDaTransacao(passado?: string): string | undefined {
+// Exportada pro `ga4.ts`: a compra do GA4 usa ESTA escada, e não uma cópia.
+// Duas escadas paralelas sairiam de sincronia no primeiro conserto.
+export function idDaTransacao(passado?: string): string | undefined {
   const candidato = passado?.trim() || transacaoGuardada()?.trim();
   if (candidato) return candidato;
   try {

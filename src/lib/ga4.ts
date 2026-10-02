@@ -21,6 +21,7 @@
 
 import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { rotaSensivel } from "@/lib/rotas-sensiveis";
+import { idDaTransacao } from "@/lib/google-ads";
 
 const ENV = (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
 
@@ -128,4 +129,66 @@ export function encaminharGa4(
 ): void {
   if (NAO_ENCAMINHAR.has(nome)) return;
   enviarEvento(nome, montarParams(dados), id);
+}
+
+// ── A PROMOÇÃO, NO PONTO DE CHAMADA ──────────────────────────────
+//
+// Mesmo mecanismo do `tiktok-pixel.ts` (`carrinhoTiktok`, `checkoutTiktok`):
+// funções tipadas chamadas onde o evento acontece. O valor chega em UNIDADE
+// CHEIA por contrato, porque os payloads de hoje divergem — `checkout_click`
+// manda `plano.valor`, `pix_transparente_gerado` manda `valorCentavos`. Um
+// mapa que lesse `payload.valor` registraria R$ 3.800 num PIX de R$ 38.
+
+export type Valor = { valor: number; moeda: "BRL" | "USD" };
+
+// Ticket R$ 38, US$ 19: nada que se vende aqui chega a mil. Acima disso é
+// centavo passado por engano. O evento ainda conta como etapa, mas sem
+// `value`: etapa sem valor não envenena a receita; receita 100x maior sim.
+const TETO_VALOR = 1000;
+
+function comValor({ valor, moeda }: Valor): Record<string, unknown> {
+  if (!Number.isFinite(valor) || valor <= 0 || valor > TETO_VALOR) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error(`[ga4] valor fora da unidade cheia, enviado sem value: ${valor}`);
+    }
+    return {};
+  }
+  return { value: valor, currency: moeda };
+}
+
+/** A letra grátis pronta: é quando a visita vira lead. Sem valor de propósito. */
+export function leadGa4(id: string | null = GA4_ID): void {
+  enviarEvento("generate_lead", {}, id);
+}
+
+/** Viu a oferta com preço. */
+export function vitrineGa4(v: Valor, id: string | null = GA4_ID): void {
+  enviarEvento("view_item", comValor(v), id);
+}
+
+/** Clicou pra pagar e foi pro checkout de verdade (não o resgate de crédito). */
+export function checkoutGa4(v: Valor, id: string | null = GA4_ID): void {
+  enviarEvento("begin_checkout", comValor(v), id);
+}
+
+/** O meio de pagamento foi apresentado (o código do PIX nasceu). */
+export function pagamentoGa4(
+  v: Valor & { meio: "pix" | "cartao" },
+  id: string | null = GA4_ID,
+): void {
+  enviarEvento("add_payment_info", { ...comValor(v), payment_type: v.meio }, id);
+}
+
+/**
+ * A venda. Sai do MESMO ponto que a conversão do Ads (`Obrigado.tsx`), com a
+ * MESMA escada de `transaction_id`, que nasceu de medir 23 vendas num dia e
+ * 8 contadas. Sem id o campo é OMITIDO: vazio, o Google descarta.
+ */
+export function compraGa4(v: Valor & { transactionId?: string }, id: string | null = GA4_ID): void {
+  const transacao = idDaTransacao(v.transactionId);
+  enviarEvento(
+    "purchase",
+    { ...comValor(v), ...(transacao ? { transaction_id: transacao } : {}) },
+    id,
+  );
 }
