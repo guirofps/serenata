@@ -89,3 +89,27 @@ describe("painel lê o resumo diário", () => {
     expect(TELA).toMatch(/somados dia a dia/);
   });
 });
+
+// ── Achados da revisão final (02/10/2026) ──────────────────────────
+describe("revisão final", () => {
+  const bloco = TELA.slice(TELA.indexOf('["painel", "comparativo"'));
+  const comparativoQuery = bloco.slice(0, bloco.indexOf("});"));
+
+  it("o comparativo não refaz junto com o núcleo no foco nem no Atualizar", () => {
+    // Foco da aba e invalidate refazem tudo que está habilitado ao mesmo tempo.
+    expect(comparativoQuery).toMatch(/!nucleo\.isFetching/);
+    expect(comparativoQuery).toMatch(/refetchOnWindowFocus:\s*false/);
+    expect(TELA).toMatch(/queryKey:\s*\["painel",\s*"comparativo"\],\s*refetchType:\s*"none"/);
+  });
+
+  it("setinha do recorte anterior não aparece sobre o recorte novo", () => {
+    expect(TELA).toMatch(
+      /comparativo=\{comparativo\.isPlaceholderData \? null : \(comparativo\.data \?\? null\)\}/,
+    );
+  });
+
+  it("a tabela de entradas não promete mais visitante único", () => {
+    expect(TELA).not.toMatch(/Cada visitante conta uma vez só/);
+    expect(TELA).toMatch(/somados dia a dia/);
+  });
+});

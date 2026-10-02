@@ -215,7 +215,7 @@ export const REFAZER_H = 6;
 
 /**
  * Os dias que o cron tem que (re)fazer, em ordem: primeiro os FALTANDO (algum
- * dos três filtros sem linha), do mais antigo ao mais novo; depois os RECENTES
+ * dos três filtros sem linha), do mais novo ao mais antigo; depois os RECENTES
  * VENCIDOS — fechados há menos de 72h com linha de mais de 6h. Isso pega
  * evento que chega atrasado e PIX pago depois da meia-noite.
  *
@@ -245,5 +245,8 @@ export function diasAFazer(linhas: LinhaResumoDia[], primeiroDia: string, agora:
       vencidos.push(dia);
     }
   }
-  return [...faltando, ...vencidos];
+  // Faltando do MAIS NOVO pro mais antigo: são os últimos dias que 7 e 30 dias
+  // pedem, e enquanto eles não estão aqui o painel calcula a janela inteira ao
+  // vivo — justamente a consulta que estourava (revisão final, 02/10/2026).
+  return [...faltando.reverse(), ...vencidos];
 }

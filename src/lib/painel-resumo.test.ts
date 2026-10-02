@@ -211,8 +211,10 @@ describe("diasAFazer", () => {
     filtros = ["todos", "pt", "es"],
   ): LinhaResumoDia[] => filtros.map((filtro) => ({ dia, filtro, atualizado_em }));
 
-  it("faltando, do mais antigo ao mais novo; hoje nunca entra", () => {
-    expect(diasAFazer([], "2026-09-29", agora)).toEqual(["2026-09-29", "2026-09-30", "2026-10-01"]);
+  it("faltando, do MAIS NOVO ao mais antigo; hoje nunca entra", () => {
+    // Os últimos dias são os que 7 e 30 dias pedem: sem eles na tabela, o
+    // painel cai no cálculo ao vivo da janela inteira, que é o que estourava.
+    expect(diasAFazer([], "2026-09-29", agora)).toEqual(["2026-10-01", "2026-09-30", "2026-09-29"]);
   });
 
   it("dia com um filtro faltando conta como faltando", () => {

@@ -448,7 +448,11 @@ function Admin() {
   const comparativo = useQuery({
     queryKey: ["painel", "comparativo", ...janelaKey],
     queryFn: () => carregarComparativo({ data: args }),
-    enabled: nucleo.isSuccess && !nucleo.isPlaceholderData,
+    // `!isFetching` e o foco desligado fecham as outras duas portas por onde os
+    // dois voltavam a correr juntos: voltar pra aba e o botão de atualizar
+    // (`carregar`, que só marca o comparativo como velho).
+    enabled: nucleo.isSuccess && !nucleo.isPlaceholderData && !nucleo.isFetching,
+    refetchOnWindowFocus: false,
     ...comum,
   });
 
@@ -480,7 +484,15 @@ function Admin() {
    * primeiras strings são diferentes. Nomes com hífen dariam um botão de
    * atualizar que atualiza um quarto do painel.
    */
-  const carregar = () => qc.invalidateQueries({ queryKey: ["painel"] });
+  const carregar = () => {
+    // O comparativo só fica marcado como velho: ele refaz sozinho quando o
+    // núcleo terminar (o `enabled` dele volta a valer), nunca ao mesmo tempo.
+    void qc.invalidateQueries({ queryKey: ["painel", "comparativo"], refetchType: "none" });
+    return qc.invalidateQueries({
+      queryKey: ["painel"],
+      predicate: (q) => q.queryKey[1] !== "comparativo",
+    });
+  };
 
   // FALHAR NÃO É O MESMO QUE NÃO ESTAR LOGADO — e agora são quatro falhas
   // possíveis, com pesos diferentes. A regra saiu daqui pra `admin-estado.ts`,
@@ -831,7 +843,7 @@ function Admin() {
           (dados ? (
             <Corpo
               dados={dados}
-              comparativo={comparativo.data ?? null}
+              comparativo={comparativo.isPlaceholderData ? null : (comparativo.data ?? null)}
               saldoKie={saldoKie.data}
               emails={emails.data}
               emailsCarregando={emails.isPending && aba === "email"}
@@ -1431,7 +1443,7 @@ function Corpo({
             pra saber qual das duas paga melhor. */}
           <Secao
             titulo="Qual página converte"
-            sub="Pela primeira página que a sessão abriu. Cada visitante conta uma vez só."
+            sub="Pela primeira página que a sessão abriu. Visitantes somados dia a dia; venda conta quando é no mesmo dia da visita."
           >
             <Tabela
               cabecalho={["Página de entrada", "Visitantes", "Quiz", "Letras", "Vendas", "Conv."]}
