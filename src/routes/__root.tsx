@@ -253,6 +253,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: scriptConfigGlobal(cfgExperimentos) }} />
         <script dangerouslySetInnerHTML={{ __html: scriptExperimentos(cfgExperimentos) }} />
         <style dangerouslySetInnerHTML={{ __html: cssExperimentos(cfgExperimentos) }} />
+        {/* Em rota sensível o referrer sai SÓ com a origem. Sem isto, a
+            navegação de `/p/<token>` ou `/pix/<ref>` pra uma página medida
+            entregaria o token ao gtag em `page_referrer` — o vazamento que já
+            foi medido em produção no `/credito`. Política padrão do site:
+            `strict-origin-when-cross-origin` (vercel.json). */}
+        {!podeMedir && <meta name="referrer" content="strict-origin" />}
       </head>
       <body className="bg-background text-foreground">
         {children}

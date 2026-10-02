@@ -50,6 +50,10 @@ export const PREFIXOS: readonly string[] = [
   // endereço é token de cliente numa URL, e é isso que a lista protege.
   "/credito/",
   "/descadastrar",
+  // `/oferta/<sessao>.<degrau>.<assinatura>` (oferta-assinada.ts): a sessão
+  // vai em texto puro, e é a mesma credencial do `/retomar?s=`. A compra que
+  // sai daqui dispara na `/obrigado`, então nenhuma conversão se perde.
+  "/oferta/",
   "/auth/",
 ];
 

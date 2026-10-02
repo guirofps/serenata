@@ -74,6 +74,13 @@ describe("trava do GA4 em rota sensível", () => {
     expect(g.trava()).toBe(true);
   });
 
+  it("/oferta/ é sensível: o token carrega o session_id em texto puro", () => {
+    // `<sessao>.<degrau>.<assinatura>` (oferta-assinada.ts): a sessão é a
+    // mesma credencial do `/retomar?s=`.
+    expect(rotaSensivel("/oferta/sess-1.2.assinatura")).toBe(true);
+    expect(montar("/oferta/sess-1.2.assinatura").trava()).toBe(true);
+  });
+
   it("concorda com rotaSensivel em toda forma de caminho", () => {
     const casos = [
       "/",
@@ -95,6 +102,7 @@ describe("trava do GA4 em rota sensível", () => {
       "/auth/callback",
       "/quadro/exemplo",
       "/credito/t",
+      "/oferta/s.1.x",
     ];
     for (const caminho of casos) {
       expect(montar(caminho).trava(), caminho).toBe(rotaSensivel(caminho));

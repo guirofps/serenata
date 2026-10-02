@@ -113,6 +113,31 @@ export function transacaoGuardada(): string | undefined {
  * OMITIDO. Sem id, o Google conta a conversão como única; com id vazio, ele
  * a joga fora. Omitir erra pra cima, e errar pra cima aqui é muito melhor.
  */
+// ── O SESSION_ID É CREDENCIAL, E POR ISSO SAI POR HASH ────────────
+//
+// `/retomar?s=<session_id>` devolve e-mail, WhatsApp, as respostas do quiz e o
+// `tokenEdicao`. O degrau 3 da escada mandava esse id CRU como
+// `transaction_id` — pro Ads e, desde 01/10, pro GA4, que mostra Transaction ID
+// como dimensão navegável nos relatórios que o dono compartilha. É o caminho
+// de TODA venda de cartão: o cartão não guarda referência antes da `/obrigado`.
+//
+// A dedupe só precisa de um valor ESTÁVEL por sessão. Hash de mão única,
+// síncrono (isto roda dentro do gtag, e `crypto.subtle` é assíncrono). O
+// cyrb53 não é criptográfico, mas não precisa ser: a entrada é um UUID
+// aleatório, e ninguém reconstrói 122 bits a partir de 53.
+function hashDaSessao(s: string): string {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return `s_${(4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36)}`;
+}
+
 // Exportada pro `ga4.ts`: a compra do GA4 usa ESTA escada, e não uma cópia.
 // Duas escadas paralelas sairiam de sincronia no primeiro conserto.
 export function idDaTransacao(passado?: string): string | undefined {
@@ -123,7 +148,7 @@ export function idDaTransacao(passado?: string): string | undefined {
     // mesma chave que `session-context.ts` usa, lida direto pra não arrastar
     // aquele módulo pra cá.
     const s = localStorage.getItem("mp_session_id")?.trim();
-    if (s) return s;
+    if (s) return hashDaSessao(s);
   } catch {
     // storage bloqueado
   }

@@ -141,3 +141,18 @@ describe("a trava no __root", () => {
     expect(trava).toBeLessThan(gtag);
   });
 });
+
+// O REFERRER LEVA O TOKEN JUNTO.
+//
+// Com a política padrão (`strict-origin-when-cross-origin`, vercel.json), uma
+// navegação completa dentro do site manda a URL INTEIRA de origem como
+// referrer. Saindo de `/p/<token>` ou `/pix/<ref>` pra uma página medida, o
+// gtag recebe o token em `page_referrer`. Já foi medido em produção no
+// `/credito` (ver o comentário lá). Em rota sensível a política vira
+// `strict-origin`: sai só a origem.
+describe("referrer em rota sensível", () => {
+  it("o __root corta o referrer pra só a origem quando a rota é sensível", () => {
+    const texto = readFileSync("src/routes/__root.tsx", "utf8");
+    expect(texto).toMatch(/\{!podeMedir && <meta name="referrer" content="strict-origin" \/>\}/);
+  });
+});

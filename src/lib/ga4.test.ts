@@ -11,6 +11,7 @@ import {
   pagamentoGa4,
   vitrineGa4,
 } from "./ga4";
+import { idDaTransacao } from "./google-ads";
 
 // O GA4 É O SEGUNDO DESTINO DO FUNIL. Tudo aqui é sobre o que pode e o que
 // não pode sair do navegador rumo ao Google. O banco próprio (`funnel_events`)
@@ -249,13 +250,15 @@ describe("promoção tipada", () => {
     });
   });
 
-  it("purchase sem id cai na sessão, pela MESMA escada da conversão do Ads", () => {
+  it("purchase sem id cai na sessão, pela MESMA escada da conversão do Ads, e nunca crua", () => {
     em("/obrigado");
     vi.stubGlobal("localStorage", {
       getItem: (k: string) => (k === "mp_session_id" ? "sess-1" : null),
     });
     compraGa4({ valor: 38, moeda: "BRL" });
-    expect(gtag.mock.calls[0][2]).toMatchObject({ transaction_id: "sess-1" });
+    const id = gtag.mock.calls[0][2].transaction_id;
+    expect(id).toBe(idDaTransacao());
+    expect(id).not.toBe("sess-1");
   });
 
   it("purchase sem id nenhum OMITE o campo, nunca manda vazio", () => {
