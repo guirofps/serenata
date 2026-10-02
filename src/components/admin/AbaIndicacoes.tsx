@@ -10,6 +10,7 @@ import { AbaIndicacaoLinks } from "@/components/admin/AbaIndicacaoLinks";
 import { reaisDeCentavos } from "@/lib/indicacao";
 import { FONTES } from "@/lib/marca";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/track";
 
 // A ABA DE INDICAÇÕES: quanto o programa custou e a fila de saques.
 //
@@ -34,6 +35,9 @@ export function AbaIndicacoes() {
   const [dados, setDados] = useState<PainelIndicacoes | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [sub, setSub] = useState<"saques" | "links">("saques");
+  useEffect(() => {
+    void trackEvent("admin_sub_aba", { sub });
+  }, [sub]);
 
   async function carregar() {
     try {
@@ -196,7 +200,12 @@ function SaqueAberto({
     try {
       const r = await resolverSaque({ data: { id: saque.id, status, nota } });
       if (!r.ok) setErro(r.erro ?? "não salvou");
-      else await aoResolver();
+      else {
+        // Só o desfecho. Nunca o id do saque, a chave PIX ou o e-mail: o que
+        // interessa é se a tela é usada, não o que tem nela.
+        void trackEvent("admin_saque_resolvido", { status });
+        await aoResolver();
+      }
     } finally {
       setIndo(false);
     }

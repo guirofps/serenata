@@ -16,6 +16,7 @@ import {
 } from "@/lib/admin-dados";
 import { decidirEstado } from "@/lib/admin-estado";
 import { supabase } from "@/lib/supabase-client";
+import { trackEvent } from "@/lib/track";
 import { AbaFinanceiro } from "@/components/admin/AbaFinanceiro";
 import { AbaAutomacoes } from "@/components/admin/AbaAutomacoes";
 import { AbaIndicacoes } from "@/components/admin/AbaIndicacoes";
@@ -360,6 +361,11 @@ function hojeBr(deslocaDias = 0): string {
 
 function Admin() {
   const { dias, de, ate, funil, aba } = Route.useSearch();
+  // Qual aba é usada. Só no `funnel_events`: `/admin` é rota sensível, então
+  // o gtag nem carrega e `encaminharGa4` também não manda (decisão de 01/10).
+  useEffect(() => {
+    void trackEvent("admin_aba", { aba: aba ?? null });
+  }, [aba]);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [senha, setSenha] = useState("");
