@@ -491,6 +491,29 @@ Código em `src/lib/ga4.ts`; desenho em
   desligado (o WhatsApp da `/obrigado` leva nome e título da música) e
   redação de e-mail e dos parâmetros `email`, `code`, `session_id`, `text`.
 
+## Painel rápido (02/10/2026)
+
+O `/admin` parou de abrir até em 7 dias (`statement timeout`). Desenho em
+`docs/superpowers/specs/2026-10-02-painel-rapido-design.md`.
+
+- **Leitura por cursor, nunca por OFFSET.** `lerJanela` (`ler-janela.ts`)
+  lê em fatias de 1 dia, cada uma por `(created_at, id)`. A paginação antiga
+  ordenava a janela inteira por uuid a cada página, 12 páginas de uma vez.
+  Tabela nova que o painel leia precisa do índice `(created_at, id)`.
+- **O comparativo espera o núcleo** (`isSuccess && !isPlaceholderData`).
+  Disparados juntos, 30 dias viravam 60 no banco.
+- **O funil vem de `painel_eventos_dia`**, preenchida pelo cron
+  `api/painel-resumo.ts` (de hora em hora, nos dois projetos). O resumo é a
+  saída de `admin_eventos_resumo` por dia: mexeu na função, os dias antigos
+  ficam com a versão velha até alguém apagar as linhas (`delete from
+painel_eventos_dia`) e o cron refazer.
+- **Visitante é a soma dos dias**, e venda por página de entrada só conta
+  compra no mesmo dia da visita. Escrito no cartão.
+- **A regra de venda mora em `ehVenda`** (`painel-resumo.ts`). O painel e o
+  cron usam a mesma.
+- **`?vivo=1`** no `/admin` ignora o resumo. Pra conferir um dia, não pra 30.
+- Cada painel loga `[admin] painel …` com os tempos nos logs da Vercel.
+
 ## Riscos conhecidos
 
 1. **Dependência de revendedor não oficial do Suno.** Zona cinzenta nos termos
