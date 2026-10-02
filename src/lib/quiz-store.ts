@@ -64,6 +64,8 @@ type QuizState = {
   cupom: string | null;
   letraFinal: LetraFinal | null;
   setResposta: (field: string, value: string | string[]) => void;
+  /** Troca as respostas inteiras (o `tipo` do quiz gospel mexe em vários campos). */
+  setRespostas: (respostas: Record<string, string | string[]>) => void;
   setEmail: (email: string) => void;
   setWhatsapp: (w: string) => void;
   setCupom: (c: string | null) => void;
@@ -108,6 +110,7 @@ export const useQuizStore = create<QuizState>()(
           respostas: { ...s.respostas, [field]: value },
           letraFinal: null,
         })),
+      setRespostas: (respostas) => set({ respostas, letraFinal: null }),
       setEmail: (email) => set({ email }),
       setWhatsapp: (whatsapp) => set({ whatsapp }),
       setCupom: (cupom) => set({ cupom }),

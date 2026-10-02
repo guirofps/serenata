@@ -208,6 +208,7 @@ const PT = {
 
   // ── rótulos da revisão ───────────────────────────────────────
   rotulos: {
+    tipo: "O que é",
     relacao: "Pra quem", nome: "Nome", ocasiao: "Ocasião", estilo: "Estilo",
     voz: "Voz", tom: "Tom", historia1: "Sobre ela(e)", historia2: "Uma memória",
     recado: "Sua frase", filhos: "Filhos citados",

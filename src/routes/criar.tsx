@@ -4,13 +4,15 @@ import { z } from "zod";
 import { Quiz } from "@/components/quiz/Quiz";
 import { LOCALE_PADRAO } from "@/lib/i18n";
 import { MARCA } from "@/lib/marca";
+import { temaDoParametro } from "@/lib/tema";
 
 // O quiz em PORTUGUÊS. O corpo vive em `components/quiz/Quiz.tsx`, que recebe
 // o idioma: a rota espanhola (`es.criar.tsx`) renderiza o mesmo componente com
 // `locale="es"`. Um site, dois idiomas — nunca dois sites.
 //
 // Passo na URL (?step=<id>): reload não zera, back do navegador funciona.
-const searchSchema = z.object({ step: z.string().optional() });
+// `?t=gospel` abre o quiz gospel (`quiz-flow-gospel.ts`).
+const searchSchema = z.object({ step: z.string().optional(), t: z.string().optional() });
 
 export const Route = createFileRoute("/criar")({
   validateSearch: searchSchema,
@@ -25,7 +27,7 @@ export const Route = createFileRoute("/criar")({
       ? { meta: [{ title: `Create your personalized song | ${MARCA.nome}` }], links: linksDeIdioma("en", "criar") }
       : { links: linksDeIdioma("pt", "criar") },
   component: function CriarPt() {
-    const { step } = Route.useSearch();
-    return <Quiz locale={LOCALE_PADRAO} stepId={step} />;
+    const { step, t } = Route.useSearch();
+    return <Quiz locale={LOCALE_PADRAO} stepId={step} temaUrl={temaDoParametro(t)} />;
   },
 });

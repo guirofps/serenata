@@ -10,6 +10,7 @@ import { type Locale } from "@/lib/i18n";
 import { ehEspanha, ehArgentina } from "@/lib/mercado-es";
 import { trackEvent } from "@/lib/track";
 import { exemploEn, audioDoExemplo } from "@/lib/exemplos-en";
+import type { Tema } from "@/lib/tema";
 
 // O mesmo bucket publico que a landing usa em `ExemplosReais`: trechos de 45s.
 const AUDIO_BASE =
@@ -198,6 +199,27 @@ const COPY: Record<
   },
 };
 
+// A ABERTURA GOSPEL (`/criar?t=gospel`, 02/10/2026). A mesma tela, com a
+// promessa do anúncio gospel. Os versos são o REFRÃO literal de "Mulher de
+// Palavra" (`ExemplosReais`, token 2459f4b76e1b49c58be203): exemplo real,
+// gospel, o mesmo trecho de áudio que a home toca. Nada escrito pra ilustrar.
+const COPY_GOSPEL: (typeof COPY)["pt"] = {
+  ...COPY.pt,
+  tituloAntes: "Crie o seu próprio ",
+  tituloOuro: "louvor",
+  tituloDepois: "",
+  explicacao: "Você conta o que Deus fez na sua vida. Fica pronto em 1 minuto, de graça.",
+  cta: "CRIAR MEU LOUVOR GRÁTIS",
+  nome: "Denise",
+  foto: "/img/exemplos/denise.webp",
+  versos: [
+    "Denise, mulher de palavra e de fé",
+    "Batalhadora que nunca soltou minha mão",
+    "Nos dias mais difíceis foi você quem me ouviu",
+    "E me ensinou que não se desiste, não",
+  ],
+};
+
 // ── O EXEMPLO SEGUE O MERCADO, e isso é um buraco que eu deixei ──
 //
 // O interruptor de `mercado-es.ts` já trocava prompt e gêneros, mas esta tela
@@ -253,17 +275,21 @@ const EXEMPLO_ES = {
 
 export function AberturaPresente({
   locale = "pt",
+  tema = null,
   aoComecar,
 }: {
   locale?: Locale;
+  tema?: Tema | null;
   aoComecar: () => void;
 }) {
+  const gospel = tema === "gospel" && locale === "pt";
   // O espanhol troca o EXEMPLO conforme o mercado que a mídia está comprando.
   // O resto da copy (título, promessa, CTA) serve os dois: a diferença entre
   // Espanha e LatAm mora no exemplo, no prompt e nos gêneros, não na promessa.
   const base = COPY[locale] ?? COPY.pt;
-  const C =
-    locale === "es"
+  const C = gospel
+    ? COPY_GOSPEL
+    : locale === "es"
       ? { ...base, ...EXEMPLO_ES[ehEspanha() ? "espanha" : ehArgentina() ? "argentina" : "latam"] }
       : locale === "en" && EXEMPLO_EN
         ? { ...base, nome: EXEMPLO_EN.nome, foto: EXEMPLO_EN.capa, versos: EXEMPLO_EN.versos }
@@ -295,8 +321,9 @@ export function AberturaPresente({
   // outra música. Áudio errado embaixo do nome certo é pior que play mudo.
   // Inglês: só com o exemplo já gerado (senão o play ficaria mudo embaixo
   // de um nome, que é o defeito descrito logo acima).
-  const slug =
-    locale === "es" ? null : locale === "en" ? (EXEMPLO_EN?.titulo ? EXEMPLO_EN.slug : null) : "isabela";
+  const slug = gospel
+    ? "denise"
+    : locale === "es" ? null : locale === "en" ? (EXEMPLO_EN?.titulo ? EXEMPLO_EN.slug : null) : "isabela";
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [tocando, setTocando] = useState(false);
   const [ouviu, setOuviu] = useState(false);
@@ -320,13 +347,13 @@ export function AberturaPresente({
       setTocando(true);
       if (!ouviu) {
         setOuviu(true);
-        trackEvent("abertura_play", { locale });
+        trackEvent("abertura_play", { locale, ...(gospel ? { tema: "gospel" } : {}) });
       }
     } catch {
       // Bloqueio de autoplay, rede caída, arquivo fora: a tela continua de pé
       // e o CTA logo abaixo continua sendo o caminho. O evento existe pra essa
       // falha não ser silenciosa como a anterior foi.
-      trackEvent("abertura_play_erro", { locale });
+      trackEvent("abertura_play_erro", { locale, ...(gospel ? { tema: "gospel" } : {}) });
     }
   }
 
@@ -554,7 +581,7 @@ export function AberturaPresente({
               onEnded={() => {
                 setTocando(false);
                 setAndado(1);
-                trackEvent("abertura_play_fim", { locale });
+                trackEvent("abertura_play_fim", { locale, ...(gospel ? { tema: "gospel" } : {}) });
               }}
               className="hidden"
             />

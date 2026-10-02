@@ -15,7 +15,9 @@ import {
   questionNumber,
   totalQuestions,
 } from "@/lib/flow-engine";
-import { quizFlow, QUIZ_SKIP } from "@/lib/quiz-flow";
+import { quizFlow, skipDoFluxo } from "@/lib/quiz-flow";
+import { aplicarTipo, numeroCanonico } from "@/lib/quiz-flow-gospel";
+import { carimbarTema, temaEfetivo, type Tema } from "@/lib/tema";
 import { type Locale, TAG_IDIOMA, caminho } from "@/lib/i18n";
 import { t } from "@/lib/textos";
 import { sugerirEmail } from "@/lib/email-typo";
@@ -64,20 +66,36 @@ import { SorteioSemanal } from "@/components/quiz/SorteioSemanal";
 // Aqui a checagem acontece na ENTRADA da tela, antes de mostrar preço nenhum.
 const PRECISAM_DE_LETRA = new Set(["reveal", "oferta"]);
 
-export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
+export function Quiz({
+  locale,
+  stepId,
+  temaUrl = null,
+}: {
+  locale: Locale;
+  stepId?: string;
+  /** `?t=` da URL, só na primeira tela: depois o tema vive em `respostas.tema`. */
+  temaUrl?: Tema | null;
+}) {
   const navigate = useNavigate();
-  const QUIZ_FLOW = quizFlow(locale);
-  const T = t(locale);
-  const rota = caminho("/criar", locale);
   const respostas = useQuizStore((s) => s.respostas);
   const setResposta = useQuizStore((s) => s.setResposta);
+  const setRespostas = useQuizStore((s) => s.setRespostas);
   const email = useQuizStore((s) => s.email);
   const setEmail = useQuizStore((s) => s.setEmail);
   const reset = useQuizStore((s) => s.reset);
+  // O TEMA (gospel). A URL decide a primeira tela, inclusive no servidor; do
+  // passo 2 em diante o `?t=` some da URL e quem segura é `respostas.tema`.
+  const tema = temaEfetivo(temaUrl, respostas, locale);
+  const QUIZ_FLOW = quizFlow(locale, tema);
+  const SKIP = skipDoFluxo(tema);
+  const T = t(locale);
+  const rota = caminho("/criar", locale);
 
   const idx = indexOfId(QUIZ_FLOW, stepId);
   const step = QUIZ_FLOW[idx];
-  const total = useMemo(() => totalQuestions(QUIZ_FLOW), []);
+  // O total é o do funil NORMAL mesmo no gospel: é a escala que o banco
+  // guarda em `furthest_step` e que o painel lê.
+  const total = useMemo(() => totalQuestions(quizFlow(locale)), []);
   // Personaliza os títulos com o nome já dado (truque do HeartMoments: usar o
   // nome nos passos seguintes aumenta o compromisso). Fallback "essa pessoa"
   // cobre navegação direta por URL sem ter passado pelo passo do nome — e o
@@ -91,7 +109,10 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
     (respostas.nome as string)?.trim() ||
     (locale === "es" ? "esa persona" : locale === "en" ? "this person" : "essa pessoa");
   const preencher = (s?: string) => s?.replace(/\{nome\}/g, nomePessoa);
-  const qNum = questionNumber(QUIZ_FLOW, idx);
+  // No gospel, o número do passo normal de mesmo campo (`numeroCanonico`):
+  // o `tipo` vale 0 como a abertura, e o louvor pula de 0 pra 3 em vez de
+  // gravar números que no funil normal querem dizer outra pergunta.
+  const qNum = tema ? numeroCanonico(quizFlow(locale), step) : questionNumber(QUIZ_FLOW, idx);
   // Posição no FUNIL (não é o mesmo que o número da pergunta): o passo de
   // contato vem depois da última pergunta e precisa de um número próprio,
   // senão ele reporta o mesmo da última pergunta e o painel mostra
@@ -202,6 +223,9 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
     // ANTES do quiz_started: a atribuição é lida no momento do evento, então
     // carimbar depois deixaria o primeiro evento da sessão — justamente o que
     // marca a entrada no funil — sem a variante.
+    // O tema vem antes do quiz_started pelo mesmo motivo da variante: o
+    // primeiro evento da sessão é o que marca a entrada no funil.
+    if (temaUrl && locale === "pt") carimbarTema(temaUrl);
     carimbarExperimentos();
     trackEventOnce("quiz_started", "v1");
     // Guarda em que idioma esta pessoa entrou no funil. É o que permite
@@ -209,9 +233,28 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
     lembrarIdioma(locale);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Grava o tema nas respostas (é o que segura o gospel do passo 2 em diante e
+  // leva o tema ao prompt) e na atribuição de quem o trouxe salvo. Depois do
+  // efeito de montagem de propósito: lá o `reset()` de sessão gasta apagaria.
+  // A comparação evita o `setResposta`, que zera a letra já escrita.
+  // ESPERA A REIDRATAÇÃO, como o `decidirPasso` acima: gravar antes e a store
+  // persistida chegar depois apagaria o tema, e o quiz viraria o normal no
+  // passo 2, quando o `?t=` já saiu da URL.
+  useEffect(() => {
+    if (!tema) return;
+    const gravar = () => {
+      if (useQuizStore.getState().respostas.tema !== tema) setResposta("tema", tema);
+      carimbarTema(tema);
+    };
+    if (useQuizStore.persist.hasHydrated()) gravar();
+    else return useQuizStore.persist.onFinishHydration(gravar);
+  }, [tema]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Captura parcial de lead a cada passo alcançado (vantagem competitiva).
   useEffect(() => {
-    if (isQuestion(step) || isContact(step)) {
+    // O `tipo` do gospel (qNum 0) é tratado como a abertura: mede, não grava
+    // lead — senão ele gravaria o passo 1, que no banco quer dizer "pra quem".
+    if ((isQuestion(step) && qNum > 0) || isContact(step)) {
       captureLeadProgress({
         currentStep: passoFunil || idx,
         furthestStep: passoFunil || idx,
@@ -230,7 +273,7 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
     // incomparável da noite pro dia. A numeração continua a mesma; a tela
     // nova aparece só em `funnel_events`, que é onde ela precisa aparecer
     // pra responder se ela ajuda ou atrapalha.
-    if (isIntro(step)) {
+    if (isIntro(step) || (isQuestion(step) && qNum === 0)) {
       trackEvent("quiz_step", { step_id: step.id, q: 0 });
     }
   }, [step.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -240,11 +283,11 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
     navigate({ to: rota, search: { step: QUIZ_FLOW[i].id } } as never);
   }
   const goNext = () => {
-    const n = nextVisibleIndex(QUIZ_FLOW, idx, respostas, QUIZ_SKIP);
+    const n = nextVisibleIndex(QUIZ_FLOW, idx, respostas, SKIP);
     if (n === -1) return; // fim → tratado na revisão
     goTo(n);
   };
-  const goPrev = () => goTo(prevVisibleIndex(QUIZ_FLOW, idx, respostas, QUIZ_SKIP));
+  const goPrev = () => goTo(prevVisibleIndex(QUIZ_FLOW, idx, respostas, SKIP));
 
   // ── POR QUE O BOTAO NAO AVANCOU ───────────────────────────────
   //
@@ -469,10 +512,11 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
         {isIntro(step) && (
           <AberturaPresente
             locale={locale}
+            tema={tema}
             aoComecar={() => {
               // O clique é a métrica desta tela. `quiz_step` diz quantos
               // CHEGARAM na abertura; este diz quantos ela convenceu.
-              trackEvent("abertura_comecar", { locale });
+              trackEvent("abertura_comecar", { locale, ...(tema ? { tema } : {}) });
               goNext();
             }}
           />
@@ -518,7 +562,10 @@ export function Quiz({ locale, stepId }: { locale: Locale; stepId?: string }) {
                 step={step}
                 value={respostas[step.field]}
                 onChange={(v) => {
-                  setResposta(step.field, v);
+                  // O tipo do gospel mexe em vários campos de uma vez
+                  // (`aplicarTipo`): louvor preenche Deus, presente desfaz.
+                  if (step.field === "tipo") setRespostas(aplicarTipo(useQuizStore.getState().respostas, String(v)));
+                  else setResposta(step.field, v);
                   // O TOQUE NO CHIP, que até agora não era medido.
                   //
                   // 65% dos leads PT e 88% dos ES param no passo 1. Os
@@ -914,7 +961,8 @@ function ConfirmarEmail(props: {
 function ReviewScreen({ locale, onGerar }: { locale: Locale; onGerar: () => void }) {
   const respostas = useQuizStore((s) => s.respostas);
   const T = t(locale);
-  const ordem = ["relacao", "nome", "filhos", "ocasiao", "estilo", "voz", "historia1", "historia2", "recado"];
+  const tema = locale === "pt" && respostas.tema === "gospel" ? "gospel" : null;
+  const ordem = ["tipo", "relacao", "nome", "filhos", "ocasiao", "estilo", "voz", "historia1", "historia2", "recado"];
   // O RÓTULO, não o valor gravado. Em inglês o valor é português (\`esposa\`,
   // \`casamento\`, \`country_en\`, \`masculina\`): é o contrato com o banco e o
   // prompt, e aparecia cru nesta tela. No português e no espanhol também
@@ -922,7 +970,7 @@ function ReviewScreen({ locale, onGerar }: { locale: Locale; onGerar: () => void
   // da letra (auditoria 30/09): agora vale pra todo idioma.
   const rotuloDe = (campo: string, valor: string): string => {
     type Opcao = { value: string; label: string };
-    for (const passo of quizFlow(locale)) {
+    for (const passo of quizFlow(locale, tema)) {
       if (!isQuestion(passo)) continue;
       // Só os passos de chip têm opções; o tipo é uma união, então lê solto.
       const p = passo as { field?: string; options?: Opcao[]; extraChips?: { field: string; options: Opcao[] } };
@@ -941,7 +989,8 @@ function ReviewScreen({ locale, onGerar }: { locale: Locale; onGerar: () => void
       </div>
       <div className="mx-auto max-w-md space-y-3 rounded-2xl border bg-card p-6 text-left text-sm">
         {ordem
-          .filter((k) => respostas[k])
+          // No louvor, "Pra quem: Deus" e "Nome: Deus" repetem o que o tipo já diz.
+          .filter((k) => respostas[k] && !(respostas.tipo === "louvor" && (k === "relacao" || k === "nome")))
           .map((k) => (
             <div key={k} className="border-b pb-3 last:border-0 last:pb-0">
               <span className="text-xs uppercase tracking-wide text-muted-foreground">
