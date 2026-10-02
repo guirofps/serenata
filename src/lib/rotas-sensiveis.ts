@@ -27,7 +27,10 @@
 // transação, que só serve pra pedido pago nas últimas 2 horas
 // (`pos-compra.ts`), então o estrago possível é pequeno e conhecido.
 
-const PREFIXOS = [
+// Exportada pro script da trava do GA4 (`scriptGuardaGa4`), que roda antes de
+// qualquer módulo carregar e por isso recebe a lista serializada. Uma lista
+// só: copiar à mão deixaria a trava desatualizada na primeira rota nova.
+export const PREFIXOS: readonly string[] = [
   "/p/",
   "/editar/",
   "/quadro/",

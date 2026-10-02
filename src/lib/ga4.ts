@@ -192,3 +192,35 @@ export function compraGa4(v: Valor & { transactionId?: string }, id: string | nu
     id,
   );
 }
+
+// ── A TRAVA DE ROTA SENSÍVEL ─────────────────────────────────────
+//
+// O `podeMedir` do `__root` tira o `<script>` do gtag da árvore em rota
+// sensível, mas tirar o script não descarrega o gtag que já rodou. Com o
+// destino GA4, a medição aprimorada registra `page_view` em toda troca de
+// rota do SPA — o que a tag do Ads sozinha não fazia.
+//
+// A trava é `window['ga-disable-<id>']`, a chave oficial do GA4. O que importa
+// é ligá-la ANTES de a URL mudar, e nada do React chega a tempo: o
+// `onBeforeNavigate` do TanStack Router é emitido em `load()`
+// (router-core/dist/esm/router.js:547), DEPOIS do `history.push` (:426).
+// Por isso é script inline, antes do gtag, envolvendo pushState/replaceState
+// e ouvindo popstate em captura. Mesmo padrão do `scriptTiktok`.
+//
+// O casamento de caminho repete o de `rotaSensivel` (minúsculas, prefixo de
+// idioma, prefixo de rota); `ga4-guarda.test.ts` prova que os dois concordam.
+
+export function scriptGuardaGa4(id: string, prefixos: readonly string[]): string {
+  const chave = JSON.stringify(`ga-disable-${id}`);
+  const lista = JSON.stringify(prefixos);
+  return (
+    `(function(){var K=${chave},P=${lista};` +
+    `function s(p){p=(p||"/").toLowerCase();var q=p.replace(/^\\/(es|pt)(?=\\/|$)/,"")||"/";` +
+    `return P.some(function(x){return q===x.replace(/\\/$/,"")||q.indexOf(x)===0})}` +
+    `function a(u){try{window[K]=s(new URL(u,location.href).pathname)}catch(e){}}` +
+    `["pushState","replaceState"].forEach(function(m){var o=history[m];` +
+    `history[m]=function(st,t,u){if(u!=null)a(String(u));return o.apply(this,arguments)}});` +
+    `window.addEventListener("popstate",function(){a(location.href)},true);` +
+    `a(location.href)})();`
+  );
+}
