@@ -484,6 +484,12 @@ Código em `src/lib/ga4.ts`; desenho em
   sensível. Upsell e AOV continuam no `funnel_events`.
 - **Evento promovido** (`PROMOVIDOS`) tem função tipada no ponto de chamada;
   promover um novo exige os dois lados, e `ga4-contrato.test.ts` cobra.
+- **O `session_id` é credencial**: `/retomar?s=<id>` devolve e-mail, WhatsApp
+  e o token do editor. Nunca vai cru pra terceiro — como `transaction_id` sai
+  por hash (`hashDaSessao`), e rota que o leva na URL (`/oferta/`) é sensível.
+- **Configuração do GA4 que o código não alcança:** "Cliques de saída"
+  desligado (o WhatsApp da `/obrigado` leva nome e título da música) e
+  redação de e-mail e dos parâmetros `email`, `code`, `session_id`, `text`.
 
 ## Riscos conhecidos
 

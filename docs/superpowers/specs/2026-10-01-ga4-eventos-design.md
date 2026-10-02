@@ -252,6 +252,18 @@ Não dá pra fazer pela API que temos.
    `purchase`. É o que transforma as etapas em públicos utilizáveis.
 3. **Vincular o GA4 ao Ads** para públicos. Se a compra do GA4 for importada
    como ação de conversão, ela fica **secundária**. Nunca primária.
+4. **Desligar "Cliques de saída"** na medição otimizada do fluxo da web, ou
+   redigir o parâmetro `text`. O link de suporte do WhatsApp na `/obrigado`
+   leva o nome do comprador e o título da música (`wa.me/...?text=`), e o GA4
+   grava a URL inteira do clique. Código não alcança isso: é coleta
+   automática do GA4.
+5. **Redação de dados** no fluxo da web: "Redigir e-mail" ligado, e redigir os
+   parâmetros de consulta `email`, `code`, `session_id` e `text`. A `/obrigado`
+   aceita `?email=` (é como alguns gateways voltam), e o `page_location` leva
+   isso inteiro.
+
+Os itens 4 e 5 valem **desde 01/10**, quando o GA4 virou destino da tag: não
+dependem do deploy deste código.
 
 ## Testes
 
@@ -285,9 +297,32 @@ Pelo dono, nos relatórios do GA4, porque o token da API que temos não tem o
 escopo do Analytics:
 
 - **Tempo real**, ao abrir a oferta: aparece `view_item`.
-- **Explorar → Exploração livre**, dimensão "Local da página" contendo
-  `/editar/`, `/p/` ou `/pix/` nos 7 dias seguintes: **zero linhas**. É a prova
-  de que a trava funciona contra o `gtag` de verdade.
+- **Explorar → Exploração livre**, nos 7 dias seguintes, com `/editar/`,
+  `/p/`, `/pix/` ou `/oferta/` em qualquer destas dimensões: "Local da
+  página", "Referenciador da página" e "URL do link". **Zero linhas** em
+  todas. É a prova de que a trava e a política de referrer funcionam contra o
+  `gtag` de verdade.
+- **ID da transação** nunca com cara de UUID: os de sessão saem como `s_...`.
+
+## O que a revisão final mudou
+
+A revisão do branch inteiro achou credencial de cliente chegando ao GA4 por
+caminhos que os testes do plano não exercitavam. Corrigido no código:
+
+- **`transaction_id` com o `session_id` cru.** Em toda venda de cartão (o
+  cartão não guarda referência antes da `/obrigado`) a escada caía na sessão,
+  e a sessão abre a conta pelo `/retomar?s=`. Agora sai por hash estável de
+  mão única (`hashDaSessao` em `google-ads.ts`), o que vale também pra
+  conversão do Ads.
+- **`/oferta/<token>`** carrega a sessão em texto puro e não estava na lista
+  de rotas sensíveis. Entrou. Custo: Ads, TikTok e UTMify não carregam mais
+  nessa página; a compra que sai dela dispara na `/obrigado`.
+- **Referrer.** Navegação completa de `/p/<token>` ou `/pix/<ref>` pra uma
+  página medida entregava o token em `page_referrer`. Em rota sensível a
+  política agora é `strict-origin`.
+
+Ficaram na configuração do GA4, por serem coleta automática dele: os itens 4
+e 5 dos passos manuais.
 
 ## Fora de escopo
 
