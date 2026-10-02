@@ -80,6 +80,11 @@ function db() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+/** Página de exemplo da home: token `ex…`. Ver o uso abaixo. */
+export function ehExemplo(token: string | null | undefined): boolean {
+  return typeof token === "string" && token.startsWith("ex");
+}
+
 /** Todo quiz que tem pedido pago. Comprador nunca perde áudio. */
 async function quizzesQueCompraram(sb: ReturnType<typeof db>): Promise<Set<string>> {
   const pagos = new Set<string>();
@@ -112,12 +117,12 @@ export const limparAudioAntigo = inngest.createFunction(
       const agora = Date.now();
 
       const musicas: Array<{
-        id: string; quiz_response_id: string | null; created_at: string;
+        id: string; token: string | null; quiz_response_id: string | null; created_at: string;
         audio_path: string | null; audio_path_v2: string | null;
       }> = [];
       for (let i = 0; i < 200000; i += 1000) {
         const { data, error } = await sb.from("musicas")
-          .select("id, quiz_response_id, created_at, audio_path, audio_path_v2")
+          .select("id, token, quiz_response_id, created_at, audio_path, audio_path_v2")
           .eq("status", "pronta")
           .lte("created_at", new Date(agora - V2_DIAS * 86400000).toISOString())
           .order("created_at").range(i, i + 999);
@@ -135,6 +140,12 @@ export const limparAudioAntigo = inngest.createFunction(
         // música se ligam; sem `quiz_response_id` não dá pra provar que NÃO
         // comprou, então o registro fica.
         if (!m.quiz_response_id || pagos.has(m.quiz_response_id)) continue;
+        // EXEMPLO NUNCA. As páginas de exemplo da home (Serenata, /es e Ballad)
+        // são músicas NOSSAS, sem pedido, e por isso caíam aqui: em 18/09 e
+        // 26/09 esta limpeza apagou 7 delas e o play da home ficou mudo (achado
+        // em 02/10, irrecuperável no provedor). Todo token de exemplo começa
+        // com "ex"; token de cliente é hexadecimal e nunca tem "x".
+        if (ehExemplo(m.token)) continue;
 
         const dias = idade(m.created_at);
         const caminhos: string[] = [];
