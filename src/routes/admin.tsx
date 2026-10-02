@@ -1155,7 +1155,7 @@ function Corpo({
                 alerta={t.gastoAdsBrl > 0 && t.lucroBrl < 0}
                 atual={t.gastoAdsBrl > 0 ? t.lucroBrl : undefined}
                 anterior={a?.lucroBrl}
-                apoio="receita − produção − mídia"
+                apoio={`receita − taxa (${brl(t.taxaGatewayBrl)}) − produção − mídia`}
               />
             </div>
 

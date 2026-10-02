@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { taxaDoPedido } from "@/lib/taxa-gateway";
 
 // O RESULTADO DA OPERAÇÃO, DE PONTA A PONTA.
 //
@@ -22,27 +23,10 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 //   mídia Google   `metricas_campanha` (API do Google, de hora em hora)
 //   o resto        `custos_fixos`, lançado à mão porque não tem API
 //
-// ── A TAXA ESTIMADA, E POR QUE ELA É HONESTA ────────────────────
+// ── A TAXA ──────────────────────────────────────────────────────
 //
-// Só 34% dos pedidos pagos têm `taxa_centavos` gravado: o campo entrou depois
-// que a operação já rodava. Ignorar os outros 66% inflaria o lucro; chutar um
-// número redondo esconderia a incerteza.
-//
-// Então a estimativa usa a taxa REAL MEDIDA de cada gateway, e o resultado
-// diz quantos reais foram estimados. Quem lê decide se confia.
-//
-// As taxas vêm do CLAUDE.md, medidas em transações reais:
-//   Perfect Pay  11,39% (média de R$ 4,63 no ticket de R$ 38)
-//   Woovi         0,8% com piso de R$ 0,50 — no ticket de hoje, R$ 0,50
-const TAXA = {
-  perfectpay: (v: number) => v * 0.1139,
-  woovi: (v: number) => Math.max(0.5, v * 0.008),
-  asaas: (v: number) => Math.max(0.99, v * 0.0199),
-  // Gateway desconhecido não recebe taxa zero: zero é uma afirmação de que
-  // não houve custo, e aqui a verdade é que não se sabe. A média dos
-  // conhecidos erra menos que zero.
-  outro: (v: number) => v * 0.03,
-} as const;
+// A regra (gravada quando existe, estimada pela alíquota medida quando não)
+// mora em `taxa-gateway.ts`, junto com o cartão Lucro do painel.
 
 export type LinhaMes = {
   mes: string;
@@ -105,14 +89,9 @@ export async function apurar(): Promise<Financeiro> {
     const v = (p.valor_centavos ?? 0) / 100;
     l.vendas++;
     l.receita += v;
-    if (p.taxa_centavos != null) {
-      l.taxa += p.taxa_centavos / 100;
-    } else {
-      const f = TAXA[(p.gateway ?? "outro") as keyof typeof TAXA] ?? TAXA.outro;
-      const est = f(v);
-      l.taxa += est;
-      l.taxaEstimada += est;
-    }
+    const taxa = taxaDoPedido(p);
+    l.taxa += taxa.valor;
+    if (taxa.estimada) l.taxaEstimada += taxa.valor;
   }
   for (const c of custos) linha(mesDe(c.created_at)).ia += Number(c.custo_brl ?? 0);
   for (const m of midia) linha(String(m.dia).slice(0, 7)).midiaGoogle += Number(m.custo_brl ?? 0);

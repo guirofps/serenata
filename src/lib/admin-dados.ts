@@ -7,6 +7,7 @@ import { cambioDoDia } from "@/lib/cambio";
 import { filtroCursor, lerJanela } from "@/lib/ler-janela";
 import { porTemaDe, type LinhaTema } from "@/lib/admin-tema";
 import { diasDaJanela, somarGasto } from "@/lib/gasto-midia";
+import { taxaDoPedido } from "@/lib/taxa-gateway";
 import {
   ehVenda,
   faixasVivas,
@@ -91,7 +92,11 @@ export type Painel = {
     cpaBrl: number;
     /** Receita dividida pelo gasto. Abaixo de 1 é prejuízo. */
     roas: number;
-    /** Receita menos produção menos mídia. O que sobra de verdade. */
+    /** Taxa do gateway das vendas do período (`taxaDoPedido`). */
+    taxaGatewayBrl: number;
+    /** A parte da taxa que é estimativa pela alíquota, não extrato. */
+    taxaEstimadaBrl: number;
+    /** Receita menos taxa, produção e mídia. Custo fixo fica no Financeiro (mês). */
     lucroBrl: number;
     // conversões-chave
     // A CONVERSÃO É MEDIDA SOBRE QUEM ABRIU O QUIZ (18/08), não sobre quem
@@ -484,6 +489,8 @@ type Pedido = {
   gateway: string | null;
   status: string;
   valor_centavos: number | null;
+  /** A taxa do gateway, quando o webhook gravou. Senão, estimada (`taxaDoPedido`). */
+  taxa_centavos: number | null;
   email: string | null;
   paid_at: string | null;
   created_at: string;
@@ -780,7 +787,7 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
     janela<Custo>("custos", "id, tipo, custo_brl, quiz_response_id, created_at"),
     janela<Pedido>(
       "pedidos",
-      "id, quiz_response_id, musica_id, gateway, status, valor_centavos, email, paid_at, created_at, dinheiro_entrou",
+      "id, quiz_response_id, musica_id, gateway, status, valor_centavos, taxa_centavos, email, paid_at, created_at, dinheiro_entrou",
     ),
   ]);
   const msLeituras = Date.now() - t0;
@@ -929,6 +936,17 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
   // real (Claude e kie.ai cobram em dólar mas já entram convertidos).
   const receita = receitaBrl + receitaUsd * cambio;
   const custoTotal = custosF.reduce((s, c) => s + Number(c.custo_brl ?? 0), 0);
+  // A TAXA DO GATEWAY (02/10), pela mesma regra do Financeiro: a gravada
+  // quando existe, a alíquota medida quando não. Na moeda do pedido, então
+  // converte junto com o valor.
+  let taxaGateway = 0;
+  let taxaEstimada = 0;
+  for (const p of pagos) {
+    const t = taxaDoPedido(p);
+    const brl = t.valor * (ehEs(p) ? cambio : 1);
+    taxaGateway += brl;
+    if (t.estimada) taxaEstimada += brl;
+  }
 
   // "Começou o quiz" vem da LINHA em quiz_responses, não do evento
   // `quiz_started`. Medido: 76 sessões tinham linha e só 52 tinham evento —
@@ -1480,7 +1498,9 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
       gastoManualBrl: gasto.manualBrl,
       cpaBrl: pagos.length ? gastoAds / pagos.length : 0,
       roas: gastoAds > 0 ? receita / gastoAds : 0,
-      lucroBrl: receita - custoTotal - gastoAds,
+      taxaGatewayBrl: taxaGateway,
+      taxaEstimadaBrl: taxaEstimada,
+      lucroBrl: receita - taxaGateway - custoTotal - gastoAds,
     },
 
     funil,

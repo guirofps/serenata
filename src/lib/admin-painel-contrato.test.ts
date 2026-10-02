@@ -148,3 +148,12 @@ describe("tabelas por dia usam o dia de Brasília (02/10)", () => {
     expect(DADOS).toMatch(/diasDaJanela\(inicio, fim\)/);
   });
 });
+
+describe("lucro desconta a taxa do gateway (02/10)", () => {
+  it("lê a taxa dos pedidos e tira do lucro", () => {
+    expect(DADOS).toMatch(/taxa_centavos/);
+    expect(DADOS).toMatch(/taxaDoPedido\(/);
+    expect(DADOS).toMatch(/lucroBrl: receita - taxaGateway - custoTotal - gastoAds/);
+    expect(readFileSync("src/lib/financeiro.ts", "utf8")).toMatch(/taxaDoPedido\(/);
+  });
+});
