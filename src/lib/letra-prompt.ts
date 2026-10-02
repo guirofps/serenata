@@ -127,6 +127,10 @@ const RELACAO: Record<string, string> = {
   amigo: "amigo",
   pet: "pet",
   outro: "pessoa querida",
+  // Só o louvor do quiz gospel grava isto (`aplicarTipo`). O prompt do louvor
+  // não usa a linha de relação; o rótulo existe pra revisão e telas que leem
+  // este mapa.
+  deus: "Deus",
 };
 const OCASIAO: Record<string, string> = {
   aniversario: "aniversário",
@@ -137,6 +141,12 @@ const OCASIAO: Record<string, string> = {
   formatura: "formatura",
   soporque: "só porque sim",
   outro: "momento especial",
+  // As ocasiões do louvor (quiz gospel, `quiz-flow-gospel.ts`).
+  gratidao: "louvor de gratidão",
+  testemunho: "testemunho de uma vitória",
+  clamor: "clamor num momento difícil",
+  adoracao: "adoração",
+  igreja: "louvor pra cantar na igreja",
 };
 // O TOM, opcional. Vazio = o modelo decide pela ocasião e pela história, que
 // é o que já acontecia antes deste campo existir. Por isso a linha SÓ entra no
@@ -158,6 +168,11 @@ const TOM: Record<string, { pt: string; es: string }> = {
   animada: {
     pt: "animada — alegre e para cantar junto, ritmo pra cima",
     es: "alegre — festiva y para cantar juntos, ritmo hacia arriba",
+  },
+  // Só aparece no quiz gospel.
+  reverente: {
+    pt: "reverente — adoração contemplativa, sem pressa",
+    es: "reverente — adoración contemplativa, sin prisa",
   },
 };
 
@@ -206,6 +221,20 @@ const ROTULOS = {
   },
 } as const;
 
+/**
+ * Como se escreve um LOUVOR (quiz gospel, tipo "louvor").
+ *
+ * Vai na mensagem do usuário, não no system prompt: o system é cacheado e o
+ * funil normal não pode mudar uma vírgula por causa do gospel.
+ */
+export const LOUVOR_INSTRUCOES = `Como escrever este louvor:
+- A letra fala COM Deus, em primeira pessoa ("eu", "Senhor", "Tu", "Te"). Não é uma música SOBRE Deus pra outra pessoa ouvir.
+- Ela nasce do testemunho contado abaixo. Os detalhes concretos da história continuam sendo o que separa um louvor verdadeiro de um genérico: use no mínimo três.
+- Vocabulário evangélico brasileiro: Senhor, Jesus, Pai, Espírito Santo, graça, fidelidade. Nada de santos, Maria ou terço. Nada de doutrina de denominação (dízimo, línguas, batismo).
+- Não use como verso solto, sem um detalhe da história preso a ele: "Tu és fiel", "a vitória é certa", "nada é impossível pra Deus", "Rei dos reis", "derrama o Teu Espírito", "vaso nas mãos do oleiro", "deserto" como metáfora genérica.
+- Só cite versículo se a pessoa citou na história. Nunca invente referência bíblica.
+- Não cite filhos nem outras pessoas pelo nome, a não ser que estejam na história.`;
+
 // Sanitiza o nome do homenageado (bug da Cantoria: injetar nome sem checar).
 export function sanitizeNome(raw: unknown): string {
   const n = String(raw ?? "").trim();
@@ -242,6 +271,28 @@ export function buildUserMessage(
   const linhaTom = textoTom ? `
 ${L.tom}: ${textoTom}` : "";
 
+  // O QUIZ GOSPEL (`quiz-flow-gospel.ts`). Só o português, e só com o valor
+  // exato: o resto da mensagem de quem não é gospel não muda nada.
+  const gospel = locale === "pt" && respostas.tema === "gospel";
+  if (gospel && respostas.tipo === "louvor") {
+    return `Destinatário: Deus. Isto é um LOUVOR, não um presente pra uma pessoa.
+${LOUVOR_INSTRUCOES}
+
+${L.ocasiao}: ${ocasiao}
+${L.genero}: ${genero}
+${L.voz}: ${voz}${linhaTom}
+
+${L.historia}:
+${historia}
+
+${L.recado}:
+${recado}`;
+  }
+  const linhaFe = gospel
+    ? `
+Fé: quem encomendou é evangélico(a). A letra pode falar de Deus, gratidão e bênção na vida de ${nome}, sem pregar e sem tirar o foco de ${nome}.`
+    : "";
+
   // QUEM FALA COM QUEM (01/10): só "Relação com quem encomendou: neta" foi
   // lido ao contrário em 18 músicas (6 em 3 dias), que abriam chamando a neta
   // de "Vó". A direção vai escrita, com o exemplo do caso que errava.
@@ -255,7 +306,7 @@ ${L.tom}: ${textoTom}` : "";
 ${L.relacao}: ${relacao} ${direcao}
 ${L.ocasiao}: ${ocasiao}
 ${L.genero}: ${genero}
-${L.voz}: ${voz}${linhaTom}
+${L.voz}: ${voz}${linhaTom}${linhaFe}
 ${linhaFilhos}
 
 ${L.historia}:
