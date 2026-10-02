@@ -338,8 +338,11 @@ Substitui o "cartão continua na Perfect Pay" da seção acima.
 - **O cupom da recuperação (SRN27) é aplicado pelo servidor**
   (`centavosComCupom`, `cupom.ts`), no PIX e no cartão. Só o código viaja do
   cliente; o valor sai do catálogo, e o cupom nunca sobe o preço.
-- **Upsell e oferta da recuperação (`/oferta/<token>`) são só PIX.** O cartão
-  deles era produto da Perfect Pay.
+- **Upsell (extra, quadro, vídeo): PIX ou cartão, os dois pelo Asaas** (dono,
+  02/10: "100% Asaas, o que o cliente preferir"). Cartão em
+  `criar-cartao-upsell.ts`: pedido nasce pendente com a referência
+  `up:<oferta>:<uuid>` ANTES de cobrar, e o crédito sai na hora (o webhook sai
+  cedo com pedido pago). A oferta da recuperação (`/oferta/<token>`) segue só PIX.
 - **Fica na Perfect Pay, por moeda:** o funil espanhol, cobrado em dólar. O
   Asaas não cobra dólar.
 - Consequência aceita: com o Asaas fora, a venda espera ele voltar (a pessoa
@@ -897,7 +900,9 @@ recebe o idioma.
 
 **Consertos sem teste (02/10):** a folha de PIX do painel (música extra e
 quadro) ainda tinha "Pagar com cartão" pra Perfect Pay: 5 vendas BR saíram
-por lá depois de 26/09. Botão removido (`FolhaPixUpsell`), upsell é só PIX.
+por lá depois de 26/09. Agora o cartão da folha é o do Asaas (ver "Venda
+brasileira sai SÓ pelo Asaas"). O `taxasFaltando` passou a achar pedido
+`asaas:up:` pela referência (antes dava 404 toda hora).
 A limpeza de áudio pula página de exemplo (`ehExemplo`).
 
 ## Em aberto

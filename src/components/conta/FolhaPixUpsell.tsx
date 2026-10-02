@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
 import { Loader2 } from "lucide-react";
 import {
   criarPixUpsell,
@@ -7,21 +7,24 @@ import {
 } from "@/lib/criar-pix-upsell";
 import { supabase } from "@/lib/supabase-client";
 import { PixPagamento } from "@/components/quiz/PixPagamento";
+import { FormularioCartao } from "@/components/quiz/FormularioCartao";
+import { cobrarCartaoUpsell, cobrarCartaoUpsellPorToken } from "@/lib/criar-cartao-upsell";
 import { trackEvent } from "@/lib/track";
 import { Button } from "@/components/ui/button";
 import { cpfValido, formatarCpf, soDigitosCpf } from "@/lib/cpf";
 
-// A FOLHA DE PIX DO PAINEL: crédito de música extra e quadro.
+// A FOLHA DE PAGAMENTO DO UPSELL: música extra, quadro e vídeo. PIX OU
+// cartão, os dois pelo Asaas, o que a pessoa preferir (dono, 02/10).
 //
 // Mesma tela do funil (`PixPagamento`), outra origem. O que muda aqui:
 //
 //   - quem paga está LOGADO, então o servidor sabe quem é sem perguntar;
 //   - depois de pagar a pessoa NÃO vai pro `/obrigado`: ela já é cliente, e
 //     o certo é ela ver o saldo novo no lugar onde clicou;
-//   - NÃO tem saída pro cartão. Até 02/10 tinha, pro checkout da Perfect Pay
-//     (onde extra e quadro existem cadastrados), e 5 vendas brasileiras
-//     escorreram por ali a 11,39% depois que o BR passou a sair só pelo
-//     Asaas (26/09, ver CLAUDE.md). Upsell é só PIX.
+//   - o cartão é o NOSSO formulário (`FormularioCartao`, o mesmo do funil),
+//     cobrado no Asaas por `criar-cartao-upsell.ts`. Até 02/10 o botão de
+//     cartão saía pro checkout da Perfect Pay, e 5 vendas brasileiras
+//     escorreram por ali a 11,39% depois de 26/09.
 //
 // ── SÓ EM PORTUGUÊS ──────────────────────────────────────────────
 //
@@ -45,7 +48,10 @@ type Fase =
   | { t: "resumo" }
   | { t: "criando" }
   | { t: "pronto"; dados: Extract<ResultadoPixUpsell, { ok: true }> }
-  | { t: "erro" };
+  | { t: "erro" }
+  | { t: "cartao" }
+  /** O banco segurou o cartão pra análise: o webhook libera quando aprovar. */
+  | { t: "analise" };
 
 export function FolhaPixUpsell({
   ofertaId,
@@ -73,6 +79,53 @@ export function FolhaPixUpsell({
   const [cpf, setCpf] = useState("");
   const [avisoCpf, setAvisoCpf] = useState<string | null>(null);
   const cpfOk = cpfValido(cpf);
+  const [cobrando, setCobrando] = useState(false);
+  const [erroCartao, setErroCartao] = useState<string | null>(null);
+
+  function terminouDePagar() {
+    // Recarregar é o padrão porque é o jeito honesto de garantir que saldo,
+    // extrato e quadros venham do servidor já atualizados.
+    if (aoPagar) aoPagar();
+    else window.location.reload();
+  }
+
+  async function pagarNoCartao(dados: Parameters<ComponentProps<typeof FormularioCartao>["aoPagar"]>[0]) {
+    setCobrando(true);
+    setErroCartao(null);
+    try {
+      // As mesmas duas portas do PIX: o e-mail que recebe sai da sessão ou do
+      // token, nunca do formulário.
+      const r = tokenEdicao
+        ? await cobrarCartaoUpsellPorToken({ data: { tokenEdicao, ofertaId, ...dados } })
+        : await (async () => {
+            const { data: sess } = await supabase.auth.getSession();
+            const token = sess.session?.access_token;
+            if (!token) return { ok: false, erro: "sem-sessao" } as const;
+            return cobrarCartaoUpsell({ data: { token, ofertaId, ...dados } });
+          })();
+      if (r.ok) {
+        trackEvent("cartao_upsell_pago", { oferta: ofertaId, pago: r.pago });
+        if (r.pago) terminouDePagar();
+        else setFase({ t: "analise" });
+        return;
+      }
+      trackEvent("cartao_upsell_recusado", { oferta: ofertaId, erro: r.erro });
+      setErroCartao(
+        r.erro === "recusado" ? r.motivo : "Não consegui processar agora. Tenta o PIX, que cai na hora.",
+      );
+    } catch {
+      trackEvent("cartao_upsell_recusado", { oferta: ofertaId, erro: "excecao" });
+      setErroCartao("Não consegui processar agora. Tenta o PIX, que cai na hora.");
+    } finally {
+      setCobrando(false);
+    }
+  }
+
+  function abrirCartao() {
+    trackEvent("cartao_upsell_aberto", { oferta: ofertaId, de: fase.t });
+    setErroCartao(null);
+    setFase({ t: "cartao" });
+  }
 
   async function gerar() {
     setFase({ t: "criando" });
@@ -175,8 +228,9 @@ export function FolhaPixUpsell({
             >
               Gerar o PIX
             </Button>
-            {/* Sem "pagar com cartão" desde 26/09: ele ia pra Perfect Pay, e a
-                venda agora sai só pelo Asaas (pedido do dono). */}
+            <Button size="lg" variant="outline" className="w-full" onClick={abrirCartao}>
+              Pagar com cartão
+            </Button>
           </div>
         )}
 
@@ -203,6 +257,37 @@ export function FolhaPixUpsell({
             >
               Tentar de novo
             </Button>
+            <Button size="lg" variant="outline" className="w-full" onClick={abrirCartao}>
+              Pagar com cartão
+            </Button>
+          </div>
+        )}
+
+        {fase.t === "cartao" && (
+          <FormularioCartao
+            precoTexto={precoTexto}
+            // O e-mail do formulário é só o do titular no Asaas. Quem recebe o
+            // que foi comprado é a conta (sessão ou token), decidido no servidor.
+            emailDoQuiz=""
+            cobrando={cobrando}
+            erro={erroCartao}
+            aoPagar={(d) => void pagarNoCartao(d)}
+            aoVoltar={() => {
+              setErroCartao(null);
+              setFase({ t: "resumo" });
+            }}
+          />
+        )}
+
+        {fase.t === "analise" && (
+          <div className="space-y-3 py-6 text-center">
+            <p className="text-sm font-semibold">Pagamento em análise</p>
+            <p className="text-xs leading-snug text-[var(--tinta-fraca)]">
+              O banco está conferindo o seu cartão. Assim que aprovar, libera sozinho aqui, normalmente em poucos minutos.
+            </p>
+            <Button size="lg" className="w-full" onClick={aoFechar}>
+              Entendi
+            </Button>
           </div>
         )}
 
@@ -217,12 +302,9 @@ export function FolhaPixUpsell({
             // extrato, quadros) venha do servidor já atualizado.
             aoPagar={() => {
               trackEvent("pix_upsell_pago", { oferta: ofertaId });
-              // Recarregar é o padrão porque é o jeito honesto de garantir
-              // que saldo, extrato e quadros venham do servidor já
-              // atualizados — nenhum estado local finge que a compra entrou.
-              if (aoPagar) aoPagar();
-              else window.location.reload();
+              terminouDePagar();
             }}
+            aoEscolherCartao={abrirCartao}
           />
         )}
       </div>

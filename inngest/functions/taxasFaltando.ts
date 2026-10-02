@@ -65,9 +65,20 @@ export const taxasFaltando = inngest.createFunction(
       const id = String(p.payment_id ?? "").replace(/^asaas:/, "");
       if (!id) continue;
       const ok = await step.run(`taxa-${id}`, async () => {
-        const r = await fetch(`${base}/payments/${id}`, { headers: { access_token: chave } });
+        // O cartão do upsell (02/10) grava a NOSSA referência (`up:<oferta>:<uuid>`),
+        // não o id do Asaas: o pedido nasce antes da cobrança. Aí a pergunta é
+        // pela referência. Sem isto, cada um virava 404 de hora em hora e
+        // ocupava o teto de 50 pra sempre.
+        const porReferencia = id.startsWith("up:");
+        const r = await fetch(
+          porReferencia
+            ? `${base}/payments?limit=1&externalReference=${encodeURIComponent(id)}`
+            : `${base}/payments/${id}`,
+          { headers: { access_token: chave } },
+        );
         if (!r.ok) return false;
-        const j = (await r.json()) as { value?: unknown; netValue?: unknown };
+        const corpo = (await r.json()) as { value?: unknown; netValue?: unknown; data?: unknown[] };
+        const j = (porReferencia ? (corpo.data?.[0] ?? {}) : corpo) as { value?: unknown; netValue?: unknown };
         const valor = Number(j.value);
         const liquido = Number(j.netValue);
         // `netValue` só existe depois que eles calculam. Sem ele, não inventa:
