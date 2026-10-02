@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { conversaoCompra, transacaoGuardada } from "@/lib/google-ads";
+import { compraGa4 } from "@/lib/ga4";
 import { compraTiktok } from "@/lib/tiktok-pixel";
 import { meuPlano } from "@/lib/preco";
 import { useQuizStore } from "@/lib/quiz-store";
@@ -270,6 +271,14 @@ export function Obrigado({
       // transparente não existe redirect de gateway, então a própria tela do
       // PIX guarda a referência antes de mandar a pessoa pra cá. Sem um dos
       // dois, `transaction_id` sai vazio e um F5 conta a venda de novo.
+      transactionId: code ?? sessaoStripe ?? transacaoGuardada(),
+    });
+    // GA4 recebe a MESMA venda, com o MESMO id. `send_to` vai fixo no GA4
+    // dentro de `compraGa4`: sem ele este `purchase` chegaria também no
+    // destino do Ads e viraria uma terceira contagem da venda.
+    compraGa4({
+      valor: plano.valor,
+      moeda: locale === "pt" ? "BRL" : "USD",
       transactionId: code ?? sessaoStripe ?? transacaoGuardada(),
     });
     // TikTok recebe a MESMA venda, com o MESMO id de dedupe. Duas escadas

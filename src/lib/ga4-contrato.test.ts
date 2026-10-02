@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { PROMOVIDOS } from "./ga4";
 
 // CONTRATO ENTRE O CÓDIGO-FONTE E O GA4.
 //
@@ -82,5 +83,46 @@ describe("nomes de evento contra o GA4", () => {
 
   it("todo nome cabe no limite de 40 caracteres do GA4", () => {
     expect(NOMES.filter((n) => n.length > 40)).toEqual([]);
+  });
+});
+
+// Cada nome promovido, e a função tipada que tem que estar no MESMO arquivo
+// de todo `trackEvent` dele. É a guarda contra o risco 2 do spec: promover num
+// ponto novo e esquecer o outro lado faria o GA4 receber os dois nomes, ou
+// nenhum.
+const PROMOCAO: Record<string, string> = {
+  letra_finalizada: "leadGa4(",
+  oferta_vista: "vitrineGa4(",
+  checkout_click: "checkoutGa4(",
+  pix_transparente_gerado: "pagamentoGa4(",
+};
+
+describe("promoção ao GA4 nos pontos de chamada", () => {
+  it("a lista de promovidos e este mapa são os mesmos nomes", () => {
+    expect([...PROMOVIDOS].sort()).toEqual(Object.keys(PROMOCAO).sort());
+  });
+
+  for (const [nome, chamada] of Object.entries(PROMOCAO)) {
+    it(`todo trackEvent de ${nome} vem com ${chamada}`, () => {
+      const padrao = new RegExp(`trackEvent(?:Once)?\\(\\s*"${nome}"`);
+      const onde = FONTES.filter(([, texto]) => padrao.test(texto));
+      expect(onde.length, nome).toBeGreaterThan(0);
+      for (const [arquivo, texto] of onde) expect(texto, arquivo).toContain(chamada);
+    });
+  }
+
+  it("o PIX converte centavos pra unidade cheia no ponto de chamada", () => {
+    const texto = readFileSync("src/components/quiz/PixTransparente.tsx", "utf8");
+    expect(texto).toMatch(/pagamentoGa4\(\{\s*valor: r\.valorCentavos \/ 100/);
+  });
+
+  it("a compra do GA4 sai do mesmo arquivo da conversão do Ads", () => {
+    const texto = readFileSync("src/components/conta/Obrigado.tsx", "utf8");
+    expect(texto).toContain("conversaoCompra(");
+    expect(texto).toContain("compraGa4(");
+  });
+
+  it("botao_comprar NÃO é promovido: dispara no mesmo clique que checkout_click", () => {
+    expect(PROMOVIDOS.has("botao_comprar")).toBe(false);
   });
 });

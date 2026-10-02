@@ -11,6 +11,7 @@ import { getOrCreateSessionId } from "@/lib/session-context";
 import { useQuizStore } from "@/lib/quiz-store";
 import { trackEvent } from "@/lib/track";
 import { guardarTransacao } from "@/lib/google-ads";
+import { pagamentoGa4 } from "@/lib/ga4";
 import { PixPagamento } from "@/components/quiz/PixPagamento";
 import { ResumoDoPedido } from "@/components/quiz/ResumoDoPedido";
 import { Button } from "@/components/ui/button";
@@ -271,6 +272,10 @@ export function PixTransparente({
         return;
       }
       trackEvent("pix_transparente_gerado", { valor: r.valorCentavos, quadro, bump: bumpItem });
+      // No GA4 como `add_payment_info`. O payload acima é em CENTAVOS e a
+      // função quer unidade cheia: a divisão mora aqui, onde a unidade é
+      // conhecida. PIX só existe em real, por isso BRL sem consultar locale.
+      pagamentoGa4({ valor: r.valorCentavos / 100, moeda: "BRL", meio: "pix" });
       setFase({ t: "pronto", dados: r });
     } catch (err) {
       console.error("[pix] criar falhou:", err);
