@@ -46,7 +46,13 @@ describe("montarParams", () => {
 
   it("nunca leva identificador do Meta nem o path", () => {
     // `fb.1.1.2` tem cara de rótulo: quem barra é a CHAVE, não o valor.
-    const p = montarParams({ fbp: "fb.1.1.2", fbc: "fb.1.1.abc", _fbp: "x", path: "/criar", step: 1 });
+    const p = montarParams({
+      fbp: "fb.1.1.2",
+      fbc: "fb.1.1.abc",
+      _fbp: "x",
+      path: "/criar",
+      step: 1,
+    });
     expect(p).toEqual({ step: 1 });
   });
 
