@@ -1,7 +1,8 @@
 import React from "react";
 import { AbsoluteFill, Audio, Sequence, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { Anuncio, type PropsAnuncio } from "./Anuncio";
-import { CARTAO_S, Clipe, Final, MOSAICO_S, usePulso, type Trecho } from "./Compilado";
+import { CARTAO_S, Clipe, FINAL_BALLAD, FINAL_SERENATA, Final, MOSAICO_S, usePulso, type Trecho } from "./Compilado";
+import { PASSOS_BALLAD } from "./FinalBallad";
 
 // O MIX (28/09): o compilado de reações com o "como funciona" das versões g
 // no meio. Pedido do dono, e as duas metades vêm de lições diferentes:
@@ -22,7 +23,6 @@ import { CARTAO_S, Clipe, Final, MOSAICO_S, usePulso, type Trecho } from "./Comp
 // começa, pra a letra acesa e a batida baterem com a música que está tocando.
 
 const FPS = 30;
-const AUDIO = "anuncio/demo-v1.mp3";
 
 export type Bloco = { tipo: "clipe"; t: Trecho } | { tipo: "produto" };
 
@@ -98,6 +98,21 @@ export type PropsMix = {
    * gancho e não outra coisa.
    */
   blocos?: Bloco[];
+  /** `en` é a Ballad (02/10): textos do produto, passos e cartão em inglês. A música vem de `anuncio.audio`. */
+  idioma?: "pt" | "en";
+};
+
+const TEXTOS_PRODUTO = {
+  pt: {
+    letra: { reta: "Veja a letra", italico: "na hora, grátis." },
+    musica: { reta: "Ouça a prévia", italico: "antes de pagar." },
+    recebe: { reta: "Se amar,", italico: "vira presente." },
+  },
+  en: {
+    letra: { reta: "See your lyrics", italico: "instantly, free." },
+    musica: { reta: "Hear a preview", italico: "before you pay." },
+    recebe: { reta: "Love it?", italico: "Send it as a gift." },
+  },
 };
 
 /** Flash branco curto na entrada do "como funciona", igual aos cortes. */
@@ -106,10 +121,10 @@ const Flash: React.FC = () => {
   return <AbsoluteFill style={{ backgroundColor: "white", opacity: interpolate(f, [0, 7], [0.7, 0], { extrapolateRight: "clamp" }) }} />;
 };
 
-export const Mix: React.FC<PropsMix> = ({ inicioAudio, anuncio, blocos: sequencia = BLOCOS }) => {
+export const Mix: React.FC<PropsMix> = ({ inicioAudio, anuncio, blocos: sequencia = BLOCOS, idioma = "pt" }) => {
   const { durationInFrames } = useVideoConfig();
   const frame = useCurrentFrame();
-  const pulso = usePulso(frame, inicioAudio);
+  const pulso = usePulso(frame, inicioAudio, anuncio.audio);
   const volume = interpolate(frame, [0, 15, durationInFrames - 45, durationInFrames], [0, 0.9, 0.9, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -131,11 +146,8 @@ export const Mix: React.FC<PropsMix> = ({ inicioAudio, anuncio, blocos: sequenci
             roteiro="produto"
             semAudio
             inicioAudio={inicioAudio + inicioS}
-            textos={{
-              letra: { reta: "Veja a letra", italico: "na hora, grátis." },
-              musica: { reta: "Ouça a prévia", italico: "antes de pagar." },
-              recebe: { reta: "Se amar,", italico: "vira presente." },
-            }}
+            idioma={idioma}
+            textos={TEXTOS_PRODUTO[idioma]}
           />
           <Flash />
         </Sequence>
@@ -146,10 +158,10 @@ export const Mix: React.FC<PropsMix> = ({ inicioAudio, anuncio, blocos: sequenci
 
   return (
     <AbsoluteFill style={{ backgroundColor: "black" }}>
-      <Audio src={staticFile(AUDIO)} startFrom={Math.round(inicioAudio * FPS)} volume={volume} />
+      <Audio src={staticFile(anuncio.audio)} startFrom={Math.round(inicioAudio * FPS)} volume={volume} />
       {blocos}
       <Sequence from={desde} durationInFrames={Math.round((MOSAICO_S + CARTAO_MIX_S) * FPS)}>
-        <Final pulso={pulso} passos={PASSOS} />
+        <Final pulso={pulso} passos={idioma === "en" ? PASSOS_BALLAD : PASSOS} marca={idioma === "en" ? FINAL_BALLAD : FINAL_SERENATA} />
       </Sequence>
     </AbsoluteFill>
   );

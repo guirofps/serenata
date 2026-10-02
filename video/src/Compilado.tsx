@@ -124,8 +124,8 @@ const duracaoTrechos = () => TRECHOS.reduce((s, t) => s + (t.ate - t.de), 0);
 export const duracaoCompilado = () => duracaoTrechos() + MOSAICO_S + CARTAO_S;
 
 /** Graves da música, 0 a 1, pra tudo respirar na batida. */
-export function usePulso(frame: number, inicioAudio: number): number {
-  const audio = useAudioData(staticFile(AUDIO));
+export function usePulso(frame: number, inicioAudio: number, src: string = AUDIO): number {
+  const audio = useAudioData(staticFile(src));
   if (!audio) return 0;
   const b = visualizeAudio({
     fps: FPS,
@@ -288,12 +288,33 @@ export function Clipe({ t, primeiro, pulso }: { t: Trecho; primeiro: boolean; pu
   );
 }
 
+/** Os textos do cartão final por marca. A Ballad (02/10) usa o mesmo cartão em inglês. */
+export type MarcaFinal = { nome: string; mosaico: string; frase: string; apoio: [string, string]; cta: string; site: string };
+export const FINAL_SERENATA: MarcaFinal = {
+  nome: "SERENATA",
+  mosaico: "Todas essas reações começaram com *uma história*",
+  frase: "Transforme a história de vocês em *música*",
+  apoio: ["Você conta a história.", "A letra sai na hora, de graça."],
+  cta: "Crie a sua agora",
+  site: "serenatagift.com",
+};
+export const FINAL_BALLAD: MarcaFinal = {
+  nome: "BALLAD",
+  mosaico: "Every one of these reactions started with *a story*",
+  frase: "Turn your story into a *song*",
+  apoio: ["You tell the story.", "Your lyrics are ready in seconds, free."],
+  cta: "Make yours now",
+  site: "balladgift.com",
+};
+
 /** As quatro reações em grade 2x2, e o cartão final por cima delas. */
 export function Final({
   pulso,
   tiles = TILES,
   passos,
+  marca = FINAL_SERENATA,
 }: {
+  marca?: MarcaFinal;
   pulso: number;
   tiles?: Tile[];
   /** Com passos, eles entram no lugar da frase de apoio do cartão (o `Mix`). */
@@ -366,7 +387,7 @@ export function Final({
             boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
           }}
         >
-          <TextoAnimado texto="Todas essas reações começaram com *uma história*" frame={frame - 10} corBase={CREME} />
+          <TextoAnimado texto={marca.mosaico} frame={frame - 10} corBase={CREME} />
         </div>
       )}
 
@@ -385,7 +406,7 @@ export function Final({
               transform: `translateY(${(1 - entra(0)) * 30}px)`,
             }}
           >
-            SERENATA
+            {marca.nome}
           </div>
           <div
             style={{
@@ -397,7 +418,7 @@ export function Final({
               color: CREME,
             }}
           >
-            <TextoAnimado texto="Transforme a história de vocês em *música*" frame={noCartao - 6} corBase={CREME} />
+            <TextoAnimado texto={marca.frase} frame={noCartao - 6} corBase={CREME} />
           </div>
           {passos?.length ? (
             <div style={{ marginTop: 48, display: "flex", flexDirection: "column", gap: 24, width: 880 }}>
@@ -450,8 +471,9 @@ export function Final({
                 transform: `translateY(${(1 - entra(22)) * 24}px)`,
               }}
             >
-              Você conta a história.
-              <br />A letra sai na hora, de graça.
+              {marca.apoio[0]}
+              <br />
+              {marca.apoio[1]}
             </div>
           )}
           <div
@@ -469,7 +491,7 @@ export function Final({
               transform: `scale(${(0.7 + 0.3 * entra(34)) * respiroBotao})`,
             }}
           >
-            Crie a sua agora
+            {marca.cta}
           </div>
           <div
             style={{
@@ -481,7 +503,7 @@ export function Final({
               opacity: entra(44),
             }}
           >
-            serenatagift.com
+            {marca.site}
           </div>
         </AbsoluteFill>
       )}

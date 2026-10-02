@@ -70,6 +70,11 @@ export type PropsAnuncio = {
    * a letra e a batida daqui baterem com ela.
    */
   semAudio?: boolean;
+  /**
+   * O idioma das cenas do "como funciona" (letra, música, recebe): rótulos,
+   * etiquetas e os prints. `en` é a Ballad (02/10), com as telas dela.
+   */
+  idioma?: "pt" | "en";
 };
 
 type Frase = { reta: string; italico: string };
@@ -87,6 +92,27 @@ const TEXTOS_PADRAO: Record<"conta" | "letra" | "musica" | "recebe" | "video" | 
   fecho: { reta: "Uma música feita da", italico: "história de vocês." },
 };
 const TextosCtx = React.createContext(TEXTOS_PADRAO);
+
+// Os rótulos e prints das cenas do produto, por idioma. Só as cenas que o
+// `Mix` usa (letra, música, recebe) existem em inglês.
+const ROTULOS = {
+  pt: {
+    capLetra: "A LETRA", letraDe: "A LETRA DE", etLetra: ["De graça", "em segundos"],
+    capMusica: "A MÚSICA", etNome: ["O nome dela", "cantado na música"], etAcende: ["A letra", "acende no ritmo"],
+    capRecebe: "ELA RECEBE", etAbre: ["Abre o link", "sem baixar nada"], etOuve: ["E ouve", "a história dela"],
+    capa: "anuncio/presente-capa.png", entrega: "anuncio/entrega.mp4",
+    marca: "SERENATA", cta: "Crie a sua agora", rodape: "A letra é grátis · serenatagift.com",
+  },
+  en: {
+    capLetra: "THE LYRICS", letraDe: "LYRICS FOR", etLetra: ["Free", "in seconds"],
+    capMusica: "THE SONG", etNome: ["Her name", "sung in the song"], etAcende: ["The lyrics", "light up in rhythm"],
+    capRecebe: "SHE GETS IT", etAbre: ["Opens the link", "no app needed"], etOuve: ["And hears", "her story"],
+    capa: "anuncio-en/presente-capa.png", entrega: "anuncio-en/entrega.mp4",
+    marca: "BALLAD", cta: "Make yours now", rodape: "Your lyrics are free · balladgift.com",
+  },
+};
+const RotulosCtx = React.createContext(ROTULOS.pt);
+const useRotulos = () => React.useContext(RotulosCtx);
 const useFrase = (k: keyof typeof TEXTOS_PADRAO) => React.useContext(TextosCtx)[k];
 
 // ── Roteiros (em segundos) ────────────────────────────────────────
@@ -361,15 +387,16 @@ const CenaReacoes: React.FC<{ reta: string; italico: string; inicios: [number, n
  */
 const CenaRecebe: React.FC = () => {
   const { d, n, ini } = useCena();
+  const r = useRotulos();
   return (
     <AbsoluteFill>
-      <Capitulo n={n} nome="ELA RECEBE" dur={d} />
+      <Capitulo n={n} nome={r.capRecebe} dur={d} />
       <Titulo {...useFrase("recebe")} dur={d} />
       <Celular dur={d}>
-        <OffthreadVideo src={staticFile("anuncio/entrega.mp4")} startFrom={15} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <OffthreadVideo src={staticFile(r.entrega)} startFrom={15} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       </Celular>
-      <Etiqueta x={250} y={1060} ax={380} ay={1120} titulo="Abre o link" sub="sem baixar nada" atraso={1.2} dur={d} />
-      <Etiqueta x={830} y={1500} ax={700} ay={1420} titulo="E ouve" sub="a história dela" atraso={3.4} dur={d} />
+      <Etiqueta x={250} y={1060} ax={380} ay={1120} titulo={r.etAbre[0]} sub={r.etAbre[1]} atraso={1.2} dur={d} />
+      <Etiqueta x={830} y={1500} ax={700} ay={1420} titulo={r.etOuve[0]} sub={r.etOuve[1]} atraso={3.4} dur={d} />
     </AbsoluteFill>
   );
 };
@@ -398,13 +425,14 @@ const CenaLetra: React.FC<{ versos: string[]; para: string }> = ({ versos, para 
   const total = versos.join("\n");
   const n = Math.floor(clamp((t - 0.55) * 45, 0, total.length));
   const escrito = total.slice(0, n).split("\n");
+  const r = useRotulos();
   return (
     <AbsoluteFill>
-      <Capitulo n={capitulo} nome="A LETRA" dur={d} />
+      <Capitulo n={capitulo} nome={r.capLetra} dur={d} />
       <Titulo {...useFrase("letra")} dur={d} />
       <Celular dur={d}>
         <AbsoluteFill style={{ background: "#faf5ee", padding: "90px 44px", fontFamily: LORA }}>
-          <div style={{ fontFamily: POPPINS, fontSize: 20, letterSpacing: 6, color: VINHO, fontWeight: 600, textAlign: "center" }}>A LETRA DE</div>
+          <div style={{ fontFamily: POPPINS, fontSize: 20, letterSpacing: 6, color: VINHO, fontWeight: 600, textAlign: "center" }}>{r.letraDe}</div>
           <div style={{ fontFamily: PLAYFAIR, fontStyle: "italic", fontSize: 58, color: VINHO, textAlign: "center", marginBottom: 40 }}>{para}</div>
           {escrito.map((v, i) => (
             <div key={i} style={{ fontSize: 31, lineHeight: 1.5, color: "#2a1518", marginBottom: 10 }}>
@@ -414,7 +442,7 @@ const CenaLetra: React.FC<{ versos: string[]; para: string }> = ({ versos, para 
           ))}
         </AbsoluteFill>
       </Celular>
-      <Etiqueta x={250} y={1250} ax={345} ay={1010} titulo="De graça" sub="em segundos" atraso={1.2} dur={d} />
+      <Etiqueta x={250} y={1250} ax={345} ay={1010} titulo={r.etLetra[0]} sub={r.etLetra[1]} atraso={1.2} dur={d} />
     </AbsoluteFill>
   );
 };
@@ -431,13 +459,14 @@ const CenaMusica: React.FC<{ karaoke: LinhaKaraoke[]; inicioAudio: number; para:
   const tMusica = inicioAudio + ini + f / fps;
   const linha = [...karaoke].reverse().find((l) => l.start - 0.45 <= tMusica);
   const { op } = useEntradaSaida(d);
+  const r = useRotulos();
   return (
     <AbsoluteFill>
       <Pulso bandas={bandas} cy={1330} escala={1.35} op={op * 0.7} />
-      <Capitulo n={n} nome="A MÚSICA" dur={d} />
+      <Capitulo n={n} nome={r.capMusica} dur={d} />
       <Titulo {...useFrase("musica")} dur={d} />
       <Celular dur={d}>
-        <Img src={staticFile("anuncio/presente-capa.png")} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <Img src={staticFile(r.capa)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         {/* A letra acendendo por cima, no lugar do "toque para ouvir":
             é o que a página faz quando a música toca. */}
         <AbsoluteFill style={{ top: "58%", height: "30%", background: "linear-gradient(180deg, rgba(18,10,13,0) 0%, rgba(18,10,13,0.95) 25%)" }} />
@@ -451,8 +480,8 @@ const CenaMusica: React.FC<{ karaoke: LinhaKaraoke[]; inicioAudio: number; para:
           </div>
         ) : null}
       </Celular>
-      <Etiqueta x={250} y={860} ax={450} ay={955} titulo="O nome dela" sub="cantado na música" atraso={0.8} dur={d} />
-      <Etiqueta x={830} y={1440} ax={700} ay={1320} titulo="A letra" sub="acende no ritmo" atraso={1.4} dur={d} />
+      <Etiqueta x={250} y={860} ax={450} ay={955} titulo={r.etNome[0]} sub={r.etNome[1]} atraso={0.8} dur={d} />
+      <Etiqueta x={830} y={1440} ax={700} ay={1320} titulo={r.etAcende[0]} sub={r.etAcende[1]} atraso={1.4} dur={d} />
     </AbsoluteFill>
   );
 };
@@ -560,9 +589,10 @@ const CenaFecho: React.FC<{ passos?: string[] }> = ({ passos }) => {
   const t = f / fps;
   const e = (a: number) => suave(clamp((t - a) / 0.5, 0, 1));
   const fecho = useFrase("fecho");
+  const r = useRotulos();
   return (
     <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", textAlign: "center", padding: "0 80px" }}>
-      <div style={{ fontFamily: LORA, color: OURO, letterSpacing: 18, fontSize: 40, opacity: e(0) }}>SERENATA</div>
+      <div style={{ fontFamily: LORA, color: OURO, letterSpacing: 18, fontSize: 40, opacity: e(0) }}>{r.marca}</div>
       <div style={{ fontFamily: POPPINS, fontWeight: 700, color: CREME, fontSize: 74, lineHeight: 1.1, marginTop: 50, letterSpacing: -1.5, opacity: e(0.2), transform: `translateY(${(1 - e(0.2)) * 30}px)` }}>
         {fecho.reta}
       </div>
@@ -621,10 +651,10 @@ const CenaFecho: React.FC<{ passos?: string[] }> = ({ passos }) => {
           boxShadow: "0 20px 60px rgba(232,196,106,0.35)",
         }}
       >
-        Crie a sua agora
+        {r.cta}
       </div>
       <div style={{ fontFamily: POPPINS, fontWeight: 500, color: "rgba(247,237,226,0.6)", fontSize: 32, marginTop: 34, opacity: e(1.1) }}>
-        A letra é grátis · serenatagift.com
+        {r.rodape}
       </div>
     </AbsoluteFill>
   );
@@ -680,9 +710,11 @@ export const Anuncio: React.FC<PropsAnuncio> = (props) => {
       />
       {linhaDoTempo(props.roteiro ?? "completo").map((c) => (
         <Sequence key={c.tipo} from={Math.round(c.ini * fps)} durationInFrames={Math.round(c.d * fps)}>
-          <TextosCtx.Provider value={textos}>
-            <CenaCtx.Provider value={c}>{cena(c.tipo)}</CenaCtx.Provider>
-          </TextosCtx.Provider>
+          <RotulosCtx.Provider value={ROTULOS[props.idioma ?? "pt"]}>
+            <TextosCtx.Provider value={textos}>
+              <CenaCtx.Provider value={c}>{cena(c.tipo)}</CenaCtx.Provider>
+            </TextosCtx.Provider>
+          </RotulosCtx.Provider>
         </Sequence>
       ))}
     </AbsoluteFill>
