@@ -1,0 +1,36 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`mensagem sem tema > é a mesma de antes do gospel 1`] = `
+"Homenageado: Rosa
+Relação com quem encomendou: mãe (Rosa é mãe de quem encomendou. A música é cantada por quem encomendou PARA Rosa: nunca chame Rosa pelo papel de quem encomendou, por exemplo nunca "vó" quando Rosa é a neta.)
+Ocasião: aniversário
+Gênero musical: gospel
+Voz: feminina
+Tom pedido: emocionante — para arrepiar e fazer chorar, intensidade contida
+Filhos a citar pelo nome, exatamente como escrito: Pedro
+
+História contada:
+Minha mãe criou a gente sozinha.
+
+Faz bolo de fubá.
+
+Recado especial (pode estar vazio):
+Obrigado por tudo"
+`;
+
+exports[`mensagem sem tema > é a mesma de antes do gospel 2`] = `
+"Homenageado: Rosa
+Relação com quem encomendou: mãe (Rosa é mãe de quem encomendou. A música é cantada por quem encomendou PARA Rosa: nunca chame Rosa pelo papel de quem encomendou, por exemplo nunca "vó" quando Rosa é a neta.)
+Ocasião: aniversário
+Gênero musical: gospel
+Voz: feminina
+Filhos a citar pelo nome, exatamente como escrito: Pedro
+
+História contada:
+Minha mãe criou a gente sozinha.
+
+Faz bolo de fubá.
+
+Recado especial (pode estar vazio):
+Obrigado por tudo"
+`;
