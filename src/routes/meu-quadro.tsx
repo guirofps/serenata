@@ -476,7 +476,6 @@ function MeuQuadro() {
                     ofertaId="quadro"
                     titulo={txt.titulo ?? "Quadro para imprimir"}
                     precoTexto={`R$ ${oferta.precoBrl.toFixed(2).replace(".", ",")}`}
-                    checkoutCartao={oferta.checkout}
                     aoFechar={() => setPixAberto(false)}
                   />
                 )}

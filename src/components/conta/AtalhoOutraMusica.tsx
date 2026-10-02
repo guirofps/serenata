@@ -139,7 +139,6 @@ export function AtalhoOutraMusica({
           ofertaId={oferta.id}
           titulo={t.titulo}
           precoTexto={preco}
-          checkoutCartao={oferta.checkout}
           tokenEdicao={tokenEdicao}
           aoPagar={() => {
             trackEvent("atalho_extra_pago", { origem, locale });

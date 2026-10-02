@@ -882,9 +882,6 @@ function Pagina() {
                       precoTexto={`R$ ${(OFERTAS.find((o) => o.id === "quadro")?.precoBrl ?? 24.9)
                         .toFixed(2)
                         .replace(".", ",")}`}
-                      checkoutCartao={
-                        OFERTAS.find((o) => o.id === "quadro")?.checkout ?? "/dashboard"
-                      }
                       aoPagar={() => window.location.reload()}
                       aoFechar={() => setPixAberto(false)}
                     />

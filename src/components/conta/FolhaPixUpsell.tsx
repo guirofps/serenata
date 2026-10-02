@@ -18,8 +18,10 @@ import { cpfValido, formatarCpf, soDigitosCpf } from "@/lib/cpf";
 //   - quem paga está LOGADO, então o servidor sabe quem é sem perguntar;
 //   - depois de pagar a pessoa NÃO vai pro `/obrigado`: ela já é cliente, e
 //     o certo é ela ver o saldo novo no lugar onde clicou;
-//   - o cartão continua saindo pro checkout da Perfect Pay, que é onde os
-//     três produtos de upsell existem cadastrados.
+//   - NÃO tem saída pro cartão. Até 02/10 tinha, pro checkout da Perfect Pay
+//     (onde extra e quadro existem cadastrados), e 5 vendas brasileiras
+//     escorreram por ali a 11,39% depois que o BR passou a sair só pelo
+//     Asaas (26/09, ver CLAUDE.md). Upsell é só PIX.
 //
 // ── SÓ EM PORTUGUÊS ──────────────────────────────────────────────
 //
@@ -49,7 +51,6 @@ export function FolhaPixUpsell({
   ofertaId,
   titulo,
   precoTexto,
-  checkoutCartao,
   tokenEdicao,
   aoPagar,
   aoFechar,
@@ -62,12 +63,6 @@ export function FolhaPixUpsell({
   /** "Música extra", "Quadro para imprimir" — só pra pessoa se situar. */
   titulo: string;
   precoTexto: string;
-  /**
-   * Link do checkout de cartão. VAZIO = oferta só no PIX (o vídeo): a folha
-   * esconde toda saída pro cartão em vez de mandar pra `""`, que só
-   * recarregava a página e parecia defeito.
-   */
-  checkoutCartao: string;
   aoFechar: () => void;
 }) {
   const [fase, setFase] = useState<Fase>({ t: "resumo" });
@@ -228,14 +223,6 @@ export function FolhaPixUpsell({
               if (aoPagar) aoPagar();
               else window.location.reload();
             }}
-            aoEscolherCartao={
-              checkoutCartao
-                ? () => {
-                    trackEvent("pix_upsell_cartao", { oferta: ofertaId });
-                    window.location.href = checkoutCartao;
-                  }
-                : undefined
-            }
           />
         )}
       </div>

@@ -287,7 +287,6 @@ export function BlocoCreditos({
             ofertaId={aberta.id}
             titulo={o[aberta.id]?.titulo ?? "Música extra"}
             precoTexto={brl(aberta.precoBrl)}
-            checkoutCartao={`${aberta.checkout}?email=${encodeURIComponent(email)}`}
             aoFechar={() => setPixAberto(null)}
           />
         )}

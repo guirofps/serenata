@@ -503,7 +503,6 @@ export function VideoPresenteEditor({
           ofertaId="video"
           titulo={t.titulo}
           precoTexto={precoTexto}
-          checkoutCartao={oferta.checkout}
           tokenEdicao={tokenEdicao}
           aoPagar={() => {
             setFolhaAberta(false);

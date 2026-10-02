@@ -196,7 +196,6 @@ export function BlocoQuadro({
                   ofertaId="quadro"
                   titulo={o.titulo}
                   precoTexto={`R$ ${oferta.precoBrl.toFixed(2).replace(".", ",")}`}
-                  checkoutCartao={`${oferta.checkout}?email=${encodeURIComponent(email)}`}
                   aoFechar={() => setPixAberto(false)}
                 />
               )}

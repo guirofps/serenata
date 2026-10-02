@@ -895,6 +895,11 @@ andamento não gira aos 30 min (vale 7 dias); oferta só libera pagamento com
 a música PRONTA; revisão mostra rótulo, não valor cru; "Melhorar com IA"
 recebe o idioma.
 
+**Consertos sem teste (02/10):** a folha de PIX do painel (música extra e
+quadro) ainda tinha "Pagar com cartão" pra Perfect Pay: 5 vendas BR saíram
+por lá depois de 26/09. Botão removido (`FolhaPixUpsell`), upsell é só PIX.
+A limpeza de áudio pula página de exemplo (`ehExemplo`).
+
 ## Em aberto
 
 - Nome e marca
