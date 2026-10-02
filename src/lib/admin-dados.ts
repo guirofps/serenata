@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { QUIZ_FLOW } from "@/lib/quiz-flow";
 import { isQuestion } from "@/lib/flow-engine";
 import { cambioDoDia } from "@/lib/cambio";
+import { filtroCursor, lerJanela } from "@/lib/ler-janela";
 
 // 12 créditos por geração (2 versões). Da tabela pública do kie.ai.
 const CREDITO_POR_MUSICA = 12;
@@ -497,80 +498,6 @@ type Pedido = {
   dinheiro_entrou?: boolean | null;
 };
 
-const PAGINA = 1000;
-
-// Quantas páginas buscar AO MESMO TEMPO.
-//
-// Isto era um laço sequencial, e o custo disso não era teórico: em 17/08 o
-// painel puxava 180 mil eventos, ou seja, 180 idas ao banco UMA DEPOIS DA
-// OUTRA. Cada ida tem latência, então o tempo de abrir o painel crescia em
-// linha reta com o tráfego, até passar do limite de tempo da função na
-// Vercel. Passando do limite, `carregarPainel` lançava, e a tela de admin
-// tratava QUALQUER falha como "não autorizado" e voltava pro login: senha
-// certa, tela de login de novo. Foi assim que o bug se apresentou.
-//
-// Em paralelo, 180 páginas viram 15 rodadas em vez de 180. O desperdício é no
-// máximo LOTE-1 requisições vazias no fim do intervalo, que é troco.
-//
-// Não subir muito: cada requisição é uma conexão no PostgREST, e afogá-lo
-// derruba o site inteiro pra consertar uma tela interna.
-const LOTE = 12;
-
-/**
- * Lê uma série inteira do banco, contornando o teto de 1000 linhas do
- * PostgREST (documentado logo acima).
- *
- * Não trunca em silêncio. A versão anterior parava em 200 mil linhas e
- * devolvia o que tinha, o que transformaria o painel na mentira que ele
- * existe pra não ser. Aqui o limite LANÇA: número errado é pior que erro
- * visível, porque só o erro faz alguém consertar.
- */
-async function paginado<T extends { id: string }>(
-  monta: (
-    de: number,
-    ate: number,
-  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
-): Promise<T[]> {
-  const TETO = 500_000;
-  const tudo: T[] = [];
-  // DEDUPLICAÇÃO POR id, e ela não é zelo excessivo.
-  //
-  // Paginar por `range` numa tabela que RECEBE ESCRITA o tempo todo (e
-  // funnel_events recebe ~2 mil por hora) tem um furo conhecido: uma linha
-  // gravada durante a leitura empurra as seguintes, e uma linha que estava no
-  // fim da página N reaparece no começo da N+1. Medido: 5 repetidas em 145 mil
-  // numa leitura de 15 segundos.
-  //
-  // A maior parte do painel conta SESSÕES em Set, onde repetir é inofensivo.
-  // Mas `conta(nome)` conta eventos crus, e ali a repetida vira número inflado.
-  // Um Set de ids custa nada e fecha o furo, que aliás já existia na versão
-  // sequencial, só que menos visível por ser mais lenta.
-  const vistos = new Set<string>();
-  for (let base = 0; ; base += PAGINA * LOTE) {
-    const partidas = Array.from({ length: LOTE }, (_, i) => base + i * PAGINA);
-    const lotes = await Promise.all(partidas.map((de) => monta(de, de + PAGINA - 1)));
-
-    let acabou = false;
-    for (const { data, error } of lotes) {
-      if (error) throw new Error(error.message);
-      const lote = data ?? [];
-      for (const linha of lote) {
-        if (vistos.has(linha.id)) continue;
-        vistos.add(linha.id);
-        tudo.push(linha);
-      }
-      // Página incompleta = fim da série. As seguintes já vieram vazias.
-      if (lote.length < PAGINA) acabou = true;
-    }
-    if (acabou) return tudo;
-    if (tudo.length >= TETO) {
-      throw new Error(
-        `recorte grande demais: mais de ${TETO} linhas. Diminua o período do painel.`,
-      );
-    }
-  }
-}
-
 type ArgsPainel = { dias?: number; de?: string; ate?: string; funil?: FunilFiltro };
 type Janela = { inicio: Date; fim: Date; dias: number };
 
@@ -724,23 +651,22 @@ function janelaAnterior(j: Janela): Janela {
  * é o comportamento.
  */
 async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Promise<Painel> {
+  const t0 = Date.now();
   const db = supabaseAdmin();
   const desde = inicio.toISOString();
   const ateISO = fim.toISOString();
 
-  // A ordenação por `id` não é enfeite: sem ORDER BY estável, duas páginas
-  // do mesmo range podem repetir e pular linhas. A ordem de exibição é
-  // reconstruída em JS depois.
-  const janela = <T extends { id: string }>(tabela: string, colunas: string) =>
-    paginado<T>(
-      (de, ate) =>
-        db
-          .from(tabela)
-          .select(colunas)
-          .gte("created_at", desde)
-          .lt("created_at", ateISO)
-          .order("id")
-          .range(de, ate) as never,
+  // Cada janela é lida em fatias de um dia, por cursor `(created_at, id)`
+  // (`ler-janela.ts`). A ordem de exibição continua reconstruída em JS depois.
+  const janela = <T extends { id: string; created_at: string }>(tabela: string, colunas: string) =>
+    lerJanela<T>(
+      ({ desde: d, ate: a, cursor, limite }) => {
+        const base = db.from(tabela).select(colunas).gte("created_at", d).lt("created_at", a);
+        const comCursor = cursor ? base.or(filtroCursor(cursor)) : base;
+        return comCursor.order("created_at").order("id").limit(limite) as never;
+      },
+      inicio,
+      fim,
     );
 
   // FUNNEL_EVENTS NÃO ENTRA AQUI, e essa ausência é o conserto.
@@ -792,6 +718,7 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
       "id, quiz_response_id, musica_id, gateway, status, valor_centavos, email, paid_at, created_at, dinheiro_entrou",
     ),
   ]);
+  const msLeituras = Date.now() - t0;
 
   // ── SEPARAÇÃO DOS DOIS FUNIS ──────────────────────────────────
   //
@@ -932,6 +859,7 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
     p_filtro: filtro,
     p_sessoes_venda: sessoesVenda,
   });
+  const msEventos = Date.now() - t0 - msLeituras;
 
   // ── QUANDO O RESUMO NÃO VEM ──────────────────────────────────
   //
@@ -1407,6 +1335,12 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
 
   const musicaPorId = new Map(musicasF.map((m) => [m.id, m]));
   const quizComprou = new Set(pagos.map((p) => p.quiz_response_id).filter(Boolean));
+
+  // UMA linha por painel, legível nos logs da Vercel. Sem e-mail, sem id, sem
+  // valor: só onde foi o tempo. É ela que diz se 90 dias pede o próximo passo.
+  console.log(
+    `[admin] painel ${dias}d ${filtro}: leituras ${msLeituras}ms · eventos ${msEventos}ms · total ${Date.now() - t0}ms`,
+  );
 
   return {
     filtro,
