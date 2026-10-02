@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   diaBr,
+  diasAFazer,
+  ehVenda,
+  sessoesQueCompraram,
+  type LinhaResumoDia,
   faixasVivas,
   fatiarJanela,
   limitesDoDia,
@@ -161,5 +165,77 @@ describe("somarResumos", () => {
     const copia = JSON.parse(JSON.stringify(a));
     somarResumos([a, b]);
     expect(a).toEqual(copia);
+  });
+});
+describe("ehVenda", () => {
+  it("pago é venda; cortesia (dinheiro_entrou = false) não; pendente não", () => {
+    expect(ehVenda({ quiz_response_id: "q", status: "pago" })).toBe(true);
+    expect(ehVenda({ quiz_response_id: "q", status: "pago", dinheiro_entrou: null })).toBe(true);
+    expect(ehVenda({ quiz_response_id: "q", status: "pago", dinheiro_entrou: false })).toBe(false);
+    expect(ehVenda({ quiz_response_id: "q", status: "pendente" })).toBe(false);
+  });
+});
+
+describe("sessoesQueCompraram", () => {
+  const leads = [
+    { id: "q1", session_id: "s1", locale: "pt" },
+    { id: "q2", session_id: "s2", locale: "es" },
+    { id: "q3", session_id: null, locale: "pt" },
+    { id: "q4", session_id: "s4", locale: "en" },
+  ];
+  const pedidos = [
+    { quiz_response_id: "q1", status: "pago" },
+    { quiz_response_id: "q1", status: "pago" }, // upsell: mesma sessão
+    { quiz_response_id: "q2", status: "pago" },
+    { quiz_response_id: "q3", status: "pago" }, // lead sem sessão
+    { quiz_response_id: "q4", status: "pago", dinheiro_entrou: false }, // cortesia
+    { quiz_response_id: "qX", status: "pago" }, // lead fora da janela
+  ];
+
+  it("todos: sessões distintas que pagaram de verdade", () => {
+    expect(sessoesQueCompraram(pedidos, leads, "todos").sort()).toEqual(["s1", "s2"]);
+  });
+
+  it("filtro por funil: es separado, en e pt caem em pt", () => {
+    expect(sessoesQueCompraram(pedidos, leads, "es")).toEqual(["s2"]);
+    expect(sessoesQueCompraram(pedidos, leads, "pt")).toEqual(["s1"]);
+  });
+});
+
+describe("diasAFazer", () => {
+  // 02/10 10:00 no Brasil.
+  const agora = Date.parse("2026-10-02T13:00:00.000Z");
+  const linhas = (
+    dia: string,
+    atualizado_em: string,
+    filtros = ["todos", "pt", "es"],
+  ): LinhaResumoDia[] => filtros.map((filtro) => ({ dia, filtro, atualizado_em }));
+
+  it("faltando, do mais antigo ao mais novo; hoje nunca entra", () => {
+    expect(diasAFazer([], "2026-09-29", agora)).toEqual(["2026-09-29", "2026-09-30", "2026-10-01"]);
+  });
+
+  it("dia com um filtro faltando conta como faltando", () => {
+    const l = [
+      ...linhas("2026-09-29", "2026-09-30T12:00:00.000Z", ["todos", "pt"]),
+      ...linhas("2026-09-30", "2026-10-02T10:00:00.000Z"),
+      ...linhas("2026-10-01", "2026-10-02T10:00:00.000Z"),
+    ];
+    expect(diasAFazer(l, "2026-09-29", agora)).toEqual(["2026-09-29"]);
+  });
+
+  it("recente vencido entra depois dos faltando; recente fresco não", () => {
+    const l = [
+      ...linhas("2026-09-30", "2026-10-01T04:00:00.000Z"), // fechou há 34h, feito há 33h: vencido
+      ...linhas("2026-10-01", "2026-10-02T10:00:00.000Z"), // feito há 3h: fresco
+    ];
+    expect(diasAFazer(l, "2026-09-29", agora)).toEqual(["2026-09-29", "2026-09-30"]);
+  });
+
+  it("dia fechado há mais de 72h não é refeito", () => {
+    const l = linhas("2026-09-25", "2026-09-26T04:00:00.000Z");
+    expect(diasAFazer(l, "2026-09-25", Date.parse("2026-10-02T13:00:00.000Z"))).not.toContain(
+      "2026-09-25",
+    );
   });
 });

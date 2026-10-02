@@ -161,3 +161,89 @@ export function somarResumos(partes: EventosResumo[]): EventosResumo {
   );
   return total;
 }
+
+// ── A REGRA DE VENDA, EM UM LUGAR SÓ ─────────────────────────────
+
+export type PedidoVenda = {
+  quiz_response_id: string | null;
+  status: string;
+  dinheiro_entrou?: boolean | null;
+};
+export type LeadSessao = { id: string; session_id: string | null; locale: string | null };
+
+/**
+ * O que conta como venda. Liberação manual sem dinheiro (cortesia, teste) fica
+ * `pago` pra música chegar no cliente, mas não é faturamento: `dinheiro_entrou`
+ * só é `false` quando alguém disse que foi cortesia.
+ */
+export function ehVenda(p: PedidoVenda): boolean {
+  return p.status === "pago" && p.dinheiro_entrou !== false;
+}
+
+/**
+ * As sessões que compraram, pro `p_sessoes_venda` de `admin_eventos_resumo`.
+ *
+ * Só conta pedido cujo lead está na mesma janela (é o lead que dá a sessão e o
+ * idioma). `en` (Ballad) e `pt` caem no filtro "pt", como em `montarPainel`.
+ */
+export function sessoesQueCompraram(
+  pedidos: PedidoVenda[],
+  leads: LeadSessao[],
+  filtro: FiltroFunil,
+): string[] {
+  const porId = new Map(leads.map((l) => [l.id, l]));
+  const sessoes = new Set<string>();
+  for (const p of pedidos) {
+    if (!ehVenda(p)) continue;
+    const lead = p.quiz_response_id ? porId.get(p.quiz_response_id) : undefined;
+    if (!lead?.session_id) continue;
+    const locale = lead.locale === "es" ? "es" : "pt";
+    if (filtro !== "todos" && locale !== filtro) continue;
+    sessoes.add(lead.session_id);
+  }
+  return [...sessoes];
+}
+
+// ── O PLANEJADOR DO CRON ─────────────────────────────────────────
+
+export type LinhaResumoDia = { dia: string; filtro: string; atualizado_em: string };
+
+/** Por quantas horas depois de fechar um dia ainda vale refazê-lo. */
+export const RECENTE_H = 72;
+/** Idade mínima da linha pra um dia recente ser refeito. */
+export const REFAZER_H = 6;
+
+/**
+ * Os dias que o cron tem que (re)fazer, em ordem: primeiro os FALTANDO (algum
+ * dos três filtros sem linha), do mais antigo ao mais novo; depois os RECENTES
+ * VENCIDOS — fechados há menos de 72h com linha de mais de 6h. Isso pega
+ * evento que chega atrasado e PIX pago depois da meia-noite.
+ *
+ * Hoje nunca entra: ainda está acontecendo.
+ */
+export function diasAFazer(linhas: LinhaResumoDia[], primeiroDia: string, agora: number): string[] {
+  const hoje = diaBr(agora);
+  const porDia = new Map<string, LinhaResumoDia[]>();
+  for (const l of linhas) {
+    const lista = porDia.get(l.dia) ?? [];
+    lista.push(l);
+    porDia.set(l.dia, lista);
+  }
+
+  const faltando: string[] = [];
+  const vencidos: string[] = [];
+  for (let t = limitesDoDia(primeiroDia).inicio.getTime(); diaBr(t) < hoje; t += DIA_MS) {
+    const dia = diaBr(t);
+    const doDia = porDia.get(dia) ?? [];
+    if (!FILTROS.every((f) => doDia.some((l) => l.filtro === f))) {
+      faltando.push(dia);
+      continue;
+    }
+    const fechouHa = agora - limitesDoDia(dia).fim.getTime();
+    const maisVelha = Math.min(...doDia.map((l) => Date.parse(l.atualizado_em)));
+    if (fechouHa < RECENTE_H * 3_600_000 && agora - maisVelha > REFAZER_H * 3_600_000) {
+      vencidos.push(dia);
+    }
+  }
+  return [...faltando, ...vencidos];
+}
