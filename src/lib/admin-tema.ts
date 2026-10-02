@@ -26,9 +26,12 @@ export type LinhaTema = {
 const ORDEM: ChaveTema[] = ["gospel · louvor", "gospel · presente", "gospel · sem tipo", "resto"];
 
 export function chaveTema(l: LeadTema): ChaveTema {
-  // Pela atribuição OU pelas respostas: a linha de lead de uma sessão que já
-  // existia antes do anúncio gospel pode ter a atribuição antiga.
-  const gospel = l.attribution?.tema === "gospel" || l.respostas?.tema === "gospel";
+  // PELAS RESPOSTAS, não pela atribuição (revisão final, 02/10). O tema entra
+  // em `respostas.tema` antes de qualquer lead gospel ser gravado, e some no
+  // `reset()` da store. Já o `mp_attribution` nunca é limpo: lido por ele, todo
+  // lead normal que o mesmo navegador fizesse depois cairia como gospel e
+  // sujaria a receita por lead que decide se a porta vale o anúncio.
+  const gospel = l.respostas?.tema === "gospel";
   if (!gospel) return "resto";
   const tipo = l.respostas?.tipo;
   return tipo === "louvor" ? "gospel · louvor" : tipo === "presente" ? "gospel · presente" : "gospel · sem tipo";

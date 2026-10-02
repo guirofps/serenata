@@ -198,7 +198,7 @@ então refrão, estrofes e "Melhorar com IA" herdam o gospel sem mudança lá.
 - `porTema`: três linhas, `gospel · louvor`, `gospel · presente`, `resto`.
   Cada uma com `leads`, `letras`, `vendas`, `receitaBrl`, `conversaoPct`,
   `receitaPorLeadBrl`. Montada como `porOrigem`, a partir dos leads já lidos
-  (`attribution.tema`) e de `respostas->>tipo` (nova coluna `r_tipo` no select
+  (`respostas->>tema`; a atribuição não, porque nunca é limpa e marcaria como gospel os leads normais seguintes do mesmo navegador) e de `respostas->>tipo` (nova coluna `r_tipo` no select
   que já existe). Lead gospel sem `tipo` (parou na 1ª pergunta) vai pra uma
   quarta linha, `gospel · sem tipo`, que só aparece se tiver lead.
 - Os passos `_louvor` ficam no array logo depois do passo original de mesmo

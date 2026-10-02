@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { chaveTema, porTemaDe } from "./admin-tema";
 
-const lead = (id: string, tema?: string, tipo?: string, viaRespostas = false) => ({
+// Sessão gospel de verdade: o tema está nas respostas (gravado antes de
+// qualquer lead) e na atribuição. `soAtribuicao` é o navegador que passou pelo
+// gospel antes e voltou pro funil normal: a atribuição guardada nunca é limpa.
+const lead = (id: string, tema?: string, tipo?: string, soAtribuicao = false) => ({
   id,
-  attribution: tema && !viaRespostas ? { tema } : {},
-  respostas: { ...(tipo ? { tipo } : {}), ...(tema && viaRespostas ? { tema } : {}) },
+  attribution: tema ? { tema } : {},
+  respostas: { ...(tipo ? { tipo } : {}), ...(tema && !soAtribuicao ? { tema } : {}) },
 });
 
 describe("chaveTema", () => {
@@ -14,8 +17,9 @@ describe("chaveTema", () => {
     expect(chaveTema(lead("3", "gospel"))).toBe("gospel · sem tipo");
     expect(chaveTema(lead("4"))).toBe("resto");
   });
-  it("aceita o tema pelas respostas quando a atribuição não tem", () => {
-    expect(chaveTema(lead("5", "gospel", "louvor", true))).toBe("gospel · louvor");
+  it("tema só na atribuição (sessão antiga do mesmo navegador) é resto", () => {
+    expect(chaveTema(lead("5", "gospel", undefined, true))).toBe("resto");
+    expect(chaveTema(lead("5b", "gospel", "presente", true))).toBe("resto");
   });
   it("valor diferente de 'gospel' é resto", () => {
     expect(chaveTema(lead("6", "Gospel", "louvor"))).toBe("resto");
