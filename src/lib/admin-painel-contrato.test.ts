@@ -26,3 +26,14 @@ describe("admin-dados", () => {
     expect(DADOS).toMatch(/console\.log\(\s*`\[admin\] painel /);
   });
 });
+const TELA = readFileSync("src/routes/admin.tsx", "utf8");
+
+describe("tela do admin", () => {
+  it("o comparativo só dispara com o núcleo pronto, e não com o dado antigo", () => {
+    // Com keepPreviousData, o núcleo fica isSuccess enquanto busca o período
+    // novo. Só `isSuccess` faria os dois voltarem a correr juntos.
+    const bloco = TELA.slice(TELA.indexOf('["painel", "comparativo"'));
+    const ate = bloco.slice(0, bloco.indexOf("});"));
+    expect(ate).toMatch(/enabled:\s*nucleo\.isSuccess\s*&&\s*!nucleo\.isPlaceholderData/);
+  });
+});

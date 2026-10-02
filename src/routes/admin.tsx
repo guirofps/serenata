@@ -54,7 +54,16 @@ export const Route = createFileRoute("/admin")({
     // A ABA na URL, como os campos acima: reload e botão voltar funcionam, e
     // dá pra mandar o link direto pra alguém já na aba certa.
     aba: z
-      .enum(["operacao", "origem", "vendas", "email", "automacoes", "testes", "financeiro", "indicacoes"])
+      .enum([
+        "operacao",
+        "origem",
+        "vendas",
+        "email",
+        "automacoes",
+        "testes",
+        "financeiro",
+        "indicacoes",
+      ])
       .optional(),
   }),
   head: () => ({
@@ -424,9 +433,15 @@ function Admin() {
     ...comum,
   });
 
+  // DEPOIS DO NÚCLEO, nunca junto. O comparativo é um painel inteiro da
+  // janela anterior; disparado ao mesmo tempo, pedir 30 dias fazia o banco
+  // processar 60 de uma vez (02/10/2026). O `!isPlaceholderData` é o que
+  // segura a troca de período: com `keepPreviousData` o núcleo continua
+  // `isSuccess` enquanto busca o recorte novo.
   const comparativo = useQuery({
     queryKey: ["painel", "comparativo", ...janelaKey],
     queryFn: () => carregarComparativo({ data: args }),
+    enabled: nucleo.isSuccess && !nucleo.isPlaceholderData,
     ...comum,
   });
 
@@ -1120,8 +1135,8 @@ function Corpo({
               {t.receitaUsd > 0 && (
                 <>
                   {" "}
-                  O dólar vira real pela cotação do dia (US$ 1 = R$ {t.cambioUsdBrl.toFixed(2)})
-                  na margem, no ROAS e nas campanhas.
+                  O dólar vira real pela cotação do dia (US$ 1 = R$ {t.cambioUsdBrl.toFixed(2)}) na
+                  margem, no ROAS e nas campanhas.
                 </>
               )}
             </p>
