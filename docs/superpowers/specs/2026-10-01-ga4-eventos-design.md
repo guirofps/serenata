@@ -208,7 +208,8 @@ caracteres, de 40.
 
   A guarda é `window['ga-disable-G-E2EKHK3RQF']`, a chave oficial do GA4,
   que corta todo envio da propriedade, inclusive a medição aprimorada. **Quem
-  liga a chave é um script inline, injetado antes do `gtag`**
+  liga a chave é um script inline, que executa no parse do HTML, antes da
+  hidratação**
   (`scriptGuardaGa4`, mesmo padrão do `scriptTiktok`): ele envolve
   `history.pushState`/`replaceState` e ouve `popstate` em captura, e liga a
   chave **sincronamente, antes** de a URL mudar.

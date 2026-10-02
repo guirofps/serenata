@@ -204,8 +204,11 @@ export function compraGa4(v: Valor & { transactionId?: string }, id: string | nu
 // é ligá-la ANTES de a URL mudar, e nada do React chega a tempo: o
 // `onBeforeNavigate` do TanStack Router é emitido em `load()`
 // (router-core/dist/esm/router.js:547), DEPOIS do `history.push` (:426).
-// Por isso é script inline, antes do gtag, envolvendo pushState/replaceState
-// e ouvindo popstate em captura. Mesmo padrão do `scriptTiktok`.
+// Por isso é script inline, executado no parse do HTML — antes da hidratação,
+// portanto antes de qualquer navegação do SPA —, envolvendo
+// pushState/replaceState e ouvindo popstate em captura. Ele fica no caminho
+// até o pushState nativo e liga a chave antes de descer. Mesmo padrão do
+// `scriptTiktok`.
 //
 // O casamento de caminho repete o de `rotaSensivel` (minúsculas, prefixo de
 // idioma, prefixo de rota); `ga4-guarda.test.ts` prova que os dois concordam.

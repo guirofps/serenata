@@ -126,3 +126,18 @@ describe("promoção ao GA4 nos pontos de chamada", () => {
     expect(PROMOVIDOS.has("botao_comprar")).toBe(false);
   });
 });
+
+// O que isto garante é que a trava é renderizada no MESMO bloco do gtag
+// (sempre que o gtag entra, a trava entra). NÃO garante ordem no DOM: o
+// React 19 iça `<script async>` pro <head>. A ordem não precisa ser essa — a
+// trava roda no parse, antes da hidratação, e liga antes de toda navegação
+// (conferido na página real em 01/10, ver o ledger da Tarefa 6).
+describe("a trava no __root", () => {
+  it("o __root injeta a trava no mesmo bloco do gtag", () => {
+    const texto = readFileSync("src/routes/__root.tsx", "utf8");
+    const trava = texto.indexOf("scriptGuardaGa4(");
+    const gtag = texto.indexOf("googletagmanager.com/gtag/js");
+    expect(trava, "scriptGuardaGa4 ausente do __root").toBeGreaterThan(-1);
+    expect(trava).toBeLessThan(gtag);
+  });
+});
