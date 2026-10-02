@@ -182,9 +182,9 @@ então refrão, estrofes e "Melhorar com IA" herdam o gospel sem mudança lá.
 
 ### 6. Telas que mostram respostas
 
-- Revisão (`textos.ts`, rótulos): `tipo` → "O que é" com valores "Louvor pra
-  Deus"/"Presente com fé"; `relacao: deus` → "Deus". No louvor, a revisão não
-  mostra "Pra quem" nem "Nome".
+- Revisão (`textos.ts`, rótulos): `tipo` → "O que é", com o rótulo do chip
+  escolhido; `relacao: deus` → "Deus". No louvor, a revisão não mostra "Pra
+  quem" nem "Nome".
 - `RevealStep` diz "{umaMusicaPra} Deus" no louvor — lê certo, fica.
 - Oferta, e-mails e página presente **não mudam** (decisão do dono). O plano
   confere as interpolações de `nome` nessas telas com `nome = "Deus"` e lista
@@ -241,7 +241,9 @@ exemplos gospel novos na home, louvor no funil espanhol.
 ## Riscos
 
 - **Letra de louvor é território novo.** Nenhuma letra foi gerada assim
-  ainda. O plano gera 3 louvores reais pelo prompt (gratidão, clamor,
-  testemunho) antes de subir e mostra ao dono, como foi feito com o espanhol.
+  ainda. O plano gera 3 louvores reais (gratidão, clamor, testemunho) e mostra
+  ao dono ANTES de apontar anúncio pro `/criar?t=gospel`. É depois do deploy e
+  não antes: a geração só existe em produção (a máquina local não tem as
+  chaves), e subir é seguro porque sem `?t=gospel` nada muda.
 - **Anúncio gospel no Google:** a copy fala de fé, não promete milagre nem
   resultado; segue a mesma régua de alegação do resto.
