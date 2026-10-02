@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { loadStripe } from "@stripe/stripe-js";
+// `/pure`: a entrada padrão do pacote injeta o Stripe.js só de ser IMPORTADA, e
+// este componente vem junto com o quiz. Em 02/10 isso fazia o /criar da Ballad
+// baixar ~880 KB do Stripe no primeiro segundo (LCP de 14,8s no celular em 4G).
+import { loadStripe } from "@stripe/stripe-js/pure";
+import type { Stripe } from "@stripe/stripe-js";
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
 import { criarCheckoutStripe } from "@/lib/stripe-checkout";
 import { getOrCreateSessionId } from "@/lib/session-context";
@@ -18,9 +22,14 @@ import { ShieldCheck, RefreshCw } from "lucide-react";
 // banco e cria a sessão. Este componente só pede "abre o pagamento desta
 // sessão" e mostra o que voltar.
 
-// Fora do componente: o `loadStripe` baixa o script uma vez só.
-const chave = (import.meta.env?.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined)?.trim();
-const stripePromise = chave ? loadStripe(chave) : null;
+// Só quando a folha de pagamento ABRE, e uma vez só (o `useMemo` abaixo chama).
+let stripePromise: Promise<Stripe | null> | null = null;
+function stripe() {
+  const chave = (import.meta.env?.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined)?.trim();
+  if (!chave) return null;
+  stripePromise ??= loadStripe(chave);
+  return stripePromise;
+}
 
 export function CheckoutStripe({
   precoTexto,
@@ -35,6 +44,9 @@ export function CheckoutStripe({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [tentativa, setTentativa] = useState(0);
+  // A folha montou = a pessoa tocou em pagar: só agora o Stripe.js baixa, em
+  // paralelo com a criação da sessão.
+  const sp = useMemo(() => stripe(), []);
 
   useEffect(() => {
     let vivo = true;
@@ -97,7 +109,7 @@ export function CheckoutStripe({
           </p>
         </div>
 
-        {!stripePromise ? (
+        {!sp ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
             Payment isn't available right now. Please write to us and we'll sort it out.
           </p>
@@ -116,7 +128,7 @@ export function CheckoutStripe({
             <RefreshCw className="h-4 w-4 animate-spin" /> Opening secure payment…
           </p>
         ) : (
-          <EmbeddedCheckoutProvider stripe={stripePromise} options={opcoes}>
+          <EmbeddedCheckoutProvider stripe={sp} options={opcoes}>
             <EmbeddedCheckout />
           </EmbeddedCheckoutProvider>
         )}

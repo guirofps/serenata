@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { loadStripe, type Stripe } from "@stripe/stripe-js";
+// `/pure`: a entrada padrão injeta o Stripe.js só de ser importada (ver `CheckoutStripe`).
+import { loadStripe } from "@stripe/stripe-js/pure";
+import type { Stripe } from "@stripe/stripe-js";
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
 import { ShieldCheck, RefreshCw } from "lucide-react";
 import { criarCheckoutVideoStripe, confirmarVideoStripe } from "@/lib/stripe-upsell";
