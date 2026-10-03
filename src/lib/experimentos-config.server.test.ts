@@ -88,6 +88,50 @@ describe("garantirConfig com o banco fora do ar", () => {
   });
 });
 
+describe("config vencida", () => {
+  const linha = (pesoB: number) => ({
+    data: [{ id: "abertura_en", ativo: true, exposicao_pct: 100, nota: "", variantes: [{ nome: "A", peso: 1 }, { nome: "B", peso: pesoB }, { nome: "C", peso: 1 }] }],
+    error: null,
+  });
+  const pesoB = () => configAtual().find((e) => e.id === "abertura_en")?.variantes.find((v) => v.nome === "B")?.peso;
+
+  it("a visita depois dos 60s já sai com a config nova (não só a seguinte)", async () => {
+    let agora = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => agora);
+    responder = async () => linha(1);
+    await garantirConfig();
+    expect(pesoB()).toBe(1);
+
+    responder = async () => linha(0);
+    agora += 61_000;
+    await garantirConfig();
+    expect(pesoB()).toBe(0);
+  });
+
+  it("releitura presa (função congelada) é refeita depois de 10s, em vez de travar a instância", async () => {
+    let agora = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => agora);
+    responder = async () => linha(1);
+    await garantirConfig();
+
+    // A releitura que nunca volta: nem o prazo dela dispara.
+    responder = () => new Promise(() => {});
+    agora += 61_000;
+    await garantirConfig();
+    expect(consultas).toBe(2);
+
+    agora += 5_000;
+    await garantirConfig();
+    expect(consultas).toBe(2); // ainda dentro dos 10s: espera a mesma
+
+    responder = async () => linha(0);
+    agora += 6_000;
+    await garantirConfig();
+    expect(consultas).toBe(3);
+    expect(pesoB()).toBe(0);
+  });
+});
+
 describe("prazo da leitura", () => {
   it("desiste sozinha quando o banco não responde — sem prazo passado, o do render", async () => {
     // Custa ~1,5s de propósito: é o valor do prazo PADRÃO (o do caminho do
