@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { FONTES } from "@/lib/marca";
 import { ALTURA_TOPO, LARGURA_TOPO, imagemDoArtigo } from "@/lib/blog/seo";
-import type { Artigo } from "@/lib/blog/tipos";
+import type { ResumoArtigo } from "@/lib/blog/tipos";
 
-export function CartaoArtigo({ artigo }: { artigo: Artigo }) {
+export function CartaoArtigo({ artigo }: { artigo: ResumoArtigo }) {
   return (
     <Link
       to="/blog/$slug"
@@ -12,7 +12,7 @@ export function CartaoArtigo({ artigo }: { artigo: Artigo }) {
     >
       <img
         src={imagemDoArtigo(artigo.slug)}
-        alt={artigo.imagem.alt}
+        alt={artigo.alt}
         width={LARGURA_TOPO}
         height={ALTURA_TOPO}
         loading="lazy"

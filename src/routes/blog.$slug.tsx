@@ -4,10 +4,9 @@ import { CartaoArtigo } from "@/components/blog/CartaoArtigo";
 import { CorpoArtigo } from "@/components/blog/CorpoArtigo";
 import { CtaCriar } from "@/components/blog/CtaCriar";
 import { LayoutBlog } from "@/components/blog/LayoutBlog";
-import { artigoPorSlug } from "@/conteudo/blog";
 import { contarPalavras, parsearCorpo } from "@/lib/blog/markdown";
 import { ALTURA_TOPO, LARGURA_TOPO, dataBr, headDoArtigo, imagemDoArtigo, minutosDeLeitura } from "@/lib/blog/seo";
-import type { Artigo } from "@/lib/blog/tipos";
+import { resumoDoArtigo, type ResumoArtigo } from "@/lib/blog/tipos";
 import { FONTES } from "@/lib/marca";
 import { chaveDaMarca } from "@/lib/marca-identidade";
 import { useProfundidadeRolagem } from "@/lib/rolagem";
@@ -15,26 +14,33 @@ import { useProfundidadeRolagem } from "@/lib/rolagem";
 // UM ARTIGO DO BLOG (spec docs/superpowers/specs/2026-10-02-blog-seo-design.md).
 // O conteúdo mora em src/conteudo/blog; o <head>, em src/lib/blog/seo.ts.
 // Só existe na Serenata: na Ballad o mesmo deploy devolve 404.
+//
+// O registro entra por `import()` DENTRO do loader, nunca no topo do arquivo:
+// o code-split do TanStack separa o componente, não o loader, e um import
+// estático aqui levava os dez artigos pro chunk de entrada de TODAS as
+// páginas, das duas marcas (~23 KB gzip, revisão de 03/10).
 
 export const Route = createFileRoute("/blog/$slug")({
-  loader: ({ params }) => {
+  loader: async ({ params }) => {
     if (chaveDaMarca() !== "serenata") throw notFound();
+    const { artigoPorSlug } = await import("@/conteudo/blog");
     const artigo = artigoPorSlug(params.slug);
     if (!artigo) throw notFound();
-    return { artigo };
+    const relacionados: ResumoArtigo[] = artigo.relacionados.flatMap((s) => {
+      const r = artigoPorSlug(s);
+      return r ? [resumoDoArtigo(r)] : [];
+    });
+    return { artigo, relacionados };
   },
   head: ({ loaderData }) => (loaderData ? headDoArtigo(loaderData.artigo) : {}),
   component: PaginaArtigo,
 });
 
 function PaginaArtigo() {
-  const { artigo } = Route.useLoaderData();
+  const { artigo, relacionados } = Route.useLoaderData();
   useProfundidadeRolagem(`blog-${artigo.slug}`);
   const blocos = useMemo(() => parsearCorpo(artigo.corpo), [artigo.corpo]);
   const minutos = minutosDeLeitura(contarPalavras(blocos));
-  const relacionados = artigo.relacionados
-    .map(artigoPorSlug)
-    .filter((a): a is Artigo => Boolean(a));
 
   return (
     <LayoutBlog tema={artigo.tema}>

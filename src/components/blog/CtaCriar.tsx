@@ -45,7 +45,7 @@ export function CtaCriar({ tema, texto, final }: Props) {
       )}
       <BotaoCriar tema={tema} texto={texto} />
       <p className="mt-3 text-sm text-[var(--tinta-suave)]">
-        A letra fica pronta na hora e é de graça. Você só paga se quiser ouvir cantada.
+        A letra fica pronta na hora e é de graça. Você só paga se quiser a música completa.
       </p>
     </div>
   );

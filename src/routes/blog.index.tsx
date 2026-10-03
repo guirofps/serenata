@@ -4,7 +4,7 @@ import { CtaCriar } from "@/components/blog/CtaCriar";
 import { LayoutBlog } from "@/components/blog/LayoutBlog";
 import { ARTIGOS } from "@/conteudo/blog";
 import { headDoIndice } from "@/lib/blog/seo";
-import type { GrupoArtigo } from "@/lib/blog/tipos";
+import { resumoDoArtigo, type GrupoArtigo } from "@/lib/blog/tipos";
 import { FONTES } from "@/lib/marca";
 import { chaveDaMarca } from "@/lib/marca-identidade";
 
@@ -45,7 +45,7 @@ function IndiceBlog() {
             <h2 style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-2xl)" }}>{titulo}</h2>
             <div className="mt-6 grid gap-5 sm:grid-cols-2">
               {lista.map((a) => (
-                <CartaoArtigo key={a.slug} artigo={a} />
+                <CartaoArtigo key={a.slug} artigo={resumoDoArtigo(a)} />
               ))}
             </div>
           </section>

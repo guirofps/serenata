@@ -92,7 +92,7 @@ Você também escolhe voz feminina ou masculina, e o tom: reverente, emocionante
 
 ## Mulher de Palavra: um presente com fé, pra uma mãe
 
-"Mulher de Palavra" foi feita neste site, a partir de uma história real, no estilo gospel. É um presente com fé: quem contou falou da mãe, Denise, que sentou ao lado dela em cada noite difícil e ensinou que honestidade não se troca por nada.
+"Mulher de Palavra" foi feita neste site, a partir de uma história real, no estilo gospel. É um presente com fé: quem contou falou da mãe, Denise, que sentou do lado de quem contou em cada noite difícil e ensinou que honestidade não se troca por nada.
 
 [[musica:denise]]
 

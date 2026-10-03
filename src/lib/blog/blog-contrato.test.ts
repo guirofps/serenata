@@ -64,3 +64,23 @@ describe("indexação", () => {
     expect(ler("src/routes/musica-personalizada-para-esposa.tsx")).toMatch(/<Link to="\/blog"/);
   });
 });
+
+// ── Achados da revisão final (03/10/2026) ──────────────────────────
+describe("revisão final", () => {
+  it("o texto dos artigos não entra no pacote de todas as páginas", () => {
+    // O loader NÃO é separado pelo code-split padrão do TanStack: um import
+    // estático do registro ali levava os dez artigos pro chunk de entrada,
+    // baixado por quem abre a home, o quiz e até a Ballad (~23 KB gzip).
+    const rota = ler("src/routes/blog.$slug.tsx");
+    expect(rota).not.toMatch(/^import [^;]*from "@\/conteudo\/blog";/m);
+    expect(rota).toMatch(/await import\("@\/conteudo\/blog"\)/);
+  });
+
+  it("o CTA não diz que ouvir cantada é pago (o trecho cantado é grátis)", () => {
+    expect(ler("src/components/blog/CtaCriar.tsx")).not.toMatch(/só paga se quiser ouvir cantada/);
+  });
+
+  it("o louvor não inventa quem contou a história da Denise", () => {
+    expect(ler("src/conteudo/blog/louvor-personalizado.ts")).not.toMatch(/ao lado dela em cada noite/);
+  });
+});

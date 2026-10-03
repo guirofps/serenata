@@ -41,3 +41,10 @@ export type Bloco =
   | { tipo: "citacao"; linhas: string[] }
   | { tipo: "musica"; slug: string }
   | { tipo: "cta"; texto?: string };
+
+/** O que um cartão de artigo precisa: sem o corpo, que pesa. */
+export type ResumoArtigo = { slug: string; titulo: string; descricao: string; alt: string };
+
+export function resumoDoArtigo(a: Artigo): ResumoArtigo {
+  return { slug: a.slug, titulo: a.titulo, descricao: a.descricao, alt: a.imagem.alt };
+}
