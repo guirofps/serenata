@@ -6,8 +6,11 @@ import { artigo as mae } from "./musica-personalizada-para-mae";
 import { artigo as pai } from "./musica-personalizada-para-pai";
 import { artigo as namorada } from "./musica-personalizada-para-namorada";
 import { artigo as avo } from "./homenagem-para-avo";
+import { artigo as namoro } from "./presente-aniversario-de-namoro";
+import { artigo as bodas } from "./presente-bodas-aniversario-de-casamento";
+import { artigo as natal } from "./presente-de-natal-emocionante";
 
-export const ARTIGOS: Artigo[] = [mae, pai, namorada, avo];
+export const ARTIGOS: Artigo[] = [mae, pai, namorada, avo, namoro, bodas, natal];
 
 export function artigoPorSlug(slug: string): Artigo | undefined {
   return ARTIGOS.find((a) => a.slug === slug);
