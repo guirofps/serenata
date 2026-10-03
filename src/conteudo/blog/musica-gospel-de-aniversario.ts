@@ -84,17 +84,13 @@ Quem contou falou da mãe, Eva, da mesa de domingo, do cheiro da cozinha e de co
 
 É o tipo de frase que alguém escuta no próprio aniversário e não esquece. Não tem enfeite: é o que o filho sente, dito do jeito mais direto possível.
 
-## Os cinco estilos gospel
+## O estilo certo pra cada aniversariante
 
-O estilo muda a cara da festa. No caminho gospel você escolhe entre:
+A pergunta que resolve é: o que essa pessoa canta quando ninguém está olhando?
 
-- **Adoração.** Calmo e intimista, bom pro momento da oração no culto de aniversário.
-- **Gospel tradicional.** O som dos hinos que a geração mais velha conhece de cor.
-- **Pentecostal animado.** Pra festa com palma, com todo mundo cantando junto.
-- **Sertanejo gospel.** Pra quem gosta de viola, do interior, de dupla.
-- **Pop gospel.** Mais moderno, pra quem ouve louvor nas rádios e no carro.
+A avó que sabe os hinos de cor vai se emocionar com o **Gospel tradicional**. O tio que puxa o louvor no churrasco da família merece um **Pentecostal animado**, com palma. O pai que ouve moda de viola no carro combina com o **Sertanejo gospel**. A sobrinha que vive de fone, ouvindo louvor no ônibus, vai preferir o **Pop gospel**. E pra quem está numa fase mais quieta, de oração, a **Adoração** é o som certo.
 
-O tom também conta: reverente, emocionante ou de celebração. Pra aniversário, o tom de celebração costuma combinar com a festa, e o emocionante com o momento da homenagem. Você também escolhe voz feminina ou masculina.
+Pra aniversário, o tom de celebração costuma combinar com a festa, e o emocionante com o momento da homenagem. Também dá pra escolher o reverente. A voz pode ser feminina ou masculina.
 
 Se em vez de homenagear alguém você quer agradecer a Deus pelo seu próprio ano de vida, o caminho é outro: **um louvor pra Deus**, com o motivo Gratidão. Veja como funciona no guia de [louvor personalizado](/blog/louvor-personalizado).
 

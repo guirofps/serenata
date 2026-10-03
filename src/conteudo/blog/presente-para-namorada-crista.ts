@@ -97,17 +97,17 @@ Quem contou falou de dois anos de namoro: os dois se conheceram numa festa de an
 
 Repare como a letra começa por uma cena que qualquer um reconhece: quem contou criando coragem por duas horas pra puxar assunto. É engraçado e é verdade, e por isso emociona. Numa música com fé, a mesma coisa vale: o culto em que você reparou nela, o acampamento em que vocês conversaram até tarde, o pedido de namoro feito com a bênção dos pais dela.
 
-## Os cinco estilos gospel
+## Escolhendo o estilo dela
 
-O estilo muda o clima da música. Você escolhe entre cinco:
+Antes de escolher, pense em três coisas que você já sabe sobre ela.
 
-- **Adoração.** Calmo e intimista, pra uma declaração mais séria.
-- **Gospel tradicional.** O som dos hinos e corinhos, se ela cresceu cantando na igreja.
-- **Pentecostal animado.** Pra celebrar, com energia.
-- **Sertanejo gospel.** A fé com viola e dupla, pra quem gosta do som do interior.
-- **Pop gospel.** Mais moderno, com a cara do louvor que toca nas rádios. Costuma combinar com casais jovens.
+**O que ela canta no carro?** Se é louvor de rádio, o **Pop gospel** é o mais próximo. Se é moda de viola, o **Sertanejo gospel**.
 
-Você também escolhe a voz, feminina ou masculina, e o tom: reverente, emocionante ou de celebração.
+**Como ela é no culto?** A que fecha os olhos e fica quietinha durante o louvor vai sentir mais com a **Adoração**. A que bate palma e canta alto combina com o **Pentecostal animado**.
+
+**Ela cresceu na igreja?** Se a família dela canta hinos desde sempre, o **Gospel tradicional** tem um carinho de casa.
+
+Depois escolha a voz, feminina ou masculina, e o tom. O reverente deixa a declaração mais séria, o emocionante puxa a lágrima e a celebração deixa tudo mais leve.
 
 ## Como entregar pra ela
 

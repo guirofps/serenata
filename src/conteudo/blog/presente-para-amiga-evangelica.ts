@@ -99,17 +99,17 @@ Quem contou falou de vinte e tantos anos de amizade com a Li, a amiga que virou 
 
 Repare que a letra não precisa de palavras difíceis. Fala de mar salgado e de risada solta, das viagens que ficaram. É uma lembrança que só quem viveu tem. Numa música com fé, a mesma coisa vale: o retiro em que vocês dividiram o beliche, a vigília em que choraram juntas, o culto em que ela cantou e você chorou.
 
-## Os cinco estilos gospel
+## Que estilo combina com a sua amiga
 
-O estilo muda o clima da música. Você escolhe entre cinco:
+Amizade de igreja tem muitas formas, e cada uma pede um som:
 
-- **Adoração.** Calmo e intimista, bom pra uma fase difícil.
-- **Gospel tradicional.** O som dos hinos que muita gente cresceu cantando.
-- **Pentecostal animado.** Pra celebrar o aniversário com energia.
-- **Sertanejo gospel.** A fé com viola e dupla, pra quem gosta do som do interior.
-- **Pop gospel.** Mais moderno, com a cara do louvor que toca nas rádios.
+- **A amiga de oração**, que fica com você de madrugada quando a coisa aperta: **Adoração**, calma, pra ouvir com tempo.
+- **A amiga do coral ou do grupo de louvor**, que sabe os hinos de cor: **Gospel tradicional**.
+- **A amiga da festa**, que transforma qualquer encontro em celebração: **Pentecostal animado**.
+- **A amiga do interior**, de família grande e viola na varanda: **Sertanejo gospel**.
+- **A amiga mais nova**, que ouve louvor no fone o dia inteiro: **Pop gospel**.
 
-Você também escolhe a voz, feminina ou masculina, e o tom: reverente, emocionante ou de celebração.
+Escolha também a voz, feminina ou masculina, e o tom: reverente, emocionante ou de celebração.
 
 ## Como entregar pra ela
 

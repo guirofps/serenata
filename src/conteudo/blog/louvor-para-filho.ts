@@ -87,17 +87,17 @@ A letra é cantada na voz da mãe ("Theo, a mamãe te ama, filho"). A letra fala
 
 Ninguém escreveu "meu filho é carinhoso e animado". Quem contou falou do que vê todo dia, e a letra fez o resto. Mais adiante, a gratidão pela espera aparece também, sem tomar o lugar dele na música. É assim que funciona também no presente com fé.
 
-## Os cinco estilos gospel
+## Um estilo pra cada momento da vida dele
 
-O estilo muda a cara da música. No caminho gospel você escolhe entre:
+Pense em onde a música vai tocar mais vezes:
 
-- **Adoração.** Calmo e intimista, bom pra hora de dormir ou pro momento da apresentação.
-- **Gospel tradicional.** O som dos hinos que a família canta junto na igreja.
-- **Pentecostal animado.** Pra festa de aniversário, com palma e todo mundo cantando.
-- **Sertanejo gospel.** Pra família que gosta de viola e de interior.
-- **Pop gospel.** Mais moderno, perto do que muita criança e adolescente já ouve.
+- **Na hora de dormir:** a **Adoração**, calma e intimista, vira quase uma canção de ninar com fé.
+- **Na apresentação na igreja:** o **Gospel tradicional** traz a sonoridade que os avós reconhecem na hora.
+- **Na festa de aniversário:** o **Pentecostal animado** chama palma e criança pulando.
+- **Na viagem de carro com a família:** o **Sertanejo gospel**, se a casa é de viola e moda.
+- **Quando ele crescer um pouco:** o **Pop gospel** fica perto do que muita criança e adolescente já ouve.
 
-Você também escolhe voz feminina ou masculina, e o tom: reverente, emocionante ou de celebração.
+Depois escolha a voz, feminina ou masculina, e o tom: reverente, emocionante ou de celebração.
 
 ## Como entregar e guardar
 
