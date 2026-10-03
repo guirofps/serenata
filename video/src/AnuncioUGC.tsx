@@ -5,6 +5,7 @@ import {
   Easing,
   Img,
   OffthreadVideo,
+  Sequence,
   Series,
   interpolate,
   staticFile,
@@ -47,7 +48,13 @@ type Produto = {
   reacao: { src: string; ini: number };
 };
 type Cartao = { tipo: "cartao"; duracao: number };
-type Parte = Fala | Produto | Cartao;
+/**
+ * A versão ORGÂNICA (03/10, pedido do dono): no lugar da página com a letra,
+ * ele em tela cheia ouvindo (sem o som da câmera) e a música por cima. A música
+ * segue baixinha (`volumeDepois`) por baixo do resto e some no fim.
+ */
+type Musica = { tipo: "musica"; duracao: number; src: string; ini: number; audio: string; audioIni: number; volumeDepois: number };
+type Parte = Fala | Produto | Cartao | Musica;
 
 export type PropsAnuncioUGC = { partes: Parte[] };
 
@@ -190,6 +197,39 @@ function ParteProduto({ p }: { p: Produto }) {
   );
 }
 
+function ParteMusica({ p }: { p: Musica }) {
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#000" }}>
+      <OffthreadVideo src={staticFile(p.src)} startFrom={Math.round(p.ini * FPS_UGC)} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+    </AbsoluteFill>
+  );
+}
+
+/** A música da parte `musica`, do play até o fim do vídeo: cheia enquanto ele ouve, baixa depois. */
+function TrilhaMusica({ partes }: PropsAnuncioUGC) {
+  const { durationInFrames } = useVideoConfig();
+  const i = partes.findIndex((p) => p.tipo === "musica");
+  if (i < 0) return null;
+  const m = partes[i] as Musica;
+  const inicio = partes.slice(0, i).reduce((s, p) => s + Math.round(duracaoDa(p) * FPS_UGC), 0);
+  const cheia = Math.round(m.duracao * FPS_UGC);
+  const resto = durationInFrames - inicio;
+  return (
+    <Sequence from={inicio} durationInFrames={resto}>
+      <Audio
+        src={staticFile(m.audio)}
+        startFrom={Math.round(m.audioIni * FPS_UGC)}
+        volume={(f) =>
+          interpolate(f, [0, 8, cheia - 10, cheia + 8, resto - 24, resto], [0, 1, 1, m.volumeDepois, m.volumeDepois, 0], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          })
+        }
+      />
+    </Sequence>
+  );
+}
+
 function ParteCartao() {
   const frame = useCurrentFrame();
   const sobe = (atraso: number) => ({
@@ -217,10 +257,19 @@ export const AnuncioUGC: React.FC<PropsAnuncioUGC> = ({ partes }) => {
       <Series>
         {partes.map((p, i) => (
           <Series.Sequence key={i} durationInFrames={Math.round(duracaoDa(p) * FPS_UGC)}>
-            {p.tipo === "fala" ? <ParteFala p={p} /> : p.tipo === "produto" ? <ParteProduto p={p} /> : <ParteCartao />}
+            {p.tipo === "fala" ? (
+              <ParteFala p={p} />
+            ) : p.tipo === "produto" ? (
+              <ParteProduto p={p} />
+            ) : p.tipo === "musica" ? (
+              <ParteMusica p={p} />
+            ) : (
+              <ParteCartao />
+            )}
           </Series.Sequence>
         ))}
       </Series>
+      <TrilhaMusica partes={partes} />
     </AbsoluteFill>
   );
 };
