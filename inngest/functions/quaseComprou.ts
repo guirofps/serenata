@@ -198,13 +198,17 @@ export const quaseComprou = inngest.createFunction(
 
         // TEM PEDIDO? Pago é venda feita; pendente é do `pixNaoPago`. Nos dois
         // casos esta mensagem seria a errada.
-        const { data: pedido } = await sb
+        //
+        // EXCETO o pendente do STRIPE (Ballad, 03/10): o `pixNaoPago` só roda
+        // na Serenata, e o pedido do Stripe nasce pendente quando a folha de
+        // pagamento abre. Pulando ele, quem abriu o checkout da Ballad e não
+        // pagou (cartão recusado, desistiu) não recebia nada: 9 de 9 pedidos
+        // pendentes até 02/10 ficaram sem nenhum e-mail.
+        const { data: pedidos } = await sb
           .from("pedidos")
-          .select("id")
-          .eq("quiz_response_id", q.id)
-          .limit(1)
-          .maybeSingle();
-        if (pedido?.id) continue;
+          .select("status, gateway")
+          .eq("quiz_response_id", q.id);
+        if ((pedidos ?? []).some((p) => p.status === "pago" || p.gateway !== "stripe")) continue;
 
         // A PESSOA JÁ COMPROU, por outro quiz? A trava acima é por quiz, e não
         // basta: em 28/09 um cliente pagou a SEGUNDA música dele e continuou

@@ -912,7 +912,10 @@ vezes em 72h, `resgate-video.ts`): 3 ficaram sem entrega em 01-02/10 (2 por
 "Rate Exceeded", a cota de 10 Lambdas; aumento pra 1.000 pedido em 02/10).
 A fila do render olha só o banco da própria marca: Serenata e Ballad renderizando
 juntas na mesma conta da AWS podem estourar a cota de 10.
-A limpeza de áudio pula página de exemplo (`ehExemplo`).
+A limpeza de áudio pula página de exemplo (`ehExemplo`). Na Ballad, quem
+abria o checkout do Stripe e não pagava não recebia NENHUM e-mail (o
+`quaseComprou` pulava pedido pendente, e o `pixNaoPago` só roda na Serenata):
+agora o pendente do Stripe entra na recuperação.
 
 ## Em aberto
 
