@@ -421,6 +421,46 @@ export function AberturaPresente({
         {C.tituloDepois}
       </h1>
 
+      {/* ── NO INGLÊS, O VÍDEO DE REAÇÕES NO LUGAR DO CARTÃO (03/10) ──────
+          Decisão do dono: é o que a UniqueSong (a maior dos EUA, ~2,5 mi de
+          visitas) põe no topo, e o cartão com o play pequeno não convencia
+          (0 plays em 139 visitas pagas). O mesmo vídeo da home, sem texto na
+          tela, sem som e em loop. Vale pros três braços do `abertura_en`; o
+          C mantém o botão "Hear Emily's song", por isso o <audio> vem junto. */}
+      {locale === "en" && !gospel ? (
+        <div className="mt-5 w-full">
+          <div className="relative overflow-hidden rounded-[18px] border" style={{ borderColor: "rgba(42,21,24,0.12)", boxShadow: "0 24px 50px -22px rgba(42,21,24,0.55)" }}>
+            <video
+              src="/video/reacoes.mp4"
+              poster="/video/reacoes-poster.jpg"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              className="block aspect-video w-full object-cover"
+            />
+            <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-white">
+              real reactions
+            </span>
+          </div>
+          <audio
+            ref={audioRef}
+            preload="none"
+            onTimeUpdate={(e) => {
+              const a = e.currentTarget;
+              if (a.duration) setAndado(a.currentTime / a.duration);
+            }}
+            onEnded={() => {
+              setTocando(false);
+              setAndado(1);
+              trackEvent("abertura_play_fim", { locale });
+            }}
+            className="hidden"
+          />
+        </div>
+      ) : (
+        <>
       {/* ── O PRESENTE ────────────────────────────────────────── */}
       {/* O CARTÃO É QUEM CEDE ESPAÇO.
           Com aspecto 4/5, cada pixel de largura custa 1,25 de altura, então
@@ -600,6 +640,9 @@ export function AberturaPresente({
           />
         </div>
       </div>
+
+        </>
+      )}
 
       {/* A PROPOSTA em uma frase: o que ela faz, o que recebe, o que custa. */}
       {/* `text-muted-foreground` e não `var(--tinta-suave)`: mesma armadilha
