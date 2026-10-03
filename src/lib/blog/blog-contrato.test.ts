@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { PAUTA } from "@/conteudo/blog/pauta";
 
 const ler = (f: string) => readFileSync(f, "utf8");
 
@@ -39,5 +40,27 @@ describe("componentes do blog", () => {
     const corpo = ler("src/components/blog/CorpoArtigo.tsx");
     expect(corpo.match(/<audio/g)?.length).toBe(1);
     expect(corpo).toMatch(/preload="none"/);
+  });
+});
+
+describe("indexação", () => {
+  const sitemap = ler("public/sitemap.xml");
+
+  it("o sitemap tem o /blog e os dez artigos, com lastmod", () => {
+    expect(sitemap).toContain("<loc>https://www.serenatagift.com/blog</loc>");
+    for (const s of PAUTA) {
+      const bloco = sitemap.slice(sitemap.indexOf(`<loc>https://www.serenatagift.com/blog/${s}</loc>`));
+      expect(bloco.indexOf("<loc>"), s).toBe(0);
+      expect(bloco.slice(0, bloco.indexOf("</url>")), s).toMatch(/<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/);
+    }
+  });
+
+  it("o robots libera o /blog", () => {
+    expect(ler("public/robots.txt")).toMatch(/^Allow: \/blog$/m);
+  });
+
+  it("a home portuguesa e a página de esposa linkam o blog", () => {
+    expect(ler("src/routes/index.tsx")).toMatch(/<Link to="\/blog"/);
+    expect(ler("src/routes/musica-personalizada-para-esposa.tsx")).toMatch(/<Link to="\/blog"/);
   });
 });

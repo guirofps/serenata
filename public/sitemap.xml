@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Quatro URLs, e é honesto que sejam quatro: é tudo que o site tem de público
-  hoje. Sitemap inflado com página de login e presente de cliente é pior que
-  sitemap pequeno.
+  Só o que é público e serve pra busca: as duas homes, os dois quizzes, a
+  página de esposa e o blog. Sitemap inflado com página de login e presente
+  de cliente é pior que sitemap pequeno.
+
+  O blog entra com o /blog e um <url> por artigo, acrescentado junto com o
+  artigo (src/conteudo/blog; o teste blog-contrato.test.ts cobra).
 
   O par hreflang aqui é o que impede o Google de tratar a home espanhola como
   cópia da portuguesa. Sem isso as duas competem entre si.
@@ -39,5 +42,71 @@
     <loc>https://www.serenatagift.com/es/criar</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.serenatagift.com/blog</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.serenatagift.com/blog/musica-personalizada-para-mae</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.serenatagift.com/blog/musica-personalizada-para-pai</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.serenatagift.com/blog/musica-personalizada-para-namorada</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.serenatagift.com/blog/homenagem-para-avo</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.serenatagift.com/blog/presente-aniversario-de-namoro</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.serenatagift.com/blog/presente-bodas-aniversario-de-casamento</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.serenatagift.com/blog/presente-de-natal-emocionante</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.serenatagift.com/blog/louvor-personalizado</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.serenatagift.com/blog/como-fazer-uma-musica-para-alguem</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.serenatagift.com/blog/presente-criativo-de-ultima-hora</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
 </urlset>

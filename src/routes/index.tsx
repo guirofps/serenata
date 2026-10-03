@@ -395,6 +395,9 @@ function Home() {
             <Link to="/criar" className="hover:text-[var(--tinta)]">
               Criar música
             </Link>
+            <Link to="/blog" className="hover:text-[var(--tinta)]">
+              Blog
+            </Link>
             {/* OS DOIS DOCUMENTOS, no rodapé de todas as páginas.
                 Não é enfeite de compliance: vendemos a consumidor final, com
                 pagamento e dado pessoal. E o Google exige os dois pra publicar
