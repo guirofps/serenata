@@ -902,7 +902,12 @@ recebe o idioma.
 quadro) ainda tinha "Pagar com cartão" pra Perfect Pay: 5 vendas BR saíram
 por lá depois de 26/09. Agora o cartão da folha é o do Asaas (ver "Venda
 brasileira sai SÓ pelo Asaas"). O `taxasFaltando` passou a achar pedido
-`asaas:up:` pela referência (antes dava 404 toda hora).
+`asaas:up:` pela referência (antes dava 404 toda hora). Vídeo PAGO que falha
+no render volta sozinho pra fila no `videoPendente` (de hora em hora, até 3
+vezes em 72h, `resgate-video.ts`): 3 ficaram sem entrega em 01-02/10 (2 por
+"Rate Exceeded", a cota de 10 Lambdas; aumento pra 1.000 pedido em 02/10).
+A fila do render olha só o banco da própria marca: Serenata e Ballad renderizando
+juntas na mesma conta da AWS podem estourar a cota de 10.
 A limpeza de áudio pula página de exemplo (`ehExemplo`).
 
 ## Em aberto

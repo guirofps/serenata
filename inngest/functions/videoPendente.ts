@@ -10,6 +10,7 @@ import {
 } from "../../emails/video-esperando.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { podeResgatar, RESGATE_JANELA_H } from "../../src/lib/resgate-video.js";
 
 // NINGUÉM PAGA PELO VÍDEO E FICA SEM ELE.
 //
@@ -24,6 +25,10 @@ import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 // E pega o caso vizinho: vídeo em `aguardando` há mais de 30 min sem render
 // iniciado (evento que se perdeu no caminho). Pede de novo. O `creditar-upsell`
 // promete que "o vigia pega do banco depois": o vigia é este.
+//
+// E desde 02/10 o terceiro: vídeo PAGO que falhou no render (cota da AWS, foto
+// que não carregou) volta pra fila sozinho, até 3 vezes em 72h
+// (`resgate-video.ts`). Antes ficava sem entrega até alguém ler o alerta.
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
@@ -83,6 +88,33 @@ export const videoPendente = inngest.createFunction(
         .limit(10);
       let ok = 0;
       for (const v of data ?? []) if (await pedirRender(v.id as string)) ok += 1;
+      return ok;
+    });
+
+    // ── Pagos que FALHARAM: de volta pra fila, com teto ────────────
+    // Ver `resgate-video.ts`. O `tentativas` conta os resgates; `render_id`
+    // volta a nulo pra o passo acima repedir se este evento se perder.
+    const resgatados = await step.run("resgatar-os-falhos", async () => {
+      const sb = db();
+      const { data } = await sb
+        .from("videos")
+        .select("id, status, video_path, tentativas, created_at")
+        .eq("status", "falhou")
+        .is("video_path", null)
+        .gt("created_at", antes(RESGATE_JANELA_H))
+        .limit(10);
+      let ok = 0;
+      for (const v of data ?? []) {
+        if (!podeResgatar(v as Parameters<typeof podeResgatar>[0], agora)) continue;
+        const { data: marcado } = await sb
+          .from("videos")
+          .update({ status: "aguardando", erro: null, render_id: null, tentativas: ((v.tentativas as number | null) ?? 0) + 1 })
+          .eq("id", v.id)
+          .eq("status", "falhou")
+          .select("id")
+          .maybeSingle();
+        if (marcado && (await pedirRender(v.id as string))) ok += 1;
+      }
       return ok;
     });
 
@@ -158,6 +190,6 @@ export const videoPendente = inngest.createFunction(
       return enviados;
     });
 
-    return { gerados, repedidos, lembrados };
+    return { gerados, repedidos, resgatados, lembrados };
   },
 );

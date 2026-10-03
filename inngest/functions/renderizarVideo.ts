@@ -154,7 +154,8 @@ export const renderizarVideo = inngest.createFunction(
         "VÍDEO PAGO E NÃO ENTREGUE",
         `<p>O render do vídeo falhou depois das tentativas.</p>` +
           `<p>vídeo: ${videoId}<br>música: ${v?.musica_id ?? "?"}<br>cliente: ${v?.email ?? "?"}</p>` +
-          `<p>erro: ${msg}</p><p>Pra refazer: mandar o evento video/renderizar com esse videoId.</p>`,
+          `<p>erro: ${msg}</p><p>O vigia (videoPendente) devolve pra fila sozinho, de hora em hora, até 3 vezes em 72h. ` +
+          `Se este alerta voltar pro mesmo vídeo depois disso, é caso de olhar à mão.</p>`,
       );
     },
   },
