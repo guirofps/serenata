@@ -11,6 +11,9 @@ import { ehEspanha, ehArgentina } from "@/lib/mercado-es";
 import { trackEvent } from "@/lib/track";
 import { exemploEn, audioDoExemplo } from "@/lib/exemplos-en";
 import type { Tema } from "@/lib/tema";
+import { Variante } from "@/components/Variante";
+import { EXP_ABERTURA_EN } from "@/lib/abertura-en";
+import { meuPlano } from "@/lib/preco";
 
 // O mesmo bucket publico que a landing usa em `ExemplosReais`: trechos de 45s.
 const AUDIO_BASE =
@@ -602,19 +605,69 @@ export function AberturaPresente({
       {/* `text-muted-foreground` e não `var(--tinta-suave)`: mesma armadilha
           do título. A variável não existe no quiz, então esta frase saía na
           tinta cheia, com o mesmo peso do título logo acima. */}
-      <p className="mt-4 max-w-[19rem] text-sm leading-relaxed text-muted-foreground">
-        {C.explicacao}
-      </p>
+      {(() => {
+        const original = (
+          <>
+            <p className="mt-4 max-w-[19rem] text-sm leading-relaxed text-muted-foreground">
+              {C.explicacao}
+            </p>
 
-      {/* `tracking-wide` porque o rótulo é caixa alta: sem folga entre as
-          letras, maiúscula em Poppins fica empastada. */}
-      <Button
-        size="lg"
-        className="cta mt-5 w-full rounded-full border-0 tracking-wide"
-        onClick={aoComecar}
-      >
-        {C.cta}
-      </Button>
+            {/* `tracking-wide` porque o rótulo é caixa alta: sem folga entre as
+                letras, maiúscula em Poppins fica empastada. */}
+            <Button
+              size="lg"
+              className="cta mt-5 w-full rounded-full border-0 tracking-wide"
+              onClick={aoComecar}
+            >
+              {C.cta}
+            </Button>
+          </>
+        );
+        if (locale !== "en" || gospel) return original;
+        // ── O TESTE `abertura_en` (Ballad, 02/10) ──────────────────
+        //
+        // A e B mostram a tela de sempre (o B só a vê se voltar pra cá: ele
+        // chega pulando ela, ver `abertura-en.ts`). O C troca três coisas:
+        //   - o preço às claras no lugar do "free": quem não conhece a marca
+        //     lê "free song" como armadilha, e o concorrente de lá mostra o
+        //     preço de cara;
+        //   - um botão GRANDE pra ouvir o exemplo: em 139 visitas pagas,
+        //     ninguém achou o play pequeno do cartão;
+        //   - o CTA sem "FREE".
+        // Tudo verdade: a letra sai grátis, a prévia cantada toca antes de
+        // pagar, e o preço é o do braço de `preco` da pessoa (`meuPlano`).
+        const preco = meuPlano("en").texto;
+        return (
+          <>
+            <Variante exp={EXP_ABERTURA_EN} v="A">{original}</Variante>
+            <Variante exp={EXP_ABERTURA_EN} v="B">{original}</Variante>
+            <Variante exp={EXP_ABERTURA_EN} v="C">
+              {slug && (
+                <button
+                  type="button"
+                  onClick={alternarAudio}
+                  className="mx-auto mt-4 flex items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-medium"
+                  style={{ borderColor: "oklch(0.55 0.12 15 / 0.35)" }}
+                >
+                  {tocando ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
+                  {tocando ? "Pause" : `Hear ${C.nome}'s song`}
+                </button>
+              )}
+              <p className="mx-auto mt-4 max-w-[19rem] text-sm leading-relaxed text-muted-foreground">
+                Tell us the story. Read the lyrics free in seconds, hear it sung, and pay {preco} only if you
+                love it.
+              </p>
+              <Button
+                size="lg"
+                className="cta mt-5 w-full rounded-full border-0 tracking-wide"
+                onClick={aoComecar}
+              >
+                START MY SONG
+              </Button>
+            </Variante>
+          </>
+        );
+      })()}
       {/* ── A PROVA, abaixo do botão ──────────────────────────────
           Os dois blocos são os MESMOS da home (`ProvaSocial` e
           `ProvaImediata`), importados e não copiados: número de famílias,

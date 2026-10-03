@@ -1,3 +1,4 @@
+import { scriptPularAbertura } from "@/lib/abertura-en";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -255,6 +256,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: scriptConfigGlobal(cfgExperimentos) }} />
         <script dangerouslySetInnerHTML={{ __html: scriptExperimentos(cfgExperimentos) }} />
         <style dangerouslySetInnerHTML={{ __html: cssExperimentos(cfgExperimentos) }} />
+        {/* O braço B do `abertura_en` (Ballad) pula a abertura ANTES de pintar.
+            Precisa vir depois do sorteio, que é quem carimba o <html>. Na
+            Serenata o carimbo não existe e ele não faz nada. Ver `abertura-en.ts`. */}
+        <script dangerouslySetInnerHTML={{ __html: scriptPularAbertura() }} />
         {/* Depois dos três do teste A/B: a porta dos scripts que esperam a
             página carregar (gtag e TikTok, mais abaixo) e a fonte sem travar a
             pintura. Ver `carregar-depois.ts`. */}

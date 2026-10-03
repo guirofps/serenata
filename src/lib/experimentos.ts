@@ -315,6 +315,14 @@ export const EXPERIMENTOS: Experimento[] = [
     ativo: false,
     nota: "ENCERRADO 27/09/2026 (empate em receita por lead), zerando o PESO do B e NÃO pelo `ativo`: quem já tem B guardado pode ter comprado vendo a promessa do sorteio, e apagar o bloco não cancela o número — só esconde a promessa de quem a recebeu. Visita nova cai em A (sem os blocos) e a cauda seca sozinha. Empate aqui não é falta de amostra: com ~163 leads/dia o teste só vê efeito de ~3,5 pontos pra cima, então o sorteio não faz nada grande — e o que ele carrega (prêmio atrelado à compra sem autorização da SPA/MF, regulamento vazio) não é pequeno. NÃO religar: se o sorteio voltar, regulamento antes e teste novo com o B de hoje como controle.",
   },
+  {
+    // SÓ BALLAD: a linha viva mora no banco da Ballad. Ver `abertura-en.ts`.
+    id: "abertura_en",
+    variantes: ["A", "B", "C"],
+    peso: [1, 1, 1],
+    ativo: false,
+    nota: "BALLAD, 02/10. A abertura do /criar: 4% das visitas pagas passavam (Serenata 43-53%). A = como era. B = pula a abertura e cai na 1a pergunta. C = abertura com o preço às claras, botão grande pra ouvir o exemplo, CTA sem FREE. Ler por quem RESPONDEU a 1a pergunta (quiz_step q>=2), letra e venda por braço; 'passou da abertura' não compara, no B todo mundo passa.",
+  },
 ];
 
 /**
