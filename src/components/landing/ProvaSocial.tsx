@@ -19,8 +19,9 @@ import { type Locale } from "@/lib/i18n";
 
 const ROSTOS = [1, 2, 3, 4, 5];
 
-// Um lugar só pra mexer no número.
-const FAMILIAS = "+1.274";
+// Um lugar só pra mexer no número. REAL: 6.697 e-mails distintos com pedido
+// pago em 02/10/2026, arredondado pra baixo. Era "+1.274" desde agosto.
+const FAMILIAS = "+6.600";
 const CONTADOR = "+998";
 
 const T: Record<Locale, { prazo: string; amadoPor: string; amado: (n: string) => string; estrelas: string; numero: string }> = {
