@@ -27,6 +27,8 @@ import { Route as RecuperarRouteImport } from './routes/recuperar'
 import { Route as RetomarRouteImport } from './routes/retomar'
 import { Route as TermosRouteImport } from './routes/termos'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as BlogIndexRouteImport } from './routes/blog.index'
+import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as CreditoTokenEdicaoRouteImport } from './routes/credito.$tokenEdicao'
 import { Route as EditarTokenEdicaoRouteImport } from './routes/editar.$tokenEdicao'
 import { Route as EsIndexRouteImport } from './routes/es.index'
@@ -129,6 +131,16 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BlogIndexRoute = BlogIndexRouteImport.update({
+  id: '/blog/',
+  path: '/blog/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlogSlugRoute = BlogSlugRouteImport.update({
+  id: '/blog/$slug',
+  path: '/blog/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CreditoTokenEdicaoRoute = CreditoTokenEdicaoRouteImport.update({
   id: '/credito/$tokenEdicao',
   path: '/credito/$tokenEdicao',
@@ -199,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/retomar': typeof RetomarRoute
   '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
@@ -208,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/p/$token': typeof PTokenRoute
   '/pix/$referencia': typeof PixReferenciaRoute
   '/quadro/$tokenEdicao': typeof QuadroTokenEdicaoRoute
+  '/blog/': typeof BlogIndexRoute
   '/es/': typeof EsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -229,6 +243,7 @@ export interface FileRoutesByTo {
   '/retomar': typeof RetomarRoute
   '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
@@ -238,6 +253,7 @@ export interface FileRoutesByTo {
   '/p/$token': typeof PTokenRoute
   '/pix/$referencia': typeof PixReferenciaRoute
   '/quadro/$tokenEdicao': typeof QuadroTokenEdicaoRoute
+  '/blog': typeof BlogIndexRoute
   '/es': typeof EsIndexRoute
 }
 export interface FileRoutesById {
@@ -260,6 +276,7 @@ export interface FileRoutesById {
   '/retomar': typeof RetomarRoute
   '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/criar': typeof EsCriarRoute
@@ -269,6 +286,7 @@ export interface FileRoutesById {
   '/p/$token': typeof PTokenRoute
   '/pix/$referencia': typeof PixReferenciaRoute
   '/quadro/$tokenEdicao': typeof QuadroTokenEdicaoRoute
+  '/blog/': typeof BlogIndexRoute
   '/es/': typeof EsIndexRoute
 }
 export interface FileRouteTypes {
@@ -292,6 +310,7 @@ export interface FileRouteTypes {
     | '/retomar'
     | '/termos'
     | '/auth/callback'
+    | '/blog/$slug'
     | '/credito/$tokenEdicao'
     | '/editar/$tokenEdicao'
     | '/es/criar'
@@ -301,6 +320,7 @@ export interface FileRouteTypes {
     | '/p/$token'
     | '/pix/$referencia'
     | '/quadro/$tokenEdicao'
+    | '/blog/'
     | '/es/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -322,6 +342,7 @@ export interface FileRouteTypes {
     | '/retomar'
     | '/termos'
     | '/auth/callback'
+    | '/blog/$slug'
     | '/credito/$tokenEdicao'
     | '/editar/$tokenEdicao'
     | '/es/criar'
@@ -331,6 +352,7 @@ export interface FileRouteTypes {
     | '/p/$token'
     | '/pix/$referencia'
     | '/quadro/$tokenEdicao'
+    | '/blog'
     | '/es'
   id:
     | '__root__'
@@ -352,6 +374,7 @@ export interface FileRouteTypes {
     | '/retomar'
     | '/termos'
     | '/auth/callback'
+    | '/blog/$slug'
     | '/credito/$tokenEdicao'
     | '/editar/$tokenEdicao'
     | '/es/criar'
@@ -361,6 +384,7 @@ export interface FileRouteTypes {
     | '/p/$token'
     | '/pix/$referencia'
     | '/quadro/$tokenEdicao'
+    | '/blog/'
     | '/es/'
   fileRoutesById: FileRoutesById
 }
@@ -383,6 +407,7 @@ export interface RootRouteChildren {
   RetomarRoute: typeof RetomarRoute
   TermosRoute: typeof TermosRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  BlogSlugRoute: typeof BlogSlugRoute
   CreditoTokenEdicaoRoute: typeof CreditoTokenEdicaoRoute
   EditarTokenEdicaoRoute: typeof EditarTokenEdicaoRoute
   EsCriarRoute: typeof EsCriarRoute
@@ -392,6 +417,7 @@ export interface RootRouteChildren {
   PTokenRoute: typeof PTokenRoute
   PixReferenciaRoute: typeof PixReferenciaRoute
   QuadroTokenEdicaoRoute: typeof QuadroTokenEdicaoRoute
+  BlogIndexRoute: typeof BlogIndexRoute
   EsIndexRoute: typeof EsIndexRoute
 }
 
@@ -523,6 +549,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/blog/': {
+      id: '/blog/'
+      path: '/blog'
+      fullPath: '/blog/'
+      preLoaderRoute: typeof BlogIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blog/$slug': {
+      id: '/blog/$slug'
+      path: '/blog/$slug'
+      fullPath: '/blog/$slug'
+      preLoaderRoute: typeof BlogSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/credito/$tokenEdicao': {
       id: '/credito/$tokenEdicao'
       path: '/credito/$tokenEdicao'
@@ -615,6 +655,7 @@ const rootRouteChildren: RootRouteChildren = {
   RetomarRoute: RetomarRoute,
   TermosRoute: TermosRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  BlogSlugRoute: BlogSlugRoute,
   CreditoTokenEdicaoRoute: CreditoTokenEdicaoRoute,
   EditarTokenEdicaoRoute: EditarTokenEdicaoRoute,
   EsCriarRoute: EsCriarRoute,
@@ -624,6 +665,7 @@ const rootRouteChildren: RootRouteChildren = {
   PTokenRoute: PTokenRoute,
   PixReferenciaRoute: PixReferenciaRoute,
   QuadroTokenEdicaoRoute: QuadroTokenEdicaoRoute,
+  BlogIndexRoute: BlogIndexRoute,
   EsIndexRoute: EsIndexRoute,
 }
 export const routeTree = rootRouteImport
