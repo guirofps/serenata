@@ -540,6 +540,26 @@ painel_eventos_dia`) e o cron refazer.
   ocasião pula quem fez louvor.
 - Painel: seção "Gospel" (`admin-tema.ts`), só com lead gospel no período.
 
+## Blog (03/10/2026)
+
+`/blog` e dez artigos de SEO, só Serenata. Desenho em
+`docs/superpowers/specs/2026-10-02-blog-seo-design.md`.
+
+- **Artigo é arquivo** em `src/conteudo/blog/<slug>.ts`, com o corpo num
+  markdown RESTRITO (`src/lib/blog/markdown.ts`): `##`, `###`, listas,
+  citação, negrito, itálico, link, `[[musica:<slug>]]` e `[[cta]]`. HTML cru
+  é erro. Nada de `dangerouslySetInnerHTML` no blog.
+- **As regras de SEO e copy moram em `problemasDoArtigo`** (`validar.ts`) e o
+  teste roda em todos: palavra-chave no título e no 1º parágrafo, 900–2.000
+  palavras, sem preço (`R$`), sem "60 segundos", link interno só pra rota que
+  existe. Trecho de letra só copiado da `/p/<token>` do exemplo.
+- **Artigo novo:** arquivo + `index.ts` + `pauta.ts` + `<url>` no sitemap +
+  imagem (Higgsfield `gpt_image_2_5`, 16:9, convertida com Pillow em
+  `<slug>.webp` 1600×900 ≤ 200 KB e `<slug>-og.jpg` 1200×630). O prompt fica
+  em `imagem.prompt`.
+- Os exemplos tocáveis saem de `src/lib/exemplos-pt.ts`, a mesma lista da home.
+- Medição: tabela de páginas de entrada do painel e Search Console.
+
 ## Riscos conhecidos
 
 1. **Dependência de revendedor não oficial do Suno.** Zona cinzenta nos termos
@@ -878,6 +898,7 @@ caractere do id do quiz (braço recalculável na leitura).
 | Ballad: público de concorrentes | 03/10 | As 12 campanhas Demand Gen da Ballad rodavam ABERTAS (sem público). Recebem o público "Concorrentes EUA" (segmento de busca por 11 sites: songfinch, songlorious, sendaserenade, prayersong, unique-song, justoursong, songlygift, legacyjukebox, giftahit, songofus, songsbysophie; idade 25+), o mesmo molde do "Remkt Concorrentes" que faz as campeãs da Serenata. `scratch/_ballad-publico-concorrentes-03out.mjs`. Antes × depois (aberto 29/09-02/10) | clique → começou o quiz → venda; se gasta o orçamento | 06/10 | é a Ballad |
 | Ballad: Search de concorrentes | 03/10 | Campanha nova "Ballad \| Search \| Concorrentes \| EUA \| 03 Out", R$ 100/dia, molde do Search da Serenata (R$ 28/conv, 84% passam da abertura). Grupos: Concorrentes (nomes de 13 marcas, exata+frase), Genéricas (custom song gift, birthday song maker…), Marca. Anúncio sem nome de concorrente. Destino /criar. `scratch/ballad-search-concorrentes-03out.mjs` | CPA real; % que responde a 1ª pergunta | 06/10 | é a Ballad |
 | `/criar?t=gospel` | 02/10 | Não é A/B: porta própria dos anúncios gospel (louvor pra Deus ou presente com fé, 5 estilos gospel). Comparado contra o resto do funil na seção "Gospel" do painel | receita por lead do gospel contra o resto; louvor × presente | 09/10 | não (só Serenata) |
+| Blog (10 artigos de SEO) | 03/10 | Não é A/B: canal novo. Artigos em `/blog/<slug>` por intenção de presente (pessoa, ocasião, gospel, guia), cada um com música real e CTA pro `/criar` (`?t=gospel` no louvor) | visitas, leads e vendas por página de entrada; impressões e cliques no Search Console (o dono manda o sitemap) | 23/10 | não (só Serenata) |
 | `email_confirma` | 30/09 | e-mail do quiz como era × folha "Confere o seu e-mail" (e-mail grande, domínio conferido no DNS, aviso sem bloquear) | % que deixa e-mail, bounce da `letra_pronta`, receita por lead, `email_confirma_corrigir` | 07/10 | já roda nas duas |
 | Ballad: destino home × /criar | 30/09 | grupo original (/criar) × grupo "Home \| EUA" (mesmo vídeo e copy, destino `/`) nas 9 campanhas aprovadas (`scratch/ballad-ads-grupo-home.mjs`) | por grupo (`utm_medium` = id do grupo): passou da abertura, lead, CPA | LIDO 02/10: /CRIAR VENCEU. Home: R$ 343, 41 visitas, 0 começaram o quiz. /criar: R$ 889, 92 visitas, 5 começaram, 2 checkouts. Os 9 grupos "Home \| EUA" pausados (`scratch/_ballad-pausar-home-02out.mjs`); campanhas novas já nascem só com /criar | encerrado | home NÃO vai pra Serenata |
 | Bounce: letra no domínio raiz × subdomínio | aguardando Postmaster | decidir com a reputação do Gmail | reputação, abertura da entrega | ~02/10 | idem |

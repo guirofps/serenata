@@ -402,7 +402,8 @@ function Pagina() {
       </main>
 
       <footer className="border-t border-[var(--tinta-fraca)]/30 py-8 text-center text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
-        <Link to="/" className="underline underline-offset-4">{MARCA.nome}</Link> · uma música feita da história de quem você ama
+        <Link to="/" className="underline underline-offset-4">{MARCA.nome}</Link> · uma música feita da história de quem você ama ·{" "}
+        <Link to="/blog" className="underline underline-offset-4">Blog</Link>
       </footer>
     </div>
   );

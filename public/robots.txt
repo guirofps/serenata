@@ -1,8 +1,9 @@
 # Serenata — serenatagift.com
 #
-# A regra que decide este arquivo: só existem QUATRO páginas nossas que fazem
-# sentido no Google (as duas homes e os dois quizzes). Todo o resto é ou área
-# logada, ou painel interno, ou presente de uma pessoa real.
+# A regra que decide este arquivo: no Google entra só o que é público e
+# serve pra busca (as duas homes, os dois quizzes, a página de esposa e o
+# blog). Todo o resto é ou área logada, ou painel interno, ou presente de uma
+# pessoa real.
 #
 # As /p/ são o caso mais sensível: têm nome, foto e declaração de amor de
 # gente que confiou na gente. Elas já saem com noindex na própria página; o
@@ -14,6 +15,7 @@ Allow: /criar
 Allow: /es
 Allow: /es/criar
 Allow: /musica-personalizada-para-esposa
+Allow: /blog
 
 # Presentes e edição: vida privada de cliente, nunca em buscador.
 Disallow: /p/
