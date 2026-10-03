@@ -67,12 +67,18 @@ export const TIMEOUT_PAINEL_MS = 15_000;
 let carregouUmaVez = false;
 let lidoEm = 0;
 let emVoo: Promise<void> | null = null;
+let emVooDesde = 0;
+/** Releitura pendente há mais que isto foi congelada com a função: refaz. */
+const PRESA_MS = 10_000;
+/** Quanto a visita espera pela releitura da config vencida. */
+const ESPERA_RELEITURA_MS = 400;
 
 /** SÓ PARA TESTE: devolve o relógio ao estado de instância recém-nascida. */
 export function _resetRelogioParaTeste(): void {
   carregouUmaVez = false;
   lidoEm = 0;
   emVoo = null;
+  emVooDesde = 0;
 }
 
 /**
@@ -151,8 +157,21 @@ export async function garantirConfig(): Promise<void> {
     return;
   }
   if (Date.now() - lidoEm > VALIDADE_MS) {
-    emVoo = emVoo ?? recarregar();
-    // sem await: stale-while-revalidate
+    // ── A RELEITURA PRESA (03/10) ────────────────────────────────
+    //
+    // O "devolve o velho e relê por trás" não sobrevive à Vercel: a função
+    // congela assim que responde, e a releitura disparada sem `await` pode
+    // ficar parada no meio. Com `emVoo` preso, a instância nunca mais relia:
+    // zerar o braço B do `abertura_en` passou 10 minutos sem chegar ao site.
+    // Releitura com mais de 10s é dada como perdida e refeita.
+    if (emVoo && Date.now() - emVooDesde > PRESA_MS) emVoo = null;
+    if (!emVoo) {
+      emVooDesde = Date.now();
+      emVoo = recarregar();
+    }
+    // E a visita espera um pouco por ela: com o banco bem, a config nova já
+    // sai nesta resposta. Teto curto, pra banco lento não segurar a página.
+    await Promise.race([emVoo, new Promise<void>((ok) => setTimeout(ok, ESPERA_RELEITURA_MS))]);
   }
 }
 

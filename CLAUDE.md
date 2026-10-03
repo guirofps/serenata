@@ -945,7 +945,12 @@ juntas na mesma conta da AWS podem estourar a cota de 10.
 A limpeza de áudio pula página de exemplo (`ehExemplo`). Na Ballad, quem
 abria o checkout do Stripe e não pagava não recebia NENHUM e-mail (o
 `quaseComprou` pulava pedido pendente, e o `pixNaoPago` só roda na Serenata):
-agora o pendente do Stripe entra na recuperação.
+agora o pendente do Stripe entra na recuperação. A config dos testes A/B no
+servidor (`garantirConfig`) relia "por trás" sem `await`, e na Vercel a função
+congela depois de responder: a releitura ficava presa e a instância servia a
+config velha pra sempre (zerar o B do `abertura_en` não chegou ao site em 10
+min). Agora a visita espera até 0,4s pela releitura e releitura presa há 10s
+é refeita.
 
 ## Em aberto
 
