@@ -9,8 +9,22 @@ import { artigo as avo } from "./homenagem-para-avo";
 import { artigo as namoro } from "./presente-aniversario-de-namoro";
 import { artigo as bodas } from "./presente-bodas-aniversario-de-casamento";
 import { artigo as natal } from "./presente-de-natal-emocionante";
+import { artigo as louvor } from "./louvor-personalizado";
+import { artigo as comoFazer } from "./como-fazer-uma-musica-para-alguem";
+import { artigo as ultimaHora } from "./presente-criativo-de-ultima-hora";
 
-export const ARTIGOS: Artigo[] = [mae, pai, namorada, avo, namoro, bodas, natal];
+export const ARTIGOS: Artigo[] = [
+  mae,
+  pai,
+  namorada,
+  avo,
+  namoro,
+  bodas,
+  natal,
+  louvor,
+  comoFazer,
+  ultimaHora,
+];
 
 export function artigoPorSlug(slug: string): Artigo | undefined {
   return ARTIGOS.find((a) => a.slug === slug);

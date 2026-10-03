@@ -34,6 +34,10 @@ describe("registro", () => {
     expect(slugs).toEqual(PAUTA.filter((s) => slugs.includes(s)));
   });
 
+  it("a pauta inteira está publicada", () => {
+    expect(ARTIGOS.map((a) => a.slug)).toEqual([...PAUTA]);
+  });
+
   it("só o louvor tem tema gospel", () => {
     for (const a of ARTIGOS) expect(a.tema).toBe(a.slug === "louvor-personalizado" ? "gospel" : undefined);
   });
