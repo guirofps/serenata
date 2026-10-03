@@ -45,7 +45,10 @@ const T: Record<Locale, { prazo: string; amadoPor: string; amado: (n: string) =>
     amadoPor: "Loved by",
     amado: (n) => `${n} families`,
     estrelas: "five stars",
-    numero: FAMILIAS.replace(".", ","),
+    // O NÚMERO REAL DA EMPRESA (02/10): 6.697 e-mails distintos com pedido
+    // pago na Serenata. A Ballad é a mesma empresa (dono, 30/09) e mostra o
+    // número de hoje, arredondado pra baixo, em vez do 1.274 de agosto.
+    numero: "6,600+",
   },
 };
 

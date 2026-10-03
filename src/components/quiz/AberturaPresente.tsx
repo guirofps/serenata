@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Pause, Play } from "lucide-react";
+import { Pause, Play, Star } from "lucide-react";
 import { Efeitos } from "@/components/presente/Efeitos";
 import { Logo } from "@/components/marca/Logo";
 import { ProvaSocial } from "@/components/landing/ProvaSocial";
@@ -664,6 +664,23 @@ export function AberturaPresente({
               >
                 START MY SONG
               </Button>
+              {/* O depoimento do Marcelo (`DepoimentoContato`), cliente real da
+                  Serenata, traduzido sem mudar o que ele disse e sem nome
+                  (decisão do dono, 02/10). O contexto sai da própria fala. */}
+              <figure className="mt-6 rounded-2xl border px-4 py-4 text-left" style={{ borderColor: "oklch(0.55 0.12 15 / 0.18)" }}>
+                <div className="mb-2 flex gap-0.5" aria-label="five stars">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <Star key={i} className="h-3.5 w-3.5 fill-current" style={{ color: "oklch(0.78 0.13 78)" }} />
+                  ))}
+                </div>
+                <blockquote className="text-sm leading-relaxed">
+                  "I made a song here for my wife. I put things in the lyrics I'd never said out loud to her. I
+                  sent her the link and just watched. She played it again. And again. Showed it to her family,
+                  posted it on her story, plays it in the car 😅 I've given her every kind of gift. This is the
+                  only one she kept."
+                </blockquote>
+                <figcaption className="mt-2 text-xs text-muted-foreground">Made a song for his wife</figcaption>
+              </figure>
             </Variante>
           </>
         );
