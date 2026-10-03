@@ -97,17 +97,15 @@ A letra fala da mesa de domingo na casa da Eva: a mesa posta, o cheiro da cozinh
 
 Repare como essas duas linhas cabem numa ceia de Natal. A letra não precisa de palavras grandes: ela pede pra lembrar de uma mesa e de um lugar. Na ceia, a família está exatamente nessa mesa. É isso que faz a música emocionar quem ouve.
 
-## Os cinco estilos gospel
+## Qual som combina com a sua ceia
 
-O estilo muda o clima da música. Você escolhe entre cinco:
+Toda família tem um jeito de passar o Natal, e o estilo da música deve seguir esse jeito.
 
-- **Adoração.** Calmo e intimista, pra logo depois da oração.
-- **Gospel tradicional.** O som dos hinos e cantatas de Natal que muita família cantou na igreja.
-- **Pentecostal animado.** Pra celebrar com a casa cheia.
-- **Sertanejo gospel.** A fé com viola e dupla, pra família que gosta do som do interior.
-- **Pop gospel.** Mais moderno, com a cara do louvor que toca nas rádios.
+Se a noite é de mesa farta e casa barulhenta, com criança correndo e tio contando piada, o **Pentecostal animado** entra no clima sem esforço. Se a família tem o costume de cantar junto antes da ceia, o **Gospel tradicional** lembra as cantatas de Natal da igreja. Pra quem quer um momento de silêncio logo depois da oração, a **Adoração** é a escolha.
 
-Você também escolhe a voz, feminina ou masculina, e o tom: reverente, emocionante ou de celebração.
+Família do interior, que passa o Natal na casa da avó com viola na varanda, vai se reconhecer no **Sertanejo gospel**. E se a ideia é uma música que os netos também queiram ouvir no carro depois, o **Pop gospel** é o mais moderno dos cinco.
+
+O tom pode ser reverente, emocionante ou de celebração, e a voz, feminina ou masculina.
 
 ## Como tocar na ceia
 

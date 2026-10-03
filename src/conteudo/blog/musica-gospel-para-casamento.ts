@@ -100,17 +100,17 @@ Quem contou falou de dez anos de história com a Isabela: os dois se conheceram 
 
 Repare que a letra não precisa de palavras grandes. Ela fala do corredor da escola, da duna em Jeri, do jeito de quem contou repetir as coisas. É isso que faz uma letra ser reconhecível. Numa música de casamento, o mesmo vale: o lugar onde vocês se viram pela primeira vez diz mais do que qualquer promessa genérica.
 
-## Os cinco estilos gospel, e qual combina com cada momento
+## Que estilo tocar em cada parte do casamento
 
-O estilo muda o clima da música. Você escolhe entre cinco:
+Um jeito simples de decidir é pensar no momento em que a música vai entrar:
 
-- **Adoração.** Calmo e intimista. Combina com a entrada da noiva e com o momento depois dos votos.
-- **Gospel tradicional.** O som dos hinos e corinhos que muita família cresceu cantando. Bonito pra uma cerimônia mais clássica.
-- **Pentecostal animado.** Pra celebrar, na entrada dos noivos na festa.
-- **Sertanejo gospel.** A fé com viola e dupla. Bom pra primeira dança ou pra um casamento no campo.
-- **Pop gospel.** Mais moderno, com a cara do louvor que toca nas rádios. Funciona na recepção.
+1. **Entrada da noiva:** **Adoração**, calma e intimista, deixa todo mundo em silêncio pra ouvir a letra.
+2. **Logo depois dos votos:** **Gospel tradicional**, se a cerimônia é mais clássica e a família cresceu cantando hinos.
+3. **Entrada dos noivos na festa:** **Pentecostal animado**, pra abrir a celebração com energia.
+4. **Primeira dança:** **Sertanejo gospel**, que combina com casamento no campo e com casal que dança agarradinho.
+5. **Durante a recepção:** **Pop gospel**, mais moderno, perto do que os convidados mais novos ouvem.
 
-Você também escolhe a voz, feminina ou masculina, e o tom: reverente, emocionante ou de celebração. Uma música pra entrada da noiva costuma pedir o reverente ou o emocionante. Uma pra festa pede celebração.
+O tom acompanha o momento: reverente ou emocionante na cerimônia, celebração na festa. A voz pode ser feminina ou masculina.
 
 ## Como tocar no dia
 

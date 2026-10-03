@@ -92,17 +92,13 @@ A música abaixo foi feita neste site a partir de uma história real de casal. �
 
 Repare como a letra não fala em "amor eterno". Fala de uma praia, de dormir na areia, de não ter pressa. É a primeira viagem do casal, lembrada anos depois. Num louvor de bodas, a mesma coisa vale: a primeira casa, o primeiro culto juntos, a viagem de lua de mel que deu tudo errado. É o detalhe que faz o outro ouvir e se reconhecer.
 
-## Os cinco estilos gospel
+## Qual estilo combina com a história de vocês
 
-O estilo muda o clima da música. Você escolhe entre cinco:
+Casal que se conheceu no coral da igreja e ainda canta junto no culto costuma se reconhecer no **Gospel tradicional**, com a sonoridade dos hinos que acompanharam o namoro. Se o casamento começou no interior, ou se o marido não larga a viola, o **Sertanejo gospel** fala a língua de vocês.
 
-- **Adoração.** Calmo e intimista, pra um momento de oração do casal.
-- **Gospel tradicional.** O som dos hinos que muitos casais mais velhos cantaram a vida inteira na igreja.
-- **Pentecostal animado.** Pra uma festa de bodas cheia de gente e de celebração.
-- **Sertanejo gospel.** A fé com viola e dupla, pra quem gosta do som do interior.
-- **Pop gospel.** Mais moderno, com a cara do louvor que toca nas rádios.
+Pra um momento a dois, numa noite de oração ou no café da manhã do aniversário, a **Adoração** é mais calma e deixa a letra em primeiro plano. Já uma festa de bodas com a família inteira, palma e mesa cheia, pede o **Pentecostal animado**. E se os filhos vão organizar a surpresa e querem algo com a cara do que eles ouvem, o **Pop gospel** é o caminho.
 
-Você também escolhe a voz, feminina ou masculina, e o tom: reverente, emocionante ou de celebração.
+No tom, o reverente combina com a oração, o emocionante com a homenagem e a celebração com a festa. A voz pode ser feminina ou masculina.
 
 ## Onde tocar: no culto, no jantar, a sós
 
