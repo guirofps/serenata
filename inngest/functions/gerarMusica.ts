@@ -5,6 +5,7 @@ import { acharGenero, estiloParaSuno } from "../../src/lib/generos.js";
 import { podeGerar } from "../lib/disjuntor.js";
 import { musicaDoQuiz, mandarEmailDeEntrega } from "../../api/lib/entrega.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
+import { restaurarSeAjusteFalhou } from "../lib/restaurar-ajuste.js";
 
 // Job de geração da música. Portado de scratch/pipeline-completo.mjs, que já
 // rodou de ponta a ponta na mão (3 músicas aprovadas).
@@ -387,6 +388,15 @@ export const gerarMusica = inngest.createFunction(
     }
 
     if (!faixas.length) {
+      // AJUSTE que falhou: devolve a versão anterior em vez de deixar o
+      // comprador sem música (ver `restaurar-ajuste.ts`).
+      const restaurou = await step.run("restaurar-se-era-ajuste", () =>
+        restaurarSeAjusteFalhou(db(), musicaId),
+      );
+      if (restaurou) {
+        console.warn("[gerar-musica] ajuste falhou no provedor; versão anterior restaurada", musicaId);
+        return { restaurado: true };
+      }
       await step.run("marcar-falha", async () => {
         await db()
           .from("musicas")

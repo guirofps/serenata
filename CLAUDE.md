@@ -950,7 +950,11 @@ servidor (`garantirConfig`) relia "por trás" sem `await`, e na Vercel a funçã
 congela depois de responder: a releitura ficava presa e a instância servia a
 config velha pra sempre (zerar o B do `abertura_en` não chegou ao site em 10
 min). Agora a visita espera até 0,4s pela releitura e releitura presa há 10s
-é refeita.
+é refeita. Ajuste (refação) que falha no provedor deixava o COMPRADOR sem
+música: o ajuste limpa o áudio antes de regravar e, na falha, a linha ficava
+`falhou` sem áudio (4 compradores em 02-03/10, restaurados à mão com
+`scratch/_restaurar-ajuste-falho-03out.mjs`). Agora o `gerarMusica`, na falha,
+devolve a versão arquivada e o direito de ajuste (`inngest/lib/restaurar-ajuste.ts`).
 
 ## Em aberto
 
