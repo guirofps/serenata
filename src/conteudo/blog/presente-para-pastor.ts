@@ -8,7 +8,7 @@ export const artigo: Artigo = {
   titulo: "Presente para pastor: uma música feita da história do ministério dele",
   tituloSeo: "Presente para pastor: uma música da igreja",
   descricao:
-    "Presente para pastor que a igreja inteira assina: uma música gospel feita dos testemunhos dos membros e da história do ministério, pra tocar no culto.",
+    "Presente para pastor feito das lembranças da igreja: uma música gospel feita dos testemunhos dos membros e da história do ministério, pra tocar no culto.",
   publicadoEm: "2026-10-03",
   atualizadoEm: "2026-10-03",
   imagem: {
@@ -20,12 +20,12 @@ export const artigo: Artigo = {
   relacionados: ["homenagem-para-pastora", "presente-para-lider-de-louvor", "louvor-personalizado"],
   faq: [
     {
-      q: "A música pode falar em nome da igreja inteira?",
-      a: "Pode. Diga na história que a homenagem é dos membros, do ministério ou de um grupo específico, e a letra fala em nome de quem você indicar.",
+      q: "A igreja inteira pode participar da homenagem?",
+      a: "Pode. Diga na história quem está homenageando (os membros, o ministério, um grupo). Em \"Pra quem\", escolha \"Outro\" e conte que ele é o pastor. A letra é escrita a partir do que vocês contarem, e vocês leem inteira antes de decidir.",
     },
     {
       q: "Dá pra tocar no culto?",
-      a: "Dá. Você recebe um link com a página da música, com a letra acendendo no ritmo, que dá pra abrir no telão, e também o MP3 pra tocar no som da igreja. A música completa tem cerca de 4 minutos.",
+      a: "Você recebe um link com a página da música, com a letra acendendo no ritmo, que dá pra abrir no telão, e também o MP3 pra tocar no som da igreja. A música completa tem cerca de 4 minutos.",
     },
     {
       q: "A letra vira pregação?",
@@ -71,7 +71,7 @@ A letra fica boa quando a história traz coisas concretas. "O pastor é um homem
 - **O jeito dele.** A mania de chegar cedo pra abrir a igreja, o café com os irmãos depois do culto, o violão no culto de jovens.
 - **A família.** A esposa, os filhos, o quanto eles também deram pela igreja.
 
-Depois, uma pessoa reúne essas lembranças e conta tudo no formulário. Não precisa organizar bonito: pode colar os relatos do jeito que vieram. Se for mais fácil, grave um áudio contando, como se estivesse dando um testemunho. E diga na história que a homenagem é da igreja, ou do grupo que está organizando, pra letra falar em nome de vocês.
+Depois, uma pessoa reúne essas lembranças e conta tudo no formulário. Não precisa organizar bonito: pode colar os relatos do jeito que vieram. Se for mais fácil, grave um áudio contando, como se estivesse dando um testemunho. Diga na história quem está homenageando e, em "Pra quem", escolha "Outro" e conte que ele é o pastor. A letra é escrita a partir do que vocês contarem, e vocês leem inteira antes de decidir.
 
 ## Como funciona o caminho gospel
 

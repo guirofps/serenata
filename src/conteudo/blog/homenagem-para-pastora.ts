@@ -25,7 +25,7 @@ export const artigo: Artigo = {
     },
     {
       q: "As mulheres da igreja podem assinar juntas?",
-      a: "Podem. Diga na história que a homenagem é do ministério de mulheres, ou do grupo que está organizando, e a letra fala em nome de vocês.",
+      a: "Podem. Diga na história quem está homenageando (o ministério de mulheres, o grupo que organiza). Em \"Pra quem\", escolha \"Outro\" e conte que ela é a pastora. A letra é escrita a partir do que vocês contarem, e vocês leem inteira antes de decidir.",
     },
     {
       q: "Dá pra escolher voz feminina?",
@@ -69,7 +69,7 @@ A letra fica viva quando a história traz detalhes que só quem conhece a pastor
 - **O jeito dela.** A mania de abraçar todo mundo na porta, a risada, a forma de orar, o hino que ela sempre pede.
 - **O que ela abriu mão.** O tempo com a família, a carreira, a cidade natal, pra servir à igreja.
 
-Peça a algumas mulheres que contem uma lembrança cada, e uma pessoa reúne tudo no formulário. Pode ser do jeito que vier, sem organizar. Se for mais fácil, grave um áudio contando. E deixe claro na história quem está homenageando, pra letra falar em nome do grupo.
+Peça a algumas mulheres que contem uma lembrança cada, e uma pessoa reúne tudo no formulário. Pode ser do jeito que vier, sem organizar. Se for mais fácil, grave um áudio contando. E deixe claro na história quem está homenageando. Em "Pra quem", escolha "Outro" e conte que ela é a pastora.
 
 ## Um exemplo: como uma história vira letra gospel
 

@@ -8,7 +8,7 @@ export const artigo: Artigo = {
   titulo: "Presente para líder de louvor: quem sempre canta pros outros ganha uma música",
   tituloSeo: "Presente para líder de louvor: uma música dele",
   descricao:
-    "Presente para líder de louvor que o ministério inteiro assina: uma música gospel feita da história dele, no estilo que vocês tocam no culto.",
+    "Presente para líder de louvor feito das lembranças do ministério: uma música gospel feita da história dele, no estilo que vocês tocam no culto.",
   publicadoEm: "2026-10-03",
   atualizadoEm: "2026-10-03",
   imagem: {
@@ -70,7 +70,7 @@ Como em qualquer letra boa, o detalhe é o que faz o líder se reconhecer. "Ele 
 - **O que ele ensinou.** Não só sobre música: sobre chegar no horário, servir sem aparecer, cuidar do grupo.
 - **O jeito dele.** O instrumento que ele não larga, a frase antes de começar o louvor, a canção que ele sempre pede.
 
-Uma pessoa reúne tudo e conta no formulário, do jeito que vier. Dá também pra gravar um áudio em vez de digitar. Diga na história que a homenagem é do ministério, pra letra falar em nome de vocês.
+Uma pessoa reúne tudo e conta no formulário, do jeito que vier. Dá também pra gravar um áudio em vez de digitar. Diga na história quem está homenageando e, em "Pra quem", escolha "Outro" e conte que ele é o líder de louvor. A letra é escrita a partir do que vocês contarem, e vocês leem inteira antes de decidir.
 
 ## Escolha o estilo que o ministério toca
 

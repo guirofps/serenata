@@ -49,7 +49,7 @@ Uma música gospel para casamento feita do zero conta a história do casal e a f
 
 Os louvores mais bonitos do repertório costumam aparecer em todo casamento cristão. São lindos, mas não falam de vocês. Não sabem do primeiro culto em que um reparou no outro, do namoro com hora pra voltar, das orações pedindo direção antes de dar o passo.
 
-Uma música feita da história do casal muda o momento. Os convidados param pra prestar atenção porque reconhecem os detalhes. A família ouve o nome da noiva e do noivo na letra. E, anos depois, aquela canção continua sendo só de vocês.
+Uma música feita da história do casal muda o momento. Os convidados param pra prestar atenção porque reconhecem os detalhes. A família ouve o nome de quem está sendo homenageado cantado na letra. E, anos depois, aquela canção continua sendo só de vocês.
 
 ## Onde a música entra no casamento cristão
 
@@ -98,7 +98,7 @@ Quem contou falou de dez anos de história com a Isabela: os dois se conheceram 
 > você ficou, virou minha vida
 > minha companheira do mundo inteiro
 
-Repare que a letra não precisa de palavras grandes. Ela fala do corredor da escola, da duna em Jeri, do jeito de quem contou repetir as coisas. É isso que faz a Isabela ouvir e se reconhecer. Numa música de casamento, o mesmo vale: o lugar onde vocês se viram pela primeira vez diz mais do que qualquer promessa genérica.
+Repare que a letra não precisa de palavras grandes. Ela fala do corredor da escola, da duna em Jeri, do jeito de quem contou repetir as coisas. É isso que faz uma letra ser reconhecível. Numa música de casamento, o mesmo vale: o lugar onde vocês se viram pela primeira vez diz mais do que qualquer promessa genérica.
 
 ## Os cinco estilos gospel, e qual combina com cada momento
 

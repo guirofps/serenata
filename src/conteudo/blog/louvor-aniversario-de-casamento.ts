@@ -29,7 +29,7 @@ export const artigo: Artigo = {
     },
     {
       q: "A música é sobre o casal ou é um louvor pra Deus?",
-      a: "Os dois são possíveis. No presente com fé, a letra fala do casal e a fé aparece como gratidão. Se vocês quiserem agradecer a Deus juntos, escolham o louvor pra Deus com o motivo Gratidão.",
+      a: "Os dois são possíveis. No presente com fé, a letra fala do casal e a fé aparece como gratidão. Se a ideia for agradecer a Deus pelos anos de casamento, escolha o louvor pra Deus com o motivo Gratidão: a letra fala em primeira pessoa, de quem conta.",
     },
     {
       q: "Dá pra tocar no culto de renovação de votos?",
@@ -58,7 +58,7 @@ Se você procura ideias pela tradição dos materiais de cada ano, como papel, m
 No caminho gospel, a primeira pergunta é: um louvor pra Deus ou um presente pra alguém, com fé? Pras bodas, os dois funcionam, e a escolha depende de quem dá e pra quem.
 
 - **Presente com fé.** Um dá pro outro, ou os filhos dão pros pais. A música é sobre o casal: como se conheceram, o que atravessaram, as manias de cada um. A fé aparece como gratidão e bênção na vida dos dois, sem pregação.
-- **Um louvor pra Deus.** O casal agradece junto. O motivo é Gratidão, e a letra vira uma oração cantada pelos anos de casamento.
+- **Um louvor pra Deus.** O motivo é Gratidão: quem conta agradece a Deus, em primeira pessoa, pelos anos de casamento.
 
 Se a ideia é emocionar o marido ou a esposa, o presente com fé costuma ser o caminho. Se a ideia é um momento de adoração do casal no culto, o louvor pra Deus encaixa melhor.
 

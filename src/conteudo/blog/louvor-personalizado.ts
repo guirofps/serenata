@@ -109,9 +109,19 @@ O louvor personalizado também é um presente muito bonito em algumas ocasiões:
 - **Aniversário de um pastor, de um líder ou de um irmão da igreja.** Uma música que conte a caminhada dele.
 - **Batismo.** Pra marcar a decisão de alguém querido.
 - **Mãe ou avó de fé.** A pessoa que levou a família pra igreja e orou por cada um.
-- **Natal.** Uma música que lembre o nascimento de Jesus e a história da família. Tem um guia só pra isso: [presente de Natal emocionante](/blog/presente-de-natal-emocionante).
+- **Natal.** Uma música que lembre o nascimento de Jesus e a história da família. Tem um guia só pra isso: [presente de Natal cristão](/blog/presente-de-natal-cristao).
 
 A música chega numa página com a letra acendendo no ritmo, que dá pra mandar no WhatsApp ou imprimir como QR Code num cartão. Você também recebe o MP3 pra guardar.
+
+## Guias por motivo e ocasião
+
+Se você já sabe o motivo do seu louvor, estes guias vão direto ao ponto:
+
+- [Louvor de gratidão](/blog/louvor-de-gratidao), pra agradecer pelo que Deus fez.
+- [Louvor de testemunho](/blog/louvor-de-testemunho), pra cantar uma vitória.
+- [Louvor para momento difícil](/blog/louvor-para-momento-dificil), pra fase de clamor.
+- [Hino personalizado](/blog/hino-personalizado), pra quem ama a sonoridade dos hinos.
+- [Como escrever um louvor](/blog/como-escrever-um-louvor), pra quem quer entender o passo a passo.
 
 ## Comece pelo seu testemunho
 

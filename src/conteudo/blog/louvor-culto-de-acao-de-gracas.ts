@@ -83,7 +83,7 @@ Você também escolhe voz feminina ou masculina e o tom: reverente, emocionante 
 > Mãe, eu te amo
 > Obrigado por nunca desistir de mim
 
-São versos de um filho pra mãe, não uma oração. Mas mostram uma coisa que vale pro seu louvor: a gratidão que toca é curta e diz pelo que se agradece. "Obrigado por tudo" passa. "Obrigado por nunca desistir de mim" fica. No louvor de ação de graças, conte pelo que exatamente vocês agradecem, e a letra vai seguir esse caminho, agora falando com Deus.
+São versos de quem contou pra mãe, não uma oração. Mas mostram uma coisa que vale pro seu louvor: a gratidão que toca é curta e diz pelo que se agradece. "Obrigado por tudo" passa. "Obrigado por nunca desistir de mim" fica. No louvor de ação de graças, conte pelo que exatamente vocês agradecem, e a letra vai seguir esse caminho, agora falando com Deus.
 
 ## Como tocar no culto
 

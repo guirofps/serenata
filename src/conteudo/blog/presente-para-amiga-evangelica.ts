@@ -97,7 +97,7 @@ Quem contou falou de vinte e tantos anos de amizade com a Li, a amiga que virou 
 > Guarujá, mar salgado, risada solta
 > As viagens que a gente não esquece
 
-Repare que a letra não precisa de palavras difíceis. Fala de mar salgado e de risada solta, das viagens que ficaram. É uma lembrança que só as duas têm, e por isso a Li se reconhece em cada linha. Numa música com fé, a mesma coisa vale: o retiro em que vocês dividiram o beliche, a vigília em que choraram juntas, o culto em que ela cantou e você chorou.
+Repare que a letra não precisa de palavras difíceis. Fala de mar salgado e de risada solta, das viagens que ficaram. É uma lembrança que só quem viveu tem. Numa música com fé, a mesma coisa vale: o retiro em que vocês dividiram o beliche, a vigília em que choraram juntas, o culto em que ela cantou e você chorou.
 
 ## Os cinco estilos gospel
 

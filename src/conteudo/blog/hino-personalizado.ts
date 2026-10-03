@@ -115,7 +115,7 @@ Três ou quatro respostas com detalhe já bastam. Se preferir, grave um áudio c
 4. **Leia a letra.** Ela fica pronta em segundos e é de graça. Se não gostar, peça pra reescrever, também de graça.
 5. **Ouça um trecho cantado.** A música é composta e gravada do zero e fica pronta em poucos minutos.
 
-A música completa tem cerca de 4 minutos e chega numa página com o nome da pessoa na capa e a letra acendendo no ritmo. Dá pra pôr fotos, mandar no WhatsApp ou imprimir o QR Code. Quem entrega é você.
+A música completa tem cerca de 4 minutos e chega numa página com o nome na capa e a letra acendendo no ritmo. Dá pra pôr fotos, mandar no WhatsApp ou imprimir o QR Code. Quem entrega é você.
 
 ## Comece pela lembrança
 

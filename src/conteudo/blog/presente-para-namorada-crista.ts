@@ -95,7 +95,7 @@ Quem contou falou de dois anos de namoro: os dois se conheceram numa festa de an
 > Festa de aniversário, música alta, eu enrolando
 > Duas horas de coragem só pra ir puxando assunto
 
-Repare como a letra começa por uma cena que qualquer um reconhece: o rapaz criando coragem por duas horas pra puxar assunto. É engraçado e é verdade, e por isso emociona. Numa música com fé, a mesma coisa vale: o culto em que você reparou nela, o acampamento em que vocês conversaram até tarde, o pedido de namoro feito com a bênção dos pais dela.
+Repare como a letra começa por uma cena que qualquer um reconhece: quem contou criando coragem por duas horas pra puxar assunto. É engraçado e é verdade, e por isso emociona. Numa música com fé, a mesma coisa vale: o culto em que você reparou nela, o acampamento em que vocês conversaram até tarde, o pedido de namoro feito com a bênção dos pais dela.
 
 ## Os cinco estilos gospel
 

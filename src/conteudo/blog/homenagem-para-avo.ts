@@ -28,7 +28,7 @@ export const artigo: Artigo = {
     },
     {
       q: "Vários netos podem contar a história juntos?",
-      a: "Podem. Junte as lembranças de cada um num texto só, ou num áudio, e diga que a música é dos netos. A letra fala em nome de quem você quiser.",
+      a: "Podem. Junte as lembranças de cada um num texto só, ou num áudio, e diga na história que a homenagem é dos netos. A letra é escrita a partir do que você contar, e você lê inteira antes de decidir.",
     },
   ],
   corpo: `
@@ -84,7 +84,7 @@ Se o seu avô tem uma história de chegada, de trabalho pesado ou de música, co
 
 ## Uma música da família inteira
 
-Uma ideia que funciona muito bem: juntar as lembranças de vários netos numa história só. Cada um manda duas ou três memórias, alguém junta tudo e conta no quiz dizendo que a música é dos netos. A letra sai falando em nome de todos.
+Uma ideia que funciona muito bem: juntar as lembranças de vários netos numa história só. Cada um manda duas ou três memórias, alguém junta tudo e conta no quiz dizendo que a homenagem é dos netos. A letra é escrita a partir dessas lembranças.
 
 Isso resolve também o problema clássico de presente de avó em família grande: em vez de dez lembrancinhas, um presente só, que é de todo mundo e que ela vai guardar pra sempre.
 

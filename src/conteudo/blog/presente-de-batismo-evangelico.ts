@@ -58,7 +58,7 @@ O presente de batismo costuma vir de quem acompanhou a caminhada de perto:
 - **Pai e mãe pro filho ou pra filha.** Talvez vocês tenham orado por essa decisão a vida inteira. A música pode contar isso. Se a ideia é falar do filho de modo mais amplo, veja também o guia de [louvor para filho](/blog/louvor-para-filho).
 - **Marido ou esposa.** Quando um dos dois chega à fé depois, o batismo dele é também uma resposta pra quem esperou e orou em casa.
 - **Amigo ou amiga.** Quem fez o convite pro primeiro culto, quem estava junto nas conversas difíceis.
-- **Padrinhos, avós, irmãos.** Qualquer pessoa que tenha feito parte da história.
+- **Tios, avós, irmãos.** Qualquer pessoa que tenha feito parte da história.
 
 ## O que contar sobre a decisão dela
 

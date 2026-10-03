@@ -85,7 +85,7 @@ A letra é cantada na voz da mãe ("Theo, a mamãe te ama, filho"). A letra fala
 > Você dorme abraçado com o Rex todas as noites
 > E de manhã bem cedo já tá pulando na nossa cama
 
-Ninguém escreveu "meu filho é carinhoso e animado". A mãe contou o que vê todo dia, e a letra fez o resto. Mais adiante, a gratidão pela espera aparece também, sem tomar o lugar dele na música. É exatamente assim que funciona o presente com fé.
+Ninguém escreveu "meu filho é carinhoso e animado". Quem contou falou do que vê todo dia, e a letra fez o resto. Mais adiante, a gratidão pela espera aparece também, sem tomar o lugar dele na música. É assim que funciona também no presente com fé.
 
 ## Os cinco estilos gospel
 
@@ -105,7 +105,7 @@ A música chega numa página pronta: a canção tocando, a letra acendendo no ri
 
 1. **Ouvir junto, no colo.** Com a criança no colo e o fone, ouvindo o próprio nome cantado.
 2. **Tocar na apresentação ou na festa.** Numa caixinha de som, ou com a página aberta num telão, a letra acendendo pra todo mundo ver.
-3. **Mandar pra família.** Copie o link e mande no grupo da família no WhatsApp, pros avós e padrinhos.
+3. **Mandar pra família.** Copie o link e mande no grupo da família no WhatsApp, pros avós e tios.
 4. **QR Code na lembrancinha.** Imprima o QR Code e cole no cartão da festa ou da apresentação.
 
 Você também recebe o MP3 pra guardar. É uma música pra ele ouvir de novo quando crescer.

@@ -24,7 +24,7 @@ export const artigo: Artigo = {
     },
     {
       q: "Dá pra fazer uma música pra família toda?",
-      a: "Dá. Conte a história da família, com as lembranças de várias pessoas, e diga pra quem é a homenagem. A letra fala em nome de quem você quiser.",
+      a: "Dá. Conte a história da família, com as lembranças de várias pessoas, e diga pra quem é a homenagem. A letra é escrita a partir do que você contar, e você lê inteira antes de decidir.",
     },
     {
       q: "Como dou de presente se a pessoa mora longe?",
@@ -92,7 +92,7 @@ Depende do que você quer. Uma música pra uma pessoa só é mais íntima: fala 
 
 Uma música pra família inteira é mais coletiva: fala da casa, da ceia, das tradições, de quem está junto. Ela funciona melhor tocada com todo mundo reunido, e vira o momento da noite.
 
-Se a família é grande, uma boa saída é dividir: os irmãos juntam as lembranças e fazem uma música só pros pais, em nome de todos.
+Se a família é grande, uma boa saída é dividir: os irmãos juntam as lembranças e fazem uma música só pros pais, juntando as lembranças de todos.
 
 ## Como entregar na ceia
 

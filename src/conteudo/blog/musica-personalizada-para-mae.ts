@@ -81,7 +81,7 @@ O estilo muda tudo. A mesma história vira outra música em sertanejo, em MPB ou
 - **MPB / voz e violão** para a mãe que gosta de coisa calma, de letra bem dita.
 - **Pagode / samba** para a mãe da roda, do churrasco, da gargalhada alta.
 - **Forró** para a mãe nordestina, ou para a que dança sozinha na sala.
-- **Gospel** para a mãe de fé. Se a fé é o centro da vida dela, leia também como funciona o [louvor personalizado](/blog/louvor-personalizado).
+- **Gospel** para a mãe de fé. Se a fé é o centro da vida dela, veja as ideias de [presente para mãe evangélica](/blog/presente-para-mae-evangelica).
 
 Também dá pra escolher voz feminina ou masculina, e o tom: romântico, divertido, emocionante ou animado. Na dúvida, pense na música que ela mais canta e vá pelo mesmo caminho.
 

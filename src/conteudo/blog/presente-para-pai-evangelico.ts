@@ -70,7 +70,7 @@ Não precisa escrever bonito nem em ordem. Conte do jeito que lembrar. Se for ma
 
 [[musica:antonio]]
 
-Quem contou falou de um pai que acorda antes do sol, que leva o filho pra pescar de madrugada e que fala pouco. Repare em como a letra resume uma vida inteira em duas linhas:
+Quem contou falou de um pai que acorda antes do sol, que levava quem contou pra pescar de madrugada e que fala pouco. Repare em como a letra resume uma vida inteira em duas linhas:
 
 > Criou a gente com pouco, mas com fartura
 > De abraço apertado e palavra sincera

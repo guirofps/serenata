@@ -12,9 +12,9 @@ export const artigo: Artigo = {
   publicadoEm: "2026-10-03",
   atualizadoEm: "2026-10-03",
   imagem: {
-    alt: "Mãe emocionada ouvindo uma música na ceia de Natal com o presépio ao fundo",
+    alt: "Mãe emocionada ouvindo uma música na ceia de Natal com a família",
     prompt:
-      "A Brazilian family at a Christmas dinner table, a small nativity scene in the background, a mother around 55 wearing headphones and moved to tears while her family smiles around her. Warm candlelight and bokeh lights, summer clothes. Candid documentary photo, natural skin texture, warm golden light, shallow depth of field, 35mm lens, Brazilian home setting, no text, no logos, no watermark, phone screens facing away from camera.",
+      "A Brazilian family at a Christmas dinner table at home, a decorated Christmas tree with warm lights in the background, a mother around 55 wearing headphones and moved to tears while her family smiles around her, glasses of juice and soda on the table. No nativity figurines, no statues, no religious images, no alcohol, no wine. Warm candlelight and bokeh lights, summer clothes. Candid documentary photo, natural skin texture, warm golden light, shallow depth of field, 35mm lens, Brazilian home setting, no text, no logos, no watermark, phone screens facing away from camera.",
   },
   musicas: ["eva"],
   relacionados: [
@@ -57,7 +57,7 @@ Se você procura ideias de Natal sem o foco na fé, tem um guia mais amplo: [pre
 
 Quando você entra pelo caminho gospel, a primeira pergunta é: um louvor pra Deus ou um presente pra alguém, com fé? No Natal, os dois fazem sentido.
 
-- **Um louvor pra Deus.** A música é a oração da família cantada. Você escolhe o motivo, como Gratidão ou Adoração, e conta o que Deus fez no ano. A letra pode falar do nascimento de Jesus e da gratidão pelo que a família recebeu. Pra se aprofundar nesse tipo de música, veja o guia de [louvor de gratidão](/blog/louvor-de-gratidao).
+- **Um louvor pra Deus.** Quem conta agradece a Deus, em primeira pessoa, pelo ano da família. Você escolhe o motivo, como Gratidão ou Adoração, e conta o que Deus fez no ano. A letra pode falar do nascimento de Jesus e da gratidão pelo que a família recebeu. Pra se aprofundar nesse tipo de música, veja o guia de [louvor de gratidão](/blog/louvor-de-gratidao).
 - **Um presente pra alguém, com fé.** A música é sobre uma pessoa da família: a mãe que segurou todo mundo, o pai que trabalhou dobrado, a avó que levou os netos pra igreja. A fé aparece como gratidão e bênção na vida dela, sem pregação.
 
 O primeiro é pra ser ouvido por todos juntos, como parte da celebração. O segundo é pra emocionar alguém em especial, no meio da família.
@@ -88,7 +88,7 @@ Não precisa responder tudo. Três ou quatro lembranças bem escolhidas rendem m
 
 A música abaixo foi feita neste site a partir de uma história real, pra uma mãe, a Eva. É de outro estilo, sertanejo, e não é uma música de Natal. Mas mostra muito bem como a mesa de uma família vira letra. No caminho gospel você escolhe um dos cinco estilos gospel.
 
-A letra fala do almoço de domingo na casa da Eva: a mesa posta, o cheiro da cozinha, o abraço que resolve a semana.
+A letra fala da mesa de domingo na casa da Eva: a mesa posta, o cheiro da cozinha, o abraço que resolve a semana.
 
 [[musica:eva]]
 
@@ -111,11 +111,11 @@ Você também escolhe a voz, feminina ou masculina, e o tom: reverente, emociona
 
 ## Como tocar na ceia
 
-A música chega numa página com a canção tocando, a letra acendendo no ritmo e o nome da pessoa na capa. Dá pra pôr fotos da família, inclusive as do ano. Você também recebe o MP3.
+A música chega numa página com a canção tocando, a letra acendendo no ritmo e o nome na capa. Dá pra pôr fotos da família, inclusive as do ano. Você também recebe o MP3.
 
 1. **Depois da oração.** Logo depois do amém, toque a música na caixa de som e mostre a letra na TV da sala.
 2. **Na hora dos presentes.** Entregue o fone pra pessoa homenageada e deixe a família ver a reação.
-3. **No cartão.** Imprima o QR Code num cartão de Natal e coloque debaixo da árvore ou ao lado do presépio.
+3. **No cartão.** Imprima o QR Code num cartão de Natal e coloque debaixo da árvore ou junto da Bíblia da família.
 4. **Pra quem está longe.** Mande o link no WhatsApp pra família que vai passar o Natal em outra cidade.
 
 Faça com alguns dias de folga. A música fica pronta em poucos minutos, mas é bom ter tempo pra ouvir com calma e, se quiser, pedir ajuste num trecho, no estilo ou na voz.

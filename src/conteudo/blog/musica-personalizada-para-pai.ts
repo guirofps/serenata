@@ -24,7 +24,7 @@ export const artigo: Artigo = {
     },
     {
       q: "Posso fazer em nome dos irmãos?",
-      a: "Pode. Conte a história com as lembranças de todos e diga na história que a música é dos filhos. A letra fala em nome de quem você quiser.",
+      a: "Pode. Conte a história com as lembranças de todos e diga na história que a homenagem é dos filhos. A letra é escrita a partir do que você contar, e você lê inteira antes de decidir.",
     },
     {
       q: "Que estilos dá pra escolher?",
@@ -85,7 +85,7 @@ O melhor jeito de escolher o estilo é lembrar o que toca no carro dele. A mesma
 - **Rock** para o pai que ainda tem a camiseta da banda guardada.
 - **MPB / voz e violão** para o pai mais calado, que gosta de letra bem dita.
 - **Pagode / samba** para o pai da roda de samba e do futebol com os amigos.
-- **Gospel** para o pai de fé, que vive a igreja.
+- **Gospel** para o pai de fé, que vive a igreja. Veja as ideias de [presente para pai evangélico](/blog/presente-para-pai-evangelico).
 
 Você também escolhe voz feminina ou masculina e, se quiser, o tom: romântico, divertido, emocionante ou animado. Para pai, o emocionante com um pouco de leveza costuma funcionar bem.
 
