@@ -47,13 +47,25 @@ type Produto = {
   linhas: Linha[];
   reacao: { src: string; ini: number };
 };
-type Cartao = { tipo: "cartao"; duracao: number };
+/** `titulo`: as linhas do título (padrão "Crie a letra / grátis"). */
+type Cartao = { tipo: "cartao"; duracao: number; titulo?: string[] };
 /**
  * A versão ORGÂNICA (03/10, pedido do dono): no lugar da página com a letra,
  * ele em tela cheia ouvindo (sem o som da câmera) e a música por cima. A música
  * segue baixinha (`volumeDepois`) por baixo do resto e some no fim.
  */
-type Musica = { tipo: "musica"; duracao: number; src: string; ini: number; audio: string; audioIni: number; volumeDepois: number };
+type Cena = { src: string; ini: number; duracao: number };
+type Musica = {
+  tipo: "musica";
+  duracao: number;
+  src: string;
+  ini: number;
+  /** Vários trechos dele ouvindo, em sequência, com a música correndo sem corte por cima. */
+  cenas?: Cena[];
+  audio: string;
+  audioIni: number;
+  volumeDepois: number;
+};
 type Parte = Fala | Produto | Cartao | Musica;
 
 export type PropsAnuncioUGC = { partes: Parte[] };
@@ -198,9 +210,16 @@ function ParteProduto({ p }: { p: Produto }) {
 }
 
 function ParteMusica({ p }: { p: Musica }) {
+  const cenas = p.cenas ?? [{ src: p.src, ini: p.ini, duracao: p.duracao }];
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
-      <OffthreadVideo src={staticFile(p.src)} startFrom={Math.round(p.ini * FPS_UGC)} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      <Series>
+        {cenas.map((c, i) => (
+          <Series.Sequence key={i} durationInFrames={Math.round(c.duracao * FPS_UGC)}>
+            <OffthreadVideo src={staticFile(c.src)} startFrom={Math.round(c.ini * FPS_UGC)} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          </Series.Sequence>
+        ))}
+      </Series>
     </AbsoluteFill>
   );
 }
@@ -230,7 +249,7 @@ function TrilhaMusica({ partes }: PropsAnuncioUGC) {
   );
 }
 
-function ParteCartao() {
+function ParteCartao({ titulo = ["Crie a letra", "grátis"] }: { titulo?: string[] }) {
   const frame = useCurrentFrame();
   const sobe = (atraso: number) => ({
     opacity: interpolate(frame - atraso, [0, 12], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
@@ -240,9 +259,9 @@ function ParteCartao() {
     <AbsoluteFill style={{ backgroundColor: CREME, alignItems: "center", justifyContent: "center", gap: 70 }}>
       <Img src={staticFile("logo-serenata-alfa.png")} style={{ width: 760, ...sobe(0) }} />
       <div style={{ fontFamily: PLAYFAIR, fontWeight: 700, fontSize: 92, color: VINHO, textAlign: "center", lineHeight: 1.1, ...sobe(6) }}>
-        Crie a letra
-        <br />
-        grátis
+        {titulo.map((l, i) => (
+          <div key={i}>{l}</div>
+        ))}
       </div>
       <div style={{ fontFamily: POPPINS, fontWeight: 800, fontSize: 54, color: "#fff", background: VINHO, padding: "22px 48px", borderRadius: 999, ...sobe(12) }}>
         serenatagift.com
@@ -264,7 +283,7 @@ export const AnuncioUGC: React.FC<PropsAnuncioUGC> = ({ partes }) => {
             ) : p.tipo === "musica" ? (
               <ParteMusica p={p} />
             ) : (
-              <ParteCartao />
+              <ParteCartao titulo={p.titulo} />
             )}
           </Series.Sequence>
         ))}
