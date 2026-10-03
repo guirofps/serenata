@@ -87,6 +87,19 @@ function db() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+/**
+ * O pedido que tira a pessoa da recuperação: o PAGO (venda feita) e o pendente
+ * de PIX (quem cuida dele é o `pixNaoPago`). O pendente do STRIPE fica de fora
+ * (Ballad, 03/10): lá não existe `pixNaoPago`, e pular ele deixava todo
+ * checkout abandonado sem nenhum e-mail. As DUAS checagens (a busca e a
+ * conferência antes de enviar) usam esta regra; a primeira versão do conserto
+ * mudou só a busca e o envio continuava barrando.
+ */
+async function temPedidoQueBarra(sb: ReturnType<typeof db>, quizId: string): Promise<boolean> {
+  const { data } = await sb.from("pedidos").select("status, gateway").eq("quiz_response_id", quizId);
+  return (data ?? []).some((p) => p.status === "pago" || p.gateway !== "stripe");
+}
+
 async function jaAvisado(sb: ReturnType<typeof db>, quizId: string) {
   const { data } = await sb
     .from("funnel_events")
@@ -204,11 +217,7 @@ export const quaseComprou = inngest.createFunction(
         // pagamento abre. Pulando ele, quem abriu o checkout da Ballad e não
         // pagou (cartão recusado, desistiu) não recebia nada: 9 de 9 pedidos
         // pendentes até 02/10 ficaram sem nenhum e-mail.
-        const { data: pedidos } = await sb
-          .from("pedidos")
-          .select("status, gateway")
-          .eq("quiz_response_id", q.id);
-        if ((pedidos ?? []).some((p) => p.status === "pago" || p.gateway !== "stripe")) continue;
+        if (await temPedidoQueBarra(sb, q.id)) continue;
 
         // A PESSOA JÁ COMPROU, por outro quiz? A trava acima é por quiz, e não
         // basta: em 28/09 um cliente pagou a SEGUNDA música dele e continuou
@@ -303,13 +312,7 @@ export const quaseComprou = inngest.createFunction(
 
         // Recheca na hora: a pessoa pode ter comprado entre a busca e agora, e
         // "sua música está esperando" pra quem já pagou é o pior desfecho.
-        const { data: pedido } = await sb
-          .from("pedidos")
-          .select("id")
-          .eq("quiz_response_id", c.quizId)
-          .limit(1)
-          .maybeSingle();
-        if (pedido?.id) return false;
+        if (await temPedidoQueBarra(sb, c.quizId)) return false;
         if (await jaAvisado(sb, c.quizId)) return false;
         // Endereço que já voltou não recebe de novo: 51 destes foram pra
         // endereço morto em 14 dias, e é a reputação que paga.
