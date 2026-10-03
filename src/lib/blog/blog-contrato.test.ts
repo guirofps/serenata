@@ -84,3 +84,13 @@ describe("revisão final", () => {
     expect(ler("src/conteudo/blog/louvor-personalizado.ts")).not.toMatch(/ao lado dela em cada noite/);
   });
 });
+
+describe("perguntas frequentes (03/10)", () => {
+  it("cada pergunta mostra uma setinha que gira ao abrir", () => {
+    // Sem marcador (`list-none`) e sem ícone, ninguém percebia que a pergunta abre.
+    const rota = ler("src/routes/blog.$slug.tsx");
+    const bloco = rota.slice(rota.indexOf("<details"), rota.indexOf("</details>"));
+    expect(bloco).toMatch(/<ChevronDown/);
+    expect(bloco).toMatch(/group-open:rotate-180/);
+  });
+});

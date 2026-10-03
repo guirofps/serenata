@@ -1,5 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { ChevronDown } from "lucide-react";
 import { CartaoArtigo } from "@/components/blog/CartaoArtigo";
 import { CorpoArtigo } from "@/components/blog/CorpoArtigo";
 import { CtaCriar } from "@/components/blog/CtaCriar";
@@ -91,7 +92,13 @@ function PaginaArtigo() {
           <div className="mt-6 divide-y divide-[var(--tinta-fraca)]/40 border-y border-[var(--tinta-fraca)]/40">
             {artigo.faq.map((f) => (
               <details key={f.q} className="group py-4">
-                <summary className="cursor-pointer list-none font-medium">{f.q}</summary>
+                <summary className="flex cursor-pointer list-none items-start justify-between gap-4 font-medium [&::-webkit-details-marker]:hidden">
+                  {f.q}
+                  <ChevronDown
+                    aria-hidden
+                    className="mt-0.5 h-5 w-5 shrink-0 text-[var(--acento)] transition-transform group-open:rotate-180"
+                  />
+                </summary>
                 <p className="mt-3 text-[var(--tinta-suave)]">{f.a}</p>
               </details>
             ))}
