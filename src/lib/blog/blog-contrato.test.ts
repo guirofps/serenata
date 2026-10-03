@@ -102,3 +102,13 @@ describe("índice do blog (03/10)", () => {
     expect(ordem).toEqual(["pessoa", "ocasiao", "guia", "gospel"]);
   });
 });
+
+describe("peso do /blog (03/10)", () => {
+  it("o índice não carrega o corpo dos artigos, só o resumo", () => {
+    // Com 30 artigos, o corpo de todos no chunk do /blog passava de 200 KB pra
+    // desenhar só cartões. O loader importa o registro e devolve o resumo.
+    const indice = ler("src/routes/blog.index.tsx");
+    expect(indice).not.toMatch(/^import [^;]*from "@\/conteudo\/blog";/m);
+    expect(indice).toMatch(/await import\("@\/conteudo\/blog"\)/);
+  });
+});

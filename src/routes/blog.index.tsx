@@ -2,13 +2,16 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { CartaoArtigo } from "@/components/blog/CartaoArtigo";
 import { CtaCriar } from "@/components/blog/CtaCriar";
 import { LayoutBlog } from "@/components/blog/LayoutBlog";
-import { ARTIGOS } from "@/conteudo/blog";
 import { headDoIndice } from "@/lib/blog/seo";
 import { resumoDoArtigo, type GrupoArtigo } from "@/lib/blog/tipos";
 import { FONTES } from "@/lib/marca";
 import { chaveDaMarca } from "@/lib/marca-identidade";
 
 // A LISTA DO BLOG. Só existe na Serenata (ver blog.$slug.tsx).
+//
+// O registro entra por `import()` no loader, que devolve só o resumo de cada
+// artigo: importado no topo, o corpo dos 30 ia inteiro pro chunk desta página
+// (mais de 200 KB) pra desenhar só cartões.
 
 const GRUPOS: { grupo: GrupoArtigo; titulo: string }[] = [
   { grupo: "pessoa", titulo: "Para quem" },
@@ -19,15 +22,17 @@ const GRUPOS: { grupo: GrupoArtigo; titulo: string }[] = [
 ];
 
 export const Route = createFileRoute("/blog/")({
-  loader: () => {
+  loader: async () => {
     if (chaveDaMarca() !== "serenata") throw notFound();
-    return null;
+    const { ARTIGOS } = await import("@/conteudo/blog");
+    return { artigos: ARTIGOS.map((a) => ({ grupo: a.grupo, ...resumoDoArtigo(a) })) };
   },
   head: () => headDoIndice(),
   component: IndiceBlog,
 });
 
 function IndiceBlog() {
+  const { artigos } = Route.useLoaderData();
   return (
     <LayoutBlog>
       <section className="pt-12 text-center sm:pt-16">
@@ -39,14 +44,14 @@ function IndiceBlog() {
         </p>
       </section>
       {GRUPOS.map(({ grupo, titulo }) => {
-        const lista = ARTIGOS.filter((a) => a.grupo === grupo);
+        const lista = artigos.filter((a) => a.grupo === grupo);
         if (lista.length === 0) return null;
         return (
           <section key={grupo} className="mt-14">
             <h2 style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-2xl)" }}>{titulo}</h2>
             <div className="mt-6 grid gap-5 sm:grid-cols-2">
               {lista.map((a) => (
-                <CartaoArtigo key={a.slug} artigo={resumoDoArtigo(a)} />
+                <CartaoArtigo key={a.slug} artigo={a} />
               ))}
             </div>
           </section>
