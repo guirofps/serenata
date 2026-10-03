@@ -7,6 +7,7 @@ import { Anuncio, duracaoDoRoteiro, type PropsAnuncio } from "./Anuncio";
 import { Compilado, duracaoCompilado } from "./Compilado";
 import { Mix, duracaoMix } from "./Mix";
 import { FinalBallad, FINAL_BALLAD_S } from "./FinalBallad";
+import { AnuncioUGC, FPS_UGC, duracaoUGC, type PropsAnuncioUGC } from "./AnuncioUGC";
 
 /**
  * O vídeo dura o que a MÚSICA dura, medido no próprio MP3.
@@ -83,6 +84,17 @@ export const RemotionRoot: React.FC = () => {
       defaultProps={{ inicioAudio: 48.6, anuncio: EXEMPLO_ANUNCIO }}
     />
     {/* Cartão final dos criativos da Ballad: 9:16 e 4:5, os dois formatos que chegam. */}
+    {/* Anúncio UGC (03/10): props de scratch/ads-serenata/montar.py, --public-dir=scratch/ads-serenata/public. */}
+    <Composition
+      id="AnuncioUGC"
+      component={AnuncioUGC}
+      durationInFrames={FPS_UGC}
+      fps={FPS_UGC}
+      width={1080}
+      height={1920}
+      defaultProps={{ partes: [] } as PropsAnuncioUGC}
+      calculateMetadata={({ props }) => ({ durationInFrames: Math.max(1, duracaoUGC(props)) })}
+    />
     <Composition id="FinalBallad" component={FinalBallad} durationInFrames={Math.round(FINAL_BALLAD_S * FPS)} fps={FPS} width={1080} height={1920} defaultProps={{}} />
     <Composition id="FinalBallad45" component={FinalBallad} durationInFrames={Math.round(FINAL_BALLAD_S * FPS)} fps={FPS} width={1080} height={1350} defaultProps={{}} />
     <Composition
