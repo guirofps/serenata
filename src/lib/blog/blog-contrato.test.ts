@@ -94,3 +94,11 @@ describe("perguntas frequentes (03/10)", () => {
     expect(bloco).toMatch(/group-open:rotate-180/);
   });
 });
+
+describe("índice do blog (03/10)", () => {
+  it("a seção gospel vem por último, pra não esconder os outros grupos", () => {
+    const indice = ler("src/routes/blog.index.tsx");
+    const ordem = [...indice.matchAll(/grupo: "(\w+)"/g)].map((m) => m[1]);
+    expect(ordem).toEqual(["pessoa", "ocasiao", "guia", "gospel"]);
+  });
+});

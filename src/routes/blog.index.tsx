@@ -13,8 +13,9 @@ import { chaveDaMarca } from "@/lib/marca-identidade";
 const GRUPOS: { grupo: GrupoArtigo; titulo: string }[] = [
   { grupo: "pessoa", titulo: "Para quem" },
   { grupo: "ocasiao", titulo: "Datas e ocasiões" },
-  { grupo: "gospel", titulo: "Gospel" },
   { grupo: "guia", titulo: "Como fazer" },
+  // Por último: com a leva de 03/10 são 21 artigos, e no meio escondiam os outros.
+  { grupo: "gospel", titulo: "Gospel" },
 ];
 
 export const Route = createFileRoute("/blog/")({

@@ -38,8 +38,9 @@ describe("registro", () => {
     expect(ARTIGOS.map((a) => a.slug)).toEqual([...PAUTA]);
   });
 
-  it("só o louvor tem tema gospel", () => {
-    for (const a of ARTIGOS) expect(a.tema).toBe(a.slug === "louvor-personalizado" ? "gospel" : undefined);
+  it("todo artigo do grupo gospel leva o tema gospel, e só eles", () => {
+    // O tema é o que manda o CTA pra /criar?t=gospel.
+    for (const a of ARTIGOS) expect(a.tema, a.slug).toBe(a.grupo === "gospel" ? "gospel" : undefined);
   });
 
   it("slug desconhecido não acha nada", () => {
