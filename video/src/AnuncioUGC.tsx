@@ -68,7 +68,17 @@ type Musica = {
 };
 type Parte = Fala | Produto | Cartao | Musica;
 
-export type PropsAnuncioUGC = { partes: Parte[] };
+/**
+ * A marca do anúncio. A Ballad (04/10) usa os MESMOS vídeos do dono dublados em
+ * inglês: muda o logo, o domínio e os textos fixos da tela.
+ */
+export type MarcaUGC = "serenata" | "ballad";
+const MARCAS: Record<MarcaUGC, { logo: string; dominio: string; umaMusicaPara: string; titulo: string[] }> = {
+  serenata: { logo: "logo-serenata-alfa.png", dominio: "serenatagift.com", umaMusicaPara: "UMA MÚSICA PARA", titulo: ["Crie a letra", "grátis"] },
+  ballad: { logo: "logo-ballad-alfa.png", dominio: "balladgift.com", umaMusicaPara: "A SONG FOR", titulo: ["Get your lyrics", "free"] },
+};
+
+export type PropsAnuncioUGC = { partes: Parte[]; marca?: MarcaUGC };
 
 export const FPS_UGC = 30;
 const duracaoDa = (p: Parte) => (p.tipo === "fala" ? p.fim - p.ini : p.duracao);
@@ -154,7 +164,7 @@ function ParteFala({ p }: { p: Fala }) {
 // o nome, o título e a letra com a linha da vez em ouro, corações subindo.
 const CORACOES = Array.from({ length: 14 }, (_, i) => ({ x: (i * 137) % 1000, atraso: (i * 0.73) % 6, tam: 34 + ((i * 17) % 30) }));
 
-function ParteProduto({ p }: { p: Produto }) {
+function ParteProduto({ p, marca }: { p: Produto; marca: MarcaUGC }) {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   const t = frame / FPS_UGC;
@@ -181,7 +191,7 @@ function ParteProduto({ p }: { p: Produto }) {
         );
       })}
       <AbsoluteFill style={{ opacity: fade, alignItems: "center", paddingTop: 230 }}>
-        <div style={{ fontFamily: POPPINS, fontWeight: 600, fontSize: 30, letterSpacing: 12, color: "rgba(247,237,226,0.75)" }}>UMA MÚSICA PARA</div>
+        <div style={{ fontFamily: POPPINS, fontWeight: 600, fontSize: 30, letterSpacing: 12, color: "rgba(247,237,226,0.75)" }}>{MARCAS[marca].umaMusicaPara}</div>
         <div style={{ fontFamily: PLAYFAIR, fontWeight: 700, fontSize: 150, color: CREME, marginTop: 10, lineHeight: 1 }}>{p.nome}</div>
         <div style={{ width: 70, height: 2, background: OURO, opacity: 0.7, margin: "34px 0" }} />
         <div style={{ fontFamily: PLAYFAIR, fontWeight: 500, fontSize: 48, color: CREME, opacity: 0.9 }}>{p.titulo}</div>
@@ -249,7 +259,8 @@ function TrilhaMusica({ partes }: PropsAnuncioUGC) {
   );
 }
 
-function ParteCartao({ titulo = ["Crie a letra", "grátis"] }: { titulo?: string[] }) {
+function ParteCartao({ titulo, marca }: { titulo?: string[]; marca: MarcaUGC }) {
+  const m = MARCAS[marca];
   const frame = useCurrentFrame();
   const sobe = (atraso: number) => ({
     opacity: interpolate(frame - atraso, [0, 12], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
@@ -257,20 +268,20 @@ function ParteCartao({ titulo = ["Crie a letra", "grátis"] }: { titulo?: string
   });
   return (
     <AbsoluteFill style={{ backgroundColor: CREME, alignItems: "center", justifyContent: "center", gap: 70 }}>
-      <Img src={staticFile("logo-serenata-alfa.png")} style={{ width: 760, ...sobe(0) }} />
+      <Img src={staticFile(m.logo)} style={{ width: 760, ...sobe(0) }} />
       <div style={{ fontFamily: PLAYFAIR, fontWeight: 700, fontSize: 92, color: VINHO, textAlign: "center", lineHeight: 1.1, ...sobe(6) }}>
-        {titulo.map((l, i) => (
+        {(titulo ?? m.titulo).map((l, i) => (
           <div key={i}>{l}</div>
         ))}
       </div>
       <div style={{ fontFamily: POPPINS, fontWeight: 800, fontSize: 54, color: "#fff", background: VINHO, padding: "22px 48px", borderRadius: 999, ...sobe(12) }}>
-        serenatagift.com
+        {m.dominio}
       </div>
     </AbsoluteFill>
   );
 }
 
-export const AnuncioUGC: React.FC<PropsAnuncioUGC> = ({ partes }) => {
+export const AnuncioUGC: React.FC<PropsAnuncioUGC> = ({ partes, marca = "serenata" }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
       <Series>
@@ -279,11 +290,11 @@ export const AnuncioUGC: React.FC<PropsAnuncioUGC> = ({ partes }) => {
             {p.tipo === "fala" ? (
               <ParteFala p={p} />
             ) : p.tipo === "produto" ? (
-              <ParteProduto p={p} />
+              <ParteProduto p={p} marca={marca} />
             ) : p.tipo === "musica" ? (
               <ParteMusica p={p} />
             ) : (
-              <ParteCartao titulo={p.titulo} />
+              <ParteCartao titulo={p.titulo} marca={marca} />
             )}
           </Series.Sequence>
         ))}
