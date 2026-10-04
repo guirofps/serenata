@@ -529,6 +529,7 @@ const EN: Textos = {
   contarAHistoria: "Tell the story",
 
   rotulos: {
+    tipo: "Type",
     relacao: "For", nome: "Name", ocasiao: "Occasion", estilo: "Style",
     voz: "Voice", tom: "Mood", historia1: "About them", historia2: "A memory",
     recado: "Your message", filhos: "Kids mentioned",

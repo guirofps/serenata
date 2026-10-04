@@ -357,9 +357,12 @@ export const QUIZ_SKIP: SkipMap = {};
 // O quiz gospel é o português com a camada de `quiz-flow-gospel.ts`. Montado
 // uma vez: o `Quiz` compara passos por referência entre renders.
 const QUIZ_FLOW_GOSPEL = comGospel(QUIZ_FLOW_PT);
+// A porta cristã da Ballad: a mesma camada sobre o quiz em inglês.
+const QUIZ_FLOW_GOSPEL_EN = comGospel(QUIZ_FLOW_EN, "en");
 
 export function quizFlow(locale: Locale, tema?: Tema | null): FlowStep[] {
   if (locale === "pt" && tema === "gospel") return QUIZ_FLOW_GOSPEL;
+  if (locale === "en" && tema === "gospel") return QUIZ_FLOW_GOSPEL_EN;
   if (locale === "en") return QUIZ_FLOW_EN;
   if (locale !== "es") return QUIZ_FLOW_PT;
   // O MERCADO decide a redação, do mesmo jeito que já decide o prompt da letra

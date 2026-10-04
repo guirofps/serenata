@@ -9,7 +9,7 @@ import {
   VOZ_ES,
 } from "@/lib/letra-prompt-es";
 import { ehEspanha, ehArgentina } from "./mercado-es.js";
-import { LETRA_SYSTEM_EN, RELACAO_EN, OCASIAO_EN, VOZ_EN, TOM_EN } from "@/lib/letra-prompt-en";
+import { LETRA_SYSTEM_EN, RELACAO_EN, OCASIAO_EN, VOZ_EN, TOM_EN, WORSHIP_INSTRUCTIONS_EN } from "@/lib/letra-prompt-en";
 
 // Prompt de geração de letra (de prompts/letra.md). System estável e cacheável;
 // respostas do quiz vão por último (cache é casamento de prefixo — nada de
@@ -271,9 +271,24 @@ export function buildUserMessage(
   const linhaTom = textoTom ? `
 ${L.tom}: ${textoTom}` : "";
 
-  // O QUIZ GOSPEL (`quiz-flow-gospel.ts`). Só o português, e só com o valor
-  // exato: o resto da mensagem de quem não é gospel não muda nada.
-  const gospel = locale === "pt" && respostas.tema === "gospel";
+  // O QUIZ GOSPEL (`quiz-flow-gospel.ts`). Português e inglês (a porta cristã
+  // da Ballad), e só com o valor exato: o resto da mensagem de quem não é
+  // gospel não muda nada.
+  const gospel = (locale === "pt" || en) && respostas.tema === "gospel";
+  if (gospel && en && respostas.tipo === "louvor") {
+    return `Recipient: God. This is a WORSHIP SONG, not a gift for a person.
+${WORSHIP_INSTRUCTIONS_EN}
+
+${L.ocasiao}: ${ocasiao}
+${L.genero}: ${genero}
+${L.voz}: ${voz}${linhaTom}
+
+${L.historia}:
+${historia}
+
+${L.recado}:
+${recado}`;
+  }
   if (gospel && respostas.tipo === "louvor") {
     return `Destinatário: Deus. Isto é um LOUVOR, não um presente pra uma pessoa.
 ${LOUVOR_INSTRUCOES}
@@ -288,7 +303,10 @@ ${historia}
 ${L.recado}:
 ${recado}`;
   }
-  const linhaFe = gospel
+  const linhaFe = gospel && en
+    ? `
+Faith: the person ordering is a Christian. The lyrics can speak of God, gratitude and blessing in ${nome}'s life, without preaching and without taking the focus off ${nome}.`
+    : gospel
     ? `
 Fé: quem encomendou é evangélico(a). A letra pode falar de Deus, gratidão e bênção na vida de ${nome}, sem pregar e sem tirar o foco de ${nome}.`
     : "";

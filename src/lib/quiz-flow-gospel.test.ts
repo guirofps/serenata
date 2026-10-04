@@ -25,9 +25,9 @@ describe("quiz gospel", () => {
     expect(PT.some((s) => s.id.endsWith("_louvor") || s.id === "tipo")).toBe(false);
   });
 
-  it("espanhol e inglês ignoram o tema", () => {
-    expect(quizFlow("en", "gospel")).toBe(QUIZ_FLOW_EN);
+  it("espanhol ignora o tema; inglês sem tema segue o de sempre", () => {
     expect(quizFlow("es", "gospel")).toEqual(quizFlow("es"));
+    expect(quizFlow("en", null)).toBe(QUIZ_FLOW_EN);
   });
 
   it("tipo é o segundo passo", () => {
@@ -115,5 +115,47 @@ describe("numeroCanonico (escala do funil no banco)", () => {
     PT.forEach((s, i) => {
       if (isQuestion(s)) expect(numeroCanonico(PT, s)).toBe(PT.slice(0, i + 1).filter(isQuestion).length);
     });
+  });
+});
+
+// A PORTA CRISTÃ DA BALLAD (03/10): a mesma camada sobre o quiz em inglês.
+describe("quiz cristão em inglês", () => {
+  const E = quizFlow("en", "gospel");
+  function caminhoEn(respostas: Record<string, unknown>): string[] {
+    const ids: string[] = [];
+    for (let i = 0; i !== -1; i = nextVisibleIndex(E, i, respostas, skipDoFluxo("gospel"))) ids.push(E[i].id);
+    return ids;
+  }
+
+  it("tipo é o segundo passo, com os mesmos valores do português", () => {
+    expect(E[1].id).toBe("tipo");
+    expect(opcoes(E, "tipo")).toEqual(opcoes(G, "tipo"));
+    expect((E[1] as { text: string }).text).toBe("What would you like to create?");
+  });
+
+  it("louvor e presente andam pelos passos certos", () => {
+    const louvor = caminhoEn({ tipo: "louvor" });
+    expect(louvor).toContain("historia1_louvor");
+    expect(louvor).not.toContain("relacao");
+    const presente = caminhoEn({ tipo: "presente" });
+    expect(presente).toContain("relacao");
+    expect(presente).not.toContain("historia1_louvor");
+  });
+
+  it("as ocasiões do louvor gravam os mesmos valores do português", () => {
+    expect(opcoes(E, "ocasiao_louvor")).toEqual([...OCASIOES_LOUVOR]);
+  });
+
+  it("estilos cristãos americanos e o tom reverente", () => {
+    expect(opcoes(E, "estilo")).toEqual([
+      "worship_en", "gospel_choir_en", "hymn_en", "country_gospel_en", "christian_pop_en",
+    ]);
+    const voz = E.find((s) => s.id === "voz") as { extraChips: { options: { value: string }[] } };
+    expect(voz.extraChips.options.map((o) => o.value)).toEqual(["reverente", "emocionante", "animada"]);
+  });
+
+  it("nenhum texto em português vaza pro inglês", () => {
+    const textos = JSON.stringify(E.filter((s) => ["tipo", "ocasiao_louvor", "historia1_louvor", "historia2_louvor", "recado_louvor", "estilo"].includes(s.id)));
+    expect(textos).not.toMatch(/Deus|louvor pra|Senhor|ção/);
   });
 });

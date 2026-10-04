@@ -119,6 +119,8 @@ export const RELACAO_EN: Record<string, string> = {
   amigo: "friend (he)",
   pet: "pet",
   outro: "loved one",
+  // Only the worship song from the Christian door (`?t=gospel`) writes this.
+  deus: "God",
 };
 
 export const OCASIAO_EN: Record<string, string> = {
@@ -130,6 +132,12 @@ export const OCASIAO_EN: Record<string, string> = {
   formatura: "graduation",
   soporque: "just because",
   outro: "a special moment",
+  // The worship-song occasions (Christian door, `quiz-flow-gospel.ts`).
+  gratidao: "a worship song of gratitude",
+  testemunho: "a testimony of what God did",
+  clamor: "a cry to God in a hard season",
+  adoracao: "worship",
+  igreja: "a worship song to sing at church",
 };
 
 export const VOZ_EN: Record<string, string> = {
@@ -143,4 +151,21 @@ export const TOM_EN: Record<string, string> = {
   divertida: "fun: lighthearted, can tease their quirks",
   emocionante: "tearjerker: goosebumps and tears, restrained intensity",
   animada: "upbeat: joyful and made to sing along",
+  // Only offered at the Christian door.
+  reverente: "reverent: contemplative worship, unhurried",
 };
+
+/**
+ * How to write a WORSHIP SONG (Christian door, type "louvor"), in English.
+ *
+ * Same rule as the Portuguese `LOUVOR_INSTRUCOES`: it goes in the user
+ * message, never in the cached system prompt, so the regular funnel doesn't
+ * change by a comma.
+ */
+export const WORSHIP_INSTRUCTIONS_EN = `How to write this worship song:
+- The lyrics speak TO God, in first person ("I", "Lord", "You", "Your"). It is not a song ABOUT God for someone else to hear.
+- It grows out of the testimony below. Concrete details from the story are still what separates a true worship song from a generic one: use at least three.
+- Use the language of American evangelical worship: Lord, Jesus, Father, Holy Spirit, grace, faithful, mercy. No saints, no Mary, no rosary. No denominational doctrine (tithing, tongues, baptism).
+- Do not use these as standalone lines without a detail from the story attached: "You are faithful", "way maker", "chain breaker", "King of kings", "pour out Your Spirit", "the potter and the clay", "the desert" as a generic metaphor, "breakthrough", "Your love is reckless".
+- Only quote a Bible verse if the person quoted it in the story. Never invent a reference.
+- Do not mention children or other people by name unless they are in the story.`;

@@ -1,7 +1,7 @@
 import { isQuestion, questionNumber, type FlowStep, type SkipMap } from "@/lib/flow-engine";
 import { generosGospel } from "@/lib/generos";
 
-// O QUIZ GOSPEL (`/criar?t=gospel`, 02/10/2026).
+// O QUIZ GOSPEL (`/criar?t=gospel`, 02/10/2026; em inglês na Ballad, 03/10).
 //
 // Camada sobre o `QUIZ_FLOW_PT`, no padrão do `quiz-flow-ar.ts`: o que é
 // estrutura (ordem, `value` gravado no banco, contato, revisão, oferta) é
@@ -129,13 +129,112 @@ const GOSPEL: Record<string, Record<string, unknown>> = {
   historia2: { placeholder: "Ela canta hino lavando a louça e..." },
 };
 
-export function comGospel(flow: FlowStep[]): FlowStep[] {
+// ── A PORTA CRISTÃ DA BALLAD (`balladgift.com/criar?t=gospel`, 03/10) ──
+//
+// A mesma camada, redigida em inglês do jeito que um cristão americano fala:
+// "worship song", "what God has done", "a season", "a verse that carried
+// me". Os `value` são os MESMOS do português (o banco, o prompt e o
+// `aplicarTipo` leem o valor, nunca o rótulo), então o resto do sistema não
+// sabe a diferença.
+const TIPO_EN: FlowStep = {
+  ...TIPO,
+  block: "For whom",
+  text: "What would you like to create?",
+  options: [
+    { value: "louvor", label: "A worship song to God", emoji: "🙏" },
+    { value: "presente", label: "A faith-filled song for someone I love", emoji: "🎁" },
+  ],
+} as FlowStep;
+
+const DO_LOUVOR_EN: Record<string, FlowStep> = {
+  ocasiao: {
+    ...DO_LOUVOR.ocasiao,
+    block: "The occasion",
+    text: "What is your song about?",
+    options: [
+      { value: "gratidao", label: "Gratitude", emoji: "🙌" },
+      { value: "testemunho", label: "A testimony of what God did", emoji: "🏆" },
+      { value: "clamor", label: "A hard season", emoji: "🕊️" },
+      { value: "adoracao", label: "Worship", emoji: "🎶" },
+      { value: "igreja", label: "For my church", emoji: "⛪" },
+    ],
+  } as FlowStep,
+  historia1: {
+    ...DO_LOUVOR.historia1,
+    block: "The story",
+    text: "What has God done in your life?",
+    subtext: "Write it your way. The more real it is, the more it becomes your song.",
+    placeholder: "e.g. I'd been out of work for eight months when...",
+    triggers: [
+      { rotulo: "when I…", inicio: "When I " },
+      { rotulo: "what He did", inicio: "What God did for me was " },
+      { rotulo: "my family", inicio: "In my family, God " },
+      { rotulo: "an answered prayer", inicio: "I prayed for " },
+      { rotulo: "who I used to be", inicio: "Before I knew Jesus, I " },
+    ],
+  } as FlowStep,
+  historia2: {
+    ...DO_LOUVOR.historia2,
+    block: "The story",
+    text: "Tell me about a moment you felt God close",
+    subtext: "A place, a day, a sentence. It doesn't have to be pretty, it has to be true.",
+    placeholder: "It was 3 a.m. in the hospital waiting room when...",
+    triggers: [
+      { rotulo: "a place", inicio: "It was at " },
+      { rotulo: "a verse", inicio: "The verse that carried me was " },
+      { rotulo: "a song", inicio: "There's a worship song that takes me back to that day: " },
+      { rotulo: "a person", inicio: "God used " },
+    ],
+  } as FlowStep,
+  recado: {
+    ...DO_LOUVOR.recado,
+    block: "The story",
+    text: "If you could sing ONE line to God in the chorus, what would it be?",
+    subtext: "Optional, but it usually becomes the strongest part.",
+    placeholder: "The line you want to sing to God",
+    triggers: [
+      { rotulo: "thank You, Lord", inicio: "Thank You, Lord, for " },
+      { rotulo: "I surrender", inicio: "I surrender " },
+      { rotulo: "You are", inicio: "You are " },
+      { rotulo: "You never left", inicio: "Even when I " },
+    ],
+  } as FlowStep,
+};
+
+const GOSPEL_EN: Record<string, Record<string, unknown>> = {
+  estilo: {
+    text: "What style should it be?",
+    subtext: "It's the feel of the song. You can change it later.",
+    options: generosGospel("en").map((g) => ({ value: g.value, label: g.label, emoji: g.emoji })),
+  },
+  voz: {
+    extraChips: {
+      field: "tom",
+      pergunta: "And the mood? (optional)",
+      options: [
+        { value: "reverente", label: "Reverent", emoji: "🙏" },
+        { value: "emocionante", label: "Moving", emoji: "🥹" },
+        { value: "animada", label: "Celebration", emoji: "🎉" },
+      ],
+    },
+  },
+  historia1: { placeholder: "e.g. my mom prayed over every one of us, on her knees, every night..." },
+  historia2: { placeholder: "She hums old hymns while she does the dishes and..." },
+};
+
+const POR_IDIOMA = {
+  pt: { tipo: TIPO, louvor: DO_LOUVOR, redacao: GOSPEL },
+  en: { tipo: TIPO_EN, louvor: DO_LOUVOR_EN, redacao: GOSPEL_EN },
+} as const;
+
+export function comGospel(flow: FlowStep[], locale: "pt" | "en" = "pt"): FlowStep[] {
+  const L = POR_IDIOMA[locale];
   const out: FlowStep[] = [];
   for (const passo of flow) {
-    const troca = GOSPEL[passo.id];
+    const troca = L.redacao[passo.id];
     out.push(troca ? ({ ...passo, ...troca } as FlowStep) : passo);
-    if (passo.id === "abertura") out.push(TIPO);
-    const louvor = DO_LOUVOR[passo.id];
+    if (passo.id === "abertura") out.push(L.tipo);
+    const louvor = L.louvor[passo.id];
     if (louvor) out.push(louvor);
   }
   return out;

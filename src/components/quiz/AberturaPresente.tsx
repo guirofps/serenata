@@ -223,6 +223,23 @@ const COPY_GOSPEL: (typeof COPY)["pt"] = {
   ],
 };
 
+// A PORTA CRISTÃ DA BALLAD (`balladgift.com/criar?t=gospel`, 03/10). A
+// promessa da abertura gospel, em inglês, com o louvor de exemplo gerado pelo
+// quiz cristão da própria Ballad (`exemplos-en.ts`, "en-worship"). Enquanto
+// ele não existir, o cartão mostra a promessa sem trecho e o play fica fora.
+const EXEMPLO_CRISTAO_EN = exemploEn("en-worship");
+const COPY_GOSPEL_EN: (typeof COPY)["en"] = {
+  ...COPY.en,
+  tituloAntes: "Create your own ",
+  tituloOuro: "worship song",
+  tituloDepois: "",
+  explicacao: "You tell what God has done in your life. The song is ready in 1 minute, free.",
+  cta: "CREATE MY FREE WORSHIP SONG",
+  nome: EXEMPLO_CRISTAO_EN?.nome ?? "God",
+  foto: EXEMPLO_CRISTAO_EN?.capa ?? COPY.en.foto,
+  versos: EXEMPLO_CRISTAO_EN?.versos ?? [],
+};
+
 // ── O EXEMPLO SEGUE O MERCADO, e isso é um buraco que eu deixei ──
 //
 // O interruptor de `mercado-es.ts` já trocava prompt e gêneros, mas esta tela
@@ -285,13 +302,13 @@ export function AberturaPresente({
   tema?: Tema | null;
   aoComecar: () => void;
 }) {
-  const gospel = tema === "gospel" && locale === "pt";
+  const gospel = tema === "gospel" && (locale === "pt" || locale === "en");
   // O espanhol troca o EXEMPLO conforme o mercado que a mídia está comprando.
   // O resto da copy (título, promessa, CTA) serve os dois: a diferença entre
   // Espanha e LatAm mora no exemplo, no prompt e nos gêneros, não na promessa.
   const base = COPY[locale] ?? COPY.pt;
   const C = gospel
-    ? COPY_GOSPEL
+    ? locale === "en" ? COPY_GOSPEL_EN : COPY_GOSPEL
     : locale === "es"
       ? { ...base, ...EXEMPLO_ES[ehEspanha() ? "espanha" : ehArgentina() ? "argentina" : "latam"] }
       : locale === "en" && EXEMPLO_EN
@@ -325,7 +342,7 @@ export function AberturaPresente({
   // Inglês: só com o exemplo já gerado (senão o play ficaria mudo embaixo
   // de um nome, que é o defeito descrito logo acima).
   const slug = gospel
-    ? "denise"
+    ? locale === "en" ? (EXEMPLO_CRISTAO_EN?.titulo ? EXEMPLO_CRISTAO_EN.slug : null) : "denise"
     : locale === "es" ? null : locale === "en" ? (EXEMPLO_EN?.titulo ? EXEMPLO_EN.slug : null) : "isabela";
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [tocando, setTocando] = useState(false);

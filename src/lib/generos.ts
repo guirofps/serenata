@@ -365,6 +365,28 @@ const GOSPEL_PT: Genero[] = [
     estiloSuno: "pop gospel brasileiro, violão e piano, batida pop suave, refrão marcante, clima inspirador" },
 ];
 
+// ── CRISTÃO EM INGLÊS (só no `balladgift.com/criar?t=gospel`, 03/10/2026) ──
+// A mesma ideia do GOSPEL_PT, com os climas que o americano reconhece: o
+// worship de igreja grande, o coral gospel, o hino, o country gospel do sul
+// e o pop cristão de rádio. Todo valor leva `_en` (teste de colisão).
+const GOSPEL_EN: Genero[] = [
+  { value: "worship_en", label: "Modern worship", emoji: "🙌",
+    rotuloPrompt: "modern praise and worship",
+    estiloSuno: "modern worship anthem, ambient keys and pads, delayed electric guitar, drums building, congregational, heartfelt" },
+  { value: "gospel_choir_en", label: "Gospel choir", emoji: "🎤",
+    rotuloPrompt: "traditional gospel with a choir",
+    estiloSuno: "soulful traditional gospel, Hammond organ and piano, full choir, handclaps, call and response, uplifting" },
+  { value: "hymn_en", label: "Classic hymn", emoji: "📖",
+    rotuloPrompt: "classic hymn",
+    estiloSuno: "classic hymn, piano and organ, warm choir harmonies, reverent and timeless" },
+  { value: "country_gospel_en", label: "Country gospel", emoji: "🤠",
+    rotuloPrompt: "country gospel",
+    estiloSuno: "country gospel, acoustic guitar, pedal steel and piano, warm southern harmonies, heartfelt and reverent" },
+  { value: "christian_pop_en", label: "Christian pop", emoji: "🎧",
+    rotuloPrompt: "contemporary Christian pop",
+    estiloSuno: "contemporary Christian pop, acoustic guitar and piano, polished pop beat, catchy uplifting chorus" },
+];
+
 // O `acharGenero` varre ESTE objeto, então as TRÊS listas espanholas precisam
 // estar aqui dentro mesmo quando só uma está no ar. Uma música gerada na
 // campanha LatAm é aberta meses depois; se o valor dela sumisse do mapa, a
@@ -378,6 +400,7 @@ const TODAS: Record<string, Genero[]> = {
   // Não é idioma: está aqui só pro `acharGenero` (job da música, página
   // presente) achar os estilos gospel. `generos()` nunca devolve esta chave.
   gospel_pt: GOSPEL_PT,
+  gospel_en: GOSPEL_EN,
 };
 
 export function generos(locale: Locale): Genero[] {
@@ -389,9 +412,9 @@ export function generos(locale: Locale): Genero[] {
   return TODAS[locale] ?? PT;
 }
 
-/** Os estilos do quiz gospel (`quiz-flow-gospel.ts`). */
-export function generosGospel(): Genero[] {
-  return GOSPEL_PT;
+/** Os estilos do quiz gospel (`quiz-flow-gospel.ts`), no idioma dele. */
+export function generosGospel(locale: Locale = "pt"): Genero[] {
+  return locale === "en" ? GOSPEL_EN : GOSPEL_PT;
 }
 
 /**
@@ -451,7 +474,8 @@ export function estiloParaSuno(args: {
 
   // Gênero em inglês pede a voz em inglês: o estilo inteiro sai numa língua
   // só, e o Suno lê "female vocals" do mesmo jeito que o resto da string.
-  const ingles = EN.includes(g);
+  // Os estilos cristãos da Ballad (`GOSPEL_EN`) também são inglês.
+  const ingles = EN.includes(g) || GOSPEL_EN.includes(g);
   const voz = ingles
     ? args.voz === "feminina" ? "female vocals" : args.voz === "masculina" ? "male vocals" : null
     : args.voz === "feminina" ? "voz feminina" : args.voz === "masculina" ? "voz masculina" : null;

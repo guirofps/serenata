@@ -31,6 +31,11 @@ export type ExemploEn = {
   /** Primeiros versos da letra gerada, literais. Vazio até gerar. */
   versos: string[];
   respostas: Record<string, string>;
+  /**
+   * Só da porta cristã (`/criar?t=gospel`): fica FORA das listas de exemplos
+   * da home e da espera, que são de presente pra uma pessoa.
+   */
+  soCristao?: boolean;
 };
 
 export const EXEMPLOS_EN: ExemploEn[] = [
@@ -164,6 +169,26 @@ export const EXEMPLOS_EN: ExemploEn[] = [
       voz: "masculina", tom: "emocionante", recado: "Everything I know about being a man, I learned watching you",
       historia1: "My dad is turning sixty. He drove the same old blue Ford pickup my whole childhood and taught me to drive it on the dirt road behind the farm in Tennessee. He never missed a Friday night football game even after double shifts.",
       historia2: "He fixes everything with duct tape and a pocket knife and he always says 'measure twice, cut once'. Every Saturday he makes biscuits and gravy and plays old records on the porch. He still calls me 'buddy' and pretends he isn't proud.",
+    },
+  },
+  // A PORTA CRISTÃ (03/10): um louvor pra Deus, do quiz cristão em inglês.
+  {
+    slug: "en-worship",
+    relacao: "deus",
+    nome: "God",
+    titulo: "",
+    para: "a worship song",
+    genero: "Modern worship",
+    token: "",
+    capa: "/ballad/exemplos/en-worship.webp",
+    versos: [],
+    soCristao: true,
+    respostas: {
+      tema: "gospel", tipo: "louvor", relacao: "deus", nome: "God", ocasiao: "testemunho",
+      estilo: "worship_en", voz: "masculina", tom: "emocionante",
+      recado: "You never let go of my hand",
+      historia1: "Two years ago the plant in Dayton closed and I lost my job three weeks after our daughter Grace was born. We had $312 in the bank. Every night I sat in my truck in the Kroger parking lot and prayed because I didn't want my wife to see me cry.",
+      historia2: "The night before my interview at the hospital I couldn't sleep, so I sat on the porch steps and read Isaiah 41:10 out loud, 'Do not fear, for I am with you'. I got the job. Now I hold Grace on that same porch every Sunday morning before church.",
     },
   },
 ];

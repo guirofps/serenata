@@ -49,12 +49,14 @@ export function destinoPularAbertura(args: {
   if (args.variante !== "B" || args.jaPulou) return null;
   if (args.pathname !== "/criar") return null;
   const q = new URLSearchParams(args.search);
-  if (q.has("step")) return null;
+  // A porta cristã (`?t=gospel`) tem abertura própria: pular levaria a
+  // pessoa pro quiz SEM o tema (o `t` sairia junto com a abertura).
+  if (q.has("step") || q.has("t")) return null;
   q.set("step", "relacao");
   return `/criar?${q.toString()}`;
 }
 
 /** O script do <head>. Vem DEPOIS do sorteio (`scriptExperimentos`). */
 export function scriptPularAbertura(): string {
-  return `(function(){try{var v=document.documentElement.getAttribute("data-exp-${EXP_ABERTURA_EN}");if(v!=="B")return;if(location.pathname!=="/criar")return;if(sessionStorage.getItem("${CHAVE_PULOU}"))return;var q=new URLSearchParams(location.search);if(q.has("step"))return;sessionStorage.setItem("${CHAVE_PULOU}","1");q.set("step","relacao");location.replace("/criar?"+q.toString()+location.hash)}catch(e){}})();`;
+  return `(function(){try{var v=document.documentElement.getAttribute("data-exp-${EXP_ABERTURA_EN}");if(v!=="B")return;if(location.pathname!=="/criar")return;if(sessionStorage.getItem("${CHAVE_PULOU}"))return;var q=new URLSearchParams(location.search);if(q.has("step")||q.has("t"))return;sessionStorage.setItem("${CHAVE_PULOU}","1");q.set("step","relacao");location.replace("/criar?"+q.toString()+location.hash)}catch(e){}})();`;
 }

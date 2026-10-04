@@ -22,7 +22,7 @@ import { EXEMPLOS_EN, audioDoExemplo } from "@/lib/exemplos-en";
 // quebrada: as dela ficam em `public/ballad/exemplos/`.
 const CLIPES: Record<Locale, ReadonlyArray<{ slug: string; titulo: string; para: string; capa?: string }>> = {
   // Ballad Gift: os gerados pelo funil dela, ver `exemplos-en.ts`.
-  en: EXEMPLOS_EN.filter((e) => e.titulo)
+  en: EXEMPLOS_EN.filter((e) => e.titulo && !e.soCristao)
     .slice(0, 3)
     .map((e) => ({ slug: e.slug, titulo: e.titulo, para: e.para, capa: e.capa })),
   pt: [

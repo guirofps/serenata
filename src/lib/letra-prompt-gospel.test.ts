@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildUserMessage, LOUVOR_INSTRUCOES } from "@/lib/letra-prompt";
+import { WORSHIP_INSTRUCTIONS_EN } from "@/lib/letra-prompt-en";
 
 const NORMAL = {
   relacao: "mae", nome: "Rosa", ocasiao: "aniversario", estilo: "gospel", voz: "feminina",
@@ -52,8 +53,35 @@ describe("valores forjados não ativam", () => {
     expect(buildUserMessage({ ...G, tipo: "x" }, "pt")).toContain("Fé: ");
     expect(buildUserMessage({ ...G, tipo: "x" }, "pt")).toContain("Homenageado: Rosa");
   });
-  it("fora do português não muda nada", () => {
+  it("no espanhol não muda nada", () => {
     expect(buildUserMessage({ ...G, tipo: "louvor" }, "es")).toBe(buildUserMessage(NORMAL, "es"));
-    expect(buildUserMessage({ ...G, tipo: "louvor" }, "en")).toBe(buildUserMessage(NORMAL, "en"));
+  });
+});
+
+// A PORTA CRISTÃ DA BALLAD (03/10).
+describe("inglês", () => {
+  const EN = {
+    relacao: "mae", nome: "Rose", ocasiao: "aniversario", estilo: "worship_en", voz: "female",
+    tom: "emocionante", historia1: "My mom raised us alone in Tulsa.", historia2: "She makes peach cobbler.",
+    recado: "Thank you for everything", filhos: "",
+  };
+  it("sem tema, igual a antes", () => {
+    expect(buildUserMessage({ ...EN, tema: "Gospel" }, "en")).toBe(buildUserMessage(EN, "en"));
+  });
+  it("presente com fé ganha a linha de fé em inglês", () => {
+    const m = buildUserMessage({ ...EN, tema: "gospel", tipo: "presente" }, "en");
+    expect(m).toContain("Faith: the person ordering is a Christian.");
+    expect(m).not.toContain("Fé:");
+    expect(m.replace(/\nFaith: .*\n/, "\n")).toBe(buildUserMessage(EN, "en"));
+  });
+  it("louvor é dirigido a Deus, em inglês", () => {
+    const m = buildUserMessage({ ...EN, tema: "gospel", tipo: "louvor", relacao: "deus", nome: "God", ocasiao: "testemunho", tom: "reverente" }, "en");
+    expect(m.startsWith("Recipient: God. This is a WORSHIP SONG")).toBe(true);
+    expect(m).toContain(WORSHIP_INSTRUCTIONS_EN);
+    expect(m).toContain("Occasion: a testimony of what God did");
+    expect(m).toContain("Requested mood: reverent");
+    expect(m).toContain("Music genre: modern praise and worship");
+    expect(m).not.toContain("Honoree");
+    expect(m).not.toMatch(/Destinatário|Ocasião/);
   });
 });

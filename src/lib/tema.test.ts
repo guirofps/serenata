@@ -22,9 +22,10 @@ describe("tema", () => {
     expect(temaEfetivo(null, { tema: ["gospel"] }, "pt")).toBeNull();
   });
 
-  it("só o funil português tem tema", () => {
+  it("português e inglês (a porta cristã da Ballad) têm tema; espanhol não", () => {
     expect(temaEfetivo("gospel", { tema: "gospel" }, "es")).toBeNull();
-    expect(temaEfetivo("gospel", { tema: "gospel" }, "en")).toBeNull();
+    expect(temaEfetivo("gospel", {}, "en")).toBe("gospel");
+    expect(temaEfetivo(null, { tema: "gospel" }, "en")).toBe("gospel");
   });
 
   it("comTema preserva o resto da atribuição", () => {

@@ -12,13 +12,22 @@ export function temaDoParametro(valor: string | null | undefined): Tema | null {
   return String(valor ?? "").trim().toLowerCase() === "gospel" ? "gospel" : null;
 }
 
-/** URL > respostas salvas > nada. Só o funil português tem tema. */
+/**
+ * Os idiomas que têm tema. O português (Serenata) desde 02/10; o inglês (a
+ * porta cristã da Ballad, `balladgift.com/criar?t=gospel`) desde 03/10. O
+ * espanhol não tem: lá o `?t=` é ignorado.
+ */
+export function idiomaTemTema(locale: string): boolean {
+  return locale === "pt" || locale === "en";
+}
+
+/** URL > respostas salvas > nada. Só os idiomas de `idiomaTemTema` têm tema. */
 export function temaEfetivo(
   daUrl: Tema | null,
   respostas: Record<string, unknown>,
   locale: string,
 ): Tema | null {
-  if (locale !== "pt") return null;
+  if (!idiomaTemTema(locale)) return null;
   if (daUrl) return daUrl;
   return respostas.tema === "gospel" ? "gospel" : null;
 }

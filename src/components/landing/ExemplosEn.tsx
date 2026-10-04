@@ -15,7 +15,7 @@ import { Play, Pause, ArrowUpRight } from "lucide-react";
 // Só entra exemplo já GERADO (com título e token): sem isso o cartão teria
 // play mudo, que é o defeito que o CLAUDE.md anota como falha do ForeverSongs.
 export function ExemplosEn() {
-  const exemplos = EXEMPLOS_EN.filter((e) => e.titulo && e.token);
+  const exemplos = EXEMPLOS_EN.filter((e) => e.titulo && e.token && !e.soCristao);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [tocando, setTocando] = useState<string | null>(null);
 

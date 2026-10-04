@@ -17,7 +17,7 @@ import {
 } from "@/lib/flow-engine";
 import { quizFlow, skipDoFluxo } from "@/lib/quiz-flow";
 import { aplicarTipo, numeroCanonico } from "@/lib/quiz-flow-gospel";
-import { carimbarTema, temaEfetivo, type Tema } from "@/lib/tema";
+import { carimbarTema, idiomaTemTema, temaEfetivo, type Tema } from "@/lib/tema";
 import { type Locale, TAG_IDIOMA, caminho } from "@/lib/i18n";
 import { t } from "@/lib/textos";
 import { sugerirEmail } from "@/lib/email-typo";
@@ -225,7 +225,7 @@ export function Quiz({
     // marca a entrada no funil — sem a variante.
     // O tema vem antes do quiz_started pelo mesmo motivo da variante: o
     // primeiro evento da sessão é o que marca a entrada no funil.
-    if (temaUrl && locale === "pt") carimbarTema(temaUrl);
+    if (temaUrl && idiomaTemTema(locale)) carimbarTema(temaUrl);
     carimbarExperimentos();
     trackEventOnce("quiz_started", "v1");
     // Guarda em que idioma esta pessoa entrou no funil. É o que permite
@@ -964,7 +964,7 @@ function ConfirmarEmail(props: {
 function ReviewScreen({ locale, onGerar }: { locale: Locale; onGerar: () => void }) {
   const respostas = useQuizStore((s) => s.respostas);
   const T = t(locale);
-  const tema = locale === "pt" && respostas.tema === "gospel" ? "gospel" : null;
+  const tema = idiomaTemTema(locale) && respostas.tema === "gospel" ? "gospel" : null;
   const ordem = ["tipo", "relacao", "nome", "filhos", "ocasiao", "estilo", "voz", "historia1", "historia2", "recado"];
   // O RÓTULO, não o valor gravado. Em inglês o valor é português (\`esposa\`,
   // \`casamento\`, \`country_en\`, \`masculina\`): é o contrato com o banco e o
