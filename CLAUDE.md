@@ -971,6 +971,25 @@ música: o ajuste limpa o áudio antes de regravar e, na falha, a linha ficava
 `scratch/_restaurar-ajuste-falho-03out.mjs`). Agora o `gerarMusica`, na falha,
 devolve a versão arquivada e o direito de ajuste (`inngest/lib/restaurar-ajuste.ts`).
 
+**Consertos sem teste (04/10) — o incidente dos e-mails:** a trava "já
+mandei?" de quase toda rotina de e-mail busca `event_data @> {...}` em
+`funnel_events`. Com a tabela em 5,2 milhões de linhas, a busca dentro de
+`email_letra_enviado` passou a levar 16-20s; o PostgREST corta em 8s, o erro
+voltava como lista vazia e o `mandarLetra` lia "não mandei": desde 24/09 a
+letra saiu repetida pra 942 pessoas (até 32 vezes em 24h, ~3.000 envios a
+mais em 5 dias). A escada de recuperação lia a mesma trilha inteira por
+OFFSET e morreu em 29/09 sem erro visível (o vigia externo avisou em 04/10).
+Conserto: índice GIN parcial `funnel_events_envios_gin` nos eventos de envio
+(16s → 0,5ms, aplicado na hora); `mandarLetra` confere `emails_enviados`
+primeiro e, NA DÚVIDA, NÃO ENVIA; a escada lê só a janela de 45 dias por
+cursor de tempo, um evento por vez. De quebra: a lista `emails_mortos` (2.540
+linhas) era lida cortada em 1000 no `mandarLetra` e no `volteCriar` — 1.540
+endereços mortos seguiam recebendo (bounce de 4,8% em 03/10); agora é
+conferido por endereço. **Regra:** trava de "já mandei" falha FECHADA, e
+consulta em `funnel_events` sem `created_at` na janela é bug esperando
+acontecer. No mesmo dia o Google da Serenata ficou ~11h parado (21h de 03/10
+às 8h de 04/10) por cartão sem saldo.
+
 ## Em aberto
 
 - Nome e marca
