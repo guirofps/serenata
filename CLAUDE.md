@@ -988,7 +988,13 @@ endereços mortos seguiam recebendo (bounce de 4,8% em 03/10); agora é
 conferido por endereço. **Regra:** trava de "já mandei" falha FECHADA, e
 consulta em `funnel_events` sem `created_at` na janela é bug esperando
 acontecer. No mesmo dia o Google da Serenata ficou ~11h parado (21h de 03/10
-às 8h de 04/10) por cartão sem saldo.
+às 8h de 04/10) por cartão sem saldo. Ainda em 04/10, pelo suporte: (1) a SEGUNDA
+música no mesmo navegador sobrescrevia a primeira (efeito colateral da sessão
+de 7 dias de 30/09: mesma linha de `quiz_responses`, respostas trocadas, a
+segunda nunca gerada); agora "começar" na abertura com `letraFinal` gira a
+sessão e zera a store. (2) Ajuste com pedido vazio + voz/estilo IGUAIS aos da
+música regravava igual e gastava o direito; agora volta `curto`. (3) Toda
+trava "já mandei?" das 12 rotinas de e-mail falha FECHADA.
 
 ## Em aberto
 
