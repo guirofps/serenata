@@ -93,11 +93,31 @@ export const pedirRefacao = createServerFn({ method: "POST" })
     const { data: m } = await db
       .from("musicas")
       .select(
-        "id, letra, titulo, estilo_suno, audio_path, audio_path_v2, timestamps, timestamps_v2, status, quiz_response_id, refacoes_incluidas, refacoes_usadas",
+        "id, letra, titulo, estilo_suno, genero, audio_path, audio_path_v2, timestamps, timestamps_v2, status, quiz_response_id, refacoes_incluidas, refacoes_usadas",
       )
       .eq("token_edicao", data.tokenEdicao)
       .maybeSingle();
     if (!m?.id || !m.letra) return { ok: false, erro: "nao-encontrada" };
+
+    // ── VOZ OU ESTILO IGUAIS AOS DE AGORA NÃO SÃO PEDIDO (04/10) ──
+    //
+    // O formulário manda a voz e o estilo escolhidos mesmo quando a pessoa só
+    // reabriu o seletor e deixou o que já estava. Com o pedido de letra vazio,
+    // isso contava como "pedido de som" e regravava a música IGUAL, gastando o
+    // ajuste: a Fabiana (03/10) mandou o ajuste vazio, recebeu a mesma letra
+    // com o mesmo verso que queria tirar, e ficou sem direito. Só conta como
+    // mudança de som o que difere do que a música já tem.
+    if (pedido.length < 3) {
+      const { data: q } = await db
+        .from("quiz_responses")
+        .select("respostas")
+        .eq("id", m.quiz_response_id)
+        .maybeSingle();
+      const vozAtual = String((q?.respostas as Record<string, unknown> | null)?.voz ?? "");
+      const generoMuda = Boolean(novoGenero && novoGenero !== m.genero);
+      const vozMuda = Boolean(novaVoz && novaVoz !== vozAtual);
+      if (!generoMuda && !vozMuda) return { ok: false, erro: "curto" };
+    }
 
     // ── 1. PAGOU? ────────────────────────────────────────────
     const { data: pago } = await db

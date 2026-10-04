@@ -517,6 +517,23 @@ export function Quiz({
             locale={locale}
             tema={tema}
             aoComecar={() => {
+              // ── COMEÇAR DE NOVO COM UMA LETRA PRONTA É MÚSICA NOVA (04/10) ──
+              //
+              // Desde 30/09 a sessão de quem tem letra e não comprou vale 7
+              // dias (pra não perder a prévia que ouviu). O efeito colateral:
+              // quem começava OUTRA música nesse prazo caía na mesma linha de
+              // `quiz_responses`, as respostas novas sobrescreviam as da
+              // primeira, e a segunda música nunca era gerada (a primeira já
+              // existia). Giovana e Killyngue, 02-03/10: capa com o nome de um
+              // e letra do outro. Tocar em "começar" na abertura com uma letra
+              // já pronta é pedir uma música nova: sessão nova, e a primeira
+              // fica intacta, com o /retomar e a régua de e-mails dela.
+              if (useQuizStore.getState().letraFinal) {
+                novaSessao();
+                reset();
+                if (tema) setResposta("tema", tema);
+                trackEventOnce("quiz_started", "v1");
+              }
               // O clique é a métrica desta tela. `quiz_step` diz quantos
               // CHEGARAM na abertura; este diz quantos ela convenceu.
               trackEvent("abertura_comecar", { locale, ...(tema ? { tema } : {}) });
