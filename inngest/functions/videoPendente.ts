@@ -133,13 +133,13 @@ export const videoPendente = inngest.createFunction(
         .limit(20);
       let enviados = 0;
       for (const v of esperando ?? []) {
-        const { data: ja } = await sb
+        const { data: ja, error: jaErr } = await sb
           .from("funnel_events")
           .select("id")
           .eq("event_name", "video_esperando_lembrado")
           .contains("event_data", { video_id: v.id })
           .limit(1);
-        if (ja?.length) continue;
+        if (jaErr || ja?.length) continue; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
         if (await estaBloqueado(sb, v.email as string)) continue;
 
         const { data: m } = await sb

@@ -101,12 +101,13 @@ async function temPedidoQueBarra(sb: ReturnType<typeof db>, quizId: string): Pro
 }
 
 async function jaAvisado(sb: ReturnType<typeof db>, quizId: string) {
-  const { data } = await sb
+  const { data, error } = await sb
     .from("funnel_events")
     .select("id")
     .eq("event_name", "quase_comprou_enviado")
     .contains("event_data", { quiz_response_id: quizId })
     .limit(1);
+  if (error) return true; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
   return (data ?? []).length > 0;
 }
 

@@ -138,23 +138,25 @@ async function pessoaJaComprou(sb: ReturnType<typeof db>, email: string): Promis
 }
 
 async function toquesDaPessoa(sb: ReturnType<typeof db>, email: string): Promise<number> {
-  const { count } = await sb
+  const { count, error } = await sb
     .from("funnel_events")
     .select("id", { count: "exact", head: true })
     .eq("event_name", "pix_nao_pago_enviado")
     .contains("event_data", { email })
     .gte("created_at", new Date(Date.now() - 14 * 86400000).toISOString());
+  if (error) return Number.MAX_SAFE_INTEGER; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
   return count ?? 0;
 }
 
 async function toquesJaDados(sb: ReturnType<typeof db>, quizId: string) {
-  const { data } = await sb
+  const { data, error } = await sb
     .from("funnel_events")
     .select("created_at")
     .eq("event_name", "pix_nao_pago_enviado")
     .contains("event_data", { quiz_response_id: quizId })
     .order("created_at", { ascending: false })
     .limit(5);
+  if (error) return { quantos: Number.MAX_SAFE_INTEGER, ultimo: Date.now() }; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
   return {
     quantos: (data ?? []).length,
     ultimo: data?.[0]?.created_at ? new Date(data[0].created_at as string).getTime() : 0,

@@ -76,12 +76,13 @@ function db() {
 
 /** Já mandou este tipo de e-mail pra esta música? Por MÚSICA: cada uma tem o seu vídeo. */
 async function jaOfertado(sb: ReturnType<typeof db>, musicaId: string, tipo: Tipo) {
-  const { data } = await sb
+  const { data, error } = await sb
     .from("funnel_events")
     .select("id")
     .eq("event_name", MARCA[tipo])
     .contains("event_data", { musica_id: musicaId })
     .limit(1);
+  if (error) return true; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
   return (data ?? []).length > 0;
 }
 

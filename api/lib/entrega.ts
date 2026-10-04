@@ -291,14 +291,14 @@ async function avisarEntregaFalhou(sb: SupabaseClient, email: string, erro: stri
   try {
     const para = email.trim().toLowerCase();
     const desde = new Date(Date.now() - 3 * 86400000).toISOString();
-    const { data: ja } = await sb
+    const { data: ja, error: jaErr } = await sb
       .from("funnel_events")
       .select("id")
       .eq("event_name", "entrega_falhou_aviso")
       .gte("created_at", desde)
       .contains("event_data", { para })
       .limit(1);
-    if ((ja ?? []).length > 0) return;
+    if (jaErr || (ja ?? []).length > 0) return; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
     await sb.from("funnel_events").insert({
       session_id: "sistema",
       event_name: "entrega_falhou_aviso",

@@ -50,11 +50,14 @@ function db() {
 
 /** Quantas vezes já repescamos esta música. */
 async function tentativas(sb: ReturnType<typeof db>, musicaId: string): Promise<number> {
-  const { count } = await sb
+  const { count, error } = await sb
     .from("funnel_events")
     .select("id", { count: "exact", head: true })
     .eq("event_name", "musica_repescada")
     .contains("event_data", { musica_id: musicaId });
+  // Na dúvida, conta como esgotada (04/10): a próxima rodada tenta de novo, e
+  // repescar às cegas é pagar o Suno de novo pela mesma música.
+  if (error) return Number.MAX_SAFE_INTEGER;
   return count ?? 0;
 }
 

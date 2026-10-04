@@ -175,13 +175,13 @@ export const volteCriar = inngest.createFunction(
 
         // Recheca na hora do envio: entre a busca e agora a pessoa pode ter
         // comprado, ganhado crédito ou se descadastrado.
-        const { data: jaFoi } = await sb
+        const { data: jaFoi, error: jaFoiErr } = await sb
           .from("funnel_events")
           .select("id")
           .eq("event_name", "volte_criar_enviado")
           .contains("event_data", { email: c.email })
           .limit(1);
-        if ((jaFoi ?? []).length) return false;
+        if (jaFoiErr || (jaFoi ?? []).length) return false; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
 
         const linkDescadastro = `${SITE}/descadastrar?s=${encodeURIComponent(c.sessao)}&lang=${c.locale}`;
         // Vai pro PAINEL, não direto pro funil: é lá que ela escolhe entre a

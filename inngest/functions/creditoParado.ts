@@ -69,13 +69,14 @@ function db() {
 const RECADOS_DE_COISA_PARADA = ["credito_parado_avisado", "quadro_parado_avisado"];
 
 async function jaAvisado(sb: ReturnType<typeof db>, email: string) {
-  const { data } = await sb
+  const { data, error } = await sb
     .from("funnel_events")
     .select("id")
     .in("event_name", RECADOS_DE_COISA_PARADA)
     .contains("event_data", { email })
     .gte("created_at", new Date(Date.now() - SILENCIO_DIAS * 86400000).toISOString())
     .limit(1);
+  if (error) return true; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
   return (data ?? []).length > 0;
 }
 

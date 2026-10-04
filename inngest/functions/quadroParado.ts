@@ -71,25 +71,26 @@ function db() {
 const SILENCIO_DIAS = 7;
 
 async function jaAvisado(sb: ReturnType<typeof db>, quadroId: string, email: string) {
-  const { data: porQuadro } = await sb
+  const { data: porQuadro, error: errQuadro } = await sb
     .from("funnel_events")
     .select("id")
     .eq("event_name", "quadro_parado_avisado")
     .contains("event_data", { quadro_id: quadroId })
     .limit(1);
-  if ((porQuadro ?? []).length > 0) return true;
+  if (errQuadro || (porQuadro ?? []).length > 0) return true; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
 
   // O SILÊNCIO É SOBRE O RECADO, não sobre o produto. Quem tem um quadro e um
   // crédito parados recebe UM e-mail por semana, não dois: duas mensagens de
   // "você esqueceu" saindo do remetente transacional é o que faz alguém marcar
   // como spam — e é esse remetente que carrega a entrega de quem pagou.
-  const { data: porPessoa } = await sb
+  const { data: porPessoa, error: errPessoa } = await sb
     .from("funnel_events")
     .select("id")
     .in("event_name", ["quadro_parado_avisado", "credito_parado_avisado"])
     .contains("event_data", { email })
     .gte("created_at", new Date(Date.now() - SILENCIO_DIAS * 86400000).toISOString())
     .limit(1);
+  if (errPessoa) return true;
   return (porPessoa ?? []).length > 0;
 }
 

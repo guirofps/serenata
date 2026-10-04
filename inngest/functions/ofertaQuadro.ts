@@ -82,12 +82,13 @@ function db() {
 /** Já ofereceu o quadro pra esta música? Por MÚSICA, não por pessoa: quem tem
  *  duas músicas pode querer dois quadros, um de cada. */
 async function jaOfertado(sb: ReturnType<typeof db>, musicaId: string) {
-  const { data } = await sb
+  const { data, error } = await sb
     .from("funnel_events")
     .select("id")
     .eq("event_name", "oferta_quadro_enviada")
     .contains("event_data", { musica_id: musicaId })
     .limit(1);
+  if (error) return true; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
   return (data ?? []).length > 0;
 }
 
