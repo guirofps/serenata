@@ -524,7 +524,15 @@ painel_eventos_dia`) e o cron refazer.
 
 - **O tema mora em `respostas.tema` e `attribution.tema`** (`tema.ts`). O `?t=`
   só decide a primeira tela; o quiz troca a URL a cada passo e o tema segue
-  pelas respostas. Só o funil `pt`: Ballad e `/es` ignoram.
+  pelas respostas. Funis `pt` e `en` (`idiomaTemTema`); o `/es` ignora.
+- **Porta cristã da Ballad (03/10):** `balladgift.com/criar?t=gospel` é a
+  mesma camada redigida em inglês ("A worship song to God" / "A faith-filled
+  song for someone I love"), com os MESMOS `value` do português. Estilos
+  próprios (`GOSPEL_EN`: worship, gospel choir, hymn, country gospel,
+  Christian pop), prompt `WORSHIP_INSTRUCTIONS_EN`, louvor grava
+  `nome = "God"`. Exemplo da abertura: "Never Let Go of My Hand"
+  (`en-worship`, `soCristao`, fora das listas de presente). O braço B do
+  `abertura_en` NÃO pula a abertura quando a URL tem `?t=`.
 - **O quiz gospel é camada** (`quiz-flow-gospel.ts` sobre o `QUIZ_FLOW_PT`).
   Passo `tipo` (louvor/presente); os passos `_louvor` gravam os MESMOS campos
   dos originais e são exclusivos pelo `SKIP_GOSPEL`. Louvor grava
@@ -908,6 +916,7 @@ caractere do id do quiz (braço recalculável na leitura).
 | Ballad: público de concorrentes | 03/10 | As 12 campanhas Demand Gen da Ballad rodavam ABERTAS (sem público). Recebem o público "Concorrentes EUA" (segmento de busca por 11 sites: songfinch, songlorious, sendaserenade, prayersong, unique-song, justoursong, songlygift, legacyjukebox, giftahit, songofus, songsbysophie; idade 25+), o mesmo molde do "Remkt Concorrentes" que faz as campeãs da Serenata. `scratch/_ballad-publico-concorrentes-03out.mjs`. Antes × depois (aberto 29/09-02/10) | clique → começou o quiz → venda; se gasta o orçamento | 06/10 | é a Ballad |
 | Ballad: Search de concorrentes | 03/10 | Campanha nova "Ballad \| Search \| Concorrentes \| EUA \| 03 Out", R$ 100/dia, molde do Search da Serenata (R$ 28/conv, 84% passam da abertura). Grupos: Concorrentes (nomes de 13 marcas, exata+frase), Genéricas (custom song gift, birthday song maker…), Marca. Anúncio sem nome de concorrente. Destino /criar. `scratch/ballad-search-concorrentes-03out.mjs`. 03/10 11h: zero impressões com maximizar conversões (conta sem histórico, lance baixo) → maximizar cliques com teto R$ 10 (`_ballad-search-lance-03out.mjs`); volta pra conversões quando tiver vendas | CPA real; % que responde a 1ª pergunta | 06/10 | é a Ballad |
 | Serenata: criativos de 03/10 (pai, mãe, esposa, gospel) | 03/10 | Uma campanha por vídeo, R$ 40/dia cada (R$ 360/dia), molde de 28/09. Pai/Mãe/Esposa (2 versões cada, anúncio e orgânico, mesma duração; o id do YouTube vai no nome) no "Remkt Concorrentes" com destino /criar. Os 3 gospel (descoberta, mistura, pergunta) no "Sinal 28set · Gospel e fé" com destino /criar?t=gospel e copy de louvor. `scratch/ads-criar-testes-03out.mjs` (`--ligar` confere país, idioma, público e URL e relê) | CPA real por criativo contra as campeãs; gospel: receita por lead do `?t=gospel` | 06/10 | o vencedor ganha versão em inglês |
+| Ballad: porta cristã + criativos dublados de 03/10 | 03/10 | Não é A/B: porta nova (`/criar?t=gospel` em inglês) e dois criativos traduzidos dos de 03/10 da Serenata, voz "Dylan" (ElevenLabs) dublada com lip sync: `materiais/ballad/ballad-esposa-en.mp4` (destino /criar, página da Emily) e `ballad-gospel-en.mp4` (destino /criar?t=gospel, louvor de exemplo). Montagem: `scratchpad` → legendas palavra a palavra em Poppins por cima da faixa borrada da legenda em português | começou o quiz e venda; gospel: louvor × presente | 07/10 | é a Ballad |
 | `/criar?t=gospel` | 02/10 | Não é A/B: porta própria dos anúncios gospel (louvor pra Deus ou presente com fé, 5 estilos gospel). Comparado contra o resto do funil na seção "Gospel" do painel | receita por lead do gospel contra o resto; louvor × presente | 09/10 | não (só Serenata) |
 | Blog (30 artigos de SEO: 10 em 03/10 + 20 gospel em 03/10) | 03/10 | Não é A/B: canal novo. Artigos em `/blog/<slug>` por intenção de presente (pessoa, ocasião, gospel, guia), cada um com música real e CTA pro `/criar` (`?t=gospel` no louvor) | visitas, leads e vendas por página de entrada; impressões e cliques no Search Console (o dono manda o sitemap) | 23/10 | não (só Serenata) |
 | `email_confirma` | 30/09 | e-mail do quiz como era × folha "Confere o seu e-mail" (e-mail grande, domínio conferido no DNS, aviso sem bloquear) | % que deixa e-mail, bounce da `letra_pronta`, receita por lead, `email_confirma_corrigir` | 07/10 | já roda nas duas |
