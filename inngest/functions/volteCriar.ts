@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { createClient } from "@supabase/supabase-js";
+import { bloqueados } from "../lib/emails-mortos.js";
 import { Resend } from "resend";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { emailVolteCriar, assuntoVolteCriar } from "../../emails/volte-criar.js";
@@ -155,7 +156,10 @@ export const volteCriar = inngest.createFunction(
           quizId: p.quiz_response_id,
         });
       }
-      return out;
+      // A lista de mortos lida acima vem cortada em 1000 linhas pelo PostgREST
+      // (eram 2.540 em 04/10): a checagem que vale é esta, por endereço.
+      const mortosDaFila = await bloqueados(sb, out.map((o) => o.email));
+      return out.filter((o) => !mortosDaFila.has(o.email.toLowerCase()));
     });
 
     if (!fila.length) return { enviados: 0 };

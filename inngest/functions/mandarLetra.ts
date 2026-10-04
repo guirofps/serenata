@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { createClient } from "@supabase/supabase-js";
+import { estaBloqueado } from "../lib/emails-mortos.js";
 import { Resend } from "resend";
 import { emailLetraPronta, assuntoLetraPronta } from "../../emails/letra-pronta.js";
 import { REMETENTE_TRANSACIONAL } from "../../emails/remetentes.js";
@@ -176,6 +177,12 @@ export const mandarLetra = inngest.createFunction(
       for (const l of leads ?? []) {
         if (out.length >= MAX_POR_RODADA) break;
         if (!l.email || bloqueado.has(l.email.toLowerCase())) continue;
+        // ENDEREÇO MORTO, POR ENDEREÇO (04/10). A lista `mortos` acima vem
+        // cortada em 1000 linhas pelo PostgREST e já eram 2.540: 1.540
+        // endereços que já tinham voltado seguiam recebendo a letra (4,8% de
+        // bounce em 03/10). Esta pergunta é pelo índice da chave, uma por
+        // candidato.
+        if (await estaBloqueado(sb, l.email)) continue;
         if (await jaComprou(l.id, l.email)) continue;
 
         // E-MAIL DIGITADO ERRADO. `gmail.comm` bateu de volta no primeiro
