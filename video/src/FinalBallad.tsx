@@ -32,12 +32,23 @@ export const PASSOS_BALLAD = [
   "Love it? Send it as a gift",
 ];
 
+// A porta cristã (`/criar?t=gospel`, 03/10): mesmo cartão, outra promessa.
+export const PASSOS_BALLAD_CRISTAO = [
+  "Tell what God has done in your life",
+  "Read your lyrics free, hear a preview in minutes",
+  "Love it? Keep it and share it",
+];
+
 export type PropsFinalBallad = {
   /** Quadro parado do fim do criativo (em `video/public/`), que vira o fundo borrado. */
   fundo?: string;
+  /** Versão do cartão: a de presente (padrão) ou a da porta cristã. */
+  variante?: "presente" | "cristao";
 };
 
-export const FinalBallad: React.FC<PropsFinalBallad> = ({ fundo }) => {
+export const FinalBallad: React.FC<PropsFinalBallad> = ({ fundo, variante = "presente" }) => {
+  const cristao = variante === "cristao";
+  const passos = cristao ? PASSOS_BALLAD_CRISTAO : PASSOS_BALLAD;
   const frame = useCurrentFrame();
   const { fps, height } = useVideoConfig();
   // 1920 é a referência; no 4:5 (1350) tudo encolhe junto.
@@ -78,11 +89,15 @@ export const FinalBallad: React.FC<PropsFinalBallad> = ({ fundo }) => {
             color: CREME,
           }}
         >
-          <TextoAnimado texto="Turn their story into a *song*" frame={frame - 6} corBase={CREME} />
+          <TextoAnimado
+            texto={cristao ? "Turn your testimony into a *worship song*" : "Turn their story into a *song*"}
+            frame={frame - 6}
+            corBase={CREME}
+          />
         </div>
 
         <div style={{ marginTop: 48 * k, display: "flex", flexDirection: "column", gap: 24 * k, width: 900 * k }}>
-          {PASSOS_BALLAD.map((p, i) => (
+          {passos.map((p, i) => (
             <div
               key={i}
               style={{
