@@ -268,12 +268,16 @@ export const SKIP_GOSPEL: SkipMap = {
 export function aplicarTipo(
   respostas: Record<string, unknown>,
   tipo: string,
+  locale: string = "pt",
 ): Record<string, string | string[]> {
+  // O nome é o que a página presente, os e-mails e o topo do quiz mostram:
+  // no inglês é "God" (a relação continua `deus`, que é valor de banco).
+  const nomeDeDeus = locale === "en" ? "God" : "Deus";
   const out = { ...respostas, tipo } as Record<string, string | string[]>;
   const ocasiaoDoLouvor = (OCASIOES_LOUVOR as readonly string[]).includes(String(out.ocasiao ?? ""));
   if (tipo === "louvor") {
     out.relacao = "deus";
-    out.nome = "Deus";
+    out.nome = nomeDeDeus;
     delete out.filhos;
     if (out.ocasiao !== undefined && !ocasiaoDoLouvor) delete out.ocasiao;
   } else {

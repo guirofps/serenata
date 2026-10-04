@@ -159,3 +159,14 @@ describe("quiz cristão em inglês", () => {
     expect(textos).not.toMatch(/Deus|louvor pra|Senhor|ção/);
   });
 });
+
+describe("aplicarTipo em inglês", () => {
+  it("louvor grava God como nome, com a mesma relação", () => {
+    const r = aplicarTipo({}, "louvor", "en");
+    expect(r.relacao).toBe("deus");
+    expect(r.nome).toBe("God");
+  });
+  it("presente desfaz o louvor em inglês também", () => {
+    expect(aplicarTipo(aplicarTipo({}, "louvor", "en"), "presente", "en")).toEqual({ tipo: "presente" });
+  });
+});

@@ -506,7 +506,7 @@ export function Quiz({
           inteiro e animado, e a faixa seria a versão pobre da mesma
           informação, dez centímetros acima. */}
       {!isIntro(step) && qNum < 4 && (
-        <FaixaPresente nome={respostas.nome as string | undefined} locale={locale} />
+        <FaixaPresente nome={respostas.nome as string | undefined} locale={locale} louvor={respostas.tipo === "louvor"} />
       )}
 
       {/* Corpo do passo */}
@@ -567,7 +567,7 @@ export function Quiz({
                 onChange={(v) => {
                   // O tipo do gospel mexe em vários campos de uma vez
                   // (`aplicarTipo`): louvor preenche Deus, presente desfaz.
-                  if (step.field === "tipo") setRespostas(aplicarTipo(useQuizStore.getState().respostas, String(v)));
+                  if (step.field === "tipo") setRespostas(aplicarTipo(useQuizStore.getState().respostas, String(v), locale));
                   else setResposta(step.field, v);
                   // O TOQUE NO CHIP, que até agora não era medido.
                   //

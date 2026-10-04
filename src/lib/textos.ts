@@ -40,6 +40,7 @@ const PT = {
   // ponto vira sujeira. A chave continua `oQueVaiMontar` de propósito, pra não
   // espalhar renomeação por um texto que muda de novo no próximo teste.
   oQueVaiMontar: "o que você vai receber em 1 minuto",
+  seuLouvor: "o seu louvor",
   musicaCantada: "música cantada",
   paginaComFotos: "página com fotos",
   karaoke: "karaokê",
@@ -237,6 +238,7 @@ const ES: Textos = {
   reacoesLegenda: "Reacciones de quien escuchó una canción hecha por nosotros.",
 
   oQueVaiMontar: "lo que vas a armar",
+  seuLouvor: "tu alabanza",
   musicaCantada: "canción cantada",
   paginaComFotos: "página con fotos",
   karaoke: "karaoke",
@@ -419,6 +421,7 @@ const EN: Textos = {
   reacoesLegenda: "Real reactions from people who heard a song we made.",
 
   oQueVaiMontar: "what you'll get in 1 minute",
+  seuLouvor: "your worship song",
   musicaCantada: "sung song",
   paginaComFotos: "page with photos",
   karaoke: "sing-along lyrics",

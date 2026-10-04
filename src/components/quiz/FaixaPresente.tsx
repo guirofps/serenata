@@ -18,9 +18,12 @@ import { t } from "@/lib/textos";
 export function FaixaPresente({
   nome,
   locale = "pt",
+  louvor = false,
 }: {
   nome?: string;
   locale?: Locale;
+  /** Louvor do quiz gospel: a música é pra Deus, não "o presente de Deus". */
+  louvor?: boolean;
 }) {
   const T = t(locale);
   const limpo = nome?.trim();
@@ -37,7 +40,7 @@ export function FaixaPresente({
   return (
     <div className="mb-6 rounded-2xl border border-primary/15 bg-secondary/40 px-3 py-2.5">
       <p className="text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
-        {limpo ? `${T.oPresenteDe.toLowerCase()} ${limpo}` : T.oQueVaiMontar}
+        {louvor ? T.seuLouvor : limpo ? `${T.oPresenteDe.toLowerCase()} ${limpo}` : T.oQueVaiMontar}
       </p>
       {/* 2x2 no celular: com flex-wrap os quatro itens quebravam 3+1 e o
           último ficava sozinho no meio, torto. Vira linha única no desktop. */}
