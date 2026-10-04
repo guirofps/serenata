@@ -66,16 +66,45 @@ function db() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-/** Já mandamos a letra desta sessão? Registro em `funnel_events`, mesma
- *  trilha do lembrete — evita migration só pra um booleano. */
-async function jaMandou(sb: ReturnType<typeof db>, quizId: string) {
-  const { data } = await sb
+/**
+ * Já mandamos a letra deste quiz?
+ *
+ * ── NA DÚVIDA, JÁ MANDOU (04/10) ─────────────────────────────────
+ *
+ * Esta trava lia SÓ `funnel_events` e tratava erro como "não mandei". Com 5,2
+ * milhões de linhas a busca levava 16-20s, o PostgREST cortava em 8s, o erro
+ * virava lista vazia, e a letra saía DE NOVO a cada 5 minutos: até 32 vezes
+ * pra mesma pessoa em 24h (330 pessoas repetidas num dia).
+ *
+ * Agora pergunta primeiro a `emails_enviados` (indexada por quiz, 40ms), e
+ * qualquer erro conta como JÁ MANDOU: deixar de mandar uma letra custa uma
+ * venda; mandar 30 vezes queima o domínio inteiro.
+ */
+async function jaMandou(sb: ReturnType<typeof db>, quizId: string): Promise<boolean> {
+  const porEnvio = await sb
+    .from("emails_enviados")
+    .select("email_id")
+    .eq("quiz_response_id", quizId)
+    .eq("template", "letra_pronta")
+    .limit(1);
+  if (porEnvio.error) {
+    console.error("[letra] trava emails_enviados falhou, pulando por segurança:", quizId, porEnvio.error.message);
+    return true;
+  }
+  if ((porEnvio.data ?? []).length > 0) return true;
+  // A trilha antiga continua valendo pra envio de antes de `emails_enviados`
+  // ganhar o quiz (05/09). Índice parcial GIN desde 04/10.
+  const porEvento = await sb
     .from("funnel_events")
     .select("id")
     .eq("event_name", "email_letra_enviado")
     .contains("event_data", { quiz_response_id: quizId })
     .limit(1);
-  return (data ?? []).length > 0;
+  if (porEvento.error) {
+    console.error("[letra] trava funnel_events falhou, pulando por segurança:", quizId, porEvento.error.message);
+    return true;
+  }
+  return (porEvento.data ?? []).length > 0;
 }
 
 export const mandarLetra = inngest.createFunction(

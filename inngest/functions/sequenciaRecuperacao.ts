@@ -254,6 +254,47 @@ async function paginado<T>(
   return out;
 }
 
+/**
+ * A trilha de UM evento desde `desde`, por CURSOR de tempo (04/10).
+ *
+ * `range()` é OFFSET: na página 30 o banco percorre 30 mil linhas pra jogar
+ * fora, e passava dos 8s do PostgREST (13s medido). Pelo índice
+ * (event_name, created_at), andando a partir do último `created_at` visto,
+ * toda página custa o mesmo. `gte` + Set de id: empate de horário não perde
+ * nem duplica linha.
+ */
+async function trilhaDoEvento(
+  sb: ReturnType<typeof db>,
+  nome: string,
+  desde: string,
+): Promise<Array<{ id: string; event_name: string; event_data: Record<string, unknown> | null; created_at: string }>> {
+  type Linha = { id: string; event_name: string; event_data: Record<string, unknown> | null; created_at: string };
+  const vistos = new Set<string>();
+  const out: Linha[] = [];
+  let cursor = desde;
+  for (;;) {
+    const { data, error } = await sb
+      .from("funnel_events")
+      .select("id, event_name, event_data, created_at")
+      .eq("event_name", nome)
+      .gte("created_at", cursor)
+      .order("created_at", { ascending: true })
+      .limit(1000);
+    if (error) throw new Error(`funnel_events/${nome}: ${error.message}`);
+    const linhas = (data ?? []) as Linha[];
+    let novas = 0;
+    for (const l of linhas) {
+      if (vistos.has(l.id)) continue;
+      vistos.add(l.id);
+      out.push(l);
+      novas++;
+    }
+    if (linhas.length < 1000 || novas === 0) break;
+    cursor = linhas[linhas.length - 1].created_at;
+  }
+  return out;
+}
+
 export const sequenciaRecuperacao = inngest.createFunction(
   { id: "sequencia-recuperacao", retries: 1, concurrency: { limit: 1 }, triggers: [{ cron: "*/30 * * * *" }] },
   async ({ step }) => {
@@ -278,14 +319,25 @@ export const sequenciaRecuperacao = inngest.createFunction(
       //
       // Contando como degrau 2, a escada retoma no 3, no prazo do 3. A pessoa
       // recebe a oferta BOA no lugar da genérica, e uma só.
-      const enviados = await paginado<Ev>(sb, "funnel_events", "id, event_name, event_data, created_at", (q) =>
-        q.in("event_name", [
-          "email_letra_enviado",
-          "email_sequencia_enviado",
-          "quase_comprou_enviado",
-          "pix_nao_pago_enviado",
-        ]),
-      );
+      // ── SÓ A JANELA, ORDENADA PELO TEMPO (04/10) ──────────────
+      //
+      // Isto lia a trilha INTEIRA desses eventos ordenada por `id`, em páginas
+      // de 1000. Com `funnel_events` em 5,2 milhões de linhas, cada página
+      // passava do timeout do PostgREST, o `paginado` lançava, e a escada
+      // morreu em 29/09 sem e-mail nenhum (o vigia externo acusou em 04/10).
+      // Os leads são só os dos últimos `OLHAR_ATE_DIAS`, e todo envio pra eles
+      // é posterior ao quiz: a janela não perde nenhum degrau. `created_at`
+      // usa o índice (event_name, created_at).
+      const desde = new Date(agora - OLHAR_ATE_DIAS * 86400000).toISOString();
+      const enviados: Ev[] = [];
+      for (const nome of [
+        "email_letra_enviado",
+        "email_sequencia_enviado",
+        "quase_comprou_enviado",
+        "pix_nao_pago_enviado",
+      ]) {
+        enviados.push(...(await trilhaDoEvento(sb, nome, desde)));
+      }
 
       // Última correspondência de cada pessoa, e até onde ela já foi na régua.
       const ultimo = new Map<string, { quando: number; numero: number }>();
