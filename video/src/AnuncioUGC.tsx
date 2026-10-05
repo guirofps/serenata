@@ -126,6 +126,12 @@ function Legenda({ palavras }: { palavras: Palavra[] }) {
           maxWidth: 940,
           textTransform: "uppercase",
           letterSpacing: -1,
+          // As palavras são spans sem espaço entre si: sem o flex-wrap a linha
+          // não quebra e "MÚSICA PERSONALIZADA" sai cortada na borda.
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          columnGap: 18,
         }}
       >
         {bloco.map((p, i) => {
@@ -138,7 +144,6 @@ function Legenda({ palavras }: { palavras: Palavra[] }) {
                 WebkitTextStroke: "3px #000",
                 paintOrder: "stroke fill",
                 textShadow: "0 6px 18px rgba(0,0,0,0.55)",
-                marginRight: 18,
               }}
             >
               {limpa(p.texto)}
