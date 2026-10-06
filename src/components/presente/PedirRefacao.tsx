@@ -25,6 +25,14 @@ import type { Locale } from "@/lib/i18n";
 // O direito é de um ajuste (`refacoes_incluidas`). Isso está escrito ao lado
 // do botão, não num rodapé: descobrir depois de enviar que era a única chance
 // é o tipo de surpresa que vira ticket de suporte.
+//
+// ── A MÚSICA INTEIRA MUDA ────────────────────────────────────────
+//
+// O ajuste regrava tudo: o provedor não troca uma palavra numa gravação
+// pronta, ele canta a letra nova do zero, com outra melodia e outra voz. Em
+// 06/10 o Silvio pediu só "querida" -> "querido", recebeu outra música e pediu
+// a primeira de volta. O aviso diz isso ANTES, pra quem só quer corrigir uma
+// letra decidir se vale perder a gravação que já ama.
 
 const T = {
   pt: {
@@ -39,7 +47,7 @@ const T = {
     manter: "Manter",
     enviar: "Refazer minha música",
     enviando: "Mandando pro estúdio...",
-    aviso: "É o seu único ajuste incluído. A música anterior fica guardada, você não perde nada.",
+    aviso: "A música é gravada de novo inteira: a melodia e a voz podem mudar, mesmo se você trocar uma palavra só. É o seu único ajuste incluído, e a música anterior fica guardada.",
     pronto: "Pedido enviado. A nova versão fica pronta em 1 ou 2 minutos, e a anterior continua guardada.",
     erros: {
       curto: "Escreva um pouquinho mais sobre o que mudar.",
@@ -66,7 +74,7 @@ const T = {
     manter: "Mantener",
     enviar: "Rehacer mi canción",
     enviando: "Mandando al estudio...",
-    aviso: "Es tu único ajuste incluido. La canción anterior queda guardada, no pierdes nada.",
+    aviso: "La canción se graba de nuevo completa: la melodía y la voz pueden cambiar, aunque cambies una sola palabra. Es tu único ajuste incluido, y la canción anterior queda guardada.",
     pronto: "Pedido enviado. La nueva versión queda lista en 1 o 2 minutos, y la anterior sigue guardada.",
     erros: {
       curto: "Escribe un poco más sobre lo que quieres cambiar.",
@@ -90,7 +98,7 @@ const T = {
     manter: "Keep",
     enviar: "Redo my song",
     enviando: "Sending it to the studio...",
-    aviso: "This is your only included adjustment. The previous song stays saved, you don't lose anything.",
+    aviso: "The whole song is recorded again: the melody and the voice can change, even if you only change one word. This is your only included adjustment, and the previous song stays saved.",
     pronto: "Request sent. The new version will be ready in 1 or 2 minutes, and the previous one stays saved.",
     erros: {
       curto: "Write a little more about what to change.",
