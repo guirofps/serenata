@@ -78,7 +78,8 @@ const MARCAS: Record<MarcaUGC, { logo: string; dominio: string; umaMusicaPara: s
   ballad: { logo: "logo-ballad-alfa.png", dominio: "balladgift.com", umaMusicaPara: "A SONG FOR", titulo: ["Get your lyrics", "free"] },
 };
 
-export type PropsAnuncioUGC = { partes: Parte[]; marca?: MarcaUGC };
+/** `semLegenda` (06/10, dono): a versão "o mais orgânico possível", só a fala e o corte. */
+export type PropsAnuncioUGC = { partes: Parte[]; marca?: MarcaUGC; semLegenda?: boolean };
 
 export const FPS_UGC = 30;
 const duracaoDa = (p: Parte) => (p.tipo === "fala" ? p.fim - p.ini : p.duracao);
@@ -155,11 +156,11 @@ function Legenda({ palavras }: { palavras: Palavra[] }) {
   );
 }
 
-function ParteFala({ p }: { p: Fala }) {
+function ParteFala({ p, semLegenda }: { p: Fala; semLegenda?: boolean }) {
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
       <OffthreadVideo src={staticFile(p.src)} startFrom={Math.round(p.ini * FPS_UGC)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-      <Legenda palavras={p.palavras} />
+      {semLegenda ? null : <Legenda palavras={p.palavras} />}
     </AbsoluteFill>
   );
 }
@@ -286,14 +287,14 @@ function ParteCartao({ titulo, marca }: { titulo?: string[]; marca: MarcaUGC }) 
   );
 }
 
-export const AnuncioUGC: React.FC<PropsAnuncioUGC> = ({ partes, marca = "serenata" }) => {
+export const AnuncioUGC: React.FC<PropsAnuncioUGC> = ({ partes, marca = "serenata", semLegenda }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
       <Series>
         {partes.map((p, i) => (
           <Series.Sequence key={i} durationInFrames={Math.round(duracaoDa(p) * FPS_UGC)}>
             {p.tipo === "fala" ? (
-              <ParteFala p={p} />
+              <ParteFala p={p} semLegenda={semLegenda} />
             ) : p.tipo === "produto" ? (
               <ParteProduto p={p} marca={marca} />
             ) : p.tipo === "musica" ? (
