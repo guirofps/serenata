@@ -278,6 +278,25 @@ export default async function handler(req: Req, res: Res) {
     }
   }
 
+  // RECLAMAÇÃO DE SPAM VIRA DESCADASTRO (07/10). Antes ela só ia pro
+  // `funnel_events`, e nada impedia o próximo e-mail de marketing de chegar em
+  // quem já tinha apertado "spam". `bloqueados()` lê `descadastros`, então
+  // todas as réguas passam a respeitar. `ignoreDuplicates`: quem já se
+  // descadastrou antes mantém o motivo original.
+  if (tipo === "email.complained" && para) {
+    try {
+      const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (url && key) {
+        await createClient(url, key, { auth: { persistSession: false } })
+          .from("descadastros")
+          .upsert({ email: para.toLowerCase(), motivo: "complaint" }, { onConflict: "email", ignoreDuplicates: true });
+      }
+    } catch (err) {
+      console.error("[resend] descadastro por reclamação falhou:", err);
+    }
+  }
+
   if (tipo === "email.bounced" && para) {
     try {
       const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
