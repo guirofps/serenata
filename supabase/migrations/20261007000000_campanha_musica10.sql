@@ -29,15 +29,16 @@ alter table public.campanha_envios enable row level security;
 -- QUEM RECEBE: um envio por E-MAIL (o quiz mais recente dele), só `pt`, fora
 -- descadastrados, mortos (bounce não liberado), excluídos e memorial.
 -- `comprador` = tem pedido pago com dinheiro entrando; senão `lead`.
+--
+-- `language sql` e SEM ponto e vírgula dentro do corpo, de propósito: o SQL
+-- Editor do Supabase parte o texto nos `;` e quebrava o corpo de uma versão
+-- plpgsql (07/10). Devolve quantas linhas entraram na fila.
 create or replace function public.montar_campanha(p_campanha text)
 returns integer
-language plpgsql
+language sql
 security definer
 set search_path = public
-set statement_timeout = '120s'
 as $$
-declare n integer;
-begin
   with compradores as (
     select distinct lower(trim(email)) as email
     from pedidos
@@ -54,25 +55,27 @@ begin
       and coalesce(q.locale, 'pt') = 'pt'
       and position('@' in q.email) > 1
     order by lower(trim(q.email)), q.created_at desc
+  ),
+  inseridos as (
+    insert into campanha_envios (campanha, email, versao, quiz_response_id, nome)
+    select
+      p_campanha,
+      c.email,
+      case when exists (select 1 from compradores b where b.email = c.email) then 'comprador' else 'lead' end,
+      c.quiz_id,
+      c.nome
+    from candidatos c
+    where c.ocasiao not ilike '%memorial%'
+      and not exists (select 1 from descadastros d where lower(d.email) = c.email)
+      and not exists (select 1 from excluidos_email x where lower(x.email) = c.email)
+      and not exists (
+        select 1 from emails_mortos m where lower(m.email) = c.email and m.liberado_em is null
+      )
+    on conflict (campanha, email) do nothing
+    returning 1
   )
-  insert into campanha_envios (campanha, email, versao, quiz_response_id, nome)
-  select
-    p_campanha,
-    c.email,
-    case when exists (select 1 from compradores b where b.email = c.email) then 'comprador' else 'lead' end,
-    c.quiz_id,
-    c.nome
-  from candidatos c
-  where c.ocasiao not ilike '%memorial%'
-    and not exists (select 1 from descadastros d where lower(d.email) = c.email)
-    and not exists (select 1 from excluidos_email x where lower(x.email) = c.email)
-    and not exists (
-      select 1 from emails_mortos m where lower(m.email) = c.email and m.liberado_em is null
-    )
-  on conflict (campanha, email) do nothing;
-  get diagnostics n = row_count;
-  return n;
-end $$;
+  select count(*)::integer from inseridos
+$$;
 revoke all on function public.montar_campanha(text) from public, anon, authenticated;
 
 -- O FREIO: dos enviados desde `p_desde`, quantos voltaram (bounce depois do
@@ -94,6 +97,6 @@ as $$
       where d.email = e.email and d.motivo = 'complaint' and d.created_at >= e.enviado_em
     ))
   from campanha_envios e
-  where e.campanha = p_campanha and e.enviado_em >= p_desde;
+  where e.campanha = p_campanha and e.enviado_em >= p_desde
 $$;
 revoke all on function public.taxas_campanha(text, timestamptz) from public, anon, authenticated;
