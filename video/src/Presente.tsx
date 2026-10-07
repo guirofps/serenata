@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { AbsoluteFill, Audio, Img, interpolate, Easing, useCurrentFrame, useVideoConfig } from "remotion";
+import React, { useEffect, useMemo, useState } from "react";
+import { AbsoluteFill, Audio, Img, interpolate, Easing, useCurrentFrame, useVideoConfig, delayRender, continueRender } from "remotion";
 import { useAudioData, visualizeAudio } from "@remotion/media-utils";
 import { loadFont as carregarLora } from "@remotion/google-fonts/Lora";
 import { loadFont as carregarPlayfair } from "@remotion/google-fonts/PlayfairDisplay";
@@ -78,8 +78,48 @@ const TEXTOS = {
   en: { para: "FOR", fecho: "a song made from your story", previa: "PREVIEW" },
 } as const;
 
+// ── Proporção da foto (largura ÷ altura) ──────────────────────────
+//
+// FOTO DEITADA EM TELA CHEIA PERDIA METADE. A cena "cheia" usava `cover` num
+// quadro em pé (9:16): uma foto 4:3 deitada mostrava só ~42% da largura, e o
+// casal das pontas sumia. Duas compradoras reclamaram em 07/10 (uma pra usar
+// no casamento, outra pedindo devolução do vídeo). A página não cortava, o
+// vídeo sim. Agora a cena cheia só corta foto EM PÉ; deitada ou quadrada entra
+// inteira, na largura da tela, sobre ela mesma desfocada.
+//
+// A proporção só existe depois de a imagem carregar, então o quadro espera
+// (`delayRender`) até saber: render sem esperar sairia com a foto cortada nos
+// primeiros quadros e inteira nos seguintes. O cache por URL evita esperar de
+// novo a cada cena da mesma foto.
+const proporcoes = new Map<string, number>();
+const DEITADA_A_PARTIR = 0.9;
+
+function useProporcao(src: string): number | null {
+  const [espera] = useState(() => (proporcoes.has(src) ? null : delayRender(`proporção da foto ${src.slice(0, 60)}`)));
+  const [r, setR] = useState<number | null>(proporcoes.get(src) ?? null);
+  useEffect(() => {
+    if (proporcoes.has(src)) {
+      setR(proporcoes.get(src)!);
+      if (espera !== null) continueRender(espera);
+      return;
+    }
+    const img = new Image();
+    const fim = (v: number) => {
+      proporcoes.set(src, v);
+      setR(v);
+      if (espera !== null) continueRender(espera);
+    };
+    img.onload = () => fim(img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0.75);
+    // Sem saber, trata como foto em pé de celular: é o caso comum e o corte é o de sempre.
+    img.onerror = () => fim(0.75);
+    img.src = src;
+  }, [src, espera]);
+  return r;
+}
+
 // ── Uma cena: a foto, do jeito que a montagem mandou ──────────────
 const CenaFoto: React.FC<{ c: Cena; i: number; src: string; t: number; pulso: number }> = ({ c, i, src, t, pulso }) => {
+  const proporcao = useProporcao(src);
   const local = t - c.ini;
   const dur = c.fim - c.ini + TRANSICAO_S;
   const p = clamp(local / dur, 0, 1);
@@ -102,6 +142,26 @@ const CenaFoto: React.FC<{ c: Cena; i: number; src: string; t: number; pulso: nu
       : c.movimento === "afasta"
         ? { s: 1.19 - 0.14 * p, x: 0 }
         : { s: 1.15, x: (c.movimento === "esquerda" ? 1 : -1) * 44 * (0.5 - p) };
+
+  if (c.estilo === "cheia" && (proporcao ?? 0) >= DEITADA_A_PARTIR) {
+    // Deitada ou quadrada: inteira na largura, sobre ela mesma desfocada. O
+    // movimento é mais contido que o da foto em pé, senão o zoom volta a
+    // cortar as pontas que esta cena existe pra mostrar.
+    const s = 1 + (mov.s - 1) * 0.35;
+    return (
+      <AbsoluteFill style={{ opacity: op, backgroundColor: FUNDO }}>
+        <div style={{ position: "absolute", left: 0, top: 0, width: 135, height: 240, transform: "scale(8)", transformOrigin: "0 0" }}>
+          <Img src={src} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(3px) brightness(0.5) saturate(1.1)" }} />
+        </div>
+        <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
+          <Img
+            src={src}
+            style={{ display: "block", width: "100%", height: "auto", transform: `scale(${s * zoomEntrada * batida}) translateX(${mov.x * 0.35}px)` }}
+          />
+        </AbsoluteFill>
+      </AbsoluteFill>
+    );
+  }
 
   if (c.estilo === "cheia") {
     return (
