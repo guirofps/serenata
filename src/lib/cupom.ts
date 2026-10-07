@@ -17,49 +17,167 @@ type Locale = "pt" | "es" | "en";
 // momento, não os R$ 18 de diferença. E metade de desconto diz, em voz alta,
 // que o preço era mentira.
 //
-// A VALIDADE VIVE NO PAINEL DA PERFECT PAY, não aqui. O que existe aqui é uma
-// data de segurança: passou dela, o e-mail sai SEM a oferta de desconto em vez
-// de prometer um cupom que o gateway já recusa. Prometer desconto morto é pior
-// que não oferecer nada, porque a pessoa descobre no checkout, que é o pior
-// lugar possível pra descobrir qualquer coisa.
-//
-// Se você mexer na validade lá, mexa aqui junto.
+// A VALIDADE VIVE AQUI (`valeAte` de cada cupom). Até 26/09 ela vivia no
+// painel da Perfect Pay; desde que a venda brasileira sai só pelo Asaas, quem
+// aplica o desconto é o nosso servidor, e esta data é a única que existe.
+// Passou dela, o e-mail sai SEM a oferta de desconto em vez de prometer um
+// cupom que a cobrança já recusa: prometer desconto morto é pior que não
+// oferecer nada, porque a pessoa descobre no checkout.
+
+export type Alvo = "musica" | "extra" | "tres" | "quadro" | "video";
 
 export type Cupom = { codigo: string; texto: string; de: string; por: string };
 
-// Sem cupom no inglês: a Ballad não tem régua de recuperação com desconto.
-const CUPONS: Partial<Record<Locale, Cupom>> = {
-  pt: { codigo: "SRN27", texto: "R$ 10", de: "R$ 38", por: "R$ 28" },
-  es: { codigo: "SRN7", texto: "20%", de: "US$ 9,90", por: "US$ 7,92" },
+// DOIS JEITOS DE DESCONTAR, e eles não são o mesmo cupom com outro número.
+//
+// `preco_final` é o da recuperação: o preço VIRA o "por" (R$ 38 → R$ 28), e só
+// na música. `fixo` é o da campanha MUSICA10 (07/10): tira um valor de
+// QUALQUER compra (música, extra, quadro, vídeo), sobre o preço que aquela
+// pessoa pagaria. Quem está preso no braço de R$ 54,90 paga R$ 44,90, não R$ 28.
+type CupomPrecoFinal = {
+  tipo: "preco_final";
+  codigo: string;
+  locale: "pt" | "es";
+  texto: string;
+  de: string;
+  por: string;
+  valeAte: string;
 };
+type CupomFixo = {
+  tipo: "fixo";
+  codigo: string;
+  locale: "pt";
+  texto: string;
+  centavos: number;
+  valeAte: string;
+};
+type DefCupom = CupomPrecoFinal | CupomFixo;
 
-/** Último dia em que o cupom vale. Espelha o painel da Perfect Pay. */
-const VALE_ATE = "2026-10-13";
+export const MUSICA10 = "MUSICA10";
 
+/**
+ * Último dia do MUSICA10, inclusive (23h59 de Brasília). É a MESMA data que o
+ * e-mail escreve (`validadeCurta`): mudou aqui, o e-mail muda junto.
+ * Decidida ao ligar o envio: 7 dias depois do fim previsto das levas.
+ */
+export const MUSICA10_VALE_ATE = "2026-10-20";
+
+/** Nenhum produto sai abaixo disto com cupom fixo. */
+export const PISO_CENTAVOS = 500;
+
+// Sem cupom no inglês: a Ballad não tem régua de recuperação com desconto.
+const CUPONS: DefCupom[] = [
+  { tipo: "preco_final", codigo: "SRN27", locale: "pt", texto: "R$ 10", de: "R$ 38", por: "R$ 28", valeAte: "2026-10-13" },
+  { tipo: "preco_final", codigo: "SRN7", locale: "es", texto: "20%", de: "US$ 9,90", por: "US$ 7,92", valeAte: "2026-10-13" },
+  { tipo: "fixo", codigo: MUSICA10, locale: "pt", texto: "R$ 10", centavos: 1000, valeAte: MUSICA10_VALE_ATE },
+];
+
+/** Vale até 23h59min59s de Brasília do `valeAte`. */
+function vale(c: DefCupom, agora: Date): boolean {
+  return agora.getTime() <= Date.parse(`${c.valeAte}T23:59:59-03:00`);
+}
+
+function acharCupom(codigo: string | null | undefined, agora: Date): DefCupom | null {
+  const k = String(codigo ?? "").trim().toUpperCase();
+  if (!k) return null;
+  const c = CUPONS.find((x) => x.codigo === k);
+  return c && vale(c, agora) ? c : null;
+}
+
+function centavosDoTexto(t: string): number {
+  return Math.round(Number(t.replace(/[^\d,]/g, "").replace(",", ".")) * 100);
+}
+
+/** "R$ 38", "R$ 14,90": o formato do resto do site. */
+function reais(centavos: number): string {
+  const s = (centavos / 100).toFixed(2).replace(".", ",");
+  return `R$ ${s.endsWith(",00") ? s.slice(0, -3) : s}`;
+}
+
+/** O cupom de PREÇO FINAL do idioma (o da recuperação). Assinatura de sempre. */
 export function cupomAtivo(locale: Locale, agora = new Date()): Cupom | null {
-  // Comparação por string ISO: `2026-10-13` > `2026-10-12` funciona e não
-  // depende de fuso, que aqui não importa (a diferença é de um dia, e o
-  // gateway é quem decide de verdade).
-  if (agora.toISOString().slice(0, 10) > VALE_ATE) return null;
   if (locale === "en") return null;
-  return CUPONS[locale] ?? CUPONS.pt ?? null;
+  const c = CUPONS.find(
+    (x): x is CupomPrecoFinal => x.tipo === "preco_final" && x.locale === locale && vale(x, agora),
+  );
+  return c ? { codigo: c.codigo, texto: c.texto, de: c.de, por: c.por } : null;
 }
 
 /**
- * O preço com o cupom da recuperação, no checkout próprio (26/09).
- *
- * O desconto existia como PRODUTO da Perfect Pay; com a venda saindo só pelo
- * Asaas, quem aplica é o servidor. Só em real (o Asaas não cobra dólar), só o
- * código ativo, e nunca SOBE o preço: se o braço já estiver abaixo do "por",
- * vale o braço.
+ * O preço com cupom, no servidor. Só em real (o Asaas não cobra dólar), só
+ * código vigente, e nunca SOBE o preço.
  */
 export function centavosComCupom(
   baseCentavos: number,
-  cupom: string | null | undefined,
+  codigo: string | null | undefined,
   agora = new Date(),
+  alvo: Alvo = "musica",
 ): number {
-  const c = cupomAtivo("pt", agora);
-  if (!c || !cupom || cupom.trim().toUpperCase() !== c.codigo) return baseCentavos;
-  const por = Math.round(Number(c.por.replace(/[^\d,]/g, "").replace(",", ".")) * 100);
-  return por > 0 ? Math.min(baseCentavos, por) : baseCentavos;
+  const c = acharCupom(codigo, agora);
+  if (!c || c.locale !== "pt") return baseCentavos;
+  if (c.tipo === "preco_final") {
+    if (alvo !== "musica") return baseCentavos;
+    const por = centavosDoTexto(c.por);
+    return por > 0 ? Math.min(baseCentavos, por) : baseCentavos;
+  }
+  if (baseCentavos <= PISO_CENTAVOS) return baseCentavos;
+  return Math.max(baseCentavos - c.centavos, PISO_CENTAVOS);
+}
+
+/** O código normalizado, SÓ quando ele baixou o preço. É o que vai pro pedido. */
+export function codigoAplicado(
+  baseCentavos: number,
+  codigo: string | null | undefined,
+  agora = new Date(),
+  alvo: Alvo = "musica",
+): string | null {
+  if (centavosComCupom(baseCentavos, codigo, agora, alvo) >= baseCentavos) return null;
+  return acharCupom(codigo, agora)?.codigo ?? null;
+}
+
+/**
+ * O desconto que a TELA mostra. Mesma conta da cobrança, então o número que
+ * a pessoa lê é o que o QR cobra. Fora do português, só o cupom da
+ * recuperação daquele idioma (o checkout dele é outro), com `porCentavos` nulo.
+ */
+export function descontoNaTela(
+  codigo: string | null | undefined,
+  locale: Locale,
+  baseCentavos: number,
+  alvo: Alvo = "musica",
+  agora = new Date(),
+): (Cupom & { porCentavos: number | null }) | null {
+  if (locale !== "pt") {
+    const c = cupomAtivo(locale, agora);
+    const k = String(codigo ?? "").trim().toUpperCase();
+    return c && k === c.codigo ? { ...c, porCentavos: null } : null;
+  }
+  const por = centavosComCupom(baseCentavos, codigo, agora, alvo);
+  if (por >= baseCentavos) return null;
+  const c = acharCupom(codigo, agora);
+  if (!c) return null;
+  return { codigo: c.codigo, texto: c.texto, de: reais(baseCentavos), por: reais(por), porCentavos: por };
+}
+
+/**
+ * O valor que o webhook do upsell aceita. Com cupom, vale a data em que o
+ * PEDIDO NASCEU: quem gerou o PIX às 23h50 do último dia e pagou à 00h10 pagou
+ * o preço que a tela prometeu, e tem que receber.
+ */
+export function valorEsperadoDoUpsell(
+  precoCatalogoCentavos: number,
+  alvo: Alvo,
+  pedido: { cupom?: string | null; created_at?: string | null } | null,
+): number {
+  if (!pedido?.cupom) return precoCatalogoCentavos;
+  const quando = pedido.created_at ? new Date(pedido.created_at) : new Date();
+  return centavosComCupom(precoCatalogoCentavos, pedido.cupom, quando, alvo);
+}
+
+/** "20/10": a validade como o e-mail escreve. */
+export function validadeCurta(codigo: string): string {
+  const c = CUPONS.find((x) => x.codigo === codigo.trim().toUpperCase());
+  if (!c) return "";
+  const [, m, d] = c.valeAte.split("-");
+  return `${d}/${m}`;
 }
