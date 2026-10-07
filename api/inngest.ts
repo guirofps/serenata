@@ -33,6 +33,7 @@ import { conviteIndicacao } from "../inngest/functions/conviteIndicacao.js";
 import { avisoVendas } from "../inngest/functions/avisoVendas.js";
 import { videoPendente } from "../inngest/functions/videoPendente.js";
 import { lembrarDatas } from "../inngest/functions/lembrarDatas.js";
+import { campanhaMusica10 } from "../inngest/functions/campanhaMusica10.js";
 
 import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
 
@@ -118,5 +119,7 @@ export default serve({
     avisoVendas,
     videoPendente,
     lembrarDatas,
+    // Campanha MUSICA10 (07/10): só Serenata, liga com CAMPANHA_MUSICA10_ON=1.
+    campanhaMusica10,
   ],
 });
