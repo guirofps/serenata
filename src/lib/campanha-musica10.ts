@@ -1,6 +1,8 @@
 // AS REGRAS DA CAMPANHA MUSICA10, puras: o job do Inngest e os testes leem
 // daqui. Sem imports com `@` (o Inngest roda como ESM puro).
 
+import { emailPlausivel } from "./email-limpo.js";
+
 export const CAMPANHA = "musica10";
 
 /** ~300 por hora, 12 rodadas por dia: uns 3.600/dia sem pico que assine lista comprada. */
@@ -37,4 +39,34 @@ export function linkCriarCampanha(site: string, versao: VersaoEnvio): string {
 
 export function templateDoEnvio(versao: VersaoEnvio): string {
   return `campanha_musica10_${versao}`;
+}
+
+/**
+ * Tira do lote o que NUNCA é endereço válido (`x@hotmail.com.`, `y@gmail`,
+ * espaço no meio). Um desses, num `batch` estrito, derruba os 100; aqui ele
+ * sai antes e vira `pulado = 'invalido'` na fila.
+ */
+export function separarPorValidade<T extends { email: string }>(lote: T[]): { validos: T[]; invalidos: T[] } {
+  const validos: T[] = [];
+  const invalidos: T[] = [];
+  for (const l of lote) (emailPlausivel(l.email) ? validos : invalidos).push(l);
+  return { validos, invalidos };
+}
+
+/**
+ * O id de cada e-mail do lote, na ordem do lote, com `null` nos que o Resend
+ * recusou. No modo `permissive` só os aceitos vêm em `data`, na ordem, e
+ * `errors` traz o índice dos recusados; se vier um por posição, vale a posição.
+ */
+export function idsDoLote(
+  n: number,
+  data: Array<{ id: string }>,
+  erros: Array<{ index: number }>,
+): Array<string | null> {
+  if (data.length === n) return data.map((d) => d.id ?? null);
+  const recusado = new Set(erros.map((e) => e.index));
+  const out: Array<string | null> = [];
+  let k = 0;
+  for (let i = 0; i < n; i++) out.push(recusado.has(i) ? null : (data[k++]?.id ?? null));
+  return out;
 }

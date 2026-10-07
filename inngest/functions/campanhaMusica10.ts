@@ -14,7 +14,9 @@ import {
   POR_RODADA,
   emLotes,
   freioAcionado,
+  idsDoLote,
   linkCriarCampanha,
+  separarPorValidade,
   templateDoEnvio,
   type VersaoEnvio,
 } from "../../src/lib/campanha-musica10.js";
@@ -170,56 +172,88 @@ export const campanhaMusica10 = inngest.createFunction(
 
     let enviados = 0;
     let pulados = 0;
+    let lotesFalhos = 0;
+    let ultimoErro = "";
     for (const [i, lote] of emLotes(fila).entries()) {
       const r = await step.run(`lote-${i}-${lote[0].email}`, async () => {
         const sb = db();
+        const marcar = (emails: string[], motivo: string) =>
+          emails.length
+            ? sb.from("campanha_envios").update({ pulado: motivo }).eq("campanha", CAMPANHA).in("email", emails)
+            : null;
+
         // Rechecagem NA HORA: quem se descadastrou ou voltou desde a montagem.
         const fora = await bloqueados(sb, lote.map((l) => l.email));
-        if (fora.size) {
-          await sb
-            .from("campanha_envios")
-            .update({ pulado: "bloqueado" })
-            .eq("campanha", CAMPANHA)
-            .in("email", [...fora]);
-        }
-        const vivos = lote.filter((l) => !fora.has(l.email));
-        if (!vivos.length) return { enviados: 0, pulados: fora.size };
+        await marcar([...fora], "bloqueado");
+        // E o que NUNCA é endereço (`x@hotmail.com.`): sai antes de chegar no
+        // Resend, senão derrubaria o lote inteiro e voltaria toda hora.
+        const { validos, invalidos } = separarPorValidade(lote.filter((l) => !fora.has(l.email)));
+        await marcar(invalidos.map((l) => l.email), "invalido");
+        const puladosAqui = fora.size + invalidos.length;
+        if (!validos.length) return { enviados: 0, pulados: puladosAqui, erro: null as string | null };
 
-        const chave = createHash("sha256").update(vivos.map((l) => l.email).join(",")).digest("hex").slice(0, 40);
+        const chave = createHash("sha256").update(validos.map((l) => l.email).join(",")).digest("hex").slice(0, 40);
         const resend = new Resend(process.env.RESEND_API_KEY);
-        const resp = await resend.batch.send(vivos.map(montarEmail), { idempotencyKey: `musica10-${chave}` });
+        // PERMISSIVE: um endereço que o Resend recusar não leva os outros 99
+        // junto; ele volta em `errors` com o índice e vira `pulado`.
+        const resp = await resend.batch.send(validos.map(montarEmail), {
+          idempotencyKey: `musica10-${chave}`,
+          batchValidation: "permissive",
+        });
         if (resp.error) {
-          // Sem marcar: a próxima rodada tenta de novo. Lançar derrubaria os outros lotes.
+          // Sem marcar: a próxima rodada tenta de novo. Lançar derrubaria os
+          // outros lotes; o aviso sai no fim da rodada se NADA tiver saído.
           console.error("[campanha] resend recusou o lote:", resp.error.message);
-          return { enviados: 0, pulados: fora.size };
+          return { enviados: 0, pulados: puladosAqui, erro: resp.error.message };
         }
-        const ids = resp.data?.data ?? [];
+        const ids = idsDoLote(validos.length, resp.data?.data ?? [], resp.data?.errors ?? []);
+        const recusados = validos.filter((_, k) => !ids[k]);
+        if (recusados.length) {
+          console.error("[campanha] resend recusou endereços:", JSON.stringify(resp.data?.errors ?? []).slice(0, 500));
+          await marcar(recusados.map((l) => l.email), "recusado");
+        }
+        const aceitos = validos.map((l, k) => ({ l, id: ids[k] })).filter((x) => x.id);
         const agora = new Date().toISOString();
         const { error: erroMarca } = await sb.from("campanha_envios").upsert(
-          vivos.map((l, k) => ({ ...l, campanha: CAMPANHA, enviado_em: agora, email_id: ids[k]?.id ?? null })),
+          aceitos.map(({ l, id }) => ({ ...l, campanha: CAMPANHA, enviado_em: agora, email_id: id })),
           { onConflict: "campanha,email" },
         );
         if (erroMarca) {
           // O Resend JÁ mandou. A chave de idempotência segura a repetição por
           // 24h; isto aqui precisa de gente olhando antes disso.
-          console.error("[campanha] ENVIADO e não marcado:", erroMarca.message, vivos[0].email);
+          console.error("[campanha] ENVIADO e não marcado:", erroMarca.message, validos[0].email);
           await avisarDonos({
             assunto: "Campanha MUSICA10: lote enviado e não marcado",
             html: `<p>${erroMarca.message}</p>`,
           });
         }
-        for (const [k, l] of vivos.entries()) {
+        for (const { l, id } of aceitos) {
           await registrarEnvio(sb, {
-            emailId: ids[k]?.id,
+            emailId: id,
             template: templateDoEnvio(l.versao),
             para: l.email,
             quizResponseId: l.quiz_response_id,
           });
         }
-        return { enviados: vivos.length, pulados: fora.size };
+        return { enviados: aceitos.length, pulados: puladosAqui + recusados.length, erro: null as string | null };
       });
       enviados += r.enviados;
       pulados += r.pulados;
+      if (r.erro) {
+        lotesFalhos += 1;
+        ultimoErro = r.erro;
+      }
+    }
+
+    // RODADA QUE NÃO MANDOU NADA COM FILA CHEIA é campanha parada sem ninguém
+    // saber (chave, domínio, Resend fora). Grita, uma vez por rodada.
+    if (enviados === 0 && lotesFalhos > 0) {
+      await step.run("avisar-rodada-falha", () =>
+        avisarDonos({
+          assunto: "Campanha MUSICA10: rodada sem envio",
+          html: `<p>${lotesFalhos} lote(s) recusado(s) pelo Resend nesta rodada, nenhum e-mail saiu.</p><p>Último erro: ${ultimoErro.replace(/</g, "&lt;")}</p>`,
+        }),
+      );
     }
 
     console.log(`[campanha] musica10 enviados=${enviados} pulados=${pulados} total=${total}`);
