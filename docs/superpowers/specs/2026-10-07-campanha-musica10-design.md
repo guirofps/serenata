@@ -87,6 +87,13 @@ Preços com `MUSICA10`, no catálogo de hoje:
 | `criar-pix-oferta.ts` (`/oferta/<token>`) | sem cupom | **não muda**: a escada já é desconto |
 | Stripe / Perfect Pay (Ballad, `/es`) | — | **não muda** |
 
+**Os webhooks também mudam** (achado na implementação, 07/10): o Asaas e a
+Woovi conferiam o valor pago do upsell contra o PREÇO DE TABELA e recusavam
+liberar qualquer outro. Com o cupom, todo extra pago ficaria sem liberar.
+Passaram a conferir contra `valorEsperadoDoUpsell`: o catálogo com o cupom
+que o PRÓPRIO pedido gravou, na data em que o pedido nasceu (o cupom vem da
+nossa linha, nunca do gateway).
+
 Invariantes:
 
 - **O preço nunca vem do cliente.** Só o CÓDIGO viaja; o valor sai do
@@ -113,11 +120,12 @@ preço. É o que permite contar vendas da campanha sem adivinhar pelo valor.
 
 ## 2. Como o cupom chega ao checkout
 
-- **Qualquer página** que abra com `?cupom=XXX` guarda o código em
-  `localStorage` numa chave PRÓPRIA (`mp_cupom`: `{ codigo, guardadoEm }`),
-  fora do `mp_quiz`. Assim o `reset()` do quiz não apaga o cupom, e ele vale
-  também no editor, onde estão os extras. Leitura e escrita em `try/catch`
-  (navegação privada).
+- **Qualquer página** que abra com `?cupom=XXX` guarda o código no `cupom`
+  da store `mp_quiz` (`cupom-url.ts`, chamado no `__root`), e o `reset()` do
+  quiz deixou de apagá-lo. Assim o cupom sobrevive a quem já comprou e volta
+  pra criar outra, e vale também no editor, onde estão os extras. (Na
+  implementação, 07/10: uma chave própria `mp_cupom` daria a mesma garantia
+  com dois lugares de armazenamento; ficou um só.)
 - O navegador **não decide** se o cupom vale. Ele só guarda e manda o
   código; a tela pergunta ao servidor (ou usa a mesma função pura) pra saber
   o preço a mostrar, e a cobrança recalcula do zero.
@@ -179,6 +187,10 @@ Serenata (`api/inngest.ts`, lista da Serenata, nunca `DA_BALLAD`).
   e-mails de marketing, `concurrency: { limit: 1 }`.
 - **Até 300 por rodada.** Em `step.run` por lotes, nunca um step por pessoa
   com 300 steps abertos sem teto.
+- **A seleção acontece UMA vez** (implementação, 07/10): `montar_campanha`
+  (função SQL) monta a fila `campanha_envios` na primeira rodada ligada, e
+  cada rodada só drena as próximas 300. Reler a base inteira de hora em hora
+  repetiria o `statement timeout` do painel de 02/10.
 - **Quem recebe**:
   - `quiz_responses` com e-mail, `locale = 'pt'`, e-mail normalizado
     (minúsculas, sem espaços) e plausível (`emailPlausivel`);
@@ -186,9 +198,10 @@ Serenata (`api/inngest.ts`, lista da Serenata, nunca `DA_BALLAD`).
   - versão `comprador` se o e-mail tem pedido pago com dinheiro entrando;
     senão `lead`.
 - **Quem fica de fora**: `descadastros`, `emails_mortos` com
-  `liberado_em` nulo, `excluidos_email`, quem já tem `email_complained` em
-  `funnel_events`, e quem já tem o template `campanha_musica10` em
-  `emails_enviados`.
+  `liberado_em` nulo, `excluidos_email`, memorial, e quem reclamou de spam:
+  a reclamação do Resend passa a gravar `descadastros` (motivo `complaint`)
+  no webhook, e vale pra todas as réguas. Quem já foi enviado não volta pra
+  fila (`enviado_em`).
 - **Toda leitura paginada** (`todasAsPaginas`): o PostgREST corta em 1.000
   linhas sem avisar, e a base passa disso. (O `ocasiaoCalendario` tem esse
   defeito hoje; fica fora do escopo, anotado.)

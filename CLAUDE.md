@@ -577,6 +577,30 @@ painel_eventos_dia`) e o cron refazer.
   dela tenha artigo publicado E `<url>` no sitemap.
 - Medição: tabela de páginas de entrada do painel e Search Console.
 
+## Campanha MUSICA10 (07/10/2026)
+
+E-mail pra base `pt` inteira com R$ 10 de desconto em qualquer compra.
+Desenho em `docs/superpowers/specs/2026-10-07-campanha-musica10-design.md`.
+
+- **O webhook do upsell confere o valor pelo cupom do PRÓPRIO pedido**
+  (`valorEsperadoDoUpsell`, `cupom.ts`), na data em que o pedido nasceu.
+  Antes ele exigia o preço de tabela, e todo extra com desconto ficaria pago
+  e sem liberar. O cupom vem da nossa linha, nunca do gateway.
+- **Cupom fixo ≠ cupom de preço final.** `MUSICA10` tira R$ 10 do preço da
+  pessoa (braço dela, piso R$ 5) em música, extra, quadro e vídeo; `SRN27`
+  vira R$ 28 e só na música. A validade de cada um mora em `cupom.ts` e o
+  e-mail lê a data de lá (`validadeCurta`).
+- **O cupom entra por `?cupom=` em qualquer página** (`cupom-url.ts`), fica no
+  `mp_quiz` e SOBREVIVE ao `reset()`. A referência do PIX ganha `:d` com
+  cupom: o mesmo quiz com outro valor precisa de outra referência.
+- **A fila é montada UMA vez por SQL** (`montar_campanha`), drenada 300/h em
+  lotes de 100 pelo `resend.batch` com chave de idempotência. Freio: bounce
+  > 4% ou reclamação > 0,1% nas últimas 24h para o envio e avisa os donos.
+- **Reclamação de spam vira descadastro** (`descadastros`, motivo
+  `complaint`), no webhook do Resend: vale pra todas as réguas.
+- Ligar e desligar: `CAMPANHA_MUSICA10_ON` na Vercel. Teste sem base: evento
+  `campanha/musica10.teste` com `{ "para": "..." }` no painel do Inngest.
+
 ## Riscos conhecidos
 
 1. **Dependência de revendedor não oficial do Suno.** Zona cinzenta nos termos
@@ -933,6 +957,7 @@ caractere do id do quiz (braço recalculável na leitura).
 | Serenata: criativos de 03/10 (pai, mãe, esposa, gospel) | 03/10 | Uma campanha por vídeo, R$ 40/dia cada (R$ 360/dia), molde de 28/09. Pai/Mãe/Esposa (2 versões cada, anúncio e orgânico, mesma duração; o id do YouTube vai no nome) no "Remkt Concorrentes" com destino /criar. Os 3 gospel (descoberta, mistura, pergunta) no "Sinal 28set · Gospel e fé" com destino /criar?t=gospel e copy de louvor. `scratch/ads-criar-testes-03out.mjs` (`--ligar` confere país, idioma, público e URL e relê) | CPA real por criativo contra as campeãs; gospel: receita por lead do `?t=gospel` | 06/10 | o vencedor ganha versão em inglês |
 | Ballad: leva Dylan de 04/10 | 04/10 | Os campeões da Serenata refeitos com a voz "Dylan" (ElevenLabs, roteiro coloquial) + lip sync, mais esposa e gospel novos: 25 vid5 dylan (YouTube HI0TI4K1ZXQ), 26 fone dylan (BZa9IwqyfW4), 27 esposa dylan (9Oxdfpnmyw0), 28 gospel worship (iEPfgiz7jH0, destino /criar?t=gospel, copy de worship). Campanhas NOVAS no molde das campeãs: público Concorrentes EUA + segmentação LIGADA, R$ 50/dia cada. A 13 (Vid 5 com a voz antiga) foi pausada. `scratch/ballad-ads-criar-04out.mjs` (`--ligar` confere público, segmentação, EUA, inglês e URL). Ballad em 12 ligadas, R$ 650/dia | % que responde a 1ª pergunta, R$/lead, venda; 25/26 contra 13/14 antigos | 07/10 | é a Ballad |
 | Ballad: porta cristã + criativos dublados de 03/10 | 03/10 | Não é A/B: porta nova (`/criar?t=gospel` em inglês) e dois criativos traduzidos dos de 03/10 da Serenata, voz "Dylan" (ElevenLabs) dublada com lip sync: `materiais/ballad/ballad-esposa-en.mp4` (destino /criar, página da Emily) e `ballad-gospel-en.mp4` (destino /criar?t=gospel, louvor de exemplo). Montagem: `scratchpad` → legendas palavra a palavra em Poppins por cima da faixa borrada da legenda em português | começou o quiz e venda; gospel: louvor × presente | 07/10 | é a Ballad |
+| Campanha MUSICA10 (e-mail pra base + cupom de R$ 10) | ao ligar | Não é A/B: campanha. Base `pt` inteira em 2 versões (comprador × lead), 300/h, fila `campanha_envios`, job `campanhaMusica10` (liga com `CAMPANHA_MUSICA10_ON=1`). Cupom vale em música, extra, quadro e vídeo até `MUSICA10_VALE_ATE` | abertura/clique por versão, vendas com `pedidos.cupom = 'MUSICA10'`, receita, bounce e reclamação | 3 e 7 dias depois do último envio | não (só Serenata) |
 | `/criar?t=gospel` | 02/10 | Não é A/B: porta própria dos anúncios gospel (louvor pra Deus ou presente com fé, 5 estilos gospel). Comparado contra o resto do funil na seção "Gospel" do painel | receita por lead do gospel contra o resto; louvor × presente | 09/10 | não (só Serenata) |
 | Blog (30 artigos de SEO: 10 em 03/10 + 20 gospel em 03/10) | 03/10 | Não é A/B: canal novo. Artigos em `/blog/<slug>` por intenção de presente (pessoa, ocasião, gospel, guia), cada um com música real e CTA pro `/criar` (`?t=gospel` no louvor) | visitas, leads e vendas por página de entrada; impressões e cliques no Search Console (o dono manda o sitemap) | 23/10 | não (só Serenata) |
 | `email_confirma` | 30/09 | e-mail do quiz como era × folha "Confere o seu e-mail" (e-mail grande, domínio conferido no DNS, aviso sem bloquear) | % que deixa e-mail, bounce da `letra_pronta`, receita por lead, `email_confirma_corrigir` | 07/10 | já roda nas duas |
