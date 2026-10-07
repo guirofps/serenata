@@ -1005,6 +1005,21 @@ sessão e zera a store. (2) Ajuste com pedido vazio + voz/estilo IGUAIS aos da
 música regravava igual e gastava o direito; agora volta `curto`. (3) Toda
 trava "já mandei?" das 12 rotinas de e-mail falha FECHADA.
 
+**Consertos sem teste (06-07/10):** o ajuste regrava a música INTEIRA (melodia
+e voz novas), mesmo pra trocar uma palavra; o Silvio pediu "querida" → "querido",
+recebeu outra música e quis a primeira de volta. O aviso ao lado do botão de
+ajuste passou a dizer isso antes (`PedirRefacao.tsx`). No vídeo-presente, a cena
+"cheia" cortava foto deitada (`cover` num quadro 9:16 mostrava ~42% da largura
+de uma 4:3); duas compradoras reclamaram, uma pra usar no casamento. Agora só
+foto EM PÉ é cortada; deitada ou quadrada entra inteira na largura, sobre ela
+mesma desfocada (`Presente.tsx`, proporção lida com `delayRender`). Site da
+Lambda republicado (`video:site`) e os dois vídeos refeitos. Achado no suporte
+e ainda ABERTO: o ajuste pelo app recusa a maioria dos pedidos ("vago" 16-47 por
+dia e "falhou" 4-21, contra 6-25 que passam) e um "falhou" deixou versão
+arquivada sem gastar o direito (Carmelina); tarefa separada criada. E 7 das 11
+músicas de exemplo da home perderam o áudio completo: `ehExemplo` só protege
+token `ex…` (tarefa separada criada).
+
 ## Em aberto
 
 - Nome e marca
