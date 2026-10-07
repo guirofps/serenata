@@ -330,3 +330,21 @@ export function varianteDePreco(
 export function meuPlano(locale: Locale = LOCALE_PADRAO, opcoes?: { temCupom?: boolean }): Plano {
   return planoDe(locale, varianteDePreco(locale, opcoes));
 }
+
+/**
+ * O plano que o SERVIDOR cobra por esta variante: braço com peso 0 na config
+ * viva é cobrado como o controle (`bracoCobravel`, `criar-pix.ts`).
+ *
+ * Existe pela conta do cupom (07/10): quem ficou grudado no braço E (R$ 54,90,
+ * zerado pelo peso em 28/08) via "por R$ 44,90" na tela e pagava R$ 28 no QR.
+ * O desconto tem que sair da mesma base que a cobrança.
+ */
+export function planoCobravelDe(locale: Locale, variante: string): Plano {
+  const peso = experimentoPrecoDaConfig()?.variantes.find((v) => v.nome === variante)?.peso;
+  return (peso ?? 1) <= 0 ? planoControle(locale) : planoDe(locale, variante);
+}
+
+/** `planoCobravelDe` com a variante desta pessoa. */
+export function meuPlanoCobravel(locale: Locale = LOCALE_PADRAO): Plano {
+  return planoCobravelDe(locale, varianteDePreco(locale));
+}

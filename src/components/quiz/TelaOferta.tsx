@@ -14,7 +14,7 @@ import { checkoutGa4, vitrineGa4 } from "@/lib/ga4";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { TEMA_CLARO } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
-import { meuPlano } from "@/lib/preco";
+import { meuPlano, meuPlanoCobravel } from "@/lib/preco";
 import { PrecoCurto, PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
 import { descontoNaTela } from "@/lib/cupom";
 import { GARANTIA } from "@/lib/garantia";
@@ -545,10 +545,11 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     (respostas.nome as string)?.trim() ||
     (locale === "es" ? "quien vos querés" : locale === "en" ? "someone you love" : "quem você ama");
   // O DESCONTO SAI DA MESMA CONTA DA COBRANÇA (`descontoNaTela`), sobre o
-  // braço desta pessoa: o número que ela lê é o que o QR cobra. Vale o cupom
-  // da recuperação (SRN27) e o da campanha (MUSICA10, 07/10); código
+  // braço que o SERVIDOR cobra desta pessoa (`meuPlanoCobravel`: braço de
+  // peso 0 vira o controle): o número que ela lê é o que o QR cobra. Vale o
+  // cupom da recuperação (SRN27) e o da campanha (MUSICA10, 07/10); código
   // desconhecido ou vencido não muda nada na tela, nem no servidor.
-  const baseDaPessoaC = Math.round((Number(meuPlano(locale).valor) || 0) * 100);
+  const baseDaPessoaC = Math.round((Number(meuPlanoCobravel(locale).valor) || 0) * 100);
   const descontado = descontoNaTela(cupom, locale, baseDaPessoaC);
 
   // O degrau novo do funil: sem este evento, "viu a oferta" e "foi pro

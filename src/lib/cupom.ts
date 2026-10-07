@@ -33,7 +33,9 @@ export type Cupom = { codigo: string; texto: string; de: string; por: string };
 // `preco_final` é o da recuperação: o preço VIRA o "por" (R$ 38 → R$ 28), e só
 // na música. `fixo` é o da campanha MUSICA10 (07/10): tira um valor de
 // QUALQUER compra (música, extra, quadro, vídeo), sobre o preço que aquela
-// pessoa pagaria. Quem está preso no braço de R$ 54,90 paga R$ 44,90, não R$ 28.
+// pessoa pagaria: num braço VIVO de R$ 54,90, R$ 44,90, não R$ 28. (Braço de
+// peso 0 é cobrado como o controle; a tela usa `meuPlanoCobravel` pra não
+// mostrar um número que o servidor não cobra.)
 type CupomPrecoFinal = {
   tipo: "preco_final";
   codigo: string;
