@@ -60,6 +60,12 @@ type QuizState = {
    * `/retomar`, é levada pro reveal, ouve a música, vai pra oferta e só então
    * pro checkout. Perder o código em qualquer uma dessas pontes transformaria
    * a promessa do e-mail em preço cheio na tela do gateway.
+   *
+   * Desde 07/10 também vem de `?cupom=` em qualquer página (campanha
+   * MUSICA10, `cupom-url.ts`) e SOBREVIVE ao `reset()`: quem já comprou e volta
+   * pelo e-mail pra criar outra passa pelo reset do `Quiz.tsx`, e perder o
+   * cupom ali seria quebrar a promessa do e-mail no primeiro passo. Validade
+   * e valor são do servidor; código vencido guardado não desconta nada.
    */
   cupom: string | null;
   letraFinal: LetraFinal | null;
@@ -115,7 +121,7 @@ export const useQuizStore = create<QuizState>()(
       setWhatsapp: (whatsapp) => set({ whatsapp }),
       setCupom: (cupom) => set({ cupom }),
       setLetraFinal: (letraFinal) => set({ letraFinal }),
-      reset: () => set({ respostas: {}, email: null, whatsapp: null, cupom: null, letraFinal: null }),
+      reset: () => set({ respostas: {}, email: null, whatsapp: null, letraFinal: null }),
     }),
     { name: "mp_quiz" },
   ),

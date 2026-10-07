@@ -35,6 +35,8 @@ import { GOOGLE_ADS_ID } from "@/lib/google-ads";
 import { LOCALE_PADRAO, TAG_IDIOMA } from "@/lib/i18n";
 import { FONTES, MARCA } from "@/lib/marca";
 import { rotaDeConversao, scriptCarregaGtag, scriptDepoisDaPagina, scriptFontes } from "@/lib/carregar-depois";
+import { guardarCupomDaUrl } from "@/lib/cupom-url";
+import { useQuizStore } from "@/lib/quiz-store";
 
 // ── O QUE NÃO EXISTE NA BALLAD GIFT ───────────────────────────────
 //
@@ -393,6 +395,8 @@ function RootComponent() {
     // bucket de device. Capturado uma vez no primeiro mount, persiste entre rotas.
     getOrCreateSessionId();
     captureFirstTouchAttribution();
+    // Depois da atribuição (que lê as UTMs da mesma URL), antes do page_view.
+    guardarCupomDaUrl((c) => useQuizStore.getState().setCupom(c));
     getDevice();
     // A/B: resolve a variante sticky e carimba em mp_attribution ANTES do
     // primeiro page_view, para todo funnel_event carregar attribution.variant.
