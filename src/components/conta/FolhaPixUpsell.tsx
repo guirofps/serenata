@@ -12,6 +12,10 @@ import { cobrarCartaoUpsell, cobrarCartaoUpsellPorToken } from "@/lib/criar-cart
 import { trackEvent } from "@/lib/track";
 import { Button } from "@/components/ui/button";
 import { cpfValido, formatarCpf, soDigitosCpf } from "@/lib/cpf";
+import { useQuizStore } from "@/lib/quiz-store";
+import { OFERTAS } from "@/lib/creditos";
+import { descontoNaTela, type Alvo } from "@/lib/cupom";
+import { reaisDeCentavos } from "@/lib/indicacao";
 
 // A FOLHA DE PAGAMENTO DO UPSELL: música extra, quadro e vídeo. PIX OU
 // cartão, os dois pelo Asaas, o que a pessoa preferir (dono, 02/10).
@@ -72,6 +76,14 @@ export function FolhaPixUpsell({
   aoFechar: () => void;
 }) {
   const [fase, setFase] = useState<Fase>({ t: "resumo" });
+  // O CUPOM DA CAMPANHA (MUSICA10) vale nos extras também (dono, 07/10). A
+  // folha mostra o preço com desconto e manda SÓ o código; o servidor
+  // recalcula do catálogo. Sem cupom, nada muda.
+  const cupom = useQuizStore((s) => s.cupom);
+  const catalogoC = Math.round((OFERTAS.find((o) => o.id === ofertaId)?.precoBrl ?? 0) * 100);
+  const desconto = descontoNaTela(cupom, "pt", catalogoC, ofertaId as Alvo);
+  const precoMostrado = desconto?.por ?? precoTexto;
+  const cupomDaCompra = desconto?.codigo;
   // Quando o servidor diz que o gateway exige CPF, o campo aparece. A tela
   // NAO sabe (nem deve saber) com qual gateway esta falando: com a Woovi o
   // campo nunca aparece, e nada aqui muda.
@@ -96,12 +108,12 @@ export function FolhaPixUpsell({
       // As mesmas duas portas do PIX: o e-mail que recebe sai da sessão ou do
       // token, nunca do formulário.
       const r = tokenEdicao
-        ? await cobrarCartaoUpsellPorToken({ data: { tokenEdicao, ofertaId, ...dados } })
+        ? await cobrarCartaoUpsellPorToken({ data: { tokenEdicao, ofertaId, cupom: cupomDaCompra, ...dados } })
         : await (async () => {
             const { data: sess } = await supabase.auth.getSession();
             const token = sess.session?.access_token;
             if (!token) return { ok: false, erro: "sem-sessao" } as const;
-            return cobrarCartaoUpsell({ data: { token, ofertaId, ...dados } });
+            return cobrarCartaoUpsell({ data: { token, ofertaId, cupom: cupomDaCompra, ...dados } });
           })();
       if (r.ok) {
         trackEvent("cartao_upsell_pago", { oferta: ofertaId, pago: r.pago });
@@ -140,12 +152,12 @@ export function FolhaPixUpsell({
       // Nenhuma das duas aceita e-mail vindo do navegador: o que prova quem
       // esta comprando e a sessao assinada ou a posse do token.
       const r = tokenEdicao
-        ? await criarPixUpsellPorToken({ data: { tokenEdicao, ofertaId, cpf: cpf || undefined } })
+        ? await criarPixUpsellPorToken({ data: { tokenEdicao, ofertaId, cpf: cpf || undefined, cupom: cupomDaCompra } })
         : await (async () => {
             const { data: sess } = await supabase.auth.getSession();
             const token = sess.session?.access_token;
             if (!token) return { ok: false, erro: "sem-sessao" } as const;
-            return criarPixUpsell({ data: { token, ofertaId, cpf: cpf || undefined } });
+            return criarPixUpsell({ data: { token, ofertaId, cpf: cpf || undefined, cupom: cupomDaCompra } });
           })();
       if (!r.ok) {
         // CPF nao e falha, e pedido de correcao: volta pro resumo com o
@@ -188,7 +200,17 @@ export function FolhaPixUpsell({
 
         {fase.t === "resumo" && (
           <div className="space-y-4 py-2">
-            <p className="text-center font-display text-3xl font-semibold">{precoTexto}</p>
+            {desconto ? (
+              <div className="text-center">
+                <p className="text-sm text-[var(--tinta-fraca)] line-through">{precoTexto}</p>
+                <p className="font-display text-3xl font-semibold">{precoMostrado}</p>
+                <p className="mt-2 inline-block rounded-full bg-[var(--acento)]/10 px-3 py-1 text-xs font-semibold text-[var(--acento)]">
+                  Cupom {desconto.codigo} · −{desconto.texto}
+                </p>
+              </div>
+            ) : (
+              <p className="text-center font-display text-3xl font-semibold">{precoTexto}</p>
+            )}
 
             {precisaCpf && (
               <div className="space-y-1.5 rounded-2xl border border-[var(--tinta-fraca)]/20 px-4 py-3 text-left">
@@ -265,7 +287,7 @@ export function FolhaPixUpsell({
 
         {fase.t === "cartao" && (
           <FormularioCartao
-            precoTexto={precoTexto}
+            precoTexto={precoMostrado}
             // O e-mail do formulário é só o do titular no Asaas. Quem recebe o
             // que foi comprado é a conta (sessão ou token), decidido no servidor.
             emailDoQuiz=""
@@ -294,7 +316,8 @@ export function FolhaPixUpsell({
         {fase.t === "pronto" && (
           <PixPagamento
             copiaECola={fase.dados.copiaECola}
-            valorTexto={precoTexto}
+            // O valor que o servidor cobrou de fato (com cupom, se houver).
+            valorTexto={reaisDeCentavos(fase.dados.valorCentavos)}
             referencia={fase.dados.referencia}
             // NÃO manda pro `/obrigado`: quem compra aqui já é cliente. O
             // certo é ver o saldo novo no lugar onde clicou, e o recarregar

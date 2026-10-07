@@ -40,7 +40,10 @@ export function PrecoDaOferta({
     return (
       <>
         <p className="text-sm text-muted-foreground">
-          <span className="line-through">{planoControle(locale).texto}</span> {hojePor}
+          {/* No português a âncora é o preço REAL da pessoa (o braço dela), o
+              mesmo que o cupom descontou. No espanhol, o de sempre. */}
+          <span className="line-through">{locale === "pt" ? descontado.de : planoControle(locale).texto}</span>{" "}
+          {hojePor}
         </p>
         <p className="font-display text-5xl font-semibold tracking-tight">{descontado.por}</p>
       </>

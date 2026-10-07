@@ -16,7 +16,7 @@ import { TEMA_CLARO } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
 import { meuPlano } from "@/lib/preco";
 import { PrecoCurto, PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
-import { cupomAtivo } from "@/lib/cupom";
+import { descontoNaTela } from "@/lib/cupom";
 import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
 import { varianteDe, EXP_PROVA_BLOCOS } from "@/lib/experimentos";
@@ -544,10 +544,12 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   const nome =
     (respostas.nome as string)?.trim() ||
     (locale === "es" ? "quien vos querés" : locale === "en" ? "someone you love" : "quem você ama");
-  // Só mostra desconto se o cupom da store for MESMO o da recuperação: um
-  // código digitado na URL por curiosidade não pode reescrever o preço da tela.
-  const doFunil = cupomAtivo(locale);
-  const descontado = cupom && doFunil && cupom.toUpperCase() === doFunil.codigo ? doFunil : null;
+  // O DESCONTO SAI DA MESMA CONTA DA COBRANÇA (`descontoNaTela`), sobre o
+  // braço desta pessoa: o número que ela lê é o que o QR cobra. Vale o cupom
+  // da recuperação (SRN27) e o da campanha (MUSICA10, 07/10); código
+  // desconhecido ou vencido não muda nada na tela, nem no servidor.
+  const baseDaPessoaC = Math.round((Number(meuPlano(locale).valor) || 0) * 100);
+  const descontado = descontoNaTela(cupom, locale, baseDaPessoaC);
 
   // O degrau novo do funil: sem este evento, "viu a oferta" e "foi pro
   // checkout" ficariam colados e a tela não serviria de medida.
@@ -911,7 +913,15 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       // Visto ao vivo às 19:04, na primeira hora: três cliques em comprar e
       // um `abriu` só.
       trackEvent("pix_transparente_abriu", { valor: plano.valor });
-      if (comConvite) {
+      if (descontado && descontado.porCentavos) {
+        // COM CUPOM, A FOLHA JÁ ABRE NO PREÇO COM DESCONTO. Antes ela mostrava
+        // o preço do braço até o QR chegar com o valor do servidor.
+        setPagandoComPix({
+          texto: descontado.por,
+          ancora: descontado.de,
+          valor: descontado.porCentavos / 100,
+        });
+      } else if (comConvite) {
         // A MESMA CONTA DO SERVIDOR (`descontoDoConvite`), sobre o mesmo
         // braço de preço. O preço sem desconto vira a âncora riscada.
         const baseC = Math.round((Number(plano.valor) || 0) * 100);
