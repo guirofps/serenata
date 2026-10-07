@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { bracoCobravel } from "@/lib/braco-cobravel";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { OFERTAS } from "@/lib/creditos";
-import { centavosComCupom } from "@/lib/cupom";
+import { centavosComCupom, codigoAplicado } from "@/lib/cupom";
 import { emailPlausivel, semPontoNoFim } from "@/lib/email-limpo";
 import { BUMPS, ehItemBump, referenciaComItem, valorComItem, type ItemBump } from "@/lib/bump";
 import { cpfValido, soDigitosCpf } from "@/lib/cpf";
@@ -229,7 +229,7 @@ export const criarPix = createServerFn({ method: "POST" })
       cpf?: string;
       /** WhatsApp digitado na folha, cru. Normalizado aqui, nunca no cliente. */
       telefone?: string;
-      /** Cupom da recuperação. Só o CÓDIGO: o desconto sai de `cupom.ts`, daqui. */
+      /** Cupom (recuperação ou campanha). Só o CÓDIGO: o desconto sai de `cupom.ts`, daqui. */
       cupom?: string;
     }) => data,
   )
@@ -264,7 +264,9 @@ export const criarPix = createServerFn({ method: "POST" })
 
     const semCupom = await valorCentavosDaSessao(db, quiz.attribution);
     if (!semCupom) return { ok: false, erro: "sem-preco" };
-    const base = centavosComCupom(semCupom, data.cupom);
+    const agora = new Date();
+    const base = centavosComCupom(semCupom, data.cupom, agora, "musica");
+    const cupomAplicado = codigoAplicado(semCupom, data.cupom, agora, "musica");
     // Uma pagina carregada antes do deploy ainda manda `quadro: true`.
     const item: ItemBump | null = ehItemBump(data.bump)
       ? data.bump
@@ -373,7 +375,7 @@ export const criarPix = createServerFn({ method: "POST" })
     // PIX de proposito, mas exige. O webhook agora recusa entregar de novo e
     // avisa o dono pra devolver, em vez de mandar dois presentes e a pessoa
     // descobrir a cobranca dobrada no extrato.
-    const referencia = referenciaComItem(String(quiz.id), item, Boolean(convite));
+    const referencia = referenciaComItem(String(quiz.id), item, Boolean(convite), Boolean(cupomAplicado));
 
     // ── O CPF, QUANDO O GATEWAY PEDE ─────────────────────────
     //
@@ -493,6 +495,9 @@ export const criarPix = createServerFn({ method: "POST" })
         ...(convite
           ? { indicacao_codigo: convite.codigo, desconto_indicacao_centavos: descontoConvite }
           : {}),
+        // O cupom que BAIXOU o preço, normalizado. É o que mede a campanha e o
+        // que o webhook do upsell confere. Só quando existe, como o convite.
+        ...(cupomAplicado ? { cupom: cupomAplicado } : {}),
         bump_quadro: item ? BUMPS[item].quadro : false,
         bump_video: item ? BUMPS[item].video : false,
         taxa_centavos: cobranca.taxaCentavos,

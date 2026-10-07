@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { asaas } from "@/lib/asaas";
 import { ErroGateway, type DadosCartao, type TitularCartao } from "@/lib/gateway-cartao";
 import { BUMPS, ehItemBump, valorComItem, type ItemBump } from "@/lib/bump";
-import { centavosComCupom } from "@/lib/cupom";
+import { centavosComCupom, codigoAplicado } from "@/lib/cupom";
 import { emailPlausivel, semPontoNoFim } from "@/lib/email-limpo";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../../api/lib/entrega";
 import { liberarItensDoBump } from "../../api/lib/creditar-upsell";
@@ -159,7 +159,7 @@ export const cobrarCartao = createServerFn({ method: "POST" })
       bump?: ItemBump;
       cartao: DadosCartao;
       titular: TitularCartao;
-      /** Cupom da recuperação (só o código; o desconto sai de `cupom.ts`). */
+      /** Cupom (recuperação ou campanha; só o código, o desconto sai de `cupom.ts`). */
       cupom?: string;
     }) => data,
   )
@@ -207,7 +207,9 @@ export const cobrarCartao = createServerFn({ method: "POST" })
 
     const { centavos: semCupom } = await valorCentavosDaSessao(db, quiz.attribution);
     if (!semCupom) return { ok: false, erro: "sem-preco" };
-    const base = centavosComCupom(semCupom, data.cupom);
+    const agora = new Date();
+    const base = centavosComCupom(semCupom, data.cupom, agora, "musica");
+    const cupomAplicado = codigoAplicado(semCupom, data.cupom, agora, "musica");
     // SEM VOLTA PRA PERFECT PAY desde 26/09: venda sai só pelo Asaas (pedido
     // do dono). Asaas fora = mensagem e o PIX, nunca outro gateway.
     const checkoutAntigo: string | null = null;
@@ -342,6 +344,7 @@ export const cobrarCartao = createServerFn({ method: "POST" })
         ...(convite
           ? { indicacao_codigo: convite.codigo, desconto_indicacao_centavos: descontoConvite }
           : {}),
+        ...(cupomAplicado ? { cupom: cupomAplicado } : {}),
         bump_quadro: item ? BUMPS[item].quadro : false,
         bump_video: item ? BUMPS[item].video : false,
         quiz_response_id: quiz.id,

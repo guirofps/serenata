@@ -62,13 +62,18 @@ export function valorComItem(baseCentavos: number, item: ItemBump | null): numbe
  * `:i` marca o desconto do convite (member get member), pelo mesmo motivo: o
  * convite muda o valor, e a mesma pessoa pode abrir a folha com e sem ele
  * (o convite só vale na primeira compra, e ela pode trocar o e-mail).
+ *
+ * `:d` marca o cupom (campanha MUSICA10, 07/10), ainda pelo mesmo motivo: quem
+ * gerou o PIX sem cupom e volta pelo e-mail com ele pede outro valor no mesmo
+ * quiz.
  */
 export function referenciaComItem(
   quizId: string,
   item: ItemBump | null,
   convite = false,
+  cupom = false,
 ): string {
-  return `serenata:${quizId}${item ? `:${BUMPS[item].sufixo}` : ""}${convite ? ":i" : ""}`;
+  return `serenata:${quizId}${item ? `:${BUMPS[item].sufixo}` : ""}${convite ? ":i" : ""}${cupom ? ":d" : ""}`;
 }
 
 /**
