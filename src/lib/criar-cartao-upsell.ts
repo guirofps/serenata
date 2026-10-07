@@ -6,6 +6,7 @@ import { literalLike } from "@/lib/sql-like";
 import { asaas } from "@/lib/asaas";
 import { ErroGateway, type DadosCartao, type TitularCartao } from "@/lib/gateway-cartao";
 import { OFERTAS, type Oferta } from "@/lib/creditos";
+import { centavosComCupom, codigoAplicado, type Alvo } from "@/lib/cupom";
 import { creditarUpsell } from "../../api/lib/creditar-upsell";
 
 // O CARTÃO DOS UPSELLS: música extra, quadro e vídeo, pelo Asaas (02/10).
@@ -70,13 +71,17 @@ const JANELA_DUPLO_MS = 2 * 60_000;
 
 async function cobrar(
   email: string,
-  args: { ofertaId: string; cartao: DadosCartao; titular: TitularCartao; musicaId?: string | null },
+  args: { ofertaId: string; cartao: DadosCartao; titular: TitularCartao; musicaId?: string | null; cupom?: string },
 ): Promise<ResultadoCartaoUpsell> {
   const oferta = ofertaValida(args.ofertaId);
   if (!oferta) return { ok: false, erro: "oferta-invalida" };
   // Só o vídeo é de UMA música (ver `gerarCobranca` no PIX do upsell).
   const musicaDoPedido = oferta.id === "video" ? (args.musicaId ?? null) : null;
-  const valorCentavos = Math.round(oferta.precoBrl * 100);
+  // O cupom (campanha MUSICA10, 07/10): só o código vem do navegador.
+  const catalogo = Math.round(oferta.precoBrl * 100);
+  const agora = new Date();
+  const valorCentavos = centavosComCupom(catalogo, args.cupom, agora, oferta.id as Alvo);
+  const cupomAplicado = codigoAplicado(catalogo, args.cupom, agora, oferta.id as Alvo);
   const db = supabaseAdmin();
 
   const ip = ipDoPagador();
@@ -108,6 +113,7 @@ async function cobrar(
       email,
       valor_centavos: valorCentavos,
       titular_pix: args.titular.nome,
+      ...(cupomAplicado ? { cupom: cupomAplicado } : {}),
       ...(musicaDoPedido ? { musica_id: musicaDoPedido } : {}),
     })
     .select("id")
@@ -169,7 +175,7 @@ async function cobrar(
   return { ok: true, pago: true };
 }
 
-type Entrada = { ofertaId: string; cartao: DadosCartao; titular: TitularCartao };
+type Entrada = { ofertaId: string; cartao: DadosCartao; titular: TitularCartao; cupom?: string };
 
 /** PORTA 1: logado no painel. O e-mail sai da sessão, nunca do formulário. */
 export const cobrarCartaoUpsell = createServerFn({ method: "POST" })

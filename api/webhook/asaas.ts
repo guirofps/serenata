@@ -32,6 +32,7 @@ import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../lib/entr
 import { venderNoTiktok } from "../lib/tiktok-eventos.js";
 import { creditarUpsell, liberarItensDoBump } from "../lib/creditar-upsell.js";
 import { ofertaDaReferencia } from "../../src/lib/creditos.js";
+import { valorEsperadoDoUpsell, type Alvo } from "../../src/lib/cupom.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
 type Req = IncomingMessage & {
@@ -90,7 +91,7 @@ async function pagarUpsell(
   args: {
     referencia: string;
     idCobranca: string;
-    pendente: { id: string; email: string | null } | null;
+    pendente: { id: string; email: string | null; cupom?: string | null; created_at?: string | null } | null;
     status: { statusCru: string; valorCentavos: number | null; taxaCentavos: number | null };
   },
 ) {
@@ -102,8 +103,11 @@ async function pagarUpsell(
     return res.status(200).json({ ok: true, nota: "oferta desconhecida" });
   }
 
-  // O valor tem que bater com o CATÁLOGO: trava contra pagar R$ 1 num crédito de R$ 28.
-  const esperado = Math.round(oferta.precoBrl * 100);
+  // O valor tem que bater com o que NÓS cobramos: o catálogo, ou o catálogo
+  // com o cupom que o PRÓPRIO pedido gravou ao nascer (07/10). Continua sendo
+  // a trava contra pagar R$ 1 num crédito de R$ 28: o cupom vem da nossa
+  // linha, nunca do gateway.
+  const esperado = valorEsperadoDoUpsell(Math.round(oferta.precoBrl * 100), oferta.id as Alvo, pendente);
   if (status.valorCentavos && status.valorCentavos !== esperado) {
     await auditar(sb, "asaas_upsell_valor_divergente", { referencia, esperado, recebido: status.valorCentavos });
     await alertarDono(
@@ -210,7 +214,7 @@ export default async function handler(req: Req, res: Res) {
   // â”€â”€ IDEMPOTÃŠNCIA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { data: existentes } = await sb
     .from("pedidos")
-    .select("id, payment_id, status, valor_centavos, bump_quadro, bump_video, email, quiz_response_id")
+    .select("id, payment_id, status, valor_centavos, bump_quadro, bump_video, email, quiz_response_id, cupom, created_at")
     .in("payment_id", idPorReferencia ? [paymentId, idPorReferencia] : [paymentId]);
   if ((existentes ?? []).some((p) => p.status === "pago")) {
     return res.status(200).json({ ok: true, duplicado: true });

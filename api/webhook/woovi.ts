@@ -29,6 +29,7 @@ import { oQueLeva } from "../../src/lib/bump.js";
 import { enviarVendaUtmify } from "../lib/utmify.js";
 import { venderNoTiktok } from "../lib/tiktok-eventos.js";
 import { OFERTAS } from "../../src/lib/creditos.js";
+import { valorEsperadoDoUpsell, type Alvo } from "../../src/lib/cupom.js";
 import { Resend } from "resend";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
@@ -117,23 +118,29 @@ async function pagarUpsell(
     return res.status(200).json({ ok: true, nota: "oferta desconhecida" });
   }
 
-  // O VALOR TEM QUE BATER com o catÃ¡logo, e nÃ£o sÃ³ com o pedido pendente:
-  // Ã© a segunda trava contra alguÃ©m pagar R$ 1 num crÃ©dito de R$ 28.
-  const esperado = Math.round(oferta.precoBrl * 100);
+  const { data: pendente } = await sb
+    .from("pedidos")
+    .select("id, email, status, cupom, created_at")
+    .eq("payment_id", paymentId)
+    .maybeSingle();
+
+  // O VALOR TEM QUE BATER com o catálogo (ou o catálogo com o cupom que o
+  // pedido gravou ao nascer, 07/10), e não com o que a Woovi ecoa: é a segunda
+  // trava contra alguém pagar R$ 1 num crédito de R$ 28.
+  const esperado = valorEsperadoDoUpsell(
+    Math.round(oferta.precoBrl * 100),
+    oferta.id as Alvo,
+    pendente as { cupom?: string | null; created_at?: string | null } | null,
+  );
   if (status.valorCentavos && status.valorCentavos !== esperado) {
     await auditar(sb, "woovi_upsell_valor_divergente", {
       correlationID,
       esperado,
       recebido: status.valorCentavos,
     });
-    return res.status(200).json({ ok: true, nota: "valor divergente, nÃ£o creditado" });
+    return res.status(200).json({ ok: true, nota: "valor divergente, não creditado" });
   }
 
-  const { data: pendente } = await sb
-    .from("pedidos")
-    .select("id, email, status")
-    .eq("payment_id", paymentId)
-    .maybeSingle();
   const email = (pendente?.email as string | null) ?? null;
   if (!email) {
     await auditar(sb, "woovi_upsell_sem_email", { correlationID });

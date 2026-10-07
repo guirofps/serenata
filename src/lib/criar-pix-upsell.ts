@@ -6,6 +6,7 @@ import { gatewayPix } from "@/lib/criar-pix";
 import { cpfValido, soDigitosCpf } from "@/lib/cpf";
 import { ErroGateway } from "@/lib/gateway";
 import { OFERTAS, type Oferta } from "@/lib/creditos";
+import { centavosComCupom, codigoAplicado, type Alvo } from "@/lib/cupom";
 import { MARCA_ATIVA } from "./marca-identidade.js";
 
 // O PIX DOS UPSELLS: música extra, três músicas e quadro.
@@ -96,6 +97,8 @@ async function gerarCobranca(
    * upsell deles é território que outras consultas não esperam.
    */
   musicaId?: string | null,
+  /** Só o CÓDIGO do cupom (campanha MUSICA10). O valor sai daqui. */
+  cupom?: string,
 ): Promise<ResultadoPixUpsell> {
   {
     const oferta = ofertaValida(ofertaId);
@@ -103,7 +106,14 @@ async function gerarCobranca(
     const musicaDoPedido = oferta.id === "video" ? (musicaId ?? null) : null;
 
     const db = supabaseAdmin();
-    const valorCentavos = Math.round(oferta.precoBrl * 100);
+    const catalogo = Math.round(oferta.precoBrl * 100);
+    const agora = new Date();
+    // O CUPOM, recalculado aqui (07/10). O navegador manda o código; o valor
+    // sai do catálogo. A busca do PIX vivo logo abaixo já filtra por
+    // `valor_centavos`, então um PIX de R$ 28 nunca é devolvido pra quem
+    // agora tem cupom, nem o contrário.
+    const valorCentavos = centavosComCupom(catalogo, cupom, agora, oferta.id as Alvo);
+    const cupomAplicado = codigoAplicado(catalogo, cupom, agora, oferta.id as Alvo);
 
     // ── O GATEWAY DA CONTA, E NAO A WOOVI CRAVADA ────────────────
     //
@@ -194,6 +204,7 @@ async function gerarCobranca(
         pix_codigo: cobranca.copiaECola,
         pix_expira: cobranca.expiraEm,
         pix_url: `${urlDoSite()}/pix/${referencia}`,
+        ...(cupomAplicado ? { cupom: cupomAplicado } : {}),
         ...(musicaDoPedido ? { musica_id: musicaDoPedido } : {}),
       },
       { onConflict: "payment_id" },
@@ -216,11 +227,11 @@ async function gerarCobranca(
  * regra de `meusCreditos`.
  */
 export const criarPixUpsell = createServerFn({ method: "POST" })
-  .validator((data: { token: string; ofertaId: string; cpf?: string }) => data)
+  .validator((data: { token: string; ofertaId: string; cpf?: string; cupom?: string }) => data)
   .handler(async ({ data }): Promise<ResultadoPixUpsell> => {
     const email = await emailDaSessao(data.token);
     if (!email) return { ok: false, erro: "sem-sessao" };
-    return gerarCobranca(email, data.ofertaId, data.cpf);
+    return gerarCobranca(email, data.ofertaId, data.cpf, undefined, data.cupom);
   });
 
 /**
@@ -242,7 +253,7 @@ export const criarPixUpsell = createServerFn({ method: "POST" })
  * endereço que já recebeu a entrega, e é ele que o webhook vai creditar.
  */
 export const criarPixUpsellPorToken = createServerFn({ method: "POST" })
-  .validator((data: { tokenEdicao: string; ofertaId: string; cpf?: string }) => data)
+  .validator((data: { tokenEdicao: string; ofertaId: string; cpf?: string; cupom?: string }) => data)
   .handler(async ({ data }): Promise<ResultadoPixUpsell> => {
     if (!data.tokenEdicao) return { ok: false, erro: "sem-sessao" };
     const db = supabaseAdmin();
@@ -263,5 +274,5 @@ export const criarPixUpsellPorToken = createServerFn({ method: "POST" })
 
     // A música vem do TOKEN, nunca do cliente: é a mesma prova de posse que
     // abre o editor. Só o vídeo a usa (ver `gerarCobranca`).
-    return gerarCobranca(email, data.ofertaId, data.cpf, m.id as string);
+    return gerarCobranca(email, data.ofertaId, data.cpf, m.id as string, data.cupom);
   });
