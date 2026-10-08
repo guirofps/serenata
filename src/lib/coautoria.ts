@@ -5,6 +5,7 @@ import { extrairJsonTolerante } from "@/lib/json-tolerante";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { MODELO_LETRA, MODELO_LETRA_CURTA, registrarCustoLetra, type UsoClaude } from "@/lib/custos";
 import { dispararGeracaoMusica } from "@/lib/gerar-letra";
+import { recusaDeConteudo } from "@/lib/recusa-provedor";
 import {
   systemDaLetra,
   buildUserMessage,
@@ -588,7 +589,7 @@ export const temMusicaDaSessao = createServerFn({ method: "POST" })
     if (!quizId) return { existe: false, status: null };
     const { data: m } = await db
       .from("musicas")
-      .select("id, status")
+      .select("id, status, erro")
       .eq("quiz_response_id", quizId)
       .not("letra", "is", null)
       .order("created_at", { ascending: false })
@@ -605,7 +606,26 @@ export const temMusicaDaSessao = createServerFn({ method: "POST" })
     // É o melhor R$ 0,32 do funil inteiro: alguém com o dedo no botão de
     // comprar. Refaz na hora e devolve `gerando`, que é o que a tela sabe
     // esperar.
+    //
+    // ── MAS COM TETO, E NUNCA PRA RECUSA DE CONTEÚDO (08/10) ──────────
+    //
+    // A espera da oferta pergunta isto de 5 em 5 segundos, e cada pergunta
+    // em cima de música `falhou` refazia a música, sem limite: a recusa por
+    // conteúdo (termo barrado, 4xx) voltava a falhar do mesmo jeito minutos
+    // depois e era refeita de novo, R$ 0,32 por volta, e o `erro` apagado a
+    // cada vez escondia o motivo do painel. Agora:
+    //   - recusa de conteúdo não é refeita: a mesma letra dá a mesma recusa;
+    //   - o resto é refeito até 3 vezes por música por dia.
+    // O teto falha ABERTO (banco fora do ar refaz), como o resto do funil.
     if (m && m.status === "falhou") {
+      if (recusaDeConteudo(m.erro)) return { existe: false, status: "falhou" };
+      const { data: cabe, error: erroTeto } = await db.rpc("consumir_limite", {
+        p_chave: `refaz-clique:${m.id}`,
+        p_janela_s: 24 * 60 * 60,
+        p_teto: 3,
+      });
+      if (erroTeto) console.error("[coautoria] teto de refação não conferido:", erroTeto.message);
+      else if (cabe === false) return { existe: false, status: "falhou" };
       await db.from("musicas").update({ status: "gerando", erro: null }).eq("id", m.id);
       await dispararGeracaoMusica(m.id);
       return { existe: false, status: "gerando" };
