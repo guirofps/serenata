@@ -1,12 +1,39 @@
 import { useEffect, useState } from "react";
-import QRCode from "qrcode";
 import { Check, Copy, CreditCard, Loader2 } from "lucide-react";
 import { pixFoiPago } from "@/lib/criar-pix";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { guardarTransacao } from "@/lib/google-ads";
 import { IdentificacaoDoVendedor } from "@/components/quiz/IdentificacaoDoVendedor";
-import { CORES } from "@/lib/marca";
+import { CORES, MARCA } from "@/lib/marca";
 import { Button } from "@/components/ui/button";
+import { quandoOcioso } from "@/lib/quando-ocioso";
+
+// O GERADOR DE QR FICA FORA DO PRIMEIRO CARREGAMENTO DO /criar (08/10).
+//
+// Este componente entra no pacote do quiz (o `PixTransparente` importa), e o
+// `qrcode` sozinho era ~12 KB comprimidos baixados ANTES de o quiz hidratar,
+// por gente que ainda nem respondeu a primeira pergunta. Agora ele baixa
+// depois que a página carregou e o celular ficou ocioso: quando a folha do
+// PIX abre, minutos depois, já está no cache e o QR aparece igual a antes.
+// O desenho do QR já era assíncrono e já tolerava falha (sem QR, o
+// copia-e-cola segue sendo o caminho principal).
+//
+// Na Ballad não existe PIX: lá ele só baixa se a tela do PIX abrir.
+type Qrcode = typeof import("qrcode");
+let qrcode: Promise<Qrcode> | null = null;
+function carregarQrcode() {
+  qrcode ??= import("qrcode").then(
+    // O pacote é CommonJS: o objeto de verdade vem no `default` (no build e
+    // no `vite dev`); o `?? m` é rede pra quem não embrulhar.
+    (m) => (m as Qrcode & { default?: Qrcode }).default ?? m,
+    (e) => {
+      qrcode = null; // rede piscou: a próxima tentativa baixa de novo
+      throw e;
+    },
+  );
+  return qrcode;
+}
+if (MARCA.chave !== "ballad") quandoOcioso(() => void carregarQrcode().catch(() => {}));
 
 // A TELA DO PIX: QR, copia-e-cola, e a espera.
 //
@@ -60,12 +87,15 @@ export function PixPagamento({
 
   // 1. DESENHA O QR no navegador, a partir do copia-e-cola.
   useEffect(() => {
-    QRCode.toDataURL(copiaECola, {
-      width: 640,
-      margin: 2, // a "zona quieta"; sem ela o leitor falha
-      errorCorrectionLevel: "M",
-      color: { dark: CORES.tinta, light: "#ffffff" },
-    })
+    carregarQrcode()
+      .then((QRCode) =>
+        QRCode.toDataURL(copiaECola, {
+          width: 640,
+          margin: 2, // a "zona quieta"; sem ela o leitor falha
+          errorCorrectionLevel: "M",
+          color: { dark: CORES.tinta, light: "#ffffff" },
+        }),
+      )
       .then(setPng)
       // Sem QR a tela continua útil: o copia-e-cola é o caminho principal.
       .catch(() => setPng(null));
