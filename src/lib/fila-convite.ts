@@ -10,10 +10,12 @@
 // Dentro do job, nada disso é testável sem inventar um Supabase de mentira.
 // Aqui é uma função pura: entra lista, sai lista.
 //
-// SEM IMPORTS além do `primeiroNome`, que também não tem: o job roda no ESM
-// do Node na Vercel, onde o alias `@/` derruba o endpoint inteiro.
+// SEM IMPORTS além do `primeiroNome` e do `emailPlausivel`, que também não
+// têm: o job roda no ESM do Node na Vercel, onde o alias `@/` derruba o
+// endpoint inteiro.
 
 import { primeiroNome } from "./primeiro-nome.js";
+import { emailPlausivel } from "./email-limpo.js";
 
 export type PedidoPago = {
   email: string | null;
@@ -83,6 +85,14 @@ export function montarFila(args: {
   for (const p of [...args.pagos].sort((a, b) => a.created_at.localeCompare(b.created_at))) {
     const email = (p.email ?? "").trim().toLowerCase();
     if (!email || bloqueado.has(email) || jaRecebeu.has(email)) continue;
+    // ENDEREÇO QUE NÃO EXISTE NÃO ENTRA NA FILA (08/10).
+    //
+    // "x@gmail..com", "x@gmail.comj9", "carlãojose29@gmail.com": o Resend
+    // recusa, o envio falhava sem marca nenhuma, e como a fila anda do pedido
+    // mais antigo pro mais novo, os mesmos 2 a 6 endereços voltavam na FRENTE
+    // a cada rodada de 30 minutos, até ocupar o lote inteiro. É o mesmo
+    // bloqueio de cabeça de fila do espanhol (ver acima), com outra causa.
+    if (!emailPlausivel(email)) continue;
     // Sem `quizId` a pessoa FICA: pedido antigo sem quiz vinculado é do funil
     // brasileiro (o espanhol nasceu depois), e os dois erros não custam o
     // mesmo — deixar de convidar um comprador legítimo é receita perdida em

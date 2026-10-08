@@ -66,6 +66,21 @@ describe("montarFila", () => {
     expect(fila[0].codigo).toBeNull();
   });
 
+  it("endereço impossível não entra na fila e não ocupa a vaga de ninguém (08/10)", () => {
+    // Os de verdade, vistos nos logs: o Resend recusava, nada marcava, e eles
+    // voltavam na frente a cada rodada até encher o lote.
+    const fila = montarFila({
+      ...base,
+      pagos: [
+        pedido({ email: "x@gmail..com", created_at: "2026-09-01T00:00:00Z" }),
+        pedido({ email: "x@gmail.comj9", created_at: "2026-09-02T00:00:00Z" }),
+        pedido({ email: "bom@gmail.com", created_at: "2026-09-03T00:00:00Z" }),
+      ],
+      lote: 1,
+    });
+    expect(fila.map((c) => c.email)).toEqual(["bom@gmail.com"]);
+  });
+
   it("respeita o lote", () => {
     const pagos = Array.from({ length: 50 }, (_, i) => pedido({ email: `p${i}@b.com` }));
     expect(montarFila({ ...base, pagos, lote: 7 })).toHaveLength(7);

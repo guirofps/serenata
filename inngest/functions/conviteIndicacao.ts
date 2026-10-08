@@ -80,6 +80,12 @@ function db() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+/**
+ * Quantos `id` por consulta no `in(...)`. Um uuid são ~37 caracteres na URL;
+ * 150 deles ficam em ~6 KB, longe do limite de cabeçalho do PostgREST.
+ */
+const LOTE_IDS = 150;
+
 async function paginado<T>(
   sb: ReturnType<typeof db>,
   tabela: string,
@@ -103,6 +109,20 @@ async function paginado<T>(
   return out;
 }
 
+/**
+ * O Resend recusou o ENDEREÇO (e não a hora, a cota ou o servidor dele).
+ *
+ * `validation_error` e `invalid_parameter` (422) são o que volta pra
+ * "x@gmail..com" e afins; repetir dá o mesmo resultado pra sempre.
+ */
+function enderecoRecusado(erro: { name?: string; statusCode?: number | null }): boolean {
+  return (
+    erro.name === "validation_error" ||
+    erro.name === "invalid_parameter" ||
+    erro.statusCode === 422
+  );
+}
+
 export const conviteIndicacao = inngest.createFunction(
   { id: "convite-indicacao", retries: 1, triggers: [{ cron: "*/30 * * * *" }] },
   async ({ step }) => {
@@ -116,7 +136,7 @@ export const conviteIndicacao = inngest.createFunction(
     const fila = await step.run("montar-fila", async () => {
       const sb = db();
 
-      const [pagos, fora, excl, mortos, codigos, naoPt] = await Promise.all([
+      const [pagos, fora, excl, mortos, codigos] = await Promise.all([
         // Mesma régua de `jaComprou`: compra de verdade, não crédito nem manual.
         paginado<{
           email: string | null;
@@ -146,17 +166,37 @@ export const conviteIndicacao = inngest.createFunction(
           undefined,
           "email",
         ),
-        // OS QUIZZES QUE NÃO SÃO PT, só o `id`.
-        //
-        // Custa uma leitura a mais por rodada e conserta o bloqueio de cabeça
-        // de fila: antes o espanhol era descartado DEPOIS do corte e voltava a
-        // ocupar a vaga na rodada seguinte, pra sempre. Medido em produção, a
-        // vazão caía 4, 4, 4, 3, 3, 2, 2… rumo a zero.
-        //
-        // Só `id`, e a `sequenciaRecuperacao` já pagina esta mesma tabela a
-        // cada 30 minutos com bem mais colunas — não é leitura nova pro banco.
-        paginado<{ id: string }>(sb, "quiz_responses", "id", (q) => q.neq("locale", "pt")),
       ]);
+
+      // OS QUIZZES QUE NÃO SÃO PT, só entre os de quem PAGOU.
+      //
+      // O filtro do idioma conserta o bloqueio de cabeça de fila: antes o
+      // espanhol era descartado DEPOIS do corte e voltava a ocupar a vaga na
+      // rodada seguinte, pra sempre (a vazão caía 4, 4, 4, 3, 3, 2, 2… rumo a
+      // zero).
+      //
+      // MAS A LEITURA ERA A TABELA INTEIRA (08/10): todo `quiz_responses` que
+      // não é `pt`, por OFFSET, ordenado por `id`, sem janela de data. A cada
+      // página o banco reordenava tudo e jogava fora as anteriores, e 5 de 144
+      // rodadas morreram em `statement timeout`. A fila só pergunta o idioma
+      // de quem comprou, então só esses são lidos: pela chave primária, em
+      // lotes, um pedaço por vez. O número de consultas cresce com as VENDAS,
+      // não com os leads.
+      const quizIds = [
+        ...new Set(pagos.map((p) => p.quiz_response_id).filter((id): id is string => Boolean(id))),
+      ];
+      const naoPt: Array<{ id: string }> = [];
+      for (let i = 0; i < quizIds.length; i += LOTE_IDS) {
+        const { data, error } = await sb
+          .from("quiz_responses")
+          .select("id")
+          .in("id", quizIds.slice(i, i + LOTE_IDS))
+          .neq("locale", "pt");
+        // Erro aqui LANÇA, como o `paginado`: uma lista de idiomas pela metade
+        // mandaria convite com comissão pra quem comprou em dólar.
+        if (error) throw new Error(`quiz_responses: ${error.message}`);
+        naoPt.push(...((data ?? []) as Array<{ id: string }>));
+      }
 
       // A DECISÃO mora em `src/lib/fila-convite.ts`, pura e testada. Aqui
       // fica só o que precisa de banco: ler as listas e conferir o idioma.
@@ -236,7 +276,24 @@ export const conviteIndicacao = inngest.createFunction(
             text: textoIndicacao({ nome: p.nome, link }),
             headers: cabecalhosDescadastro(p.email),
           });
-          if (erroEnvio) throw new Error(erroEnvio.message);
+          if (erroEnvio) {
+            // ENDEREÇO RECUSADO SAI DA FILA (08/10). Sem marca, a falha era
+            // invisível e o mesmo endereço voltava na frente na rodada
+            // seguinte, ocupando a vaga de um comprador de verdade (ver
+            // `montarFila`). Só a recusa do ENDEREÇO marca: limite de taxa,
+            // cota e erro interno do Resend passam, e o convite tem que sair
+            // depois. A marca é a mesma que a fila já lê (`convite_enviado_em`),
+            // então essas poucas linhas contam na rampa como enviadas.
+            if (enderecoRecusado(erroEnvio)) {
+              await sb
+                .from("indicacao_codigos")
+                .update({ convite_enviado_em: new Date().toISOString() })
+                .eq("email", p.email);
+              console.error(`[convite] endereço recusado, fora da fila: ${p.email}`);
+              continue;
+            }
+            throw new Error(erroEnvio.message);
+          }
 
           // 2. MARCA SÓ DEPOIS DE SAIR. Marcar antes trocaria "mandou duas
           //    vezes" por "nunca mandou", que é pior: o segundo é invisível.
