@@ -28,6 +28,7 @@ import { lembrarIdioma } from "@/components/OfereceIdioma";
 import { useQuizStore } from "@/lib/quiz-store";
 import { sessaoJaPagou } from "@/lib/coautoria";
 import { captureLeadProgress } from "@/lib/lead-capture";
+import { barraSobeComTeclado, subidaDaBarra } from "@/lib/barra-teclado";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import {
   getOrCreateSessionId,
@@ -328,14 +329,33 @@ export function Quiz({
   // que a medição fica: sem ela, "consertei" seria palpite pra metade do
   // tráfego. Se este evento continuar aparecendo depois do deploy, o que sobra
   // é iOS e o conserto é outro (reposicionar pelo `visualViewport`).
+  //
+  // 08/10: o evento continuou (~15% das sessões nos passos de digitar) e o dono
+  // reproduziu no iPhone. O conserto do iOS mora aqui embaixo, ligado por
+  // aparelho até ser conferido (`barra-teclado.ts`).
   const barraRef = useRef<HTMLDivElement | null>(null);
   const corpoRef = useRef<HTMLDivElement | null>(null);
+  const subidaRef = useRef(0);
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
+    const sobe = barraSobeComTeclado();
     const conferir = () => {
       const barra = barraRef.current;
       if (!barra) return;
+      if (sobe) {
+        const subida = subidaDaBarra({
+          fimDaBarra: barra.getBoundingClientRect().bottom,
+          subidaAtual: subidaRef.current,
+          visivelTopo: vv.offsetTop,
+          visivelAltura: vv.height,
+        });
+        if (subida !== subidaRef.current) {
+          subidaRef.current = subida;
+          barra.style.transform = subida ? `translateY(-${subida}px)` : "";
+        }
+        return;
+      }
       // Sem teclado aberto não há o que medir: 1px de folga absorve o
       // arredondamento de zoom que alguns aparelhos reportam.
       if (vv.height >= window.innerHeight - 1) return;
@@ -358,6 +378,9 @@ export function Quiz({
     return () => {
       vv.removeEventListener("resize", conferir);
       vv.removeEventListener("scroll", conferir);
+      // A barra é a mesma entre passos: a subida de um não pode vazar pro próximo.
+      if (barraRef.current) barraRef.current.style.transform = "";
+      subidaRef.current = 0;
     };
   }, [step.id]);
 
