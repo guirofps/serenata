@@ -52,13 +52,13 @@ const PRECO_AMIGO = reaisDeCentavos(pagoPeloAmigo);
 const MINIMO = reaisDeCentavos(SAQUE_MINIMO_CENTAVOS);
 
 export function assuntoIndicacao(): string {
-  return `O seu link — ${POR_AMIGO} por amigo que fizer a música dele`;
+  return `O seu link: ${POR_AMIGO} por amigo que fizer a música dele`;
 }
 
 /** A mensagem pronta pra mandar no WhatsApp, já com o link dentro. */
 export function mensagemPronta(link: string): string {
   return (
-    `Fiz uma música personalizada pra uma pessoa que eu amo — a história dela virou letra e virou canção. ` +
+    `Fiz uma música personalizada pra uma pessoa que eu amo. A história dela virou letra e virou canção. ` +
     `Se você quiser fazer uma, entra pelo meu link que você ganha ${PCT_DESCONTO}% de desconto: ${link}`
   );
 }
@@ -69,7 +69,7 @@ export function textoIndicacao(args: { nome: string; link: string }): string {
     `${args.nome ? `${args.nome}, o` : "O"} seu link está pronto:\n` +
     `${args.link}\n\n` +
     `Quem entrar por ele paga ${PCT_DESCONTO}% menos (${PRECO_AMIGO} em vez de R$ 38), ` +
-    `e você recebe ${POR_AMIGO} por música criada — ${POR_AMIGO_COM_VIDEO} se a pessoa levar o vídeo junto.\n\n` +
+    `e você recebe ${POR_AMIGO} por música criada, ou ${POR_AMIGO_COM_VIDEO} se a pessoa levar o vídeo junto.\n\n` +
     `O valor libera em ${CARENCIA_DIAS} dias e o saque por PIX começa em ${MINIMO}.\n\n` +
     `Seu saldo fica em https://www.serenatagift.com/indique`
   );
@@ -118,7 +118,7 @@ export function emailIndicacao(args: {
           Quem esteve por perto naquele momento provavelmente pensou a mesma coisa:
           <em>eu queria fazer uma dessas</em>.
           <br><br>
-          Agora dá pra oferecer isso — e receber por cada uma que nascer.
+          Agora dá pra oferecer isso, e receber por cada uma que nascer.
         </td></tr>
 
         <!-- O LINK: é o produto deste e-mail, então é o maior elemento da tela. -->
@@ -134,7 +134,7 @@ export function emailIndicacao(args: {
             MANDAR NO WHATSAPP
           </a>
           <div style="margin-top:10px;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#a89296;">
-            abre com a mensagem já escrita — é só escolher pra quem
+            abre com a mensagem já escrita, é só escolher pra quem
           </div>
         </td></tr>
 
@@ -145,9 +145,9 @@ export function emailIndicacao(args: {
         <tr><td style="padding:24px 36px 0;">
           <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:1.5px;color:#a89296;text-transform:uppercase;padding-bottom:16px;">como funciona</div>
           <table width="100%" cellpadding="0" cellspacing="0">
-            ${linha("1", `Você manda o link. Quem entrar por ele paga <strong style="color:#2a1518;">${PRECO_AMIGO}</strong> em vez de R$ 38 — ${PCT_DESCONTO}% de desconto é o seu presente pra essa pessoa.`)}
+            ${linha("1", `Você manda o link. Quem entrar por ele paga <strong style="color:#2a1518;">${PRECO_AMIGO}</strong> em vez de R$ 38. ${PCT_DESCONTO}% de desconto é o seu presente pra essa pessoa.`)}
             ${linha("2", `Quando a música dela fica pronta e paga, <strong style="color:#2a1518;">${POR_AMIGO}</strong> entram na sua conta. Se ela levar o vídeo junto, <strong style="color:#2a1518;">${POR_AMIGO_COM_VIDEO}</strong>.`)}
-            ${linha("3", `O valor libera em ${CARENCIA_DIAS} dias e o saque por PIX começa em <strong style="color:#2a1518;">${MINIMO}</strong> — são cerca de ${Math.ceil(SAQUE_MINIMO_CENTAVOS / comissaoDe(pagoPeloAmigo))} músicas. Não tem teto: quanto mais gente, mais entra.`)}
+            ${linha("3", `O valor libera em ${CARENCIA_DIAS} dias e o saque por PIX começa em <strong style="color:#2a1518;">${MINIMO}</strong>, são cerca de ${Math.ceil(SAQUE_MINIMO_CENTAVOS / comissaoDe(pagoPeloAmigo))} músicas. Não tem teto: quanto mais gente, mais entra.`)}
           </table>
         </td></tr>
 

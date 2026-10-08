@@ -45,7 +45,7 @@ const COPY: Record<IdiomaEmail, {
   rodape: string;
 }> = {
   pt: {
-    assunto: (n) => `Pagamento confirmado — a música de ${n} está sendo gravada`,
+    assunto: (n) => `Pagamento confirmado: a música de ${n} está sendo gravada`,
     titulo: "Recebemos o seu pagamento. A música está sendo gravada agora.",
     confirmado:
       "Está tudo certo com a sua compra. A letra já está escrita, e neste momento ela está sendo cantada. É a última etapa.",
@@ -57,7 +57,7 @@ const COPY: Record<IdiomaEmail, {
     rodape: "Serenata · uma música feita da história de quem você ama",
   },
   es: {
-    assunto: (n) => `Pago confirmado — la canción de ${n} se está grabando`,
+    assunto: (n) => `Pago confirmado: la canción de ${n} se está grabando`,
     titulo: "Recibimos tu pago. La canción se está grabando ahora.",
     confirmado:
       "Tu compra está en orden. La letra ya está escrita, y en este momento se está cantando. Es la última etapa.",

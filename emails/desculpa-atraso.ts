@@ -31,7 +31,7 @@ const COPY: Record<IdiomaEmail, {
   rodape: string;
 }> = {
   pt: {
-    assunto: (n) => `Desculpa a demora — a música de ${n} está pronta`,
+    assunto: (n) => `Desculpa a demora, a música de ${n} está pronta`,
     titulo: "A gente demorou, e a culpa foi nossa.",
     oQueHouve:
       "Você comprou e a música devia ter chegado em minutos. Não chegou: o serviço que grava as vozes ficou sem saldo na nossa conta, e o pedido ficou parado até a gente perceber. Foi falha de operação nossa, não teve nada a ver com você nem com o seu pedido.",
@@ -43,7 +43,7 @@ const COPY: Record<IdiomaEmail, {
     rodape: "Serenata · uma música feita da história de quem você ama",
   },
   es: {
-    assunto: (n) => `Perdón por la demora — la canción de ${n} ya está lista`,
+    assunto: (n) => `Perdón por la demora, la canción de ${n} ya está lista`,
     titulo: "Nos tardamos, y la culpa fue nuestra.",
     oQueHouve:
       "Compraste y la canción debía haber llegado en minutos. No llegó: el servicio que graba las voces se quedó sin saldo en nuestra cuenta, y tu pedido se quedó detenido hasta que nos dimos cuenta. Fue una falla de operación nuestra, no tuvo nada que ver contigo ni con tu pedido.",
