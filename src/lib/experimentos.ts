@@ -339,6 +339,15 @@ export const EXPERIMENTOS: Experimento[] = [
     ativo: false,
     nota: "08/10. Segunda música logo depois da compra. A = como era. B = cartão 'Faça outra pra mais alguém' (pacote extra de R$ 28, mesma folha do atalho) na /obrigado e no editor, por 24h desde o pagamento; o prazo é do CARTÃO, o preço não muda. Ler por RECEITA DE EXTRA EM 24H POR COMPRADOR EXPOSTO (outra_musica_24h_exposto -> pedido up:extra pago em 24h), com guarda: editor aberto e vídeo vendido não podem cair no B.",
   },
+  {
+    // SÓ SERENATA, funil pt sem tema. Ver `abertura-pergunta.ts`.
+    id: "abertura_pergunta",
+    variantes: ["A", "B"],
+    peso: [1, 1],
+    // NUNCA `true` aqui: quem liga é a linha da tabela `experimentos`.
+    ativo: false,
+    nota: "SERENATA, 08/10. No celular, 61.066 sessões montaram a abertura do /criar e só 56,5% responderam a 1a pergunta (relacao), a maior queda antes do lead. A = abertura de hoje. B = a mesma abertura com 'Pra quem é a música?' e os chips da relação embaixo do cartão (cartão menor); tocar no chip grava a relação e vai direto pro nome, o 'começar' continua embaixo. Só pt sem tema (es, Ballad e ?t=gospel não mudam). Ler por braço, entre sessões pt sem tema que montaram a abertura: quem RESPONDEU a 1a pergunta (quiz_step q>=2), letra, oferta, venda e receita por lead.",
+  },
 ];
 
 /**

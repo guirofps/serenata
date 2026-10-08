@@ -51,6 +51,12 @@ import { DepoimentoContato } from "@/components/quiz/DepoimentoContato";
 import { Variante } from "@/components/Variante";
 import { EXP_PROVA_BLOCOS } from "@/lib/experimentos";
 import { SorteioSemanal } from "@/components/quiz/SorteioSemanal";
+import {
+  aberturaPerguntaVale,
+  depoisDaRelacao,
+  EXP_ABERTURA_PERGUNTA,
+  perguntaDaAbertura,
+} from "@/lib/abertura-pergunta";
 
 // PASSOS QUE NÃO EXISTEM SEM UMA LETRA ANTES.
 //
@@ -580,6 +586,46 @@ export function Quiz({
           <AberturaPresente
             locale={locale}
             tema={tema}
+            // TESTE `abertura_pergunta` (`abertura-pergunta.ts`): só pt sem
+            // tema recebe a pergunta; o braço B a mostra embaixo do cartão.
+            pergunta={aberturaPerguntaVale(locale, tema) ? perguntaDaAbertura(QUIZ_FLOW) : null}
+            aoEscolher={(valor) => {
+              // O MESMO giro do "começar" logo abaixo: com letra pronta,
+              // responder aqui também é pedir uma música nova.
+              if (useQuizStore.getState().letraFinal) {
+                novaSessao();
+                reset();
+                trackEventOnce("quiz_started", "v1");
+              }
+              setResposta("relacao", valor);
+              const st = useQuizStore.getState();
+              const depois = depoisDaRelacao(QUIZ_FLOW, st.respostas, SKIP);
+              if (!depois) return;
+              // A porta desta tela, como o `abertura_comecar`.
+              trackEvent("abertura_relacao", {
+                locale,
+                relacao: valor,
+                variante: varianteDe(EXP_ABERTURA_PERGUNTA),
+              });
+              // O que o passo `relacao` faria: o lead e o `quiz_step` de quem
+              // CHEGA nele, e o toque no chip. Com `via` pra separar no painel.
+              captureLeadProgress({
+                currentStep: depois.q,
+                furthestStep: depois.q,
+                respostas: st.respostas,
+                email: st.email,
+                locale,
+              });
+              trackEvent("quiz_step", { step_id: "relacao", q: depois.q, via: "abertura" });
+              trackEventOnce("quiz_respondeu", "relacao", { step_id: "relacao", q: depois.q });
+              // Pelo `?step=`, como qualquer avanço (voltar e recarregar
+              // funcionam). 220ms: o chip acende antes de a tela trocar, como
+              // no avanço automático, e o lead do passo 1 sai antes do 2.
+              window.setTimeout(
+                () => navigate({ to: rota, search: { step: depois.proximo } } as never),
+                220,
+              );
+            }}
             aoComecar={() => {
               // ── COMEÇAR DE NOVO COM UMA LETRA PRONTA É MÚSICA NOVA (04/10) ──
               //

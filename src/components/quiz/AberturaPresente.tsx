@@ -14,6 +14,13 @@ import type { Tema } from "@/lib/tema";
 import { Variante } from "@/components/Variante";
 import { EXP_ABERTURA_EN } from "@/lib/abertura-en";
 import { meuPlano } from "@/lib/preco";
+import { ChipsStep } from "@/components/quiz/ChipsStep";
+import {
+  cssAberturaPergunta,
+  PERGUNTA_NA_ABERTURA,
+  SUBTEXTO_NA_ABERTURA,
+  type PassoDeChips,
+} from "@/lib/abertura-pergunta";
 
 // O mesmo bucket publico que a landing usa em `ExemplosReais`: trechos de 45s.
 const AUDIO_BASE =
@@ -297,10 +304,19 @@ export function AberturaPresente({
   locale = "pt",
   tema = null,
   aoComecar,
+  pergunta = null,
+  aoEscolher,
 }: {
   locale?: Locale;
   tema?: Tema | null;
   aoComecar: () => void;
+  /**
+   * TESTE `abertura_pergunta` (`abertura-pergunta.ts`): o passo `relacao`,
+   * cujos chips aparecem embaixo do cartão no braço B. O `Quiz` só passa no
+   * funil pt sem tema; sem isto a tela é exatamente a de sempre.
+   */
+  pergunta?: PassoDeChips | null;
+  aoEscolher?: (valor: string) => void;
 }) {
   const gospel = tema === "gospel" && (locale === "pt" || locale === "en");
   // O espanhol troca o EXEMPLO conforme o mercado que a mídia está comprando.
@@ -315,6 +331,10 @@ export function AberturaPresente({
         ? { ...base, nome: EXEMPLO_EN.nome, foto: EXEMPLO_EN.capa, versos: EXEMPLO_EN.versos }
         : base;
   const [t, setT] = useState(0);
+  // O chip tocado acende antes de a tela trocar (o `Quiz` navega 220ms
+  // depois), e um segundo toque nesse intervalo não grava outra resposta.
+  const [escolhido, setEscolhido] = useState<string | null>(null);
+  const comPergunta = Boolean(pergunta && aoEscolher);
 
   // ── O PLAY PASSA A TOCAR ─────────────────────────────────────────
   //
@@ -398,6 +418,9 @@ export function AberturaPresente({
 
   return (
     <div className="flex flex-col items-center text-center">
+      {/* TESTE `abertura_pergunta`: o CSS do braço vem ANTES do cartão, senão
+          o cartão pintaria grande e encolheria na frente da pessoa. */}
+      {comPergunta && <style dangerouslySetInnerHTML={{ __html: cssAberturaPergunta() }} />}
       {/* Quem cai do anúncio não sabe em que site está. A logo responde isso
           em 28px, que é mais barato que uma linha de texto. */}
       <Logo tamanho="sm" />
@@ -500,7 +523,7 @@ export function AberturaPresente({
           cartão saía com o tamanho do degrau de 720px. Faixa fechada não
           depende de ordem de CSS. */}
       <div
-        className="mt-5 w-full [@media(min-height:721px)]:max-w-[228px] [@media(max-height:720px)_and_(min-height:661px)]:max-w-[196px] [@media(max-height:660px)_and_(min-height:601px)]:max-w-[172px] [@media(max-height:600px)]:max-w-[132px]"
+        className="abp-cartao mt-5 w-full [@media(min-height:721px)]:max-w-[228px] [@media(max-height:720px)_and_(min-height:661px)]:max-w-[196px] [@media(max-height:660px)_and_(min-height:601px)]:max-w-[172px] [@media(max-height:600px)]:max-w-[132px]"
         aria-hidden
       >
         <div
@@ -659,6 +682,31 @@ export function AberturaPresente({
       </div>
 
         </>
+      )}
+
+      {/* ── TESTE `abertura_pergunta`, braço B ──────────────────────
+          A primeira pergunta do quiz, com os MESMOS chips do passo
+          `relacao` (o mesmo componente), logo embaixo do cartão. Nasce
+          escondida (`abp-b`) e só aparece com o carimbo B no <html>: ver o
+          porquê de não ser `<Variante>` em `abertura-pergunta.ts`. O
+          "começar" logo abaixo continua lá pra quem preferir. */}
+      {comPergunta && pergunta && (
+        <div className="abp-b mt-5 w-full">
+          <h2 className="font-display text-xl font-semibold tracking-tight">{PERGUNTA_NA_ABERTURA}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{SUBTEXTO_NA_ABERTURA}</p>
+          <div className="mt-4">
+            <ChipsStep
+              step={pergunta}
+              value={escolhido ?? undefined}
+              onChange={(v) => {
+                if (escolhido) return;
+                const valor = String(Array.isArray(v) ? v[0] : v);
+                setEscolhido(valor);
+                aoEscolher?.(valor);
+              }}
+            />
+          </div>
+        </div>
       )}
 
       {/* A PROPOSTA em uma frase: o que ela faz, o que recebe, o que custa. */}

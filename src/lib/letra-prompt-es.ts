@@ -380,6 +380,8 @@ export const OCASIAO_ES: Record<string, string> = {
   formatura: "graduación",
   soporque: "solo porque sí",
   outro: "momento especial",
+  // Temporada (`natal.ts`). Ver la nota del mapa en portugués.
+  natal: "Navidad (un regalo de Navidad, con la calidez de fin de año y de familia; referencias religiosas solo si la historia o el pedido las trae)",
 };
 
 export const VOZ_ES: Record<string, string> = {

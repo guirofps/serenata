@@ -141,6 +141,11 @@ const OCASIAO: Record<string, string> = {
   formatura: "formatura",
   soporque: "só porque sim",
   outro: "momento especial",
+  // Sazonal (`natal.ts`): o chip só aparece de 15/11 a 31/12, mas o valor vale
+  // o ano todo (quem escolheu em 31/12 pode gerar a letra em 01/01). Fé só se
+  // a pessoa trouxer: Natal no Brasil é festa de família pra crente e pra quem
+  // não é, e a linha de fé do gospel conta como "o pedido trouxe".
+  natal: "Natal (um presente de Natal, com o calor de fim de ano e de família; referência religiosa só se a história ou o pedido trouxer)",
   // As ocasiões do louvor (quiz gospel, `quiz-flow-gospel.ts`).
   gratidao: "louvor de gratidão",
   testemunho: "testemunho de uma vitória",
