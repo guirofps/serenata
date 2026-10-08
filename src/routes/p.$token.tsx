@@ -422,7 +422,11 @@ function PaginaPresente() {
           fotos={p.galeria}
           secoes={p.secoes}
           tempo={t}
-          duracao={p.duracaoS ?? 0}
+          // A duração REAL do áudio (08/10). `duracaoS` só existe pra v1: com a
+          // v2 preferida (sem timestamps próprios) chegava 0, `marcosDasFotos`
+          // não tinha como espalhar as fotos e a galeria inteira ficava parada
+          // na primeira.
+          duracao={dur}
           // Antes do play a página é só o convite: a capa cheia e o botão.
           // As fotos entram um tempo depois do play (após a descida).
           ativo={fotosAtivas}
@@ -458,7 +462,20 @@ function PaginaPresente() {
           começa a chegar no instante do toque. A diferença que `auto`
           comprava era imperceptível aqui, e mesmo essa já não existia no
           iPhone, que ignora `auto` sem gesto do usuário. */}
-      {p.audioUrl && <audio ref={audioRef} src={p.audioUrl} preload="metadata" />}
+      {/* O ÁUDIO MANDA NO BOTÃO (08/10). Sem estes eventos, a música chegava
+          ao fim (ou era pausada pela tela de bloqueio, por uma ligação, pelo
+          fone desconectado) e o botão continuava em "Pausar", com o rAF da
+          letra rodando à toa. Quem tocava de novo precisava de dois toques. */}
+      {p.audioUrl && (
+        <audio
+          ref={audioRef}
+          src={p.audioUrl}
+          preload="metadata"
+          onPlay={() => setTocando(true)}
+          onPause={() => setTocando(false)}
+          onEnded={() => setTocando(false)}
+        />
+      )}
 
       {/* ── CAPA ─────────────────────────────────────────────── */}
       {/* Antes do play a capa ocupa a tela inteira: é o convite, e o único
