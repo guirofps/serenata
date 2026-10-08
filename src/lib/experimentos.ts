@@ -348,6 +348,21 @@ export const EXPERIMENTOS: Experimento[] = [
     ativo: false,
     nota: "SERENATA, 08/10. No celular, 61.066 sessões montaram a abertura do /criar e só 56,5% responderam a 1a pergunta (relacao), a maior queda antes do lead. A = abertura de hoje. B = a mesma abertura com 'Pra quem é a música?' e os chips da relação embaixo do cartão (cartão menor); tocar no chip grava a relação e vai direto pro nome, o 'começar' continua embaixo. Só pt sem tema (es, Ballad e ?t=gospel não mudam). Ler por braço, entre sessões pt sem tema que montaram a abertura: quem RESPONDEU a 1a pergunta (quiz_step q>=2), letra, oferta, venda e receita por lead.",
   },
+  {
+    // A = a prévia corta aos 40s, popup sem preço (como sempre foi).
+    // B = a prévia vai até o fim do PRIMEIRO refrão (timestamps da música,
+    //     entre 40s e 75s; sem timestamps, 60s estimados) e, no corte, um cartão com o
+    //     preço e o botão de comprar aparece logo abaixo do player, no lugar
+    //     do popup. Conta em `corte-previa.ts`, tela em `MusicaKaraoke`.
+    //
+    // Só no funil `pt`: o cartão é redigido em português, e o `/es` divide o
+    // mesmo banco. Quem está no B fora do `pt` vê o A.
+    id: "previa_refrao",
+    variantes: ["A", "B"],
+    peso: [1, 1],
+    ativo: false,
+    nota: "Prévia até o fim do 1o refrão (B, 40-75s pelos timestamps; sem timestamps, 60s estimados, motivo estimado_60s) com o preço e o botão ali, embaixo do player, contra 40s fixos + popup sem preço (A). Só funil pt. Evidência: 80% de quem não clicou em comprar deu play e 73% bateu no limite. Ler por RECEITA POR LEAD (attribution.exp.previa_refrao), e preview_limite por braço com previa_corte_s/previa_corte_motivo pra saber quantos B cortaram de fato no refrão.",
+  },
 ];
 
 /**
