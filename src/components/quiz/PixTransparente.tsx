@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { criarPix, type ResultadoPix } from "@/lib/criar-pix";
 import { BUMPS, itemDoBraco, type ItemBump } from "@/lib/bump";
 import { varianteDe, FORA } from "@/lib/experimentos";
@@ -16,6 +16,13 @@ import { PixPagamento } from "@/components/quiz/PixPagamento";
 import { ResumoDoPedido } from "@/components/quiz/ResumoDoPedido";
 import { Button } from "@/components/ui/button";
 import { TelaCpf } from "@/components/quiz/TelaCpf";
+import {
+  EXP_FOLHA_PIX,
+  bracoDaFolha,
+  cpfNoResumo,
+  guardarCpf,
+  lerCpfGuardado,
+} from "@/lib/folha-pix";
 
 // O CHECKOUT DE PIX NA NOSSA PRÓPRIA PÁGINA.
 //
@@ -92,6 +99,25 @@ export function PixTransparente({
   aoDesistir: () => void;
 }) {
   const [fase, setFase] = useState<Fase>({ t: "resumo" });
+
+  // ── TESTE `folha_pix` (08/10) ──────────────────────────────────
+  //
+  // A = a folha de sempre. B = o CPF no resumo, colado no botão. C = B com o
+  // resumo enxuto. Lido UMA vez por abertura (estado, não chamada solta): a
+  // tela não troca de braço no meio se o carimbo mudar. Ver `folha-pix.ts`.
+  //
+  // O CPF lembrado só é lido nos braços que mostram o campo: no A a folha
+  // fica exatamente como era, sem nem encostar no armazenamento.
+  const [braco] = useState(() => bracoDaFolha(varianteDe(EXP_FOLHA_PIX)));
+  const [cpfLembrado] = useState(() => (cpfNoResumo(braco) ? lerCpfGuardado() : ""));
+  // Uma vez por abertura (a folha monta a cada "comprar"). A trava existe
+  // pro StrictMode do dev, que roda o efeito duas vezes.
+  const contouAbertura = useRef(false);
+  useEffect(() => {
+    if (contouAbertura.current) return;
+    contouAbertura.current = true;
+    trackEvent("pix_folha_variante", { braco, cpf_lembrado: Boolean(cpfLembrado) });
+  }, [braco, cpfLembrado]);
 
   // ── O ORDER BUMP DO QUADRO ───────────────────────────────────────
   //
@@ -275,7 +301,7 @@ export function PixTransparente({
         // ("nao consegui gerar o PIX agora") jogaria fora uma venda por um
         // campo que a pessoa preenche em cinco segundos.
         if (r.erro === "cpf-necessario" || r.erro === "cpf-invalido") {
-          trackEvent("pix_cpf_pedido", { motivo: r.erro });
+          trackEvent("pix_cpf_pedido", { motivo: r.erro, braco });
           setFase({
             t: "cpf",
             email: emailFinal,
@@ -283,11 +309,16 @@ export function PixTransparente({
           });
           return;
         }
-        trackEvent("pix_transparente_falhou", { erro: r.erro });
+        trackEvent("pix_transparente_falhou", { erro: r.erro, braco });
         setFase({ t: "erro" });
         return;
       }
-      trackEvent("pix_transparente_gerado", { valor: r.valorCentavos, quadro, bump: bumpItem });
+      trackEvent("pix_transparente_gerado", {
+        valor: r.valorCentavos,
+        quadro,
+        bump: bumpItem,
+        braco,
+      });
       // No GA4 como `add_payment_info`. O payload acima é em CENTAVOS e a
       // função quer unidade cheia: a divisão mora aqui, onde a unidade é
       // conhecida. PIX só existe em real, por isso BRL sem consultar locale.
@@ -295,7 +326,7 @@ export function PixTransparente({
       setFase({ t: "pronto", dados: r });
     } catch (err) {
       console.error("[pix] criar falhou:", err);
-      trackEvent("pix_transparente_falhou", { erro: "excecao" });
+      trackEvent("pix_transparente_falhou", { erro: "excecao", braco });
       setFase({ t: "erro" });
     }
   }
@@ -323,7 +354,11 @@ export function PixTransparente({
         aviso={fase.aviso}
         // Telefone vazio como antes da extração: o que ela digitou no resumo
         // já foi gravado no quiz pela primeira chamada, e o servidor cai nele.
-        aoEnviar={(cpf) => gerar(fase.email, "", cpf)}
+        aoEnviar={(cpf) => {
+          // Nos braços que lembram o CPF, o corrigido aqui também fica.
+          if (cpfNoResumo(braco)) guardarCpf(cpf);
+          void gerar(fase.email, "", cpf);
+        }}
         aoVoltar={() => setFase({ t: "resumo" })}
       />
     );
@@ -405,7 +440,17 @@ export function PixTransparente({
         setQuadro(v);
         trackEvent("bump_quadro_marcou", { marcado: v, item: itemBump });
       }}
-      aoConfirmar={gerar}
+      braco={braco}
+      cpfInicial={cpfLembrado}
+      aoConfirmar={(emailFinal, telefoneFinal, cpf) => {
+        // O TOQUE QUE PASSOU, nos três braços: e-mail conferido e, no B e no
+        // C, CPF fechando. No A ainda tem a tela do CPF pela frente, por isso
+        // a leitura do teste é pago ÷ folha aberta, não este evento.
+        trackEvent("pix_folha_gerar", { braco, cpf_no_resumo: Boolean(cpf) });
+        // Guardado no toque, antes da rede: só os dígitos, só neste navegador.
+        if (cpf) guardarCpf(cpf);
+        void gerar(emailFinal, telefoneFinal, cpf);
+      }}
       aoEscolherCartao={cartaoAqui ? () => setFase({ t: "cartao" }) : aoDesistir}
     />
   );
