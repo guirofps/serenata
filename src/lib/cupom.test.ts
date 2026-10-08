@@ -4,7 +4,9 @@ import {
   MUSICA10_VALE_ATE,
   centavosComCupom,
   codigoAplicado,
+  codigoComPrazo,
   descontoNaTela,
+  prazoDoCodigo,
   valorEsperadoDoUpsell,
   validadeCurta,
 } from "./cupom";
@@ -97,4 +99,46 @@ describe("valorEsperadoDoUpsell", () => {
 it("validadeCurta escreve dia/mês", () => {
   const [, m, d] = MUSICA10_VALE_ATE.split("-");
   expect(validadeCurta(MUSICA10)).toBe(`${d}/${m}`);
+});
+
+// O SRN27 COM PRAZO DE CADA PESSOA (teste `recuperacao_prazo`, 08/10).
+describe("SRN27 com prazo (SRN27P + AAMMDD)", () => {
+  it("vale até 23h59 de Brasília do dia escrito, e não depois", () => {
+    const c = codigoComPrazo("2026-10-09");
+    expect(c).toBe("SRN27P261009");
+    expect(centavosComCupom(3800, c, new Date("2026-10-09T23:59:00-03:00"))).toBe(2800);
+    expect(centavosComCupom(3800, c, new Date("2026-10-10T00:00:30-03:00"))).toBe(3800);
+  });
+
+  it("não depende da validade global do SRN27", () => {
+    const depoisDoGlobal = new Date("2026-11-03T12:00:00-03:00");
+    expect(centavosComCupom(3800, "SRN27", depoisDoGlobal)).toBe(3800);
+    expect(centavosComCupom(3800, codigoComPrazo("2026-11-04"), depoisDoGlobal)).toBe(2800);
+  });
+
+  it("data editada pra longe não vale: no máximo 3 dias à frente", () => {
+    const hoje = new Date("2026-10-08T12:00:00-03:00");
+    expect(centavosComCupom(3800, codigoComPrazo("2026-10-11"), hoje)).toBe(2800);
+    expect(centavosComCupom(3800, codigoComPrazo("2026-10-13"), hoje)).toBe(3800);
+    expect(centavosComCupom(3800, "SRN27P991231", hoje)).toBe(3800);
+  });
+
+  it("data impossível ou formato errado não vale", () => {
+    const hoje = new Date("2026-10-08T12:00:00-03:00");
+    expect(prazoDoCodigo("SRN27P261332")).toBeNull();
+    expect(prazoDoCodigo("SRN27P2610")).toBeNull();
+    expect(centavosComCupom(3800, "SRN27P261332", hoje)).toBe(3800);
+    expect(() => codigoComPrazo("09/10/2026")).toThrow();
+  });
+
+  it("só na música, e nunca sobe o preço", () => {
+    const hoje = new Date("2026-10-08T12:00:00-03:00");
+    const c = codigoComPrazo("2026-10-09");
+    expect(centavosComCupom(2490, c, hoje, "video")).toBe(2490);
+    expect(centavosComCupom(2500, c, hoje)).toBe(2500);
+  });
+
+  it("minúscula vale (o código passa pelo toUpperCase)", () => {
+    expect(centavosComCupom(3800, "srn27p261009", new Date("2026-10-09T10:00:00-03:00"))).toBe(2800);
+  });
 });

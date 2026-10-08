@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
+import { podeMandarMarketing } from "../lib/frequencia.js";
 import { todasAsPaginas } from "../lib/paginar.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
@@ -139,6 +140,7 @@ export const ofertaQuadro = inngest.createFunction(
       const out: Array<{
         email: string; nome: string; titulo: string;
         link: string; musicaId: string; locale: "pt" | "es";
+        quizId: string | null;
       }> = [];
       const vistos = new Set<string>();
 
@@ -203,6 +205,7 @@ export const ofertaQuadro = inngest.createFunction(
           titulo: m.titulo ?? "Sua música",
           link: linkDoQuadro(m.token_edicao as string),
           musicaId: m.id,
+          quizId: p.quiz_response_id ?? null,
         });
       }
       return out;
@@ -218,6 +221,10 @@ export const ofertaQuadro = inngest.createFunction(
         const sb = db();
         if (await jaOfertado(sb, c.musicaId)) return false;
         if (await estaBloqueado(sb, c.email)) return false;
+        // Teste `limite_frequencia` (08/10): no braço B, no máximo 2 e-mails
+        // de marketing por endereço em 24h. Barrado aqui não grava marca, e
+        // volta na próxima rodada. No A não vai ao banco.
+        if (!(await podeMandarMarketing(sb, c.email, c.quizId, { locale: c.locale }))) return false;
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "oferta_quadro" }],

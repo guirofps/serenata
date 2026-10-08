@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
+import { podeMandarMarketing } from "../lib/frequencia.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
@@ -272,6 +273,10 @@ export const quaseComprou = inngest.createFunction(
         // também quem se descadastrou e os `excluidos_email` (liberados na
         // recuperação têm a música inteira sem pedido pago).
         if (await estaBloqueado(sb, c.email, { incluirExcluidos: true })) return false;
+        // Teste `limite_frequencia` (08/10): no braço B, no máximo 2 e-mails
+        // de marketing por endereço em 24h. Barrado aqui não grava marca, e
+        // volta na próxima rodada. No A não vai ao banco.
+        if (!(await podeMandarMarketing(sb, c.email, c.quizId, { locale: c.locale }))) return false;
 
         // A TRAVA ANTES DO ENVIO (08/10): ela era gravada depois do Resend e
         // sem ler o erro, e uma gravação perdida mandava o mesmo e-mail na
