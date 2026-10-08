@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 // `/pure`: a entrada padrão do pacote injeta o Stripe.js só de ser IMPORTADA, e
 // este componente vem junto com o quiz. Em 02/10 isso fazia o /criar da Ballad
 // baixar ~880 KB do Stripe no primeiro segundo (LCP de 14,8s no celular em 4G).
@@ -29,6 +29,52 @@ function stripe() {
   if (!chave) return null;
   stripePromise ??= loadStripe(chave);
   return stripePromise;
+}
+
+// O VOLTAR DO CELULAR FECHA A FOLHA, e só ela (08/10).
+//
+// Sem isto, o voltar com o pagamento aberto andava no histórico do quiz (cada
+// passo é uma URL): a folha sumia e a pessoa caía na pergunta anterior, depois
+// na outra, um toque por passo. Medido em 03-07/10: 3 das 17 sessões que
+// abriram o checkout fizeram exatamente isso, e nenhuma voltou a pagar.
+//
+// A folha empurra uma entrada no histórico com a MESMA URL (e o mesmo estado
+// do roteador, pra ele não achar que mudou de página). O voltar consome essa
+// entrada e fecha a folha. Fechou pelo X ou pelo fundo: a entrada sobra, e o
+// `back()` da desmontagem a tira, senão o próximo voltar não faria nada.
+//
+// O `back()` sai num timeout que a montagem seguinte cancela: em dev o React
+// monta, desmonta e remonta na hora, e um `back()` imediato voltava pra entrada
+// de ANTES da folha (o alvo do `back()` é fixado na chamada), fechando a folha
+// que acabou de abrir. Visto no localhost em 08/10.
+let backPendente: ReturnType<typeof setTimeout> | null = null;
+function useVoltarFechaAFolha(fechar: () => void) {
+  const fecharRef = useRef(fechar);
+  fecharRef.current = fechar;
+  useEffect(() => {
+    if (backPendente) {
+      // Remontou antes do `back()`: a entrada da folha ainda está lá, reusa.
+      clearTimeout(backPendente);
+      backPendente = null;
+    } else {
+      window.history.pushState({ ...window.history.state, folhaPagamento: true }, "", window.location.href);
+    }
+    let consumida = false;
+    const aoVoltar = () => {
+      if (window.history.state?.folhaPagamento) return;
+      consumida = true;
+      fecharRef.current();
+    };
+    window.addEventListener("popstate", aoVoltar);
+    return () => {
+      window.removeEventListener("popstate", aoVoltar);
+      if (consumida) return;
+      backPendente = setTimeout(() => {
+        backPendente = null;
+        if (window.history.state?.folhaPagamento) window.history.back();
+      }, 0);
+    };
+  }, []);
 }
 
 export function CheckoutStripe({
@@ -80,6 +126,11 @@ export function CheckoutStripe({
     // quando a pessoa toca em "Try again".
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tentativa]);
+
+  useVoltarFechaAFolha(() => {
+    trackEvent("stripe_checkout_fechou", { pelo: "voltar" });
+    aoFechar();
+  });
 
   const opcoes = useMemo(
     () => ({
