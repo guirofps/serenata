@@ -2,9 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 // `/pure`: a entrada padrão do pacote injeta o Stripe.js só de ser IMPORTADA, e
 // este componente vem junto com o quiz. Em 02/10 isso fazia o /criar da Ballad
 // baixar ~880 KB do Stripe no primeiro segundo (LCP de 14,8s no celular em 4G).
-import { loadStripe } from "@stripe/stripe-js/pure";
+// E desde 08/10 nem o carregador (`/pure`) vem no pacote do quiz: ele é
+// importado na hora em que a folha abre (ver `stripe()` abaixo).
 import type { Stripe } from "@stripe/stripe-js";
-import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
+// O `@stripe/react-stripe-js` também só baixa quando a folha abre (08/10):
+// ver `CheckoutStripeEmbutido.tsx` e `carregarEmbutido` abaixo.
+import type { CheckoutStripeEmbutido as Embutido } from "@/components/quiz/CheckoutStripeEmbutido";
 import { criarCheckoutStripe } from "@/lib/stripe-checkout";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
@@ -27,8 +30,23 @@ let stripePromise: Promise<Stripe | null> | null = null;
 function stripe() {
   const chave = (import.meta.env?.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined)?.trim();
   if (!chave) return null;
-  stripePromise ??= loadStripe(chave);
+  stripePromise ??= import("@stripe/stripe-js/pure").then((m) => m.loadStripe(chave));
   return stripePromise;
+}
+
+// O componente do iframe, pela mesma porta: pedido quando a folha monta, em
+// paralelo com o Stripe.js e com a sessão (os dois demoram mais que ele).
+// Falhou (rede piscou): esquece a promessa, e o "Try again" baixa de novo.
+let embutidoPromise: Promise<typeof Embutido> | null = null;
+function carregarEmbutido() {
+  embutidoPromise ??= import("@/components/quiz/CheckoutStripeEmbutido").then(
+    (m) => m.CheckoutStripeEmbutido,
+    (e) => {
+      embutidoPromise = null;
+      throw e;
+    },
+  );
+  return embutidoPromise;
 }
 
 // O VOLTAR DO CELULAR FECHA A FOLHA, e só ela (08/10).
@@ -94,6 +112,25 @@ export function CheckoutStripe({
   // paralelo com a criação da sessão.
   const sp = useMemo(() => stripe(), []);
   const abertaEm = useRef(Date.now());
+  const [CheckoutEmbutido, setCheckoutEmbutido] = useState<typeof Embutido | null>(null);
+
+  // O iframe (ver `carregarEmbutido`). Junto com o "Try again": se o arquivo
+  // não veio, a nova tentativa pede de novo.
+  useEffect(() => {
+    let vivo = true;
+    carregarEmbutido()
+      .then((c) => {
+        if (vivo) setCheckoutEmbutido(() => c);
+      })
+      .catch(() => {
+        if (!vivo) return;
+        trackEvent("stripe_checkout_erro", { erro: "arquivo" });
+        setErro("We couldn't open the payment right now. Please try again in a moment.");
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [tentativa]);
 
   useEffect(() => {
     let vivo = true;
@@ -203,14 +240,12 @@ export function CheckoutStripe({
               <RefreshCw className="h-4 w-4" /> Try again
             </button>
           </div>
-        ) : !clientSecret ? (
+        ) : !clientSecret || !CheckoutEmbutido ? (
           <p className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
             <RefreshCw className="h-4 w-4 animate-spin" /> Opening secure payment…
           </p>
         ) : (
-          <EmbeddedCheckoutProvider stripe={sp} options={opcoes}>
-            <EmbeddedCheckout />
-          </EmbeddedCheckoutProvider>
+          <CheckoutEmbutido stripe={sp} options={opcoes} />
         )}
       </div>
     </div>
