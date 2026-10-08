@@ -17,13 +17,18 @@ import {
 } from "../../emails/escada.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
-import { cupomAtivo } from "../../src/lib/cupom.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { normalizarLocale } from "../../src/lib/i18n.js";
 import { posicoesNaRegua } from "../../src/lib/regua-escada.js";
 import { jaComprou } from "../lib/ja-comprou.js";
 import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
+import { podeMandarMarketing } from "../lib/frequencia.js";
+import { bracoDoTeste } from "../../src/lib/braco-email.js";
+import { estadoDosToques, prazoDoToque1, proximoToquePrazo } from "../../src/lib/recuperacao-prazo.js";
+import { centavosComCupom, codigoComPrazo } from "../../src/lib/cupom.js";
+import { caminhoDeVolta } from "../../src/lib/volta-ao-funil.js";
+import { assuntoPrazo, emailPrazo, textoPrazo } from "../../emails/recuperacao-prazo.js";
 
 // A SEQUENCIA DE RECUPERACAO: hoje so o e-mail 2 (ver ULTIMO_EMAIL).
 //
@@ -140,6 +145,13 @@ function ultimoEmailDe(locale: "pt" | "es" | "en"): number {
 // saía da lista no meio da régua e os últimos degraus simplesmente nunca
 // saíam — sem erro, sem log, só silêncio.
 const OLHAR_ATE_DIAS = 45;
+
+// As etiquetas da oferta com prazo (teste `recuperacao_prazo`), escritas por
+// extenso pra o catálogo do painel (`automacoes.server.ts`) achar as duas.
+const TEMPLATE_PRAZO = {
+  1: { template: "escada_prazo_1" },
+  2: { template: "escada_prazo_2" },
+} as const;
 
 // Teto por rodada, pelo mesmo motivo do `mandarLetra`: `envio.serenatagift.com`
 // é domínio novo, e pico de volume em remetente sem histórico é a assinatura
@@ -359,6 +371,9 @@ export const sequenciaRecuperacao = inngest.createFunction(
       // depois do segundo lembrete do PIX. Ver `src/lib/regua-escada.ts`.
       const ultimo = posicoesNaRegua(enviados);
       if (!ultimo.size) return [];
+      // Os toques do braço B do `recuperacao_prazo` (08/10), dos mesmos
+      // eventos. Ver `src/lib/recuperacao-prazo.ts`.
+      const toquesPrazo = estadoDosToques(enviados);
 
       const [fora, excl, mortos, pagos, leads] = await Promise.all([
         // Chaveadas por e-mail: não têm coluna `id`.
@@ -408,6 +423,11 @@ export const sequenciaRecuperacao = inngest.createFunction(
         verso: string | null;
         /** Tocou a prévia? Decide qual das duas versões do degrau 2 sai. */
         ouviu: boolean;
+        /**
+         * Toque da oferta com prazo (braço B do `recuperacao_prazo`), ou
+         * `null` na escada de sempre.
+         */
+        toque: 1 | 2 | null;
       }> = [];
 
       // ── A FILA ANDA DE VERDADE (conserto de 25/09) ──────────
@@ -439,6 +459,40 @@ export const sequenciaRecuperacao = inngest.createFunction(
         // um lead sem `locale` cairia na escada em português, com desconto
         // em reais. Mesma regra do `mandarLetra`.
         const locale = normalizarLocale(l.locale);
+
+        // ── TESTE `recuperacao_prazo` (08/10) ──────────────────
+        //
+        // Braço B (português, caractere 2 do fim do id ímpar): no lugar dos
+        // degraus, a oferta de R$ 28 com prazo de verdade e o último
+        // lembrete. Quem já estava na escada antiga quando o teste entrou
+        // termina nela. Sem gate de engajamento de propósito: o teste é a
+        // oferta com prazo pra quem entra na régua, e barrar 87% dela no
+        // gate faria o B medir "menos e-mail", não "prazo".
+        if (bracoDoTeste("recuperacao_prazo", quizId, locale) === "b") {
+          const est = toquesPrazo.get(quizId) ?? { toques: {}, temEscadaAntiga: false };
+          const d = proximoToquePrazo({ numero, quando, ...est }, agora);
+          if (d.tipo === "esperar") continue;
+          if (d.tipo === "toque") {
+            // Sem sessão não existe `/retomar`, e o cupom não tem onde chegar.
+            if (!l.session_id) continue;
+            const r = (l.respostas ?? {}) as Record<string, string>;
+            aptos.push({
+              quizId,
+              quando,
+              sessao: l.session_id,
+              email: l.email,
+              nome: r.nome?.trim() || "quem você ama",
+              numero: d.numero,
+              locale,
+              verso: null,
+              ouviu: false,
+              toque: d.toque,
+            });
+            continue;
+          }
+          // `escada`: segue abaixo, como no A.
+        }
+
         if (numero >= ultimoEmailDe(locale)) continue; // a régua acabou
         // Sem sessão, o botão do inglês não tem pra onde voltar: a Ballad não
         // tem checkout hospedado, e `/retomar` sem `s` cai na tela de erro.
@@ -461,6 +515,7 @@ export const sequenciaRecuperacao = inngest.createFunction(
           locale,
           verso: null,
           ouviu: false,
+          toque: null,
         });
       }
       aptos.sort((a, b) => b.quando - a.quando);
@@ -487,8 +542,9 @@ export const sequenciaRecuperacao = inngest.createFunction(
       let barrados = 0;
       // Desconto só existe na escada do PORTUGUÊS. O degrau 3 do inglês é
       // preço cheio, e sem esta trava ele seria barrado como se fosse o R$ 29.
-      const comDescontoDe = (o: { numero: number; locale: string }) =>
-        o.locale === "pt" && temDesconto(o.numero as DegrauEscada);
+      // A oferta com prazo (braço B) não passa pelo gate: ver o teste acima.
+      const comDescontoDe = (o: { numero: number; locale: string; toque: 1 | 2 | null }) =>
+        !o.toque && o.locale === "pt" && temDesconto(o.numero as DegrauEscada);
       for (let i = 0; i < aptos.length && out.length < MAX_POR_RODADA; i += LOTE) {
         const lote = aptos.slice(i, i + LOTE);
         const comDesconto = lote.filter(comDescontoDe);
@@ -551,7 +607,7 @@ export const sequenciaRecuperacao = inngest.createFunction(
       //
       // Uma consulta só pra fila inteira, e só pra quem vai receber o 2:
       // fora dele o sinal não muda nada e não vale a ida ao banco.
-      const doDois = out.filter((o) => o.numero === 2 && o.sessao);
+      const doDois = out.filter((o) => o.numero === 2 && o.sessao && !o.toque);
       if (doDois.length) {
         const { data: tocaram } = await sb
           .from("funnel_events")
@@ -588,6 +644,91 @@ export const sequenciaRecuperacao = inngest.createFunction(
       for (const p of fila) {
         if (await jaComprou(sb, p.quizId, p.email)) {
           console.log("[sequencia] comprou entre a fila e o envio, pulando:", p.email);
+          continue;
+        }
+        // TESTE `limite_frequencia` (08/10): no braço B, no máximo 2 e-mails
+        // de marketing por endereço em 24h. Barrado aqui não grava trava, e
+        // a pessoa volta na próxima rodada. No A não vai ao banco.
+        if (!(await podeMandarMarketing(sb, p.email, p.quizId, { locale: p.locale }))) continue;
+
+        const linkDescadastroPrazo = `${SITE}/descadastrar?s=${encodeURIComponent(p.sessao)}&lang=${p.locale}`;
+        if (p.toque) {
+          // ── A OFERTA COM PRAZO (braço B do `recuperacao_prazo`) ──
+          const agoraEnvio = Date.now();
+          const prazo = prazoDoToque1(agoraEnvio);
+          let cupom: string | null = null;
+          if (p.toque === 1) {
+            cupom = codigoComPrazo(prazo);
+            // O e-mail promete R$ 28. Se o servidor não for cobrar isso (o
+            // SRN27 saiu do `cupom.ts`, por exemplo), não manda: prometer
+            // desconto que o pagamento recusa é pior que não oferecer.
+            if (centavosComCupom(3800, cupom, new Date(agoraEnvio)) !== 2800) {
+              console.error("[prazo] o cupom com prazo não dá R$ 28 no servidor, sem envio:", cupom);
+              continue;
+            }
+          }
+          const volta = caminhoDeVolta(p.sessao, cupom);
+          if (!volta.startsWith("/retomar")) continue;
+          const linkPrazo = `${SITE}${volta}&de=prazo${p.toque}`;
+
+          const desdePrazo = new Date(agoraEnvio - OLHAR_ATE_DIAS * 86400000).toISOString();
+          if (
+            await jaTravado(
+              sb,
+              "email_sequencia_enviado",
+              { quiz_response_id: p.quizId, variante: "prazo", toque: p.toque },
+              desdePrazo,
+            )
+          ) {
+            continue;
+          }
+          const travaPrazo = await travarEnvio(sb, {
+            session_id: p.sessao || null,
+            event_name: "email_sequencia_enviado",
+            event_data: {
+              numero: p.numero,
+              quiz_response_id: p.quizId,
+              email: p.email,
+              locale: p.locale,
+              variante: "prazo",
+              toque: p.toque,
+              ...(cupom ? { cupom, prazo } : {}),
+            },
+          });
+          if (!travaPrazo) continue;
+
+          const { data: enviadoPrazo, error: erroPrazo } = await resend.emails.send({
+            tags: [
+              { name: "template", value: `recuperacao_prazo_${p.toque}` },
+              { name: "teste", value: "recuperacao_prazo_b" },
+            ],
+            from: REMETENTE_RECUPERACAO,
+            replyTo: RESPONDER_PARA,
+            to: [p.email],
+            headers: cabecalhosDescadastro(p.email),
+            subject: assuntoPrazo(p.toque, p.nome),
+            html: emailPrazo({
+              toque: p.toque,
+              nome: p.nome,
+              prazo,
+              link: linkPrazo,
+              linkDescadastro: linkDescadastroPrazo,
+              verso: p.verso,
+            }),
+            text: textoPrazo({ toque: p.toque, nome: p.nome, prazo, link: linkPrazo }),
+          });
+          if (erroPrazo) {
+            console.error("[prazo] envio falhou:", p.email, p.toque, erroPrazo.message);
+            await soltarTrava(sb, travaPrazo);
+            continue;
+          }
+          await registrarEnvio(sb, {
+            emailId: enviadoPrazo?.id,
+            template: TEMPLATE_PRAZO[p.toque].template,
+            para: p.email,
+            quizResponseId: p.quizId,
+          });
+          n++;
           continue;
         }
         // `/retomar` e não o funil cru: aquela rota busca a letra no servidor

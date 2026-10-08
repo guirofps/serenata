@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
+import { podeMandarMarketing } from "../lib/frequencia.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailPixNaoPago, assuntoPixNaoPago } from "../../emails/pix-nao-pago.js";
@@ -391,12 +392,20 @@ export const pixNaoPago = inngest.createFunction(
           .maybeSingle();
         if (pago?.id) return false;
         if (await pessoaJaComprou(sb, c.email)) return false;
-        if (!podeMandar(await toquesJaDados(sb, c.quizId), Date.now())) return false;
+        const toquesAntes = await toquesJaDados(sb, c.quizId);
+        if (!podeMandar(toquesAntes, Date.now())) return false;
         // POR PESSOA, não só por pedido (25/09): quem gerava vários PIX em
         // dias diferentes recebia 3 a 10 destes em 14 dias, porque a trava
         // acima conta por quiz. Dois por pessoa na quinzena, e pronto.
         if ((await toquesDaPessoa(sb, c.email)) >= MAX_TOQUES) return false;
         if (await estaBloqueado(sb, c.email)) return false;
+        // Teste `limite_frequencia` (08/10): o PRIMEIRO toque é o código que a
+        // pessoa gerou e passa sempre; do segundo em diante é lembrete, e no
+        // braço B respeita o teto de 2 de marketing em 24h (sem marca, volta
+        // na próxima rodada). No A não vai ao banco.
+        if (toquesAntes.quantos >= 1 && !(await podeMandarMarketing(sb, c.email, c.quizId, { locale: c.locale }))) {
+          return false;
+        }
 
         // ── A TRAVA ANTES DO ENVIO, E CONFERIDA (08/10) ─────────
         //

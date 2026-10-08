@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { cabecalhosDescadastro, linkDescadastroUmClique } from "../lib/descadastro.js";
 import { bloqueados, estaBloqueado } from "../lib/emails-mortos.js";
+import { podeMandarMarketing } from "../lib/frequencia.js";
 import { todasAsPaginas } from "../lib/paginar.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
@@ -204,6 +205,10 @@ export const ocasiaoCalendario = inngest.createFunction(
         // listas de bloqueio, e erro conta como bloqueado.
         const sbEnvio = db();
         if (await estaBloqueado(sbEnvio, p.email, { incluirExcluidos: true })) return;
+        // Teste `limite_frequencia` (08/10): no braço B, no máximo 2 e-mails
+        // de marketing por endereço em 24h. Barrado aqui não grava trava, e
+        // volta na próxima rodada. No A não vai ao banco.
+        if (!(await podeMandarMarketing(sbEnvio, p.email, p.quizId, { locale: p.locale }))) return;
 
         // ── A TRAVA É UMA LINHA, GRAVADA ANTES (08/10) ───────────
         //

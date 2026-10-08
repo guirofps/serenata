@@ -7,6 +7,8 @@ import { assuntoIndicacao, emailIndicacao, textoIndicacao } from "../../emails/i
 import { gerarCodigo, linkDoConvite } from "../../src/lib/indicacao.js";
 import { loteDaVez, montarFila } from "../../src/lib/fila-convite.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { bracoDoTeste } from "../../src/lib/braco-email.js";
+import { podeMandarMarketing } from "../lib/frequencia.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O CONVITE DE INDICAÇÃO, disparo único pra quem já comprou (27/09/2026).
@@ -220,6 +222,14 @@ export const conviteIndicacao = inngest.createFunction(
         codigos,
         quizNaoPt: new Set(naoPt.map((q) => q.id)),
         lote,
+        // Teste `limite_frequencia` (08/10): no braço B, o convite espera 24h
+        // depois da última compra. Quem compra acabou de receber a entrega, e
+        // o convite colado nela era mais um e-mail no mesmo dia. O A segue
+        // sem espera, como era.
+        esperaAposCompra: {
+          agora: Date.now(),
+          horas: (quizId) => (bracoDoTeste("limite_frequencia", quizId) === "b" ? 24 : 0),
+        },
       });
 
     });
@@ -233,6 +243,10 @@ export const conviteIndicacao = inngest.createFunction(
 
       for (const p of fila) {
         try {
+          // Teste `limite_frequencia` (08/10): no braço B, no máximo 2 e-mails
+          // de marketing por endereço em 24h. Barrado aqui não grava marca, e
+          // volta numa próxima rodada. No A não vai ao banco.
+          if (!(await podeMandarMarketing(sb, p.email, p.quizId))) continue;
           // 1. O CÓDIGO PRIMEIRO. Sem a linha, o link do e-mail não dá
           //    desconto nenhum e a comissão nunca nasce.
           let codigo = p.codigo;

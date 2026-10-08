@@ -12,6 +12,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { literalLike } from "../../src/lib/sql-like.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { ehRespostaDeReacao } from "../../src/lib/pedido-reacao.js";
 
 const SITE = MARCA_ATIVA.url;
 const MCP = "https://mcp.mail.hostinger.com/mcp";
@@ -241,6 +242,14 @@ export async function triar(token: string): Promise<{
     };
 
     const texto = `${assunto} ${corpo}`;
+    // Resposta ao pedido de vídeo de reação (teste `pedido_reacao`, 08/10):
+    // quem manda é comprador, e sem esta linha a triagem responderia sozinha
+    // com os links da música. O cupom de R$ 10 prometido sai à mão.
+    if (ehRespostaDeReacao(assunto)) {
+      caso.motivo = "mandou o vídeo de reação: conferir quem aparece, perguntar antes de usar em anúncio e mandar o cupom de R$ 10";
+      paraVoce.push(caso);
+      continue;
+    }
     if (ESCALAR.test(texto)) {
       caso.motivo = "fala de dinheiro ou reclamação";
       paraVoce.push(caso);

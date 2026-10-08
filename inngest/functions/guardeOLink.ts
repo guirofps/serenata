@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
+import { podeMandarMarketing } from "../lib/frequencia.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { emailGuardeOLink, assuntoGuardeOLink, textoGuardeOLinkEn } from "../../emails/guarde-o-link.js";
@@ -174,6 +175,10 @@ export const guardeOLink = inngest.createFunction(
         const sb = db();
         if (await jaMandado(sb, c.musicaId)) return false;
         if (await estaBloqueado(sb, c.email)) return false;
+        // Teste `limite_frequencia` (08/10): no braço B, no máximo 2 e-mails
+        // de marketing por endereço em 24h. Barrado aqui não grava marca, e
+        // volta na próxima rodada. No A não vai ao banco.
+        if (!(await podeMandarMarketing(sb, c.email, c.quizId, { locale: c.locale }))) return false;
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "guarde_o_link" }],

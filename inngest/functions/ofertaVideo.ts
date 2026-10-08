@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
+import { podeMandarMarketing } from "../lib/frequencia.js";
 import { todasAsPaginas } from "../lib/paginar.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
@@ -124,6 +125,7 @@ export const ofertaVideo = inngest.createFunction(
         link: string;
         musicaId: string;
         tipo: Tipo;
+        quizId: string | null;
       }> = [];
       const conta = { comFoto: 0, semFoto: 0 };
       // Quem JÁ recebeu cada tipo, numa consulta só por tipo. Com a janela
@@ -189,6 +191,7 @@ export const ofertaVideo = inngest.createFunction(
           link: linkDoVideo(m.token_edicao as string),
           musicaId: m.id,
           tipo,
+          quizId: p.quiz_response_id ?? null,
         });
         conta[tipo] += 1;
       }
@@ -205,6 +208,10 @@ export const ofertaVideo = inngest.createFunction(
         const sb = db();
         if (await jaOfertado(sb, c.musicaId, c.tipo)) return false;
         if (await estaBloqueado(sb, c.email)) return false;
+        // Teste `limite_frequencia` (08/10): no braço B, no máximo 2 e-mails
+        // de marketing por endereço em 24h. Barrado aqui não grava marca, e
+        // volta na próxima rodada. No A não vai ao banco.
+        if (!(await podeMandarMarketing(sb, c.email, c.quizId))) return false;
 
         const semFoto = c.tipo === "semFoto";
         const template = semFoto ? "fotos_video" : "oferta_video";

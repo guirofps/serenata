@@ -31,6 +31,8 @@ import { assuntoVideoPronto, emailVideoPronto } from "../../emails/video-pronto"
 import { assuntoVideoOferta, emailVideoOferta } from "../../emails/video-oferta";
 import { assuntoVideoEsperando, emailVideoEsperando } from "../../emails/video-esperando";
 import { assuntoLembreteData, emailLembreteData } from "../../emails/lembrete-data";
+import { assuntoPrazo, emailPrazo } from "../../emails/recuperacao-prazo";
+import { assuntoPedidoReacao, emailPedidoReacao } from "../../emails/pedido-reacao";
 import { MARCA_ATIVA } from "./marca-identidade.js";
 
 // O CATÁLOGO DAS AUTOMAÇÕES DE E-MAIL, do jeito que elas rodam hoje.
@@ -147,7 +149,23 @@ export const AUTOMACOES: Automacao[] = [
       "Quem comprou, quem se descadastrou, quem gerou PIX ou clicou em comprar (esses têm régua própria).",
     remetente: "recuperacao",
     arquivo: "inngest/functions/sequenciaRecuperacao.ts · emails/escada.ts",
-    emails: degrausDaEscada(),
+    emails: [
+      ...degrausDaEscada(),
+      // Teste `recuperacao_prazo` (08/10): o braço B troca os degraus por
+      // estes dois. Ver `src/lib/recuperacao-prazo.ts`.
+      {
+        template: "escada_prazo_1",
+        nome: "B · R$ 28 até amanhã (prazo de verdade)",
+        quando: "24h depois do último e-mail · braço B do recuperacao_prazo",
+        idiomas: ["pt"],
+      },
+      {
+        template: "escada_prazo_2",
+        nome: "B · Último lembrete (o desconto já acabou)",
+        quando: "48h depois do R$ 28 · braço B do recuperacao_prazo",
+        idiomas: ["pt"],
+      },
+    ],
   },
   {
     id: "quase-comprou",
@@ -327,6 +345,25 @@ export const AUTOMACOES: Automacao[] = [
         template: "indicacao_convite",
         nome: "Ganhe dinheiro indicando o Serenata",
         quando: "uma vez, pra base inteira",
+        idiomas: ["pt"],
+      },
+    ],
+  },
+  {
+    id: "pedir-reacao",
+    nome: "Pedido do vídeo de reação (teste)",
+    fase: "depois",
+    gatilho: "de hora em hora, 9h35–19h35, teto de 10 por rodada",
+    quemRecebe:
+      "Teste `pedido_reacao`, só o braço B: compradores do português no 3º dia (78h a 102h depois de pagar). Pede o vídeo de quem ganhou a música em troca de um cupom de R$ 10 mandado À MÃO pelo suporte. Uma vez por pessoa.",
+    quemNao: "O braço A (não recebe nada), cortesia e crédito, descadastrados, bounce, excluídos, espanhol e Ballad.",
+    remetente: "recuperacao",
+    arquivo: "inngest/functions/pedirReacao.ts · emails/pedido-reacao.ts",
+    emails: [
+      {
+        template: "pedido_reacao",
+        nome: "Como foi quando ouviu?",
+        quando: "3 dias depois da compra",
         idiomas: ["pt"],
       },
     ],
@@ -670,6 +707,30 @@ export function renderizarPreview(template: string, locale: "pt" | "es"): Previe
       return pt(
         assuntoVideoEsperando(E.nome),
         emailVideoEsperando({ nome: E.nome, titulo: E.titulo, link: `${E.linkEditor}#video` }),
+      );
+    case "escada_prazo_1":
+    case "escada_prazo_2": {
+      const toque = template === "escada_prazo_1" ? 1 : 2;
+      return pt(
+        assuntoPrazo(toque, E.nome),
+        emailPrazo({
+          toque,
+          nome: E.nome,
+          prazo: "2026-10-09",
+          link: E.linkPrevia,
+          linkDescadastro: E.linkDescadastro,
+          verso: E.verso,
+        }),
+      );
+    }
+    case "pedido_reacao":
+      return pt(
+        assuntoPedidoReacao(E.nome),
+        emailPedidoReacao({
+          nome: E.nome,
+          linkResposta: `mailto:${MARCA_ATIVA.emailContato}`,
+          linkDescadastro: E.linkDescadastro,
+        }),
       );
     case "oferta_video":
       return pt(

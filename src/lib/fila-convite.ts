@@ -70,6 +70,14 @@ export function montarFila(args: {
    */
   quizNaoPt: Set<string>;
   lote: number;
+  /**
+   * Espera mínima depois da ÚLTIMA compra da pessoa, em horas, decidida pelo
+   * quiz dela (teste `limite_frequencia`, 08/10: 24h no braço B, 0 no A).
+   * Quem ainda está dentro da espera sai ANTES do corte, pelo mesmo motivo do
+   * idioma acima: barrado depois do `slice`, ocuparia a vaga de outro.
+   * Sem este campo, ninguém espera (como sempre foi).
+   */
+  esperaAposCompra?: { agora: number; horas: (quizId: string | null) => number };
 }): Convidado[] {
   const bloqueado = new Set([...args.bloqueados].map((e) => e.trim().toLowerCase()));
   const jaRecebeu = new Set(
@@ -81,7 +89,7 @@ export function montarFila(args: {
 
   // Do mais antigo pro mais novo: o `set` sobrescreve, então o último pedido
   // da pessoa é o que decide o nome. Quem comprou duas vezes aparece UMA vez.
-  const porEmail = new Map<string, { nome: string; quizId: string | null }>();
+  const porEmail = new Map<string, { nome: string; quizId: string | null; ultimaCompra: string }>();
   for (const p of [...args.pagos].sort((a, b) => a.created_at.localeCompare(b.created_at))) {
     const email = (p.email ?? "").trim().toLowerCase();
     if (!email || bloqueado.has(email) || jaRecebeu.has(email)) continue;
@@ -103,10 +111,23 @@ export function montarFila(args: {
       // Pedido novo sem nome não apaga o nome que o anterior tinha.
       nome: primeiroNome(p.nome_pagador) || antes?.nome || "",
       quizId: p.quiz_response_id ?? antes?.quizId ?? null,
+      // Ordenado do mais antigo pro mais novo: o último visto é o mais recente.
+      ultimaCompra: p.created_at,
     });
   }
 
-  return [...porEmail.entries()].slice(0, Math.max(0, args.lote)).map(([email, v]) => ({
+  const espera = args.esperaAposCompra;
+  const prontos = [...porEmail.entries()].filter(([, v]) => {
+    if (!espera) return true;
+    const h = espera.horas(v.quizId);
+    if (!(h > 0)) return true;
+    const quando = Date.parse(v.ultimaCompra);
+    // Data ilegível: segura (o erro barato é convidar um pouco depois).
+    if (!Number.isFinite(quando)) return false;
+    return espera.agora - quando >= h * 3600000;
+  });
+
+  return prontos.slice(0, Math.max(0, args.lote)).map(([email, v]) => ({
     email,
     nome: v.nome,
     quizId: v.quizId,

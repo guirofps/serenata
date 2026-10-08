@@ -241,3 +241,58 @@ describe("a rampa do disparo", () => {
     expect(loteDaVez(0, -7)).toBe(0);
   });
 });
+
+// Teste `limite_frequencia` (08/10): no braço B, o convite espera 24h depois
+// da última compra, e quem espera sai ANTES do corte do lote.
+describe("montarFila com espera depois da compra", () => {
+  const agora = Date.parse("2026-10-08T15:00:00Z");
+  const horasAtras = (h: number) => new Date(agora - h * 3600000).toISOString();
+  const espera = { agora, horas: (q: string | null) => (q === "qB" ? 24 : 0) };
+
+  it("o B espera 24h depois da última compra; o A não espera", () => {
+    const fila = montarFila({
+      ...base,
+      esperaAposCompra: espera,
+      pagos: [
+        pedido({ email: "b@x.com", quiz_response_id: "qB", created_at: horasAtras(2) }),
+        pedido({ email: "a@x.com", quiz_response_id: "qA", created_at: horasAtras(2) }),
+        pedido({ email: "b2@x.com", quiz_response_id: "qB", created_at: horasAtras(25) }),
+      ],
+    });
+    expect(fila.map((c) => c.email).sort()).toEqual(["a@x.com", "b2@x.com"]);
+  });
+
+  it("conta a ÚLTIMA compra da pessoa", () => {
+    const fila = montarFila({
+      ...base,
+      esperaAposCompra: espera,
+      pagos: [
+        pedido({ email: "b@x.com", quiz_response_id: "qB", created_at: horasAtras(100) }),
+        pedido({ email: "b@x.com", quiz_response_id: "qB", created_at: horasAtras(3) }),
+      ],
+    });
+    expect(fila).toHaveLength(0);
+  });
+
+  it("quem espera não ocupa a vaga do lote", () => {
+    const fila = montarFila({
+      ...base,
+      lote: 1,
+      esperaAposCompra: espera,
+      pagos: [
+        pedido({ email: "b@x.com", quiz_response_id: "qB", created_at: horasAtras(30) }),
+        pedido({ email: "b@x.com", quiz_response_id: "qB", created_at: horasAtras(1) }),
+        pedido({ email: "a@x.com", quiz_response_id: "qA", created_at: horasAtras(1) }),
+      ],
+    });
+    expect(fila.map((c) => c.email)).toEqual(["a@x.com"]);
+  });
+
+  it("sem o campo, ninguém espera (como era)", () => {
+    const fila = montarFila({
+      ...base,
+      pagos: [pedido({ email: "b@x.com", quiz_response_id: "qB", created_at: horasAtras(1) })],
+    });
+    expect(fila).toHaveLength(1);
+  });
+});
