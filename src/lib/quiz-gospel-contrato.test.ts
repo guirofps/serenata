@@ -58,8 +58,12 @@ describe("telas do quiz gospel", () => {
 
 describe("e-mail de ocasião", () => {
   it("pula quem fez um louvor", () => {
-    const fonte = readFileSync("inngest/functions/ocasiaoCalendario.ts", "utf8");
-    expect(fonte).toMatch(/if \(relacao === "deus"\) continue;/);
+    // A regra saiu do job pra `fila-ocasiao.ts` em 08/10 (o comportamento
+    // tem teste próprio em `fila-ocasiao.test.ts`); o job tem que usá-la.
+    const job = readFileSync("inngest/functions/ocasiaoCalendario.ts", "utf8");
+    const regra = readFileSync("src/lib/fila-ocasiao.ts", "utf8");
+    expect(job).toMatch(/alvoDaOcasiao\(/);
+    expect(regra).toMatch(/if \(relacao === "deus"\) return null;/);
   });
 });
 
