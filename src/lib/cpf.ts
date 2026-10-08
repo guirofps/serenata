@@ -56,3 +56,28 @@ export function formatarCpf(cru: unknown): string {
   if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
 }
+
+/**
+ * O CPF que vai pro gateway, ou o pedido de correção que volta pra tela.
+ *
+ * É a mesma regra que o `criar-pix.ts` aplica no funil (`cpf-necessario`,
+ * `cpf-invalido`), escrita aqui pra a oferta da escada não inventar outra.
+ * Conferida ANTES de tocar na rede: CPF errado vira campo na tela, com a
+ * pessoa ainda olhando pra ele, e não "não consegui gerar o PIX agora".
+ *
+ * Gateway que não pede CPF (Woovi) passa sempre, com o que vier ou vazio.
+ *
+ * Nasceu em 08/10/2026: a oferta da escada (`criar-pix-oferta.ts`) recusava
+ * o Asaas em vez de pedir o CPF, e ficou morta desde que o PIX foi pra lá.
+ */
+export function cpfParaGateway(
+  exigeCpf: boolean,
+  cru: unknown,
+): { ok: true; cpf: string } | { ok: false; erro: "cpf-necessario" | "cpf-invalido" } {
+  const cpf = soDigitosCpf(cru);
+  if (exigeCpf) {
+    if (!cpf) return { ok: false, erro: "cpf-necessario" };
+    if (!cpfValido(cpf)) return { ok: false, erro: "cpf-invalido" };
+  }
+  return { ok: true, cpf };
+}

@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { criarPixOferta, type ResultadoPixOferta } from "@/lib/criar-pix-oferta";
 import { PixPagamento } from "@/components/quiz/PixPagamento";
+import { TelaCpf } from "@/components/quiz/TelaCpf";
+import { caminhoDeVolta } from "@/lib/volta-ao-funil";
 import { Logo } from "@/components/marca/Logo";
 import { TEMA_CLARO } from "@/lib/marca";
 import { trackEvent } from "@/lib/track";
@@ -36,16 +38,69 @@ export const Route = createFileRoute("/oferta/$token")({
   head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow" }] }),
 });
 
+// ── O CPF, DESDE 08/10 ───────────────────────────────────────────
+//
+// O PIX foi pro Asaas, que exige CPF, e esta página recusava em vez de
+// perguntar: todo mundo via "Esse link não vale mais". Agora o servidor
+// devolve `cpf-necessario`, a página mostra a MESMA `TelaCpf` do funil, e a
+// segunda chamada leva o número. Com a Woovi (sem CPF) o QR continua
+// nascendo direto, como antes.
+
+type PedidoDeCpf = Extract<ResultadoPixOferta, { erro: "cpf-necessario" | "cpf-invalido" }>;
+
+type Fase =
+  | { t: "abrindo" }
+  | { t: "cpf"; aviso: string | null; valorTexto: string; titulo: string | null; nome: string }
+  | { t: "gerando" }
+  | { t: "fim"; r: Exclude<ResultadoPixOferta, PedidoDeCpf> };
+
+function pedeCpf(r: ResultadoPixOferta): r is PedidoDeCpf {
+  return !r.ok && (r.erro === "cpf-necessario" || r.erro === "cpf-invalido");
+}
+
 function Pagina() {
   const { token } = Route.useParams();
-  const [r, setR] = useState<ResultadoPixOferta | null>(null);
+  const [fase, setFase] = useState<Fase>({ t: "abrindo" });
+  // O CPF da última tentativa, pra "Tentar de novo" repetir o mesmo pedido
+  // sem fazer a pessoa digitar outra vez. Só em memória, nunca em storage.
+  const ultimoCpf = useRef<string | undefined>(undefined);
+
+  async function gerar(cpf?: string) {
+    ultimoCpf.current = cpf;
+    setFase(cpf ? { t: "gerando" } : { t: "abrindo" });
+    try {
+      const r = await criarPixOferta({ data: { token, cpf } });
+      if (pedeCpf(r)) {
+        // Nome próprio, e não o `pix_cpf_pedido` do funil: a lista de "parou
+        // no CPF" da recuperação lê aquele evento por sessão, e a sessão
+        // deste navegador pode nem ser a do quiz.
+        trackEvent("oferta_escada_cpf_pedido", { motivo: r.erro });
+        setFase({
+          t: "cpf",
+          aviso: r.erro === "cpf-invalido" ? "Esse CPF não confere. Confere os números?" : null,
+          valorTexto: r.valorTexto,
+          titulo: r.titulo,
+          nome: r.nome,
+        });
+        return;
+      }
+      if (r.ok) trackEvent("oferta_escada_pix_gerado", { valor: r.valorCentavos });
+      else trackEvent("oferta_escada_falhou", { erro: r.erro });
+      setFase({ t: "fim", r });
+    } catch {
+      trackEvent("oferta_escada_falhou", { erro: "excecao" });
+      setFase({ t: "fim", r: { ok: false, erro: "gateway", sessao: "" } });
+    }
+  }
 
   useEffect(() => {
     trackEvent("oferta_escada_aberta");
-    criarPixOferta({ data: { token } })
-      .then(setR)
-      .catch(() => setR({ ok: false, erro: "gateway" }));
+    void gerar();
+    // `gerar` é recriada a cada render; o que importa é o token.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  const r = fase.t === "fim" ? fase.r : null;
 
   return (
     <div className={`${TEMA_CLARO} min-h-dvh bg-background`}>
@@ -54,11 +109,28 @@ function Pagina() {
           <Logo />
         </div>
 
-        {!r && (
+        {(fase.t === "abrindo" || fase.t === "gerando") && (
           <div className="flex flex-col items-center gap-3 py-16 text-center">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Abrindo a sua oferta...</p>
+            <p className="text-sm text-muted-foreground">
+              {fase.t === "gerando" ? "Gerando o seu PIX..." : "Abrindo a sua oferta..."}
+            </p>
           </div>
+        )}
+
+        {fase.t === "cpf" && (
+          <>
+            {/* O preço do e-mail ANTES do campo: um pedido de documento solto,
+                sem dizer o que se paga, parece golpe. */}
+            <p className="mb-5 text-center text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {fase.titulo ?? `A música de ${fase.nome}`}
+              </span>{" "}
+              está gravada e esperando. Sai por{" "}
+              <span className="font-semibold text-foreground">{fase.valorTexto}</span> no PIX.
+            </p>
+            <TelaCpf aviso={fase.aviso} aoEnviar={(cpf) => void gerar(cpf)} />
+          </>
         )}
 
         {r?.ok && (
@@ -82,24 +154,69 @@ function Pagina() {
           </>
         )}
 
-        {r && !r.ok && (
-          <div className="space-y-4 rounded-2xl border border-primary/10 bg-secondary/30 px-5 py-6 text-center">
-            <p className="font-medium">
-              {r.erro === "sem-musica" ? "Não achei a sua música" : "Esse link não vale mais"}
-            </p>
-            <p className="text-sm leading-snug text-muted-foreground">
-              {r.erro === "sem-musica"
-                ? "Pode ser que ela ainda esteja sendo gravada. Escreva pra contato@serenatagift.com que a gente resolve."
-                : "Nada foi cobrado. Dá pra continuar a compra por aqui, com o mesmo preço da sua tela."}
+        {r && !r.ok && r.erro === "gateway" && (
+          // Mesma tela de erro do funil (`PixTransparente`): a falha costuma
+          // ser o Asaas fora por minutos, e o caminho é tentar de novo AQUI,
+          // com o preço do e-mail. Mandar pro funil seria trocar R$ 19 por R$ 38.
+          <div className="space-y-3 rounded-2xl border border-amber-500/30 bg-amber-50 px-4 py-4 text-left">
+            <p className="text-sm font-semibold text-amber-900">Não consegui gerar o PIX agora</p>
+            <p className="text-xs leading-snug text-amber-800/80">
+              Nada foi cobrado. O banco que gera o PIX está instável neste momento. Tenta de novo em
+              um minutinho, a sua música continua aqui.
             </p>
             <Button
               size="lg"
               className="w-full"
               onClick={() => {
-                window.location.href = "/criar";
+                trackEvent("oferta_escada_tentou_de_novo");
+                void gerar(ultimoCpf.current);
               }}
             >
-              Continuar a compra
+              Tentar de novo
+            </Button>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = caminhoDeVolta(r.sessao);
+              }}
+              className="w-full text-xs text-amber-900/70 underline underline-offset-4"
+            >
+              Ouvir a minha música
+            </button>
+          </div>
+        )}
+
+        {r && !r.ok && r.erro !== "gateway" && (
+          <div className="space-y-4 rounded-2xl border border-primary/10 bg-secondary/30 px-5 py-6 text-center">
+            <p className="font-medium">
+              {r.erro === "sem-musica"
+                ? "Não achei a sua música"
+                : r.erro === "ja-pago"
+                  ? "Essa música já é sua"
+                  : "Esse link não vale mais"}
+            </p>
+            <p className="text-sm leading-snug text-muted-foreground">
+              {r.erro === "sem-musica"
+                ? "Pode ser que ela ainda esteja sendo gravada. Escreva pra contato@serenatagift.com que a gente resolve."
+                : r.erro === "ja-pago"
+                  ? "O pagamento já entrou, e nada foi cobrado de novo. É só abrir pra ouvir e montar o presente."
+                  : "Nada foi cobrado. Dá pra continuar a compra por aqui, com o mesmo preço da sua tela."}
+            </p>
+            <Button
+              size="lg"
+              className="w-full"
+              onClick={() => {
+                // ── PRA MÚSICA DELA, NÃO PRA ABERTURA DO QUIZ (08/10) ────
+                //
+                // Era `/criar`: a pessoa caía na abertura e "começar" girava a
+                // sessão, longe da música que já existe. Com o token
+                // conferido, a sessão volta do servidor e o `/retomar`
+                // reidrata tudo (quem já pagou vai direto pro editor). Token
+                // inválido não tem sessão confiável e segue indo pro `/criar`.
+                window.location.href = caminhoDeVolta("sessao" in r ? r.sessao : null);
+              }}
+            >
+              {r.erro === "ja-pago" ? "Abrir a minha música" : "Continuar a compra"}
             </Button>
           </div>
         )}

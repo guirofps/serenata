@@ -8,6 +8,7 @@ import { Logo } from "@/components/marca/Logo";
 import { TEMA_CLARO } from "@/lib/marca";
 import { trackEvent } from "@/lib/track";
 import { Button } from "@/components/ui/button";
+import { caminhoDeVolta } from "@/lib/volta-ao-funil";
 
 // O PIX QUE VOLTA.
 //
@@ -31,12 +32,20 @@ import { Button } from "@/components/ui/button";
 // Só LÊ um pedido pendente que já existe. Uma rota pública que cria cobrança
 // seria um jeito de qualquer um encher a conta da Woovi de PIX morto.
 //
-// ── E A REFERÊNCIA NÃO É SEGREDO ─────────────────────────────────
+// ── A REFERÊNCIA E O QUE ELA ABRE ────────────────────────────────
 //
-// Ela é `serenata:<quiz_response_id>`, um uuid que a pessoa recebe no próprio
-// link. O que ela abre é um código de pagamento: quem tiver o link pode PAGAR
-// pela música de alguém, não ver dado nenhum. Por isso a tela devolve o
-// mínimo — código, valor e título — e nunca e-mail, nome ou a letra.
+// Ela é `serenata:<quiz_response_id>` (Woovi) ou o `pay_...` do Asaas, e a
+// pessoa recebe no próprio link. O que ela abre é um código de pagamento: a
+// tela devolve o mínimo (código, valor e título) e nunca e-mail, nome ou a
+// letra.
+//
+// DESDE 08/10 devolve também a SESSÃO, só de pedido do funil ainda NÃO pago,
+// pra os botões de saída levarem pra música dela (`/retomar?s=`) e não pra
+// abertura do quiz. A sessão é credencial, e a troca foi pesada: o link sai
+// só pro e-mail do próprio comprador, a rota está em `rotas-sensiveis.ts`
+// (nenhum script de terceiro lê a URL nem a tela), e pedido pago não devolve
+// sessão nenhuma, então quem recebeu o link encaminhado pra pagar não ganha
+// o editor de presente junto.
 
 type Dados =
   | {
@@ -46,8 +55,18 @@ type Dados =
       titulo: string | null;
       /** Upsell do painel (crédito, quadro) em vez da música do funil. */
       upsell: boolean;
+      /** Só pedido do funil não pago. Ver o cabeçalho. */
+      sessao: string | null;
+      /** O cupom que baixou o preço desse pedido, pra o funil mostrar o mesmo valor. */
+      cupom: string | null;
     }
-  | { ok: false; motivo: "nao-achei" | "ja-pago" | "vencido"; upsell: boolean };
+  | {
+      ok: false;
+      motivo: "nao-achei" | "ja-pago" | "vencido";
+      upsell: boolean;
+      sessao: string | null;
+      cupom: string | null;
+    };
 
 const buscarPix = createServerFn({ method: "POST" })
   .validator((data: { referencia: string }) => data)
@@ -57,10 +76,11 @@ const buscarPix = createServerFn({ method: "POST" })
     // comprando um quadro pro início do quiz seria fazê-la refazer uma música
     // que ela já tem.
     const upsell = data.referencia.startsWith("up:");
+    const vazio = { sessao: null, cupom: null };
 
     const { data: p } = await supabaseAdmin()
       .from("pedidos")
-      .select("status, pix_codigo, pix_expira, valor_centavos, musica_id")
+      .select("status, pix_codigo, pix_expira, valor_centavos, musica_id, quiz_response_id, cupom")
       // Asaas também (auditoria 30/09): desde 11/09 o link do e-mail de PIX
       // não pago é `/pix/pay_...` do Asaas, e a busca só por `woovi:` dava
       // "Não achei esse PIX" pra todo mundo.
@@ -68,14 +88,29 @@ const buscarPix = createServerFn({ method: "POST" })
       .limit(1)
       .maybeSingle();
 
-    if (!p) return { ok: false, motivo: "nao-achei", upsell };
-    if (p.status === "pago") return { ok: false, motivo: "ja-pago", upsell };
-    if (!p.pix_codigo) return { ok: false, motivo: "nao-achei", upsell };
+    if (!p) return { ok: false, motivo: "nao-achei", upsell, ...vazio };
+    // Pago: sem sessão, de propósito (ver o cabeçalho). A saída é `/obrigado`.
+    if (p.status === "pago") return { ok: false, motivo: "ja-pago", upsell, ...vazio };
+
+    // A SESSÃO DO QUIZ, pros botões de saída (08/10). Upsell não precisa: a
+    // saída dele é o painel, e quem compra upsell já tem conta.
+    let sessao: string | null = null;
+    if (!upsell && p.quiz_response_id) {
+      const { data: q } = await supabaseAdmin()
+        .from("quiz_responses")
+        .select("session_id")
+        .eq("id", p.quiz_response_id)
+        .maybeSingle();
+      sessao = (q?.session_id as string | null) ?? null;
+    }
+    const volta = { sessao, cupom: (p.cupom as string | null) ?? null };
+
+    if (!p.pix_codigo) return { ok: false, motivo: "nao-achei", upsell, ...volta };
     // O código da Woovi vale 1 hora. Passou disso, o QR não paga mais nada e
     // mostrar ele seria pior que não mostrar: a pessoa tentaria, o banco
     // recusaria, e ela concluiria que o problema é a nossa loja.
     if (p.pix_expira && Date.parse(p.pix_expira as string) < Date.now()) {
-      return { ok: false, motivo: "vencido", upsell };
+      return { ok: false, motivo: "vencido", upsell, ...volta };
     }
 
     let titulo: string | null = null;
@@ -95,6 +130,7 @@ const buscarPix = createServerFn({ method: "POST" })
       valorTexto: `R$ ${(centavos / 100).toFixed(2).replace(".", ",").replace(",00", "")}`,
       titulo,
       upsell,
+      ...volta,
     };
   });
 
@@ -114,7 +150,13 @@ function Pagina() {
     buscarPix({ data: { referencia } })
       .then(setDados)
       .catch(() =>
-        setDados({ ok: false, motivo: "nao-achei", upsell: referencia.startsWith("up:") }),
+        setDados({
+          ok: false,
+          motivo: "nao-achei",
+          upsell: referencia.startsWith("up:"),
+          sessao: null,
+          cupom: null,
+        }),
       );
   }, [referencia]);
 
@@ -156,12 +198,19 @@ function Pagina() {
               aoPagar={() => {
                 window.location.href = dados.upsell ? "/dashboard" : "/obrigado";
               }}
-              // Cartão vai pro checkout direto, sem passar pelo funil: quem
-              // chegou por este link já decidiu comprar, e fazer ela reler a
-              // oferta seria atrito puro.
+              // ── O CARTÃO VOLTA PRA MÚSICA DELA (08/10) ─────────────
+              //
+              // Era `/criar?checkout=1`, com a ideia de ir direto pro
+              // checkout. Só que o `/criar` só conhece `step` e `t`: o
+              // `checkout=1` sumia, a pessoa caía na abertura do quiz, e
+              // "começar" ali abria uma sessão NOVA, longe da música dela.
+              // O `/retomar` reidrata a sessão e manda pro reveal, de onde o
+              // botão de comprar abre a folha com "Pagar com cartão".
               aoEscolherCartao={() => {
                 trackEvent("pix_retomado_cartao", { referencia, upsell: dados.upsell });
-                window.location.href = dados.upsell ? "/dashboard" : "/criar?checkout=1";
+                window.location.href = dados.upsell
+                  ? "/dashboard"
+                  : caminhoDeVolta(dados.sessao, dados.cupom);
               }}
             />
           </>
@@ -189,11 +238,14 @@ function Pagina() {
               size="lg"
               className="w-full"
               onClick={() => {
+                // Vencido ou sem código: pra música dela pelo `/retomar`
+                // quando o pedido tem quiz (08/10, mesmo motivo do cartão
+                // acima). Sem pedido nenhum, `caminhoDeVolta` cai no `/criar`.
                 window.location.href = dados.upsell
                   ? "/dashboard"
                   : dados.motivo === "ja-pago"
                     ? "/obrigado"
-                    : "/criar";
+                    : caminhoDeVolta(dados.sessao, dados.cupom);
               }}
             >
               {dados.upsell

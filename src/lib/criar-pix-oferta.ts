@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { gatewayPix } from "@/lib/criar-pix";
 import { ErroGateway } from "@/lib/gateway";
+import { cpfParaGateway } from "@/lib/cpf";
 import { conferirOferta } from "@/lib/oferta-assinada";
 import { OFERTA, type DegrauEscada } from "../../emails/escada";
 import { MARCA_ATIVA } from "./marca-identidade.js";
@@ -51,24 +52,69 @@ export type ResultadoPixOferta =
       nome: string;
       email: string;
     }
-  | { ok: false; erro: "token-invalido" | "sem-musica" | "gateway" };
+  // Assinatura que não bate: a sessão do token não é de confiança, e não volta.
+  | { ok: false; erro: "token-invalido" }
+  /**
+   * `cpf-necessario` e `cpf-invalido` NÃO são falha, são pedido de correção,
+   * igual ao `criar-pix.ts`. Levam o preço e o título pra a tela do CPF dizer
+   * o que está sendo pago: a pessoa chegou de um e-mail com um número no
+   * assunto, e um campo de documento solto, sem esse número, parece golpe.
+   */
+  | {
+      ok: false;
+      erro: "cpf-necessario" | "cpf-invalido";
+      sessao: string;
+      valorTexto: string;
+      titulo: string | null;
+      nome: string;
+    }
+  /**
+   * `sessao` é a do token JÁ CONFERIDO, e serve só pro botão de saída
+   * (`caminhoDeVolta`, `/retomar?s=`). Não expõe nada novo: ela já está em
+   * claro dentro do próprio token, que é a URL desta página.
+   */
+  | { ok: false; erro: "sem-musica" | "gateway" | "ja-pago"; sessao: string };
 
 export const criarPixOferta = createServerFn({ method: "POST" })
-  .validator((data: { token: string }) => data)
+  // Server function é rota HTTP: o que chega aqui não é promessa de nada.
+  // Só o token e o CPF, cortados; o preço NUNCA vem daqui, sai do degrau
+  // assinado.
+  .validator((data: { token: string; cpf?: string }) => ({
+    token: String(data?.token ?? "").slice(0, 300),
+    cpf: typeof data?.cpf === "string" ? data.cpf.slice(0, 32) : undefined,
+  }))
   .handler(async ({ data }): Promise<ResultadoPixOferta> => {
     const aberto = conferirOferta(data.token);
     if (!aberto) return { ok: false, erro: "token-invalido" };
 
     const valorCentavos = centavosDoDegrau(aberto.degrau as DegrauEscada);
     if (!valorCentavos) return { ok: false, erro: "token-invalido" };
+    const sessao = aberto.sessao;
 
     const db = supabaseAdmin();
     const { data: quiz } = await db
       .from("quiz_responses")
       .select("id, email, respostas")
-      .eq("session_id", aberto.sessao)
+      .eq("session_id", sessao)
       .maybeSingle();
-    if (!quiz?.id) return { ok: false, erro: "sem-musica" };
+    if (!quiz?.id) return { ok: false, erro: "sem-musica", sessao };
+
+    // ── QUEM JÁ PAGOU NÃO PAGA DE NOVO ───────────────────────────
+    //
+    // Os e-mails da escada ficam na caixa de entrada. Quem comprou pelo funil
+    // a R$ 38 e dias depois abre o e-mail de R$ 29 que já estava lá geraria
+    // uma SEGUNDA cobrança da mesma música; o webhook recusaria a entrega
+    // dobrada e o dono teria que devolver na mão. Enquanto esta página estava
+    // morta (até 08/10) isso não acontecia; voltando a gerar PIX, acontece.
+    // Uma consulta indexada antes de qualquer cobrança.
+    const { data: pago } = await db
+      .from("pedidos")
+      .select("id")
+      .eq("quiz_response_id", quiz.id)
+      .eq("status", "pago")
+      .limit(1)
+      .maybeSingle();
+    if (pago?.id) return { ok: false, erro: "ja-pago", sessao };
 
     // A MÚSICA TEM QUE EXISTIR, e aqui ela tem que estar PRONTA: o e-mail da
     // escada promete uma gravação que já foi feita. Cobrar por algo que não
@@ -80,7 +126,7 @@ export const criarPixOferta = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (!musica?.id || musica.status !== "pronta") return { ok: false, erro: "sem-musica" };
+    if (!musica?.id || musica.status !== "pronta") return { ok: false, erro: "sem-musica", sessao };
 
     // A REFERÊNCIA CARREGA O DEGRAU, e isso não é enfeite: a mesma pessoa pode
     // ter gerado um PIX de R$ 38 no funil e receber R$ 19 cinco dias depois.
@@ -101,12 +147,30 @@ export const criarPixOferta = createServerFn({ method: "POST" })
     // resolver no DICT ele seguiu gerando cobranca impagavel.
     const gw = gatewayPix();
 
-    // O Asaas exige CPF e a escada e um LINK DE E-MAIL: a pessoa cai direto
-    // na tela do PIX, sem passo nenhum onde pedir documento. Recusar limpo e
-    // melhor que entregar um QR que nao pode ser pago.
-    if (gw.exigeCpf) {
-      console.warn(`[pix-oferta] ${gw.nome} exige CPF e a escada nao pede. Recusando.`);
-      return { ok: false, erro: "gateway" };
+    // ── O CPF, QUANDO O GATEWAY PEDE (08/10) ─────────────────────
+    //
+    // Aqui morava um `if (gw.exigeCpf) return { erro: "gateway" }`, com a
+    // ideia de que um link de e-mail não tem passo onde pedir documento. Só
+    // que o PIX foi pro Asaas, que SEMPRE exige CPF, e a frase virou "esta
+    // página nunca gera PIX": em produção nenhum pedido `serenata:<quiz>:e<n>`
+    // nasceu no Asaas, e 43 pessoas abriram a oferta em 7 dias, leram "Esse
+    // link não vale mais" e foram pro /criar pagar o preço cheio (quando
+    // foram). Agora pede o CPF igual ao funil: primeira chamada sem ele volta
+    // `cpf-necessario`, a tela mostra o campo, a segunda leva o número.
+    //
+    // De quebra: a cobrança só nasce depois de a pessoa digitar o CPF, e não
+    // a cada abertura do e-mail (inclusive a de robô de e-mail que pré-abre
+    // link).
+    const conferido = cpfParaGateway(gw.exigeCpf, data.cpf);
+    if (!conferido.ok) {
+      return {
+        ok: false,
+        erro: conferido.erro,
+        sessao,
+        valorTexto: OFERTA[aberto.degrau as DegrauEscada].texto,
+        titulo: (musica.titulo as string | null) ?? null,
+        nome,
+      };
     }
 
     let cobranca;
@@ -117,11 +181,12 @@ export const criarPixOferta = createServerFn({ method: "POST" })
         descricao: `Serenata · ${musica.titulo ?? "sua música"}`,
         nome: nome || null,
         email: email || null,
+        cpf: conferido.cpf || null,
       });
     } catch (err) {
       const g = err instanceof ErroGateway ? err : null;
       console.error(`[pix-oferta] ${gw.nome} falhou:`, g?.message ?? err);
-      return { ok: false, erro: "gateway" };
+      return { ok: false, erro: "gateway", sessao };
     }
 
     const refFinal = cobranca.idExterno;
