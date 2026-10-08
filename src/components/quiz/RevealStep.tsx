@@ -303,7 +303,11 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
       setFase({ t: "revelando", letra: { ...base, letra: letraEditada } });
     } catch (err) {
       console.error("[coautoria] finalizar falhou:", err);
-      setFase({ t: "erro", msg: T.naoPreparei, tentar: () => finalizar(letraEditada) });
+      // A `base` vai JUNTO no "tentar de novo" (08/10). No caminho B a fase
+      // nunca foi "editando", então `finalizar` sem `baseDireta` achava base
+      // nula e voltava calado: o botão não fazia nada e a pessoa ficava presa
+      // na tela de erro.
+      setFase({ t: "erro", msg: T.naoPreparei, tentar: () => finalizar(letraEditada, base) });
     } finally {
       setFinalizando(false);
     }
