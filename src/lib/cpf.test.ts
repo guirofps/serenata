@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cpfValido, formatarCpf, soDigitosCpf } from "./cpf";
+import { cpfParaGateway, cpfValido, formatarCpf, soDigitosCpf } from "./cpf";
 
 describe("cpfValido", () => {
   it("aceita CPF real, com e sem máscara", () => {
@@ -66,5 +66,29 @@ describe("formatarCpf", () => {
 
   it("corta o que passa de 11 dígitos em vez de deixar transbordar", () => {
     expect(formatarCpf("529982247259999")).toBe("529.982.247-25");
+  });
+});
+
+describe("cpfParaGateway", () => {
+  it("gateway que pede CPF e nada digitado: pede o campo, não falha", () => {
+    expect(cpfParaGateway(true, undefined)).toEqual({ ok: false, erro: "cpf-necessario" });
+    expect(cpfParaGateway(true, "")).toEqual({ ok: false, erro: "cpf-necessario" });
+    // Só pontuação é o mesmo que nada.
+    expect(cpfParaGateway(true, "...-")).toEqual({ ok: false, erro: "cpf-necessario" });
+  });
+
+  it("gateway que pede CPF e o número não fecha: pede correção", () => {
+    expect(cpfParaGateway(true, "529.982.247-26")).toEqual({ ok: false, erro: "cpf-invalido" });
+    expect(cpfParaGateway(true, "111.111.111-11")).toEqual({ ok: false, erro: "cpf-invalido" });
+    expect(cpfParaGateway(true, "5299822472")).toEqual({ ok: false, erro: "cpf-invalido" });
+  });
+
+  it("CPF válido sai só com os dígitos, que é o que o Asaas recebe", () => {
+    expect(cpfParaGateway(true, "529.982.247-25")).toEqual({ ok: true, cpf: "52998224725" });
+  });
+
+  it("gateway que não pede CPF passa sempre, com ou sem número", () => {
+    expect(cpfParaGateway(false, undefined)).toEqual({ ok: true, cpf: "" });
+    expect(cpfParaGateway(false, "529.982.247-25")).toEqual({ ok: true, cpf: "52998224725" });
   });
 });
