@@ -1,17 +1,18 @@
 import { inngest } from "../client.js";
 import { cabecalhosDescadastro, linkDescadastroUmClique } from "../lib/descadastro.js";
-import { estaBloqueado } from "../lib/emails-mortos.js";
+import { bloqueados, estaBloqueado } from "../lib/emails-mortos.js";
+import { todasAsPaginas } from "../lib/paginar.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { emailOcasiao, assuntoOcasiao } from "../../emails/ocasiao.js";
-import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { ocasiaoDeHoje, templateDaOcasiao } from "../../src/lib/ocasioes.js";
 import {
-  OCASIAO_PROIBIDA,
-  ocasiaoDeHoje,
-  primeiroNome,
-  templateDaOcasiao,
-} from "../../src/lib/ocasioes.js";
+  alvoDaOcasiao,
+  compraMaisRecentePorEmail,
+  type PedidoDaOcasiao,
+} from "../../src/lib/fila-ocasiao.js";
+import { filtroCursor, lerJanela } from "../../src/lib/ler-janela.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // RECOMPRA POR DATA DO CALENDÁRIO.
@@ -67,6 +68,9 @@ const MAX_POR_RODADA = 12;
 /** Compradores dos últimos 180 dias. Mais velho que isso vira e-mail frio. */
 const JANELA_DIAS = 180;
 
+/** Candidatos por consulta de respostas e de bloqueio. */
+const LOTE = 100;
+
 function db() {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -99,86 +103,92 @@ export const ocasiaoCalendario = inngest.createFunction(
 
     const fila = await step.run(`achar-quem-recebe-${ocasiao.slug}`, async () => {
       const sb = db();
-      const desde = new Date(Date.now() - JANELA_DIAS * 86400000).toISOString();
+      const agora = Date.now();
+      const desde = new Date(agora - JANELA_DIAS * 86400000).toISOString();
 
-      const [{ data: pedidos }, { data: jaMandados }, { data: descadastrados }, { data: mortos }] =
-        await Promise.all([
+      // ── TUDO, POR CURSOR (08/10) ───────────────────────────────
+      //
+      // Estas três leituras eram consultas únicas, e o PostgREST devolve no
+      // máximo 1.000 linhas:
+      //   - os pedidos pagos de 180 dias (~9.300) chegavam como uma amostra
+      //     arbitrária de ~1.000, sem ordem: o Dia das Crianças de 2026 foi
+      //     pra só 261 compradores;
+      //   - a lista de "já recebeu" (`.limit(5000)` não levanta o teto)
+      //     ficaria cega a partir do envio 1.001, e a pessoa entraria na fila
+      //     de novo;
+      //   - a variável `descadastrados` lia `excluidos_email`, e a tabela
+      //     `descadastros` de verdade nunca era lida aqui.
+      // Agora os pedidos vêm por `lerJanela` (fatias de um dia, cursor por
+      // `created_at, id`: pedido pago nesta janela nasceu nela ou um dia
+      // antes), o "já recebeu" vem paginado, e o bloqueio é por endereço.
+      // Qualquer erro LANÇA: lista pela metade não vira disparo.
+      type Pedido = PedidoDaOcasiao & { id: string; created_at: string };
+      const [pedidos, jaMandados] = await Promise.all([
+        lerJanela<Pedido>(
+          ({ desde: de, ate, cursor, limite }) => {
+            const base = sb
+              .from("pedidos")
+              .select("id, email, quiz_response_id, paid_at, dinheiro_entrou, created_at")
+              .eq("status", "pago")
+              .gte("created_at", de)
+              .lt("created_at", ate);
+            const comCursor = cursor ? base.or(filtroCursor(cursor)) : base;
+            return comCursor.order("created_at").order("id").limit(limite) as never;
+          },
+          new Date(agora - (JANELA_DIAS + 1) * 86400000),
+          new Date(agora + 60000),
+        ),
+        // A trava é por TEMPLATE, e o template tem o ano dentro: quem
+        // recebeu o Dia das Crianças de 2026 pode receber o de 2027.
+        todasAsPaginas<{ para: string | null }>((de, ate) =>
           sb
-            .from("pedidos")
-            .select("email, quiz_response_id, paid_at, dinheiro_entrou")
-            .eq("status", "pago")
-            .gte("paid_at", desde),
-          // A trava é por TEMPLATE, e o template tem o ano dentro: quem
-          // recebeu o Dia das Crianças de 2026 pode receber o de 2027.
-          sb.from("emails_enviados").select("para").eq("template", template).limit(5000),
-          sb.from("excluidos_email").select("email"),
-          sb.from("emails_mortos").select("email"),
-        ]);
-
-      const bloqueado = new Set<string>([
-        ...(jaMandados ?? []).map((x) => String(x.para ?? "").toLowerCase()).filter(Boolean),
-        ...(descadastrados ?? []).map((x) => x.email.toLowerCase()),
-        ...(mortos ?? []).map((x) => x.email.toLowerCase()),
+            .from("emails_enviados")
+            .select("para")
+            .eq("template", template)
+            .order("email_id", { ascending: true })
+            .range(de, ate),
+        ),
       ]);
+      const jaRecebeu = new Set(
+        jaMandados.map((x) => String(x.para ?? "").trim().toLowerCase()).filter(Boolean),
+      );
 
-      // Todas as relações que cada e-mail já homenageou, pra pular quem já
-      // fez música pro filho — o e-mail perderia o sentido.
-      const jaFezPara = new Map<string, Set<string>>();
-      const porEmail = new Map<string, { quizId: string; paidAt: string }>();
-      for (const p of pedidos ?? []) {
-        const email = (p.email ?? "").trim().toLowerCase();
-        // Resgate de crédito não é compra nova.
-        if (!email || !p.quiz_response_id || p.dinheiro_entrou === false) continue;
-        // A compra MAIS RECENTE de cada pessoa: é a história mais fresca, e
-        // é o nome que ela vai reconhecer no e-mail.
-        const atual = porEmail.get(email);
-        if (!atual || p.paid_at > atual.paidAt) {
-          porEmail.set(email, { quizId: p.quiz_response_id, paidAt: p.paid_at });
-        }
-      }
+      const candidatos = compraMaisRecentePorEmail(pedidos, desde).filter((c) => !jaRecebeu.has(c.email));
 
       const out: Array<{
         email: string; filho: string; nomeMusica: string; locale: "pt" | "es"; quizId: string;
       }> = [];
 
-      for (const [email, { quizId }] of porEmail) {
-        if (out.length >= MAX_POR_RODADA) break;
-        if (bloqueado.has(email)) continue;
-
-        const { data: q } = await sb
+      // Em lotes: as respostas vêm só com os campos que a regra lê (a
+      // `historia` inteira de 100 pessoas por consulta pesaria à toa), e o
+      // bloqueio é conferido só pra quem passou na regra.
+      for (let i = 0; i < candidatos.length && out.length < MAX_POR_RODADA; i += LOTE) {
+        const lote = candidatos.slice(i, i + LOTE);
+        const { data: quizzes, error } = await sb
           .from("quiz_responses")
-          .select("respostas, locale")
-          .eq("id", quizId)
-          .maybeSingle();
-        const respostas = (q?.respostas ?? {}) as Record<string, unknown>;
+          .select(
+            "id, locale, ocasiao:respostas->>ocasiao, relacao:respostas->>relacao, nome:respostas->>nome, filhos:respostas->>filhos",
+          )
+          .in("id", lote.map((c) => c.quizId));
+        if (error) throw new Error(`[ocasiao] quiz_responses: ${error.message}`);
+        const porId = new Map(
+          ((quizzes ?? []) as Array<Record<string, unknown> & { id: string; locale: string | null }>).map((q) => [q.id, q]),
+        );
 
-        // Memorial nunca recebe oferta alegre. Regra dura, vale sempre.
-        if (String(respostas.ocasiao ?? "").toLowerCase().includes(OCASIAO_PROIBIDA)) continue;
+        const passaram: Array<(typeof out)[number]> = [];
+        for (const c of lote) {
+          const q = porId.get(c.quizId);
+          if (!q) continue;
+          const alvo = alvoDaOcasiao(q, q.locale, ocasiao);
+          if (alvo) passaram.push({ email: c.email, quizId: c.quizId, ...alvo });
+        }
+        if (!passaram.length) continue;
 
-        // Já fez pra essa relação? O e-mail não faz sentido pra ela.
-        const relacao = String(respostas.relacao ?? "").toLowerCase();
-        // LOUVOR (quiz gospel): a música foi pra Deus. A oferta de ocasião
-        // cita a música anterior pelo nome do homenageado, e "a música de
-        // Deus" ali não faz sentido.
-        if (relacao === "deus") continue;
-        if (ocasiao.pulaSeJaFezPara.some((r) => relacao.includes(r))) continue;
-
-        // O campo que a ocasião exige, se exigir.
-        if (ocasiao.exigeCampo && !String(respostas[ocasiao.exigeCampo] ?? "").trim()) continue;
-        const filho = ocasiao.exigeCampo
-          ? primeiroNome(respostas[ocasiao.exigeCampo])
-          : String(respostas.nome ?? "").trim() || null;
-        // Sem nome limpo, fora: assunto genérico é o que já falhou.
-        if (!filho) continue;
-
-        const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
-        out.push({
-          email,
-          filho,
-          nomeMusica: String(respostas.nome ?? "").trim() || (locale === "es" ? "esa persona" : "essa pessoa"),
-          locale,
-          quizId,
-        });
+        const fora = await bloqueados(sb, passaram.map((p) => p.email), { incluirExcluidos: true });
+        for (const p of passaram) {
+          if (out.length >= MAX_POR_RODADA) break;
+          if (!fora.has(p.email)) out.push(p);
+        }
       }
       return out;
     });
@@ -190,19 +200,40 @@ export const ocasiaoCalendario = inngest.createFunction(
     let enviados = 0;
     for (const p of fila) {
       await step.run(`mandar-${ocasiao.slug}-${p.email}`, async () => {
-        // Rechecagem NA HORA do envio (auditoria 30/09): a busca acima lê
-        // listas que o PostgREST corta em 1000 linhas e ignorava a tabela
-        // `descadastros` (onde o um-clique grava). Aqui a pergunta é por
-        // pessoa, e não tem teto que esconda ninguém.
+        // Rechecagem NA HORA do envio (auditoria 30/09), por pessoa: as três
+        // listas de bloqueio, e erro conta como bloqueado.
         const sbEnvio = db();
-        if (await estaBloqueado(sbEnvio, p.email)) return;
-        const { data: ja } = await sbEnvio
+        if (await estaBloqueado(sbEnvio, p.email, { incluirExcluidos: true })) return;
+
+        // ── A TRAVA É UMA LINHA, GRAVADA ANTES (08/10) ───────────
+        //
+        // A trava era o `registrarEnvio` DEPOIS do Resend, e ele engole o
+        // próprio erro de propósito (existe pra medir, não pra decidir). Uma
+        // gravação perdida virava o mesmo e-mail uma hora depois.
+        //
+        // Agora a linha de `emails_enviados` nasce ANTES, com uma chave que
+        // é o próprio par (template, pessoa): a chave primária garante que
+        // ela só existe uma vez, então duas rodadas, um passo repetido ou
+        // uma gravação concorrente não mandam dois. Não gravou, não manda.
+        // Depois do envio a chave vira o id do Resend, como as outras linhas.
+        const chaveTrava = `trava:${template}:${p.email}`;
+        const { data: ja, error: jaErr } = await sbEnvio
           .from("emails_enviados")
-          .select("id")
+          .select("email_id")
           .eq("template", template)
           .eq("para", p.email)
           .limit(1);
-        if ((ja ?? []).length > 0) return;
+        if (jaErr || (ja ?? []).length > 0) return; // Na dúvida, já mandou (04/10).
+        const { error: travaErr } = await sbEnvio.from("emails_enviados").insert({
+          email_id: chaveTrava,
+          template,
+          para: p.email,
+          quiz_response_id: p.quizId,
+        });
+        if (travaErr) {
+          console.error("[ocasiao] trava não gravou, sem envio:", p.email, travaErr.message);
+          return;
+        }
 
         const resend = new Resend(process.env.RESEND_API_KEY);
         const linkCriar = `${SITE}${p.locale === "es" ? "/es/criar" : "/criar"}?de=ocasiao&o=${ocasiao.slug}`;
@@ -228,20 +259,25 @@ export const ocasiaoCalendario = inngest.createFunction(
         });
 
         if (r.error) {
-          // Sem registro: a próxima rodada tenta de novo. Lançar derrubaria o
-          // resto da fila junto.
+          // Não saiu: a trava sai junto e a próxima rodada tenta de novo.
+          // Lançar derrubaria o resto da fila. Se nem apagar der, a pessoa
+          // fica sem este e-mail, nunca com dois.
           console.error("[ocasiao] resend recusou:", r.error.message);
+          const { error: soltarErr } = await sbEnvio.from("emails_enviados").delete().eq("email_id", chaveTrava);
+          if (soltarErr) console.error("[ocasiao] trava não saiu, fica sem este e-mail:", p.email, soltarErr.message);
           return;
         }
 
-        // O registro é a trava: sem ele a pessoa recebe de novo na próxima
-        // rodada, daqui a uma hora.
-        await registrarEnvio(db(), {
-          emailId: r.data?.id,
-          template,
-          para: p.email,
-          quizResponseId: p.quizId,
-        });
+        // A trava vira o registro de medição: o webhook do Resend resolve o
+        // template pelo id dele. Se a troca falhar, a trava continua valendo
+        // e só a medição deste envio se perde.
+        if (r.data?.id) {
+          const { error: idErr } = await sbEnvio
+            .from("emails_enviados")
+            .update({ email_id: r.data.id })
+            .eq("email_id", chaveTrava);
+          if (idErr) console.error("[ocasiao] id do Resend não gravado:", p.email, idErr.message);
+        }
         enviados += 1;
       });
     }

@@ -20,6 +20,10 @@ import { pareceTypo } from "../../src/lib/email-typo.js";
 import { cupomAtivo } from "../../src/lib/cupom.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { normalizarLocale } from "../../src/lib/i18n.js";
+import { posicoesNaRegua } from "../../src/lib/regua-escada.js";
+import { jaComprou } from "../lib/ja-comprou.js";
+import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 
 // A SEQUENCIA DE RECUPERACAO: hoje so o e-mail 2 (ver ULTIMO_EMAIL).
 //
@@ -349,24 +353,11 @@ export const sequenciaRecuperacao = inngest.createFunction(
       }
 
       // Última correspondência de cada pessoa, e até onde ela já foi na régua.
-      const ultimo = new Map<string, { quando: number; numero: number }>();
-      for (const e of enviados) {
-        const id = String(e.event_data?.quiz_response_id ?? "");
-        if (!id) continue;
-        // O degrau sai do NOME do evento, não de adivinhação sobre o formato
-        // do `event_data`: a escada carimba `numero`, a letra é o 1, e os dois
-        // disparos dirigidos valem 2 — o degrau que eles substituem.
-        const numero =
-          e.event_data?.numero !== undefined
-            ? Number(e.event_data.numero)
-            : e.event_name === "quase_comprou_enviado" ||
-                e.event_name === "pix_nao_pago_enviado"
-              ? 2
-              : 1;
-        const quando = new Date(e.created_at).getTime();
-        const atual = ultimo.get(id);
-        if (!atual || numero > atual.numero) ultimo.set(id, { quando, numero });
-      }
+      // O degrau é o MAIOR alcançado e o relógio é o envio MAIS RECENTE, de
+      // qualquer tipo (08/10): antes, no empate de degrau (o `pix_nao_pago`
+      // vale 2), ficava o horário mais antigo e o desconto podia sair horas
+      // depois do segundo lembrete do PIX. Ver `src/lib/regua-escada.ts`.
+      const ultimo = posicoesNaRegua(enviados);
       if (!ultimo.size) return [];
 
       const [fora, excl, mortos, pagos, leads] = await Promise.all([
@@ -444,7 +435,10 @@ export const sequenciaRecuperacao = inngest.createFunction(
         // o português vai até o degrau 11 com a espera da escada, o espanhol
         // para no 2 com a espera antiga. Enquanto ele era lido depois, os dois
         // funis eram medidos pela mesma régua.
-        const locale = l.locale === "es" ? "es" : l.locale === "en" ? "en" : "pt";
+        // Sem idioma gravado, o PADRÃO DA MARCA (08/10), não "pt": na Ballad
+        // um lead sem `locale` cairia na escada em português, com desconto
+        // em reais. Mesma regra do `mandarLetra`.
+        const locale = normalizarLocale(l.locale);
         if (numero >= ultimoEmailDe(locale)) continue; // a régua acabou
         // Sem sessão, o botão do inglês não tem pra onde voltar: a Ballad não
         // tem checkout hospedado, e `/retomar` sem `s` cai na tela de erro.
@@ -588,26 +582,11 @@ export const sequenciaRecuperacao = inngest.createFunction(
       // recebeu a música inteira, e logo depois recebeu "você foi embora antes
       // da gravação terminar, vem ouvir um trecho". Ela abriu ticket.
       //
-      // Uma consulta a mais por rodada é barata; tratar comprador como
-      // abandonador é o tipo de erro que a pessoa conta pros outros.
-      //
-      // PAGINADO (28/09): esta consulta lia só as primeiras 1.000 das 5.000+
-      // compras (teto silencioso do PostgREST), então a trava deixava passar
-      // a maioria dos compradores. Um "volta e compra" pra quem comprou é o
-      // erro que esta trava existe pra impedir.
-      const comprasAgora = await paginado<{ quiz_response_id: string | null; email: string | null }>(
-        sb,
-        "pedidos",
-        "id, quiz_response_id, email",
-        (q) => q.eq("status", "pago"),
-      );
-      const jaComprou = new Set(comprasAgora.map((x) => x.quiz_response_id).filter(Boolean));
-      const emailComprou = new Set(
-        comprasAgora.map((x) => (x.email ?? "").toLowerCase()).filter(Boolean),
-      );
-
+      // POR PESSOA (08/10), e não a tabela de pedidos inteira paginada a cada
+      // rodada pra usar cinco nomes: duas consultas por índice, e erro de
+      // banco conta como "comprou" (`inngest/lib/ja-comprou.ts`).
       for (const p of fila) {
-        if (jaComprou.has(p.quizId) || emailComprou.has(p.email.toLowerCase())) {
+        if (await jaComprou(sb, p.quizId, p.email)) {
           console.log("[sequencia] comprou entre a fila e o envio, pulando:", p.email);
           continue;
         }
@@ -651,6 +630,31 @@ export const sequenciaRecuperacao = inngest.createFunction(
         const link = naEscada
           ? linkDeCompra(p.numero as DegrauEscada, p.sessao, p.email)
           : `${SITE}/retomar?s=${encodeURIComponent(p.sessao)}`;
+
+        // A TRAVA ANTES DO ENVIO (08/10). O `numero` deste evento é o que faz
+        // a régua andar: a próxima rodada lê ele pra saber em que degrau a
+        // pessoa está. Ele era gravado DEPOIS do Resend e sem ler o erro; se a
+        // gravação falhasse, o mesmo degrau saía de novo a cada 30 minutos.
+        // Não gravou, não manda. Ver `inngest/lib/trava-envio.ts`.
+        //
+        // E antes de gravar, confere se ESTE degrau já tem trava: este passo
+        // manda a fila inteira, e se ele cair no meio o Inngest repete o passo
+        // com a mesma fila, inclusive quem já recebeu.
+        const desdeDegrau = new Date(Date.now() - OLHAR_ATE_DIAS * 86400000).toISOString();
+        if (await jaTravado(sb, "email_sequencia_enviado", { quiz_response_id: p.quizId, numero: p.numero }, desdeDegrau)) {
+          continue;
+        }
+        const trava = await travarEnvio(sb, {
+          session_id: p.sessao || null,
+          event_name: "email_sequencia_enviado",
+          event_data: {
+            numero: p.numero,
+            quiz_response_id: p.quizId,
+            email: p.email,
+            locale: p.locale,
+          },
+        });
+        if (!trava) continue;
 
         const { data: enviado, error } = await resend.emails.send({
           // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
@@ -697,6 +701,8 @@ export const sequenciaRecuperacao = inngest.createFunction(
         });
         if (error) {
           console.error("[sequencia] envio falhou:", p.email, p.numero, error.message);
+          // Não saiu: a trava sai junto, e o degrau tenta de novo na próxima.
+          await soltarTrava(sb, trava);
           continue;
         }
         // A PONTE PRA MEDIÇÃO. O Resend não devolve as tags nos eventos, então
@@ -712,19 +718,6 @@ export const sequenciaRecuperacao = inngest.createFunction(
           quizResponseId: p.quizId ?? null,
         });
         n++;
-        // O `numero` aqui é o que faz a régua andar: a próxima rodada lê este
-        // evento pra saber em que degrau a pessoa está. Sem ele, todo mundo
-        // receberia o 2 pra sempre.
-        await sb.from("funnel_events").insert({
-          session_id: p.sessao || null,
-          event_name: "email_sequencia_enviado",
-          event_data: {
-            numero: p.numero,
-            quiz_response_id: p.quizId,
-            email: p.email,
-            locale: p.locale,
-          },
-        });
       }
       return n;
     });

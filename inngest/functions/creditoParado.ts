@@ -5,6 +5,9 @@ import { REMETENTE_TRANSACIONAL } from "../../emails/remetentes.js";
 import { emailCreditoParado, assuntoCreditoParado } from "../../emails/credito-parado.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { todasAsPaginas } from "../lib/paginar.js";
+import { estaBloqueado } from "../lib/emails-mortos.js";
+import { soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 
 // QUEM COMPROU CRÉDITO E NÃO USOU.
 //
@@ -96,14 +99,29 @@ export const creditoParado = inngest.createFunction(
       // O SALDO SAI DO RAZÃO, não de um número guardado. `creditos` tem uma
       // linha por compra e uma por uso, e somar as duas é a única leitura que
       // não fica velha. Mesma regra do painel.
-      const { data: linhas } = await sb
-        .from("creditos")
-        .select("email, quantidade, origem, created_at")
-        .order("created_at", { ascending: true });
+      //
+      // PAGINADO (08/10): era uma consulta só, e o PostgREST devolve no
+      // máximo 1.000 linhas, as MAIS ANTIGAS (ordem crescente). Passando
+      // disso, o uso de um crédito ficava fora da soma e o saldo de quem já
+      // gastou aparecia positivo: "você tem uma música guardada" pra quem
+      // já usou. Lança se uma página falhar: razão pela metade é saldo errado.
+      const linhas = await todasAsPaginas<{
+        email: string | null;
+        quantidade: number | null;
+        origem: string | null;
+        created_at: string;
+      }>((de, ate) =>
+        sb
+          .from("creditos")
+          .select("email, quantidade, origem, created_at")
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(de, ate),
+      );
 
       const saldo = new Map<string, number>();
       const compradoEm = new Map<string, string>();
-      for (const l of linhas ?? []) {
+      for (const l of linhas) {
         const e = String(l.email ?? "").trim().toLowerCase();
         if (!e) continue;
         const q = Number(l.quantidade ?? 0);
@@ -196,6 +214,21 @@ export const creditoParado = inngest.createFunction(
         const sb = db();
         if (await jaAvisado(sb, c.email)) return false;
 
+        // As três listas de bloqueio (08/10): este lembrete não olhava
+        // nenhuma, e ia pra endereço que já tinha voltado e pra quem tinha
+        // apertado "cancelar inscrição". Erro conta como bloqueado.
+        if (await estaBloqueado(sb, c.email, { incluirExcluidos: true })) return false;
+
+        // A TRAVA ANTES DO ENVIO (08/10): ela era gravada depois do Resend e
+        // sem ler o erro, e uma gravação perdida repetia o "você esqueceu" na
+        // rodada seguinte, do remetente que carrega a entrega. Não gravou,
+        // não manda.
+        const trava = await travarEnvio(sb, {
+          event_name: "credito_parado_avisado",
+          event_data: { email: c.email, saldo: c.saldo },
+        });
+        if (!trava) return false;
+
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "credito_parado" }],
           from: REMETENTE_TRANSACIONAL,
@@ -209,6 +242,7 @@ export const creditoParado = inngest.createFunction(
         });
         if (error) {
           console.error("[credito-parado] envio falhou:", error.message);
+          await soltarTrava(sb, trava);
           return false;
         }
 
@@ -216,10 +250,6 @@ export const creditoParado = inngest.createFunction(
           emailId: enviado?.id,
           template: "credito_parado",
           para: c.email,
-        });
-        await sb.from("funnel_events").insert({
-          event_name: "credito_parado_avisado",
-          event_data: { email: c.email, saldo: c.saldo },
         });
         return true;
       });

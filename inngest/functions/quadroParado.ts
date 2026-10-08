@@ -5,6 +5,8 @@ import { REMETENTE_TRANSACIONAL } from "../../emails/remetentes.js";
 import { emailQuadroParado, assuntoQuadroParado } from "../../emails/quadro-parado.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { estaBloqueado } from "../lib/emails-mortos.js";
+import { soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 
 // QUEM PAGOU O QUADRO E NÃO MONTOU.
 //
@@ -70,12 +72,15 @@ function db() {
  */
 const SILENCIO_DIAS = 7;
 
-async function jaAvisado(sb: ReturnType<typeof db>, quadroId: string, email: string) {
+async function jaAvisado(sb: ReturnType<typeof db>, quadroId: string, quadroCriadoEm: string, email: string) {
   const { data: porQuadro, error: errQuadro } = await sb
     .from("funnel_events")
     .select("id")
     .eq("event_name", "quadro_parado_avisado")
     .contains("event_data", { quadro_id: quadroId })
+    // O aviso não existe antes do quadro (08/10): janela exata, pelo índice
+    // de tempo, em vez da trilha inteira.
+    .gte("created_at", quadroCriadoEm)
     .limit(1);
   if (errQuadro || (porQuadro ?? []).length > 0) return true; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
 
@@ -97,6 +102,9 @@ async function jaAvisado(sb: ReturnType<typeof db>, quadroId: string, email: str
 export const quadroParado = inngest.createFunction(
   {
     id: "quadro-parado",
+    // Uma rodada por vez (08/10): duas sobrepostas montam a mesma fila e
+    // mandam em dobro. Mesma trava do `creditoParado`.
+    concurrency: { limit: 1 },
     retries: 1,
     triggers: [{ cron: "20 14-23 * * *" }],
   },
@@ -114,14 +122,14 @@ export const quadroParado = inngest.createFunction(
         .limit(200);
 
       const out: Array<{
-        quadroId: string; email: string; link: string;
+        quadroId: string; quadroCriadoEm: string; email: string; link: string;
         titulo: string | null; locale: "pt" | "es";
       }> = [];
 
       for (const q of quadros ?? []) {
         if (out.length >= MAX_POR_RODADA) break;
         if (!q.email) continue;
-        if (await jaAvisado(sb, q.id, q.email)) continue;
+        if (await jaAvisado(sb, q.id, q.created_at, q.email)) continue;
 
         // ── DO E-MAIL ATÉ O TOKEN ────────────────────────────
         //
@@ -194,6 +202,7 @@ export const quadroParado = inngest.createFunction(
 
         out.push({
           quadroId: q.id,
+          quadroCriadoEm: q.created_at,
           email: q.email,
           // `?de=montar` faz o botão de voltar de lá apontar pro `/meu-quadro`,
           // que é onde ela escolhe de qual música o quadro é.
@@ -215,7 +224,22 @@ export const quadroParado = inngest.createFunction(
         const sb = db();
         // Confere de novo dentro do passo: o `step.run` pode reexecutar, e
         // mandar duas vezes "você esqueceu" é pior que não mandar.
-        if (await jaAvisado(sb, c.quadroId, c.email)) return false;
+        if (await jaAvisado(sb, c.quadroId, c.quadroCriadoEm, c.email)) return false;
+
+        // As três listas de bloqueio (08/10): este lembrete não olhava
+        // nenhuma, e ia pra endereço que já tinha voltado e pra quem tinha
+        // apertado "cancelar inscrição". Erro conta como bloqueado.
+        if (await estaBloqueado(sb, c.email, { incluirExcluidos: true })) return false;
+
+        // A TRAVA ANTES DO ENVIO (08/10): ela era gravada depois do Resend e
+        // sem ler o erro, e uma gravação perdida repetia o "você esqueceu" na
+        // rodada seguinte, do remetente que carrega a entrega. Não gravou,
+        // não manda.
+        const trava = await travarEnvio(sb, {
+          event_name: "quadro_parado_avisado",
+          event_data: { quadro_id: c.quadroId, email: c.email },
+        });
+        if (!trava) return false;
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "quadro_parado" }],
@@ -231,6 +255,7 @@ export const quadroParado = inngest.createFunction(
         });
         if (error) {
           console.error("[quadro-parado] envio falhou:", error.message);
+          await soltarTrava(sb, trava);
           return false;
         }
 
@@ -238,10 +263,6 @@ export const quadroParado = inngest.createFunction(
           emailId: enviado?.id,
           template: "quadro_parado",
           para: c.email,
-        });
-        await sb.from("funnel_events").insert({
-          event_name: "quadro_parado_avisado",
-          event_data: { quadro_id: c.quadroId, email: c.email },
         });
         return true;
       });

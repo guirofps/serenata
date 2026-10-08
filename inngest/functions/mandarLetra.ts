@@ -1,7 +1,9 @@
 import { inngest } from "../client.js";
 import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { createClient } from "@supabase/supabase-js";
-import { estaBloqueado } from "../lib/emails-mortos.js";
+import { bloqueados } from "../lib/emails-mortos.js";
+import { jaComprou } from "../lib/ja-comprou.js";
+import { soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 import { Resend } from "resend";
 import { emailLetraPronta, assuntoLetraPronta } from "../../emails/letra-pronta.js";
 import { REMETENTE_TRANSACIONAL } from "../../emails/remetentes.js";
@@ -9,6 +11,7 @@ import { pareceTypo } from "../../src/lib/email-typo.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { normalizarLocale, type Locale } from "../../src/lib/i18n.js";
+import { filtroCursor, lerJanela } from "../../src/lib/ler-janela.js";
 
 // O nome de quem não disse o nome, por idioma. Mora aqui em cima porque o
 // teste de assunto precisa reconhecer quando o nome é o genérico.
@@ -31,7 +34,22 @@ const NOME_GENERICO: Record<Locale, string> = {
 
 const SITE = MARCA_ATIVA.url;
 const ESPERAR_MIN = 20;
-const OLHAR_ATE_DIAS = 30;
+// ── 48 HORAS, LIDAS INTEIRAS (08/10) ─────────────────────────────
+//
+// Era "30 dias", mas a consulta não paginava e vinha ordenada da mais nova:
+// o PostgREST devolvia só os 1.000 leads mais recentes, que no volume de
+// outubro (447 vendas em 02/10) cobrem menos de um dia. Ninguém mais velho
+// que isso era sequer olhado, e o número escrito aqui mentia.
+//
+// Ler 30 dias de verdade a cada 5 minutos seriam dezenas de milhares de
+// linhas por rodada, e uma letra que chega semanas depois não é lembrança
+// ("três horas depois é lixo", acima). 48h cobre o "dia seguinte" e cabe em
+// poucas páginas leves (sem `respostas`), lidas por cursor (`lerJanela`). A
+// fila continua andando da mais nova pra mais velha e para quando enche:
+// lead fresco nunca espera por causa de lead velho.
+const OLHAR_ATE_H = 48;
+/** Candidatos conferidos em lote (já recebeu? já comprou?) antes da checagem por pessoa. */
+const LOTE = 100;
 // Teto por rodada. Não é sobre custo: `envio.serenatagift.com` é um domínio
 // RECÉM-CRIADO, com zero histórico. Provedor não distingue "remetente novo"
 // de "remetente comprometido" — os dois aparecem do nada mandando volume. A
@@ -81,7 +99,7 @@ function db() {
  * qualquer erro conta como JÁ MANDOU: deixar de mandar uma letra custa uma
  * venda; mandar 30 vezes queima o domínio inteiro.
  */
-async function jaMandou(sb: ReturnType<typeof db>, quizId: string): Promise<boolean> {
+async function jaMandou(sb: ReturnType<typeof db>, quizId: string, quizCriadoEm: string): Promise<boolean> {
   const porEnvio = await sb
     .from("emails_enviados")
     .select("email_id")
@@ -100,6 +118,9 @@ async function jaMandou(sb: ReturnType<typeof db>, quizId: string): Promise<bool
     .select("id")
     .eq("event_name", "email_letra_enviado")
     .contains("event_data", { quiz_response_id: quizId })
+    // A letra não sai antes de o quiz existir: a janela é exata e usa o
+    // índice de tempo (sem `created_at`, `funnel_events` é bug esperando).
+    .gte("created_at", quizCriadoEm)
     .limit(1);
   if (porEvento.error) {
     console.error("[letra] trava funnel_events falhou, pulando por segurança:", quizId, porEvento.error.message);
@@ -115,76 +136,38 @@ export const mandarLetra = inngest.createFunction(
       const sb = db();
       const agora = Date.now();
 
-      // Quem tem LETRA e e-mail, na janela.
-      const { data: leads } = await sb
-        .from("quiz_responses")
-        .select("id, session_id, email, respostas, locale, created_at")
-        .not("email", "is", null)
-        .gte("created_at", new Date(agora - OLHAR_ATE_DIAS * 86400000).toISOString())
-        .lte("created_at", new Date(agora - ESPERAR_MIN * 60000).toISOString())
-        .order("created_at", { ascending: false });
-
-      // As quatro travas, nesta ordem: descadastrados, excluídos, endereços
-      // que já voltaram, e quem já comprou. Nenhuma é opcional.
-      const [{ data: fora }, { data: excl }, { data: mortos }] = await Promise.all([
-        sb.from("descadastros").select("email"),
-        sb.from("excluidos_email").select("email"),
-        // JÁ VOLTOU UMA VEZ, NÃO TENTA DE NOVO. O `pareceTypo` logo abaixo pega
-        // o endereço errado pela cara; este pega o que o provedor já RECUSOU na
-        // prática, que é informação melhor que qualquer heurística.
-        sb.from("emails_mortos").select("email").is("liberado_em", null),
-      ]);
-      const bloqueado = new Set([
-        ...(fora ?? []).map((x) => x.email.toLowerCase()),
-        ...(excl ?? []).map((x) => x.email.toLowerCase()),
-        ...(mortos ?? []).map((x) => x.email.toLowerCase()),
-      ]);
-
-      // ── QUEM COMPROU: PERGUNTA POR PESSOA, NÃO LISTA INTEIRA ──────
-      //
-      // Aqui havia `.from("pedidos").select(...).eq("status","pago")` sem
-      // paginação, e o PostgREST corta em 1000 linhas. Em 27/08 existiam
-      // 1.151 pedidos pagos: 151 compradores (13%) eram INVISÍVEIS pra esta
-      // trava, e a fatia invisível cresce todo dia.
-      //
-      // A conta apareceu na caixa de entrada. Paulo pagou R$ 38 às 10:36,
-      // recebeu a entrega às 10:36, e às 10:45 recebeu "A letra que você
-      // escreveu está pronta" — o e-mail de quem NÃO comprou. Ele escreveu
-      // dizendo que a música não tinha chegado.
-      //
-      // Paginar consertaria o corte, mas continuaria carregando a tabela
-      // inteira de vendas a cada rodada pra usar 10 nomes. A pergunta certa
-      // é por candidato: são no máximo `MAX_POR_RODADA` consultas, as duas
-      // por índice, e a resposta não depende do tamanho da tabela — hoje nem
-      // no dia em que forem 100 mil pedidos.
-      async function jaComprou(quizId: string, email: string): Promise<boolean> {
-        const [porQuiz, porEmail] = await Promise.all([
-          sb.from("pedidos").select("id").eq("quiz_response_id", quizId).eq("status", "pago").limit(1),
-          // Por E-MAIL também: a compra pode ter sido feita com outro
-          // endereço de cadastro, e aí só este vínculo pega. `eq` e não
-          // `ilike`: `%` e `_` são curingas do LIKE e são caracteres válidos
-          // em endereço de e-mail.
-          sb.from("pedidos").select("id").eq("email", email).eq("status", "pago").limit(1),
-        ]);
-        return (porQuiz.data ?? []).length > 0 || (porEmail.data ?? []).length > 0;
-      }
+      // Quem tem e-mail, na janela, mais novo primeiro. `lerJanela` lança se
+      // qualquer página falhar: lista pela metade não vira fila.
+      type Lead = {
+        id: string;
+        session_id: string | null;
+        email: string | null;
+        locale: string | null;
+        created_at: string;
+        nome: string | null;
+      };
+      const leads = await lerJanela<Lead>(
+        ({ desde, ate, cursor, limite }) => {
+          const base = sb
+            .from("quiz_responses")
+            .select("id, session_id, email, locale, created_at, nome:respostas->>nome")
+            .not("email", "is", null)
+            .gte("created_at", desde)
+            .lt("created_at", ate);
+          const comCursor = cursor ? base.or(filtroCursor(cursor)) : base;
+          return comCursor.order("created_at").order("id").limit(limite) as never;
+        },
+        new Date(agora - OLHAR_ATE_H * 3600000),
+        new Date(agora - ESPERAR_MIN * 60000),
+      );
+      leads.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 
       const out: Array<{
-        quizId: string; sessao: string; email: string; nome: string;
+        quizId: string; criadoEm: string; sessao: string; email: string; nome: string;
         titulo: string; letra: string; locale: Locale;
       }> = [];
 
-      for (const l of leads ?? []) {
-        if (out.length >= MAX_POR_RODADA) break;
-        if (!l.email || bloqueado.has(l.email.toLowerCase())) continue;
-        // ENDEREÇO MORTO, POR ENDEREÇO (04/10). A lista `mortos` acima vem
-        // cortada em 1000 linhas pelo PostgREST e já eram 2.540: 1.540
-        // endereços que já tinham voltado seguiam recebendo a letra (4,8% de
-        // bounce em 03/10). Esta pergunta é pelo índice da chave, uma por
-        // candidato.
-        if (await estaBloqueado(sb, l.email)) continue;
-        if (await jaComprou(l.id, l.email)) continue;
-
+      for (let i = 0; i < leads.length && out.length < MAX_POR_RODADA; i += LOTE) {
         // E-MAIL DIGITADO ERRADO. `gmail.comm` bateu de volta no primeiro
         // disparo pelo subdomínio, e bounce é o dano mais caro que existe num
         // domínio sem histórico: o provedor não sabe se você é remetente novo
@@ -196,34 +179,76 @@ export const mandarLetra = inngest.createFunction(
         // alguém pra um endereço que essa pessoa nunca nos deu. Se o palpite
         // errar uma vez, vazou a letra de um desconhecido pra outro. Sugerir na
         // tela, onde ela confirma, é diferente de decidir por ela no servidor.
-        if (pareceTypo(l.email)) continue;
+        const lote = leads
+          .slice(i, i + LOTE)
+          .filter((l): l is Lead & { email: string } => Boolean(l.email) && !pareceTypo(l.email as string));
+        if (!lote.length) continue;
 
-        // A letra tem que existir: sem ela o e-mail não tem conteúdo.
-        const { data: m } = await sb
-          .from("musicas")
-          .select("titulo, letra")
-          .eq("quiz_response_id", l.id)
-          .not("letra", "is", null)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (!m?.letra) continue;
+        // ── O GROSSO SAI EM LOTE (08/10) ─────────────────────────
+        //
+        // Quase todo lead da janela já recebeu a letra ou já comprou. Antes,
+        // cada um desses passava por ~6 consultas individuais a cada 5 min.
+        // Duas perguntas por lote de 100 tiram a maioria; as checagens por
+        // pessoa, exatas, ficam pra quem sobra. Erro LANÇA: na dúvida, a
+        // rodada não manda nada.
+        const ids = lote.map((l) => l.id);
+        const [recebeu, pagou] = await Promise.all([
+          sb
+            .from("emails_enviados")
+            .select("quiz_response_id")
+            .eq("template", "letra_pronta")
+            .in("quiz_response_id", ids),
+          sb.from("pedidos").select("quiz_response_id").eq("status", "pago").in("quiz_response_id", ids),
+        ]);
+        if (recebeu.error || pagou.error) {
+          throw new Error(`[letra] triagem em lote falhou: ${recebeu.error?.message ?? pagou.error?.message}`);
+        }
+        const fora = new Set(
+          [...(recebeu.data ?? []), ...(pagou.data ?? [])].map((x) => String(x.quiz_response_id)),
+        );
+        const restantes = lote.filter((l) => !fora.has(l.id));
+        if (!restantes.length) continue;
 
-        if (await jaMandou(sb, l.id)) continue;
+        // As três listas de bloqueio, POR ENDEREÇO: descadastrados, excluídos
+        // e endereços que já voltaram. Antes eram lidas inteiras e o PostgREST
+        // as cortava em 1000 linhas (os mortos eram 2.540 em 04/10: 1.540
+        // seguiam recebendo, 4,8% de bounce em 03/10). Lança se não ler.
+        const bloq = await bloqueados(sb, restantes.map((l) => l.email), { incluirExcluidos: true });
 
-        // Sem idioma gravado, cai no padrão da marca (pt na Serenata, en na
-        // Ballad Gift).
-        const locale = normalizarLocale(l.locale);
-        const r = (l.respostas ?? {}) as Record<string, string>;
-        out.push({
-          quizId: l.id,
-          sessao: l.session_id ?? "",
-          email: l.email,
-          nome: r.nome?.trim() || NOME_GENERICO[locale],
-          titulo: m.titulo ?? (locale === "es" ? "Tu canción" : locale === "en" ? "Your song" : "Sua música"),
-          letra: m.letra,
-          locale,
-        });
+        for (const l of restantes) {
+          if (out.length >= MAX_POR_RODADA) break;
+          if (bloq.has(l.email.trim().toLowerCase())) continue;
+          // Por quiz E por e-mail (a compra pode ter sido noutro quiz), e erro
+          // conta como comprou. Ver `inngest/lib/ja-comprou.ts`.
+          if (await jaComprou(sb, l.id, l.email)) continue;
+
+          // A letra tem que existir: sem ela o e-mail não tem conteúdo.
+          const { data: m } = await sb
+            .from("musicas")
+            .select("titulo, letra")
+            .eq("quiz_response_id", l.id)
+            .not("letra", "is", null)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (!m?.letra) continue;
+
+          if (await jaMandou(sb, l.id, l.created_at)) continue;
+
+          // Sem idioma gravado, cai no padrão da marca (pt na Serenata, en na
+          // Ballad Gift).
+          const locale = normalizarLocale(l.locale);
+          out.push({
+            quizId: l.id,
+            criadoEm: l.created_at,
+            sessao: l.session_id ?? "",
+            email: l.email,
+            nome: l.nome?.trim() || NOME_GENERICO[locale],
+            titulo: m.titulo ?? (locale === "es" ? "Tu canción" : locale === "en" ? "Your song" : "Sua música"),
+            letra: m.letra,
+            locale,
+          });
+        }
       }
       return out;
     });
@@ -240,22 +265,19 @@ export const mandarLetra = inngest.createFunction(
       // Mesma recheca do `sequenciaRecuperacao`: a trava da fila é avaliada na
       // MONTAGEM, e entre montar e enviar cabe uma compra. Quem comprou nessa
       // fresta receberia "ouça um trecho" tendo a música inteira.
-      const { data: comprasAgora } = await sb
-        .from("pedidos")
-        .select("quiz_response_id, email")
-        .eq("status", "pago");
-      const jaComprou = new Set(
-        (comprasAgora ?? []).map((x) => x.quiz_response_id).filter(Boolean),
-      );
-      const emailComprou = new Set(
-        (comprasAgora ?? []).map((x) => (x.email ?? "").toLowerCase()).filter(Boolean),
-      );
-
+      //
+      // POR PESSOA (08/10). Aqui havia a tabela de pedidos pagos inteira numa
+      // consulta só, cortada em 1.000 das ~9.300 linhas: a recheca via um em
+      // cada nove compradores, e de 1 a 13 por dia de "a sua letra está
+      // pronta" chegavam pra quem já tinha pago (8 em 07/10).
       for (const p of fila) {
-        if (jaComprou.has(p.quizId) || emailComprou.has(p.email.toLowerCase())) {
+        if (await jaComprou(sb, p.quizId, p.email)) {
           console.log("[letra] comprou entre a fila e o envio, pulando:", p.email);
           continue;
         }
+        // Este passo manda a fila inteira; se cair no meio, o Inngest repete
+        // o passo com a mesma fila, inclusive quem já recebeu.
+        if (await jaMandou(sb, p.quizId, p.criadoEm)) continue;
         // O `src` é o que faz a compra vinda deste e-mail casar com o quiz —
         // mesmo mecanismo do funil, sem adivinhar por e-mail.
         // `/retomar` e não `/criar?step=reveal`: aquela tela lê a letra do
@@ -273,6 +295,17 @@ export const mandarLetra = inngest.createFunction(
         const nomeReal = !Object.values(NOME_GENERICO).includes(p.nome);
         const variante: "a" | "b" =
           p.locale === "pt" && nomeReal && parseInt(p.quizId.slice(-1), 16) % 2 === 1 ? "b" : "a";
+
+        // A TRAVA ANTES DO ENVIO (08/10). Este evento é a trava (`jaMandou`)
+        // e a porta da escada; ele era gravado DEPOIS do Resend e sem ler o
+        // erro, e uma gravação perdida fazia a letra sair de novo 5 minutos
+        // depois. Não gravou, não manda.
+        const trava = await travarEnvio(sb, {
+          session_id: p.sessao || null,
+          event_name: "email_letra_enviado",
+          event_data: { quiz_response_id: p.quizId, email: p.email, locale: p.locale, variante_assunto: variante },
+        });
+        if (!trava) continue;
 
         const { data: enviado, error } = await resend.emails.send({
       // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
@@ -310,6 +343,7 @@ export const mandarLetra = inngest.createFunction(
         });
         if (error) {
           console.error("[letra] envio falhou:", p.email, error.message);
+          await soltarTrava(sb, trava);
           // ENDEREÇO QUE O RESEND RECUSA NÃO VOLTA PRA FILA (08/10). Sem isto,
           // o mesmo endereço inválido era tentado a cada 5 min pra sempre (três
           // deles ~200 vezes em 20h), ocupando vaga da rodada de quem tinha
@@ -339,11 +373,6 @@ export const mandarLetra = inngest.createFunction(
           quizResponseId: p.quizId,
         });
         n++;
-        await sb.from("funnel_events").insert({
-          session_id: p.sessao || null,
-          event_name: "email_letra_enviado",
-          event_data: { quiz_response_id: p.quizId, email: p.email, locale: p.locale, variante_assunto: variante },
-        });
       }
       return n;
     });

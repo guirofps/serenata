@@ -9,16 +9,22 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
 import { literalLike } from "../../src/lib/sql-like.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { normalizarLocale } from "../../src/lib/i18n.js";
+import { caminhoDeVolta } from "../../src/lib/volta-ao-funil.js";
+import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 
 /** A pessoa (por e-mail, qualquer quiz) comprou nos últimos 14 dias? */
 async function pessoaJaComprou(sb: ReturnType<typeof db>, email: string): Promise<boolean> {
-  const { data } = await sb
+  const { data, error } = await sb
     .from("pedidos")
     .select("id, email")
     .ilike("email", literalLike(email))
     .eq("status", "pago")
     .gte("paid_at", new Date(Date.now() - 14 * 86400000).toISOString())
     .limit(5);
+  // Na dúvida, comprou (08/10): o erro virava "lista vazia" e a pessoa que
+  // tinha acabado de pagar recebia o "libere a sua música".
+  if (error) return true;
   // Confere em JS também: o `ilike` é sem caixa, e aqui o alvo é a pessoa.
   return (data ?? []).some((x) => String(x.email ?? "").trim().toLowerCase() === email.trim().toLowerCase());
 }
@@ -49,12 +55,12 @@ async function pessoaJaComprou(sb: ReturnType<typeof db>, email: string): Promis
 // devolve o código dela. Este job só pega quem não tem NENHUMA linha em
 // `pedidos` — senão os dois e-mails saem pra mesma pessoa no mesmo dia.
 //
-// ── O LINK CARREGA A SESSÃO ──────────────────────────────────────
+// ── O LINK VOLTA PRA MÚSICA DELA ─────────────────────────────────
 //
-// `src` é o session_id, e é por ele que o webhook casa o pagamento com a
-// música JÁ GERADA. A pessoa não refaz o quiz, não gera outra música e não
-// espera de novo: ela paga e recebe a que já é dela. Sem esse parâmetro a
-// compra entraria como "pago sem música casada" e alguém entregaria à mão.
+// `/retomar?s=<sessão>` reidrata a sessão, a letra e o braço de preço e abre
+// a oferta da música JÁ GERADA, no idioma dela. A pessoa não refaz o quiz,
+// não gera outra música e não espera de novo: ela paga e recebe a que já é
+// dela, e é a sessão que casa o pagamento com a música.
 
 const MIN_MIN = 30;
 // Janela de 48h: mais velho que isso a pessoa já esqueceu, e a escada assume.
@@ -96,71 +102,29 @@ function db() {
  * mudou só a busca e o envio continuava barrando.
  */
 async function temPedidoQueBarra(sb: ReturnType<typeof db>, quizId: string): Promise<boolean> {
-  const { data } = await sb.from("pedidos").select("status, gateway").eq("quiz_response_id", quizId);
+  const { data, error } = await sb.from("pedidos").select("status, gateway").eq("quiz_response_id", quizId);
+  // Na dúvida, barra (08/10): consulta que falha não pode virar "não comprou".
+  if (error) return true;
   return (data ?? []).some((p) => p.status === "pago" || p.gateway !== "stripe");
 }
 
-async function jaAvisado(sb: ReturnType<typeof db>, quizId: string) {
-  const { data, error } = await sb
-    .from("funnel_events")
-    .select("id")
-    .eq("event_name", "quase_comprou_enviado")
-    .contains("event_data", { quiz_response_id: quizId })
-    .limit(1);
-  if (error) return true; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
-  return (data ?? []).length > 0;
+/**
+ * Já mandamos este e-mail pra este quiz? Uma vez por quiz, pra sempre.
+ *
+ * A janela começa no nascimento do quiz (08/10): o aviso não existe antes
+ * dele, então o limite é exato e a consulta usa o índice de tempo em vez de
+ * varrer a trilha inteira. Erro conta como já mandou (04/10).
+ */
+function jaAvisado(sb: ReturnType<typeof db>, quizId: string, quizCriadoEm: string) {
+  return jaTravado(sb, "quase_comprou_enviado", { quiz_response_id: quizId }, quizCriadoEm);
 }
 
-/**
- * O CHECKOUT DO FUNIL ESPANHOL, que cobra em DÓLAR.
- *
- * Ele existe aqui como constante, e não vindo da config de `preco`, porque o
- * teste de preço é BRASILEIRO de propósito (ver `preco.ts`: "O ESPANHOL FICA
- * DE FORA DO TESTE"). A config só tem link em reais, e era exatamente daí que
- * vinha o defeito abaixo.
- */
 // Mesmo padrão dos outros jobs: `VITE_APP_URL` quando ela existe e é URL,
 // e o domínio fixo como piso. Cron não tem cabeçalho de host de onde deduzir,
 // e em produção host de requisição não pode decidir destino.
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
   : MARCA_ATIVA.url;
-
-const CHECKOUT_ES = "https://go.centerpag.com/PPU38CQF4HJ";
-
-/**
- * O checkout do braço em que a pessoa foi sorteada, lido da config viva.
- *
- * Não é o preço "atual" nem o padrão: é o que ELA VIU na tela de oferta. Mandar
- * outro valor seria trocar o preço depois de ela ter decidido, que é o jeito
- * mais rápido de transformar uma recuperação numa reclamação.
- *
- * ── O IDIOMA DECIDE ANTES DO BRAÇO (conserto de 30/08) ───────────
- *
- * A versão anterior lia o `locale` pra escolher o TEXTO e ignorava ele pro
- * LINK. O resultado era a pior combinação possível: e-mail em espanhol
- * perfeito levando a um checkout em REAIS. Parece certo e cobra na moeda
- * errada.
- *
- * Medido: 17 disparos pra 16 pessoas do funil espanhol entre 27 e 30/08, e
- * ZERO compras — contra 2,3% do mesmo e-mail no funil português. Um deles
- * escreveu pro suporte dizendo que o banco travava o pagamento.
- */
-async function checkoutDoBraco(
-  sb: ReturnType<typeof db>,
-  braco: string | null,
-  locale: "pt" | "es",
-): Promise<string | null> {
-  if (locale === "es") return CHECKOUT_ES;
-  const { data } = await sb.from("experimentos").select("variantes").eq("id", "preco").maybeSingle();
-  const variantes = (data?.variantes ?? []) as Array<{
-    nome?: string;
-    plano?: { checkout?: string };
-  }>;
-  const achado =
-    variantes.find((v) => v.nome === braco) ?? variantes.find((v) => v.nome === "A");
-  return achado?.plano?.checkout ?? null;
-}
 
 export const quaseComprou = inngest.createFunction(
   {
@@ -188,7 +152,7 @@ export const quaseComprou = inngest.createFunction(
 
       const out: Array<{
         email: string; nome: string; titulo: string;
-        link: string; quizId: string; locale: "pt" | "es" | "en";
+        link: string; quizId: string; quizCriadoEm: string; locale: "pt" | "es" | "en";
       }> = [];
       const vistos = new Set<string>();
 
@@ -200,7 +164,7 @@ export const quaseComprou = inngest.createFunction(
 
         const { data: q } = await sb
           .from("quiz_responses")
-          .select("id, session_id, email, respostas, locale, attribution")
+          .select("id, session_id, email, respostas, locale, created_at")
           .eq("session_id", sid)
           .maybeSingle();
         if (!q?.id || !q.email) continue;
@@ -227,7 +191,7 @@ export const quaseComprou = inngest.createFunction(
         // novo. Mesma trava do `pixNaoPago`: e-mail sem caixa, 14 dias.
         if (await pessoaJaComprou(sb, q.email as string)) continue;
 
-        if (await jaAvisado(sb, q.id)) continue;
+        if (await jaAvisado(sb, q.id, q.created_at as string)) continue;
 
         // A MÚSICA PRECISA ESTAR PRONTA. O e-mail diz "ela já existe, está
         // gravada": sem arquivo isso é mentira, e é a única que este texto
@@ -240,10 +204,10 @@ export const quaseComprou = inngest.createFunction(
         if (!m || m.status !== "pronta") continue;
 
         // O idioma vem do registro: cron não tem requisição de onde deduzir.
-        const bruto = (q as { locale?: string }).locale;
-        const locale = bruto === "es" ? "es" : bruto === "en" ? "en" : "pt";
+        // Sem idioma gravado, o PADRÃO DA MARCA (en na Ballad), não "pt".
+        const locale = normalizarLocale((q as { locale?: string }).locale);
 
-        // ── PRA ONDE ESTE E-MAIL MANDA ──────────────────────────
+        // ── PRA ONDE ESTE E-MAIL MANDA: PRA MÚSICA DELA ─────────
         //
         // Em português, pro NOSSO funil. Este e-mail recupera a preço CHEIO,
         // sem cupom, então nada prende ele ao checkout hospedado — e a
@@ -251,41 +215,25 @@ export const quaseComprou = inngest.createFunction(
         // no PIX transparente. Medido em 31/08: 4 vendas assim em 4 dias,
         // uns R$ 116/mês jogados fora.
         //
-        // Os e-mails COM CUPOM continuam na Perfect Pay, e isso não é
-        // incoerência: lá o desconto É um produto deles e o e-mail já
-        // prometeu aquele número.
+        // O `/retomar` repõe o braço sorteado: quem abrir o e-mail noutro
+        // aparelho vê o mesmo preço que viu na oferta.
         //
-        // O `/retomar` só serve pra isso porque ele agora repõe o braço
-        // sorteado (conserto do mesmo dia). Sem aquilo, quem abrisse o e-mail
-        // em outro aparelho seria re-sorteado e poderia ver um preço
-        // diferente do que este e-mail acabou de prometer — que é o risco
-        // que o `checkoutDoBraco` abaixo existe pra evitar.
+        // ── O ESPANHOL TAMBÉM (08/10) ──────────────────────────
         //
-        // Em espanhol NÃO muda: aquele funil cobra em DÓLAR e o dólar só
-        // existe na Perfect Pay. Mandar pro nosso PIX cobraria em reais.
-        const sessao = q.session_id as string | null;
-        let link: string;
-        // O inglês (Ballad Gift) também volta pro NOSSO funil: lá o checkout
-        // é o Stripe na própria oferta, e o `/retomar` repõe o braço de preço.
-        if ((locale === "pt" || locale === "en") && sessao) {
-          const u = new URL(`${SITE}/retomar`);
-          u.searchParams.set("s", sessao);
-          u.searchParams.set("de", "quase");
-          link = u.toString();
-        } else {
-          // Sem sessão não há como voltar pro funil, e a Ballad não tem
-          // checkout hospedado pra onde mandar: fica de fora.
-          if (locale === "en") continue;
-          const braco =
-            ((q.attribution as { exp?: Record<string, string> } | null)?.exp?.preco as string) ??
-            null;
-          const checkout = await checkoutDoBraco(sb, braco, locale);
-          if (!checkout) continue;
-          const u = new URL(checkout);
-          u.searchParams.set("src", q.id);
-          u.searchParams.set("email", q.email);
-          link = u.toString();
-        }
+        // Quem não caía no `/retomar` ia direto pro checkout da Perfect Pay
+        // com `src=<id do quiz>`. O webhook de lá casa o `src` com o
+        // `session_id`, nunca com o id do quiz: a compra entraria como "pago
+        // sem música casada" e alguém entregaria à mão. E, desde 26/09,
+        // nenhum caminho brasileiro leva mais à Perfect Pay. O `/retomar`
+        // abre a oferta no idioma do lead: o espanhol chega no checkout em
+        // dólar dele, já com a sessão certa.
+        //
+        // Sem sessão não há como voltar pra música: fica de fora, em
+        // qualquer idioma (o candidato vem de um `checkout_click` por sessão,
+        // então isso não deve acontecer).
+        const volta = caminhoDeVolta(q.session_id as string | null);
+        if (!volta.startsWith("/retomar")) continue;
+        const link = `${SITE}${volta}&de=quase`;
 
         out.push({
           email: q.email as string,
@@ -293,10 +241,13 @@ export const quaseComprou = inngest.createFunction(
           // `.trim()`: o nome do quiz vem com espaço sobrando ("Cardoso ").
           nome:
             ((q.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-            (locale === "es" ? "quien vos querés" : locale === "en" ? "someone you love" : "quem você ama"),
-          titulo: m.titulo ?? (locale === "en" ? "Your song" : "Sua música"),
+            // `tú`, nunca `vos` (o funil é mexicano): "quien vos querés"
+            // era rioplatense.
+            (locale === "es" ? "esa persona" : locale === "en" ? "someone you love" : "quem você ama"),
+          titulo: m.titulo ?? (locale === "en" ? "Your song" : locale === "es" ? "Tu canción" : "Sua música"),
           link,
           quizId: q.id as string,
+          quizCriadoEm: q.created_at as string,
         });
       }
       return out;
@@ -314,10 +265,22 @@ export const quaseComprou = inngest.createFunction(
         // Recheca na hora: a pessoa pode ter comprado entre a busca e agora, e
         // "sua música está esperando" pra quem já pagou é o pior desfecho.
         if (await temPedidoQueBarra(sb, c.quizId)) return false;
-        if (await jaAvisado(sb, c.quizId)) return false;
+        if (await pessoaJaComprou(sb, c.email)) return false;
+        if (await jaAvisado(sb, c.quizId, c.quizCriadoEm)) return false;
         // Endereço que já voltou não recebe de novo: 51 destes foram pra
-        // endereço morto em 14 dias, e é a reputação que paga.
-        if (await estaBloqueado(sb, c.email)) return false;
+        // endereço morto em 14 dias, e é a reputação que paga. Desde 08/10
+        // também quem se descadastrou e os `excluidos_email` (liberados na
+        // recuperação têm a música inteira sem pedido pago).
+        if (await estaBloqueado(sb, c.email, { incluirExcluidos: true })) return false;
+
+        // A TRAVA ANTES DO ENVIO (08/10): ela era gravada depois do Resend e
+        // sem ler o erro, e uma gravação perdida mandava o mesmo e-mail na
+        // rodada seguinte. Não gravou, não manda.
+        const trava = await travarEnvio(sb, {
+          event_name: "quase_comprou_enviado",
+          event_data: { quiz_response_id: c.quizId, email: c.email },
+        });
+        if (!trava) return false;
 
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "quase_comprou" }],
@@ -356,6 +319,7 @@ export const quaseComprou = inngest.createFunction(
         });
         if (error) {
           console.error("[quase-comprou] envio falhou:", error.message);
+          await soltarTrava(sb, trava);
           return false;
         }
 
@@ -364,10 +328,6 @@ export const quaseComprou = inngest.createFunction(
           template: "quase_comprou",
           para: c.email,
           quizResponseId: c.quizId,
-        });
-        await sb.from("funnel_events").insert({
-          event_name: "quase_comprou_enviado",
-          event_data: { quiz_response_id: c.quizId, email: c.email },
         });
         return true;
       });
