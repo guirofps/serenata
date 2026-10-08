@@ -8,7 +8,15 @@ import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
 import { literalLike } from "../../src/lib/sql-like.js";
 import { woovi } from "../../src/lib/woovi.js";
+import { asaasPix, consultarPorReferencia } from "../../src/lib/asaas-pix.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import {
+  codigoDoLembrete,
+  linkDoLembrete,
+  meioDoPendente,
+  reconsultaDoPedido,
+  reconsultaPermiteEnvio,
+} from "../../src/lib/pix-nao-pago-regras.js";
 
 // O PIX GERADO QUE NÃO FOI PAGO.
 //
@@ -182,26 +190,12 @@ function podeMandar(toques: { quantos: number; ultimo: number }, agora: number) 
   return agora - toques.ultimo >= esperaH * 3600000;
 }
 
-/**
- * O checkout do valor que a pessoa ia pagar, lido da config viva.
- *
- * Devolve `null` quando nenhuma variante bate: preferir não mandar a mandar
- * link de preço diferente do que ela viu. Cobrar mais caro do que o combinado
- * é o pior desfecho possível deste e-mail.
- */
-async function checkoutDoValor(
-  sb: ReturnType<typeof db>,
-  valorReais: number,
-): Promise<string | null> {
-  const { data } = await sb.from("experimentos").select("variantes").eq("id", "preco").maybeSingle();
-  const variantes = (data?.variantes ?? []) as Array<{
-    plano?: { valor?: number; checkout?: string };
-  }>;
-  const achado = variantes.find(
-    (v) => typeof v.plano?.valor === "number" && Math.abs(v.plano.valor - valorReais) < 0.011,
-  );
-  return achado?.plano?.checkout ?? null;
-}
+// O destino de quem não tem PIX guardado é o `/retomar` da sessão dela, no
+// nosso domínio. Até 08/10 era o checkout da Perfect Pay (`checkoutDoValor`),
+// que saiu: ver o cabeçalho de `src/lib/pix-nao-pago-regras.ts`.
+const SITE = process.env.VITE_APP_URL?.startsWith("http")
+  ? process.env.VITE_APP_URL
+  : MARCA_ATIVA.url;
 
 export const pixNaoPago = inngest.createFunction(
   {
@@ -219,7 +213,7 @@ export const pixNaoPago = inngest.createFunction(
 
       const { data: pendentes } = await sb
         .from("pedidos")
-        .select("id, email, quiz_response_id, valor_centavos, created_at, pix_url, pix_codigo, payment_id")
+        .select("id, email, quiz_response_id, valor_centavos, created_at, pix_url, pix_codigo, payment_id, gateway, cupom")
         .eq("status", "pendente")
         .gte("created_at", new Date(agora - MAX_H * 3600000).toISOString())
         .lte("created_at", new Date(agora - MIN_MIN * 60000).toISOString())
@@ -228,7 +222,7 @@ export const pixNaoPago = inngest.createFunction(
       const out: Array<{
         email: string; nome: string; titulo: string;
         linkCheckout: string; codigo: string | null;
-        quizId: string; locale: "pt" | "es";
+        quizId: string; locale: "pt" | "es"; meio: "pix" | "cartao";
       }> = [];
       const vistos = new Set<string>();
 
@@ -256,32 +250,6 @@ export const pixNaoPago = inngest.createFunction(
         if (pago?.id) continue;
         if (p.email && (await pessoaJaComprou(sb, p.email))) continue;
 
-        // ── E SE O NOSSO BANCO ESTIVER ERRADO? ──────────────────
-        //
-        // A trava acima confia em `pedidos`, e em 06/09/2026 `pedidos` mentiu:
-        // duas clientes tinham pago, o webhook se perdeu, e as duas
-        // continuaram recebendo ESTE e-mail dizendo que o pagamento não
-        // entrou. Uma delas respondeu indignada, com o comprovante anexado —
-        // depois de dois dias sendo cobrada por algo que já tinha pagado.
-        //
-        // Uma consulta ao gateway por envio (dezenas por dia, não milhares)
-        // é barata perto de acusar um comprador de não ter pago.
-        //
-        // FALHA ABERTA: se a Woovi não responder, o e-mail sai. A alternativa
-        // seria uma indisponibilidade deles calar a recuperação inteira, e o
-        // caso comum é a pessoa não ter pago mesmo.
-        if (String(p.payment_id ?? "").startsWith("woovi:")) {
-          try {
-            const st = await woovi.consultar(String(p.payment_id).replace(/^woovi:/, ""));
-            if (st.pago) {
-              console.error(`[pix-nao-pago] ${p.payment_id} está PAGO na Woovi e pendente aqui — o vigia de pagamento conserta`);
-              continue;
-            }
-          } catch (err) {
-            console.error("[pix-nao-pago] reconsulta falhou, seguindo:", err);
-          }
-        }
-
         if (!podeMandar(await toquesJaDados(sb, p.quiz_response_id), agora)) continue;
 
         // A MÚSICA PRECISA EXISTIR. O e-mail promete "está pronta esperando",
@@ -296,7 +264,7 @@ export const pixNaoPago = inngest.createFunction(
 
         const { data: q } = await sb
           .from("quiz_responses")
-          .select("respostas, locale")
+          .select("respostas, locale, session_id")
           .eq("id", p.quiz_response_id)
           .maybeSingle();
 
@@ -307,39 +275,74 @@ export const pixNaoPago = inngest.createFunction(
 
         // ── O LINK: o PIX DELA primeiro ──────────────────────────
         //
-        // `pix_url` é a tela do PIX que ela já abriu, com o código dela, válido
-        // por ~55h. Um toque e ela paga, sem redigitar nada, e o dinheiro cai
-        // no MESMO pedido — o webhook já sabe casar aquele `payment_id` com a
-        // música. Voltar pro checkout seria fazê-la refazer tudo por nada.
+        // `pix_url` é a tela do PIX que ela já abriu, com o código dela. Um
+        // toque e ela paga, sem redigitar nada, e o dinheiro cai no MESMO
+        // pedido: o webhook já sabe casar aquele `payment_id` com a música.
         //
-        // O checkout fica de RESERVA, pra pedido antigo que não guardou a URL.
-        // Aí sim precisa do `src`, que é o session_id: é por ele que o webhook
-        // casa o pagamento com a música já gerada. Sem ele a compra entra como
-        // "pago sem música casada" e alguém entrega à mão.
-        // ── INTERRUPTOR: CODIGO GERADO QUE NAO PODE SER PAGO ────
+        // ── INTERRUPTOR: CÓDIGO GERADO QUE NÃO PODE SER PAGO ────
         //
-        // `RECUPERACAO_SEM_PIX=1` ignora o `pix_url` e o codigo e manda a
-        // pessoa pro checkout. Existe por causa de 11/09/2026: a chave PIX da
-        // Woovi parou de resolver no DICT as 16:44 e todo codigo gerado no
-        // dia virou papel — o banco do pagador respondia "A conta informada
-        // nao foi encontrada".
+        // `RECUPERACAO_SEM_PIX=1` ignora o `pix_url` e o código. Existe por
+        // causa de 11/09/2026: a chave PIX da Woovi parou de resolver no DICT
+        // às 16:44 e todo código gerado no dia virou papel. Sem isto, este
+        // e-mail mandaria quem já tentou pagar de volta pro MESMO pagamento
+        // impossível, prometendo no rodapé que o código continua valendo.
         //
-        // Sem isto, este e-mail vira o pior tipo de recuperacao: pega quem ja
-        // tentou pagar uma vez e manda de volta pro MESMO pagamento
-        // impossivel, prometendo no rodape que o codigo continua valendo. A
-        // pessoa tenta, falha de novo, e agora acha que o site e quebrado.
+        // ── SEM PIX GUARDADO: DE VOLTA PRA MÚSICA DELA (08/10) ──
         //
-        // Sem codigo, o template troca botao e rodape sozinho (ver
-        // `botaoSemCodigo`): nenhuma promessa que a gente nao possa cumprir.
-        const semPix = process.env.RECUPERACAO_SEM_PIX === "1";
-        let link = semPix ? null : (p.pix_url as string | null);
-        if (!link) {
-          const checkout = await checkoutDoValor(sb, (p.valor_centavos ?? 0) / 100);
-          if (!checkout) continue;
-          const u = new URL(checkout);
-          u.searchParams.set("src", p.quiz_response_id);
-          u.searchParams.set("email", p.email);
-          link = u.toString();
+        // Cartão, pedido sem URL ou interruptor ligado: `/retomar` da sessão,
+        // onde ela paga no Asaas (PIX ou cartão). Até 08/10 era a Perfect Pay
+        // com `src=<quiz>`, que o webhook de lá não casa. Ver
+        // `src/lib/pix-nao-pago-regras.ts`.
+        const meio = meioDoPendente(p);
+        const link = linkDoLembrete({
+          meio,
+          pixUrl: p.pix_url as string | null,
+          semPix: process.env.RECUPERACAO_SEM_PIX === "1",
+          site: SITE,
+          sessao: (q as { session_id?: string | null } | null)?.session_id,
+          cupom: (p as { cupom?: string | null }).cupom,
+        });
+        if (!link) continue;
+
+        // ── E SE O NOSSO BANCO ESTIVER ERRADO? ──────────────────
+        //
+        // A trava acima confia em `pedidos`, e em 06/09/2026 `pedidos` mentiu:
+        // duas clientes tinham pago, o webhook se perdeu, e as duas
+        // continuaram recebendo ESTE e-mail dizendo que o pagamento não
+        // entrou. Uma delas respondeu indignada, com o comprovante anexado —
+        // depois de dois dias sendo cobrada por algo que já tinha pagado.
+        //
+        // Uma consulta ao gateway por envio (dezenas por dia, não milhares)
+        // é barata perto de acusar um comprador de não ter pago. Por isso ela
+        // vem DEPOIS das travas baratas (toques, música, idioma, link): com o
+        // Asaas incluído, perguntar por todo pendente da janela seriam
+        // centenas de chamadas por rodada.
+        //
+        // FALHA ABERTA: se o gateway não responder, o e-mail sai. A
+        // alternativa seria uma indisponibilidade deles calar a recuperação
+        // inteira, e o caso comum é a pessoa não ter pago mesmo.
+        //
+        // OS DOIS GATEWAYS (08/10). Até aqui só a Woovi era perguntada, e o
+        // PIX é do Asaas desde 11/09: a trava de 06/09 não valia pra quase
+        // ninguém. Ver `reconsultaDoPedido`.
+        const alvo = reconsultaDoPedido(p.payment_id as string | null);
+        if (alvo) {
+          try {
+            const st =
+              alvo.gateway === "woovi"
+                ? await woovi.consultar(alvo.id)
+                : alvo.porReferencia
+                  ? await consultarPorReferencia(alvo.id)
+                  : await asaasPix.consultar(alvo.id);
+            if (!reconsultaPermiteEnvio(st)) {
+              if (st?.pago) {
+                console.error(`[pix-nao-pago] ${p.payment_id} está PAGO no gateway e pendente aqui: o vigia de pagamento conserta`);
+              }
+              continue;
+            }
+          } catch (err) {
+            console.error("[pix-nao-pago] reconsulta falhou, seguindo:", err);
+          }
         }
 
         out.push({
@@ -350,19 +353,16 @@ export const pixNaoPago = inngest.createFunction(
           nome: ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() || "quem você ama",
           titulo: m.titulo ?? "Sua música",
           linkCheckout: link,
+          meio: meio === "cartao" ? "cartao" : "pix",
           // O CÓDIGO COPIÁVEL, e não só o link.
           //
           // Abrir link, esperar carregar e achar o botão é trabalho. Copiar e
           // colar no app do banco é o gesto que a pessoa já domina, e é o
           // caminho mais curto entre o e-mail e o dinheiro.
           //
-          // Só sai quando veio junto do `pix_url`: o código pertence AQUELE
-          // pedido, e misturar código de um com link de outro cobraria errado.
-          // Pedido antigo sem URL guardada vai só com o checkout.
-          // Sem `pix_url` (ou com o interruptor ligado) nao vai codigo: o
-          // link e o do checkout, e mandar junto um copia-e-cola que aponta
-          // pra outro lugar e a receita do "paguei e nao caiu".
-          codigo: link === (p.pix_url as string | null) && p.pix_url ? ((p.pix_codigo as string | null) ?? null) : null,
+          // Só sai junto do `pix_url` DELE: misturar código de um pedido
+          // com link de outro lugar é a receita do "paguei e não caiu".
+          codigo: codigoDoLembrete(link, p.pix_url as string | null, p.pix_codigo as string | null),
           quizId: p.quiz_response_id,
         });
       }
@@ -398,12 +398,33 @@ export const pixNaoPago = inngest.createFunction(
         if ((await toquesDaPessoa(sb, c.email)) >= MAX_TOQUES) return false;
         if (await estaBloqueado(sb, c.email)) return false;
 
+        // ── A TRAVA ANTES DO ENVIO, E CONFERIDA (08/10) ─────────
+        //
+        // A marca de "já mandei" era gravada DEPOIS do envio e sem olhar o
+        // erro. Se a gravação falhasse, nada contava o toque: a próxima rodada
+        // (meia hora depois) mandava de novo, o mesmo formato do incidente de
+        // 04/10 com a letra repetida. Agora ela vem antes e falha FECHADA:
+        // sem marca gravada, não sai e-mail. Se o envio falhar depois, a marca
+        // é desfeita pra o toque não se perder.
+        const { data: marca, error: erroMarca } = await sb
+          .from("funnel_events")
+          .insert({
+            event_name: "pix_nao_pago_enviado",
+            event_data: { quiz_response_id: c.quizId, email: c.email, meio: c.meio },
+          })
+          .select("id")
+          .maybeSingle();
+        if (erroMarca || !marca?.id) {
+          console.error("[pix-nao-pago] trava não gravou, não envio:", erroMarca?.message ?? "sem id");
+          return false;
+        }
+
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "pix_nao_pago" }],
           from: MARCA_ATIVA.remetenteTransacional,
           to: [c.email],
           headers: cabecalhosDescadastro(c.email),
-          subject: assuntoPixNaoPago(c.nome, c.locale),
+          subject: assuntoPixNaoPago(c.nome, c.locale, c.meio),
           html: emailPixNaoPago({
             nome: c.nome,
             titulo: c.titulo,
@@ -412,16 +433,27 @@ export const pixNaoPago = inngest.createFunction(
             // texto puro, e o HTML caía sempre no botão sem copia-e-cola.
             codigo: c.codigo,
             locale: c.locale,
+            meio: c.meio,
           }),
           text:
-            `A música de ${c.nome} ficou pronta, mas o pagamento não chegou a cair.\n\n` +
-            `Nada se perdeu: a música está gravada e o seu código PIX continua valendo.\n\n` +
-            `Pague com o seu PIX aqui:\n${c.linkCheckout}\n\n` +
-            (c.codigo ? `Ou copie o código e cole no app do seu banco:\n${c.codigo}\n\n` : "") +
-            `Se preferir cartão, a opção aparece na mesma tela.`,
+            c.meio === "cartao"
+              ? `A música de ${c.nome} ficou pronta, mas a compra no cartão não chegou a ser concluída.\n\n` +
+                `Nada se perdeu: a música está gravada e é a mesma que você vai receber.\n\n` +
+                `Conclua o pagamento aqui, por PIX ou cartão:\n${c.linkCheckout}`
+              : `A música de ${c.nome} ficou pronta, mas o pagamento não chegou a cair.\n\n` +
+                (c.codigo
+                  ? `Nada se perdeu: a música está gravada e o seu código PIX continua valendo.\n\n` +
+                    `Pague com o seu PIX aqui:\n${c.linkCheckout}\n\n` +
+                    `Ou copie o código e cole no app do seu banco:\n${c.codigo}\n\n` +
+                    `Se preferir cartão, a opção aparece na mesma tela.`
+                  : `Nada se perdeu: a música está gravada.\n\n` +
+                    `Conclua o pagamento aqui, por PIX ou cartão:\n${c.linkCheckout}`),
         });
         if (error) {
           console.error("[pix-nao-pago] envio falhou:", error.message);
+          // Desfaz a marca: o toque não saiu. Se o desfazer falhar, perde-se
+          // um toque, que é o lado barato do erro.
+          await sb.from("funnel_events").delete().eq("id", marca.id);
           return false;
         }
 
@@ -430,10 +462,6 @@ export const pixNaoPago = inngest.createFunction(
           template: "pix_nao_pago",
           para: c.email,
           quizResponseId: c.quizId,
-        });
-        await sb.from("funnel_events").insert({
-          event_name: "pix_nao_pago_enviado",
-          event_data: { quiz_response_id: c.quizId, email: c.email },
         });
         return true;
       });
