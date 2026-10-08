@@ -42,6 +42,8 @@ import { ofertaDaReferencia } from "../src/lib/creditos.js";
 import { donosMais } from "../src/lib/donos.js";
 import { avisarDonos } from "../src/lib/avisar-donos.js";
 import { outroPagamentoDoQuiz } from "../src/lib/asaas-regras.js";
+import { todasAsPaginas } from "../inngest/lib/paginar.js";
+import { emLotes, faltamEntregar } from "../src/lib/entrega-atrasada.js";
 
 const PARA = donosMais("agenciarocketfy@gmail.com");
 
@@ -283,37 +285,59 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     //
     // Ver o bloco de constantes lá em cima pro caso que motivou isto.
     for (const p of await (async () => {
-      const { data } = await sb
-        .from("pedidos")
-        .select("payment_id, email, quiz_response_id, paid_at")
-        .eq("status", "pago")
-        .not("dinheiro_entrou", "is", false)
-        .not("quiz_response_id", "is", null)
-        .gte("paid_at", new Date(agora - ENTREGA_JANELA_H * 3600000).toISOString())
-        .lte("paid_at", new Date(agora - ENTREGA_IDADE_MIN_MIN * 60000).toISOString())
-        // DESCENDENTE, e aqui era pior que ponto cego: era morte total.
-        //
-        // Ascendente com teto de 40 numa janela de 72h pegava os 40
-        // pagamentos mais VELHOS de três dias atrás — todos já entregues há
-        // muito. O filtro de "quem já recebeu" logo abaixo zerava a lista, e
-        // esta varredura devolvia vazio em TODA rodada desde que subiu
-        // (commit bd3554e). Ela nunca entregou nada a ninguém.
-        //
-        // Descoberto em 11/09/2026 com um comprador de 4h18 sem entrega: a
-        // varredura rodou duas vezes na frente dele e não o viu.
-        .order("paid_at", { ascending: false })
-        .limit(ENTREGA_MAX_POR_RODADA);
-      if (!data?.length) return [];
+      // ── A JANELA INTEIRA, E NÃO OS 40 MAIS NOVOS (08/10) ──────
+      //
+      // Até 08/10 o teto de 40 vinha ANTES do filtro de "quem já recebeu":
+      // com ~150 vendas por dia, os 40 mais novos são as últimas 4 a 6 horas,
+      // todas já entregues pelo caminho normal. Quem teve a entrega falhada
+      // de manhã sumia da lista à tarde e nunca mais era tentado. Agora lê os
+      // pagos da janela inteira (paginado: o PostgREST corta em 1000 calado),
+      // tira quem já recebeu, e SÓ ENTÃO aplica o teto. Ver
+      // `src/lib/entrega-atrasada.ts`.
+      //
+      // FALHA FECHADA: qualquer consulta que falhar aqui pula a varredura
+      // nesta rodada. "Não sei quem já recebeu" lido como "ninguém recebeu"
+      // mandaria a entrega de novo pra todo comprador de três dias.
+      try {
+        const desde = new Date(agora - ENTREGA_JANELA_H * 3600000).toISOString();
+        const ate = new Date(agora - ENTREGA_IDADE_MIN_MIN * 60000).toISOString();
+        const pagos = await todasAsPaginas<{
+          id: string; payment_id: string; email: string; quiz_response_id: string | null; paid_at: string;
+        }>((de, fim) =>
+          sb
+            .from("pedidos")
+            .select("id, payment_id, email, quiz_response_id, paid_at")
+            .eq("status", "pago")
+            .not("dinheiro_entrou", "is", false)
+            .not("quiz_response_id", "is", null)
+            .gte("paid_at", desde)
+            .lte("paid_at", ate)
+            // DESCENDENTE (11/09): quem acabou de ficar sem entrega vem
+            // primeiro. O `id` desempata pra a paginação não pular linha.
+            .order("paid_at", { ascending: false })
+            .order("id", { ascending: false })
+            .range(de, fim),
+        );
+        if (!pagos.length) return [];
 
-      // Quem JÁ recebeu, numa consulta só. Um `select` por pedido dentro do
-      // laço estouraria o tempo da função em dia de volume.
-      const { data: enviados } = await sb
-        .from("emails_enviados")
-        .select("quiz_response_id")
-        .eq("template", "entrega")
-        .in("quiz_response_id", data.map((x) => x.quiz_response_id));
-      const jaFoi = new Set((enviados ?? []).map((e) => e.quiz_response_id));
-      return data.filter((x) => !jaFoi.has(x.quiz_response_id));
+        // Quem JÁ recebeu, em lotes: centenas de uuid num `.in()` só estouram
+        // o tamanho da URL. Um `select` por pedido estouraria o tempo.
+        const jaFoi = new Set<string>();
+        const quizzes = [...new Set(pagos.map((x) => x.quiz_response_id).filter((x): x is string => !!x))];
+        for (const lote of emLotes(quizzes, 100)) {
+          const { data: enviados, error } = await sb
+            .from("emails_enviados")
+            .select("quiz_response_id")
+            .eq("template", "entrega")
+            .in("quiz_response_id", lote);
+          if (error) throw new Error(`emails_enviados: ${error.message}`);
+          for (const e of enviados ?? []) if (e.quiz_response_id) jaFoi.add(e.quiz_response_id as string);
+        }
+        return faltamEntregar(pagos, jaFoi, ENTREGA_MAX_POR_RODADA);
+      } catch (err) {
+        console.error("[vigia-pagamento] varredura de entrega pulada nesta rodada:", err);
+        return [];
+      }
     })()) {
       try {
         const musica = await musicaDoQuiz(sb, p.quiz_response_id as string);
