@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { type Locale, normalizarLocale } from "@/lib/i18n";
+import { ehArgentina } from "@/lib/mercado-es";
 
 // Personalização da página-presente pelo COMPRADOR.
 //
@@ -35,6 +36,12 @@ export type PresenteEditavel = {
    * maior que zero as gravações atuais ganham o selo de "nova versão".
    */
   refacoes: number;
+  /**
+   * Um ajuste está regravando a música agora (08/10). Sem isto o editor
+   * mostrava a tela sem player nenhum (o áudio é limpo enquanto grava) e sem
+   * dizer por quê.
+   */
+  regravando: boolean;
   /**
    * As gravações ARQUIVADAS, da mais recente pra mais antiga.
    *
@@ -98,7 +105,7 @@ async function buscarPorTokenEdicao(tokenEdicao: string) {
   const { data } = await db
     .from("musicas")
     .select(
-      "id, token, titulo, foto_path, galeria, dedicatoria, personalizada_em, quiz_response_id, audio_path, audio_path_v2, versao_preferida, cor_destaque, efeito, refacoes_usadas",
+      "id, token, titulo, foto_path, galeria, dedicatoria, personalizada_em, quiz_response_id, audio_path, audio_path_v2, versao_preferida, cor_destaque, efeito, refacoes_usadas, status",
     )
     .eq("token_edicao", tokenEdicao)
     .maybeSingle();
@@ -158,7 +165,8 @@ export const carregarParaEditar = createServerFn({ method: "GET" })
       locale,
       // O inglês ganha o seu; pt e es seguem com o de sempre.
       titulo: m.titulo ?? (locale === "en" ? "Your song" : "Sua música"),
-      nome: r.nome ?? (locale === "en" ? "you" : "você"),
+      // O espanhol recebia "você" no título do editor (08/10).
+      nome: r.nome ?? (locale === "en" ? "you" : locale === "es" ? (ehArgentina() ? "vos" : "ti") : "você"),
       dedicatoria: m.dedicatoria,
       fotoUrl: await urlDaFoto(m.foto_path),
       galeria: await assinarGaleria(m.galeria),
@@ -170,6 +178,7 @@ export const carregarParaEditar = createServerFn({ method: "GET" })
       tokenPublico: m.token,
       publicada: Boolean(m.personalizada_em),
       refacoes: m.refacoes_usadas ?? 0,
+      regravando: m.status === "gerando" && (m.refacoes_usadas ?? 0) > 0,
       anteriores: await versoesAnteriores(m.id),
     };
   });

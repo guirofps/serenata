@@ -4,7 +4,9 @@ import { z } from "zod";
 import { conversaoCompra, transacaoGuardada } from "@/lib/google-ads";
 import { compraGa4 } from "@/lib/ga4";
 import { compraTiktok } from "@/lib/tiktok-pixel";
-import { meuPlano } from "@/lib/preco";
+import { meuPlano, meuPlanoCobravel } from "@/lib/preco";
+import { centavosComCupom } from "@/lib/cupom";
+import { valorDaCompra } from "@/lib/valor-conversao";
 import { useQuizStore } from "@/lib/quiz-store";
 import { buscarPresenteDaCompra, type PresenteDaCompra } from "@/lib/pos-compra";
 import { sessaoJaPagou, entrarNaConta } from "@/lib/coautoria";
@@ -54,6 +56,7 @@ const COPY = {
     depoisDeAbrir: "There you download the MP3, add your photos and get the link to send.",
     copiarLink: "Copy the gift link",
     copiado: "Link copied",
+    copiarNaMao: "Copy the gift link:",
     enviarZap: null,
     zapTexto: (n?: string | null) => `I made a song for ${n ?? "you"}. Tap to listen:`,
     contaDiscreta: "Prefer to come back later? Go to my account",
@@ -103,6 +106,7 @@ const COPY = {
     depoisDeAbrir: "Lá você baixa o MP3, sobe as fotos de vocês e pega o link pra mandar.",
     copiarLink: "Copiar o link do presente",
     copiado: "Link copiado",
+    copiarNaMao: "Copie o link do presente:",
     enviarZap: "Enviar pelo WhatsApp",
     zapTexto: (n?: string | null) => `Fiz uma música pra ${n ?? "você"}. Toca aqui pra ouvir:`,
     contaDiscreta: "Prefere voltar depois? Entrar na minha conta",
@@ -140,6 +144,7 @@ const COPY = {
     depoisDeAbrir: "Ahí descargas el MP3, subes sus fotos y copias el link para mandar.",
     copiarLink: "Copiar el link del regalo",
     copiado: "Link copiado",
+    copiarNaMao: "Copia el link del regalo:",
     enviarZap: "Enviar por WhatsApp",
     zapTexto: (n?: string | null) => `Hice una canción para ${n ?? "ti"}. Tócala aquí:`,
     contaDiscreta: "¿Prefieres volver después? Entrar a mi cuenta",
@@ -259,11 +264,19 @@ export function Obrigado({
     // do checkout: quem veio pela recuperação foi cobrada no produto do
     // controle, então é o valor do controle que tem que ser reportado.
     //
-    // (Fica de fora, e é dívida conhecida: o DESCONTO do cupom em si. Quem
-    // pagou com SRN27 é reportada pelo cheio. São três vendas em 285 e-mails,
-    // e o número certo mora em `pedidos.valor_centavos`, no servidor — é de lá
-    // que a correção tem que vir, não de um parse do texto "R$ 28".)
-    const plano = meuPlano(locale, { temCupom: Boolean(useQuizStore.getState().cupom) });
+    // O VALOR COBRADO, não o da tela (08/10). Braço com peso 0 é cobrado como
+    // o controle, e MUSICA10/SRN27 descontam no servidor: o número certo é
+    // `pedidos.valor_centavos`, que a busca do presente devolve. A conta da
+    // tela fica só de reserva, e já sobre o braço COBRÁVEL com o cupom.
+    const cupom = useQuizStore.getState().cupom;
+    const reserva =
+      locale === "pt"
+        ? centavosComCupom(Math.round((Number(meuPlanoCobravel("pt").valor) || 0) * 100), cupom) / 100
+        : locale === "en"
+          ? Number(meuPlanoCobravel("en").valor) || 0
+          : // Espanhol: o link da Perfect Pay do braço da tela (o cupom é produto de lá).
+            meuPlano(locale, { temCupom: Boolean(cupom) }).valor;
+    const plano = { valor: valorDaCompra({ locale, pedido: presente, reserva }) };
     conversaoCompra({
       valor: plano.valor,
       moeda: locale === "pt" ? "BRL" : "USD",
@@ -353,10 +366,27 @@ export function Obrigado({
             titulo: null,
             nome: null,
             gerando: false,
+            valorCentavos: s.valorCentavos,
+            gateway: s.gateway,
           });
           setProcurando(false);
           trackEvent("obrigado_presente_achado", { via: "sessao" });
           return;
+        }
+        // TERCEIRO CAMINHO (08/10): a referência que a folha do PIX ou do
+        // cartão guardou nesta aba (`mp_tx`). É o que acha a compra feita pela
+        // `/pix/<ref>` ou pela `/oferta/<token>` num navegador sem a sessão do
+        // funil, que é o caso de quem abre o link do e-mail no celular.
+        const referencia = code ? undefined : transacaoGuardada();
+        if (referencia) {
+          const p = await buscarPresenteDaCompra({ data: { referencia } });
+          if (!vivo) return;
+          if (p) {
+            setPresente(p);
+            setProcurando(false);
+            trackEvent("obrigado_presente_achado", { via: "referencia" });
+            return;
+          }
         }
       } catch (err) {
         console.error("[obrigado] busca falhou:", err);
@@ -485,10 +515,23 @@ export function Obrigado({
               <div className="mt-4 flex flex-col items-stretch gap-2">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     const link = `${window.location.origin}/p/${presente.token}`;
-                    navigator.clipboard?.writeText(link).then(() => setCopiado(true)).catch(() => {});
                     trackEvent("obrigado_copiar_link", {});
+                    // RESERVA QUANDO A ÁREA DE TRANSFERÊNCIA RECUSA (08/10).
+                    // Navegador de app (Instagram, Gmail) e Safari antigo
+                    // recusam ou nem têm `clipboard`, e o `catch {}` vazio
+                    // deixava o botão mudo: a pessoa tocava e nada acontecia.
+                    // O `prompt` mostra o link já selecionado pra copiar na mão.
+                    try {
+                      if (!navigator.clipboard) throw new Error("sem clipboard");
+                      await navigator.clipboard.writeText(link);
+                      setCopiado(true);
+                      window.setTimeout(() => setCopiado(false), 2500);
+                    } catch {
+                      trackEvent("obrigado_copiar_link_falhou", {});
+                      window.prompt(C.copiarNaMao, link);
+                    }
                   }}
                   className="inline-flex h-11 items-center justify-center rounded-full border border-[var(--acento)]/40 font-medium"
                   style={{ fontSize: "var(--t-sm)" }}

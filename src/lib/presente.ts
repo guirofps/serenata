@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { type Locale, normalizarLocale } from "@/lib/i18n";
+import { escolherFonteDoPresente } from "@/lib/presente-fonte";
 
 // Carrega a página presente pelo token público.
 //
@@ -41,6 +42,11 @@ export type Presente = {
    * adiantaria nada, porque o WhatsApp guarda a prévia por URL.
    */
   personalizadaEm: string | null;
+  /**
+   * A música está sendo regravada (ajuste) e a página toca a versão anterior,
+   * arquivada. Ver `presente-fonte.ts`.
+   */
+  atualizando: boolean;
 };
 
 // O Suno devolve os marcadores de seção DENTRO das palavras com timestamp:
@@ -70,12 +76,29 @@ export const carregarPresente = createServerFn({ method: "GET" })
     const { data: m } = await db
       .from("musicas")
       .select(
-        "titulo, letra, status, audio_path, audio_path_v2, timestamps, timestamps_v2, duracao_s, quiz_response_id, foto_path, dedicatoria, galeria, versao_preferida, cor_destaque, efeito, personalizada_em",
+        "id, titulo, letra, status, audio_path, audio_path_v2, timestamps, timestamps_v2, duracao_s, quiz_response_id, foto_path, dedicatoria, galeria, versao_preferida, cor_destaque, efeito, personalizada_em",
       )
       .eq("token", data.token)
       .maybeSingle();
 
-    if (!m || m.status !== "pronta") return null;
+    if (!m) return null;
+
+    // Fora de `pronta` (ajuste em curso), toca a última versão arquivada em vez
+    // de cair na tela de "link incompleto" (08/10, ver `presente-fonte.ts`).
+    // A consulta só acontece nesse caso: pra quase todo mundo a música está
+    // pronta e isto não custa nada.
+    let arquivadas = null;
+    if (m.status !== "pronta" && m.id) {
+      const { data: vs } = await db
+        .from("versoes_musica")
+        .select("titulo, letra, audio_path, audio_path_v2, timestamps, timestamps_v2")
+        .eq("musica_id", m.id)
+        .order("ordem", { ascending: false })
+        .limit(3);
+      arquivadas = vs;
+    }
+    const fonte = escolherFonteDoPresente(m, arquivadas);
+    if (!fonte) return null;
 
     const { data: q } = await db
       .from("quiz_responses")
@@ -85,14 +108,14 @@ export const carregarPresente = createServerFn({ method: "GET" })
 
     const r = (q?.respostas ?? {}) as Record<string, string>;
 
-    const temAlternativa = Boolean(m.audio_path_v2);
+    const temAlternativa = Boolean(fonte.audio_path_v2);
     // Sem ?v= no link, abre na versão que o COMPRADOR marcou como preferida
     // (a que ele gostou mais). Com ?v= explícito, respeita o que foi pedido.
     // Só cai na v2 se ela existir de verdade — link com ?v=2 numa música de
     // uma versão só toca a principal em vez de dar tela muda.
     const desejada = data.versao ?? m.versao_preferida ?? 1;
     const versao: 1 | 2 = desejada === 2 && temAlternativa ? 2 : 1;
-    const caminho = versao === 2 ? m.audio_path_v2 : m.audio_path;
+    const caminho = versao === 2 ? fonte.audio_path_v2 : fonte.audio_path;
 
     let audioUrl: string | null = null;
     if (caminho) {
@@ -110,8 +133,8 @@ export const carregarPresente = createServerFn({ method: "GET" })
 
     return {
       locale,
-      titulo: m.titulo ?? (locale === "es" ? "Tu canción" : locale === "en" ? "Your song" : "Sua música"),
-      letra: m.letra ?? "",
+      titulo: fonte.titulo ?? (locale === "es" ? "Tu canción" : locale === "en" ? "Your song" : "Sua música"),
+      letra: fonte.letra ?? "",
       nome: r.nome ?? (locale === "es" ? "ti" : locale === "en" ? "you" : "você"),
       relacao: r.relacao ?? null,
       ocasiao: r.ocasiao ?? null,
@@ -124,10 +147,11 @@ export const carregarPresente = createServerFn({ method: "GET" })
       // backfill), cai em null e mostra a letra estática.
       timestamps:
         (versao === 1
-          ? (m.timestamps as Array<{ word: string; start: number; end: number }> | null)
-          : (m.timestamps_v2 as Array<{ word: string; start: number; end: number }> | null)) ??
+          ? (fonte.timestamps as Array<{ word: string; start: number; end: number }> | null)
+          : (fonte.timestamps_v2 as Array<{ word: string; start: number; end: number }> | null)) ??
         null,
-      duracaoS: versao === 1 && m.duracao_s ? Number(m.duracao_s) : null,
+      // `duracao_s` é a da v1 ATUAL: numa versão arquivada ela não vale.
+      duracaoS: versao === 1 && !fonte.atualizando && m.duracao_s ? Number(m.duracao_s) : null,
       temAlternativa,
       versao,
       // Bucket de fotos é PRIVADO (são fotos de família): URL assinada, do
@@ -153,12 +177,13 @@ export const carregarPresente = createServerFn({ method: "GET" })
             .filter((u): u is string => Boolean(u)) ?? []
         : [],
       secoes: extrairSecoes(
-        (versao === 1 ? m.timestamps : m.timestamps_v2) as
+        (versao === 1 ? fonte.timestamps : fonte.timestamps_v2) as
           | Array<{ word: string; start: number }>
           | null,
       ),
       corDestaque: m.cor_destaque ?? null,
       efeito: m.efeito ?? null,
       personalizadaEm: (m.personalizada_em as string | null) ?? null,
+      atualizando: fonte.atualizando,
     };
   });

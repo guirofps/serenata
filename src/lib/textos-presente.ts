@@ -90,6 +90,7 @@ ${link}`,
   erroUsarFoto: "Não consegui usar essa foto.",
   erroFotos: "Não consegui usar essas fotos.",
   erroSalvarFotos: "Não consegui salvar as fotos.",
+  erroRemoverFoto: "Não consegui tirar a foto agora. Tente de novo.",
   erroFrase: "Não consegui salvar a frase.",
   erroCopiar: "Não consegui copiar. Selecione o texto e copie na mão.",
   galeriaCheia: (n: number) => `A galeria já está cheia (${n} fotos).`,
@@ -127,6 +128,12 @@ ${link}`,
   montarBotao: "Montar o presente",
   sair: "Sair",
   status: { pronta: "pronta", gerando: "gerando…", aguardando: "na fila", falhou: "falhou" } as Record<string, string>,
+  // Ajuste em curso (08/10): o editor avisa e espera; o link continua tocando
+  // a versão anterior em vez de virar "link incompleto".
+  regravandoTitulo: "Sua nova versão está sendo gravada",
+  regravandoTexto:
+    "Leva 1 ou 2 minutos e esta tela se atualiza sozinha. Enquanto isso, o link do presente continua tocando a versão anterior.",
+  atualizandoDono: "Sua nova versão está sendo gravada. Até ela ficar pronta, a página toca a versão anterior.",
 
 };
 
@@ -209,6 +216,7 @@ ${link}`,
   erroUsarFoto: "No pude usar esa foto.",
   erroFotos: "No pude usar esas fotos.",
   erroSalvarFotos: "No pude guardar las fotos.",
+  erroRemoverFoto: "No pude quitar la foto ahora. Inténtalo de nuevo.",
   erroFrase: "No pude guardar la frase.",
   erroCopiar: "No pude copiar. Selecciona el texto y cópialo a mano.",
   galeriaCheia: (n: number) => `La galería ya está llena (${n} fotos).`,
@@ -244,6 +252,10 @@ ${link}`,
   montarBotao: "Armar el regalo",
   sair: "Salir",
   status: { pronta: "lista", gerando: "grabando…", aguardando: "en la fila", falhou: "falló" } as Record<string, string>,
+  regravandoTitulo: "Tu nueva versión se está grabando",
+  regravandoTexto:
+    "Tarda 1 o 2 minutos y esta pantalla se actualiza sola. Mientras tanto, el link del regalo sigue tocando la versión anterior.",
+  atualizandoDono: "Tu nueva versión se está grabando. Hasta que esté lista, la página toca la versión anterior.",
 
 };
 
@@ -357,6 +369,7 @@ ${link}`,
   erroUsarFoto: "Couldn't use that photo.",
   erroFotos: "Couldn't use those photos.",
   erroSalvarFotos: "Couldn't save the photos.",
+  erroRemoverFoto: "Couldn't remove the photo right now. Try again.",
   erroFrase: "Couldn't save your line.",
   erroCopiar: "Couldn't copy. Select the text and copy it manually.",
   galeriaCheia: (n: number) => `The gallery is already full (${n} photos).`,
@@ -392,6 +405,10 @@ ${link}`,
   montarBotao: "Put the gift together",
   sair: "Sign out",
   status: { pronta: "ready", gerando: "creating…", aguardando: "in line", falhou: "failed" } as Record<string, string>,
+  regravandoTitulo: "Your new version is being recorded",
+  regravandoTexto:
+    "It takes 1 or 2 minutes and this screen updates by itself. Meanwhile, the gift link keeps playing the previous version.",
+  atualizandoDono: "Your new version is being recorded. Until it's ready, this page plays the previous one.",
 };
 
 const POR_IDIOMA: Record<Locale, TextosPresente> = { pt: PT, es: ES, en: EN };

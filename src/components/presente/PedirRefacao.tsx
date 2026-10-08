@@ -127,9 +127,12 @@ const VOZES = [
 export function PedirRefacao({
   tokenEdicao,
   locale = "pt",
+  aoPedir,
 }: {
   tokenEdicao: string;
   locale?: Locale;
+  /** Avisa o editor que a regravação começou (ele passa a esperar por ela). */
+  aoPedir?: () => void;
 }) {
   const t = T[locale === "es" ? "es" : locale === "en" ? "en" : "pt"];
   const [estado, setEstado] = useState<{ pago: boolean; restantes: number; gravando: boolean } | null>(
@@ -194,6 +197,7 @@ export function PedirRefacao({
       if (r.ok) {
         trackEvent("refacao_pedida", { temEstilo: Boolean(estilo), temVoz: Boolean(voz) });
         setPronto(true);
+        aoPedir?.();
         return;
       }
       // Em `vago`, o servidor manda em `falta` o que o modelo disse que

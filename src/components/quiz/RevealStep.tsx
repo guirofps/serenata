@@ -23,6 +23,7 @@ import { QrCode } from "lucide-react";
 import { type Locale, caminho } from "@/lib/i18n";
 import { APartirDe } from "@/components/quiz/PrecoDaOferta";
 import { t } from "@/lib/textos";
+import { ehArgentina } from "@/lib/mercado-es";
 import { varianteDe, FORA } from "@/lib/experimentos";
 
 // A REVELAÇÃO — agora é COAUTORIA, não letra pronta.
@@ -303,7 +304,11 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
       setFase({ t: "revelando", letra: { ...base, letra: letraEditada } });
     } catch (err) {
       console.error("[coautoria] finalizar falhou:", err);
-      setFase({ t: "erro", msg: T.naoPreparei, tentar: () => finalizar(letraEditada) });
+      // A `base` vai JUNTO no "tentar de novo" (08/10). No caminho B a fase
+      // nunca foi "editando", então `finalizar` sem `baseDireta` achava base
+      // nula e voltava calado: o botão não fazia nada e a pessoa ficava presa
+      // na tela de erro.
+      setFase({ t: "erro", msg: T.naoPreparei, tentar: () => finalizar(letraEditada, base) });
     } finally {
       setFinalizando(false);
     }
@@ -450,7 +455,10 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
 
   // fase "revelando" — a música já está sendo gerada; mostra o presente.
   const letra = fase.letra;
-  const nome = (respostas.nome as string) || (locale === "en" ? "you" : "você");
+  // Sem nome, o espanhol lia "una canción para você" (08/10).
+  const nome =
+    (respostas.nome as string) ||
+    (locale === "en" ? "you" : locale === "es" ? (ehArgentina() ? "vos" : "ti") : "você");
   const bracoZap = varianteDe("zap_previa");
   const zapNaPrevia = bracoZap !== "A" && bracoZap !== FORA;
 

@@ -7,7 +7,9 @@ import { TEMA_CLARO, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { type Locale, LOCALE_PADRAO, normalizarLocale, caminho } from "@/lib/i18n";
 import { trackEvent } from "@/lib/track";
-import { novaSessao, adotarSessao } from "@/lib/session-context";
+import { novaSessao, adotarSessao, getStoredAttribution } from "@/lib/session-context";
+import { atributoDe, carimbarExperimentos, experimentosAtivos } from "@/lib/experimentos";
+import { bracosQueValem, mesclarAtribuicao } from "@/lib/retomar-sessao";
 import { Loader2 } from "lucide-react";
 
 // RETOMAR A SESSÃO a partir de um link de e-mail.
@@ -94,6 +96,10 @@ const buscarSessao = createServerFn({ method: "POST" })
       // Vale pro funil inteiro, não só pro preço: quem foi medido num braço
       // e volta noutro suja as duas leituras de uma vez.
       exp: ((lead.attribution as { exp?: Record<string, string> } | null)?.exp ?? null),
+      // A ATRIBUIÇÃO INTEIRA (08/10): a RPC de lead substitui `attribution`
+      // pelo que o navegador mandar, e o navegador novo não tem o `gclid` do
+      // anúncio. Ver `retomar-sessao.ts`.
+      attribution: (lead.attribution as Record<string, string | Record<string, string>> | null) ?? null,
       locale,
       pago: Boolean(pedido),
       token: m.token ?? null,
@@ -232,18 +238,37 @@ function Retomar() {
         // ver um preço diferente do que o e-mail acabou de prometer, e some
         // com a leitura do teste no caminho.
         //
-        // Grava ANTES do `navigate`: `/criar` é rota do cliente, o script
-        // inline não roda de novo, e `varianteDe` lê o localStorage na hora.
-        if (r.exp) {
-          for (const [id, variante] of Object.entries(r.exp)) {
-            if (typeof variante !== "string" || !variante) continue;
-            try {
-              localStorage.setItem(`mp_exp:${id}`, variante);
-            } catch {
-              // Modo anônimo: o funil ainda abre, só sem memória de braço.
-            }
+        // Grava ANTES do `navigate`, nos DOIS lugares (08/10). O localStorage
+        // é a memória pro próximo carregamento; o atributo do `<html>` é o que
+        // `varianteDe` lê AGORA. `/criar` é rota do cliente, o script inline
+        // não roda de novo, e só o localStorage deixava a pessoa no braço que
+        // este aparelho acabou de sortear até o próximo F5.
+        const bracos = bracosQueValem(r.exp, experimentosAtivos());
+        for (const [id, variante] of Object.entries(bracos)) {
+          try {
+            localStorage.setItem(`mp_exp:${id}`, variante);
+          } catch {
+            // Modo anônimo: o funil ainda abre, só sem memória de braço.
           }
+          document.documentElement.setAttribute(atributoDe(id), variante);
         }
+
+        // A ATRIBUIÇÃO DO REGISTRO por cima da deste aparelho (08/10). Sem
+        // isto, a próxima captura de lead mandava o objeto local (sem `gclid`)
+        // e a RPC sobrescrevia o clique do anúncio na linha. Ver
+        // `retomar-sessao.ts`.
+        try {
+          const mesclada = mesclarAtribuicao(
+            getStoredAttribution() as Record<string, unknown> | null,
+            r.attribution,
+          );
+          if (mesclada) localStorage.setItem("mp_attribution", JSON.stringify(mesclada));
+        } catch {
+          // Modo anônimo: segue sem memória de atribuição, como antes.
+        }
+        // `exp` da atribuição passa a refletir os atributos que acabaram de
+        // ser repostos (só experimento ativo).
+        carimbarExperimentos();
         // Guarda ANTES de navegar: a partir daqui a pessoa anda pelo funil e
         // o código precisa sobreviver até o botão de pagar.
         if (cupom) store.setCupom(cupom);

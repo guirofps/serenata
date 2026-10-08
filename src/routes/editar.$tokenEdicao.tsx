@@ -1,4 +1,4 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute, notFound, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   carregarParaEditar,
@@ -29,6 +29,7 @@ import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
 import { ImagePlus, Trash2, Check, Copy, ExternalLink, Loader2, X, Play, Pause, MessageCircle } from "lucide-react";
 import { PedirRefacao } from "@/components/presente/PedirRefacao";
+import { estadoRefacao } from "@/lib/refacao";
 import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
 import { LOCALE_PADRAO, type Locale } from "@/lib/i18n";
 
@@ -55,8 +56,8 @@ const NOME_COR_EN: Record<string, string> = {
   menta: "Mint",
 };
 
-// As poucas frases do editor que moravam direto no JSX. pt e es seguem
-// exatamente como estavam; só o inglês é novo.
+// As poucas frases do editor que moravam direto no JSX. O espanhol estava
+// em português ("Remover foto", "salvando…", "alterações salvas") até 08/10.
 const MIUDOS: Record<Locale, {
   removerFoto: (n: number) => string;
   caracteres: (n: number) => string;
@@ -74,11 +75,11 @@ const MIUDOS: Record<Locale, {
     ajuda: "Precisa de ajuda? Escreva pra ",
   },
   es: {
-    removerFoto: (n) => `Remover foto ${n}`,
+    removerFoto: (n) => `Quitar foto ${n}`,
     caracteres: (n) => `${n} caracteres`,
-    salvando: "salvando…",
-    salvo: "salvo",
-    alteracoesSalvas: "alterações salvas",
+    salvando: "guardando…",
+    salvo: "guardado",
+    alteracoesSalvas: "cambios guardados",
     ajuda: "¿Necesitas ayuda? Escríbenos a ",
   },
   en: {
@@ -208,6 +209,35 @@ function Editor() {
   const inputGaleria = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // ── O AJUSTE EM CURSO (08/10) ────────────────────────────────
+  //
+  // A regravação limpa o áudio da linha principal até a nova ficar pronta.
+  // Antes, quem pedia o ajuste e recarregava o editor via a tela sem player
+  // nenhum e sem saber por quê, e a única saída era recarregar na sorte.
+  // Agora o editor diz o que está acontecendo, pergunta ao servidor a cada
+  // 8s e, quando a gravação nova chega, recarrega os dados sozinho.
+  const router = useRouter();
+  const [regravando, setRegravando] = useState(p.regravando);
+  useEffect(() => setRegravando(p.regravando), [p.regravando]);
+  useEffect(() => {
+    if (!regravando) return;
+    let vivo = true;
+    const id = setInterval(() => {
+      estadoRefacao({ data: { tokenEdicao } })
+        .then((r) => {
+          if (!vivo || r.gravando) return;
+          setRegravando(false);
+          void router.invalidate();
+        })
+        // Rede oscilando no celular: tenta de novo no próximo ciclo.
+        .catch(() => {});
+    }, 8000);
+    return () => {
+      vivo = false;
+      clearInterval(id);
+    };
+  }, [regravando, tokenEdicao, router]);
+
   const audioPreferido = versaoPref === 2 ? p.audioUrlV2 : p.audioUrlV1;
   // As fotos do vídeo, na ordem em que o render usa: capa, depois galeria.
   // Memo porque a prévia do vídeo recalcula a cada array novo.
@@ -333,6 +363,15 @@ function Editor() {
       }
       setGaleria(r.galeria ?? []);
       setSalvo(true);
+    } catch (err) {
+      // Rede caiu ou a função estourou o tempo (12 fotos de 5 MB no 4G). Até
+      // 08/10 isto virava rejeição sem dono: o botão destravava e nada dizia
+      // que as fotos não tinham entrado.
+      console.error("[galeria] envio falhou:", err);
+      trackEvent("presente_galeria_falhou", {
+        motivo: err instanceof Error ? err.message.slice(0, 80) : "desconhecido",
+      });
+      setErro(T.erroSalvarFotos);
     } finally {
       setSubindoGaleria(false);
       if (inputGaleria.current) inputGaleria.current.value = "";
@@ -340,15 +379,33 @@ function Editor() {
   }
 
   async function tirarDaGaleria(caminho: string) {
-    const r = await removerDaGaleria({ data: { tokenEdicao, caminho } });
-    if (r.ok) setGaleria(r.galeria);
+    setErro(null);
+    try {
+      const r = await removerDaGaleria({ data: { tokenEdicao, caminho } });
+      if (r.ok) setGaleria(r.galeria);
+      else setErro(T.erroRemoverFoto);
+    } catch (err) {
+      console.error("[galeria] remover falhou:", err);
+      setErro(T.erroRemoverFoto);
+    }
   }
 
+  // try/finally (08/10): sem ele, uma falha de rede deixava `salvando` preso
+  // em true e os DOIS botões da foto travados até recarregar a página. E a
+  // foto só some da tela quando o servidor confirma.
   async function tirarFoto() {
+    setErro(null);
     setSalvando(true);
-    await removerFoto({ data: { tokenEdicao } });
-    setFotoUrl(null);
-    setSalvando(false);
+    try {
+      const r = await removerFoto({ data: { tokenEdicao } });
+      if (r.ok) setFotoUrl(null);
+      else setErro(T.erroRemoverFoto);
+    } catch (err) {
+      console.error("[editar] remover foto falhou:", err);
+      setErro(T.erroRemoverFoto);
+    } finally {
+      setSalvando(false);
+    }
   }
 
   async function salvarFrase(texto: string) {
@@ -460,6 +517,23 @@ function Editor() {
               className="hidden"
             />
 
+            {regravando && (
+              <section
+                role="status"
+                className="flex items-start gap-3 rounded-[var(--raio)] border border-[var(--acento)]/40 bg-[var(--acento)]/[0.06] p-4"
+              >
+                <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-[var(--acento)]" />
+                <div>
+                  <p className="font-medium" style={{ fontSize: "var(--t-sm)" }}>
+                    {T.regravandoTitulo}
+                  </p>
+                  <p className="mt-1 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)", lineHeight: 1.5 }}>
+                    {T.regravandoTexto}
+                  </p>
+                </div>
+              </section>
+            )}
+
             {/* versão preferida — qual das duas gravações abre por padrão */}
             {p.audioUrlV2 && (
               <section>
@@ -538,51 +612,56 @@ function Editor() {
                     );
                   })}
                 </div>
-
-                {/* ── AS GRAVAÇÕES DE ANTES ────────────────────────
-                    Fechadas por padrão: a decisão desta tela é escolher entre
-                    as versões ATUAIS, e mostrar quatro gravações de uma vez
-                    transforma uma escolha simples numa comparação.
-
-                    Existem porque a refação SOMA. O custo da primeira já foi
-                    pago e não volta, então guardar cobre quem pede o ajuste,
-                    ouve, e prefere o original. */}
-                {(p?.anteriores?.length ?? 0) > 0 && (
-                  <details className="mt-4 rounded-[var(--raio)] border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)]">
-                    <summary
-                      className="flex h-11 cursor-pointer list-none items-center px-4 text-[var(--tinta-suave)]"
-                      style={{ fontSize: "var(--t-sm)" }}
-                    >
-                      {T.anterioresVer}
-                    </summary>
-                    <div className="border-t border-[var(--tinta-fraca)]/30 p-4">
-                      <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)", lineHeight: 1.5 }}>
-                        {T.anterioresTexto}
-                      </p>
-                      {(p?.anteriores ?? []).map((a) => (
-                        <div key={a.ordem} className="mt-4">
-                          {a.pedido && (
-                            <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)", lineHeight: 1.45 }}>
-                              <strong>{T.anterioresPedido}</strong> {a.pedido}
-                            </p>
-                          )}
-                          <div className="mt-2 space-y-2">
-                            {[a.audioUrlV1, a.audioUrlV2].filter(Boolean).map((url, i) => (
-                              <audio
-                                key={i}
-                                src={url as string}
-                                controls
-                                preload="none"
-                                className="w-full"
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                )}
               </section>
+            )}
+
+            {/* ── AS GRAVAÇÕES DE ANTES ────────────────────────
+                Fechadas por padrão: a decisão desta tela é escolher entre
+                as versões ATUAIS, e mostrar quatro gravações de uma vez
+                transforma uma escolha simples numa comparação.
+
+                Existem porque a refação SOMA. O custo da primeira já foi
+                pago e não volta, então guardar cobre quem pede o ajuste,
+                ouve, e prefere o original.
+
+                FORA do bloco das duas versões (08/10): durante a regravação o
+                áudio atual fica vazio, o bloco de cima some, e junto sumia a
+                única coisa que dava pra ouvir. Música de uma versão só também
+                nunca via as anteriores. */}
+            {(p?.anteriores?.length ?? 0) > 0 && (
+              <details className="rounded-[var(--raio)] border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)]">
+                <summary
+                  className="flex h-11 cursor-pointer list-none items-center px-4 text-[var(--tinta-suave)]"
+                  style={{ fontSize: "var(--t-sm)" }}
+                >
+                  {T.anterioresVer}
+                </summary>
+                <div className="border-t border-[var(--tinta-fraca)]/30 p-4">
+                  <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)", lineHeight: 1.5 }}>
+                    {T.anterioresTexto}
+                  </p>
+                  {(p?.anteriores ?? []).map((a) => (
+                    <div key={a.ordem} className="mt-4">
+                      {a.pedido && (
+                        <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)", lineHeight: 1.45 }}>
+                          <strong>{T.anterioresPedido}</strong> {a.pedido}
+                        </p>
+                      )}
+                      <div className="mt-2 space-y-2">
+                        {[a.audioUrlV1, a.audioUrlV2].filter(Boolean).map((url, i) => (
+                          <audio
+                            key={i}
+                            src={url as string}
+                            controls
+                            preload="none"
+                            className="w-full"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </details>
             )}
 
             {/* cor de destaque — o play, a letra que acende, a barra */}
@@ -1105,7 +1184,7 @@ function Editor() {
             gostou?" no meio disso planta dúvida em quem estava satisfeito. */}
         {/* Âncora do "Peça o ajuste aqui" do e-mail de entrega (30/09). */}
         <div id="ajustar" style={{ scrollMarginTop: "5rem" }}>
-          <PedirRefacao tokenEdicao={tokenEdicao} locale={locale} />
+          <PedirRefacao tokenEdicao={tokenEdicao} locale={locale} aoPedir={() => setRegravando(true)} />
         </div>
 
         {linkZap ? (

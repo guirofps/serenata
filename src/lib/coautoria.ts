@@ -671,8 +671,19 @@ export const sessaoJaPagou = createServerFn({ method: "POST" })
        * aprendiam uma venda de R$ 38 que não existiu (auditoria 30/09).
        */
       dinheiroEntrou: boolean;
+      /** O que foi cobrado e onde: o valor da conversão na /obrigado (08/10). */
+      valorCentavos: number | null;
+      gateway: string | null;
     }> => {
-      const vazio = { pago: false, temLetra: false, token: null, tokenEdicao: null, dinheiroEntrou: false };
+      const vazio = {
+        pago: false,
+        temLetra: false,
+        token: null,
+        tokenEdicao: null,
+        dinheiroEntrou: false,
+        valorCentavos: null,
+        gateway: null,
+      };
       const db = supabaseAdmin();
       const quizId = await quizIdDaSessao(data.sessionId);
       if (!quizId) return vazio;
@@ -680,9 +691,12 @@ export const sessaoJaPagou = createServerFn({ method: "POST" })
       const [{ data: pedido }, { data: m }] = await Promise.all([
         db
           .from("pedidos")
-          .select("id, dinheiro_entrou, valor_centavos")
+          .select("id, dinheiro_entrou, valor_centavos, gateway")
           .eq("quiz_response_id", quizId)
           .eq("status", "pago")
+          // O PRIMEIRO pago é a música; extra, quadro e vídeo vêm depois e
+          // não podem virar o valor da conversão (08/10).
+          .order("paid_at", { ascending: true, nullsFirst: false })
           .limit(1)
           .maybeSingle(),
         db
@@ -701,6 +715,8 @@ export const sessaoJaPagou = createServerFn({ method: "POST" })
         token: m?.token ?? null,
         tokenEdicao: m?.token_edicao ?? null,
         dinheiroEntrou: Boolean(pedido) && pedido?.dinheiro_entrou !== false && (pedido?.valor_centavos ?? 1) > 0,
+        valorCentavos: (pedido?.valor_centavos as number | null | undefined) ?? null,
+        gateway: (pedido?.gateway as string | null | undefined) ?? null,
       };
     },
   );

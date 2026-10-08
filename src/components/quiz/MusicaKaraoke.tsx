@@ -6,6 +6,7 @@ import { type Locale } from "@/lib/i18n";
 import { t as textos } from "@/lib/textos";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { rotuloDaSecao } from "@/lib/karaoke-linhas";
+import { familiaDoNavegador } from "@/lib/familia-navegador";
 
 // Karaokê REAL: a música cantada + cada palavra acendendo no instante em que
 // é cantada (alignedWords do kie.ai, precisão de ms — R$ 0,013 por música).
@@ -247,6 +248,16 @@ export function MusicaKaraoke({
       trackEventOnce("musica_play", "v1");
     } catch (err) {
       console.error("[karaoke] play falhou:", err);
+      // O PLAY RECUSADO ERA INVISÍVEL (08/10). Do lado da pessoa é o botão
+      // que não toca; do nosso, nenhum rastro. O nome do erro separa a
+      // política de autoplay (`NotAllowedError`) de arquivo que não abre
+      // (`NotSupportedError`), e a família do navegador diz onde acontece
+      // (app do Instagram, Safari do iPhone...), sem mandar o user agent.
+      trackEvent("musica_play_falhou", {
+        erro: err instanceof Error ? err.name || "Error" : "desconhecido",
+        navegador: familiaDoNavegador(typeof navigator !== "undefined" ? navigator.userAgent : ""),
+        prontidao: a.readyState,
+      });
     }
   }
 

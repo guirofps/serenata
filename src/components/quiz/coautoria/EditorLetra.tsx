@@ -8,6 +8,7 @@ import { Sparkles, Loader2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type Locale } from "@/lib/i18n";
 import { t } from "@/lib/textos";
+import { ehArgentina } from "@/lib/mercado-es";
 
 // Editor da letra — a segunda etapa da coautoria.
 //
@@ -31,8 +32,11 @@ export function EditorLetra({
   locale?: Locale;
 }) {
   const T = t(locale);
-  // O cabeçalho e o botão de aprimorar tinham o texto cravado no JSX. O inglês ganha o seu;
-  // pt e es continuam lendo exatamente o que liam.
+  // O cabeçalho e o botão de aprimorar tinham o texto cravado no JSX. Até
+  // 08/10 o espanhol caía no ramo do português: "Essa é a sua letra" e
+  // "Melhorar com IA" na tela em que a pessoa decide se a letra é dela.
+  // Espanhol em `tú`; o voseo entra só com o mercado argentino ligado
+  // (`mercado-es.ts`), igual à sobreposição de `textos.ts`.
   const B =
     locale === "en"
       ? {
@@ -43,7 +47,18 @@ export function EditorLetra({
           jaMelhorada: "Already polished",
           melhorar: "Polish with AI",
         }
-      : {
+      : locale === "es"
+        ? {
+            quaseLa: "Ya casi",
+            essaELetra: "Esta es tu letra",
+            mudeOQueQuiser: ehArgentina()
+              ? "Cambiá lo que quieras, cada palabra es tuya. Esta es la que se vuelve canción."
+              : "Cambia lo que quieras, cada palabra es tuya. Esta es la que se vuelve canción.",
+            melhorando: "Mejorando…",
+            jaMelhorada: "Ya mejorada",
+            melhorar: "Mejorar con IA",
+          }
+        : {
           quaseLa: "Quase lá",
           essaELetra: "Essa é a sua letra",
           mudeOQueQuiser: "Mude o que quiser, cada palavra é sua. É ela que vira música.",
