@@ -6,6 +6,7 @@ import { QUIZ_FLOW_EN } from "@/lib/quiz-flow-en";
 import { comVoseo } from "@/lib/quiz-flow-ar";
 import { ehArgentina } from "@/lib/mercado-es";
 import { comGospel, SKIP_GOSPEL } from "@/lib/quiz-flow-gospel";
+import { comNatal, natalNaJanela } from "@/lib/natal";
 import type { Tema } from "@/lib/tema";
 
 // Conteúdo do nosso quiz (Fase 1), conforme docs/quiz-fase1.md.
@@ -360,15 +361,30 @@ const QUIZ_FLOW_GOSPEL = comGospel(QUIZ_FLOW_PT);
 // A porta cristã da Ballad: a mesma camada sobre o quiz em inglês.
 const QUIZ_FLOW_GOSPEL_EN = comGospel(QUIZ_FLOW_EN, "en");
 
-export function quizFlow(locale: Locale, tema?: Tema | null): FlowStep[] {
-  if (locale === "pt" && tema === "gospel") return QUIZ_FLOW_GOSPEL;
-  if (locale === "en" && tema === "gospel") return QUIZ_FLOW_GOSPEL_EN;
-  if (locale === "en") return QUIZ_FLOW_EN;
-  if (locale !== "es") return QUIZ_FLOW_PT;
+// A TEMPORADA DE NATAL (`natal.ts`): de 15/11 a 31/12 o passo da ocasião
+// ganha o chip de Natal. Montados uma vez, como os de cima, pelo mesmo motivo
+// (referência estável entre renders). No gospel, só o ramo "presente" vê o
+// chip: o louvor tem passo de ocasião próprio (`ocasiao_louvor`).
+const QUIZ_FLOW_PT_NATAL = comNatal(QUIZ_FLOW_PT, "pt");
+const QUIZ_FLOW_EN_NATAL = comNatal(QUIZ_FLOW_EN, "en");
+const QUIZ_FLOW_ES_NATAL = comNatal(QUIZ_FLOW_ES, "es");
+const QUIZ_FLOW_GOSPEL_NATAL = comGospel(QUIZ_FLOW_PT_NATAL);
+const QUIZ_FLOW_GOSPEL_EN_NATAL = comGospel(QUIZ_FLOW_EN_NATAL, "en");
+
+/**
+ * `agora` existe pro teste da janela de Natal; a tela nunca passa.
+ */
+export function quizFlow(locale: Locale, tema?: Tema | null, agora: Date = new Date()): FlowStep[] {
+  const natal = natalNaJanela(agora);
+  if (locale === "pt" && tema === "gospel") return natal ? QUIZ_FLOW_GOSPEL_NATAL : QUIZ_FLOW_GOSPEL;
+  if (locale === "en" && tema === "gospel") return natal ? QUIZ_FLOW_GOSPEL_EN_NATAL : QUIZ_FLOW_GOSPEL_EN;
+  if (locale === "en") return natal ? QUIZ_FLOW_EN_NATAL : QUIZ_FLOW_EN;
+  if (locale !== "es") return natal ? QUIZ_FLOW_PT_NATAL : QUIZ_FLOW_PT;
   // O MERCADO decide a redação, do mesmo jeito que já decide o prompt da letra
   // (`systemDaLetra`), os gêneros (`generos`) e o exemplo da abertura. Este era
   // o quarto lugar, e era o único que tinha ficado de fora.
-  return ehArgentina() ? comVoseo(QUIZ_FLOW_ES) : QUIZ_FLOW_ES;
+  const es = natal ? QUIZ_FLOW_ES_NATAL : QUIZ_FLOW_ES;
+  return ehArgentina() ? comVoseo(es) : es;
 }
 
 /** A pulagem do fluxo: a do gospel troca os passos do louvor pelos de presente. */

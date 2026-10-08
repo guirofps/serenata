@@ -132,6 +132,9 @@ export const OCASIAO_EN: Record<string, string> = {
   formatura: "graduation",
   soporque: "just because",
   outro: "a special moment",
+  // Seasonal (`natal.ts`): the chip only shows Nov 15 to Dec 31, the value is
+  // accepted all year. Faith only when the person brings it.
+  natal: "Christmas (a Christmas gift, with the warmth of the holidays and family; religious references only if the story or the request brings them)",
   // The worship-song occasions (Christian door, `quiz-flow-gospel.ts`).
   gratidao: "a worship song of gratitude",
   testemunho: "a testimony of what God did",
