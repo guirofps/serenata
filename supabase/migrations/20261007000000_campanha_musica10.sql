@@ -33,7 +33,16 @@ alter table public.campanha_envios enable row level security;
 -- `language sql` e SEM ponto e vírgula dentro do corpo, de propósito: o SQL
 -- Editor do Supabase parte o texto nos `;` e quebrava o corpo de uma versão
 -- plpgsql (07/10). Devolve quantas linhas entraram na fila.
-create or replace function public.montar_campanha(p_campanha text)
+--
+-- `p_desde`/`p_ate` montam a fila EM PEDAÇOS: a base inteira de uma vez passa
+-- do tempo do SQL Editor. Rodar do período mais NOVO pro mais antigo: o
+-- `on conflict do nothing` guarda a primeira linha de cada e-mail, que assim
+-- é a do quiz mais recente.
+create or replace function public.montar_campanha(
+  p_campanha text,
+  p_desde timestamptz default '-infinity',
+  p_ate timestamptz default 'infinity'
+)
 returns integer
 language sql
 security definer
@@ -52,6 +61,8 @@ as $$
       coalesce(q.respostas->>'ocasiao', '') as ocasiao
     from quiz_responses q
     where q.email is not null
+      and q.created_at >= p_desde
+      and q.created_at < p_ate
       and coalesce(q.locale, 'pt') = 'pt'
       -- Endereço de verdade, a mesma regra de `emailPlausivel` (email-limpo.ts):
       -- a base tem "e-mail" de ~3 mil caracteres, que nem cabe no índice.
@@ -83,7 +94,7 @@ as $$
   )
   select count(*)::integer from inseridos
 $$;
-revoke all on function public.montar_campanha(text) from public, anon, authenticated;
+revoke all on function public.montar_campanha(text, timestamptz, timestamptz) from public, anon, authenticated;
 
 -- O FREIO: dos enviados desde `p_desde`, quantos voltaram (bounce depois do
 -- envio) e quantos reclamaram (descadastro por 'complaint' depois do envio).
