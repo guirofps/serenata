@@ -64,6 +64,15 @@ const DA_BALLAD = [
   // O vídeo-presente, vendido pelo Stripe no editor desde 30/09: o render na
   // Lambda e o e-mail "your video is ready". Precisa das REMOTION_* no projeto.
   renderizarVideo,
+  // A rede embaixo do render (08/10): vídeo PAGO que falhou (cota da Lambda,
+  // foto que não carregou) volta pra fila até 3 vezes em 72h, e o que ficou
+  // `aguardando` sem render é pedido de novo. Faltava aqui desde 30/09: na
+  // Ballad, render falho de quem pagou no Stripe ficava sem entrega até
+  // alguém ler o alerta. Os passos de `aguardando_fotos` (lembrete em
+  // português e geração aos 3 dias) não acham nada lá: essa linha só nasce
+  // do bump do checkout brasileiro (`liberarVideoDoBump`); o vídeo do Stripe
+  // nasce `aguardando` (`creditarUpsell`, padrão da tabela).
+  videoPendente,
   // Pós-compra em inglês (30/09): o lembrete de montar a página (quem pagou e
   // não mexeu) e o "guarde seus links" (quem montou), com a copy `en`.
   lembrarPresente,

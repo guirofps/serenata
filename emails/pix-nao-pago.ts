@@ -51,6 +51,17 @@ const COPY: Record<
      */
     botaoSemCodigo: string;
     rodapeSemCodigo: string;
+    /**
+     * Quem tentou no CARTÃO (08/10).
+     *
+     * Desde 26/09 o cartão do Asaas também deixa pedido `pendente` (análise,
+     * confirmação do banco), e o job manda pra todo pendente. Este e-mail
+     * dizia "você chegou até o PIX" pra quem nunca abriu PIX nenhum. O botão e
+     * o rodapé são os de "sem código": o link volta pra música dela, onde ela
+     * escolhe PIX ou cartão de novo.
+     */
+    assuntoCartao: (n: string) => string;
+    corpoCartao: string;
     rodape: string;
   }
 > = {
@@ -72,6 +83,9 @@ const COPY: Record<
     botaoSemCodigo: "CONCLUIR O PAGAMENTO →",
     rodapeSemCodigo:
       "A sua música continua guardada.<br>É só concluir o pagamento na página, por PIX ou cartão.",
+    assuntoCartao: (n) => `A música de ${n} ficou pronta e a compra não foi concluída`,
+    corpoCartao:
+      "Vi que você tentou pagar no cartão e a compra não chegou a ser concluída. Acontece: o banco pede uma confirmação, o cartão recusa sem explicar, alguém chama. Nada se perdeu. A música ficou gravada e é a mesma que você vai receber.",
     rodape: "Serenata · uma música feita da história de quem você ama",
   },
   es: {
@@ -86,13 +100,20 @@ const COPY: Record<
     botaoSemCodigo: "COMPLETAR EL PAGO →",
     rodapeSemCodigo:
       "Tu canción sigue guardada.<br>Solo falta completar el pago en la página.",
+    assuntoCartao: (n) => `La canción de ${n} está lista y la compra no se completó`,
+    corpoCartao:
+      "Vi que intentaste pagar con tarjeta y la compra no alcanzó a completarse. Pasa: el banco pide una confirmación, la tarjeta se rechaza sin explicar, alguien te llama. No se perdió nada. La canción quedó grabada y es la misma que vas a recibir.",
     rodape: "Serenata · una canción hecha de la historia de quien vos querés",
   },
 };
 
+/** Como ela tentou pagar. Ver `meioDoPendente` em `src/lib/pix-nao-pago-regras.ts`. */
+export type MeioTentado = "pix" | "cartao";
+
 /** O assunto, no idioma da venda. */
-export function assuntoPixNaoPago(nome: string, locale: IdiomaEmail = "pt") {
-  return COPY[locale].assunto(nome);
+export function assuntoPixNaoPago(nome: string, locale: IdiomaEmail = "pt", meio: MeioTentado = "pix") {
+  const C = COPY[locale] ?? COPY.pt;
+  return meio === "cartao" ? C.assuntoCartao(nome) : C.assunto(nome);
 }
 
 export function emailPixNaoPago(args: {
@@ -102,11 +123,15 @@ export function emailPixNaoPago(args: {
   /** O código copia-e-cola do PIX dela. Ausente em pedido antigo sem URL. */
   codigo?: string | null;
   locale?: IdiomaEmail;
+  /** Cartão: outro texto, e nunca código (não existe código de cartão). */
+  meio?: MeioTentado;
 }): string {
   const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
-  const { nome, titulo, linkCheckout, codigo } = args;
+  const cartao = args.meio === "cartao";
+  const { nome, titulo, linkCheckout } = args;
+  const codigo = cartao ? null : args.codigo;
   return `<!DOCTYPE html>
-<html lang="${args.locale === "es" ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>
+<html lang="${args.locale === "es" ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${cartao ? C.assuntoCartao(nome) : C.assunto(nome)}</title></head>
 <body style="margin:0;padding:0;background-color:#f2e9dc;font-family:Georgia,'Times New Roman',serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2e9dc;padding:40px 16px;">
     <tr><td align="center">
@@ -125,7 +150,7 @@ export function emailPixNaoPago(args: {
         </td></tr>
 
         <tr><td style="padding:22px 36px 4px;color:rgba(42,21,24,0.75);font-size:15px;line-height:1.7;">
-          ${C.corpo}
+          ${cartao ? C.corpoCartao : C.corpo}
         </td></tr>
 
         <tr><td align="center" style="padding:26px 36px 8px;">

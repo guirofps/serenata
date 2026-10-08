@@ -26,6 +26,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { MARCA_ATIVA, remetenteEDaMarca } from "../../src/lib/marca-identidade.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
+import { decidirBloqueio } from "../../src/lib/bounce-regras.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -241,9 +242,11 @@ export default async function handler(req: Req, res: Res) {
   // Insistir num endereço morto é o que estraga a reputação do domínio, e a
   // reputação é o que decide se a ENTREGA da música cai na caixa de entrada.
   //
-  // Transient bloqueia igual: dos 55 bounces medidos, 48 vieram Transient e
-  // nenhum desses endereços voltou a receber depois. "Temporário" aqui é o
-  // Gmail sendo educado.
+  // Transient bloqueava igual até 08/10 (48 dos 55 bounces medidos eram
+  // Transient e nenhum voltou a receber). Agora o temporário bloqueia na
+  // SEGUNDA vez, não na primeira: um comprador com a caixa cheia num dia
+  // ruim perdia letra, recuperação e magic link pra sempre. Permanent segue
+  // bloqueando na hora. A regra mora em `src/lib/bounce-regras.ts`.
   if (tipo === "email.bounced" && para) {
     try {
       const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -251,12 +254,20 @@ export default async function handler(req: Req, res: Res) {
       if (url && key) {
         const sb = createClient(url, key, { auth: { persistSession: false } });
         const alvo = para.toLowerCase();
-        const { data: ja } = await sb
-          .from("emails_mortos").select("vezes").eq("email", alvo).maybeSingle();
+        const { data: ja, error: erroLeitura } = await sb
+          .from("emails_mortos").select("vezes, liberado_em").eq("email", alvo).maybeSingle();
+        const decisao = decidirBloqueio({
+          tipo: d.bounce?.type ?? null,
+          anterior: (ja as { vezes?: number | null; liberado_em?: string | null } | null) ?? null,
+          leituraFalhou: !!erroLeitura,
+        });
+        const agora = new Date().toISOString();
         await sb.from("emails_mortos").upsert(
           {
             email: alvo,
-            motivo: "bounce",
+            // `bounce_temporario` = registrado e AINDA NÃO bloqueia. O
+            // atendimento lê esta coluna pra saber qual dos dois é.
+            motivo: decisao.bloquear ? "bounce" : "bounce_temporario",
             tipo: d.bounce?.type ?? null,
             // O MOTIVO, não só o tipo: é o que diz se é caixa cheia, endereço
             // inexistente ou recusa por reputação. Cortado: mensagem de
@@ -264,11 +275,17 @@ export default async function handler(req: Req, res: Res) {
             detalhe:
               [d.bounce?.subType, d.bounce?.message].filter(Boolean).join(": ").slice(0, 400) || null,
             assunto: d.subject ?? null,
-            vezes: (ja?.vezes ?? 0) + 1,
-            ultimo_em: new Date().toISOString(),
-            // Bounce novo reabre o bloqueio: se o atendimento liberou e voltou
-            // a voltar, o endereço continua morto.
-            liberado_em: null,
+            vezes: decisao.vezes,
+            ultimo_em: agora,
+            // Bloqueio = `liberado_em` nulo, que é o que as leituras conferem
+            // (`emails-mortos.ts`, `mandarLetra`, a recuperação, o magic
+            // link). `volteCriar` e `ocasiaoCalendario`, que são oferta,
+            // travam por qualquer linha: lá o temporário já segura, e tudo
+            // bem. Bounce novo reabre o bloqueio: se o atendimento
+            // liberou e voltou a voltar, o endereço continua morto. O
+            // temporário da primeira vez nasce "liberado": fica registrado e
+            // a próxima devolução trava.
+            liberado_em: decisao.bloquear ? null : agora,
           },
           { onConflict: "email" },
         );

@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { assinaturaDescadastro } from "../inngest/lib/descadastro.js";
 import { segredoConfere } from "./lib/segredo.js";
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+import { paginaConfirmarDescadastro, paginaDescadastrado } from "../src/lib/descadastro-pagina.js";
 
 // O "CANCELAR INSCRIÇÃO" do Outlook/Gmail (List-Unsubscribe, RFC 8058).
 //
@@ -24,15 +26,10 @@ type Res = {
 };
 
 const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
-const escapar = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-function pagina(corpo: string): string {
-  return (
-    `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Serenata</title></head>` +
-    `<body style="margin:0;background:#f2e9dc;font-family:Georgia,serif;color:#2a1518;display:grid;place-items:center;min-height:100vh;padding:24px;text-align:center">` +
-    `<div style="max-width:420px"><p style="letter-spacing:3px;color:#7d2b3a">SERENATA</p>${corpo}</div></body></html>`
-  );
-}
+// A página veste a marca do deploy (08/10): a Ballad manda o mesmo
+// cabeçalho, e até aqui o americano caía numa página "SERENATA" em
+// português. Ver `src/lib/descadastro-pagina.ts`.
 
 export default async function handler(req: Req, res: Res) {
   if (req.method !== "POST" && req.method !== "GET") return res.status(405).json({ erro: "método" });
@@ -46,25 +43,20 @@ export default async function handler(req: Req, res: Res) {
 
   if (req.method === "GET") {
     const acao = `/api/descadastro?e=${encodeURIComponent(email)}&t=${encodeURIComponent(t)}`;
-    return res.status(200).send(
-      pagina(
-        `<h1 style="font-weight:normal;font-size:23px">Parar de receber os nossos e-mails de novidades?</h1>` +
-          `<p style="color:rgba(42,21,24,0.6);font-family:Helvetica,Arial,sans-serif;font-size:14px">${escapar(email)}</p>` +
-          `<form method="POST" action="${escapar(acao)}"><button style="margin-top:14px;background:#7d2b3a;color:#faf5ee;border:0;border-radius:999px;padding:14px 28px;font-size:15px;font-family:Helvetica,Arial,sans-serif;font-weight:bold;cursor:pointer">Sim, não quero mais receber</button></form>`,
-      ),
-    );
+    return res.status(200).send(paginaConfirmarDescadastro(MARCA_ATIVA, email, acao));
   }
 
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (url && key) {
-    const sb = createClient(url, key, { auth: { persistSession: false } });
-    await sb.from("descadastros").upsert({ email, motivo: "list-unsubscribe" }, { onConflict: "email" });
+  // O "pronto" só depois de gravado (08/10). Antes a página dizia que a
+  // pessoa saiu da lista mesmo com o banco fora, e ela continuava recebendo.
+  // Erro aqui devolve 500, e o provedor do botão de um clique tenta de novo.
+  if (!url || !key) return res.status(500).json({ erro: "indisponível" });
+  const sb = createClient(url, key, { auth: { persistSession: false } });
+  const { error } = await sb.from("descadastros").upsert({ email, motivo: "list-unsubscribe" }, { onConflict: "email" });
+  if (error) {
+    console.error("[descadastro] gravação falhou:", error.message);
+    return res.status(500).json({ erro: "indisponível" });
   }
-  return res.status(200).send(
-    pagina(
-      `<h1 style="font-weight:normal;font-size:24px">Pronto, você não recebe mais estes e-mails.</h1>` +
-        `<p style="color:rgba(42,21,24,0.6);font-family:Helvetica,Arial,sans-serif;font-size:14px">Os e-mails da música que você comprou continuam chegando normalmente.</p>`,
-    ),
-  );
+  return res.status(200).send(paginaDescadastrado(MARCA_ATIVA));
 }
