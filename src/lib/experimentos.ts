@@ -323,6 +323,22 @@ export const EXPERIMENTOS: Experimento[] = [
     ativo: false,
     nota: "BALLAD, 02/10. A abertura do /criar: 4% das visitas pagas passavam (Serenata 43-53%). A = como era. B = pula a abertura e cai na 1a pergunta. C = abertura com o preço às claras, botão grande pra ouvir o exemplo, CTA sem FREE. Ler por quem RESPONDEU a 1a pergunta (quiz_step q>=2), letra e venda por braço; 'passou da abertura' não compara, no B todo mundo passa.",
   },
+  {
+    // SÓ PT. Ver `VideoPresenteEditor.tsx` e `video-ocasiao.ts`.
+    id: "video_fotos_ja",
+    variantes: ["A", "B"],
+    peso: [1, 1],
+    ativo: false,
+    nota: "08/10. Vídeo-presente no editor. A = como era. B = a 1a foto que o comprador sobe na visita traz a página até o vídeo (uma vez por presente) e a prévia toca sozinha, muda, com as fotos e a música dele; título do bloco pela ocasião do quiz (aniversário: status do WhatsApp). Mesmo preço, mesma folha. Ler por VÍDEO VENDIDO POR COMPRADOR EXPOSTO (video_fotos_ja_exposto -> video_presente_pago / pedido up:video), não por clique.",
+  },
+  {
+    // SÓ PT. Ver `CartaoOutraMusica24h.tsx` e `janela-outra-musica.ts`.
+    id: "outra_musica_24h",
+    variantes: ["A", "B"],
+    peso: [1, 1],
+    ativo: false,
+    nota: "08/10. Segunda música logo depois da compra. A = como era. B = cartão 'Faça outra pra mais alguém' (pacote extra de R$ 28, mesma folha do atalho) na /obrigado e no editor, por 24h desde o pagamento; o prazo é do CARTÃO, o preço não muda. Ler por RECEITA DE EXTRA EM 24H POR COMPRADOR EXPOSTO (outra_musica_24h_exposto -> pedido up:extra pago em 24h), com guarda: editor aberto e vídeo vendido não podem cair no B.",
+  },
 ];
 
 /**

@@ -12,6 +12,8 @@ import { FolhaStripeVideo } from "@/components/presente/FolhaStripeVideo";
 import { precoVideoUsdTexto } from "@/lib/stripe-upsell";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { MARCA } from "@/lib/marca";
+import { useBraco, useContextoPosCompra } from "@/lib/use-pos-compra";
+import { EXP_VIDEO_FOTOS_JA, linhaDoVideoPorOcasiao } from "@/lib/video-ocasiao";
 
 // O VÍDEO-PRESENTE, dentro da montagem da página.
 //
@@ -147,6 +149,27 @@ export function VideoPresenteEditor({
   const caixa = useRef<HTMLDivElement>(null);
   const t = TEXTOS[locale] ?? TEXTOS.pt;
 
+  // ── TESTE `video_fotos_ja` (08/10) ────────────────────────────
+  //
+  // A = como era: a prévia liga quando o bloco chega perto da tela, e quem
+  // sobe a foto lá em cima só descobre o vídeo se rolar até ele.
+  // B = a primeira foto que ela sobe NESTA visita traz o vídeo até ela: a
+  // prévia carrega, a página rola até o player (UMA vez por presente, guardado
+  // no navegador) e ele toca sozinho, sem som, com as fotos e a música DELA
+  // (o autoplay mudo e o "toque pra ouvir" são os do `PreviaVideo`). O título
+  // do bloco fala do uso que combina com a ocasião do quiz
+  // (`linhaDoVideoPorOcasiao`). Compra, preço e folha: os mesmos.
+  //
+  // Só no funil pt: é o único onde a oferta do vídeo é este bloco em real.
+  const bracoVideo = useBraco(EXP_VIDEO_FOTOS_JA, locale === "pt");
+  const fotosJa = bracoVideo === "B";
+  const ctxCompra = useContextoPosCompra(tokenEdicao, fotosJa);
+  const linhaOcasiao = fotosJa && ctxCompra ? linhaDoVideoPorOcasiao(ctxCompra) : null;
+  // Leitura por braço nos eventos que já existiam. Fora do pt, nada muda.
+  const marcaBraco = bracoVideo && locale === "pt" ? { exp_video_fotos_ja: bracoVideo } : {};
+  const fotosAoAbrir = useRef<number | null>(null);
+  const previaCaixa = useRef<HTMLDivElement>(null);
+
   const atualizar = useCallback(async () => {
     try {
       const e = await videoDoEditor({ data: { tokenEdicao } });
@@ -203,6 +226,44 @@ export function VideoPresenteEditor({
   // Comprou o vídeo no checkout, antes das fotos: a prévia também toca, pra
   // ela conferir com as fotos dela antes de mandar gerar.
   const esperandoFotos = estado?.status === "aguardando_fotos" && !pagou;
+
+  // Quantas fotos ela já tinha quando o bloco apareceu. "Subiu agora" é ter
+  // MAIS que isso; quem já chega com fotos não é arrastado pela página.
+  useEffect(() => {
+    if (estado && fotosAoAbrir.current === null) fotosAoAbrir.current = fotos.length;
+  }, [estado, fotos.length]);
+
+  // A EXPOSIÇÃO do teste, nos dois braços: oferta na tela e pelo menos uma
+  // foto, que é a condição em que o B age. Denominador da leitura.
+  const temFoto = fotos.length > 0;
+  useEffect(() => {
+    if (!bracoVideo || locale !== "pt" || !mostraOferta || !temFoto) return;
+    void trackEventOnce("video_fotos_ja_exposto", `video_fotos_ja_exposto:${tokenEdicao}`, {
+      exp_video_fotos_ja: bracoVideo,
+    });
+  }, [bracoVideo, locale, mostraOferta, temFoto, tokenEdicao]);
+
+  // O B: subiu a primeira foto desta visita, o vídeo vem até ela.
+  useEffect(() => {
+    if (!fotosJa || !mostraOferta || subindoFotos) return;
+    const antes = fotosAoAbrir.current;
+    if (antes === null || fotos.length === 0 || fotos.length <= antes) return;
+    if (jaRolouAteOVideo(tokenEdicao)) return;
+    // Já carrega o Remotion e o áudio enquanto a foto nova aparece.
+    setPerto(true);
+    const id = setTimeout(() => {
+      if (jaRolouAteOVideo(tokenEdicao)) return;
+      marcarRolouAteOVideo(tokenEdicao);
+      (previaCaixa.current ?? caixa.current)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      void trackEventOnce("video_fotos_ja_rolou", `video_fotos_ja_rolou:${tokenEdicao}`, {
+        exp_video_fotos_ja: "B",
+        fotos: fotos.length,
+        ocasiao: ctxCompra?.ocasiao ?? null,
+        com_frase_da_ocasiao: Boolean(linhaOcasiao),
+      });
+    }, 700);
+    return () => clearTimeout(id);
+  }, [fotosJa, mostraOferta, subindoFotos, fotos.length, tokenEdicao, ctxCompra, linhaOcasiao]);
   useEffect(() => {
     if (!(mostraOferta || esperandoFotos) || perto || !caixa.current) return;
     const obs = new IntersectionObserver(
@@ -453,13 +514,17 @@ export function VideoPresenteEditor({
       style={{ scrollMarginTop: "5rem" }}
     >
       <h2 className="flex items-center gap-2 font-medium" style={{ fontSize: "var(--t-lg)" }}>
-        <Film className="h-5 w-5 text-[var(--acento)]" /> {t.titulo}
+        <Film className="h-5 w-5 shrink-0 text-[var(--acento)]" />{" "}
+        {/* B: a frase da ocasião só com foto, quando a prévia já é dela. */}
+        {!semFoto && linhaOcasiao ? linhaOcasiao : t.titulo}
       </h2>
       <p className="mt-1 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
         {semFoto ? t.semFoto : t.sub}
       </p>
 
-      <div className="mt-5">{previa(false)}</div>
+      <div className="mt-5" ref={previaCaixa}>
+        {previa(false)}
+      </div>
 
       {semFoto ? (
         botaoFotos
@@ -468,7 +533,7 @@ export function VideoPresenteEditor({
           <button
             type="button"
             onClick={() => {
-              trackEvent("credito_oferta_click", { oferta: "video", origem: "editor_previa" });
+              trackEvent("credito_oferta_click", { oferta: "video", origem: "editor_previa", ...marcaBraco });
               setFolhaAberta(true);
             }}
             className="mx-auto mt-5 flex h-12 w-full max-w-[300px] items-center justify-center gap-2 rounded-full cta px-6 font-medium disabled:opacity-50"
@@ -507,7 +572,7 @@ export function VideoPresenteEditor({
           aoPagar={() => {
             setFolhaAberta(false);
             setPagou(true);
-            trackEvent("video_presente_pago", { origem: "editor" });
+            trackEvent("video_presente_pago", { origem: "editor", ...marcaBraco });
             setTimeout(() => void atualizar(), 3000);
           }}
           aoFechar={() => setFolhaAberta(false)}
@@ -515,4 +580,28 @@ export function VideoPresenteEditor({
       )}
     </section>
   );
+}
+
+// "Já rolei até o vídeo pra este presente": UMA vez, nunca a cada foto nova
+// nem a cada visita. No navegador, porque é conveniência de tela; sem
+// storage (aba anônima) vale a trava da própria visita.
+const CHAVE_ROLOU = "mp_video_fotos_ja:";
+const rolouNestaVisita = new Set<string>();
+
+function jaRolouAteOVideo(tokenEdicao: string): boolean {
+  if (rolouNestaVisita.has(tokenEdicao)) return true;
+  try {
+    return localStorage.getItem(CHAVE_ROLOU + tokenEdicao) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function marcarRolouAteOVideo(tokenEdicao: string): void {
+  rolouNestaVisita.add(tokenEdicao);
+  try {
+    localStorage.setItem(CHAVE_ROLOU + tokenEdicao, "1");
+  } catch {
+    // sem storage: a trava da visita segura
+  }
 }
