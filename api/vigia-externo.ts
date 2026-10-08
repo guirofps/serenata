@@ -92,7 +92,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
     // TEM GENTE NO FUNIL? Letra escrita é prova de tráfego vivo, e é o que
     // separa "quebrou" de "são quatro da manhã".
-    const { count: letrasNovas } = await sb
+    const { count: letrasNovas, error: e1 } = await sb
       .from("musicas")
       .select("id", { count: "exact", head: true })
       .gte("created_at", desde)
@@ -100,19 +100,19 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
     // As que já tiveram tempo de virar música: é só a falta delas que conta
     // como orquestrador mudo (ver `MINUTOS_MATURA`).
-    const { count: letrasMaduras } = await sb
+    const { count: letrasMaduras, error: e2 } = await sb
       .from("musicas")
       .select("id", { count: "exact", head: true })
       .gte("created_at", desde)
       .lte("created_at", new Date(agora - MINUTOS_MATURA * 60000).toISOString())
       .not("letra", "is", null);
 
-    const { count: prontasNaJanela } = await sb
+    const { count: prontasNaJanela, error: e3 } = await sb
       .from("musicas")
       .select("id", { count: "exact", head: true })
       .gte("gerada_em", desde);
 
-    const { count: presas } = await sb
+    const { count: presas, error: e4 } = await sb
       .from("musicas")
       .select("id", { count: "exact", head: true })
       .in("status", ["aguardando", "gerando"])
@@ -133,7 +133,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     // É o sinal que pega a queda do orquestrador, e o único que não depende
     // de a fila engordar nem de algo falhar. Numa queda do Inngest não há
     // erro em lugar nenhum: só o relógio que para.
-    const { data: ultima } = await sb
+    const { data: ultima, error: e5 } = await sb
       .from("musicas")
       .select("gerada_em")
       .not("gerada_em", "is", null)
@@ -153,6 +153,32 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       letrasMaduras: letrasMaduras ?? 0,
     };
     const veredito = lerOsSinais(diagnostico);
+
+    // CONSULTA QUE FALHA NÃO PODE VIRAR "TUDO BEM" (08/10). Um erro aqui
+    // (o PostgREST corta em 8s, e `gerada_em` sem índice já bateu 6,8s) virava
+    // contagem 0 e relógio nulo, e o sinal do orquestrador mudo, o que nasceu
+    // da queda de 04/09, ficava em silêncio justamente quando o banco sofre.
+    const errosLeitura = [e1, e2, e3, e4, e5].filter(Boolean).map((e) => String(e?.message ?? e).slice(0, 160));
+    if (errosLeitura.length && process.env.RESEND_API_KEY) {
+      const chaveErro = `alerta-vigia-leitura:${new Date(agora).toISOString().slice(0, 13)}`;
+      let primeiraErro = true;
+      try {
+        const { data } = await sb.rpc("consumir_limite", { p_chave: chaveErro, p_janela_s: 3600, p_teto: 1 });
+        primeiraErro = data !== false;
+      } catch {
+        primeiraErro = true;
+      }
+      if (primeiraErro) {
+        await avisarDonos({
+          extras: PARA,
+          assunto: "⚠️ O vigia não conseguiu ler o banco",
+          html:
+            `<p>O vigia externo rodou, mas ${errosLeitura.length} das consultas de geração falharam. ` +
+            `Enquanto isso acontecer, ele não sabe dizer se a música está saindo.</p>` +
+            `<ul>${errosLeitura.map((m) => `<li><code>${m.replace(/</g, "&lt;")}</code></li>`).join("")}</ul>`,
+        });
+      }
+    }
 
     // ── QUEM JÁ PAGOU E ESTÁ SEM MÚSICA ──────────────────────────
     //

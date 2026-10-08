@@ -310,6 +310,22 @@ export const mandarLetra = inngest.createFunction(
         });
         if (error) {
           console.error("[letra] envio falhou:", p.email, error.message);
+          // ENDEREÇO QUE O RESEND RECUSA NÃO VOLTA PRA FILA (08/10). Sem isto,
+          // o mesmo endereço inválido era tentado a cada 5 min pra sempre (três
+          // deles ~200 vezes em 20h), ocupando vaga da rodada de quem tinha
+          // e-mail bom. Vai pra `emails_mortos`, que a fila já confere.
+          if (/invalid `?to`?|validation/i.test(`${error.name ?? ""} ${error.message ?? ""}`)) {
+            await sb.from("emails_mortos").upsert(
+              {
+                email: p.email.toLowerCase(),
+                motivo: "invalido",
+                detalhe: String(error.message ?? "").slice(0, 400),
+                assunto: "letra_pronta",
+                ultimo_em: new Date().toISOString(),
+              },
+              { onConflict: "email" },
+            );
+          }
           continue;
         }
         await registrarEnvio(sb, {

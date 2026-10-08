@@ -13,6 +13,23 @@ type StoryQuestion = Extract<QuestionStep, { input: "story" }>;
 // Validação anti-lixo unificada (inspirada no LoveTune): a MESMA função decide
 // a mensagem sob o campo e se o botão libera — sem isso, a mensagem "Perfeito"
 // contradizia o botão travado. Devolve o motivo específico pra mostrar.
+/**
+ * O texto sem os começos de frase dos gatilhos. `{nome}` casa com o nome que
+ * foi escrito no lugar (até 40 caracteres), já que a validação não o conhece.
+ */
+export function semGatilhos(texto: string, gatilhos?: { inicio: string }[]): string {
+  let resto = texto;
+  for (const g of gatilhos ?? []) {
+    const molde = g.inicio
+      .trim()
+      .split("{nome}")
+      .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .join(".{1,40}?");
+    if (molde) resto = resto.replace(new RegExp(molde, "giu"), " ");
+  }
+  return resto.trim();
+}
+
 export function validateStory(
   step: StoryQuestion,
   value?: string,
@@ -29,6 +46,16 @@ export function validateStory(
   const faltam = step.minChars - t.length;
   if (faltam > 0)
     return { ok: false, message: T.faltamChars(faltam) };
+
+  // OS COMEÇOS DE FRASE NÃO SÃO HISTÓRIA (08/10). Dois ou três toques nos
+  // gatilhos já passam dos 60 caracteres ("A gente se conheceu / O que eu
+  // aprendi com Ana foi") sem nada escrito, o botão liberava, e o modelo se
+  // recusava a fazer refrão de história vazia: 333 erros de coautoria em 72h,
+  // com gente tentando 2-3 vezes. A régua de tamanho continua a mesma; o que
+  // muda é exigir 3 palavras ESCRITAS PELA PESSOA além dos começos.
+  const proprio = semGatilhos(t, step.triggers);
+  if (((proprio.match(/[\p{L}]{2,}/gu) ?? []).length) < 3)
+    return { ok: false, message: T.completeAFrase };
 
   // Palavras de verdade = sequências de 2+ letras (não dígitos/símbolos).
   const palavrasReais = t.match(/[\p{L}]{2,}/gu) ?? [];

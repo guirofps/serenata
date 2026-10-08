@@ -52,6 +52,7 @@ const PT = {
   duasLinhas: "Duas ou três linhas já bastam",
   perfeito: "Perfeito ✓",
   frasesDeVerdade: "Escreva com frases de verdade, pelo menos 3 palavras.",
+  completeAFrase: "Agora completa a frase com as suas palavras.",
   palavrasReais: "Use palavras reais, evite números e símbolos soltos.",
   naoRepita: "Evite repetir o mesmo caractere várias vezes seguidas.",
   preferoFalar: "Prefiro contar falando",
@@ -249,6 +250,7 @@ const ES: Textos = {
   duasLinhas: "Con dos o tres líneas basta",
   perfeito: "Perfecto ✓",
   frasesDeVerdade: "Escribe con frases de verdad, por lo menos 3 palabras.",
+  completeAFrase: "Ahora completa la frase con tus palabras.",
   palavrasReais: "Usa palabras reales, evita números y símbolos sueltos.",
   naoRepita: "Evita repetir el mismo carácter varias veces seguidas.",
   preferoFalar: "Mejor lo cuento hablando",
@@ -381,6 +383,7 @@ const ES: Textos = {
 const AR: Partial<Textos> = {
   quemVoceAma: "quien vos querés",
   frasesDeVerdade: "Escribí con frases de verdad, por lo menos 3 palabras.",
+  completeAFrase: "Ahora completá la frase con tus palabras.",
   avisoComposto: (primeiro: string) =>
     `El nombre y el apellido se van a cantar completos. Si le decís ${primeiro}, queda mejor en la canción.`,
   refraoSub:
@@ -432,6 +435,7 @@ const EN: Textos = {
   duasLinhas: "Two or three lines are plenty",
   perfeito: "Perfect ✓",
   frasesDeVerdade: "Write in real sentences, at least 3 words.",
+  completeAFrase: "Now finish the sentence in your own words.",
   palavrasReais: "Use real words, avoid stray numbers and symbols.",
   naoRepita: "Avoid repeating the same character over and over.",
   preferoFalar: "I'd rather say it out loud",

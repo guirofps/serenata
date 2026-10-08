@@ -23,6 +23,17 @@ export function semPontoNoFim(email: string): string {
  * "@gmail.com66996534277" (telefone colado no fim), e esse comprador pagou e
  * não recebeu a música. TLD com dígito não existe.
  */
+//
+// 08/10: o Resend recusava ("Invalid `to` field") endereços que passavam aqui,
+// e cada um era tentado de novo a cada 5 min pela `mandarLetra` (três deles,
+// ~200 vezes cada em 20h, ocupando vagas da rodada de quem tinha e-mail bom):
+// ponto no começo ou no fim do nome ("gmail.@hotmail.com"), dois pontos
+// seguidos ("brendaperes..24@") e acento ("carlãojose29@"), que nenhum
+// provedor grande aceita. O nome agora é ASCII, sem ponto nas pontas nem
+// repetido; o domínio, letras, números e hífen.
+const FORMATO =
+  /^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.([a-z]{2,24}|xn--[a-z0-9-]{2,59})$/i;
+
 export function emailPlausivel(email: string): boolean {
-  return /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.([a-z]{2,24}|xn--[a-z0-9-]{2,59})$/i.test(email.trim());
+  return FORMATO.test(email.trim());
 }

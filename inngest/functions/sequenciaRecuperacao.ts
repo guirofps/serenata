@@ -200,18 +200,27 @@ async function quemEngajou(
     const ids = [...doEmail.keys()];
     if (!ids.length) return engajou;
 
-    const { data: eventos, error: e2 } = await sb
-      .from("funnel_events")
-      .select("event_data")
-      .in("event_name", ["email_opened", "email_clicked"])
-      .in("event_data->>email_id", ids);
-    if (e2) {
-      console.error("[escada] consulta de engajamento falhou:", e2.message);
-      return engajou;
-    }
-    for (const ev of (eventos ?? []) as Array<{ event_data?: { email_id?: string } }>) {
-      const q = doEmail.get(ev.event_data?.email_id ?? "");
-      if (q) engajou.add(q);
+    // EM LOTES E COM JANELA (08/10). Centenas de ids num `.in` só passavam do
+    // tamanho de URL e voltavam "Bad Request" (16 vezes em 05-06/10), e o
+    // fallback fechado deixava quem ABRIU o e-mail sem o degrau de desconto.
+    // A janela de 45 dias é a mesma da escada: `funnel_events` sem
+    // `created_at` é bug esperando acontecer (ver o incidente de 04/10).
+    const desde = new Date(Date.now() - 45 * 86400000).toISOString();
+    for (let i = 0; i < ids.length; i += 80) {
+      const { data: eventos, error: e2 } = await sb
+        .from("funnel_events")
+        .select("event_data")
+        .gte("created_at", desde)
+        .in("event_name", ["email_opened", "email_clicked"])
+        .in("event_data->>email_id", ids.slice(i, i + 80));
+      if (e2) {
+        console.error("[escada] consulta de engajamento falhou:", e2.message);
+        return engajou;
+      }
+      for (const ev of (eventos ?? []) as Array<{ event_data?: { email_id?: string } }>) {
+        const q = doEmail.get(ev.event_data?.email_id ?? "");
+        if (q) engajou.add(q);
+      }
     }
   } catch (err) {
     console.error("[escada] engajamento indisponivel:", err);
