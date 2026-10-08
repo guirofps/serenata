@@ -37,8 +37,15 @@
 
 import { chamarAsaas, asaasPagou } from "./asaas.js";
 import { semPontoNoFim } from "./email-limpo.js";
-import { ErroGateway, type CobrancaPix, type GatewayPix, type StatusCobranca } from "./gateway.js";
+import {
+  COBRANCA_JA_PAGA,
+  ErroGateway,
+  type CobrancaPix,
+  type GatewayPix,
+  type StatusCobranca,
+} from "./gateway.js";
 import { cpfValido, soDigitosCpf } from "./cpf.js";
+import { decidirCobrancaExistente, type DecisaoCobranca } from "./asaas-regras.js";
 
 type PagamentoAsaas = {
   id?: string;
@@ -69,7 +76,7 @@ function taxaDe(p: PagamentoAsaas): number | null {
 }
 
 /**
- * A cobrança que já existe pra esta referência, se existir.
+ * As cobranças que o Asaas já tem pra esta referência.
  *
  * ── ESTE É O CORAÇÃO DA IDEMPOTÊNCIA ─────────────────────────────
  *
@@ -77,22 +84,48 @@ function taxaDe(p: PagamentoAsaas): number | null {
  * novas a cada vez — e o pior caso não é bagunça no painel deles, é a pessoa
  * pagando duas vezes o mesmo pedido.
  *
- * A janela não é infinita: `PENDING` e `AWAITING_RISK_ANALYSIS` ainda dão pra
- * reaproveitar; `OVERDUE`, `REFUNDED` e afins não, e aí uma cobrança nova é o
- * certo. Uma já paga também volta daqui, e quem chama decide o que fazer (a
- * tela mostra o mesmo QR e o webhook já entregou).
+ * O que fazer com a lista (reaproveitar, recusar porque já foi paga, cancelar
+ * as que ficaram pra trás) é decidido em `decidirCobrancaExistente`, pura e
+ * testada (`asaas-regras.ts`).
+ *
+ * ── O QUE ESTAVA ERRADO ATÉ 08/10 ────────────────────────────────
+ *
+ * 1. `OVERDUE` era tratada como morta ("uma cobrança nova é o certo"), e a
+ *    vencida ficava viva no Asaas: PIX vencido lá CONTINUA PAGÁVEL. O quiz
+ *    bb9effb8… pagou a de 03/10 e, em 06/10, a de 01/10.
+ * 2. Uma cobrança JÁ PAGA voltava daqui como "reaproveitável", e o
+ *    `criar-pix` gravava `pendente` por cima do pedido pago. Agora é recusa
+ *    (`COBRANCA_JA_PAGA`), igual à Woovi.
  */
-async function cobrancaExistente(referencia: string): Promise<PagamentoAsaas | null> {
+async function cobrancasDaReferencia(referencia: string): Promise<PagamentoAsaas[]> {
   const r = await chamarAsaas<{ data?: PagamentoAsaas[] }>(
     `/payments?externalReference=${encodeURIComponent(referencia)}&limit=10`,
   );
-  const lista = r?.data ?? [];
-  if (!lista.length) return null;
-  const reaproveitavel = lista.find((p) => {
-    const s = String(p.status ?? "").toUpperCase();
-    return s === "PENDING" || s === "AWAITING_RISK_ANALYSIS" || asaasPagou(s);
+  return r?.data ?? [];
+}
+
+/**
+ * Apaga as cobranças que ficaram pra trás (`DELETE /payments/{id}`), sem
+ * nunca jogar.
+ *
+ * MELHOR ESFORÇO, de propósito: a pessoa está olhando a tela esperando o QR
+ * novo, e uma falha aqui não pode impedir a venda. Se o DELETE falhar, a
+ * próxima abertura da folha tenta de novo (a vencida continua na lista), e o
+ * webhook ainda tem a trava "um quiz, uma entrega" como última rede.
+ */
+async function cancelarSuperadas(ids: readonly string[]): Promise<void> {
+  if (!ids.length) return;
+  const r = await Promise.allSettled(
+    ids.map((id) => chamarAsaas(`/payments/${encodeURIComponent(id)}`, { method: "DELETE" })),
+  );
+  r.forEach((x, i) => {
+    if (x.status === "rejected") {
+      const msg = x.reason instanceof Error ? x.reason.message : String(x.reason);
+      console.warn(`[asaas-pix] não consegui cancelar a cobrança superada ${ids[i]}:`, msg);
+    } else {
+      console.log(`[asaas-pix] cobrança superada cancelada: ${ids[i]}`);
+    }
   });
-  return reaproveitavel ?? null;
 }
 
 /** O EMV, que vem numa chamada separada da criação. */
@@ -145,6 +178,96 @@ export function diaAsaasParaInstante(cru: string | null | undefined): string | n
   return Number.isNaN(Date.parse(s)) ? null : s;
 }
 
+/**
+ * O passo 2 em diante da criação: devolve a viva do mesmo valor, recusa se já
+ * foi paga, ou cria cliente e cobrança novos.
+ */
+async function criarOuReaproveitar(
+  args: Parameters<GatewayPix["criar"]>[0],
+  cpf: string,
+  decisao: DecisaoCobranca<PagamentoAsaas>,
+): Promise<CobrancaPix> {
+  if (decisao.tipo === "paga") {
+    // Já foi paga. Gerar outra seria cobrar duas vezes pela mesma coisa, e
+    // devolver esta como "reaproveitável" fazia o `criar-pix` gravar
+    // `pendente` por cima do pedido pago. Mesma recusa da Woovi.
+    throw new ErroGateway(COBRANCA_JA_PAGA, "asaas", false);
+  }
+  if (decisao.tipo === "reusar" && decisao.cobranca.id) {
+    const viva = decisao.cobranca;
+    const { payload, expiraEm } = await copiaECola(viva.id as string);
+    return {
+      gateway: "asaas",
+      idExterno: viva.id as string,
+      copiaECola: payload,
+      valorCentavos: Math.round(Number(viva.value ?? 0) * 100),
+      taxaCentavos: taxaDe(viva),
+      expiraEm,
+    };
+  }
+
+  // ── 2. O CLIENTE, QUE O ASAAS EXIGE ANTES DA COBRANÇA ────
+  //
+  // O E-MAIL É OPCIONAL PRO ASAAS, e não pode derrubar a venda. Em 26/09 uma
+  // pessoa tentou comprar três vezes com "...@hotmail.com." (ponto no fim):
+  // o Asaas respondia "O email informado é inválido.", o PIX não nascia, e
+  // desde que a Perfect Pay saiu do plano B ela não tinha pra onde ir. Quem
+  // avisa o comprador somos nós (`notificationDisabled`), então o e-mail lá
+  // é só cadastro: limpa o óbvio e, se ainda assim for recusado, vai sem.
+  const emailLimpo = args.email ? semPontoNoFim(args.email) || undefined : undefined;
+  const criarCliente = (comEmail: boolean) =>
+    chamarAsaas<{ id?: string }>("/customers", {
+      method: "POST",
+      body: JSON.stringify({
+        name: args.nome?.trim() || "Cliente Serenata",
+        cpfCnpj: cpf,
+        ...(comEmail && emailLimpo ? { email: emailLimpo } : {}),
+        // A chave de reuso é o CPF, não o e-mail: o mesmo CPF comprando de
+        // novo tem que cair no mesmo cliente, e e-mail a pessoa troca.
+        externalReference: cpf,
+        notificationDisabled: true, // quem fala com o comprador somos nós
+      }),
+    });
+  let cliente: { id?: string };
+  try {
+    cliente = await criarCliente(true);
+  } catch (err) {
+    if (!(err instanceof ErroGateway) || !/e-?mail/i.test(err.message) || !emailLimpo) throw err;
+    console.warn("[asaas-pix] e-mail recusado pelo Asaas, criando o cliente sem ele:", err.message);
+    cliente = await criarCliente(false);
+  }
+  if (!cliente?.id) throw new ErroGateway("asaas não devolveu id de cliente", "asaas", false);
+
+  // ── 3. A COBRANÇA ────────────────────────────────────────
+  //
+  // `dueDate` é hoje EM BRASÍLIA, e a distinção não é preciosismo: ver
+  // `hojeEmBrasilia`. Data futura faz o Asaas tratar como agendamento, e
+  // agendamento não tem QR.
+  const hoje = hojeEmBrasilia();
+  const p = await chamarAsaas<PagamentoAsaas>("/payments", {
+    method: "POST",
+    body: JSON.stringify({
+      customer: cliente.id,
+      billingType: "PIX",
+      value: args.valorCentavos / 100,
+      dueDate: hoje,
+      description: args.descricao.slice(0, 500),
+      externalReference: args.referencia,
+    }),
+  });
+  if (!p?.id) throw new ErroGateway("asaas não devolveu id de cobrança", "asaas", false);
+
+  const { payload, expiraEm } = await copiaECola(p.id);
+  return {
+    gateway: "asaas",
+    idExterno: p.id,
+    copiaECola: payload,
+    valorCentavos: Math.round(Number(p.value ?? args.valorCentavos / 100) * 100),
+    taxaCentavos: taxaDe(p),
+    expiraEm,
+  };
+}
+
 export const asaasPix: GatewayPix = {
   nome: "asaas",
   exigeCpf: true,
@@ -159,90 +282,26 @@ export const asaasPix: GatewayPix = {
     }
 
     // ── 1. JÁ EXISTE COBRANÇA PRA ESTA REFERÊNCIA? ───────────
-    const jaExiste = await cobrancaExistente(args.referencia);
-    if (jaExiste?.id) {
-      // TRAVA DE VALOR. Se a cobrança viva for de outro valor (o bump do
-      // quadro entrou ou saiu depois de gerada), reaproveitar mostraria R$ 38
-      // na tela em cima de um código que cobra R$ 62,90. Já aconteceu no
-      // primeiro PIX real do bump, com a Woovi.
-      const valorLa = Math.round(Number(jaExiste.value ?? 0) * 100);
-      if (valorLa === args.valorCentavos) {
-        const { payload, expiraEm } = await copiaECola(jaExiste.id);
-        return {
-          gateway: "asaas",
-          idExterno: jaExiste.id,
-          copiaECola: payload,
-          valorCentavos: valorLa,
-          taxaCentavos: taxaDe(jaExiste),
-          expiraEm,
-        };
-      }
-      // Valor diferente: a referência ganha sufixo e nasce uma cobrança nova,
-      // igual ao que a Woovi obriga a fazer. A antiga morre sozinha no
-      // vencimento.
-      args = { ...args, referencia: `${args.referencia}:v${args.valorCentavos}` };
-    }
-
-    // ── 2. O CLIENTE, QUE O ASAAS EXIGE ANTES DA COBRANÇA ────
     //
-    // O E-MAIL É OPCIONAL PRO ASAAS, e não pode derrubar a venda. Em 26/09 uma
-    // pessoa tentou comprar três vezes com "...@hotmail.com." (ponto no fim):
-    // o Asaas respondia "O email informado é inválido.", o PIX não nascia, e
-    // desde que a Perfect Pay saiu do plano B ela não tinha pra onde ir. Quem
-    // avisa o comprador somos nós (`notificationDisabled`), então o e-mail lá
-    // é só cadastro: limpa o óbvio e, se ainda assim for recusado, vai sem.
-    const emailLimpo = args.email ? semPontoNoFim(args.email) || undefined : undefined;
-    const criarCliente = (comEmail: boolean) =>
-      chamarAsaas<{ id?: string }>("/customers", {
-        method: "POST",
-        body: JSON.stringify({
-          name: args.nome?.trim() || "Cliente Serenata",
-          cpfCnpj: cpf,
-          ...(comEmail && emailLimpo ? { email: emailLimpo } : {}),
-          // A chave de reuso é o CPF, não o e-mail: o mesmo CPF comprando de
-          // novo tem que cair no mesmo cliente, e e-mail a pessoa troca.
-          externalReference: cpf,
-          notificationDisabled: true, // quem fala com o comprador somos nós
-        }),
-      });
-    let cliente: { id?: string };
+    // TRAVA DE VALOR: só se reaproveita a viva do MESMO valor. Se o bump do
+    // quadro entrou ou saiu depois de gerada, reaproveitar mostraria R$ 38 na
+    // tela em cima de um código que cobra R$ 62,90 (já aconteceu no primeiro
+    // PIX real do bump, com a Woovi).
+    //
+    // As superadas (vencida, viva de outro valor) são canceladas EM PARALELO
+    // com o resto, e esperadas só no fim: a pessoa não espera o DELETE pra ver
+    // o QR, e a função não termina com chamada pendurada (na Vercel ela
+    // congela depois de responder).
+    const decisao = decidirCobrancaExistente(
+      await cobrancasDaReferencia(args.referencia),
+      args.valorCentavos,
+    );
+    const cancelando = cancelarSuperadas(decisao.cancelar);
     try {
-      cliente = await criarCliente(true);
-    } catch (err) {
-      if (!(err instanceof ErroGateway) || !/e-?mail/i.test(err.message) || !emailLimpo) throw err;
-      console.warn("[asaas-pix] e-mail recusado pelo Asaas, criando o cliente sem ele:", err.message);
-      cliente = await criarCliente(false);
+      return await criarOuReaproveitar(args, cpf, decisao);
+    } finally {
+      await cancelando;
     }
-    if (!cliente?.id) throw new ErroGateway("asaas não devolveu id de cliente", "asaas", false);
-
-    // ── 3. A COBRANÇA ────────────────────────────────────────
-    //
-    // `dueDate` é hoje EM BRASÍLIA, e a distinção não é preciosismo: ver
-    // `hojeEmBrasilia`. Data futura faz o Asaas tratar como agendamento, e
-    // agendamento não tem QR.
-    const hoje = hojeEmBrasilia();
-    const p = await chamarAsaas<PagamentoAsaas>("/payments", {
-      method: "POST",
-      body: JSON.stringify({
-        customer: cliente.id,
-        billingType: "PIX",
-        value: args.valorCentavos / 100,
-        dueDate: hoje,
-        description: args.descricao.slice(0, 500),
-        externalReference: args.referencia,
-      }),
-    });
-    if (!p?.id) throw new ErroGateway("asaas não devolveu id de cobrança", "asaas", false);
-
-    const { payload, expiraEm } = await copiaECola(p.id);
-    return {
-      gateway: "asaas",
-      idExterno: p.id,
-      copiaECola: payload,
-      valorCentavos: Math.round(Number(p.value ?? args.valorCentavos / 100) * 100),
-      taxaCentavos: taxaDe(p),
-      expiraEm,
-    };
   },
 
   async consultar(idExterno): Promise<StatusCobranca> {
