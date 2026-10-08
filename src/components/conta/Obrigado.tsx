@@ -4,7 +4,9 @@ import { z } from "zod";
 import { conversaoCompra, transacaoGuardada } from "@/lib/google-ads";
 import { compraGa4 } from "@/lib/ga4";
 import { compraTiktok } from "@/lib/tiktok-pixel";
-import { meuPlano } from "@/lib/preco";
+import { meuPlano, meuPlanoCobravel } from "@/lib/preco";
+import { centavosComCupom } from "@/lib/cupom";
+import { valorDaCompra } from "@/lib/valor-conversao";
 import { useQuizStore } from "@/lib/quiz-store";
 import { buscarPresenteDaCompra, type PresenteDaCompra } from "@/lib/pos-compra";
 import { sessaoJaPagou, entrarNaConta } from "@/lib/coautoria";
@@ -259,11 +261,19 @@ export function Obrigado({
     // do checkout: quem veio pela recuperação foi cobrada no produto do
     // controle, então é o valor do controle que tem que ser reportado.
     //
-    // (Fica de fora, e é dívida conhecida: o DESCONTO do cupom em si. Quem
-    // pagou com SRN27 é reportada pelo cheio. São três vendas em 285 e-mails,
-    // e o número certo mora em `pedidos.valor_centavos`, no servidor — é de lá
-    // que a correção tem que vir, não de um parse do texto "R$ 28".)
-    const plano = meuPlano(locale, { temCupom: Boolean(useQuizStore.getState().cupom) });
+    // O VALOR COBRADO, não o da tela (08/10). Braço com peso 0 é cobrado como
+    // o controle, e MUSICA10/SRN27 descontam no servidor: o número certo é
+    // `pedidos.valor_centavos`, que a busca do presente devolve. A conta da
+    // tela fica só de reserva, e já sobre o braço COBRÁVEL com o cupom.
+    const cupom = useQuizStore.getState().cupom;
+    const reserva =
+      locale === "pt"
+        ? centavosComCupom(Math.round((Number(meuPlanoCobravel("pt").valor) || 0) * 100), cupom) / 100
+        : locale === "en"
+          ? Number(meuPlanoCobravel("en").valor) || 0
+          : // Espanhol: o link da Perfect Pay do braço da tela (o cupom é produto de lá).
+            meuPlano(locale, { temCupom: Boolean(cupom) }).valor;
+    const plano = { valor: valorDaCompra({ locale, pedido: presente, reserva }) };
     conversaoCompra({
       valor: plano.valor,
       moeda: locale === "pt" ? "BRL" : "USD",
@@ -353,10 +363,27 @@ export function Obrigado({
             titulo: null,
             nome: null,
             gerando: false,
+            valorCentavos: s.valorCentavos,
+            gateway: s.gateway,
           });
           setProcurando(false);
           trackEvent("obrigado_presente_achado", { via: "sessao" });
           return;
+        }
+        // TERCEIRO CAMINHO (08/10): a referência que a folha do PIX ou do
+        // cartão guardou nesta aba (`mp_tx`). É o que acha a compra feita pela
+        // `/pix/<ref>` ou pela `/oferta/<token>` num navegador sem a sessão do
+        // funil, que é o caso de quem abre o link do e-mail no celular.
+        const referencia = code ? undefined : transacaoGuardada();
+        if (referencia) {
+          const p = await buscarPresenteDaCompra({ data: { referencia } });
+          if (!vivo) return;
+          if (p) {
+            setPresente(p);
+            setProcurando(false);
+            trackEvent("obrigado_presente_achado", { via: "referencia" });
+            return;
+          }
         }
       } catch (err) {
         console.error("[obrigado] busca falhou:", err);

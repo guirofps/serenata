@@ -17,6 +17,7 @@ import { type Locale } from "@/lib/i18n";
 import { meuPlano, meuPlanoCobravel } from "@/lib/preco";
 import { PrecoCurto, PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
 import { descontoNaTela } from "@/lib/cupom";
+import { valorDoCheckout } from "@/lib/valor-conversao";
 import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
 import { varianteDe, EXP_PROVA_BLOCOS } from "@/lib/experimentos";
@@ -556,11 +557,21 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   // checkout" ficariam colados e a tela não serviria de medida.
   useEffect(() => {
     trackEventOnce("oferta_vista", "v1");
+    // O valor que ESTA pessoa pagaria (08/10): braço cobrável e cupom, a mesma
+    // conta da cobrança. `meuPlano` mandava R$ 54,90 de quem ficou grudado no
+    // braço E, que é cobrado R$ 38.
+    const valor = valorDoCheckout({
+      locale,
+      valorDaTela: meuPlano(locale, { temCupom: Boolean(cupom && descontado) }).valor,
+      valorCobravel: meuPlanoCobravel(locale).valor,
+      comCupomCentavos: descontado?.porCentavos,
+    });
     // O "pôr no carrinho" pro TikTok: abriu a oferta. Ver `carrinhoTiktok`.
-    carrinhoTiktok({ valor: meuPlano(locale).valor, moeda: locale === "pt" ? "BRL" : "USD" });
+    carrinhoTiktok({ valor, moeda: locale === "pt" ? "BRL" : "USD" });
     // O mesmo degrau no GA4, com nome padrão. A cada abertura, como o do
     // TikTok: `view_item` é por visualização, não por pessoa.
-    vitrineGa4({ valor: meuPlano(locale).valor, moeda: locale === "pt" ? "BRL" : "USD" });
+    vitrineGa4({ valor, moeda: locale === "pt" ? "BRL" : "USD" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── O CONVITE DE UM AMIGO (member get member) ─────────────────
@@ -590,9 +601,10 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     };
   }, [locale, cupom]);
   const comConvite = convitePct !== null && !descontado && !credito;
-  // Só é lido com `comConvite`, que só liga depois da hidratação: `meuPlano`
-  // já sabe o braço sorteado, e o número é o mesmo que o handler cobra.
-  const baseConviteC = comConvite ? Math.round((Number(meuPlano(locale).valor) || 0) * 100) : 0;
+  // Só é lido com `comConvite`, que só liga depois da hidratação: o braço
+  // sorteado já é conhecido. COBRÁVEL (08/10): braço de peso 0 é cobrado como
+  // o controle, e o desconto sai da mesma base que a cobrança.
+  const baseConviteC = comConvite ? Math.round((Number(meuPlanoCobravel(locale).valor) || 0) * 100) : 0;
 
   useEffect(() => {
     let vivo = true;
@@ -851,8 +863,22 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     // Um `valor` fixo faria o painel somar 38 em cima de cliques que iam pagar
     // outra coisa — e o degrau "clicou em comprar" é justamente onde o teste
     // de preço tem que ser lido.
-    const plano = meuPlano(locale, { temCupom: Boolean(cupom && descontado) });
-    trackEvent("checkout_click", { valor: plano.valor, locale, preco: plano.texto });
+    //
+    // E O QUE O SERVIDOR VAI COBRAR (08/10): no português e no inglês, o braço
+    // COBRÁVEL (peso 0 vira o controle) com o cupom aplicado. No espanhol quem
+    // cobra é o link da Perfect Pay do braço da tela. Ver `valorDoCheckout`.
+    const planoDaTela = meuPlano(locale, { temCupom: Boolean(cupom && descontado) });
+    const plano = locale === "es" ? planoDaTela : meuPlanoCobravel(locale);
+    const baseC = Math.round((Number(plano.valor) || 0) * 100);
+    const conviteFinalC = comConvite ? baseC - descontoDoConvite(baseC) : null;
+    const valorCheckout = valorDoCheckout({
+      locale,
+      valorDaTela: planoDaTela.valor,
+      valorCobravel: plano.valor,
+      comCupomCentavos: descontado?.porCentavos,
+      comConviteCentavos: conviteFinalC,
+    });
+    trackEvent("checkout_click", { valor: valorCheckout, locale, preco: plano.texto });
 
     // ── O SINAL DO MEIO DO FUNIL PRO TIKTOK ──────────────────────
     //
@@ -873,12 +899,12 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     //
     // Vale pra QUALQUER visitante, não só pra quem veio do TikTok: é assim
     // que o pixel monta público. Ele só existe se o pixel carregou.
-    checkoutTiktok({ valor: plano.valor, moeda: locale === "pt" ? "BRL" : "USD" });
+    checkoutTiktok({ valor: valorCheckout, moeda: locale === "pt" ? "BRL" : "USD" });
 
     // E no GA4, como `begin_checkout`. O `botao_comprar` (lá em cima) fica de
     // fora de propósito: dispara no mesmo clique e contaria duas vezes — o
     // erro que `admin-dados.ts` já documenta ("somava os dois nomes").
-    checkoutGa4({ valor: plano.valor, moeda: locale === "pt" ? "BRL" : "USD" });
+    checkoutGa4({ valor: valorCheckout, moeda: locale === "pt" ? "BRL" : "USD" });
 
     // ── O CHECKOUT TRANSPARENTE ──────────────────────────────────
     //
@@ -913,7 +939,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       //
       // Visto ao vivo às 19:04, na primeira hora: três cliques em comprar e
       // um `abriu` só.
-      trackEvent("pix_transparente_abriu", { valor: plano.valor });
+      trackEvent("pix_transparente_abriu", { valor: valorCheckout });
       if (descontado && descontado.porCentavos) {
         // COM CUPOM, A FOLHA JÁ ABRE NO PREÇO COM DESCONTO. Antes ela mostrava
         // o preço do braço até o QR chegar com o valor do servidor.
@@ -925,8 +951,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       } else if (comConvite) {
         // A MESMA CONTA DO SERVIDOR (`descontoDoConvite`), sobre o mesmo
         // braço de preço. O preço sem desconto vira a âncora riscada.
-        const baseC = Math.round((Number(plano.valor) || 0) * 100);
-        const finalC = baseC - descontoDoConvite(baseC);
+        const finalC = conviteFinalC ?? baseC;
         setPagandoComPix({
           texto: reaisDeCentavos(finalC),
           ancora: plano.texto,
@@ -946,7 +971,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     // BALLAD GIFT (EUA): o Stripe, na própria página. Nunca o redirect da
     // Perfect Pay, que é produto em real e de outra marca.
     if (locale === "en") {
-      trackEvent("stripe_checkout_pediu", { valor: plano.valor });
+      trackEvent("stripe_checkout_pediu", { valor: valorCheckout });
       setPagandoComStripe(plano.texto);
       setIndo(false);
       return;
