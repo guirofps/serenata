@@ -65,6 +65,8 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
           "/checkout/sessions",
           {
             ui_mode: "embedded",
+            // Ver `stripe-checkout.ts`: o nome e a cor da Ballad, não os da conta.
+            branding_settings: { display_name: MARCA_ATIVA.nome, button_color: "#bd404d" },
             mode: "payment",
             locale: "en",
             // Sem redirecionar: a folha fica no editor, e o `onComplete` do
@@ -95,7 +97,7 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
           },
           // Reabrir a folha devolve a MESMA sessão (idempotência de 24h do
           // Stripe). Mexeu no corpo, sobe a versão da chave.
-          { idempotencia: `ballad-video:v1:${m.id}:${centavos}` },
+          { idempotencia: `ballad-video:v2:${m.id}:${centavos}` },
         );
       let sessao: { id: string; client_secret: string } | null = null;
       for (let tentativa = 0; !sessao; tentativa++) {

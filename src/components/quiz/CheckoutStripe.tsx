@@ -8,7 +8,7 @@ import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe
 import { criarCheckoutStripe } from "@/lib/stripe-checkout";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
-import { ShieldCheck, RefreshCw } from "lucide-react";
+import { ShieldCheck, RefreshCw, X } from "lucide-react";
 
 // O PAGAMENTO DA BALLAD GIFT, na própria página.
 //
@@ -93,6 +93,7 @@ export function CheckoutStripe({
   // A folha montou = a pessoa tocou em pagar: só agora o Stripe.js baixa, em
   // paralelo com a criação da sessão.
   const sp = useMemo(() => stripe(), []);
+  const abertaEm = useRef(Date.now());
 
   useEffect(() => {
     let vivo = true;
@@ -127,6 +128,19 @@ export function CheckoutStripe({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tentativa]);
 
+  // OS VÍDEOS DA OFERTA PARAM ENQUANTO A FOLHA ESTÁ ABERTA (08/10). O vídeo de
+  // reações toca em loop atrás da folha; somado ao iframe do Stripe, é o
+  // suspeito das 2 sessões que RECARREGARAM 6-7s depois de abrir o pagamento
+  // (aba do Safari estourando memória). Ninguém assiste o vídeo por trás do
+  // cartão. Voltam a tocar quando a folha fecha.
+  useEffect(() => {
+    const pausados = [...document.querySelectorAll("video")].filter((v) => !v.paused);
+    for (const v of pausados) v.pause();
+    return () => {
+      for (const v of pausados) void v.play().catch(() => {});
+    };
+  }, []);
+
   useVoltarFechaAFolha(() => {
     trackEvent("stripe_checkout_fechou", { pelo: "voltar" });
     aoFechar();
@@ -143,15 +157,30 @@ export function CheckoutStripe({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+      {/* O FUNDO SÓ FECHA DEPOIS DE 0,8s (08/10). Era o único jeito de fechar,
+          e fechava no primeiro toque: um toque duplo no "comprar" abria a folha
+          e o segundo toque, caindo no fundo, fechava (uma sessão fechou 1s
+          depois de reabrir). Fechar de propósito agora tem o X. */}
       <button
         aria-label="Close"
         onClick={() => {
-          trackEvent("stripe_checkout_fechou");
+          if (Date.now() - abertaEm.current < 800) return;
+          trackEvent("stripe_checkout_fechou", { pelo: "fundo" });
           aoFechar();
         }}
         className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]"
       />
       <div className="relative max-h-[94vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-primary/10 bg-background px-3 pb-6 pt-4 shadow-2xl sm:rounded-3xl">
+        <button
+          aria-label="Close payment"
+          onClick={() => {
+            trackEvent("stripe_checkout_fechou", { pelo: "x" });
+            aoFechar();
+          }}
+          className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+        >
+          <X className="h-5 w-5" />
+        </button>
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-muted-foreground/25 sm:hidden" />
         <div className="mb-3 px-2 text-center">
           <p className="font-display text-lg font-semibold">Unlock your song · {precoTexto}</p>

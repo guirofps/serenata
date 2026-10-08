@@ -95,6 +95,11 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
           // com o celular em espanhol (comum nos EUA) via o caixa em outra língua
           // que não a da página que acabou de ler.
           locale: "en",
+          // O NOME E A COR DO CAIXA (08/10). A conta do Stripe é de outro
+          // negócio ("WPBN", botão magenta): sem isto, é esse nome que aparece
+          // no Apple Pay / Google Pay e no Link, no instante de pagar. A sessão
+          // sobrescreve a conta só nesta compra.
+          branding_settings: { display_name: MARCA_ATIVA.nome, button_color: "#bd404d" },
           line_items: [
             {
               quantity: 1,
@@ -125,9 +130,9 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
           },
           return_url: `${urlDoSite()}/obrigado?session_id={CHECKOUT_SESSION_ID}`,
         },
-        // `v3`: a versão dos PARÂMETROS. O Stripe recusa a mesma chave com corpo
+        // `v4`: a versão dos PARÂMETROS. O Stripe recusa a mesma chave com corpo
         // diferente, então mexeu no corpo desta chamada, sobe a versão.
-        { idempotencia: `ballad-checkout:v3:${quiz.id}:${centavos}` },
+        { idempotencia: `ballad-checkout:v4:${quiz.id}:${centavos}` },
       );
       let sessao: { id: string; client_secret: string } | null = null;
       for (let tentativa = 0; !sessao; tentativa++) {
