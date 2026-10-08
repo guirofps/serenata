@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw, Loader2, Check } from "lucide-react";
 import { pedirRefacao, estadoRefacao } from "@/lib/refacao";
+import { PEDIDO_MAX } from "@/lib/refacao-decisao";
 import { generos } from "@/lib/generos";
 import { trackEvent } from "@/lib/track";
 import type { Locale } from "@/lib/i18n";
@@ -40,7 +41,7 @@ const T = {
     titulo: "Ajustar minha música",
     quantas: (n: number) => (n === 1 ? "Você tem 1 ajuste incluído" : `Você tem ${n} ajustes`),
     oQue: "O que você quer mudar?",
-    dica: "Escreva do seu jeito. Ex: “não gostei do trecho que fala da viagem, queria que falasse do dia em que a gente se conheceu”.",
+    dica: "Escreva do seu jeito: trocar uma palavra, corrigir como um nome é falado, tirar um trecho. Se preferir, cole aqui a letra inteira do jeito que você quer.",
     estiloLabel: "Quer mudar o estilo?",
     vozLabel: "E a voz?",
     opcional: "Opcional. Sem escolher nada, mantemos o que já está.",
@@ -51,6 +52,8 @@ const T = {
     pronto: "Pedido enviado. A nova versão fica pronta em 1 ou 2 minutos, e a anterior continua guardada.",
     erros: {
       curto: "Escreva um pouquinho mais sobre o que mudar.",
+      longo: "O texto ficou maior que o limite. Mande só a letra ou só o que quer mudar.",
+      limite: "Foram muitas tentativas seguidas. Espere alguns minutos e tente de novo. Seu ajuste continua guardado.",
       "sem-direito": "Você já usou o ajuste incluído nesta música.",
       gravando: "A sua música já está sendo regravada. Espere ela ficar pronta.",
       "nao-pago": "O ajuste fica disponível depois da compra.",
@@ -59,7 +62,7 @@ const T = {
       // trecho sem saber o que entra no lugar exigiria inventar, e inventar
       // numa homenagem é pior que não mudar.
       vago: "Me diz também o que você quer no lugar. Seu ajuste continua guardado.",
-      falhou: "Não deu pra enviar agora. Tente de novo daqui a pouco.",
+      falhou: "Não deu pra enviar agora. Seu ajuste continua guardado, tente de novo daqui a pouco.",
     } as Record<string, string>,
   },
   es: {
@@ -67,7 +70,7 @@ const T = {
     titulo: "Ajustar mi canción",
     quantas: (n: number) => (n === 1 ? "Tienes 1 ajuste incluido" : `Tienes ${n} ajustes`),
     oQue: "¿Qué quieres cambiar?",
-    dica: "Escríbelo a tu manera. Ej: “no me gustó la parte del viaje, quisiera que hablara del día en que nos conocimos”.",
+    dica: "Escríbelo a tu manera: cambiar una palabra, corregir cómo se pronuncia un nombre, quitar una parte. Si prefieres, pega aquí la letra completa como la quieres.",
     estiloLabel: "¿Quieres cambiar el estilo?",
     vozLabel: "¿Y la voz?",
     opcional: "Opcional. Si no eliges nada, mantenemos lo que ya está.",
@@ -78,12 +81,14 @@ const T = {
     pronto: "Pedido enviado. La nueva versión queda lista en 1 o 2 minutos, y la anterior sigue guardada.",
     erros: {
       curto: "Escribe un poco más sobre lo que quieres cambiar.",
+      longo: "El texto pasó del límite. Manda solo la letra o solo lo que quieres cambiar.",
+      limite: "Fueron muchos intentos seguidos. Espera unos minutos e inténtalo de nuevo. Tu ajuste sigue guardado.",
       "sem-direito": "Ya usaste el ajuste incluido en esta canción.",
       gravando: "Tu canción ya se está regrabando. Espera a que termine.",
       "nao-pago": "El ajuste está disponible después de la compra.",
       "nao-encontrada": "No encontré esa canción.",
       vago: "Dime también qué quieres en su lugar. Tu ajuste sigue guardado.",
-      falhou: "No se pudo enviar ahora. Inténtalo de nuevo en un momento.",
+      falhou: "No se pudo enviar ahora. Tu ajuste sigue guardado, inténtalo de nuevo en un momento.",
     } as Record<string, string>,
   },
   en: {
@@ -91,7 +96,7 @@ const T = {
     titulo: "Adjust my song",
     quantas: (n: number) => (n === 1 ? "You have 1 adjustment included" : `You have ${n} adjustments`),
     oQue: "What would you like to change?",
-    dica: "Write it your way. E.g. “I didn't love the part about the trip, I'd like it to talk about the day we met”.",
+    dica: "Write it your way: change a word, fix how a name is pronounced, remove a part. If you prefer, paste the whole lyrics here the way you want them.",
     estiloLabel: "Want to change the style?",
     vozLabel: "And the voice?",
     opcional: "Optional. If you don't pick anything, we keep what's there.",
@@ -102,12 +107,14 @@ const T = {
     pronto: "Request sent. The new version will be ready in 1 or 2 minutes, and the previous one stays saved.",
     erros: {
       curto: "Write a little more about what to change.",
+      longo: "The text is over the limit. Send just the lyrics or just what you want changed.",
+      limite: "Too many tries in a row. Wait a few minutes and try again. Your adjustment is still saved.",
       "sem-direito": "You've already used the included adjustment on this song.",
       gravando: "Your song is already being re-recorded. Wait for it to be ready.",
       "nao-pago": "Adjustments are available after purchase.",
       "nao-encontrada": "I couldn't find this song.",
       vago: "Tell me what you'd like in its place, too. Your adjustment is still saved.",
-      falhou: "Couldn't send it right now. Try again in a moment.",
+      falhou: "Couldn't send it right now. Your adjustment is still saved, try again in a moment.",
     } as Record<string, string>,
   },
 };
@@ -193,9 +200,13 @@ export function PedirRefacao({
       // faltou, e essa frase é mais útil que a genérica: ela cita o trecho.
       // O formulário fica preenchido de propósito, e o ajuste não foi gasto:
       // a pessoa completa o pedido e manda de novo.
-      trackEvent("refacao_recusada", { motivo: r.erro });
+      trackEvent("refacao_recusada", { motivo: r.erro, tamanho: pedido.trim().length });
       setErro(r.erro === "vago" ? (r.falta ?? t.erros.vago) : (t.erros[r.erro] ?? t.erros.falhou));
     } catch {
+      // Rede caiu ou a função estourou o tempo: não volta resposta do
+      // servidor. Até 07/10 isto não deixava rastro nenhum no funil, e a
+      // conta de "quem tentou e não conseguiu" ficava menor que a real.
+      trackEvent("refacao_recusada", { motivo: "rede", tamanho: pedido.trim().length });
       setErro(t.erros.falhou);
     } finally {
       setIndo(false);
@@ -218,11 +229,18 @@ export function PedirRefacao({
         </span>
         <textarea
           value={pedido}
-          onChange={(e) => setPedido(e.target.value.slice(0, 800))}
-          rows={4}
+          // O teto é o MESMO do servidor (`PEDIDO_MAX`). Era 800, e a letra
+          // inteira colada (07/10, ~1.480 caracteres) chegava cortada no meio.
+          onChange={(e) => setPedido(e.target.value.slice(0, PEDIDO_MAX))}
+          rows={pedido.length > 400 ? 10 : 4}
           className="mt-2 w-full resize-none rounded-[var(--raio)] border border-[var(--tinta-fraca)] bg-[var(--papel)] p-3 outline-none focus:border-[var(--acento)]"
           style={{ fontSize: "16px", lineHeight: 1.5 }}
         />
+        {pedido.length > PEDIDO_MAX * 0.8 && (
+          <span className="mt-1 block text-right text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
+            {pedido.length}/{PEDIDO_MAX}
+          </span>
+        )}
       </label>
 
       <p className="mt-4 font-medium" style={{ fontSize: "var(--t-sm)" }}>{t.estiloLabel}</p>

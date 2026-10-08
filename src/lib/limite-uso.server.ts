@@ -68,8 +68,14 @@ export const TETO_MUSICA: Teto = { nome: "musica", porSessao: 6, porOrigem: 40 }
  * Números baixos porque o direito já é de UM ajuste por música: este teto não
  * é a regra de negócio, é a rede contra repetição de clique e contra alguém
  * varrendo tokens de edição. Quem tem direito legítimo nunca encosta nele.
+ *
+ * 8 por música por hora (07/10): até aqui o `catch` da refação engolia o
+ * `LimiteEstourado` e o teto não barrava nada; com ele valendo de verdade, o
+ * 4 antigo pegaria quem tentou de boa fé (houve compradores com 7 tentativas
+ * recusadas como "vago" na mesma hora). Cada tentativa custa centavos de
+ * Claude; a música (R$ 0,32) só sai uma vez, pelo direito.
  */
-export const TETO_REFACAO: Teto = { nome: "refacao", porSessao: 4, porOrigem: 20 };
+export const TETO_REFACAO: Teto = { nome: "refacao", porSessao: 8, porOrigem: 20 };
 
 /** Erro que a tela sabe distinguir de "o modelo falhou". */
 export class LimiteEstourado extends Error {
