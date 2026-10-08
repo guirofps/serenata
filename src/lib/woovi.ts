@@ -21,7 +21,7 @@
 // liquida pela Efí, e foi exatamente aí que a conciliação quebrou no
 // primeiro teste: R$ 1 debitado do pagador e `end2EndId` nulo do lado deles.
 
-import { ErroGateway, type CobrancaPix, type GatewayPix, type StatusCobranca } from "./gateway.js";
+import { COBRANCA_JA_PAGA, ErroGateway, type CobrancaPix, type GatewayPix, type StatusCobranca } from "./gateway.js";
 
 const BASE = "https://api.woovi.com/api/v1";
 
@@ -251,7 +251,7 @@ export const woovi: GatewayPix = {
 
       if (st === "COMPLETED") {
         // Já foi paga. Gerar outra seria cobrar duas vezes pela mesma coisa.
-        throw new ErroGateway("cobrança existente já foi paga", "woovi", false);
+        throw new ErroGateway(COBRANCA_JA_PAGA, "woovi", false);
       }
 
       // Vencida, cancelada ou qualquer outro estado morto: tenta de novo com
