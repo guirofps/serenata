@@ -132,7 +132,10 @@ export const ofertaVideo = inngest.createFunction(
       const ofertados: Record<Tipo, Set<string>> = { comFoto: new Set(), semFoto: new Set() };
       for (const t of ["comFoto", "semFoto"] as Tipo[]) {
         const evs = await todasAsPaginas<{ event_data: { musica_id?: string } | null }>((de, ate) =>
-          sb.from("funnel_events").select("event_data").eq("event_name", MARCA[t]).order("id", { ascending: true }).range(de, ate),
+          // Com janela (08/10): ver o mesmo trecho no `ofertaQuadro`.
+          sb.from("funnel_events").select("event_data").eq("event_name", MARCA[t])
+            .gte("created_at", new Date(agora - (MAX_DIAS + 2) * 86400000).toISOString())
+            .order("id", { ascending: true }).range(de, ate),
         );
         for (const e of evs) if (e.event_data?.musica_id) ofertados[t].add(e.event_data.musica_id);
       }

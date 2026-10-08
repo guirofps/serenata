@@ -126,7 +126,12 @@ export const ofertaQuadro = inngest.createFunction(
       const ofertados = new Set(
         (
           await todasAsPaginas<{ event_data: { musica_id?: string } | null }>((de, ate) =>
-            sb.from("funnel_events").select("event_data").eq("event_name", "oferta_quadro_enviada").order("id", { ascending: true }).range(de, ate),
+            // COM JANELA (08/10): a oferta sai entre MIN_DIAS e MAX_DIAS depois da
+            // compra, então evento mais velho que a janela não decide nada. Sem
+            // `created_at`, a leitura crescia pra sempre por OFFSET (ver 04/10).
+            sb.from("funnel_events").select("event_data").eq("event_name", "oferta_quadro_enviada")
+              .gte("created_at", new Date(agora - (MAX_DIAS + 2) * 86400000).toISOString())
+              .order("id", { ascending: true }).range(de, ate),
           )
         ).map((e) => e.event_data?.musica_id).filter(Boolean),
       );
