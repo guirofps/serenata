@@ -435,6 +435,14 @@ function PaginaPresente() {
           caindo NA FRENTE da foto e da letra durante a música. */}
       <Efeitos tipo={p.efeito} ativo={fotosAtivas} tempo={t} />
 
+      {/* Ajuste em curso (08/10): a página toca a versão anterior. Só o DONO
+          lê o aviso; pra quem recebe, o presente segue inteiro e sem recado. */}
+      {dono && p.atualizando && (
+        <p role="status" className="relative z-30 mx-auto max-w-md px-6 pt-5 text-center text-xs text-white/60">
+          {T.atualizandoDono}
+        </p>
+      )}
+
       {/* ── `metadata`, NUNCA `auto` ──────────────────────────────
           `auto` mandava o navegador baixar o MP3 INTEIRO na abertura da
           página, tivesse alguém apertado play ou não. Medido em 30 dias:

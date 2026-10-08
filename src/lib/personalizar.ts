@@ -36,6 +36,12 @@ export type PresenteEditavel = {
    */
   refacoes: number;
   /**
+   * Um ajuste está regravando a música agora (08/10). Sem isto o editor
+   * mostrava a tela sem player nenhum (o áudio é limpo enquanto grava) e sem
+   * dizer por quê.
+   */
+  regravando: boolean;
+  /**
    * As gravações ARQUIVADAS, da mais recente pra mais antiga.
    *
    * Elas existem porque a refação SOMA em vez de substituir: o custo da
@@ -98,7 +104,7 @@ async function buscarPorTokenEdicao(tokenEdicao: string) {
   const { data } = await db
     .from("musicas")
     .select(
-      "id, token, titulo, foto_path, galeria, dedicatoria, personalizada_em, quiz_response_id, audio_path, audio_path_v2, versao_preferida, cor_destaque, efeito, refacoes_usadas",
+      "id, token, titulo, foto_path, galeria, dedicatoria, personalizada_em, quiz_response_id, audio_path, audio_path_v2, versao_preferida, cor_destaque, efeito, refacoes_usadas, status",
     )
     .eq("token_edicao", tokenEdicao)
     .maybeSingle();
@@ -170,6 +176,7 @@ export const carregarParaEditar = createServerFn({ method: "GET" })
       tokenPublico: m.token,
       publicada: Boolean(m.personalizada_em),
       refacoes: m.refacoes_usadas ?? 0,
+      regravando: m.status === "gerando" && (m.refacoes_usadas ?? 0) > 0,
       anteriores: await versoesAnteriores(m.id),
     };
   });

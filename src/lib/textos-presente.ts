@@ -127,6 +127,12 @@ ${link}`,
   montarBotao: "Montar o presente",
   sair: "Sair",
   status: { pronta: "pronta", gerando: "gerando…", aguardando: "na fila", falhou: "falhou" } as Record<string, string>,
+  // Ajuste em curso (08/10): o editor avisa e espera; o link continua tocando
+  // a versão anterior em vez de virar "link incompleto".
+  regravandoTitulo: "Sua nova versão está sendo gravada",
+  regravandoTexto:
+    "Leva 1 ou 2 minutos e esta tela se atualiza sozinha. Enquanto isso, o link do presente continua tocando a versão anterior.",
+  atualizandoDono: "Sua nova versão está sendo gravada. Até ela ficar pronta, a página toca a versão anterior.",
 
 };
 
@@ -244,6 +250,10 @@ ${link}`,
   montarBotao: "Armar el regalo",
   sair: "Salir",
   status: { pronta: "lista", gerando: "grabando…", aguardando: "en la fila", falhou: "falló" } as Record<string, string>,
+  regravandoTitulo: "Tu nueva versión se está grabando",
+  regravandoTexto:
+    "Tarda 1 o 2 minutos y esta pantalla se actualiza sola. Mientras tanto, el link del regalo sigue tocando la versión anterior.",
+  atualizandoDono: "Tu nueva versión se está grabando. Hasta que esté lista, la página toca la versión anterior.",
 
 };
 
@@ -392,6 +402,10 @@ ${link}`,
   montarBotao: "Put the gift together",
   sair: "Sign out",
   status: { pronta: "ready", gerando: "creating…", aguardando: "in line", falhou: "failed" } as Record<string, string>,
+  regravandoTitulo: "Your new version is being recorded",
+  regravandoTexto:
+    "It takes 1 or 2 minutes and this screen updates by itself. Meanwhile, the gift link keeps playing the previous version.",
+  atualizandoDono: "Your new version is being recorded. Until it's ready, this page plays the previous one.",
 };
 
 const POR_IDIOMA: Record<Locale, TextosPresente> = { pt: PT, es: ES, en: EN };
