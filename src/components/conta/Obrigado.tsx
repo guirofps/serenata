@@ -56,6 +56,7 @@ const COPY = {
     depoisDeAbrir: "There you download the MP3, add your photos and get the link to send.",
     copiarLink: "Copy the gift link",
     copiado: "Link copied",
+    copiarNaMao: "Copy the gift link:",
     enviarZap: null,
     zapTexto: (n?: string | null) => `I made a song for ${n ?? "you"}. Tap to listen:`,
     contaDiscreta: "Prefer to come back later? Go to my account",
@@ -105,6 +106,7 @@ const COPY = {
     depoisDeAbrir: "Lá você baixa o MP3, sobe as fotos de vocês e pega o link pra mandar.",
     copiarLink: "Copiar o link do presente",
     copiado: "Link copiado",
+    copiarNaMao: "Copie o link do presente:",
     enviarZap: "Enviar pelo WhatsApp",
     zapTexto: (n?: string | null) => `Fiz uma música pra ${n ?? "você"}. Toca aqui pra ouvir:`,
     contaDiscreta: "Prefere voltar depois? Entrar na minha conta",
@@ -142,6 +144,7 @@ const COPY = {
     depoisDeAbrir: "Ahí descargas el MP3, subes sus fotos y copias el link para mandar.",
     copiarLink: "Copiar el link del regalo",
     copiado: "Link copiado",
+    copiarNaMao: "Copia el link del regalo:",
     enviarZap: "Enviar por WhatsApp",
     zapTexto: (n?: string | null) => `Hice una canción para ${n ?? "ti"}. Tócala aquí:`,
     contaDiscreta: "¿Prefieres volver después? Entrar a mi cuenta",
@@ -512,10 +515,23 @@ export function Obrigado({
               <div className="mt-4 flex flex-col items-stretch gap-2">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     const link = `${window.location.origin}/p/${presente.token}`;
-                    navigator.clipboard?.writeText(link).then(() => setCopiado(true)).catch(() => {});
                     trackEvent("obrigado_copiar_link", {});
+                    // RESERVA QUANDO A ÁREA DE TRANSFERÊNCIA RECUSA (08/10).
+                    // Navegador de app (Instagram, Gmail) e Safari antigo
+                    // recusam ou nem têm `clipboard`, e o `catch {}` vazio
+                    // deixava o botão mudo: a pessoa tocava e nada acontecia.
+                    // O `prompt` mostra o link já selecionado pra copiar na mão.
+                    try {
+                      if (!navigator.clipboard) throw new Error("sem clipboard");
+                      await navigator.clipboard.writeText(link);
+                      setCopiado(true);
+                      window.setTimeout(() => setCopiado(false), 2500);
+                    } catch {
+                      trackEvent("obrigado_copiar_link_falhou", {});
+                      window.prompt(C.copiarNaMao, link);
+                    }
                   }}
                   className="inline-flex h-11 items-center justify-center rounded-full border border-[var(--acento)]/40 font-medium"
                   style={{ fontSize: "var(--t-sm)" }}

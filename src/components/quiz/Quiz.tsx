@@ -531,7 +531,14 @@ export function Quiz({
       {!isIntro(step) && (
         <div className="mb-4 flex items-center gap-3">
           {idx > 0 && (
-            <button onClick={goPrev} className="text-muted-foreground hover:text-foreground">
+            // 44px de alvo (08/10): o botão era o ícone cru, 20x20, sem nome
+            // pro leitor de tela. A margem negativa devolve o espaço, então a
+            // barra de progresso não anda.
+            <button
+              onClick={goPrev}
+              aria-label={T.voltar}
+              className="-m-3 grid h-11 w-11 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
+            >
               <ChevronLeft className="h-5 w-5" />
             </button>
           )}

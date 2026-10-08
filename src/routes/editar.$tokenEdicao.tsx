@@ -363,6 +363,15 @@ function Editor() {
       }
       setGaleria(r.galeria ?? []);
       setSalvo(true);
+    } catch (err) {
+      // Rede caiu ou a função estourou o tempo (12 fotos de 5 MB no 4G). Até
+      // 08/10 isto virava rejeição sem dono: o botão destravava e nada dizia
+      // que as fotos não tinham entrado.
+      console.error("[galeria] envio falhou:", err);
+      trackEvent("presente_galeria_falhou", {
+        motivo: err instanceof Error ? err.message.slice(0, 80) : "desconhecido",
+      });
+      setErro(T.erroSalvarFotos);
     } finally {
       setSubindoGaleria(false);
       if (inputGaleria.current) inputGaleria.current.value = "";
@@ -370,15 +379,33 @@ function Editor() {
   }
 
   async function tirarDaGaleria(caminho: string) {
-    const r = await removerDaGaleria({ data: { tokenEdicao, caminho } });
-    if (r.ok) setGaleria(r.galeria);
+    setErro(null);
+    try {
+      const r = await removerDaGaleria({ data: { tokenEdicao, caminho } });
+      if (r.ok) setGaleria(r.galeria);
+      else setErro(T.erroRemoverFoto);
+    } catch (err) {
+      console.error("[galeria] remover falhou:", err);
+      setErro(T.erroRemoverFoto);
+    }
   }
 
+  // try/finally (08/10): sem ele, uma falha de rede deixava `salvando` preso
+  // em true e os DOIS botões da foto travados até recarregar a página. E a
+  // foto só some da tela quando o servidor confirma.
   async function tirarFoto() {
+    setErro(null);
     setSalvando(true);
-    await removerFoto({ data: { tokenEdicao } });
-    setFotoUrl(null);
-    setSalvando(false);
+    try {
+      const r = await removerFoto({ data: { tokenEdicao } });
+      if (r.ok) setFotoUrl(null);
+      else setErro(T.erroRemoverFoto);
+    } catch (err) {
+      console.error("[editar] remover foto falhou:", err);
+      setErro(T.erroRemoverFoto);
+    } finally {
+      setSalvando(false);
+    }
   }
 
   async function salvarFrase(texto: string) {
