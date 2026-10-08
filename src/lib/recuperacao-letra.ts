@@ -41,14 +41,45 @@ Regras:
   quantidade de linhas de cada bloco.
 - Mantenha a métrica cantável: a linha nova precisa ter mais ou menos o mesmo
   número de sílabas da antiga, senão não cabe na melodia.
-- Não invente fato que o cliente não deu. Se o pedido for vago demais para
-  aplicar sem inventar, devolva a letra intacta e diga o que falta.
+- Não invente fato que o cliente não deu.
 - Nada de travessão no texto da letra.
 
-Responda SÓ com JSON:
-{"letra": "a letra inteira, com as marcações", "mudou": ["o que foi alterado, 1 linha cada"], "aviso": "vazio, ou o que faltou para aplicar o pedido"}`;
+Quase todo pedido dá para aplicar. Resolva sem perguntar nestes casos:
+- PRONÚNCIA ("o nome saiu errado", "não é Raí", "pronuncia Sáimon"): o cantor
+  lê a letra como se fosse português. Reescreva a palavra do jeito que ela
+  deve SOAR, em todas as ocorrências: "Simon" falado em inglês vira "Sáimon",
+  a sigla "JB" vira "Jota Bê", "Nono" com acento vira "Nonô". Se o cliente não
+  disse como se fala, o jeito que saiu está errado: use a pronúncia do idioma
+  de origem do nome e conte no "aviso" como ficou escrito.
+- LETRA INTEIRA escrita pelo cliente (o pedido é uma sequência de versos, não
+  uma instrução): ela É a letra nova. Use os versos dele, na ordem dele, sem
+  reescrever nem "melhorar". Só distribua nas marcações de estrutura, escreva
+  por extenso o que o cantor leria errado ("q" vira "que", "vc" vira "você",
+  "2°" vira "segundo", números por extenso) e, se o texto acabar no meio de
+  uma frase, termine no último verso completo.
+- FRASE NOVA sem dizer onde entra: encaixe onde fizer mais sentido, ajustando
+  a métrica, sem perguntar onde.
+- TIRAR um trecho, ou "não gostei do trecho X" sem dizer o que entra no lugar:
+  tire. Se a linha precisar de substituta para o bloco continuar cantável,
+  use só o que a própria letra já conta, sem fato novo.
+- Pedido só sobre a VOZ, o ritmo ou o estilo (não sobre o texto): devolva a
+  letra intacta, "mudou" vazio, "falta" vazio, e preencha "voz" se ele pediu
+  voz de homem ("masculina") ou de mulher ("feminina").
 
-export async function chamarClaude(userMsg: string): Promise<{ texto: string; uso: UsoClaude }> {
+Use "falta" SÓ quando não dá para aplicar NADA do pedido: ele não diz o que
+mudar ("não gostei", "refaz", "quero diferente"), fala de outro assunto
+(pagamento, link, entrega), ou depende de um dado que só o cliente sabe e sem
+o qual nada pode ser feito (o nome de um filho que não está na letra). Aí
+devolva a letra intacta. O texto de "falta" é lido PELO CLIENTE: fale com
+ele, em uma ou duas frases curtas, diga exatamente o que precisa (com
+exemplo quando ajudar) e não use travessão.
+
+Responda SÓ com JSON:
+{"letra": "a letra inteira, com as marcações", "mudou": ["o que foi alterado, 1 linha cada"], "aviso": "vazio, ou uma observação sobre o que foi feito", "falta": "vazio, ou o que o cliente precisa dizer para dar para aplicar", "voz": "vazio, masculina ou feminina"}`;
+
+export async function chamarClaude(
+  userMsg: string,
+): Promise<{ texto: string; uso: UsoClaude; stopReason: string | null }> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error("ANTHROPIC_API_KEY ausente no servidor");
   const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -60,8 +91,20 @@ export async function chamarClaude(userMsg: string): Promise<{ texto: string; us
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 4000,
-      // Sem `output_config.effort` — 400 no Haiku 4.5. Ver `coautoria.ts`.
+      // ── O PENSAMENTO COMIA A RESPOSTA (07/10) ─────────────────────
+      //
+      // O Sonnet 5 pensa por padrão, e o pensamento conta no `max_tokens`. Com
+      // 4000, pedido de várias mudanças (refrão que rime + trocar dois versos)
+      // gastava os 4000 PENSANDO, levava ~43s e devolvia ZERO texto
+      // (`stop_reason: max_tokens`, bloco de texto vazio). O `JSON.parse("")`
+      // estourava e o comprador via "falhou" (8 de 11 versões órfãs refeitas
+      // em 07/10 com o pedido real). Ajustar letra é trabalho mecânico: sem
+      // pensamento a resposta sai em 6 a 15s e cabe folgada em 8000, que é
+      // ~3x a letra mais longa em JSON. `disabled` é aceito no Sonnet 5 e nos
+      // modelos anteriores. Sem `output_config.effort`: 400 no Haiku 4.5, ver
+      // `coautoria.ts`.
+      max_tokens: 8000,
+      thinking: { type: "disabled" },
       system: [{ type: "text", text: SYSTEM_AJUSTE, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: userMsg }],
     }),
@@ -85,6 +128,7 @@ export async function chamarClaude(userMsg: string): Promise<{ texto: string; us
   return {
     texto: j.content?.find((b: { type: string }) => b.type === "text")?.text ?? "",
     uso: (j.usage ?? {}) as UsoClaude,
+    stopReason: typeof j.stop_reason === "string" ? j.stop_reason : null,
   };
 }
 
@@ -278,7 +322,7 @@ export const reescreverLetra = createServerFn({ method: "POST" })
     const entrada = `LETRA ATUAL:\n${m.letra}\n\nPEDIDO DO CLIENTE:\n${pedido}`;
     let resposta = await chamarClaude(entrada);
     let uso = resposta.uso;
-    let j: { letra?: string; mudou?: string[]; aviso?: string };
+    let j: { letra?: string; mudou?: string[]; aviso?: string; falta?: string };
     try {
       j = extrairJson(resposta.texto);
     } catch (err) {
@@ -287,7 +331,7 @@ export const reescreverLetra = createServerFn({ method: "POST" })
         entrada +
           `\n\nIMPORTANTE: responda SOMENTE com o objeto JSON pedido, começando com { e terminando com }. ` +
           `Nada de texto antes ou depois. Se não der para aplicar o pedido, devolva a letra intacta e ` +
-          `explique no campo "aviso".`,
+          `explique no campo "falta".`,
       );
       uso = resposta.uso;
       j = extrairJson(resposta.texto);
@@ -295,7 +339,11 @@ export const reescreverLetra = createServerFn({ method: "POST" })
     if (!j.letra?.trim()) throw new Error("modelo não devolveu letra");
 
     await registrarCustoLetra({ quizResponseId: m.quiz_response_id, modelo: MODEL, uso });
-    return { letra: j.letra.trim(), mudou: j.mudou ?? [], aviso: j.aviso ?? "" };
+    // Desde 07/10 o `SYSTEM_AJUSTE` separa `falta` (não deu pra aplicar nada,
+    // pergunta pro cliente) de `aviso` (observação sobre o que foi feito). O
+    // atendente vê os dois no mesmo campo, com a pergunta na frente.
+    const aviso = [j.falta, j.aviso].map((x) => (x ?? "").trim()).filter(Boolean).join(" ");
+    return { letra: j.letra.trim(), mudou: j.mudou ?? [], aviso };
   });
 
 /** Grava a letra (a proposta do modelo, ou o que o atendente editou à mão). */
