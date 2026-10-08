@@ -323,6 +323,21 @@ export const EXPERIMENTOS: Experimento[] = [
     ativo: false,
     nota: "BALLAD, 02/10. A abertura do /criar: 4% das visitas pagas passavam (Serenata 43-53%). A = como era. B = pula a abertura e cai na 1a pergunta. C = abertura com o preço às claras, botão grande pra ouvir o exemplo, CTA sem FREE. Ler por quem RESPONDEU a 1a pergunta (quiz_step q>=2), letra e venda por braço; 'passou da abertura' não compara, no B todo mundo passa.",
   },
+  {
+    // SÓ SERENATA (a folha do PIX é do funil `pt`). Ver `folha-pix.ts`.
+    //
+    // 7 dias, celular: 6.368 abriram a folha, 47% tocaram em "Gerar meu PIX",
+    // e 22% desses desistiram na tela do CPF que vem depois (~96/dia). 44% de
+    // quem não tocou saiu em menos de 5s sem rolar.
+    //
+    // O braço é lido pela INICIAL (`bracoDaFolha`): renomear B -> B2 pra
+    // desgrudar quem foi sorteado não desliga o braço em silêncio.
+    id: "folha_pix",
+    variantes: ["A", "B", "C"],
+    peso: [1, 1, 1],
+    ativo: false,
+    nota: "SERENATA, 08/10. A folha do PIX. A = como é hoje (resumo, 'Gerar meu PIX', tela do CPF, QR). B = o CPF no próprio resumo, colado no botão, lembrado no navegador; um toque gera o PIX. C = B com o resumo enxuto: título, preço, e-mail numa linha, CPF e um botão 'Gerar PIX de R$ X'; a lista do que vem fica atrás de 'O que eu recebo?'. Cartão, bump, cupom e erro iguais nos três. Ler por PAGO ÷ FOLHAS ABERTAS por braço (pix_transparente_abriu -> pix_transparente_pago + cartao_pago, com attribution.exp.folha_pix), não por toque no botão: no A o toque ainda tem a tela do CPF pela frente. Diagnóstico: pix_folha_variante (abriu), pix_folha_gerar (tocou e passou), pix_cpf_inline_faltou (tocou sem CPF), pix_transparente_gerado (código na tela).",
+  },
 ];
 
 /**
