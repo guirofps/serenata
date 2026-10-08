@@ -1,7 +1,9 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
+import { falhaTransitoria } from "../../src/lib/recusa-provedor.js";
 
-// A REPESCAGEM: música que falhou por TIMEOUT volta pra fila sozinha.
+// A REPESCAGEM: música que falhou por TIMEOUT (ou erro 5xx do provedor) volta
+// pra fila sozinha.
 //
 // ── O QUE ISTO CONSERTA ──────────────────────────────────────────
 //
@@ -16,13 +18,20 @@ import { createClient } from "@supabase/supabase-js";
 // segundos, e uma queda de provedor dura horas. Depois que os retries do job
 // acabam, ninguém nunca mais volta naquela linha.
 //
-// ── POR QUE SÓ TIMEOUT ───────────────────────────────────────────
+// ── POR QUE SÓ TIMEOUT E 5xx ─────────────────────────────────────
 //
 // As recusas do provedor ("Your lyrics contain producer tag", "Your tags
 // contain artist name") vão falhar de novo do mesmo jeito: o problema está na
 // LETRA, não na infra. Reenfileirar essas é queimar crédito com resultado
 // conhecido, e ainda esconde o defeito real, que é o prompt deixando passar
 // nome de artista.
+//
+// O 5xx entrou em 08/10. Em 03/10, 100 leads morreram com "provedor recusou
+// 4x: 500 · Internal Error" e "500 · Audio decrypt failed", e nenhum voltou:
+// esta busca só olhava `timeout%`. Erro 500 é o provedor quebrado por dentro,
+// passa como a queda passa. A régua mora em `falhaTransitoria`
+// (`src/lib/recusa-provedor.ts`), a mesma que o clique de comprar usa pra
+// NÃO refazer recusa de conteúdo.
 //
 // ── POR QUE ESPERAR 30 MINUTOS ───────────────────────────────────
 //
@@ -54,6 +63,10 @@ async function tentativas(sb: ReturnType<typeof db>, musicaId: string): Promise<
     .from("funnel_events")
     .select("id", { count: "exact", head: true })
     .eq("event_name", "musica_repescada")
+    // Janela de tempo, como manda a regra de 04/10 pra `funnel_events`: só a
+    // música dos últimos `JANELA_DIAS` é candidata, então tentativa mais velha
+    // que isso (com um dia de folga) não muda a decisão.
+    .gte("created_at", new Date(Date.now() - (JANELA_DIAS + 1) * 864e5).toISOString())
     .contains("event_data", { musica_id: musicaId });
   // Na dúvida, conta como esgotada (04/10): a próxima rodada tenta de novo, e
   // repescar às cegas é pagar o Suno de novo pela mesma música.
@@ -73,19 +86,31 @@ export const repescarFalhadas = inngest.createFunction(
       const sb = db();
       const agora = Date.now();
 
-      const { data } = await sb
-        .from("musicas")
-        .select("id, titulo, quiz_response_id, created_at")
-        .eq("status", "falhou")
-        .not("letra", "is", null)
-        .like("erro", "timeout%")
-        .gte("created_at", new Date(agora - JANELA_DIAS * 864e5).toISOString())
-        .lte("updated_at", new Date(agora - ESPERAR_MIN * 60000).toISOString())
-        .order("created_at", { ascending: true })
-        .limit(MAX_POR_RODADA * 3);
+      // DUAS buscas, uma por padrão, em vez de um `or` com aspas e dois
+      // pontos dentro (a gramática do `or=(...)` do PostgREST quebra com `:`).
+      const buscar = (padrao: string) =>
+        sb
+          .from("musicas")
+          .select("id, titulo, quiz_response_id, created_at, erro")
+          .eq("status", "falhou")
+          .not("letra", "is", null)
+          .like("erro", padrao)
+          .gte("created_at", new Date(agora - JANELA_DIAS * 864e5).toISOString())
+          .lte("updated_at", new Date(agora - ESPERAR_MIN * 60000).toISOString())
+          .order("created_at", { ascending: true })
+          .limit(MAX_POR_RODADA * 3);
+      const [timeouts, quebras] = await Promise.all([
+        buscar("timeout%"),
+        buscar("provedor recusou%: 5%"),
+      ]);
+      // O `like` é a peneira grossa; quem decide é `falhaTransitoria`, que
+      // exige o código de 3 dígitos começando com 5.
+      const data = [...(timeouts.data ?? []), ...(quebras.data ?? [])]
+        .filter((m) => falhaTransitoria(m.erro))
+        .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
 
       const out: Array<{ id: string; titulo: string | null; pago: boolean }> = [];
-      for (const m of data ?? []) {
+      for (const m of data) {
         if (out.length >= MAX_POR_RODADA) break;
         if ((await tentativas(sb, m.id)) >= MAX_TENTATIVAS) continue;
 

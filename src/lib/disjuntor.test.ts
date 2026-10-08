@@ -23,6 +23,8 @@ function fakeSb(opts: {
   /** O que `config_operacao` devolve pra `teto_musicas_dia`. */
   tetoNoBanco?: string;
   erroConfig?: boolean;
+  /** A música já tem a marca "contada hoje" em `limites_uso`. */
+  jaContada?: boolean;
 }) {
   const rpcs: Array<{ chave: string; teto: number }> = [];
   const sb = {
@@ -35,6 +37,9 @@ function fakeSb(opts: {
         eq: () => cadeia,
         limit: () => cadeia,
         maybeSingle: async () => {
+          if (tabela === "limites_uso") {
+            return { data: opts.jaContada ? { contagem: 1 } : null, error: null };
+          }
           if (tabela === "config_operacao") {
             if (opts.erroConfig) throw new Error("tabela não existe");
             return { data: opts.tetoNoBanco ? { valor: opts.tetoNoBanco } : null };
@@ -148,6 +153,44 @@ describe("podeGerar — o disjuntor de gasto do Suno", () => {
     const { sb, rpcs } = fakeSb({ cabe: true, erroConfig: true });
     await podeGerar(sb, null);
     expect(rpcs[0].teto).toBe(77);
+  });
+
+  // ── UMA MÚSICA, UMA CONTAGEM POR DIA (08/10) ─────────────────────
+  //
+  // Em 02/10 o contador marcou 3.609 pra 2.498 músicas: cada redisparo da
+  // mesma música (vigia, repescagem, clique de comprar) cobrava de novo, e 37
+  // leads foram barrados com orçamento sobrando.
+
+  it("primeira execução da música consome o dia E marca a música", async () => {
+    const { sb, rpcs } = fakeSb({ cabe: true });
+    await expect(podeGerar(sb, "quiz_1", "mus_1")).resolves.toEqual({ ok: true });
+    const chaves = rpcs.map((r) => r.chave);
+    expect(chaves.filter((c) => c.startsWith("musica-dia:"))).toHaveLength(1);
+    expect(chaves.some((c) => c.startsWith("musica-contada:") && c.endsWith(":mus_1"))).toBe(true);
+  });
+
+  it("REDISPARO da mesma música no mesmo dia passa sem consumir nada", async () => {
+    const { sb, rpcs } = fakeSb({ cabe: true, jaContada: true });
+    await expect(podeGerar(sb, "quiz_1", "mus_1")).resolves.toEqual({ ok: true });
+    expect(rpcs).toEqual([]);
+  });
+
+  it("música já contada passa mesmo com o dia estourado: ela já está dentro do teto", async () => {
+    const { sb } = fakeSb({ cabe: false, jaContada: true });
+    await expect(podeGerar(sb, "quiz_1", "mus_1")).resolves.toEqual({ ok: true });
+  });
+
+  it("música BARRADA não ganha marca, senão o redisparo passaria de graça", async () => {
+    const { sb, rpcs } = fakeSb({ cabe: false });
+    const r = await podeGerar(sb, "quiz_1", "mus_1");
+    expect(r.ok).toBe(false);
+    expect(rpcs.some((x) => x.chave.startsWith("musica-contada:"))).toBe(false);
+  });
+
+  it("quem pagou continua sem tocar em contador nenhum, nem na marca", async () => {
+    const { sb, rpcs } = fakeSb({ pago: true, cabe: false });
+    await expect(podeGerar(sb, "quiz_1", "mus_1")).resolves.toEqual({ ok: true });
+    expect(rpcs).toEqual([]);
   });
 
   it("a chave do contador é o DIA no fuso do Brasil", async () => {
