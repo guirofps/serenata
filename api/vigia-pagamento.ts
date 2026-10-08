@@ -41,6 +41,7 @@ import { creditarUpsell } from "./lib/creditar-upsell.js";
 import { ofertaDaReferencia } from "../src/lib/creditos.js";
 import { donosMais } from "../src/lib/donos.js";
 import { avisarDonos } from "../src/lib/avisar-donos.js";
+import { outroPagamentoDoQuiz } from "../src/lib/asaas-regras.js";
 
 const PARA = donosMais("agenciarocketfy@gmail.com");
 
@@ -226,6 +227,35 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           entregue: liberado,
         });
         continue;
+      }
+
+      // ── UM QUIZ, UMA ENTREGA (08/10) ─────────────────────────────
+      //
+      // A mesma trava dos webhooks (Woovi, Asaas, Stripe). Este é o caminho de
+      // quem teve o webhook PERDIDO, e o segundo pagamento do mesmo quiz (o QR
+      // vencido que continuava pagável no Asaas, caso do bb9effb8… em 06/10)
+      // passaria por aqui sem trava nenhuma: entregaria de novo, calado. O
+      // pedido fica `pago` (o dinheiro entrou), a entrega não se repete, e os
+      // donos são avisados pra devolver.
+      if (p.quiz_response_id) {
+        const { data: pagosDoQuiz } = await sb
+          .from("pedidos")
+          .select("payment_id, status, dinheiro_entrou")
+          .eq("quiz_response_id", p.quiz_response_id)
+          .eq("status", "pago")
+          .limit(20);
+        const anterior = outroPagamentoDoQuiz(pagosDoQuiz, String(p.payment_id));
+        if (anterior) {
+          await avisarDonos({
+            assunto: "PAGOU DUAS VEZES: devolver (vigia de pagamento)",
+            html:
+              `<p>O mesmo quiz recebeu dois pagamentos (o webhook do segundo se perdeu).</p>` +
+              `<p>quiz: ${p.quiz_response_id}<br>agora: ${p.payment_id} (${p.valor_centavos})` +
+              `<br>antes: ${anterior.payment_id}</p>` +
+              `<p>A entrega NÃO foi repetida. Devolver um dos dois no painel do gateway.</p>`,
+          });
+          continue;
+        }
       }
 
       // ── A ENTREGA, PELO MESMO CAMINHO DO WEBHOOK ──────────────

@@ -122,6 +122,13 @@ export type GatewayCartao = {
     statusCru: string;
     valorCentavos: number | null;
     taxaCentavos: number | null;
+    /**
+     * A NOSSA referência (`serenata:<quiz>...`, `up:...`), lida da API e não do
+     * postback. Quando o pedido pendente sumiu, é dela que sai o quiz (08/10):
+     * vinda do corpo do webhook, que só tem token estático, um postback
+     * forjado escolheria pra qual quiz a entrega vai.
+     */
+    referencia?: string | null;
   }>;
 
   /**

@@ -237,7 +237,7 @@ export const asaas: GatewayCartao = {
   },
 
   async consultar(idExterno) {
-    const p = await chamar<{ status?: string; value?: number; netValue?: number }>(
+    const p = await chamar<{ status?: string; value?: number; netValue?: number; externalReference?: string }>(
       `/payments/${encodeURIComponent(idExterno)}`,
     );
     const bruto = Number(p?.value ?? 0);
@@ -248,6 +248,7 @@ export const asaas: GatewayCartao = {
       valorCentavos: bruto ? Math.round(bruto * 100) : null,
       // O Asaas não devolve a taxa direto: ela é a diferença pro líquido.
       taxaCentavos: bruto && liquido ? Math.round((bruto - liquido) * 100) : null,
+      referencia: p?.externalReference ?? null,
     };
   },
 
