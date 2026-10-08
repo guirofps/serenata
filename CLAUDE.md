@@ -1052,8 +1052,7 @@ da home tinham perdido o áudio em 12-16/09 porque `ehExemplo` só protegia toke
 `ex…`; agora vale todo token de `exemplos-pt.ts`/`exemplos-en.ts`
 (`token-exemplo.ts`). Eva, Denise e Camburi restaurados com o arquivo idêntico
 que estava em Downloads (`scratch/_restaurar-exemplos-07out.mjs`); Rose,
-Isabela, Garga e Li se perderam (nem Storage nem provedor): a `/p/` deles abre
-com play mudo até decidir regravar ou trocar.
+Isabela, Garga e Li se perderam (nem Storage nem provedor): regravados no mesmo lugar (mesma letra, mesmo token, gravação 2 como principal, `scratch/_regravar-exemplos-07out.mjs`) por decisão do dono; os trechos de 45s da home NÃO foram trocados (a Isabela é a mesma dos anúncios do Ralph). Os 36 compradores que desistiram do ajuste receberam e-mail avisando que agora funciona (`scratch/_avisar-ajuste-07out.mjs`).
 
 ## Em aberto
 
