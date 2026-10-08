@@ -53,7 +53,10 @@ as $$
     from quiz_responses q
     where q.email is not null
       and coalesce(q.locale, 'pt') = 'pt'
-      and position('@' in q.email) > 1
+      -- Endereço de verdade, a mesma regra de `emailPlausivel` (email-limpo.ts):
+      -- a base tem "e-mail" de ~3 mil caracteres, que nem cabe no índice.
+      and length(q.email) <= 254
+      and lower(trim(q.email)) ~ '^[^[:space:]@]+@[^[:space:]@.]+([.][^[:space:]@.]+)*[.]([a-z]{2,24}|xn--[a-z0-9-]{2,59})$'
     order by lower(trim(q.email)), q.created_at desc
   ),
   inseridos as (
