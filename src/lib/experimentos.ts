@@ -323,6 +323,15 @@ export const EXPERIMENTOS: Experimento[] = [
     ativo: false,
     nota: "BALLAD, 02/10. A abertura do /criar: 4% das visitas pagas passavam (Serenata 43-53%). A = como era. B = pula a abertura e cai na 1a pergunta. C = abertura com o preço às claras, botão grande pra ouvir o exemplo, CTA sem FREE. Ler por quem RESPONDEU a 1a pergunta (quiz_step q>=2), letra e venda por braço; 'passou da abertura' não compara, no B todo mundo passa.",
   },
+  {
+    // SÓ SERENATA, funil pt sem tema. Ver `abertura-pergunta.ts`.
+    id: "abertura_pergunta",
+    variantes: ["A", "B"],
+    peso: [1, 1],
+    // NUNCA `true` aqui: quem liga é a linha da tabela `experimentos`.
+    ativo: false,
+    nota: "SERENATA, 08/10. No celular, 61.066 sessões montaram a abertura do /criar e só 56,5% responderam a 1a pergunta (relacao), a maior queda antes do lead. A = abertura de hoje. B = a mesma abertura com 'Pra quem é a música?' e os chips da relação embaixo do cartão (cartão menor); tocar no chip grava a relação e vai direto pro nome, o 'começar' continua embaixo. Só pt sem tema (es, Ballad e ?t=gospel não mudam). Ler por braço, entre sessões pt sem tema que montaram a abertura: quem RESPONDEU a 1a pergunta (quiz_step q>=2), letra, oferta, venda e receita por lead.",
+  },
 ];
 
 /**
