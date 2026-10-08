@@ -60,9 +60,9 @@ export const MUSICA10 = "MUSICA10";
 /**
  * Último dia do MUSICA10, inclusive (23h59 de Brasília). É a MESMA data que o
  * e-mail escreve (`validadeCurta`): mudou aqui, o e-mail muda junto.
- * Decidida ao ligar o envio: 7 dias depois do fim previsto das levas.
+ * Decidida ao ligar o envio: levas de 08/10 a ~14/10 (48.617 a 600/h), mais 7 dias.
  */
-export const MUSICA10_VALE_ATE = "2026-10-20";
+export const MUSICA10_VALE_ATE = "2026-10-21";
 
 /** Nenhum produto sai abaixo disto com cupom fixo. */
 export const PISO_CENTAVOS = 500;

@@ -5,8 +5,12 @@ import { emailPlausivel } from "./email-limpo.js";
 
 export const CAMPANHA = "musica10";
 
-/** ~300 por hora, 12 rodadas por dia: uns 3.600/dia sem pico que assine lista comprada. */
-export const POR_RODADA = 300;
+/**
+ * 600 por hora, 12 rodadas por dia: ~7.200/dia. A fila montada em 07/10 tem
+ * 48.617 (7.226 compradores, que vão primeiro, e 41.391 leads): ~7 dias. O
+ * dono escolheu este ritmo contra 300/h (~14 dias); o freio é a rede.
+ */
+export const POR_RODADA = 600;
 /** O teto do `resend.batch`. */
 export const LOTE = 100;
 
