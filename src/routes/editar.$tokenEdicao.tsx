@@ -56,8 +56,8 @@ const NOME_COR_EN: Record<string, string> = {
   menta: "Mint",
 };
 
-// As poucas frases do editor que moravam direto no JSX. pt e es seguem
-// exatamente como estavam; só o inglês é novo.
+// As poucas frases do editor que moravam direto no JSX. O espanhol estava
+// em português ("Remover foto", "salvando…", "alterações salvas") até 08/10.
 const MIUDOS: Record<Locale, {
   removerFoto: (n: number) => string;
   caracteres: (n: number) => string;
@@ -75,11 +75,11 @@ const MIUDOS: Record<Locale, {
     ajuda: "Precisa de ajuda? Escreva pra ",
   },
   es: {
-    removerFoto: (n) => `Remover foto ${n}`,
+    removerFoto: (n) => `Quitar foto ${n}`,
     caracteres: (n) => `${n} caracteres`,
-    salvando: "salvando…",
-    salvo: "salvo",
-    alteracoesSalvas: "alterações salvas",
+    salvando: "guardando…",
+    salvo: "guardado",
+    alteracoesSalvas: "cambios guardados",
     ajuda: "¿Necesitas ayuda? Escríbenos a ",
   },
   en: {

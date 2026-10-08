@@ -18,6 +18,7 @@ import { meuPlano, meuPlanoCobravel } from "@/lib/preco";
 import { PrecoCurto, PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
 import { descontoNaTela } from "@/lib/cupom";
 import { valorDoCheckout } from "@/lib/valor-conversao";
+import { ehArgentina } from "@/lib/mercado-es";
 import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
 import { varianteDe, EXP_PROVA_BLOCOS } from "@/lib/experimentos";
@@ -544,7 +545,15 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   const [pagandoComStripe, setPagandoComStripe] = useState<string | null>(null);
   const nome =
     (respostas.nome as string)?.trim() ||
-    (locale === "es" ? "quien vos querés" : locale === "en" ? "someone you love" : "quem você ama");
+    (locale === "es"
+      ? // Voseo só com o mercado argentino ligado (a copy desta tela é
+        // rioplatense, ver a nota acima); fora dele, `tú` (08/10).
+        ehArgentina()
+        ? "quien vos querés"
+        : "quien tú quieres"
+      : locale === "en"
+        ? "someone you love"
+        : "quem você ama");
   // O DESCONTO SAI DA MESMA CONTA DA COBRANÇA (`descontoNaTela`), sobre o
   // braço que o SERVIDOR cobra desta pessoa (`meuPlanoCobravel`: braço de
   // peso 0 vira o controle): o número que ela lê é o que o QR cobra. Vale o

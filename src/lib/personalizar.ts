@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { type Locale, normalizarLocale } from "@/lib/i18n";
+import { ehArgentina } from "@/lib/mercado-es";
 
 // Personalização da página-presente pelo COMPRADOR.
 //
@@ -164,7 +165,8 @@ export const carregarParaEditar = createServerFn({ method: "GET" })
       locale,
       // O inglês ganha o seu; pt e es seguem com o de sempre.
       titulo: m.titulo ?? (locale === "en" ? "Your song" : "Sua música"),
-      nome: r.nome ?? (locale === "en" ? "you" : "você"),
+      // O espanhol recebia "você" no título do editor (08/10).
+      nome: r.nome ?? (locale === "en" ? "you" : locale === "es" ? (ehArgentina() ? "vos" : "ti") : "você"),
       dedicatoria: m.dedicatoria,
       fotoUrl: await urlDaFoto(m.foto_path),
       galeria: await assinarGaleria(m.galeria),
