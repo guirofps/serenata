@@ -61,10 +61,14 @@ as $$
     select
       p_campanha,
       c.email,
-      case when exists (select 1 from compradores b where b.email = c.email) then 'comprador' else 'lead' end,
+      case when b.email is not null then 'comprador' else 'lead' end,
       c.quiz_id,
       c.nome
     from candidatos c
+    -- JOIN, e não `exists` no select: o `exists` contra a CTE virava um laço
+    -- (cada candidato varrendo todos os compradores) e estourou o tempo do
+    -- SQL Editor em 07/10. O join vira hash, uma passada só.
+    left join compradores b on b.email = c.email
     where c.ocasiao not ilike '%memorial%'
       and not exists (select 1 from descadastros d where lower(d.email) = c.email)
       and not exists (select 1 from excluidos_email x where lower(x.email) = c.email)
