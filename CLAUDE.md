@@ -1040,12 +1040,20 @@ ajuste passou a dizer isso antes (`PedirRefacao.tsx`). No vídeo-presente, a cen
 de uma 4:3); duas compradoras reclamaram, uma pra usar no casamento. Agora só
 foto EM PÉ é cortada; deitada ou quadrada entra inteira na largura, sobre ela
 mesma desfocada (`Presente.tsx`, proporção lida com `delayRender`). Site da
-Lambda republicado (`video:site`) e os dois vídeos refeitos. Achado no suporte
-e ainda ABERTO: o ajuste pelo app recusa a maioria dos pedidos ("vago" 16-47 por
-dia e "falhou" 4-21, contra 6-25 que passam) e um "falhou" deixou versão
-arquivada sem gastar o direito (Carmelina); tarefa separada criada. E 7 das 11
-músicas de exemplo da home perderam o áudio completo: `ehExemplo` só protege
-token `ex…` (tarefa separada criada).
+Lambda republicado (`video:site`) e os dois vídeos refeitos. Mesmo dia, RESOLVIDOS: (1) o
+ajuste recusava a maioria (36 compradores pagos em 7 dias nunca conseguiram):
+"falhou" era o Sonnet 5 pensando até estourar `max_tokens` (agora
+`thinking: disabled`, 8000), "vago" era a regra descartando ajuste já aplicado
+quando o modelo deixava `aviso` e o prompt mandando perguntar em pronúncia,
+letra colada e frase nova; a régua agora é a letra ter mudado
+(`refacao-decisao.ts`), o campo aceita 4000 caracteres, o Claude roda ANTES de
+arquivar (sem versão órfã) e o teto de uso volta a valer. (2) 7 dos 11 exemplos
+da home tinham perdido o áudio em 12-16/09 porque `ehExemplo` só protegia token
+`ex…`; agora vale todo token de `exemplos-pt.ts`/`exemplos-en.ts`
+(`token-exemplo.ts`). Eva, Denise e Camburi restaurados com o arquivo idêntico
+que estava em Downloads (`scratch/_restaurar-exemplos-07out.mjs`); Rose,
+Isabela, Garga e Li se perderam (nem Storage nem provedor): a `/p/` deles abre
+com play mudo até decidir regravar ou trocar.
 
 ## Em aberto
 
