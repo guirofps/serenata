@@ -191,8 +191,18 @@ export const vigiaGeracao = inngest.createFunction(
           // o status é que ficou pra trás — redisparar aí seria gerar de novo
           // uma música que já existe.
           .is("gerada_em", null)
-          .lte("created_at", new Date(agora - GERANDO_MIN * 60000).toISOString())
-          .gte("created_at", janelaLonga)
+          // O RELÓGIO É `updated_at`, NÃO `created_at` (08/10).
+          //
+          // Com `created_at`, toda música com mais de 25 minutos de vida que
+          // voltava pra `gerando` (clique de comprar, repescagem, webhook)
+          // era vista como "presa há 25 minutos" no MESMO instante em que
+          // começava a gerar, e era redisparada a cada 10 minutos durante a
+          // espera normal dela. `updated_at` anda sozinho em todo update da
+          // linha (trigger `musicas_updated_at`, migration de fundação): o
+          // `gerando` gravado no início de cada execução e a prévia ~30s
+          // depois. Parado há 25 minutos é parado de verdade.
+          .lte("updated_at", new Date(agora - GERANDO_MIN * 60000).toISOString())
+          .gte("updated_at", janelaLonga)
           .order("created_at", { ascending: true })
           .limit(MAX_REDISPARO * 3),
       ]);
@@ -204,7 +214,7 @@ export const vigiaGeracao = inngest.createFunction(
       // preenchido; o relógio dela é a versão arquivada mais recente.
       const { data: refeitas } = await sb
         .from("musicas")
-        .select("id, titulo, quiz_response_id, created_at")
+        .select("id, titulo, quiz_response_id, created_at, updated_at")
         .eq("status", "gerando")
         .is("audio_path", null)
         .not("gerada_em", "is", null)
@@ -219,7 +229,14 @@ export const vigiaGeracao = inngest.createFunction(
           .order("arquivada_em", { ascending: false })
           .limit(1)
           .maybeSingle();
-        const desde = Date.parse(String(v?.arquivada_em ?? m.created_at));
+        // O MAIS RECENTE entre o arquivamento e o último update (08/10): o
+        // arquivamento não muda quando o próprio vigia redispara, e sem o
+        // `updated_at` a refação parada era redisparada a cada 10 minutos
+        // enquanto a execução nova ainda gerava.
+        const desde = Math.max(
+          Date.parse(String(v?.arquivada_em ?? m.created_at)),
+          Date.parse(String(m.updated_at ?? m.created_at)),
+        );
         if (agora - desde >= GERANDO_MIN * 60000) refacoesParadas.push(m);
       }
 
