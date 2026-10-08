@@ -323,6 +323,21 @@ export const EXPERIMENTOS: Experimento[] = [
     ativo: false,
     nota: "BALLAD, 02/10. A abertura do /criar: 4% das visitas pagas passavam (Serenata 43-53%). A = como era. B = pula a abertura e cai na 1a pergunta. C = abertura com o preço às claras, botão grande pra ouvir o exemplo, CTA sem FREE. Ler por quem RESPONDEU a 1a pergunta (quiz_step q>=2), letra e venda por braço; 'passou da abertura' não compara, no B todo mundo passa.",
   },
+  {
+    // A = a prévia corta aos 40s, popup sem preço (como sempre foi).
+    // B = a prévia vai até o fim do PRIMEIRO refrão (timestamps da música,
+    //     entre 40s e 75s; sem timestamps, 40s) e, no corte, um cartão com o
+    //     preço e o botão de comprar aparece logo abaixo do player, no lugar
+    //     do popup. Conta em `corte-previa.ts`, tela em `MusicaKaraoke`.
+    //
+    // Só no funil `pt`: o cartão é redigido em português, e o `/es` divide o
+    // mesmo banco. Quem está no B fora do `pt` vê o A.
+    id: "previa_refrao",
+    variantes: ["A", "B"],
+    peso: [1, 1],
+    ativo: false,
+    nota: "Prévia até o fim do 1o refrão (B, 40-75s pelos timestamps) com o preço e o botão ali, embaixo do player, contra 40s fixos + popup sem preço (A). Só funil pt. Evidência: 80% de quem não clicou em comprar deu play e 73% bateu no limite. Ler por RECEITA POR LEAD (attribution.exp.previa_refrao), e preview_limite por braço com previa_corte_s/previa_corte_motivo pra saber quantos B cortaram de fato no refrão.",
+  },
 ];
 
 /**

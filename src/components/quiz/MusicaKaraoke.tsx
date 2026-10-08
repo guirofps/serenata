@@ -7,6 +7,13 @@ import { t as textos } from "@/lib/textos";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { rotuloDaSecao } from "@/lib/karaoke-linhas";
 import { familiaDoNavegador } from "@/lib/familia-navegador";
+import { varianteDe } from "@/lib/experimentos";
+import { PREVIA_PADRAO_S, corteDaPrevia, type MotivoCorte } from "@/lib/corte-previa";
+import { PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
+import { meuPlanoCobravel } from "@/lib/preco";
+import { descontoNaTela } from "@/lib/cupom";
+import { useQuizStore } from "@/lib/quiz-store";
+import { creditoNoNavegador } from "@/lib/credito-no-navegador";
 
 // Karaokê REAL: a música cantada + cada palavra acendendo no instante em que
 // é cantada (alignedWords do kie.ai, precisão de ms — R$ 0,013 por música).
@@ -15,12 +22,29 @@ import { familiaDoNavegador } from "@/lib/familia-navegador";
 // sincronia inventada), aqui as palavras VÊM do áudio: quem lê consegue
 // cantar junto, porque o destaque segue o vocal de verdade.
 //
-// Janela grátis: toca até PREVIEW_S segundos; ali pausa e vira o convite de
+// Janela grátis: toca até o limite da prévia; ali pausa e vira o convite de
 // desbloquear a música completa (o paywall no pico emocional).
+//
+// ── TESTE `previa_refrao` (08/10) ────────────────────────────────
+//
+// A = 40s fixos (`PREVIA_PADRAO_S`) e o popup sem preço, como sempre foi.
+// B = a prévia vai até o fim do PRIMEIRO refrão, onde o nome costuma ser
+//     cantado (`corteDaPrevia`, entre 40s e 75s; sem timestamps, 40s), e no
+//     corte aparece um cartão com o preço e o botão logo abaixo do player, no
+//     lugar do popup. Só no funil `pt`: o cartão é redigido em português.
+//
+// O corte de cada um vai no `preview_limite` (`previa_corte_s`), pra a
+// leitura saber quantos do B cortaram de fato no refrão.
 
 export type PalavraAlinhada = { word: string; start: number; end: number };
 
-const PREVIEW_S = 40;
+const EXP_PREVIA_REFRAO = "previa_refrao";
+
+/** "0:40", "1:02": o tempo do player. */
+function relogio(s: number): string {
+  const inteiro = Math.floor(s);
+  return `${Math.floor(inteiro / 60)}:${String(inteiro % 60).padStart(2, "0")}`;
+}
 
 // As palavras vêm com marcadores e quebras embutidos ("[Verse 1]\nHolambra ").
 // Normaliza em linhas: marcador vira rótulo, palavras agrupam por linha.
@@ -112,6 +136,22 @@ export function MusicaKaraoke({
   const [travou, setTravou] = useState(false);
   const [dur, setDur] = useState(0);
 
+  // O braço é lido UMA vez: o carimbo do `<html>` não muda durante a visita,
+  // e este componente só monta no cliente (depois do polling da música).
+  const [braco] = useState(() => varianteDe(EXP_PREVIA_REFRAO));
+  const noRefrao = !completo && locale === "pt" && braco === "B";
+  // No B o corte cresce quando os timestamps chegam (a prévia por stream vem
+  // ~60s antes deles, e até lá é 40s). Nunca encolhe: sem timestamps é o piso.
+  const corte = useMemo<{ s: number; motivo: MotivoCorte | "controle" }>(
+    () => (noRefrao ? corteDaPrevia(words, letra) : { s: PREVIA_PADRAO_S, motivo: "controle" }),
+    [noRefrao, words, letra],
+  );
+  const limite = corte.s;
+  // A trava roda num listener montado uma vez só; o ref é como ela enxerga o
+  // corte de agora.
+  const corteRef = useRef(corte);
+  corteRef.current = corte;
+
   // POPUP DO FIM DA PRÉVIA.
   //
   // O convite de comprar já existia, mas EMBAIXO da letra inteira: no celular
@@ -156,14 +196,19 @@ export function MusicaKaraoke({
     const a = audioRef.current;
     if (!a || completo) return; // modo completo: sem trava
     const trava = () => {
-      if (a.currentTime >= PREVIEW_S) {
+      const { s: lim, motivo } = corteRef.current;
+      if (a.currentTime >= lim) {
         a.pause();
-        a.currentTime = PREVIEW_S;
-        setT(PREVIEW_S);
+        a.currentTime = lim;
+        setT(lim);
         setTocando(false);
         setTravou(true);
         aoTravar?.();
-        trackEventOnce("preview_limite", "v1");
+        trackEventOnce("preview_limite", "v1", {
+          previa_refrao: braco,
+          previa_corte_s: lim,
+          previa_corte_motivo: motivo,
+        });
       }
     };
     a.addEventListener("timeupdate", trava);
@@ -179,15 +224,46 @@ export function MusicaKaraoke({
 
   // Meio segundo depois da música cortar: dá tempo da última palavra assentar
   // e do "…" aparecer no player. Sem a pausa, o popup pisa no fim da frase.
+  //
+  // No braço B do `previa_refrao` não há popup: o cartão com o preço sobe no
+  // mesmo meio segundo, embaixo do player.
+  const [cartao, setCartao] = useState(false);
+  const cartaoRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!travou || jaMostrou.current) return;
     jaMostrou.current = true;
     const id = setTimeout(() => {
+      if (noRefrao) {
+        setCartao(true);
+        trackEventOnce("previa_cartao_abre", "v1", { previa_corte_s: corteRef.current.s });
+        return;
+      }
       setPopup(true);
       trackEvent("popup_previa_abre", {});
     }, 500);
     return () => clearTimeout(id);
-  }, [travou]);
+  }, [travou, noRefrao]);
+
+  // Quem estava lendo o refrão já rolou pra baixo do player: o cartão entra
+  // na tela sozinho. `nearest` não mexe em nada se ele já estiver visível.
+  useEffect(() => {
+    if (!cartao) return;
+    cartaoRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [cartao]);
+
+  // O preço do cartão é o MESMO da oferta, pelas mesmas peças: o braço que o
+  // servidor cobra (`meuPlanoCobravel`) e o cupom pela conta da cobrança
+  // (`descontoNaTela`), mostrados por `PrecoDaOferta`. Nada calculado aqui.
+  const cupom = useQuizStore((s) => s.cupom);
+  const descontado = noRefrao
+    ? descontoNaTela(cupom, locale, Math.round((Number(meuPlanoCobravel(locale).valor) || 0) * 100))
+    : null;
+  // Quem já comprou neste navegador pode ter crédito, e a oferta mostra o
+  // crédito no lugar do preço. Aqui não se sabe o saldo sem ir ao servidor:
+  // na dúvida, o cartão sai sem preço.
+  const [podeTerCredito] = useState(
+    () => typeof window !== "undefined" && creditoNoNavegador() !== null,
+  );
 
   // Voltar/ESC fecham o popup em vez de sair da página.
   useEffect(() => {
@@ -295,7 +371,7 @@ export function MusicaKaraoke({
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border">
             <div
               className="h-full rounded-full bg-primary"
-              style={{ width: `${Math.min(100, (t / (completo ? dur || 1 : PREVIEW_S)) * 100)}%` }}
+              style={{ width: `${Math.min(100, (t / (completo ? dur || 1 : limite)) * 100)}%` }}
             />
           </div>
         </div>
@@ -304,9 +380,50 @@ export function MusicaKaraoke({
           {" / "}
           {completo
             ? `${Math.floor(dur / 60)}:${String(Math.floor(dur % 60)).padStart(2, "0")}`
-            : `0:${PREVIEW_S}`}
+            : relogio(limite)}
         </span>
       </div>
+
+      {/* Braço B do `previa_refrao`: o cartão de compra no lugar do popup,
+          logo abaixo do player, no instante em que o refrão termina. */}
+      {cartao && (
+        <div
+          ref={cartaoRef}
+          className="scroll-my-4 space-y-4 rounded-2xl border-2 border-primary/25 bg-primary/5 px-5 py-6 text-center"
+          style={{ animation: "serenata-sobe .28s ease-out" }}
+        >
+          <div>
+            <p className="font-display text-xl font-semibold">{T.popupTitulo}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{T.popupTexto}</p>
+          </div>
+          <ul className="mx-auto space-y-2 text-left text-sm">
+            {T.popupItens.map((item) => (
+              <li key={item} className="flex items-start gap-2">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+          {!podeTerCredito && (
+            <div>
+              <PrecoDaOferta locale={locale} hojePor="hoje por" descontado={descontado} />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Pagamento único. Não é assinatura.
+              </p>
+            </div>
+          )}
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={() => {
+              trackEvent("desbloquear_click", { origem: "cartao_refrao" });
+              onDesbloquear();
+            }}
+          >
+            {T.popupCta}
+          </Button>
+        </div>
+      )}
 
       {/* Letra: sincronizada quando ha timestamps, estatica enquanto e previa */}
       <div className="space-y-1">
@@ -359,8 +476,9 @@ export function MusicaKaraoke({
         )}
       </div>
 
-      {/* Paywall no pico: a música corta no melhor momento */}
-      {travou && (
+      {/* Paywall no pico: a música corta no melhor momento. No braço B do
+          `previa_refrao` o cartão de cima já faz este papel. */}
+      {travou && !noRefrao && (
         <div className="space-y-3 rounded-2xl border bg-card p-5 text-center">
           <Lock className="mx-auto h-5 w-5 text-muted-foreground" />
           <p className="font-semibold">{T.musicaContinua}</p>
