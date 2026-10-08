@@ -1,5 +1,6 @@
 import { inngest } from "../client.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
+import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { REMETENTE_TRANSACIONAL } from "../../emails/remetentes.js";
@@ -125,7 +126,7 @@ export const videoPendente = inngest.createFunction(
       const sb = db();
       const { data: esperando } = await sb
         .from("videos")
-        .select("id, email, musica_id")
+        .select("id, email, musica_id, created_at")
         .eq("status", "aguardando_fotos")
         .not("musica_id", "is", null)
         .lt("created_at", antes(LEMBRETE_H))
@@ -133,13 +134,9 @@ export const videoPendente = inngest.createFunction(
         .limit(20);
       let enviados = 0;
       for (const v of esperando ?? []) {
-        const { data: ja, error: jaErr } = await sb
-          .from("funnel_events")
-          .select("id")
-          .eq("event_name", "video_esperando_lembrado")
-          .contains("event_data", { video_id: v.id })
-          .limit(1);
-        if (jaErr || ja?.length) continue; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
+        // Na dúvida, já mandou (04/10). A janela começa no nascimento do
+        // vídeo (08/10): o lembrete não existe antes dele.
+        if (await jaTravado(sb, "video_esperando_lembrado", { video_id: v.id }, v.created_at as string)) continue;
         if (await estaBloqueado(sb, v.email as string)) continue;
 
         const { data: m } = await sb
@@ -160,6 +157,15 @@ export const videoPendente = inngest.createFunction(
           "quem você ama";
         const link = `${SITE}/editar/${m.token_edicao}?de=video_esperando#video`;
 
+        // A TRAVA ANTES DO ENVIO (08/10): ela era gravada depois do Resend e
+        // sem ler o erro, e uma gravação perdida repetia o lembrete na rodada
+        // seguinte. Não gravou, não manda.
+        const trava = await travarEnvio(sb, {
+          event_name: "video_esperando_lembrado",
+          event_data: { video_id: v.id },
+        });
+        if (!trava) continue;
+
         const { data: enviado, error } = await new Resend(chave).emails.send({
           tags: [{ name: "template", value: "video_esperando" }],
           from: REMETENTE_TRANSACIONAL,
@@ -174,16 +180,13 @@ export const videoPendente = inngest.createFunction(
         });
         if (error) {
           console.error("[video-pendente] lembrete falhou:", error.message);
+          await soltarTrava(sb, trava);
           continue;
         }
         await registrarEnvio(sb, {
           emailId: enviado?.id,
           template: "video_esperando",
           para: v.email as string,
-        });
-        await sb.from("funnel_events").insert({
-          event_name: "video_esperando_lembrado",
-          event_data: { video_id: v.id },
         });
         enviados += 1;
       }

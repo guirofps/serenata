@@ -259,6 +259,35 @@ export const conviteIndicacao = inngest.createFunction(
             continue;
           }
 
+          // 2. A MARCA ANTES DE MANDAR, CONDICIONAL (08/10). Ela era gravada
+          //    DEPOIS do envio e sem ler o erro: se a gravação falhasse, o
+          //    anúncio de comissão saía de novo na rodada seguinte, pra quem
+          //    já tinha recebido. Agora o UPDATE só pega a linha ainda sem
+          //    marca, e é ele que decide quem manda: não marcou (erro, ou
+          //    outra rodada marcou antes), não manda. Se o Resend recusar por
+          //    motivo passageiro, a marca é desfeita e o convite sai depois;
+          //    se nem desfazer der, a pessoa fica sem este convite, nunca com
+          //    dois. É a regra de 04/10: trava de "já mandei" falha FECHADA.
+          const marca = new Date().toISOString();
+          const { data: marcou, error: erroMarca } = await sb
+            .from("indicacao_codigos")
+            .update({ convite_enviado_em: marca })
+            .eq("email", p.email)
+            .is("convite_enviado_em", null)
+            .select("email");
+          if (erroMarca || !(marcou ?? []).length) {
+            console.error(`[convite] marca não gravou, sem envio: ${p.email}`, erroMarca?.message ?? "já marcado");
+            continue;
+          }
+          const desmarcar = async () => {
+            const { error } = await sb
+              .from("indicacao_codigos")
+              .update({ convite_enviado_em: null })
+              .eq("email", p.email)
+              .eq("convite_enviado_em", marca);
+            if (error) console.error(`[convite] marca não saiu, fica sem convite: ${p.email}`, error.message);
+          };
+
           const link = linkDoConvite(codigo, SITE);
           const linkDescadastro = linkDescadastroUmClique(p.email)!;
 
@@ -283,24 +312,15 @@ export const conviteIndicacao = inngest.createFunction(
             // `montarFila`). Só a recusa do ENDEREÇO marca: limite de taxa,
             // cota e erro interno do Resend passam, e o convite tem que sair
             // depois. A marca é a mesma que a fila já lê (`convite_enviado_em`),
-            // então essas poucas linhas contam na rampa como enviadas.
+            // então essas poucas linhas contam na rampa como enviadas. Desde
+            // 08/10 ela já está gravada (acima): basta deixá-la.
             if (enderecoRecusado(erroEnvio)) {
-              await sb
-                .from("indicacao_codigos")
-                .update({ convite_enviado_em: new Date().toISOString() })
-                .eq("email", p.email);
               console.error(`[convite] endereço recusado, fora da fila: ${p.email}`);
               continue;
             }
+            await desmarcar();
             throw new Error(erroEnvio.message);
           }
-
-          // 2. MARCA SÓ DEPOIS DE SAIR. Marcar antes trocaria "mandou duas
-          //    vezes" por "nunca mandou", que é pior: o segundo é invisível.
-          await sb
-            .from("indicacao_codigos")
-            .update({ convite_enviado_em: new Date().toISOString() })
-            .eq("email", p.email);
 
           await registrarEnvio(sb, {
             emailId: env?.id,

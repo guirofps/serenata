@@ -2,6 +2,7 @@ import { inngest } from "../client.js";
 import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { createClient } from "@supabase/supabase-js";
 import { bloqueados } from "../lib/emails-mortos.js";
+import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 import { Resend } from "resend";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { emailVolteCriar, assuntoVolteCriar } from "../../emails/volte-criar.js";
@@ -47,6 +48,13 @@ const MAX_DIAS = 30;
 // pessoas, então a 15 por hora ela se esvazia em pouco mais de meio dia de
 // janela, sem pico nenhum.
 const MAX_POR_RODADA = 15;
+
+/**
+ * O começo da trilha de `volte_criar_enviado`: antes do primeiro envio (a fila
+ * inicial é de 19/08). "Pra sempre" com limite escrito, porque consulta em
+ * `funnel_events` sem `created_at` é bug esperando acontecer (04/10).
+ */
+const DESDE_SEMPRE = "2026-08-01T00:00:00Z";
 
 function db() {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -151,14 +159,16 @@ export const volteCriar = inngest.createFunction(
           // com espaço duplo.
           nome:
             ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-            (locale === "es" ? "quien vos querés" : "quem você ama"),
+            // `tú`, nunca `vos` (o funil é mexicano).
+            (locale === "es" ? "esa persona" : "quem você ama"),
           sessao: q?.session_id ?? "",
           quizId: p.quiz_response_id,
         });
       }
       // A lista de mortos lida acima vem cortada em 1000 linhas pelo PostgREST
-      // (eram 2.540 em 04/10): a checagem que vale é esta, por endereço.
-      const mortosDaFila = await bloqueados(sb, out.map((o) => o.email));
+      // (eram 2.540 em 04/10): a checagem que vale é esta, por endereço, com
+      // descadastrados e excluídos junto (08/10). Lança se não ler.
+      const mortosDaFila = await bloqueados(sb, out.map((o) => o.email), { incluirExcluidos: true });
       return out.filter((o) => !mortosDaFila.has(o.email.toLowerCase()));
     });
 
@@ -175,13 +185,18 @@ export const volteCriar = inngest.createFunction(
 
         // Recheca na hora do envio: entre a busca e agora a pessoa pode ter
         // comprado, ganhado crédito ou se descadastrado.
-        const { data: jaFoi, error: jaFoiErr } = await sb
-          .from("funnel_events")
-          .select("id")
-          .eq("event_name", "volte_criar_enviado")
-          .contains("event_data", { email: c.email })
-          .limit(1);
-        if (jaFoiErr || (jaFoi ?? []).length) return false; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
+        // Uma vez por pessoa, pra sempre: a janela começa antes de este
+        // e-mail existir. Erro conta como já mandou (04/10).
+        if (await jaTravado(sb, "volte_criar_enviado", { email: c.email }, DESDE_SEMPRE)) return false;
+
+        // A TRAVA ANTES DO ENVIO (08/10): ela era gravada depois do Resend e
+        // sem ler o erro, e uma gravação perdida mandava o mesmo e-mail na
+        // rodada seguinte. Não gravou, não manda.
+        const trava = await travarEnvio(sb, {
+          event_name: "volte_criar_enviado",
+          event_data: { email: c.email, locale: c.locale },
+        });
+        if (!trava) return false;
 
         const linkDescadastro = `${SITE}/descadastrar?s=${encodeURIComponent(c.sessao)}&lang=${c.locale}`;
         // Vai pro PAINEL, não direto pro funil: é lá que ela escolhe entre a
@@ -214,6 +229,7 @@ export const volteCriar = inngest.createFunction(
         });
         if (error) {
           console.error("[volte-criar] envio falhou:", c.email, error.message);
+          await soltarTrava(sb, trava);
           return false;
         }
         await registrarEnvio(sb, {
@@ -225,11 +241,6 @@ export const volteCriar = inngest.createFunction(
           // por e-mail tem resposta — era o caso dos 978 `letra_pronta`
           // registrados em dois dias, todos com `quiz_response_id` nulo.
           quizResponseId: c.quizId,
-        });
-
-        await sb.from("funnel_events").insert({
-          event_name: "volte_criar_enviado",
-          event_data: { email: c.email, locale: c.locale },
         });
         return true;
       });
