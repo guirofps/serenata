@@ -8,7 +8,13 @@ import { trackEvent, trackEventOnce } from "@/lib/track";
 import { rotuloDaSecao } from "@/lib/karaoke-linhas";
 import { familiaDoNavegador } from "@/lib/familia-navegador";
 import { varianteDe } from "@/lib/experimentos";
-import { PREVIA_PADRAO_S, corteDaPrevia, type MotivoCorte } from "@/lib/corte-previa";
+import {
+  PREVIA_PADRAO_S,
+  corteDaPrevia,
+  corteNoAudio,
+  proximoCorte,
+  type MotivoCorte,
+} from "@/lib/corte-previa";
 import { PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
 import { meuPlanoCobravel } from "@/lib/preco";
 import { descontoNaTela } from "@/lib/cupom";
@@ -29,7 +35,7 @@ import { creditoNoNavegador } from "@/lib/credito-no-navegador";
 //
 // A = 40s fixos (`PREVIA_PADRAO_S`) e o popup sem preço, como sempre foi.
 // B = a prévia vai até o fim do PRIMEIRO refrão, onde o nome costuma ser
-//     cantado (`corteDaPrevia`, entre 40s e 75s; sem timestamps, 40s), e no
+//     cantado (`corteDaPrevia`, entre 40s e 75s; sem timestamps, 60s estimados), e no
 //     corte aparece um cartão com o preço e o botão logo abaixo do player, no
 //     lugar do popup. Só no funil `pt`: o cartão é redigido em português.
 //
@@ -140,13 +146,25 @@ export function MusicaKaraoke({
   // e este componente só monta no cliente (depois do polling da música).
   const [braco] = useState(() => varianteDe(EXP_PREVIA_REFRAO));
   const noRefrao = !completo && locale === "pt" && braco === "B";
-  // No B o corte cresce quando os timestamps chegam (a prévia por stream vem
-  // ~60s antes deles, e até lá é 40s). Nunca encolhe: sem timestamps é o piso.
-  const corte = useMemo<{ s: number; motivo: MotivoCorte | "controle" }>(
+  // No B, enquanto os timestamps não existem (a prévia por stream chega ~60s
+  // antes deles), o corte é o fim ESTIMADO do refrão, 60s. Quando eles chegam
+  // com a música ainda tocando e antes do corte calculado, vale o calculado;
+  // se ela já passou dele, fica a estimativa (`proximoCorte`), porque trocar
+  // voltaria o áudio. Depois do corte, nada muda. No A, 40s e pronto.
+  const calculado = useMemo<{ s: number; motivo: MotivoCorte | "controle" }>(
     () => (noRefrao ? corteDaPrevia(words, letra) : { s: PREVIA_PADRAO_S, motivo: "controle" }),
     [noRefrao, words, letra],
   );
-  const limite = corte.s;
+  const [corte, setCorte] = useState(calculado);
+  const travouRef = useRef(false);
+  useEffect(() => {
+    if (!noRefrao) return;
+    setCorte((vigente) =>
+      proximoCorte(vigente, calculado, audioRef.current?.currentTime ?? 0, travouRef.current),
+    );
+  }, [noRefrao, calculado]);
+  // O corte nunca passa do fim do arquivo (só no B; o A fica como era).
+  const limite = noRefrao ? corteNoAudio(corte.s, dur) : corte.s;
   // A trava roda num listener montado uma vez só; o ref é como ela enxerga o
   // corte de agora.
   const corteRef = useRef(corte);
@@ -196,8 +214,10 @@ export function MusicaKaraoke({
     const a = audioRef.current;
     if (!a || completo) return; // modo completo: sem trava
     const trava = () => {
-      const { s: lim, motivo } = corteRef.current;
+      const { s, motivo } = corteRef.current;
+      const lim = noRefrao ? corteNoAudio(s, a.duration) : s;
       if (a.currentTime >= lim) {
+        travouRef.current = true;
         a.pause();
         a.currentTime = lim;
         setT(lim);
@@ -213,11 +233,15 @@ export function MusicaKaraoke({
     };
     a.addEventListener("timeupdate", trava);
     a.addEventListener("seeking", trava); // seek além do limite também trava
+    // B: arquivo mais curto que o corte (prévia parcial) trava no fim dele, e
+    // o cartão aparece do mesmo jeito.
+    if (noRefrao) a.addEventListener("ended", trava);
     const onPause = () => setTocando(false);
     a.addEventListener("pause", onPause);
     return () => {
       a.removeEventListener("timeupdate", trava);
       a.removeEventListener("seeking", trava);
+      a.removeEventListener("ended", trava);
       a.removeEventListener("pause", onPause);
     };
   }, []);

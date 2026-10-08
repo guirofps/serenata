@@ -23,11 +23,20 @@
 // diz quantas linhas há antes do refrão e quantas ele tem, e a conta confere
 // a primeira palavra antes de confiar na posição.
 //
-// ── QUANDO NÃO DÁ, É O CORTE DE HOJE ────────────────────────────
+// ── SEM TIMESTAMPS, UMA ESTIMATIVA (60s) ────────────────────────
 //
-// Sem timestamps (a prévia por stream, que chega ~60s antes deles), sem
-// refrão achado ou com o refrão longe demais, o corte é o de sempre. O braço
-// B nunca corta ANTES do A.
+// A tela revela pela prévia por stream (~30s) e os timestamps só nascem com
+// o arquivo final (~93-122s). Quem dá play logo chega aos 40s de áudio ANTES
+// de eles existirem: cair no corte de hoje nesse caso deixaria o braço B igual
+// ao A pra maior parte das pessoas, e o teste não mediria nada. Sem
+// timestamps, o B corta numa ESTIMATIVA do fim do refrão
+// (`PREVIA_B_SEM_TIMESTAMPS_S`); quando eles chegam com a música ainda
+// tocando, o `MusicaKaraoke` troca pela conta de verdade.
+//
+// ── QUANDO A CONTA NÃO FECHA, É O CORTE DE HOJE ─────────────────
+//
+// Timestamps sem refrão achado, ou com o refrão longe demais: o corte é o de
+// sempre. O braço B nunca corta ANTES do A.
 
 /** O corte de hoje. É o piso do braço B e o corte inteiro do braço A. */
 export const PREVIA_PADRAO_S = 40;
@@ -40,6 +49,17 @@ export const PREVIA_PADRAO_S = 40;
  * de ser prévia.
  */
 export const PREVIA_MAX_S = 75;
+
+/**
+ * O corte do braço B enquanto os timestamps não existem: o fim ESTIMADO do
+ * primeiro refrão.
+ *
+ * Medido numa música real (formato da nossa letra: intro curta, verso 1,
+ * refrão): o primeiro refrão terminou em ~58,9s. 60s é esse número
+ * arredondado pra cima, pra não cortar a última palavra. Fica dentro da
+ * janela [PREVIA_PADRAO_S, PREVIA_MAX_S].
+ */
+export const PREVIA_B_SEM_TIMESTAMPS_S = 60;
 
 /**
  * Quanto a última palavra pode "segurar". O `end` do provedor às vezes engole
@@ -66,8 +86,8 @@ export type MotivoCorte =
   | "refrao_cedo"
   /** Nem a primeira linha do refrão cabe no teto: corte de hoje. */
   | "refrao_tarde"
-  /** Timestamps vazios ou ausentes (prévia por stream): corte de hoje. */
-  | "sem_timestamps"
+  /** Timestamps vazios ou ausentes (prévia por stream): o fim estimado, 60s. */
+  | "estimado_60s"
   /** Timestamps existem, mas o refrão não foi achado com segurança. */
   | "sem_refrao";
 
@@ -202,7 +222,8 @@ const arredondar = (s: number) => Math.round(s * 100) / 100;
 
 /**
  * O segundo em que a prévia do braço B corta: o fim do primeiro refrão,
- * dentro de [PREVIA_PADRAO_S, PREVIA_MAX_S]. Fora disso, ou sem dado, o
+ * dentro de [PREVIA_PADRAO_S, PREVIA_MAX_S]. Sem timestamps, o fim estimado
+ * (`PREVIA_B_SEM_TIMESTAMPS_S`). Com timestamps e sem refrão que caiba, o
  * corte de hoje.
  */
 export function corteDaPrevia(
@@ -210,10 +231,11 @@ export function corteDaPrevia(
   letra?: string | null,
 ): CorteDaPrevia {
   const padrao = (motivo: MotivoCorte): CorteDaPrevia => ({ s: PREVIA_PADRAO_S, motivo });
-  if (!Array.isArray(words) || !words.length) return padrao("sem_timestamps");
+  const estimado: CorteDaPrevia = { s: PREVIA_B_SEM_TIMESTAMPS_S, motivo: "estimado_60s" };
+  if (!Array.isArray(words) || !words.length) return estimado;
 
   const itens = itensDosTimestamps(words);
-  if (!itens.some((it) => it.tipo === "verso")) return padrao("sem_timestamps");
+  if (!itens.some((it) => it.tipo === "verso")) return estimado;
 
   const refrao = refraoPelosMarcadores(itens) ?? (letra ? refraoPelaLetra(itens, letra) : null);
   if (!refrao) return padrao("sem_refrao");
@@ -238,4 +260,36 @@ export function corteDaPrevia(
   const melhor = cabe[cabe.length - 1];
   if (melhor < PREVIA_PADRAO_S) return padrao("refrao_tarde");
   return { s: arredondar(melhor), motivo: "refrao_parcial" };
+}
+
+/**
+ * Os timestamps chegaram (ou o corte calculado mudou) com a prévia em
+ * andamento: qual corte vale daqui pra frente?
+ *
+ * - Já cortou: nada muda. Trocar depois do corte moveria o áudio parado e
+ *   reabriria a trava.
+ * - A música já passou do corte calculado: fica o vigente (a estimativa de
+ *   60s). Trocar faria a trava VOLTAR o áudio pro fim do refrão, que a pessoa
+ *   acabou de ouvir.
+ * - Senão, vale o calculado (o fim do refrão de verdade, entre 40s e 75s).
+ */
+export function proximoCorte<C extends { s: number }>(
+  vigente: C,
+  calculado: C,
+  posicaoS: number,
+  travou: boolean,
+): C {
+  if (travou) return vigente;
+  if (calculado.s <= posicaoS) return vigente;
+  return calculado;
+}
+
+/**
+ * O corte nunca passa do fim do arquivo. Sem isso, um áudio mais curto que o
+ * corte (a prévia por stream pode vir parcial) terminaria sem trava, e o
+ * cartão de compra nunca apareceria. Duração desconhecida (NaN, Infinity de
+ * stream) não limita nada.
+ */
+export function corteNoAudio(s: number, duracaoS: number): number {
+  return Number.isFinite(duracaoS) && duracaoS > 0 ? Math.min(s, duracaoS) : s;
 }

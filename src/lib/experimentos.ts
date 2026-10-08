@@ -326,7 +326,7 @@ export const EXPERIMENTOS: Experimento[] = [
   {
     // A = a prévia corta aos 40s, popup sem preço (como sempre foi).
     // B = a prévia vai até o fim do PRIMEIRO refrão (timestamps da música,
-    //     entre 40s e 75s; sem timestamps, 40s) e, no corte, um cartão com o
+    //     entre 40s e 75s; sem timestamps, 60s estimados) e, no corte, um cartão com o
     //     preço e o botão de comprar aparece logo abaixo do player, no lugar
     //     do popup. Conta em `corte-previa.ts`, tela em `MusicaKaraoke`.
     //
@@ -336,7 +336,7 @@ export const EXPERIMENTOS: Experimento[] = [
     variantes: ["A", "B"],
     peso: [1, 1],
     ativo: false,
-    nota: "Prévia até o fim do 1o refrão (B, 40-75s pelos timestamps) com o preço e o botão ali, embaixo do player, contra 40s fixos + popup sem preço (A). Só funil pt. Evidência: 80% de quem não clicou em comprar deu play e 73% bateu no limite. Ler por RECEITA POR LEAD (attribution.exp.previa_refrao), e preview_limite por braço com previa_corte_s/previa_corte_motivo pra saber quantos B cortaram de fato no refrão.",
+    nota: "Prévia até o fim do 1o refrão (B, 40-75s pelos timestamps; sem timestamps, 60s estimados, motivo estimado_60s) com o preço e o botão ali, embaixo do player, contra 40s fixos + popup sem preço (A). Só funil pt. Evidência: 80% de quem não clicou em comprar deu play e 73% bateu no limite. Ler por RECEITA POR LEAD (attribution.exp.previa_refrao), e preview_limite por braço com previa_corte_s/previa_corte_motivo pra saber quantos B cortaram de fato no refrão.",
   },
 ];
 

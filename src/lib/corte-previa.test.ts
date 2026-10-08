@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { PREVIA_MAX_S, PREVIA_PADRAO_S, corteDaPrevia, ehRefrao } from "./corte-previa";
+import {
+  PREVIA_B_SEM_TIMESTAMPS_S,
+  PREVIA_MAX_S,
+  PREVIA_PADRAO_S,
+  corteDaPrevia,
+  corteNoAudio,
+  ehRefrao,
+  proximoCorte,
+} from "./corte-previa";
 
 // FORMATO REAL de `musicas.timestamps` (alignedWords da kie.ai, mapeado em
 // `obterTimestamps`): marcador e quebra de linha DENTRO da palavra, `end` da
@@ -104,18 +112,23 @@ describe("corteDaPrevia", () => {
     expect(c.s).toBeLessThan(58.896); // a primeira do verso 2 não
   });
 
-  it("sem timestamps (a prévia por stream) é o corte de hoje", () => {
-    expect(corteDaPrevia(null, LETRA)).toEqual({ s: PREVIA_PADRAO_S, motivo: "sem_timestamps" });
-    expect(corteDaPrevia([], LETRA)).toEqual({ s: PREVIA_PADRAO_S, motivo: "sem_timestamps" });
-    expect(corteDaPrevia(undefined)).toEqual({ s: PREVIA_PADRAO_S, motivo: "sem_timestamps" });
+  it("sem timestamps (a prévia por stream) corta no fim ESTIMADO do refrão, 60s", () => {
+    const estimado = { s: PREVIA_B_SEM_TIMESTAMPS_S, motivo: "estimado_60s" };
+    expect(PREVIA_B_SEM_TIMESTAMPS_S).toBe(60);
+    expect(corteDaPrevia(null, LETRA)).toEqual(estimado);
+    expect(corteDaPrevia([], LETRA)).toEqual(estimado);
+    expect(corteDaPrevia(undefined)).toEqual(estimado);
+    // Dentro da janela do braço B.
+    expect(PREVIA_B_SEM_TIMESTAMPS_S).toBeGreaterThanOrEqual(PREVIA_PADRAO_S);
+    expect(PREVIA_B_SEM_TIMESTAMPS_S).toBeLessThanOrEqual(PREVIA_MAX_S);
   });
 
   it("lixo nos timestamps não derruba: é ignorado", () => {
     const sujo = [{ word: 3 }, { word: "x", start: "nada", end: 1 }, null, ...MUSICA] as never;
     expect(corteDaPrevia(sujo, LETRA).motivo).toBe("refrao");
     expect(corteDaPrevia([{ word: 3 }] as never)).toEqual({
-      s: PREVIA_PADRAO_S,
-      motivo: "sem_timestamps",
+      s: PREVIA_B_SEM_TIMESTAMPS_S,
+      motivo: "estimado_60s",
     });
   });
 
@@ -186,5 +199,43 @@ describe("corteDaPrevia", () => {
     ];
     // 55,93 + 3 de teto + 0,4 de respiro.
     expect(corteDaPrevia(solo).s).toBeCloseTo(59.33, 2);
+  });
+});
+
+describe("proximoCorte (timestamps chegando com a prévia tocando)", () => {
+  const estimado = corteDaPrevia(null);
+  const refrao = corteDaPrevia(MUSICA, LETRA); // 58,65
+
+  it("antes do fim do refrão calculado, troca a estimativa pela conta de verdade", () => {
+    expect(proximoCorte(estimado, refrao, 30, false)).toBe(refrao);
+    expect(proximoCorte(estimado, refrao, 58, false)).toBe(refrao);
+  });
+
+  it("refrão calculado mais longo que a estimativa também vale (até 75s)", () => {
+    const longo = corteDaPrevia(deslocar(MUSICA, 10), LETRA); // ~68,65
+    expect(longo.motivo).toBe("refrao");
+    expect(proximoCorte(estimado, longo, 59, false)).toBe(longo);
+  });
+
+  it("já passou do fim do refrão: fica a estimativa, nunca volta o áudio", () => {
+    expect(proximoCorte(estimado, refrao, 58.7, false)).toBe(estimado);
+    expect(proximoCorte(estimado, refrao, 59.9, false)).toBe(estimado);
+  });
+
+  it("depois do corte, nada muda", () => {
+    expect(proximoCorte(estimado, refrao, 20, true)).toBe(estimado);
+  });
+});
+
+describe("corteNoAudio", () => {
+  it("o corte nunca passa do fim do arquivo", () => {
+    expect(corteNoAudio(60, 45.2)).toBe(45.2);
+    expect(corteNoAudio(60, 180)).toBe(60);
+  });
+
+  it("duração desconhecida não limita", () => {
+    expect(corteNoAudio(60, Number.NaN)).toBe(60);
+    expect(corteNoAudio(60, Number.POSITIVE_INFINITY)).toBe(60);
+    expect(corteNoAudio(60, 0)).toBe(60);
   });
 });
