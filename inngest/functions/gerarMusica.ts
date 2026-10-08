@@ -6,6 +6,7 @@ import { podeGerar } from "../lib/disjuntor.js";
 import { musicaDoQuiz, mandarEmailDeEntrega } from "../../api/lib/entrega.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
 import { restaurarSeAjusteFalhou } from "../lib/restaurar-ajuste.js";
+import { semOTermo, termoBarrado } from "../../src/lib/recusa-provedor.js";
 
 // Job de geração da música. Portado de scratch/pipeline-completo.mjs, que já
 // rodou de ponta a ponta na mão (3 músicas aprovadas).
@@ -26,40 +27,9 @@ const bucket = "musicas";
 // já proíbe, mas se escapar a música morreria em silêncio. Este fallback
 // troca o estilo por um genérico do gênero e tenta de novo.
 
-/**
- * O PROVEDOR DIZ QUAL PALAVRA ELE BARROU. Basta ler.
- *
- * Medido em 14/08, depois que a captura do motivo entrou:
- *   "Your lyrics contain producer tag que delicia - we don't reference..."
- *   "Your tags contain artist name pressa - we don't reference..."
- *
- * O filtro de artista do Suno confunde palavra comum do português com nome de
- * gente. "que delícia" virou produtor e "pressa" virou artista. Nenhum dos dois
- * é referência a artista nenhum, e o `estiloSemReferencias` jamais pegaria isso,
- * porque ele só limpa construções do tipo "no estilo de X".
- *
- * Como a mensagem entrega o termo, dá pra tirar exatamente ele e tentar de
- * novo, em vez de repetir a mesma coisa e torcer.
- */
-function termoBarrado(motivo: string | null): string | null {
-  if (!motivo) return null;
-  const m = motivo.match(/(?:producer tag|artist name|artist)\s+(.+?)\s+-\s+we don't/i);
-  const termo = m?.[1]?.trim();
-  // Termo curto demais viraria remoção cega no texto inteiro.
-  return termo && termo.length >= 3 ? termo : null;
-}
-
-/** Tira o termo barrado de um texto, sem deixar espaço duplo nem vírgula solta. */
-function semOTermo(texto: string, termo: string): string {
-  const escapado = termo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return texto
-    .replace(new RegExp(escapado, "gi"), "")
-    .replace(/ {2,}/g, " ")
-    .replace(/\s+([,.!?])/g, "$1")
-    .replace(/,\s*,/g, ",")
-    .replace(/^[\s,]+|[\s,]+$/gm, "")
-    .trim();
-}
+// O termo barrado pelo provedor (ler e tirar) mora em `recusa-provedor.ts`,
+// puro e testado. Ali está também o porquê de a busca ignorar acento: o Suno
+// escreve "que delicia" na recusa, e a letra tem "que delícia" (08/10).
 
 function estiloSemReferencias(estilo: string | null, genero: string | null): string {
   const limpo = String(estilo ?? "").replace(
@@ -121,13 +91,30 @@ export const gerarMusica = inngest.createFunction(
     // lado do provedor, cujo limite de taxa a gente não conhece — e descobrir
     // esse limite em produção, num funil que gera antes de cobrar, custaria
     // música falhada em vez de música na espera.
+    concurrency: [{ limit: 25 }],
+    // ── UMA EXECUÇÃO VIVA POR MÚSICA ─────────────────────────────
     //
-    // E UMA por música (auditoria 30/09): o vigia e a repescagem podiam
+    // A auditoria de 30/09 viu o problema certo: o vigia e a repescagem podiam
     // redisparar uma música que já estava gerando, e as duas execuções
     // gravavam no mesmo `v1.mp3` (áudio de uma, timestamps da outra, e o
-    // Suno pago duas vezes). Com a chave, a segunda espera a primeira
-    // terminar e sai pelo `jaPronta`.
-    concurrency: [{ limit: 25 }, { key: "event.data.musicaId", limit: 1 }],
+    // Suno pago duas vezes). O remédio de então foi `concurrency` com chave
+    // por música, limite 1.
+    //
+    // NÃO SERIALIZAVA (08/10). No Inngest, `concurrency` conta só o passo que
+    // está RODANDO; execução dormindo num `step.sleep` não ocupa a vaga. E
+    // este job passa quase a vida inteira dormindo: polling de 3 em 3 e de 10
+    // em 10 segundos, e os respiros de 60s e 10 minutos entre tentativas. A
+    // segunda execução entrava no primeiro cochilo da primeira, e as duas
+    // corriam juntas pagando o Suno cada uma.
+    //
+    // `singleton` com `skip` é a trava que vale pra execução INTEIRA: se já
+    // existe uma viva pra esta música, o evento novo é descartado. Quem
+    // redispara (vigia, repescagem, clique de comprar, webhook) só redispara
+    // música parada ou falhada, então a execução viva é sempre a que já está
+    // cuidando do mesmo problema, e ela entrega pra quem pagou no fim
+    // (`entregar-a-quem-ja-pagou`). O ajuste e a regravação manual recusam
+    // música em `gerando`, então não disputam com uma execução viva.
+    singleton: { key: "event.data.musicaId", mode: "skip" },
     retries: 2,
     triggers: [{ event: "musica/gerar" }],
   },
@@ -141,18 +128,64 @@ export const gerarMusica = inngest.createFunction(
       const sb = db();
       const { data, error } = await sb
         .from("musicas")
-        .select("id, status, letra, titulo, estilo_suno, genero, quiz_response_id")
+        .select(
+          "id, status, letra, titulo, estilo_suno, genero, quiz_response_id, erro, provider_job_id, gerada_em",
+        )
         .eq("id", musicaId)
         .single();
       if (error) throw new Error(`musica não encontrada: ${error.message}`);
       if (!data.letra) throw new Error("musica sem letra");
       // Idempotência: se já está pronta, não gera de novo (não queima crédito).
-      if (data.status === "pronta") return { ...data, jaPronta: true };
+      if (data.status === "pronta") return { ...data, jaPronta: true, taskAtrasada: null };
+      // A TASK QUE ESTOUROU O TEMPO PODE TER TERMINADO DEPOIS (08/10).
+      //
+      // Até aqui o timeout jogava fora o `taskId`: se o provedor entregasse a
+      // música um minuto depois da nossa desistência, ninguém ia buscar, e a
+      // repescagem pagava o Suno de novo pela mesma letra. Agora a falha
+      // guarda o `taskId` em `provider_job_id`, e a próxima execução pergunta
+      // por ele antes de gastar.
+      //
+      // Só com `gerada_em` nulo: música que já ficou pronta alguma vez (o
+      // ajuste) tem em `provider_job_id` a gravação ANTERIOR, e reaproveitar
+      // aquilo devolveria a música velha com a letra nova. E só quando o
+      // `erro` ainda diz timeout, que é o caminho da repescagem (ela não
+      // limpa o `erro` antes de redisparar).
+      const taskAtrasada =
+        data.status === "falhou" &&
+        /^timeout/i.test(String(data.erro ?? "")) &&
+        data.provider_job_id &&
+        !data.gerada_em
+          ? String(data.provider_job_id)
+          : null;
       await sb.from("musicas").update({ status: "gerando" }).eq("id", musicaId);
-      return { ...data, jaPronta: false };
+      return { ...data, jaPronta: false, taskAtrasada };
     });
 
     if (musica.jaPronta) return { pulado: "já estava pronta" };
+
+    type Faixa = { id: string; audioUrl: string; duration?: number };
+    let faixas: Faixa[] = [];
+    let taskId = "";
+
+    if (musica.taskAtrasada) {
+      const tarefa = musica.taskAtrasada;
+      const atrasada = await step.run("conferir-task-atrasada", async () => {
+        try {
+          const r = await consultarGeracao(tarefa);
+          const prontas = r.faixas.filter((f) => f.audioUrl);
+          return r.status === "SUCCESS" && prontas.length ? prontas : null;
+        } catch (err) {
+          // Consulta que falha só quer dizer "gera de novo", que é o caminho
+          // de sempre.
+          console.error("[musica] task atrasada não consultada:", err);
+          return null;
+        }
+      });
+      if (atrasada) {
+        faixas = atrasada;
+        taskId = tarefa;
+      }
+    }
 
     // ─── 1.5. O DISJUNTOR DE GASTO ────────────────────────────────
     //
@@ -164,9 +197,18 @@ export const gerarMusica = inngest.createFunction(
     //
     // Depois do `jaPronta` de propósito: música já entregue não consome
     // orçamento nenhum.
-    const liberado = await step.run("conferir-teto-do-dia", () =>
-      podeGerar(db(), musica.quiz_response_id),
-    );
+    //
+    // Por MÚSICA, não por execução (08/10): ver `podeGerar`. Em 02/10 o
+    // contador chegou a 3.609 com 2.498 músicas, porque cada redisparo da
+    // mesma música cobrava de novo, e 37 leads foram barrados por um teto
+    // que não tinha sido gasto de verdade.
+    //
+    // A task atrasada que já entregou não gasta nada, e não passa por aqui.
+    const liberado = faixas.length
+      ? ({ ok: true } as const)
+      : await step.run("conferir-teto-do-dia", () =>
+          podeGerar(db(), musica.quiz_response_id, musicaId),
+        );
     if (!liberado.ok) {
       // `falhou` e não `aguardando`: o estado tem que ser VISÍVEL. `falhou` é o
       // que o painel mostra em vermelho e o que o caminho de recuperação
@@ -211,12 +253,13 @@ export const gerarMusica = inngest.createFunction(
     // 60s e o original de novo. Cada tentativa custa R$ 0,32, e o CLAUDE.md já
     // decidiu que gerar antes de vender é o melhor dinheiro do funil; perder o
     // cliente por um soluço de rede é o pior.
-    type Faixa = { id: string; audioUrl: string; duration?: number };
-    let faixas: Faixa[] = [];
-    let taskId = "";
     let recusou = false;
 
     let motivoRecusa: string | null = null;
+    // TODOS os termos que o provedor já barrou nesta execução, não só o da
+    // última recusa: se a 2ª tentativa tirou "que delícia" e foi barrada por
+    // "pressa", a 3ª tem que sair sem os dois.
+    const barrados: string[] = [];
 
     // ── O GENERO ESCOLHIDO MANDA NO ESTILO ──────────────────────
     //
@@ -258,6 +301,8 @@ export const gerarMusica = inngest.createFunction(
     let previaSalva = false;
 
     for (const [n, estilo] of estilos.entries()) {
+      // A task atrasada já entregou: nada a gerar.
+      if (faixas.length) break;
       // Timeout (não recusa) é outro problema: insistir só queima crédito.
       if (n > 0 && !recusou) break;
       // Estilo limpo idêntico ao original: pula essa tentativa, mas NÃO
@@ -269,9 +314,10 @@ export const gerarMusica = inngest.createFunction(
       // palavra barrou na tentativa anterior, insistir com ela é garantir a
       // mesma recusa. Só a partir da segunda tentativa, porque na primeira
       // ainda não existe motivo nenhum.
-      const barrado = termoBarrado(motivoRecusa);
-      const letraDaVez = barrado ? semOTermo(musica.letra, barrado) : musica.letra;
-      const estiloDaVez = barrado ? semOTermo(estilo.valor, barrado) : estilo.valor;
+      const barrado = termoBarrado(motivoRecusa)?.toLowerCase();
+      if (barrado && !barrados.includes(barrado)) barrados.push(barrado);
+      const letraDaVez = barrados.reduce((t, b) => semOTermo(t, b), musica.letra);
+      const estiloDaVez = barrados.reduce((t, b) => semOTermo(t, b), estilo.valor);
 
       taskId = await step.run(`iniciar-${estilo.rotulo}`, async () => {
         const id = await iniciarGeracao({
@@ -405,6 +451,10 @@ export const gerarMusica = inngest.createFunction(
             erro: recusou
               ? `provedor recusou 4x${motivoRecusa ? `: ${motivoRecusa}` : ""}`
               : "timeout no provedor",
+            // O `taskId` do timeout fica guardado: a task pode terminar
+            // depois, e a próxima execução confere antes de pagar de novo
+            // (ver `taskAtrasada`). Na recusa ele não serve pra nada.
+            ...(!recusou && taskId ? { provider_job_id: taskId } : {}),
           })
           .eq("id", musicaId);
       });

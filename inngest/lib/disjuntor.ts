@@ -157,14 +157,60 @@ async function avisarPerto(sb: SupabaseClient, teto: number): Promise<void> {
   }
 }
 
+/** A marca "esta música já foi contada hoje". */
+export function chaveDaMusicaNoDia(musicaId: string): string {
+  return `musica-contada:${diaBr()}:${musicaId}`;
+}
+
+/**
+ * Esta música já consumiu o orçamento de hoje?
+ *
+ * LÊ sem somar, de propósito: o `consumir_limite` soma ao perguntar, e uma
+ * marca consumida numa execução que o teto BARROU deixaria a música passar de
+ * graça no redisparo seguinte. A marca só nasce depois que o contador do dia
+ * aceitou (ver `podeGerar`).
+ *
+ * Na dúvida, responde "não": contar duas vezes custa um pouco de folga do
+ * teto; não contar abriria uma porta pra gasto sem limite.
+ */
+async function jaContadaHoje(sb: SupabaseClient, musicaId: string): Promise<boolean> {
+  try {
+    const { data, error } = await sb
+      .from("limites_uso")
+      .select("contagem")
+      .eq("chave", chaveDaMusicaNoDia(musicaId))
+      .maybeSingle();
+    if (error) return false;
+    return Number(data?.contagem) > 0;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Esta música pode gastar crédito do Suno agora?
  *
- * Chamada UMA vez por geração, imediatamente antes do primeiro gasto.
+ * Chamada UMA vez por execução, imediatamente antes do primeiro gasto.
+ *
+ * ── CONTA MÚSICA, NÃO EXECUÇÃO (08/10) ──────────────────────────
+ *
+ * Até aqui cada execução cobrava o contador, e a mesma música pode rodar
+ * várias vezes no dia: o vigia redispara a parada, a repescagem volta na que
+ * falhou por timeout, o clique de comprar refaz a falhada. Em 02/10 o
+ * contador marcou 3.609 pra 2.498 músicas, e 37 leads foram barrados por um
+ * orçamento que estava, na verdade, sobrando.
+ *
+ * Com `musicaId`, a música é contada UMA vez por dia: a primeira execução que
+ * passa marca a música, e as seguintes do mesmo dia passam sem somar. O teto
+ * continua medindo o que ele foi feito pra medir, quantas músicas de quem não
+ * pagou saíram hoje. As retentativas DENTRO de uma execução (o estilo limpo,
+ * a segunda chance) sempre estiveram fora da conta; agora os redisparos
+ * também.
  */
 export async function podeGerar(
   sb: SupabaseClient,
   quizResponseId: string | null,
+  musicaId?: string | null,
 ): Promise<{ ok: true } | { ok: false; teto: number }> {
   const teto = await tetoDoDia(sb);
 
@@ -187,8 +233,15 @@ export async function podeGerar(
     }
   }
 
-  // ── 2. Ainda cabe no dia? ──
+  // ── 2. Esta música já foi contada hoje? Então já está dentro do teto. ──
+  if (musicaId && (await jaContadaHoje(sb, musicaId))) return { ok: true };
+
+  // ── 3. Ainda cabe no dia? ──
   if (await cabe(sb, chaveDoDia(), teto)) {
+    // Marca DEPOIS de caber: música barrada não leva marca, e o redisparo
+    // dela é conferido de novo contra o teto (que o dono pode ter subido).
+    // Marca que não grava só faz a música ser contada de novo, o lado seguro.
+    if (musicaId) await cabe(sb, chaveDaMusicaNoDia(musicaId), 1);
     // O AVISO CHEGA ANTES DE MORDER.
     //
     // Em 21/08 o teto desarmou às 13:11 e o dono descobriu pelo funil, não
