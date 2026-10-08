@@ -67,6 +67,31 @@ import { SorteioSemanal } from "@/components/quiz/SorteioSemanal";
 // Aqui a checagem acontece na ENTRADA da tela, antes de mostrar preço nenhum.
 const PRECISAM_DE_LETRA = new Set(["reveal", "oferta"]);
 
+/** Tem com o que montar a revelação/oferta: o nome, ou a letra DESTA sessão. */
+function temContexto(): boolean {
+  const st = useQuizStore.getState();
+  if ((st.respostas.nome as string)?.trim()) return true;
+  return Boolean(st.letraFinal && st.letraFinal.sessionId === getOrCreateSessionId());
+}
+
+// A trava de laço do guarda acima: 2 minutos por sessão, na aba.
+const CHAVE_RETOMADA = "mp_retomada";
+function retomouHaPouco(sessao: string): boolean {
+  try {
+    const [s, t] = (sessionStorage.getItem(CHAVE_RETOMADA) ?? "").split("|");
+    return s === sessao && Date.now() - Number(t) < 120_000;
+  } catch {
+    return false;
+  }
+}
+function marcarRetomada(sessao: string) {
+  try {
+    sessionStorage.setItem(CHAVE_RETOMADA, `${sessao}|${Date.now()}`);
+  } catch {
+    // Sem sessionStorage: segue sem trava, como era.
+  }
+}
+
 export function Quiz({
   locale,
   stepId,
@@ -163,10 +188,16 @@ export function Quiz({
     //   pagou      -> o editor, que é onde está o presente dela
     //   tem letra  -> /retomar, que reidrata a sessão e devolve pro reveal
     //   nada       -> o passo 1, como antes
+    //
+    // O CONTEXTO É O NOME **OU** A LETRA DESTA SESSÃO (08/10). Só o nome não
+    // basta: há sessões com letra pronta e `nome` vazio no servidor, e o
+    // /retomar reidrata exatamente isso. O guarda olhava só o nome, mandava pro
+    // /retomar, que devolvia pro reveal sem nome, que mandava pro /retomar...
+    // Em 7 dias, 19 sessões presas nesse laço (uma girou 8.302 vezes em 3
+    // dias), justamente quem clicou no e-mail pra ouvir a música.
     const decidirPasso = () => {
       if (!PRECISAM_DE_LETRA.has(stepId ?? "")) return;
-      const nome = (useQuizStore.getState().respostas.nome as string)?.trim();
-      if (nome) return;
+      if (temContexto()) return;
       const sessao = getOrCreateSessionId();
       sessaoJaPagou({ data: { sessionId: sessao } })
         .then((r) => {
@@ -175,8 +206,11 @@ export function Quiz({
             window.location.href = `${window.location.origin}${r.tokenEdicao ? `/editar/${r.tokenEdicao}` : `/p/${r.token}`}`;
             return;
           }
-          if (r.temLetra) {
+          // Trava de laço: se o /retomar já devolveu esta sessão há pouco e ela
+          // continua sem contexto, mandar de novo só repete o giro.
+          if (r.temLetra && !retomouHaPouco(sessao)) {
             trackEvent("passo_sem_contexto", { step: stepId, locale, saida: "retomar" });
+            marcarRetomada(sessao);
             window.location.href = `${window.location.origin}/retomar?s=${encodeURIComponent(sessao)}`;
             return;
           }
@@ -204,7 +238,7 @@ export function Quiz({
     //
     // FALHA ABERTA: se a consulta cair, a pessoa segue no funil normal. Barrar
     // alguém por indisponibilidade seria trocar um problema raro por um pior.
-    if (PRECISAM_DE_LETRA.has(stepId ?? "") && (useQuizStore.getState().respostas.nome as string)?.trim()) {
+    if (PRECISAM_DE_LETRA.has(stepId ?? "") && temContexto()) {
       sessaoJaPagou({ data: { sessionId: getOrCreateSessionId() } })
         .then((r) => {
           if (!r.pago) return;
