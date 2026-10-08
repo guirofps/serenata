@@ -12,6 +12,8 @@ import { liberarItensDoBump } from "../../api/lib/creditar-upsell";
 import { venderNoTiktok } from "../../api/lib/tiktok-eventos";
 import { conviteDaCompra } from "@/lib/indicacao-db";
 import { descontoDoConvite } from "@/lib/indicacao";
+import { outroPagamentoDoQuiz } from "@/lib/asaas-regras";
+import { avisarDonos } from "@/lib/avisar-donos";
 
 // A COBRANÇA NO CARTÃO, transparente.
 //
@@ -138,7 +140,8 @@ export type ResultadoCartao =
   | { ok: true; pago: boolean; idExterno: string }
   | {
       ok: false;
-      erro: "sem-sessao" | "sem-musica" | "sem-preco" | "sem-ip" | "gateway";
+      /** `ja-pago`: o quiz já foi pago, nada foi cobrado agora (08/10). */
+      erro: "sem-sessao" | "sem-musica" | "sem-preco" | "sem-ip" | "gateway" | "ja-pago";
       /**
        * Pra onde mandar quem ficou sem caminho, quando houver.
        *
@@ -185,6 +188,22 @@ export const cobrarCartao = createServerFn({ method: "POST" })
       .limit(1)
       .maybeSingle();
     if (!musica?.id) return { ok: false, erro: "sem-musica" };
+
+    // ── ESTE QUIZ JÁ FOI PAGO? (08/10) ───────────────────────────
+    //
+    // Mesma trava do `criar-pix.ts` e do Stripe (`ja-pago`): quem já pagou a
+    // música não passa o cartão de novo. Antes de qualquer chamada ao Asaas,
+    // porque cobrança de cartão autorizada é dinheiro que sai na hora.
+    const pagosDoQuiz = async () =>
+      (
+        await db
+          .from("pedidos")
+          .select("payment_id, status, dinheiro_entrou")
+          .eq("quiz_response_id", quiz.id)
+          .eq("status", "pago")
+          .limit(20)
+      ).data;
+    if (outroPagamentoDoQuiz(await pagosDoQuiz(), null)) return { ok: false, erro: "ja-pago" };
 
     // O E-MAIL DA VENDA: o que a pessoa digitou no formulário vence o do quiz
     // quando é válido, igual ao PIX (auditoria 30/09). Antes o do quiz sempre
@@ -359,6 +378,34 @@ export const cobrarCartao = createServerFn({ method: "POST" })
       // não registrar — o pior desfecho possível. Grita no log e devolve o
       // sucesso; o webhook conserta a linha depois.
       console.error("[cartao] gravar pedido falhou:", error.message);
+    }
+
+    // ── UM QUIZ, UMA ENTREGA (08/10) ─────────────────────────────
+    //
+    // A trava de cima vê o banco ANTES de cobrar. Entre ela e a autorização
+    // cabe um PIX do mesmo quiz caindo (a folha do PIX aberta noutra aba, o QR
+    // pago no aplicativo do banco enquanto ela digitava o cartão). Mesmo
+    // desenho do webhook da Woovi e do Stripe: o dinheiro fica REGISTRADO
+    // (o pedido acima já está `pago`), a entrega e o bump NÃO se repetem, e os
+    // donos são avisados pra devolver.
+    if (r.confirmado) {
+      const anterior = outroPagamentoDoQuiz(await pagosDoQuiz(), `asaas:${r.idExterno}`);
+      if (anterior) {
+        console.error("[cartao] quiz já pago, cartão cobrado de novo:", quiz.id, r.idExterno);
+        await db.from("funnel_events").insert({
+          event_name: "cartao_pagou_duas_vezes",
+          event_data: { quiz_response_id: quiz.id, agora: `asaas:${r.idExterno}`, anterior: anterior.payment_id },
+        });
+        await avisarDonos({
+          assunto: "PAGOU DUAS VEZES (cartão Asaas): devolver",
+          html:
+            `<p>O mesmo quiz recebeu dois pagamentos.</p>` +
+            `<p>quiz: ${quiz.id}<br>agora: asaas:${r.idExterno} (${valorCentavos}, cartão)` +
+            `<br>antes: ${anterior.payment_id}</p>` +
+            `<p>A entrega NÃO foi repetida. Devolver um dos dois no painel do Asaas.</p>`,
+        });
+        return { ok: true, pago: true, idExterno: r.idExterno };
+      }
     }
 
     // ── A ENTREGA, NA HORA ───────────────────────────────────

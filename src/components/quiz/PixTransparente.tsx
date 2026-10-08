@@ -196,6 +196,13 @@ export function PixTransparente({
         window.location.href = "/obrigado";
         return;
       }
+      // Já pago (08/10): nada foi cobrado agora, e a música dela está na
+      // /obrigado. Mesma saída do PIX.
+      if (r.erro === "ja-pago") {
+        trackEvent("cartao_ja_pago");
+        window.location.href = "/obrigado";
+        return;
+      }
       // ── A VOLTA PRO CHECKOUT ANTIGO ────────────────────────
       //
       // `outroCaminho` só vem preenchido quando o servidor já passou pelas
@@ -255,6 +262,15 @@ export function PixTransparente({
         },
       });
       if (!r.ok) {
+        // JÁ PAGOU (08/10): a música dela está liberada. Mesma saída do
+        // checkout da Ballad (`CheckoutStripe.tsx`): a /obrigado, que lê a
+        // sessão e mostra o caminho pro editor. Gerar outro PIX aqui era um
+        // segundo jeito de pagar a mesma música.
+        if (r.erro === "ja-pago") {
+          trackEvent("pix_transparente_ja_pago");
+          window.location.href = "/obrigado";
+          return;
+        }
         // CPF NAO E FALHA, E PEDIDO DE CORRECAO. Mandar isto pra tela de erro
         // ("nao consegui gerar o PIX agora") jogaria fora uma venda por um
         // campo que a pessoa preenche em cinco segundos.

@@ -34,6 +34,13 @@ import { creditarUpsell, liberarItensDoBump } from "../lib/creditar-upsell.js";
 import { ofertaDaReferencia } from "../../src/lib/creditos.js";
 import { valorEsperadoDoUpsell, type Alvo } from "../../src/lib/cupom.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
+import {
+  eventoDeEstorno,
+  outroPagamentoDoQuiz,
+  quizDaReferencia,
+  statusConfirmaEstorno,
+  type TipoEstorno,
+} from "../../src/lib/asaas-regras.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -162,6 +169,121 @@ async function pagarUpsell(
   return res.status(200).json({ ok: true, upsell: oferta.id, creditou: r.creditou, quadro: r.quadro });
 }
 
+/**
+ * ESTORNO E CHARGEBACK NO ASAAS (08/10).
+ *
+ * Até aqui o webhook só olhava pagamento e recusa do antifraude: o dinheiro
+ * que voltava (estorno feito no painel, chargeback do cartão, MED do PIX)
+ * continuava `pago` no banco e contado como venda no painel. A Perfect Pay já
+ * marcava `reembolsado` (`perfectpay.ts`); a coluna e o valor são os mesmos
+ * (o CHECK de `pedidos.status` aceita pendente|pago|reembolsado|cancelado).
+ *
+ * RECONSULTA ANTES DE MEXER, como no pagamento: sem assinatura, um postback
+ * forjado de estorno derrubaria uma venda boa. O corpo diz qual cobrança, a
+ * API diz se o dinheiro saiu.
+ *
+ * Só vira `reembolsado` linha que estava `pago`. Estorno PARCIAL não muda o
+ * status (parte do dinheiro ficou): só avisa.
+ *
+ * Estes eventos só chegam se estiverem MARCADOS no webhook do painel do Asaas.
+ */
+async function registrarEstorno(
+  sb: ReturnType<typeof db>,
+  res: Res,
+  args: { evento: string; tipo: TipoEstorno; idCobranca: string; ids: string[] },
+) {
+  const { evento, tipo, idCobranca, ids } = args;
+
+  let st;
+  try {
+    st = await asaas.consultar(idCobranca);
+  } catch (err) {
+    // 200 mesmo assim (ver o cabeçalho: 5xx repetido para a fila deles). O
+    // estorno não se perde do lado do Asaas; quem resolve é alguém olhando.
+    await auditar(sb, "asaas_estorno_reconsulta_falhou", { idCobranca, evento });
+    await alertarDono(
+      "Estorno no Asaas sem confirmação",
+      `<p>Chegou ${evento} pra cobrança ${idCobranca} e a reconsulta falhou: ${(err as Error).message}</p>` +
+        `<p>Conferir no painel do Asaas e marcar o pedido à mão se o dinheiro saiu.</p>`,
+    );
+    return res.status(200).json({ ok: true, nota: "estorno: reconsulta falhou" });
+  }
+
+  const { data: linhas } = await sb
+    .from("pedidos")
+    .select("id, payment_id, status, email, quiz_response_id, valor_centavos")
+    .in("payment_id", ids);
+  const lista = linhas ?? [];
+  const resumo = lista.map((p) => `${p.payment_id} (${p.status}, ${p.valor_centavos}, ${p.email ?? "sem e-mail"})`);
+
+  if (tipo === "parcial") {
+    await auditar(sb, "asaas_estorno_parcial", { idCobranca, evento, status: st.statusCru, pedidos: ids });
+    await alertarDono(
+      "Estorno PARCIAL no Asaas",
+      `<p>Cobrança ${idCobranca}: ${evento} (status ${st.statusCru}, valor ${st.valorCentavos}).</p>` +
+        `<p>${resumo.join("<br>") || "Nenhum pedido nosso com esta cobrança."}</p>` +
+        `<p>O pedido NÃO foi marcado como reembolsado: parte do dinheiro ficou.</p>`,
+    );
+    return res.status(200).json({ ok: true, nota: "estorno parcial, só avisado" });
+  }
+
+  if (!statusConfirmaEstorno(st.statusCru)) {
+    await auditar(sb, "asaas_estorno_nao_confirmado", { idCobranca, evento, status: st.statusCru });
+    return res.status(200).json({ ok: true, nota: "gateway não confirma estorno" });
+  }
+
+  const pagas = lista.filter((p) => p.status === "pago");
+  if (!pagas.length) {
+    // Reenvio do mesmo evento, ou a sequência natural (REFUND_IN_PROGRESS e
+    // depois REFUNDED; CHARGEBACK_REQUESTED e depois DISPUTE): já marcado.
+    if (lista.some((p) => p.status === "reembolsado")) {
+      return res.status(200).json({ ok: true, duplicado: true });
+    }
+    await auditar(sb, "asaas_estorno_sem_pedido", { idCobranca, evento, status: st.statusCru });
+    await alertarDono(
+      "Estorno no Asaas sem pedido pago nosso",
+      `<p>Cobrança ${idCobranca}: ${evento} (status ${st.statusCru}, valor ${st.valorCentavos}).</p>` +
+        `<p>${resumo.join("<br>") || "Nenhum pedido com esta cobrança."}</p>`,
+    );
+    return res.status(200).json({ ok: true, nota: "estorno sem pedido pago" });
+  }
+
+  const { error } = await sb
+    .from("pedidos")
+    .update({ status: "reembolsado", status_gateway: st.statusCru })
+    .in(
+      "id",
+      pagas.map((p) => p.id),
+    )
+    .eq("status", "pago");
+  if (error) {
+    await alertarDono(
+      "Estorno no Asaas e pedido NÃO marcado",
+      `<p>${error.message}<br>${resumo.join("<br>")}</p><p>Marcar como reembolsado à mão.</p>`,
+    );
+    return res.status(200).json({ ok: true, nota: "estorno: gravação falhou" });
+  }
+
+  await auditar(sb, tipo === "chargeback" ? "asaas_chargeback" : "asaas_estorno", {
+    idCobranca,
+    evento,
+    status: st.statusCru,
+    pedidos: pagas.map((p) => p.payment_id),
+    quiz_response_id: pagas[0]?.quiz_response_id ?? null,
+  });
+  await alertarDono(
+    tipo === "chargeback" ? "CHARGEBACK no Asaas: montar o dossiê" : "Estorno registrado no Asaas",
+    `<p>Cobrança ${idCobranca}: ${evento} (status ${st.statusCru}).</p>` +
+      `<p>Marcado como reembolsado:<br>${pagas
+        .map((p) => `${p.payment_id} · ${p.valor_centavos} · ${p.email ?? "sem e-mail"} · quiz ${p.quiz_response_id ?? "?"}`)
+        .join("<br>")}</p>` +
+      (tipo === "chargeback"
+        ? `<p>Contestação aberta: o prazo de defesa corre no painel do Asaas.</p>`
+        : ""),
+  );
+  return res.status(200).json({ ok: true, reembolsado: true, tipo });
+}
+
 export default async function handler(req: Req, res: Res) {
   if (req.method !== "POST") return res.status(405).json({ error: "mÃ©todo" });
 
@@ -197,6 +319,7 @@ export default async function handler(req: Req, res: Res) {
   // linha nova sem e-mail e o pedido de verdade ficava pendente pra sempre.
   const referencia = String(corpo?.payment?.externalReference ?? "");
   const idPorReferencia = referencia.startsWith("up:") ? `asaas:${referencia}` : null;
+  const idsDoPedido = idPorReferencia ? [paymentId, idPorReferencia] : [paymentId];
 
   if (!PAGOU.has(evento)) {
     // Recusa por antifraude Ã© o Ãºnico nÃ£o-pagamento que interessa registrar:
@@ -206,7 +329,21 @@ export default async function handler(req: Req, res: Res) {
       // "cancelado", nao "recusado": o CHECK de `pedidos.status` so aceita
       // pendente|pago|reembolsado|cancelado, e o update com "recusado" falhava
       // calado. O motivo fica no `status_gateway`.
-      await sb.from("pedidos").update({ status: "cancelado", status_gateway: evento }).eq("payment_id", paymentId);
+      //
+      // SÓ O QUE AINDA ESTÁ PENDENTE (08/10). Sem o filtro, um evento atrasado
+      // ou forjado (aqui só há token estático) cancelava um pedido já pago:
+      // a venda sumia do painel e a música sumia da conta de quem pagou. E
+      // pela referência também, pra o cartão do upsell (`asaas:up:...`),
+      // que nasce pendente antes de cobrar e ficava pendente pra sempre.
+      await sb
+        .from("pedidos")
+        .update({ status: "cancelado", status_gateway: evento })
+        .in("payment_id", idsDoPedido)
+        .eq("status", "pendente");
+    }
+    const tipoEstorno = eventoDeEstorno(evento);
+    if (tipoEstorno) {
+      return registrarEstorno(sb, res, { evento, tipo: tipoEstorno, idCobranca, ids: idsDoPedido });
     }
     return res.status(200).json({ ok: true, evento });
   }
@@ -215,7 +352,7 @@ export default async function handler(req: Req, res: Res) {
   const { data: existentes } = await sb
     .from("pedidos")
     .select("id, payment_id, status, valor_centavos, bump_quadro, bump_video, email, quiz_response_id, cupom, created_at")
-    .in("payment_id", idPorReferencia ? [paymentId, idPorReferencia] : [paymentId]);
+    .in("payment_id", idsDoPedido);
   if ((existentes ?? []).some((p) => p.status === "pago")) {
     return res.status(200).json({ ok: true, duplicado: true });
   }
@@ -257,7 +394,67 @@ export default async function handler(req: Req, res: Res) {
     return res.status(200).json({ ok: true, nota: "valor divergente" });
   }
 
-  const quizId = existente?.quiz_response_id ?? null;
+  // ── DE QUEM É (08/10) ─────────────────────────────────────────
+  //
+  // Primeiro do pedido pendente que NÓS gravamos. Sem ele (gravação que
+  // falhou no `criar-pix`, cobrança antiga), da referência `serenata:<quiz>`
+  // que nós mesmos criamos, como a Woovi faz. Antes daqui o quiz saía SÓ do
+  // pendente, e sem ele o pagamento virava "sem-musica" sem aviso nenhum.
+  //
+  // A referência vem da RECONSULTA, não do corpo: com token estático, um
+  // postback forjado escolheria pra qual quiz a música vai.
+  const quizDaRef = quizDaReferencia(status.referencia ?? null);
+  const quizId = (existente?.quiz_response_id as string | null) ?? quizDaRef;
+
+  // ── ESTE QUIZ JÁ FOI PAGO? (08/10) ────────────────────────────
+  //
+  // A idempotência acima é por COBRANÇA. Ela não vê o segundo pagamento do
+  // mesmo quiz por OUTRA cobrança, e foi assim que o quiz bb9effb8… pagou
+  // R$ 38 em 03/10 e de novo em 06/10 (o QR de 01/10, vencido, continuava
+  // pagável), recebeu dois e-mails de entrega e ninguém soube. A Woovi e o
+  // Stripe já tinham esta trava. Mesmo desenho: o dinheiro fica REGISTRADO
+  // como pago (ninguém some com pagamento), a entrega NÃO se repete, e os
+  // donos são avisados pra devolver.
+  if (quizId) {
+    const { data: pagosDoQuiz } = await sb
+      .from("pedidos")
+      .select("payment_id, status, dinheiro_entrou, valor_centavos")
+      .eq("quiz_response_id", quizId)
+      .eq("status", "pago")
+      .limit(20);
+    const anterior = outroPagamentoDoQuiz(pagosDoQuiz, paymentId);
+    if (anterior) {
+      const { error: erroDuplo } = await sb.from("pedidos").upsert(
+        {
+          payment_id: paymentId,
+          gateway: "asaas",
+          status: "pago",
+          status_gateway: status.statusCru,
+          valor_centavos: status.valorCentavos,
+          taxa_centavos: status.taxaCentavos,
+          quiz_response_id: quizId,
+          paid_at: new Date().toISOString(),
+        },
+        { onConflict: "payment_id" },
+      );
+      await auditar(sb, "asaas_pagou_duas_vezes", {
+        paymentId,
+        quiz_response_id: quizId,
+        anterior: anterior.payment_id,
+        valor: status.valorCentavos,
+      });
+      await alertarDono(
+        "PAGOU DUAS VEZES: devolver (Asaas)",
+        `<p>O mesmo quiz recebeu dois pagamentos.</p>` +
+          `<p>quiz: ${quizId}<br>agora: ${paymentId} (${status.valorCentavos})` +
+          `<br>antes: ${anterior.payment_id} (${anterior.valor_centavos})</p>` +
+          `<p>A entrega NÃO foi repetida. Devolver um dos dois no painel do Asaas.</p>` +
+          (erroDuplo ? `<p>E o pedido deste pagamento NÃO gravou: ${erroDuplo.message}</p>` : ""),
+      );
+      return res.status(200).json({ ok: true, nota: "quiz ja pago, nao entregue de novo" });
+    }
+  }
+
   const musica = quizId ? await musicaDoQuiz(sb, quizId) : null;
 
   const { data: pedido, error: erroPedido } = await sb
@@ -322,6 +519,15 @@ export default async function handler(req: Req, res: Res) {
   // Pelo MÃ“DULO compartilhado (`api/lib/entrega.ts`), nunca copiada. Ã‰ a regra
   // do CLAUDE.md: conserto num tem que ir no outro.
   if (!quizId || !musica) {
+    // PAGOU E NÃO ACHAMOS O QUE ENTREGAR (08/10: antes saía calado). Não
+    // existe caminho automático daqui: alguém tem que olhar.
+    await auditar(sb, "asaas_pago_sem_musica", { paymentId, quiz_response_id: quizId, referencia: status.referencia });
+    await alertarDono(
+      "Pago no Asaas e NADA entregue",
+      `<p>O Asaas confirmou ${paymentId} (${status.valorCentavos}) e ` +
+        (quizId ? `o quiz ${quizId} não tem música.` : `não achei o quiz (referência: ${status.referencia ?? "?"}).`) +
+        `</p><p>Conferir e liberar à mão.</p>`,
+    );
     return res.status(200).json({ ok: true, pedido: paymentId, entrega: "sem-musica" });
   }
   const { data: dono } = await sb
@@ -332,9 +538,23 @@ export default async function handler(req: Req, res: Res) {
     .select("email, nome_pagador, telefone, valor_centavos")
     .eq("payment_id", paymentId)
     .maybeSingle();
-  const email = (dono?.email as string | null) ?? null;
+  let email = (dono?.email as string | null) ?? null;
+  // Sem o pedido pendente não há e-mail no pedido (08/10). O do QUIZ é o
+  // mesmo que o `criar-pix` grava (ele atualiza o quiz quando a pessoa
+  // corrige na folha), e o quiz aqui saiu de uma referência nossa: não é
+  // adivinhação.
+  if (!email) {
+    const { data: q } = await sb.from("quiz_responses").select("email").eq("id", quizId).maybeSingle();
+    email = (q?.email as string | null) ?? null;
+    if (email) await sb.from("pedidos").update({ email }).eq("payment_id", paymentId);
+  }
   if (!email) {
     await auditar(sb, "asaas_pago_sem_email", { paymentId, quiz_response_id: quizId });
+    await alertarDono(
+      "Pago no Asaas sem e-mail pra entregar",
+      `<p>${paymentId} (${status.valorCentavos}), quiz ${quizId}: nem o pedido nem o quiz têm e-mail.</p>` +
+        `<p>Liberar à mão.</p>`,
+    );
     return res.status(200).json({ ok: true, pedido: paymentId, entrega: "sem-email" });
   }
 

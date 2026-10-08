@@ -28,6 +28,16 @@ export class ErroGateway extends Error {
   }
 }
 
+/**
+ * A mensagem com que o gateway recusa gerar PIX pra uma referência JÁ PAGA.
+ *
+ * Constante, e não texto solto nos dois gateways, porque o `criar-pix.ts`
+ * traduz exatamente esta recusa em `ja-pago` (a tela leva pra /obrigado em vez
+ * de "não consegui gerar o PIX"). Texto copiado à mão divergiria em silêncio e
+ * a pessoa que já pagou voltaria a ver o aviso de erro (08/10).
+ */
+export const COBRANCA_JA_PAGA = "cobrança existente já foi paga";
+
 /** A cobrança PIX, do jeito que a tela precisa dela. */
 export type CobrancaPix = {
   /** Quem processou. Vai pra `pedidos.gateway`. */

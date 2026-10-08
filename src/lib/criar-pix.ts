@@ -9,7 +9,8 @@ import { cpfValido, soDigitosCpf } from "@/lib/cpf";
 import { paraE164, telefoneValido } from "@/lib/telefone";
 import { woovi } from "@/lib/woovi";
 import { asaasPix } from "@/lib/asaas-pix";
-import { ErroGateway, type GatewayPix } from "@/lib/gateway";
+import { COBRANCA_JA_PAGA, ErroGateway, type GatewayPix } from "@/lib/gateway";
+import { outroPagamentoDoQuiz } from "@/lib/asaas-regras";
 import { conviteDaCompra } from "@/lib/indicacao-db";
 import { descontoDoConvite } from "@/lib/indicacao";
 import { MARCA_ATIVA } from "./marca-identidade.js";
@@ -89,7 +90,14 @@ export type ResultadoPix =
        * decide que eles existem é o gateway (`exigeCpf`), não o checkout.
        */
       erro:
-        "sem-sessao" | "sem-musica" | "sem-preco" | "gateway" | "cpf-necessario" | "cpf-invalido";
+        | "sem-sessao"
+        | "sem-musica"
+        | "sem-preco"
+        | "gateway"
+        | "cpf-necessario"
+        | "cpf-invalido"
+        /** Este quiz já foi pago: a tela leva pra /obrigado, igual ao Stripe. */
+        | "ja-pago";
     };
 
 /**
@@ -262,6 +270,21 @@ export const criarPix = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!musica?.id) return { ok: false, erro: "sem-musica" };
 
+    // ── ESTE QUIZ JÁ FOI PAGO? (08/10) ───────────────────────────
+    //
+    // Antes, a folha gerava PIX novo pra quem já tinha pago, e o QR novo era
+    // um segundo jeito de pagar a mesma música. Foi a porta do quiz bb9effb8…
+    // (R$ 38 em 03/10 e de novo em 06/10). O Stripe da Ballad já devolvia
+    // `ja-pago` (`stripe-checkout.ts`); aqui é a mesma resposta, e a tela leva
+    // pra /obrigado. Upsell e cortesia não contam (`outroPagamentoDoQuiz`).
+    const { data: pagosDoQuiz } = await db
+      .from("pedidos")
+      .select("payment_id, status, dinheiro_entrou")
+      .eq("quiz_response_id", quiz.id)
+      .eq("status", "pago")
+      .limit(20);
+    if (outroPagamentoDoQuiz(pagosDoQuiz, null)) return { ok: false, erro: "ja-pago" };
+
     const semCupom = await valorCentavosDaSessao(db, quiz.attribution);
     if (!semCupom) return { ok: false, erro: "sem-preco" };
     const agora = new Date();
@@ -418,6 +441,23 @@ export const criarPix = createServerFn({ method: "POST" })
       // tela oferece o checkout antigo, que sempre funciona.
       const g = err instanceof ErroGateway ? err : null;
       const motivo = String(g?.message ?? (err as Error)?.message ?? err).slice(0, 300);
+      // O GATEWAY SABE QUE JÁ FOI PAGA e o nosso banco não (webhook perdido,
+      // ou atrasado). Não é falha: é a mesma resposta da trava acima, e o
+      // "não consegui gerar o PIX" seria mentira pra quem já pagou. O vigia de
+      // pagamento reconcilia o pedido.
+      if (g?.message === COBRANCA_JA_PAGA) {
+        console.warn(`[criar-pix] ${gw.nome}: a referência ${referencia} já foi paga no gateway`);
+        void db
+          .from("funnel_events")
+          .insert({
+            event_name: "pix_ja_pago_no_gateway",
+            event_data: { gateway: gw.nome, referencia, sessionId: data.sessionId },
+          })
+          .then(({ error }) => {
+            if (error) console.error("[criar-pix] gravar ja-pago falhou:", error.message);
+          });
+        return { ok: false, erro: "ja-pago" };
+      }
       console.error(`[criar-pix] ${gw.nome} falhou:`, motivo);
       // ── A MENSAGEM DO GATEWAY VAI PRO BANCO, NAO SO PRO LOG ────
       //
@@ -448,6 +488,19 @@ export const criarPix = createServerFn({ method: "POST" })
     // pedido com a original faria o webhook escrever numa linha e a tela
     // esperar em outra — a pessoa pagaria e a tela ficaria girando.
     const refFinal = cobranca.idExterno;
+
+    // ── NUNCA REBAIXAR UM PEDIDO PAGO (08/10) ────────────────────
+    //
+    // O upsert abaixo grava `pendente`. Até 08/10 o Asaas podia devolver como
+    // "reaproveitável" uma cobrança JÁ PAGA, e o pedido pago voltava a
+    // pendente: some do faturamento, some o acesso. O gateway agora recusa
+    // (`COBRANCA_JA_PAGA`); esta leitura é a segunda rede, pela mesma chave.
+    const { data: linhaAtual } = await db
+      .from("pedidos")
+      .select("status")
+      .eq("payment_id", `${cobranca.gateway}:${refFinal}`)
+      .maybeSingle();
+    if (linhaAtual?.status === "pago") return { ok: false, erro: "ja-pago" };
 
     // ── O PEDIDO PENDENTE NASCE AQUI ─────────────────────────────
     //
