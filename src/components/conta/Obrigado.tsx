@@ -18,6 +18,7 @@ import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
 import { AtalhoOutraMusica } from "@/components/conta/AtalhoOutraMusica";
+import { CartaoOutraMusica24h } from "@/components/conta/CartaoOutraMusica24h";
 import { linkSuporte, TEXTO_SUPORTE } from "@/lib/suporte-whatsapp";
 import { Check, Mail, Inbox, Pencil, Loader2, ArrowRight } from "lucide-react";
 
@@ -580,6 +581,21 @@ export function Obrigado({
               {C.entregaPorLink}
             </p>
           </div>
+        )}
+
+        {/* TESTE `outra_musica_24h` (08/10): no B, o cartão "Faça outra pra
+            mais alguém" logo abaixo das ações principais, por 24h a partir do
+            pagamento. No A não aparece nada (o componente só mede a
+            exposição). Só pt, e só com o presente na mão: o `token_edicao` é a
+            credencial da cobrança, a mesma do atalho lá embaixo. */}
+        {locale === "pt" && presente?.tokenEdicao && (
+          <CartaoOutraMusica24h
+            tokenEdicao={presente.tokenEdicao}
+            tokenPublico={presente.token || null}
+            origem="obrigado"
+            emailConhecido={email ?? null}
+            className="mt-8"
+          />
         )}
 
         {/* Com o botão na tela, o caça-ao-e-mail vira ruído: os três passos

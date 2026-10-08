@@ -31,6 +31,7 @@ import { ImagePlus, Trash2, Check, Copy, ExternalLink, Loader2, X, Play, Pause, 
 import { PedirRefacao } from "@/components/presente/PedirRefacao";
 import { estadoRefacao } from "@/lib/refacao";
 import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
+import { CartaoOutraMusica24h } from "@/components/conta/CartaoOutraMusica24h";
 import { LOCALE_PADRAO, type Locale } from "@/lib/i18n";
 
 // A ÁREA DO COMPRADOR — onde o presente deixa de ser um render e vira o
@@ -1032,6 +1033,18 @@ function Editor() {
                 )}
               </div>
             </section>
+
+            {/* TESTE `outra_musica_24h` (08/10): no B, o cartão "Faça outra pra
+                mais alguém" logo abaixo da entrega, por 24h a partir do
+                pagamento. No A não aparece nada (o componente só mede a
+                exposição). Só pt: o pacote é PIX/cartão em real. */}
+            {br && (
+              <CartaoOutraMusica24h
+                tokenEdicao={tokenEdicao}
+                tokenPublico={p.tokenPublico}
+                origem="editor"
+              />
+            )}
 
             {/* DATAS: depois da entrega, que é a tarefa desta tela. Só em
                 português por enquanto (o lembrete sai em português). */}
