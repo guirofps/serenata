@@ -1,5 +1,6 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
+import { ehExemplo } from "../../src/lib/token-exemplo.js";
 
 // APAGA O ÁUDIO DE QUEM NUNCA COMPROU, e só ele.
 //
@@ -46,7 +47,8 @@ import { createClient } from "@supabase/supabase-js";
 // Letra, título, token e a linha inteira ficam. Quem voltar depois abre a
 // página, lê a própria letra e pode gerar de novo por R$ 0,32 — em vez de
 // encontrar um vazio. E comprador nunca entra aqui, em nenhum prazo: a
-// música que ele pagou é dele para sempre.
+// música que ele pagou é dele para sempre. Exemplo público também não
+// (`ehExemplo`): é vitrine, não tem pedido, e sem áudio vira play mudo.
 //
 // O código já aguenta áudio ausente sem quebrar: `carregarPresente` só
 // assina quando o caminho existe (`presente.ts:97`) e a página só monta o
@@ -78,11 +80,6 @@ function db() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Supabase env ausente");
   return createClient(url, key, { auth: { persistSession: false } });
-}
-
-/** Página de exemplo da home: token `ex…`. Ver o uso abaixo. */
-export function ehExemplo(token: string | null | undefined): boolean {
-  return typeof token === "string" && token.startsWith("ex");
 }
 
 /** Todo quiz que tem pedido pago. Comprador nunca perde áudio. */
@@ -140,11 +137,12 @@ export const limparAudioAntigo = inngest.createFunction(
         // música se ligam; sem `quiz_response_id` não dá pra provar que NÃO
         // comprou, então o registro fica.
         if (!m.quiz_response_id || pagos.has(m.quiz_response_id)) continue;
-        // EXEMPLO NUNCA. As páginas de exemplo da home (Serenata, /es e Ballad)
-        // são músicas NOSSAS, sem pedido, e por isso caíam aqui: em 18/09 e
-        // 26/09 esta limpeza apagou 7 delas e o play da home ficou mudo (achado
-        // em 02/10, irrecuperável no provedor). Todo token de exemplo começa
-        // com "ex"; token de cliente é hexadecimal e nunca tem "x".
+        // EXEMPLO NUNCA. As páginas de exemplo (Serenata, /es e Ballad) não
+        // têm pedido pago, e por isso caíam aqui. Duas levas de estrago: as
+        // de token `ex…` (achado em 02/10, regravadas) e sete músicas REAIS
+        // promovidas a exemplo, de token comum, apagadas entre 12 e 16/09
+        // (achado em 07/10). Por isso o critério não é só o prefixo: é o
+        // prefixo OU a lista publicada (`src/lib/token-exemplo.ts`).
         if (ehExemplo(m.token)) continue;
 
         const dias = idade(m.created_at);
