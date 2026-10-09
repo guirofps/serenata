@@ -31,8 +31,10 @@ export const FPS_REMARKETING = 30;
 export const DURACAO_REMARKETING_S = 30;
 /** Com a montagem de reações antes da chamada (09/10): 34,5s. */
 export const DURACAO_REMARKETING_REACOES_S = 34.5;
-export const duracaoRemarketing = (p: Pick<PropsRemarketing, "reacoes">) =>
-  p.reacoes ? DURACAO_REMARKETING_REACOES_S : DURACAO_REMARKETING_S;
+/** Público frio (09/10): reação na abertura e os 3 passos. 31s. */
+export const DURACAO_FRIO_S = 31;
+export const duracaoRemarketing = (p: Pick<PropsRemarketing, "reacoes" | "frio">) =>
+  p.frio ? DURACAO_FRIO_S : p.reacoes ? DURACAO_REMARKETING_REACOES_S : DURACAO_REMARKETING_S;
 
 type Frase = { reta: string; italico: string };
 
@@ -51,7 +53,15 @@ export type PropsRemarketing = {
    * como montagem antes da chamada. O áudio precisa cobrir os 34,5s.
    */
   reacoes?: { video: string; titulo: Frase };
+  /**
+   * PÚBLICO FRIO (09/10): quem nunca ouviu falar da Serenata. Abre com uma
+   * reação real (dois trechos do `reacoes.mp4`) e explica em 3 passos:
+   * conta a história → a letra sai grátis → vira música. Os títulos dos
+   * passos são `textos.conta`, `textos.papel` e `textos.ouvindo`.
+   */
+  frio?: { video: string; trechos: [number, number]; relacoes: string[]; relacao: string; historia: string; botaoLetra: string };
   textos: {
+    conta?: Frase;
     gancho: Frase;
     papel: Frase;
     ouvindo: Frase;
@@ -62,7 +72,7 @@ export type PropsRemarketing = {
 
 // Onde cada cena começa e termina (segundos). O refrão entra aos 3s nos dois
 // trechos: o papel abre junto com a primeira palavra cantada.
-type NomeCena = "gancho" | "papel" | "ouvindo" | "presente" | "reacoes" | "cta";
+type NomeCena = "gancho" | "conta" | "papel" | "ouvindo" | "presente" | "reacoes" | "cta";
 type Cenas = Record<NomeCena, readonly [number, number] | null>;
 const CENAS_SEM_REACOES: Cenas = {
   gancho: [0, 3.2],
@@ -70,7 +80,18 @@ const CENAS_SEM_REACOES: Cenas = {
   ouvindo: [11.2, 19.6],
   presente: [19.6, 25.2],
   reacoes: null,
+  conta: null,
   cta: [25.2, 30],
+};
+// Público frio: o refrão entra aos 9,6s do trecho, junto com o papel (passo 2).
+const CENAS_FRIO: Cenas = {
+  gancho: [0, 3.6],
+  conta: [3.6, 9.4],
+  papel: [9.4, 15.2],
+  ouvindo: [15.2, 21.8],
+  presente: [21.8, 26.2],
+  reacoes: null,
+  cta: [26.2, 31],
 };
 // Com reações: o karaokê e o celular encolhem um pouco pra a montagem caber
 // antes da chamada, sem a chamada perder tempo.
@@ -80,11 +101,43 @@ const CENAS_COM_REACOES: Cenas = {
   ouvindo: [11.2, 18.2],
   presente: [18.2, 23.2],
   reacoes: [23.2, 29.6],
+  conta: null,
   cta: [29.6, 34.5],
 };
 const CenasCtx = React.createContext<Cenas>(CENAS_SEM_REACOES);
 /** Início e fim da cena (as cenas que sempre existem nunca são null). */
 const useCena = (k: NomeCena): readonly [number, number] => React.useContext(CenasCtx)[k] ?? [0, 0];
+
+/** As linhas cantadas dentro da janela de uma cena (no máximo 2). */
+const linhasDaCena = (linhas: LinhaKaraoke[], ini: number, fim: number) =>
+  linhas.filter((l) => l.start >= ini - 0.5 && l.start < fim - 0.5).slice(0, 2);
+
+/** O número do passo, num círculo dourado acima do título (só no público frio). */
+const Passo: React.FC<{ n: number; t: number; topo: number }> = ({ n, t, topo }) => {
+  const e = suave(clamp(t / 0.4));
+  return (
+    <div style={{ position: "absolute", top: topo, left: 0, right: 0, display: "flex", justifyContent: "center", opacity: e, transform: `scale(${0.6 + 0.4 * e})` }}>
+      <div
+        style={{
+          width: 84,
+          height: 84,
+          borderRadius: "50%",
+          border: `3px solid ${OURO}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: POPPINS,
+          fontWeight: 700,
+          fontSize: 44,
+          color: OURO,
+          background: "rgba(232,196,106,0.12)",
+        }}
+      >
+        {n}
+      </div>
+    </div>
+  );
+};
 
 const useT = () => {
   const f = useCurrentFrame();
@@ -242,12 +295,13 @@ const CenaPapel: React.FC<{ p: PropsRemarketing }> = ({ p }) => {
   const g = t + ini; // tempo do trecho de áudio
   const entra = suave(clamp(t / 0.9));
   const sai = clamp((t - (dur - 0.7)) / 0.7);
-  const linhas = p.linhas.slice(0, 2);
+  const linhas = linhasDaCena(p.linhas, ini, fim);
   // Ondas sonoras saindo do papel no fim: a letra "ganhando voz".
   const ondas = clamp((t - 5.2) / 2.6);
   return (
     <AbsoluteFill style={{ opacity: fade(t, dur, 0.4, 0.5) }}>
-      <Titulo frase={p.textos.papel} t={t - 0.3} topo={210} tam={84} />
+      {p.frio && <Passo n={2} t={t} topo={150} />}
+      <Titulo frase={p.textos.papel} t={t - 0.3} topo={p.frio ? 250 : 210} tam={84} />
       {[0, 1, 2].map((k) => {
         const fase = (ondas * 1.6 + k * 0.33) % 1;
         return ondas > 0 ? (
@@ -341,6 +395,182 @@ const CenaPapel: React.FC<{ p: PropsRemarketing }> = ({ p }) => {
           );
         })}
       </div>
+      {p.frio && (() => {
+        // O carimbo "GRÁTIS": quem nunca viu precisa saber que clicar não custa.
+        const c = clamp((t - 1.1) / 0.35);
+        const bate = c < 1 ? 1.6 - 0.6 * suave(c) : 1 + 0.03 * Math.sin((t - 1.45) * 6) * Math.exp(-(t - 1.45) * 2);
+        return (
+          <div
+            style={{
+              position: "absolute",
+              top: 640,
+              right: 70,
+              transform: `rotate(12deg) scale(${bate})`,
+              opacity: c * (1 - sai),
+              border: `6px solid ${OURO}`,
+              borderRadius: 18,
+              padding: "10px 26px",
+              fontFamily: POPPINS,
+              fontWeight: 700,
+              fontSize: 54,
+              letterSpacing: 4,
+              color: FUNDO,
+              background: OURO,
+              boxShadow: "0 14px 40px rgba(0,0,0,0.5)",
+            }}
+          >
+            GRÁTIS
+          </div>
+        );
+      })()}
+    </AbsoluteFill>
+  );
+};
+
+// ── Cena 0 (público frio): a reação abre o vídeo ──────────────────
+
+const CenaGanchoReacao: React.FC<{ p: PropsRemarketing }> = ({ p }) => {
+  const t = useT();
+  const { fps } = useVideoConfig();
+  const [gi, gf] = useCena("gancho");
+  const dur = gf - gi;
+  const fr = p.frio;
+  if (!fr) return null;
+  const troca = dur * 0.5;
+  const segundo = t >= troca;
+  const inicio = segundo ? fr.trechos[1] : fr.trechos[0];
+  const desde = segundo ? troca : 0;
+  const e = suave(clamp((t - desde) / 0.3));
+  const video = (estilo: React.CSSProperties) => (
+    <Sequence from={Math.round(desde * fps)} layout="none">
+      <OffthreadVideo src={staticFile(fr.video)} startFrom={Math.round(inicio * fps)} muted style={estilo} />
+    </Sequence>
+  );
+  return (
+    <AbsoluteFill style={{ opacity: Math.min(1, clamp((dur - t) / 0.35)) }}>
+      {/* o mesmo plano desfocado enche a tela (o vídeo é horizontal) */}
+      <AbsoluteFill style={{ overflow: "hidden" }}>
+        {video({ width: "100%", height: "100%", objectFit: "cover", filter: "blur(34px) brightness(0.55) saturate(1.2)", transform: "scale(1.25)" })}
+      </AbsoluteFill>
+      <div
+        key={segundo ? "b" : "a"}
+        style={{
+          position: "absolute",
+          left: 40,
+          top: 700,
+          width: 1000,
+          height: 563,
+          borderRadius: 32,
+          overflow: "hidden",
+          border: `4px solid rgba(232,196,106,0.8)`,
+          boxShadow: "0 40px 90px rgba(0,0,0,0.65)",
+          transform: `scale(${(0.94 + 0.06 * e) * (1 + (t - desde) * 0.02)})`,
+          opacity: e,
+        }}
+      >
+        {video({ width: "100%", height: "100%", objectFit: "cover" })}
+      </div>
+      <Titulo frase={p.textos.gancho} t={t - 0.35} topo={250} tam={92} />
+    </AbsoluteFill>
+  );
+};
+
+// ── Cena 1 (público frio): você conta a história ──────────────────
+
+const CenaConta: React.FC<{ p: PropsRemarketing }> = ({ p }) => {
+  const t = useT();
+  const [ini, fim] = useCena("conta");
+  const dur = fim - ini;
+  const fr = p.frio;
+  if (!fr) return null;
+  const entra = suave(clamp(t / 0.7));
+  const escolheu = clamp((t - 0.9) / 0.25);
+  // Digita a ~30 letras por segundo, depois de escolher pra quem é.
+  const n = Math.max(0, Math.floor((t - 1.2) * 30));
+  const texto = fr.historia.slice(0, n);
+  const cursor = Math.floor(t * 2.2) % 2 === 0 || n < fr.historia.length;
+  const aperta = t > dur - 1.0 ? 1 - 0.06 * Math.sin(clamp((t - (dur - 1.0)) / 0.3) * Math.PI) : 1;
+  const brilho = clamp((t - (dur - 1.0)) / 0.3);
+  return (
+    <AbsoluteFill style={{ opacity: fade(t, dur, 0.4, 0.4) }}>
+      <Passo n={1} t={t} topo={150} />
+      <Titulo frase={p.textos.conta ?? { reta: "Você conta", italico: "a história." }} t={t - 0.2} topo={250} tam={84} />
+      <div
+        style={{
+          position: "absolute",
+          left: 80,
+          right: 80,
+          top: 640,
+          borderRadius: 36,
+          background: CREME,
+          padding: "46px 50px 50px",
+          boxShadow: "0 40px 90px rgba(0,0,0,0.55)",
+          transform: `translateY(${(1 - entra) * 220}px)`,
+          opacity: entra,
+        }}
+      >
+        <div style={{ fontFamily: POPPINS, fontWeight: 600, fontSize: 26, letterSpacing: 5, color: "rgba(125,43,58,0.65)" }}>PRA QUEM É A MÚSICA?</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 20 }}>
+          {fr.relacoes.map((rel) => {
+            const sel = rel === fr.relacao;
+            const k = sel ? escolheu : 0;
+            return (
+              <div
+                key={rel}
+                style={{
+                  fontFamily: POPPINS,
+                  fontWeight: 600,
+                  fontSize: 34,
+                  padding: "14px 30px",
+                  borderRadius: 50,
+                  border: `3px solid ${k > 0.5 ? VINHO : "rgba(125,43,58,0.25)"}`,
+                  background: k > 0.5 ? VINHO : "transparent",
+                  color: k > 0.5 ? CREME : TINTA,
+                  transform: `scale(${1 + 0.08 * Math.sin(Math.PI * k)})`,
+                }}
+              >
+                {rel}
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ fontFamily: POPPINS, fontWeight: 600, fontSize: 26, letterSpacing: 5, color: "rgba(125,43,58,0.65)", marginTop: 40 }}>CONTE A HISTÓRIA</div>
+        <div
+          style={{
+            marginTop: 18,
+            minHeight: 300,
+            borderRadius: 22,
+            border: "3px solid rgba(125,43,58,0.2)",
+            background: "#fffaf3",
+            padding: "26px 30px",
+            fontFamily: POPPINS,
+            fontWeight: 500,
+            fontSize: 38,
+            lineHeight: 1.4,
+            color: TINTA,
+          }}
+        >
+          {texto}
+          <span style={{ display: "inline-block", width: 4, height: 44, marginLeft: 3, verticalAlign: "middle", background: cursor ? VINHO : "transparent" }} />
+        </div>
+        <div
+          style={{
+            marginTop: 30,
+            borderRadius: 60,
+            background: VINHO,
+            color: CREME,
+            textAlign: "center",
+            fontFamily: POPPINS,
+            fontWeight: 700,
+            fontSize: 40,
+            padding: "26px 0",
+            transform: `scale(${aperta})`,
+            boxShadow: `0 0 ${50 * brilho}px rgba(232,196,106,${0.8 * brilho})`,
+          }}
+        >
+          {fr.botaoLetra}
+        </div>
+      </div>
     </AbsoluteFill>
   );
 };
@@ -374,7 +604,7 @@ const CenaOuvindo: React.FC<{ p: PropsRemarketing }> = ({ p }) => {
   const dur = fim - ini;
   const g = t + ini;
   const entra = suave(clamp(t / 0.9));
-  const linhas = p.linhas.slice(2, 4);
+  const linhas = linhasDaCena(p.linhas, ini, fim);
   // A linha que está sendo cantada (ou a última que passou).
   let atual = 0;
   linhas.forEach((l, i) => {
@@ -394,7 +624,8 @@ const CenaOuvindo: React.FC<{ p: PropsRemarketing }> = ({ p }) => {
       </AbsoluteFill>
       {p.variante === "gospel" && <Raios forca={0.8} />}
       <Poeira n={24} />
-      <Titulo frase={p.textos.ouvindo} t={t - 0.2} topo={170} tam={80} />
+      {p.frio && <Passo n={3} t={t} topo={110} />}
+      <Titulo frase={p.textos.ouvindo} t={t - 0.2} topo={p.frio ? 210 : 170} tam={80} />
       {/* a capa nítida, num cartão que respira com a música */}
       <div
         style={{
@@ -733,7 +964,7 @@ const em = (s: number) => Math.round(s * FPS_REMARKETING);
 
 export const Remarketing: React.FC<PropsRemarketing> = (p) => {
   const f = useCurrentFrame();
-  const cenas = p.reacoes ? CENAS_COM_REACOES : CENAS_SEM_REACOES;
+  const cenas = p.frio ? CENAS_FRIO : p.reacoes ? CENAS_COM_REACOES : CENAS_SEM_REACOES;
   const total = em(duracaoRemarketing(p));
   const volume = interpolate(f, [0, em(1.2), total - em(2.5), total], [0.25, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const cena = (k: NomeCena, el: React.ReactNode) => {
@@ -750,7 +981,8 @@ export const Remarketing: React.FC<PropsRemarketing> = (p) => {
     <AbsoluteFill style={{ background: FUNDO }}>
       <Audio src={staticFile(p.audio)} volume={volume} />
       <Fundo gospel={p.variante === "gospel"} />
-      {cena("gancho", <CenaGancho p={p} />)}
+      {cena("gancho", p.frio ? <CenaGanchoReacao p={p} /> : <CenaGancho p={p} />)}
+      {cena("conta", <CenaConta p={p} />)}
       {cena("papel", <CenaPapel p={p} />)}
       {cena("ouvindo", <CenaOuvindo p={p} />)}
       {cena("presente", <CenaPresente p={p} />)}
