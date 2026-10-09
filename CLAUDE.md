@@ -442,6 +442,50 @@ um print de disputa que um cliente abriu.
   gerar, porque os eventos do Inngest continuam enfileirados e ele gera tudo
   de novo quando voltar.
 
+## Gerador reserva: a música nasce sem o Inngest (09/10/2026)
+
+**Segunda queda igual.** 09/10, das **18h06 às ~18h47**, o Inngest ficou em
+"Degraded Function Execution" de novo (rede deles): aceitava `musica/gerar` e
+não executava nada. Nenhuma música pronta em 40 minutos, ~60 leads parados na
+prévia sem poder comprar, 2 compradores pagos salvos pelo plantão manual. O
+vigia externo gritou às 18h30 (funcionou), mas gritar não gera música. Duas
+quedas em cinco semanas: a geração não pode ter ponto único de falha.
+
+`api/gerador-reserva.ts`, **Vercel Cron a cada minuto**, fala direto com o
+banco e com o kie.ai, sem importar nada do Inngest. Regra pura em
+`src/lib/reserva-decisao.ts` (testada):
+
+- `aguardando` intocada por 3 min, ou `gerando` sem task há 5 min: ninguém
+  começou. Assume a posse (`reserva_em`, UPDATE condicional no `updated_at`
+  lido), confere o disjuntor e dispara. Até 2 gerações por música
+  (`MAX_TENTATIVAS`), a 2ª com o estilo curado puro e sem o termo barrado;
+  depois `falhou` com o motivo (fica pra repescagem) e alerta se pagou.
+- Task em andamento (`task_atual`) do JOB sem a música pronta há 8 min: o job
+  morreu no polling. Pergunta ao provedor e, se a gravação existe, TERMINA
+  ESSA (não paga outra). Falha do job só é assumida depois de 15 min (respiro
+  de 10 min dele).
+- Grava a prévia (2ª gravação), guarda, timestamps, `pronta` e entrega a quem
+  pagou com o MESMO código do job (`inngest/lib/guardar-musica.ts`).
+- 15 gerações novas por volta, 45s de trabalho por volta, 1 volta por minuto
+  (trava `gerador-reserva:<minuto>` no `consumir_limite`). Avisa os donos 1x
+  por hora quando assume ("🛟 Gerador reserva assumiu…").
+- `?seco=1` (com o `CRON_SECRET`) lista o que faria sem tocar em nada.
+
+**Por que não paga duas vezes.** O job pula música `pronta` e música com
+`reserva_em` mais nova que 45 min (`RESERVA_SEGURA_MIN`), e confere de novo
+antes de cada disparo (acorda de um respiro e acha a posse do reserva). A task
+de quem disparou fica em `task_atual`/`task_em`, limpa em `pronta`/`falhou`:
+task que já virou música nunca é "adotada" por um ajuste futuro.
+
+**Isso muda a regra "no plantão, só quem PAGOU" acima.** Ela valia porque o
+Inngest, ao voltar, gerava tudo de novo; hoje ele pula o que está pronto ou
+com o reserva. O `plantao-musica.mjs` vira plano C (reserva também fora: a
+Vercel caiu junto).
+
+Colunas novas em `musicas` nas DUAS marcas (`20261009000000_gerador_reserva`).
+Mesma noite: a Ballad estava sem as migrations de 08/10 (`pedidos_veio_de`,
+`criativos_ads`); aplicadas com `scratch/ballad-migrar.mjs`.
+
 ## Vídeo-presente (24/09/2026)
 
 Upsell de R$ 24,90: as fotos da página passando no ritmo da música, com a
