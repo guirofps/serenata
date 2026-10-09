@@ -347,6 +347,41 @@ rimar con la siguiente.
 
 Duración objetivo de la canción terminada: 2min30 a 3min.`;
 
+// ── HISPANOS DOS EUA (o `/es` da Ballad Gift, 09/10) ─────────────
+//
+// É o prompt latino de cima, INTEIRO, mais uma regra. O tratamento (`tú`,
+// `ustedes`) e a lista de clichês são os mesmos: quem compra é na maioria de
+// origem mexicana, e o clichê que ele ouve no rádio é o mesmo.
+//
+// A regra nova é a da LÍNGUA DA HISTÓRIA. Nos EUA muita gente pensa em
+// espanhol e escreve em inglês, ou mistura os dois na mesma frase ("mi mom
+// siempre me hacía lunch"). Sem instrução, o modelo tende a responder na
+// língua em que a história veio, e a pessoa que pediu uma canção em espanhol
+// recebe uma em inglês. E o apelido em inglês ("Babe", "Honey", "Grandpa
+// Joe") é o detalhe concreto que mais vale: traduzir pra "cariño" apaga
+// justamente o que faz a letra ser dela.
+//
+// Fica SÓ na Ballad: o prompt argentino da Serenata não muda uma vírgula.
+// Concatenado (e não reescrito) pra que melhoria no latino chegue aqui junto.
+export const LETRA_SYSTEM_ES_EUA = `${LETRA_SYSTEM_ES}
+
+## Si la historia viene en inglés o en spanglish
+
+Quien encarga esta canción vive en Estados Unidos. Es común que cuente la
+historia en inglés, o mezclando inglés y español en la misma frase.
+
+- Escribe la letra SIEMPRE en español, aunque la historia venga toda en
+  inglés. El título también va en español.
+- Los nombres, apodos y palabras de cariño que la persona escribió en inglés
+  se quedan EXACTAMENTE como los escribió (Babe, Honey, Grandpa Joe, Lily).
+  No los traduzcas: ese apodo es el detalle que hace que la canción sea suya.
+- Lugares y cosas de la vida en Estados Unidos (el high school, el diner de
+  la esquina, Thanksgiving) pueden quedarse en inglés si así los nombró la
+  persona. Una palabra en inglés bien puesta suena natural; una frase entera
+  en inglés, no.
+- Entiende el spanglish como lo que es, el idioma de la familia, y nunca lo
+  corrijas ni lo comentes.`;
+
 // Os mapas do quiz para o prompt. Mesmas chaves do português (o `value` é o
 // que está gravado no banco e nunca muda), rótulos em espanhol.
 export const RELACAO_ES: Record<string, string> = {

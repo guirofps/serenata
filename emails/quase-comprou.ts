@@ -87,9 +87,40 @@ const COPY: Record<
   },
 };
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA, 09/10). O espanhol de cima é da
+// Serenata argentina (voseo, "acá") e tem o rodapé dela. Este é o mesmo
+// e-mail em `tú`, com a marca do deploy.
+const COPY_ES_EUA: (typeof COPY)["es"] = {
+  ...COPY.es,
+  corpo:
+    "Se grabó con la historia que contaste, con los detalles que solo ustedes dos saben. Está aquí, completa, esperándote.",
+  lembrete:
+    "Recibes la canción completa en las dos versiones grabadas, la página regalo con link y código QR para enviarla, y el archivo MP3 para guardarla para siempre.",
+  rodapeAviso:
+    "La letra sigue siendo tuya de todos modos, y el link no expira.<br>Si algo se trabó al pagar, responde este correo.",
+  rodape: `${MARCA_ATIVA.nome} · una canción hecha de la historia de quien tú quieres`,
+};
+
+/** A copy do idioma NESTE deploy: o espanhol da Ballad tem a sua. */
+function copyDe(locale: IdiomaEmail | undefined) {
+  if (locale === "es" && MARCA_ATIVA.chave === "ballad") return COPY_ES_EUA;
+  return COPY[locale ?? "pt"] ?? COPY.pt;
+}
+
+/** O texto puro do espanhol da Ballad (hispanos dos EUA). */
+export function textoQuaseComprouEsEua(args: { nome: string; link: string }): string {
+  return (
+    `La canción de ${args.nome} ya existe: se grabó con la historia que contaste.\n\n` +
+    `Recibes la canción completa en las dos versiones, la página regalo con link y ` +
+    `código QR, y el MP3 para guardar.\n\n` +
+    `${args.link}\n\n` +
+    `La letra sigue siendo tuya de todos modos, y el link no expira.`
+  );
+}
+
 /** O assunto, no idioma da venda. */
 export function assuntoQuaseComprou(nome: string, locale: IdiomaEmail = "pt") {
-  return COPY[locale].assunto(nome);
+  return copyDe(locale).assunto(nome);
 }
 
 export function emailQuaseComprou(args: {
@@ -98,7 +129,7 @@ export function emailQuaseComprou(args: {
   link: string;
   locale?: IdiomaEmail;
 }): string {
-  const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
+  const C = copyDe(args.locale);
   const { nome, titulo, link } = args;
   return semComentarios(`<!DOCTYPE html>
 <html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>

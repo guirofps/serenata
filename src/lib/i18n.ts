@@ -18,7 +18,7 @@
 // e-mails saem de webhook e cron, sem navegador. Por isso o idioma é gravado
 // no banco no primeiro passo do quiz. Ver a migration 20260807000000_locale.
 
-import { chaveDaMarca } from "./marca-identidade.js";
+import { chaveDaMarca, ehBallad } from "./marca-identidade.js";
 
 export const LOCALES = ["pt", "es", "en"] as const;
 export type Locale = (typeof LOCALES)[number];
@@ -43,8 +43,9 @@ export function normalizarLocale(v: unknown): Locale {
  * com "es" e o funil inteiro trocar de idioma sozinho.
  */
 export function localeDaRota(pathname: string): Locale {
-  // Na Ballad o site inteiro é inglês, inclusive um `/es` digitado.
-  if (LOCALE_PADRAO === "en") return "en";
+  // Nas DUAS marcas o `/es` é espanhol: na Serenata é o funil argentino, na
+  // Ballad é o dos hispanos dos EUA. Fora dele, o idioma padrão do deploy
+  // (português numa, inglês na outra).
   return /^\/es(\/|$)/.test(pathname) ? "es" : LOCALE_PADRAO;
 }
 
@@ -67,9 +68,23 @@ export const TAG_IDIOMA: Record<Locale, string> = {
   pt: "pt-BR",
   // es-MX e não es-ES: o teste é no México, e o reconhecimento de voz
   // do navegador erra bastante quando o sotaque não bate com a tag.
+  // Na Ballad o espanhol é o dos hispanos dos EUA: `es-US` (ver `tagIdioma`).
   es: "es-MX",
   en: "en-US",
 };
+
+/**
+ * A tag do idioma NESTE deploy. Use isto, e não `TAG_IDIOMA` direto.
+ *
+ * O espanhol da Ballad declara `es-US`: é o que o Google entende como "espanhol
+ * pra quem está nos EUA" no `<html lang>` e no hreflang, e o reconhecimento de
+ * voz do Chrome tem o modelo `es-US` treinado justamente no sotaque de lá (que
+ * mistura inglês no meio da frase). Na Serenata nada muda.
+ */
+export function tagIdioma(locale: Locale): string {
+  if (locale === "es" && ehBallad()) return "es-US";
+  return TAG_IDIOMA[locale];
+}
 
 /** Moeda e formato do preço. */
 export const MOEDA: Record<
@@ -99,6 +114,34 @@ export const MOEDA: Record<
   // o total. A âncora é a mesma proporção da Serenata (38 contra 97).
   en: { simbolo: "$", valor: 19, texto: "$19", ancora: "$49" },
 };
+
+/**
+ * "$19" vira "US$ 19". Texto que já diz a moeda fica como está.
+ *
+ * Pro espanhol da Ballad: numa tela em espanhol o "$" sozinho é peso mexicano
+ * pra boa parte de quem lê, e o número tem que ser, sem conversão mental, o que
+ * o Stripe cobra (em dólar).
+ */
+export function emDolarExplicito(texto: string): string {
+  return texto.replace(/^\s*\$\s*/, "US$ ");
+}
+
+/**
+ * A moeda do idioma NESTE deploy. Use isto, e não `MOEDA[locale]` direto.
+ *
+ * `MOEDA.es` é o preço da Serenata em espanhol (US$ 9,90, cobrado pela
+ * Perfect Pay). No espanhol da Ballad quem cobra é o Stripe, pela mesma linha
+ * `preco` do banco que cobra o inglês: o preço é o do inglês (US$ 19). Ler
+ * `MOEDA.es` lá seria anunciar 9,90 e cobrar 19, o defeito que `preco.ts`
+ * existe pra impedir.
+ */
+export function moeda(locale: Locale): (typeof MOEDA)[Locale] {
+  if (locale === "es" && ehBallad()) {
+    const en = MOEDA.en;
+    return { ...en, simbolo: "US$", texto: emDolarExplicito(en.texto), ancora: emDolarExplicito(en.ancora) };
+  }
+  return MOEDA[locale];
+}
 
 /**
  * Um valor por idioma, com o português obrigatório.

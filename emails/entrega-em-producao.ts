@@ -82,8 +82,19 @@ const COPY: Record<IdiomaEmail, {
   },
 };
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA, 09/10): o espanhol de cima com a
+// marca do deploy no rodapé, em `tú`. O texto espanhol é da Serenata e diz
+// "Serenata" e "quien vos querés".
+const COPY_ES_EUA: (typeof COPY)["es"] = { ...COPY.es, rodape: `${MARCA_ATIVA.nome} · una canción hecha de la historia de quien tú quieres` };
+
+/** A copy do idioma NESTE deploy: o espanhol da Ballad tem a sua. */
+function copyDe(locale: IdiomaEmail | undefined) {
+  if (locale === "es" && MARCA_ATIVA.chave === "ballad") return COPY_ES_EUA;
+  return COPY[locale ?? "pt"] ?? COPY.pt;
+}
+
 export function assuntoEmProducao(nome: string, locale: IdiomaEmail = "pt") {
-  return COPY[locale]?.assunto(nome) ?? COPY.pt.assunto(nome);
+  return copyDe(locale).assunto(nome);
 }
 
 export function emailEmProducao(args: {
@@ -91,7 +102,7 @@ export function emailEmProducao(args: {
   linkEditor: string;
   locale?: IdiomaEmail;
 }): string {
-  const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
+  const C = copyDe(args.locale);
 
   return `<!DOCTYPE html>
 <html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>

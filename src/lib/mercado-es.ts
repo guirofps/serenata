@@ -46,10 +46,27 @@
 //
 // Muda também o clichê ("mariposas en la panza", não "en el estómago") e o
 // gênero: rock nacional e cuarteto são de lá e não existem na lista neutra.
-export type MercadoEs = "latam" | "espanha" | "argentina";
+//
+// ── OS HISPANOS DOS EUA SÃO O MERCADO DA BALLAD, NÃO UMA POSIÇÃO DA CHAVE ──
+//
+// O `/es` do balladgift.com atende o hispano que mora nos Estados Unidos
+// (maioria de origem mexicana, depois centro-americano e caribenho). É `tú`
+// e `ustedes` como no `latam`, mas com três diferenças que fazem dele um
+// mercado próprio: paga em dólar pelo Stripe, a história às vezes vem em
+// inglês ou em spanglish, e o regional mexicano vai na frente do seletor.
+//
+// Ele NÃO é uma posição a mais na linha de baixo: quem decide é a MARCA do
+// deploy (`ehBallad`). A Serenata continua na Argentina, a Ballad fica nos
+// EUA, e trocar o mercado de uma nunca mexe na outra. Onde o código pergunta
+// `ehArgentina()` / `ehEspanha()`, a Ballad cai no ramo neutro (`tú`), que é
+// o certo pra ela; onde precisa de mais que isso, pergunta `ehEua()`.
+import { ehBallad } from "./marca-identidade.js";
+
+export type MercadoEs = "latam" | "espanha" | "argentina" | "eua";
 
 /**
- * O mercado que a rota `/es` atende hoje. **É esta linha que se troca.**
+ * O mercado que a rota `/es` atende hoje. **Na Serenata, é a linha do `return`
+ * final que se troca.**
  *
  * FUNÇÃO e não `const`, e a razão é chata mas real: com `const MERCADO_ES =
  * "latam"` o TypeScript estreita o valor pro literal e passa a acusar
@@ -59,8 +76,10 @@ export type MercadoEs = "latam" | "espanha" | "argentina";
  * igual.
  */
 export function mercadoEs(): MercadoEs {
+  if (ehBallad()) return "eua";
   return "argentina";
 }
 
 export const ehEspanha = () => mercadoEs() === "espanha";
 export const ehArgentina = () => mercadoEs() === "argentina";
+export const ehEua = () => mercadoEs() === "eua";

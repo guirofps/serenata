@@ -32,8 +32,9 @@ import { PREFIXOS, rotaSensivel } from "@/lib/rotas-sensiveis";
 import { GA4_ID, scriptGuardaGa4 } from "@/lib/ga4";
 import { TIKTOK_PIXEL_ID, scriptTiktok } from "@/lib/tiktok-pixel";
 import { GOOGLE_ADS_ID } from "@/lib/google-ads";
-import { LOCALE_PADRAO, TAG_IDIOMA } from "@/lib/i18n";
+import { LOCALE_PADRAO, localeDaRota, tagIdioma } from "@/lib/i18n";
 import { FONTES, MARCA } from "@/lib/marca";
+import { ehBallad } from "@/lib/marca-identidade";
 import { rotaDeConversao, scriptCarregaGtag, scriptDepoisDaPagina, scriptFontes } from "@/lib/carregar-depois";
 import { guardarCupomDaUrl } from "@/lib/cupom-url";
 import { guardarToqueEmail } from "@/lib/toque-email";
@@ -42,12 +43,15 @@ import { useQuizStore } from "@/lib/quiz-store";
 // ── O QUE NÃO EXISTE NA BALLAD GIFT ───────────────────────────────
 //
 // O mesmo código serve os dois sites, então as rotas da Serenata também
-// existem no domínio da Ballad: a home espanhola, a landing de SEO em
-// português, o link de influencer, o quadro e o PIX. Abertas lá, mostrariam
+// existem no domínio da Ballad: a landing de SEO em português, o link de influencer, o quadro e o PIX. Abertas lá, mostrariam
 // português (ou espanhol) com a marca americana. Na Ballad elas voltam pra
 // home; na Serenata esta lista não faz nada.
+//
+// O `/es` SAIU desta lista em 09/10: na Ballad ele é o funil dos hispanos dos
+// EUA (Stripe em dólar, `tú`), não a home argentina da Serenata. O que decide
+// qual espanhol sai é `mercadoEs()`, pela marca.
 const SO_DA_SERENATA =
-  /^\/(es(\/|$)|gleysi|musica-personalizada-para-esposa|indique|meu-quadro|quadro\/|pix\/|oferta\/|credito\/|demo-musica|marca)/;
+  /^\/(gleysi|musica-personalizada-para-esposa|indique|meu-quadro|quadro\/|pix\/|oferta\/|credito\/|demo-musica|marca)/;
 
 const NAO_ACHEI_EN = {
   titulo: "Page not found",
@@ -227,6 +231,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
   // já que o middleware recarrega por trás) e aí o <script> de sorteio e o
   // <style> descreveriam experimentos diferentes.
   const cfgExperimentos = configAtual();
+  // O `<html lang>` da Ballad segue a ROTA: `/es` declara `es-US`, o resto
+  // `en-US`. É o que o Google usa pra saber em que língua indexar a página e o
+  // que o tradutor do Chrome lê antes de oferecer "traduzir". Na Serenata fica
+  // como sempre esteve (o padrão do deploy em toda rota), pra nada mudar lá.
+  const idiomaDaPagina = ehBallad() ? localeDaRota(caminho) : LOCALE_PADRAO;
   return (
     // `suppressHydrationWarning` é a declaração de que o `<html>` é do
     // CLIENTE, não do servidor.
@@ -241,7 +250,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
     // cliente, e o CSS tem o `:not([data-exp-...])` como rede). O que não é
     // inofensivo é o console cheio: erro de verdade some no meio do barulho, e
     // foi assim que a queda de 4 horas do `/api/inngest` passou despercebida.
-    <html lang={TAG_IDIOMA[LOCALE_PADRAO]} suppressHydrationWarning>
+    <html lang={tagIdioma(idiomaDaPagina)} suppressHydrationWarning>
       <head>
         <HeadContent />
         {/* TESTE A/B — os três <script>/<style> abaixo precisam ser a

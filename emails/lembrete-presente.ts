@@ -53,9 +53,20 @@ const COPY: Record<IdiomaEmail, {
   },
 };
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA, 09/10): o espanhol de cima com a
+// marca do deploy no rodapé, em `tú`. O texto espanhol é da Serenata e diz
+// "Serenata" e "quien vos querés".
+const COPY_ES_EUA: (typeof COPY)["es"] = { ...COPY.es, rodape: `${MARCA_ATIVA.nome} · una canción hecha de la historia de quien tú quieres` };
+
+/** A copy do idioma NESTE deploy: o espanhol da Ballad tem a sua. */
+function copyDe(locale: IdiomaEmail | undefined) {
+  if (locale === "es" && MARCA_ATIVA.chave === "ballad") return COPY_ES_EUA;
+  return COPY[locale ?? "pt"] ?? COPY.pt;
+}
+
 /** O assunto, no idioma da venda. */
 export function assuntoLembrete(nome: string, locale: IdiomaEmail = "pt") {
-  return (COPY[locale] ?? COPY.pt).assunto(nome);
+  return copyDe(locale).assunto(nome);
 }
 
 /**
@@ -70,13 +81,22 @@ export function textoLembreteEn(args: { nome: string; linkEditor: string }): str
   );
 }
 
+/** O texto puro do espanhol da Ballad (hispanos dos EUA). */
+export function textoLembreteEsEua(args: { nome: string; linkEditor: string }): string {
+  return (
+    `La canción de ${args.nome} ya está lista, pero la página todavía no está armada.\n\n` +
+    `Elige la grabación, pon las fotos y escribe una frase tuya:\n${args.linkEditor}\n\n` +
+    `Sin prisa: la canción es tuya y el link no expira.`
+  );
+}
+
 export function emailLembretePresente(args: {
   nome: string;
   titulo: string;
   locale?: IdiomaEmail;
   linkEditor: string;
 }): string {
-  const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
+  const C = copyDe(args.locale);
   const { nome, titulo, linkEditor } = args;
   return `<!DOCTYPE html>
 <html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>

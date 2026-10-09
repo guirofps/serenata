@@ -6,7 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { comUtm } from "../../src/lib/utm-email.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
-import { emailQuaseComprou, assuntoQuaseComprou } from "../../emails/quase-comprou.js";
+import { emailQuaseComprou, assuntoQuaseComprou, textoQuaseComprouEsEua } from "../../emails/quase-comprou.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
 import { literalLike } from "../../src/lib/sql-like.js";
@@ -310,7 +310,9 @@ export const quaseComprou = inngest.createFunction(
             link: c.link,
             locale: c.locale,
           }),
-          text: c.locale === "en"
+          text: c.locale === "es" && MARCA_ATIVA.chave === "ballad"
+            ? textoQuaseComprouEsEua({ nome: c.nome, link: c.link })
+            : c.locale === "en"
             ? `${c.nome}'s song already exists: it was recorded from the story you told.\n\n` +
               `You get the full song in both versions, the gift page with a link and ` +
               `QR code, and the MP3 to keep.\n\n` +

@@ -45,6 +45,10 @@ const ES_POR_MERCADO: Record<MercadoEs, Pais> = {
   // México: 10 dígitos, sempre. O "1" depois do 52 é coisa de discagem
   // internacional antiga e o WhatsApp não usa mais.
   latam: { ddi: "52", digitos: [10], exemplo: "55 1234 5678" },
+  // EUA (o espanhol da Ballad): 10 dígitos, DDI 1. A Ballad não pede telefone
+  // em tela nenhuma (o contato lá é só e-mail), mas o tipo exige o país, e se
+  // um dia pedir, o número sai com o DDI de onde a pessoa mora.
+  eua: { ddi: "1", digitos: [10], exemplo: "(213) 555-0147" },
 };
 
 function paisDe(locale: Locale): Pais {
@@ -80,6 +84,13 @@ export function mascaraTelefone(valor: string, locale: Locale): string {
       return so.replace(/^(\d{3})(\d{0,3})(\d{0,3}).*$/, (_, a, b, c) =>
         [a, b, c].filter(Boolean).join(" "),
       );
+    }
+    if (m === "eua") {
+      // (213) 555-0147, como o americano escreve.
+      if (so.length <= 3) return so.length ? `(${so}` : "";
+      const area = so.slice(0, 3);
+      const resto = so.slice(3);
+      return resto.length <= 3 ? `(${area}) ${resto}` : `(${area}) ${resto.slice(0, 3)}-${resto.slice(3)}`;
     }
     if (m === "argentina") {
       if (so.length <= 2) return so;

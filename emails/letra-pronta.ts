@@ -64,6 +64,17 @@ const COPY: Record<IdiomaEmail, {
   },
 };
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA, 09/10): o espanhol de cima com a
+// marca do deploy no rodapé, em `tú`. O texto espanhol é da Serenata e diz
+// "Serenata" e "quien vos querés".
+const COPY_ES_EUA: (typeof COPY)["es"] = { ...COPY.es, rodape: `${MARCA_ATIVA.nome} · una canción hecha de la historia de quien tú quieres` };
+
+/** A copy do idioma NESTE deploy: o espanhol da Ballad tem a sua. */
+function copyDe(locale: IdiomaEmail | undefined) {
+  if (locale === "es" && MARCA_ATIVA.chave === "ballad") return COPY_ES_EUA;
+  return COPY[locale ?? "pt"] ?? COPY.pt;
+}
+
 /**
  * TESTE DE ASSUNTO (28/09, aprovado pelo dono). Metade recebe o assunto de
  * sempre (A) e metade um que puxa o gancho que mais vende nos anúncios: a
@@ -75,7 +86,7 @@ const COPY: Record<IdiomaEmail, {
 export type VarianteAssuntoLetra = "a" | "b";
 export function assuntoLetraPronta(nome: string, locale: IdiomaEmail = "pt", variante: VarianteAssuntoLetra = "a") {
   if (locale === "pt" && variante === "b") return `${nome} ganhou uma música: ouça um trecho cantado`;
-  return (COPY[locale] ?? COPY.pt).assunto(nome);
+  return copyDe(locale).assunto(nome);
 }
 
 /** Marcações do Suno ([Chorus], [Verse 1]) não vão pro e-mail: são instrução
@@ -97,7 +108,7 @@ export function emailLetraPronta(args: {
   linkDescadastro: string;
   locale?: IdiomaEmail;
 }): string {
-  const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
+  const C = copyDe(args.locale);
   const corpo = letraLimpa(args.letra)
     .split("\n")
     .map((l) => (l.trim() ? l : "&nbsp;"))

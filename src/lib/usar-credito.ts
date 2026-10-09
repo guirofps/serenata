@@ -176,7 +176,7 @@ export const usarCredito = createServerFn({ method: "POST" })
         const locale = quiz.locale === "es" ? "es" : "pt";
         const nome =
           ((quiz.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-          (locale === "es" ? "quien vos querés" : "quem você ama");
+          (locale === "es" ? (MARCA_ATIVA.chave === "ballad" ? "quien tú quieres" : "quien vos querés") : "quem você ama");
         const site = process.env.SITE_URL ?? MARCA_ATIVA.url;
         const linkEditor = `${site}/editar/${musica.token_edicao}`;
         const linkPresente = `${site}/p/${musica.token}`;

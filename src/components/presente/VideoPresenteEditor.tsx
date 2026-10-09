@@ -12,6 +12,8 @@ import { FolhaStripeVideo } from "@/components/presente/FolhaStripeVideo";
 import { precoVideoUsdTexto } from "@/lib/stripe-upsell";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { MARCA } from "@/lib/marca";
+import { ehBallad } from "@/lib/marca-identidade";
+import { emDolarExplicito } from "@/lib/i18n";
 import { useBraco, useContextoPosCompra } from "@/lib/use-pos-compra";
 import { EXP_VIDEO_FOTOS_JA, linhaDoVideoPorOcasiao } from "@/lib/video-ocasiao";
 
@@ -31,6 +33,10 @@ import { EXP_VIDEO_FOTOS_JA, linhaDoVideoPorOcasiao } from "@/lib/video-ocasiao"
 //
 // O PIX é brasileiro. Quem comprou no funil espanhol pagou em dólar: pra eles
 // a oferta não aparece (mas o player aparece, se um vídeo existir).
+//
+// EXCEÇÃO: o espanhol da BALLAD (hispanos dos EUA). Lá o vídeo sai pelo
+// Stripe em dólar, igual ao inglês, então a oferta aparece em espanhol
+// (`TEXTOS_ES_EUA`). Na Serenata o espanhol continua sem oferta.
 
 // O Remotion só baixa quando o bloco chega perto da tela: ele pesa, e quem
 // abre o editor só pra copiar o link não precisa dele.
@@ -113,6 +119,19 @@ const TEXTOS = {
   },
 } as const;
 
+// O espanhol da Ballad: o de cima, completo (lá a oferta existe), sem
+// WhatsApp e com o fundo da marca do deploy.
+const TEXTOS_ES_EUA = {
+  ...TEXTOS.es,
+  titulo: "Tu página también puede ser un video",
+  sub: "Las fotos que elegiste pasando al ritmo de tu canción, con la letra iluminándose palabra por palabra. Mira cómo quedó.",
+  semFoto: "Elige unas fotos de ustedes y mira cómo el video se arma aquí mismo, al ritmo de la canción.",
+  semFotoFino: "Puedes elegir varias a la vez, hasta 12. También aparecen en la página regalo.",
+  cta: "Quiero el video en HD",
+  fino: "Sin la marca de vista previa, listo para descargar, mandarlo por mensaje o subirlo a Instagram. ¿Cambiaste una foto? El video también cambia.",
+  pagoSemFoto: `Sube primero las fotos de ustedes aquí arriba: el video se hace con ellas. Sin foto, sale con el fondo de ${MARCA.nome}.`,
+};
+
 export function VideoPresenteEditor({
   tokenEdicao,
   locale = "pt",
@@ -147,7 +166,10 @@ export function VideoPresenteEditor({
   const [perto, setPerto] = useState(false);
   const [pedindo, setPedindo] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
-  const t = TEXTOS[locale] ?? TEXTOS.pt;
+  // O espanhol da Ballad paga o vídeo pelo Stripe, como o inglês: a regra é
+  // do PAÍS (`ehBallad`), não do idioma.
+  const pelaStripe = locale === "en" || ehBallad();
+  const t = locale === "es" && ehBallad() ? TEXTOS_ES_EUA : (TEXTOS[locale] ?? TEXTOS.pt);
 
   // ── TESTE `video_fotos_ja` (08/10) ────────────────────────────
   //
@@ -222,7 +244,8 @@ export function VideoPresenteEditor({
   }, [temEstado]);
 
   // Liga a prévia quando o bloco chega a uma tela de distância.
-  const mostraOferta = !!estado && estado.habilitado && locale !== "es" && !estado.status && !pagou;
+  const mostraOferta =
+    !!estado && estado.habilitado && (locale !== "es" || ehBallad()) && !estado.status && !pagou;
   // Comprou o vídeo no checkout, antes das fotos: a prévia também toca, pra
   // ela conferir com as fotos dela antes de mandar gerar.
   const esperandoFotos = estado?.status === "aguardando_fotos" && !pagou;
@@ -501,9 +524,14 @@ export function VideoPresenteEditor({
   const oferta = OFERTAS.find((o) => o.id === "video");
   if (!oferta) return null;
   // Ballad: dólar, pelo Stripe. Sem preço em dólar no catálogo, sem oferta.
-  const precoUsd = locale === "en" ? precoVideoUsdTexto() : null;
-  if (locale === "en" && !precoUsd) return null;
-  const precoTexto = precoUsd ?? `R$ ${oferta.precoBrl.toFixed(2).replace(".", ",")}`;
+  // Em espanhol o símbolo vai explícito ("US$ 24.90" e não "$24.90"), como na
+  // oferta da música (`emDolarExplicito`).
+  const precoUsd = pelaStripe ? precoVideoUsdTexto() : null;
+  if (pelaStripe && !precoUsd) return null;
+  const precoTexto =
+    precoUsd && locale === "es"
+      ? emDolarExplicito(precoUsd)
+      : (precoUsd ?? `R$ ${oferta.precoBrl.toFixed(2).replace(".", ",")}`);
   const semFoto = fotos.length === 0;
 
   return (
@@ -550,8 +578,9 @@ export function VideoPresenteEditor({
         </>
       )}
 
-      {folhaAberta && locale === "en" && (
+      {folhaAberta && pelaStripe && (
         <FolhaStripeVideo
+          locale={locale}
           tokenEdicao={tokenEdicao}
           precoTexto={precoTexto}
           aoPagar={() => {
@@ -563,7 +592,7 @@ export function VideoPresenteEditor({
           aoFechar={() => setFolhaAberta(false)}
         />
       )}
-      {folhaAberta && locale !== "en" && (
+      {folhaAberta && !pelaStripe && (
         <FolhaPixUpsell
           ofertaId="video"
           titulo={t.titulo}

@@ -50,10 +50,15 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
 
     const { data: quiz } = await db
       .from("quiz_responses")
-      .select("id, email, respostas, attribution")
+      .select("id, email, respostas, attribution, locale")
       .eq("session_id", sessionId)
       .maybeSingle();
     if (!quiz) return { ok: false, erro: "sem-musica" };
+    // O IDIOMA DA COMPRA vem da linha do quiz, gravada no primeiro passo, e não
+    // do navegador: é a mesma fonte que os e-mails, a página presente e o
+    // editor usam. Muda só a LÍNGUA do caixa; o preço é o mesmo nos dois (a
+    // linha `preco` do banco da Ballad não olha idioma).
+    const espanhol = quiz.locale === "es";
 
     // NUNCA COBRAR POR ALGO QUE AINDA NÃO FOI PRODUZIDO.
     const { data: musica } = await db
@@ -92,10 +97,12 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
         {
           ui_mode: "embedded",
           mode: "payment",
-          // Inglês sempre: o Stripe seguia o idioma do navegador, e um americano
-          // com o celular em espanhol (comum nos EUA) via o caixa em outra língua
-          // que não a da página que acabou de ler.
-          locale: "en",
+          // O idioma DA PÁGINA, nunca o do navegador: o Stripe seguia o do
+          // aparelho, e um americano com o celular em espanhol (comum nos EUA)
+          // via o caixa em outra língua que não a da página que acabou de ler.
+          // Quem comprou pelo `/es` vê o caixa em espanhol latino (`es-419`, o
+          // código do Stripe pra espanhol da América Latina).
+          locale: espanhol ? "es-419" : "en",
           // O NOME E A COR DO CAIXA (08/10). A conta do Stripe é de outro
           // negócio ("WPBN", botão magenta): sem isto, é esse nome que aparece
           // no Apple Pay / Google Pay e no Link, no instante de pagar. A sessão
@@ -107,11 +114,17 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
               price_data: {
                 currency: "usd",
                 unit_amount: centavos,
-                product_data: {
-                  name: nome ? `A personalized song for ${nome}` : "Your personalized song",
-                  description:
-                    "The full sung song (2 versions), the gift page with your photos, the link and QR code, and the MP3 to keep.",
-                },
+                product_data: espanhol
+                  ? {
+                      name: nome ? `Una canción personalizada para ${nome}` : "Tu canción personalizada",
+                      description:
+                        "La canción completa cantada (2 versiones), la página regalo con sus fotos, el link y el código QR, y el MP3 para guardar.",
+                    }
+                  : {
+                      name: nome ? `A personalized song for ${nome}` : "Your personalized song",
+                      description:
+                        "The full sung song (2 versions), the gift page with your photos, the link and QR code, and the MP3 to keep.",
+                    },
               },
             },
           ],
@@ -129,11 +142,14 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
             description: `${MARCA_ATIVA.nome} · ${musica.titulo ?? "song"}`,
             metadata: { quiz_id: quiz.id, musica_id: musica.id },
           },
-          return_url: `${urlDoSite()}/obrigado?session_id={CHECKOUT_SESSION_ID}`,
+          // A porta de volta no idioma da compra: `/es/gracias` é a `/obrigado`
+          // em espanhol, com a mesma confirmação adiantada pelo `session_id`.
+          return_url: `${urlDoSite()}${espanhol ? "/es/gracias" : "/obrigado"}?session_id={CHECKOUT_SESSION_ID}`,
         },
-        // `v4`: a versão dos PARÂMETROS. O Stripe recusa a mesma chave com corpo
-        // diferente, então mexeu no corpo desta chamada, sobe a versão.
-        { idempotencia: `ballad-checkout:v4:${quiz.id}:${centavos}` },
+        // `v5`: a versão dos PARÂMETROS. O Stripe recusa a mesma chave com corpo
+        // diferente, então mexeu no corpo desta chamada, sobe a versão. (v5 em
+        // 09/10: idioma, produto e `return_url` passaram a depender do `locale`.)
+        { idempotencia: `ballad-checkout:v5:${quiz.id}:${centavos}` },
       );
       let sessao: { id: string; client_secret: string } | null = null;
       for (let tentativa = 0; !sessao; tentativa++) {

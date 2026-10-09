@@ -121,8 +121,8 @@ export const Route = createFileRoute("/p/$token")({
   //    resolveu, então não há registro de onde tirar idioma —, e metade das
   //    vendas internacionais é de quem não lê português.
   //
-  // 3. Na Ballad (EUA) o site inteiro é inglês: lá sai só a versão em inglês,
-  //    sem português nem espanhol.
+  // 3. Na Ballad (EUA) sai inglês e, embaixo, o espanhol dos hispanos de lá
+  //    (o `/es` da Ballad, 09/10). Português nunca.
   notFoundComponent: () => (
     <main className="grid min-h-screen place-items-center bg-[#0d0a08] px-6 text-center">
       {LOCALE_PADRAO === "en" ? (
@@ -131,6 +131,10 @@ export const Route = createFileRoute("/p/$token")({
           <p className="mt-2 text-sm text-white/45">
             Long links sometimes get cut off by email or text messages.
             Try opening it again straight from the button in the original message.
+          </p>
+          <p className="mt-5 text-sm text-white/45" lang="es">
+            Este link parece incompleto. Los links largos a veces llegan cortados por correo o
+            por mensaje. Intenta abrirlo de nuevo desde el botón del mensaje original.
           </p>
           <p className="mt-7 text-xs text-white/35">
             <a

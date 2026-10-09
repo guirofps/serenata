@@ -27,7 +27,7 @@ describe("telefone espanhol segue o mercado", () => {
   const m = mercadoEs();
 
   it("o DDI é o do país que a mídia está comprando", () => {
-    const esperado = { argentina: "54", espanha: "34", latam: "52" }[m];
+    const esperado = { argentina: "54", espanha: "34", latam: "52", eua: "1" }[m];
     expect(paraE164("1112345678", "es").startsWith(esperado)).toBe(true);
   });
 

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Play, Pause, ExternalLink } from "lucide-react";
 import { FONTES } from "@/lib/marca";
 import { cn } from "@/lib/utils";
+import { ehBallad } from "@/lib/marca-identidade";
+import { exemplosEsUsProntos, audioDoExemploEsUs } from "@/lib/exemplos-es-us";
 
 // Os exemplos TOCÁVEIS da home espanhola.
 //
@@ -42,7 +44,18 @@ const EXEMPLOS = [
 const AUDIO_BASE =
   "https://ouwijepgctgtfzrrwpvt.supabase.co/storage/v1/object/public/exemplos";
 
+// NA BALLAD (hispanos dos EUA) a lista é OUTRA: os de cima moram no banco da
+// Serenata (o token dá 404 no banco da Ballad e o áudio é de outro projeto).
+// Lá saem os de `exemplos-es-us.ts`, gerados pelo funil da própria Ballad, com
+// o áudio no bucket do banco dela. Sem nenhum gerado, a seção inteira some.
+type Exemplo = { slug: string; titulo: string; para: string; genero: string; token: string };
+function exemplosDoDeploy(): { lista: readonly Exemplo[]; audio: (slug: string) => string } {
+  if (ehBallad()) return { lista: exemplosEsUsProntos(), audio: audioDoExemploEsUs };
+  return { lista: EXEMPLOS, audio: (slug) => `${AUDIO_BASE}/${slug}.mp3` };
+}
+
 export function ExemplosEs() {
+  const { lista, audio } = exemplosDoDeploy();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [tocando, setTocando] = useState<string | null>(null);
 
@@ -64,7 +77,7 @@ export function ExemplosEs() {
       setTocando(null);
       return;
     }
-    a.src = `${AUDIO_BASE}/${slug}.mp3`;
+    a.src = audio(slug);
     try {
       await a.play();
       setTocando(slug);
@@ -73,6 +86,9 @@ export function ExemplosEs() {
       setTocando(null);
     }
   }
+
+  // Nada pra tocar (Ballad antes de gerar os exemplos): nada de seção vazia.
+  if (!lista.length) return null;
 
   return (
     <section id="ejemplo" className="bg-[var(--papel-fundo)]" style={{ paddingBlock: "var(--secao)" }}>
@@ -93,7 +109,7 @@ export function ExemplosEs() {
         <audio ref={audioRef} preload="none" className="hidden" />
 
         <div className="mt-8 space-y-3">
-          {EXEMPLOS.map((e) => {
+          {lista.map((e) => {
             const ativo = tocando === e.slug;
             return (
               // Cartão como <div>, não como <button>: ele carrega DOIS toques

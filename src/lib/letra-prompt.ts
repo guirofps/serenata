@@ -4,11 +4,12 @@ import {
   LETRA_SYSTEM_ES,
   LETRA_SYSTEM_ES_ESPANHA,
   LETRA_SYSTEM_ES_AR,
+  LETRA_SYSTEM_ES_EUA,
   RELACAO_ES,
   OCASIAO_ES,
   VOZ_ES,
 } from "@/lib/letra-prompt-es";
-import { ehEspanha, ehArgentina } from "./mercado-es.js";
+import { ehEspanha, ehArgentina, ehEua } from "./mercado-es.js";
 import { LETRA_SYSTEM_EN, RELACAO_EN, OCASIAO_EN, VOZ_EN, TOM_EN, WORSHIP_INSTRUCTIONS_EN } from "@/lib/letra-prompt-en";
 
 // Prompt de geração de letra (de prompts/letra.md). System estável e cacheável;
@@ -346,10 +347,14 @@ ${recado}`;
  * comprando (`mercado-es.ts`). Não é a mesma letra com sotaque: a lista de
  * clichês, o vocabulário e a conjugação mudam inteiros, e o prompt latino
  * proíbe por escrito exatamente as formas que a Espanha exige.
+ *
+ * Na Ballad (hispanos dos EUA) sai o latino com a regra do inglês/spanglish
+ * (`LETRA_SYSTEM_ES_EUA`). Decidido pela MARCA, então a Serenata nunca o vê.
  */
 export function systemDaLetra(locale: Locale): string {
   if (locale === "en") return LETRA_SYSTEM_EN;
   if (locale !== "es") return LETRA_SYSTEM;
+  if (ehEua()) return LETRA_SYSTEM_ES_EUA;
   if (ehEspanha()) return LETRA_SYSTEM_ES_ESPANHA;
   if (ehArgentina()) return LETRA_SYSTEM_ES_AR;
   return LETRA_SYSTEM_ES;

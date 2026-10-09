@@ -4,6 +4,8 @@
 // O botão leva pro EDITOR pelo token, não pro painel: 84% dos compradores
 // nunca entram na conta, e o editor abre sem login nenhum.
 
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+
 type Idioma = "pt" | "es" | "en";
 
 const COPY = {
@@ -36,8 +38,23 @@ const COPY = {
   },
 } as const;
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA, 09/10): sem WhatsApp, e com a marca
+// do deploy no rodapé.
+const COPY_ES_EUA = {
+  ...COPY.es,
+  texto:
+    "Sus fotos pasando al ritmo de la canción, con la letra iluminándose palabra por palabra. Ya puedes verlo, descargarlo y mandarlo por mensaje o subirlo a tu historia.",
+  rodape: `${MARCA_ATIVA.nome} · una canción hecha de la historia de quien tú quieres`,
+};
+
+/** A copy do idioma NESTE deploy: o espanhol da Ballad tem a sua. */
+function copyDe(locale: Idioma | undefined) {
+  if (locale === "es" && MARCA_ATIVA.chave === "ballad") return COPY_ES_EUA;
+  return COPY[locale ?? "pt"] ?? COPY.pt;
+}
+
 export function assuntoVideoPronto(titulo: string, locale: Idioma = "pt"): string {
-  return (COPY[locale] ?? COPY.pt).assunto(titulo);
+  return copyDe(locale).assunto(titulo);
 }
 
 export function emailVideoPronto(args: {
@@ -45,7 +62,7 @@ export function emailVideoPronto(args: {
   linkVideo: string;
   locale?: Idioma;
 }): string {
-  const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
+  const C = copyDe(args.locale);
   return `<!DOCTYPE html>
 <html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.titulo}</title></head>
 <body style="margin:0;padding:0;background-color:#f2e9dc;font-family:Georgia,'Times New Roman',serif;">
@@ -54,7 +71,7 @@ export function emailVideoPronto(args: {
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#faf5ee;border:1px solid rgba(42,21,24,0.14);border-radius:16px;overflow:hidden;">
         <tr><td height="4" style="background:linear-gradient(90deg,#7d2b3a,#c9a227);"></td></tr>
         <tr><td style="padding:34px 34px 6px;text-align:center;">
-          <div style="margin:0 auto 16px;font-size:22px;letter-spacing:3px;color:#7d2b3a;">${args.locale === "en" ? "BALLAD" : "SERENATA"}</div>
+          <div style="margin:0 auto 16px;font-size:22px;letter-spacing:3px;color:#7d2b3a;">${args.locale === "en" || MARCA_ATIVA.chave === "ballad" ? "BALLAD" : "SERENATA"}</div>
           <h1 style="margin:0;color:#2a1518;font-size:25px;font-weight:normal;line-height:1.32;">${C.titulo}</h1>
           <p style="margin:12px 0 0;color:rgba(42,21,24,0.6);font-size:15px;">“${args.titulo}”</p>
         </td></tr>

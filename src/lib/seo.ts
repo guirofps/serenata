@@ -1,8 +1,8 @@
-﻿import { type Locale, MOEDA } from "@/lib/i18n";
+﻿import { type Locale, moeda } from "@/lib/i18n";
 import { MARCA } from "@/lib/marca";
 import { EXPERIMENTOS } from "@/lib/experimentos";
 import { PLANOS } from "@/lib/preco";
-import { MARCA_ATIVA } from "./marca-identidade.js";
+import { MARCA_ATIVA, ehBallad } from "./marca-identidade.js";
 
 /**
  * Se dá pra anunciar um preço em público neste idioma.
@@ -14,7 +14,9 @@ import { MARCA_ATIVA } from "./marca-identidade.js";
 function precoEhPublico(locale: Locale): boolean {
   const testando = EXPERIMENTOS.some((e) => e.id === "preco" && e.ativo);
   if (!testando) return true;
-  return Object.keys(PLANOS[locale] ?? {}).length <= 1;
+  // O espanhol da Ballad cobra o plano do inglês (`preco.ts`).
+  const planos = locale === "es" && ehBallad() ? PLANOS.en : PLANOS[locale];
+  return Object.keys(planos ?? {}).length <= 1;
 }
 
 // O QUE FALTAVA DE SEO TÉCNICO, num lugar só.
@@ -40,9 +42,22 @@ const URLS: Record<Locale, { home: string; criar: string }> = {
 
 /** Canonical + o par de idiomas. Vai no `links` do head da rota. */
 export function linksDeIdioma(locale: Locale, pagina: "home" | "criar" = "home") {
-  // A Ballad é um site só de inglês e NÃO é versão de idioma da Serenata:
-  // outro domínio, outra marca, outro preço. Declarar hreflang cruzado diria
-  // ao Google que são a mesma página, e a de lá competiria com a daqui.
+  // A Ballad NÃO é versão de idioma da Serenata: outro domínio, outra marca,
+  // outro preço. Declarar hreflang cruzado diria ao Google que são a mesma
+  // página, e a de lá competiria com a daqui.
+  //
+  // Dentro da Ballad, o par é inglês ↔ espanhol DOS EUA (09/10): `en-US` e
+  // `es-US`, com o inglês como padrão. As duas páginas declaram o mesmo par
+  // (hreflang sem volta é ignorado pelo Google).
+  if (ehBallad()) {
+    const propria = locale === "es" ? URLS.es[pagina] : URLS.en[pagina];
+    return [
+      { rel: "canonical", href: propria },
+      { rel: "alternate", hrefLang: "en-US", href: URLS.en[pagina] },
+      { rel: "alternate", hrefLang: "es-US", href: URLS.es[pagina] },
+      { rel: "alternate", hrefLang: "x-default", href: URLS.en[pagina] },
+    ];
+  }
   if (locale === "en") {
     return [
       { rel: "canonical", href: URLS.en[pagina] },
@@ -124,7 +139,7 @@ export function dadosEstruturados(locale: Locale) {
       // ser a coisa mais segura de fazer (ver `cssExperimentos`).
       ...(precoEhPublico(locale)
         ? {
-            price: MOEDA[locale].valor.toFixed(2),
+            price: moeda(locale).valor.toFixed(2),
             priceCurrency: es || en ? "USD" : "BRL",
           }
         : {}),

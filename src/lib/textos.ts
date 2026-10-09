@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/i18n";
-import { ehArgentina } from "@/lib/mercado-es";
+import { ehArgentina, ehEua } from "@/lib/mercado-es";
 
 // O DICIONÁRIO da interface.
 //
@@ -543,10 +543,33 @@ const EN: Textos = {
   } as Record<string, string>,
 };
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA, 09/10). A base `ES` é `tú`, mas
+// cinco frases das travas do botão ficaram em voseo quando o funil virou
+// argentino (escritas direto na base, não na sobreposição `AR`). Na Serenata a
+// sobreposição argentina as cobre e ninguém via; aqui elas apareceriam.
+//
+// O resto é o que depende do PAÍS, igual ao inglês da Ballad: o link vai por
+// mensagem de texto, não por WhatsApp. Os campos `zap*` só satisfazem o tipo
+// (o bloco que os usa não aparece na Ballad, ver `AvisarWhatsApp`).
+const EUA: Partial<Textos> = {
+  faltaResponder: "Responde esta para continuar",
+  bloqueioEmailVazio: "Escribe tu correo para recibir la letra",
+  bloqueioChips: "Toca una de las opciones de arriba",
+  bloqueioTexto: "Completa ese campo para continuar",
+  compradorPlaceholder: "cómo te llamas",
+  comoVaiChegar:
+    "Le mandas el link por mensaje. La persona lo toca, y la letra se ilumina al ritmo de la canción, con las fotos de ustedes.",
+  zapTitulo: "¿Avisos de tu pedido por mensaje?",
+  zapTexto: "Solo te escribimos sobre este pedido.",
+  zapCampo: "Tu teléfono (opcional)",
+  zapBotao: "Quiero recibir",
+};
+
 const POR_IDIOMA: Record<Locale, Textos> = { pt: PT, es: ES, en: EN };
 
 /** Os textos da moldura no idioma dado. Idioma desconhecido cai em português. */
 export function t(locale: Locale): Textos {
+  if (locale === "es" && ehEua()) return { ...ES, ...EUA };
   if (locale === "es" && ehArgentina()) return { ...ES, ...AR };
   return POR_IDIOMA[locale] ?? PT;
 }

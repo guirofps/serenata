@@ -8,6 +8,7 @@ import { captureLeadProgress } from "@/lib/lead-capture";
 import { useQuizStore } from "@/lib/quiz-store";
 import { trackEvent } from "@/lib/track";
 import { mascaraTelefone, telefoneValido, paraE164, exemploTelefone } from "@/lib/telefone";
+import { ehBallad } from "@/lib/marca-identidade";
 
 // PEDIR O WHATSAPP NA ESPERA — e só aqui.
 //
@@ -87,9 +88,11 @@ export function AvisarWhatsApp({
   const [erro, setErro] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
-  // Nada de WhatsApp no produto americano (Ballad): lá o contato é só por
-  // e-mail. Depois dos hooks, pra ordem deles não mudar entre renders.
-  if (locale === "en") return null;
+  // Nada de WhatsApp no produto americano (Ballad), em NENHUM idioma: lá o
+  // contato é só por e-mail, e o hispano de `/es` mora nos EUA como o
+  // americano. Pergunta a marca, não o idioma (ver `ehBallad`). Depois dos
+  // hooks, pra ordem deles não mudar entre renders.
+  if (ehBallad()) return null;
   if (estado === "dispensado" || jaTinha) return null;
 
   if (estado === "salvo") {

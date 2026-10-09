@@ -1,5 +1,6 @@
 import { Star } from "lucide-react";
 import { type Locale } from "@/lib/i18n";
+import { ehBallad } from "@/lib/marca-identidade";
 
 // PROVA SOCIAL DO HERÓI — o bloco que fica logo abaixo do CTA principal.
 //
@@ -83,7 +84,10 @@ export function ProvaSocial({
    */
   compacto?: boolean;
 }) {
-  const t = T[locale] ?? T.pt;
+  // O espanhol da Ballad (hispanos dos EUA) escreve o número como o inglês
+  // de lá: "6,600+", com vírgula de milhar, que é como se lê nos EUA e no
+  // México. O "+6.600" da Serenata é a pontuação da Argentina.
+  const t = locale === "es" && ehBallad() ? { ...T.es, numero: T.en.numero } : (T[locale] ?? T.pt);
 
   const estrelas = (
     <div className="flex gap-0.5" aria-label={t.estrelas}>

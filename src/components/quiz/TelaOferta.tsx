@@ -19,6 +19,8 @@ import { PrecoCurto, PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
 import { descontoNaTela } from "@/lib/cupom";
 import { valorDoCheckout } from "@/lib/valor-conversao";
 import { ehArgentina } from "@/lib/mercado-es";
+import { ehBallad } from "@/lib/marca-identidade";
+import { OFERTA_ES_EUA } from "@/components/quiz/oferta-es-eua";
 import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
 import { varianteDe, EXP_PROVA_BLOCOS } from "@/lib/experimentos";
@@ -179,6 +181,10 @@ const DUVIDAS_PT = [
 // interruptor sair de `argentina` sem esta copy ser revisitada. Se o teste te
 // trouxe até aqui: reescreva as duas listas abaixo no espanhol do mercado
 // novo, e só então mude a lista do teste.
+//
+// A BALLAD NÃO PASSA POR AQUI: o espanhol dela (hispanos dos EUA, `tú`,
+// Stripe) mora em `oferta-es-eua.ts`, com teste próprio. Esta copy é só da
+// Serenata.
 const ENTREGAVEIS_ES = [
   {
     Icone: Music,
@@ -467,8 +473,15 @@ const COPY = {
   },
 } as const;
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA): a moldura espanhola de cima com a
+// lista, as dúvidas e o caixa do Stripe por cima. Ver `oferta-es-eua.ts`.
+const COPY_ES_EUA = { ...COPY.es, ...OFERTA_ES_EUA };
+
 export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; locale?: Locale }) {
-  const C = COPY[locale] ?? COPY.pt;
+  // Pelo idioma E pela marca: o `/es` da Ballad paga pelo Stripe em dólar e
+  // nunca vê a copy argentina nem a Centerpag.
+  const espanholDaBallad = locale === "es" && ehBallad();
+  const C = espanholDaBallad ? COPY_ES_EUA : (COPY[locale] ?? COPY.pt);
   const G = GARANTIA[locale] ?? GARANTIA.pt;
   // NÃO EXISTE MAIS UM `preco` NESTE CORPO, e isso é a trava.
   //
@@ -696,7 +709,9 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
         // Gastou: o crachá não serve mais e não pode sobreviver pra prometer
         // crédito na próxima.
         if (r.saldo <= 0) esquecerCreditoNoNavegador();
-        window.location.href = "/obrigado";
+        // O espanhol da Ballad tem a sua porta (`/es/gracias`). Na Serenata
+        // fica como sempre foi.
+        window.location.href = espanholDaBallad ? "/es/gracias" : "/obrigado";
         return;
       }
       if (r.erro === "sem-musica") {
@@ -876,8 +891,9 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     // E O QUE O SERVIDOR VAI COBRAR (08/10): no português e no inglês, o braço
     // COBRÁVEL (peso 0 vira o controle) com o cupom aplicado. No espanhol quem
     // cobra é o link da Perfect Pay do braço da tela. Ver `valorDoCheckout`.
+    // No espanhol da BALLAD quem cobra é o Stripe, igual ao inglês.
     const planoDaTela = meuPlano(locale, { temCupom: Boolean(cupom && descontado) });
-    const plano = locale === "es" ? planoDaTela : meuPlanoCobravel(locale);
+    const plano = locale === "es" && !espanholDaBallad ? planoDaTela : meuPlanoCobravel(locale);
     const baseC = Math.round((Number(plano.valor) || 0) * 100);
     const conviteFinalC = comConvite ? baseC - descontoDoConvite(baseC) : null;
     const valorCheckout = valorDoCheckout({
@@ -978,8 +994,9 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     }
 
     // BALLAD GIFT (EUA): o Stripe, na própria página. Nunca o redirect da
-    // Perfect Pay, que é produto em real e de outra marca.
-    if (locale === "en") {
+    // Perfect Pay, que é produto em real e de outra marca. Em inglês e no
+    // espanhol do `/es` (hispanos dos EUA): o gateway é do PAÍS, não do idioma.
+    if (locale === "en" || ehBallad()) {
       trackEvent("stripe_checkout_pediu", { valor: valorCheckout });
       setPagandoComStripe(plano.texto);
       setIndo(false);
@@ -1036,6 +1053,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
 
       {pagandoComStripe && (
         <CheckoutStripe
+          locale={locale}
           precoTexto={pagandoComStripe}
           aoFechar={() => setPagandoComStripe(null)}
           aoSemMusica={() => {

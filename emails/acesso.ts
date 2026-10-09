@@ -74,9 +74,26 @@ const COPY: Record<IdiomaEmail, {
   },
 };
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA, 09/10): o acesso dela, em `tú`. O
+// espanhol de cima é da Serenata argentina ("tocá", "Entrás", "Guardá").
+const COPY_ES_EUA: (typeof COPY)["es"] = {
+  ...COPY.es,
+  assunto: `Tu acceso a ${MARCA_ATIVA.nome}`,
+  corpo:
+    "Solo toca el botón de abajo. Entras directo, sin contraseña, a tu área: las canciones que creaste, el editor de cada regalo y la descarga de cada una.",
+  rodape: `${MARCA_ATIVA.nome} · una canción hecha de la historia de quien tú quieres`,
+  atalhoCorpo: "Estos links son tuyos y no expiran. Guarda este correo.",
+};
+
+/** A copy do idioma NESTE deploy: o espanhol da Ballad tem a sua. */
+function copyDe(locale: IdiomaEmail | undefined) {
+  if (locale === "es" && MARCA_ATIVA.chave === "ballad") return COPY_ES_EUA;
+  return COPY[locale ?? "pt"] ?? COPY.pt;
+}
+
 /** O assunto, no idioma da conta. */
 export function assuntoAcesso(locale: IdiomaEmail = "pt") {
-  return (COPY[locale] ?? COPY.pt).assunto;
+  return copyDe(locale).assunto;
 }
 
 const SITE = MARCA_ATIVA.url;
@@ -110,7 +127,7 @@ export function emailAcesso(args: {
   presentes?: PresenteDoAcesso[];
 }): string {
   const { link, expiraMin = 60 } = args;
-  const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
+  const C = copyDe(args.locale);
   const presentes = args.presentes ?? [];
   const listaPresentes = presentes.length
     ? `

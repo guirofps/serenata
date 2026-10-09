@@ -5,7 +5,7 @@ import { podeMandarMarketing } from "../lib/frequencia.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { comUtm } from "../../src/lib/utm-email.js";
-import { emailGuardeOLink, assuntoGuardeOLink, textoGuardeOLinkEn } from "../../emails/guarde-o-link.js";
+import { emailGuardeOLink, assuntoGuardeOLink, textoGuardeOLinkEn, textoGuardeOLinkEsEua } from "../../emails/guarde-o-link.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
@@ -155,8 +155,14 @@ export const guardeOLink = inngest.createFunction(
           locale,
           nome:
             ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-            (locale === "es" ? "quien vos querés" : locale === "en" ? "someone you love" : "quem você ama"),
-          titulo: m.titulo ?? (locale === "en" ? "Your song" : "Sua música"),
+            // `tú` no espanhol da Ballad (hispanos dos EUA); o da Serenata é
+            // argentino.
+            (locale === "es"
+              ? MARCA_ATIVA.chave === "ballad" ? "quien tú quieres" : "quien vos querés"
+              : locale === "en" ? "someone you love" : "quem você ama"),
+          titulo:
+            m.titulo ??
+            (locale === "en" ? "Your song" : locale === "es" && MARCA_ATIVA.chave === "ballad" ? "Tu canción" : "Sua música"),
           linkEditor: `${SITE}/editar/${m.token_edicao}`,
           linkPresente: `${SITE}/p/${m.token}`,
           musicaId: m.id,
@@ -196,6 +202,8 @@ export const guardeOLink = inngest.createFunction(
           }),
           text: c.locale === "en"
             ? textoGuardeOLinkEn({ nome: c.nome, linkEditor: c.linkEditor, linkPresente: c.linkPresente })
+            : c.locale === "es" && MARCA_ATIVA.chave === "ballad"
+            ? textoGuardeOLinkEsEua({ nome: c.nome, linkEditor: c.linkEditor, linkPresente: c.linkPresente })
             :
             `Guarde este e-mail: são os dois links da música de ${c.nome}.\n\n` +
             `SEU LINK (baixar o MP3 e editar a página):\n${c.linkEditor}\n\n` +

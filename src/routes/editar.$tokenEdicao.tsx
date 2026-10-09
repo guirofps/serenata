@@ -24,6 +24,7 @@ import { DatasEspeciais } from "@/components/presente/DatasEspeciais";
 import { AtalhoOutraMusica } from "@/components/conta/AtalhoOutraMusica";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE, nomeCor } from "@/lib/marca";
+import { ehBallad } from "@/lib/marca-identidade";
 import { tp } from "@/lib/textos-presente";
 import { Logo } from "@/components/marca/Logo";
 import { cn } from "@/lib/utils";
@@ -133,8 +134,11 @@ function Editor() {
   const br = locale === "pt";
   const { tokenEdicao } = Route.useParams();
   const tz = TEXTO_SUPORTE[locale === "es" ? "es" : "pt"];
-  // Nada de WhatsApp no produto americano: lá o suporte é só por e-mail.
-  const linkZap = en
+  // Nada de WhatsApp no produto americano: lá o suporte é só por e-mail. Pela
+  // MARCA, não pelo idioma: o espanhol da Ballad (hispanos dos EUA) também
+  // não tem WhatsApp, nem PIX, nem real.
+  const ballad = ehBallad();
+  const linkZap = ballad
     ? null
     : linkSuporte({
         locale: locale === "es" ? "es" : "pt",
@@ -1148,7 +1152,7 @@ function Editor() {
 
               A "mais uma música" continua nos e-mails de entrega e recompra,
               onde não compete com nada. */}
-          {!en && (
+          {!ballad && (
             <OfertaQuadroEditor
               locale={locale === "es" ? "es" : "pt"}
               tokenEdicao={tokenEdicao}
@@ -1171,9 +1175,9 @@ function Editor() {
             {/* No inglês o atalho pago (PIX, em real) não existe: fica o
                 convite de criar outra pelo funil, que é o mesmo destino do
                 link do e-mail. */}
-            {en ? (
+            {ballad ? (
               <div className="mt-6 text-center">
-                <ConviteOutraMusica locale="en" origem="editor" variante="discreto" />
+                <ConviteOutraMusica locale={en ? "en" : "es"} origem="editor" variante="discreto" />
               </div>
             ) : (
               <AtalhoOutraMusica

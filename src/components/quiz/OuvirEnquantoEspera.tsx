@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import { type Locale } from "@/lib/i18n";
 import { t } from "@/lib/textos";
 import { EXEMPLOS_EN, audioDoExemplo } from "@/lib/exemplos-en";
+import { exemplosEsUsProntos } from "@/lib/exemplos-es-us";
+import { ehBallad } from "@/lib/marca-identidade";
 
 // "Enquanto a sua fica pronta, ouça outras" — a jogada da tela de espera do
 // LoveTune, e a mais honesta dela: enquanto o Suno grava (~2min), a pessoa
@@ -45,12 +47,23 @@ const CLIPES: Record<Locale, ReadonlyArray<{ slug: string; titulo: string; para:
 const AUDIO_BASE =
   "https://ouwijepgctgtfzrrwpvt.supabase.co/storage/v1/object/public/exemplos";
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA): os exemplos gerados pelo funil dela
+// (`exemplos-es-us.ts`), com áudio no bucket do banco DELA. Os de cima são da
+// Serenata e apontam pro bucket de lá. Enquanto a lista estiver vazia, o
+// bloco some (ver o `return null` abaixo).
+const CLIPES_ES_EUA = exemplosEsUsProntos()
+  .slice(0, 3)
+  .map((e) => ({ slug: e.slug, titulo: e.titulo, para: e.para, capa: e.capa }));
+
 
 
 export function OuvirEnquantoEspera({ locale = "pt" }: { locale?: Locale }) {
   const T = t(locale);
-  const clipes = CLIPES[locale] ?? CLIPES.pt;
-  const urlDo = (slug: string) => (locale === "en" ? audioDoExemplo(slug) : `${AUDIO_BASE}/${slug}.mp3`);
+  // Na Ballad, os dois idiomas tocam do bucket do PRÓPRIO banco.
+  const ballad = ehBallad();
+  const clipes = locale === "es" && ballad ? CLIPES_ES_EUA : (CLIPES[locale] ?? CLIPES.pt);
+  const urlDo = (slug: string) =>
+    locale === "en" || ballad ? audioDoExemplo(slug) : `${AUDIO_BASE}/${slug}.mp3`;
   const audioRef = useRef<HTMLAudioElement>(null);
   const [tocando, setTocando] = useState<string | null>(null);
 

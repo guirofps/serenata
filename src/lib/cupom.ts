@@ -2,6 +2,11 @@
 // (que resolve o alias `@`) e pelo cron do Inngest, que roda como ESM puro na
 // Vercel e NÃO resolve alias. É a mesma razão pela qual `email-typo.ts` também
 // não importa nada. O tipo abaixo é a cópia local de `Locale`.
+//
+// A ÚNICA exceção é `marca-identidade.ts`, por caminho relativo com `.js`: ele
+// também não importa nada e foi escrito pra ser lido pelos três ambientes.
+import { ehBallad } from "./marca-identidade.js";
+
 type Locale = "pt" | "es" | "en";
 
 // O CUPOM DA RECUPERAÇÃO, num lugar só.
@@ -157,6 +162,11 @@ function reais(centavos: number): string {
 /** O cupom de PREÇO FINAL do idioma (o da recuperação). Assinatura de sempre. */
 export function cupomAtivo(locale: Locale, agora = new Date()): Cupom | null {
   if (locale === "en") return null;
+  // A Ballad não tem cupom em idioma nenhum. O cupom espanhol (SRN7) é da
+  // Serenata, existe como produto da Perfect Pay e o Stripe não sabe dele:
+  // mostrar "US$ 7" na tela e cobrar US$ 19 no caixa seria o "lê um número,
+  // paga outro" que este arquivo existe pra impedir.
+  if (ehBallad()) return null;
   const c = CUPONS.find(
     (x): x is CupomPrecoFinal => x.tipo === "preco_final" && x.locale === locale && vale(x, agora),
   );

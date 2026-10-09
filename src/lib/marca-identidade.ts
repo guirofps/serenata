@@ -101,6 +101,27 @@ export function chaveDaMarca(v: string | undefined = envMarca()): ChaveMarca {
 export const MARCA_ATIVA: Marca = MARCAS[chaveDaMarca()];
 
 /**
+ * Este deploy é a Ballad Gift?
+ *
+ * Existe pro ESPANHOL da Ballad (hispanos dos EUA, `/es` no balladgift.com).
+ * Até ele nascer, "é a Ballad" e "é inglês" eram a mesma pergunta, e o código
+ * perguntava `locale === "en"` pra decidir gateway, WhatsApp, real e PIX. Com
+ * dois idiomas na Ballad isso deixou de valer: um mexicano de Los Angeles paga
+ * pelo Stripe em dólar, igual ao americano, e nunca vê WhatsApp nem R$.
+ *
+ * A regra que sai daqui: o que depende do PAÍS (gateway, moeda, canal de
+ * contato, régua de e-mail) pergunta a MARCA; o que depende da LÍNGUA (texto)
+ * pergunta o idioma. Na Serenata isto é sempre `false` e nada muda.
+ *
+ * Função e não `const` pelo mesmo motivo de `mercadoEs()`: com uma constante
+ * literal o TypeScript estreita o tipo e passa a acusar a outra ponta do `if`
+ * como código impossível, dependendo da env de quem compila.
+ */
+export function ehBallad(): boolean {
+  return MARCA_ATIVA.chave === "ballad";
+}
+
+/**
  * O e-mail saiu desta marca? Recebe o campo `from` como o Resend manda
  * ("Nome <x@dominio>" ou só o endereço). Usado pelo webhook do Resend, que
  * recebe os eventos da CONTA inteira, das duas marcas.
