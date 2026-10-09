@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/i18n";
-import { ehArgentina } from "@/lib/mercado-es";
+import { ehArgentina, ehEua } from "@/lib/mercado-es";
 
 // Textos da PÁGINA-PRESENTE e do EDITOR.
 //
@@ -411,9 +411,21 @@ ${link}`,
   atualizandoDono: "Your new version is being recorded. Until it's ready, this page plays the previous one.",
 };
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA). A base `ES` já é `tú`; o que muda é
+// o que depende do PAÍS, como no inglês da Ballad: nada de WhatsApp (o link vai
+// por mensagem de texto e "enviar" é o menu de compartilhar do celular). O
+// `ajudaCelular` da base também trazia um "usá" que escapou do voseo.
+const EUA: Partial<TextosPresente> = {
+  ajudaCelular:
+    "El MP3 va a tus descargas. Para mandarla directo a alguien, usa el botón de compartir.",
+  enviarMusica: "Compartir la canción",
+  copieEMande: "Cópialo y mándaselo por mensaje. Quien entrega el regalo eres tú.",
+};
+
 const POR_IDIOMA: Record<Locale, TextosPresente> = { pt: PT, es: ES, en: EN };
 
 export function tp(locale: Locale): TextosPresente {
+  if (locale === "es" && ehEua()) return { ...ES, ...EUA };
   if (locale === "es" && ehArgentina()) return { ...ES, ...AR };
   return POR_IDIOMA[locale] ?? PT;
 }

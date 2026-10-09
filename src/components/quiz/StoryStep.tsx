@@ -3,7 +3,7 @@ import type { QuestionStep } from "@/lib/flow-engine";
 import { Textarea } from "@/components/ui/textarea";
 import { useDictation } from "@/lib/use-dictation";
 import { trackEventOnce } from "@/lib/track";
-import { type Locale, TAG_IDIOMA } from "@/lib/i18n";
+import { type Locale, tagIdioma } from "@/lib/i18n";
 import { t as textos } from "@/lib/textos";
 import { cn } from "@/lib/utils";
 import { Mic, Square } from "lucide-react";
@@ -137,7 +137,7 @@ export function StoryStep({
     const novo = base ? `${base} ${t}` : t;
     vivoRef.current = novo;
     onChange(novo);
-  }, TAG_IDIOMA[locale]);
+  }, tagIdioma(locale));
 
   // Gatilho tocado: escreve o COMEÇO da frase e devolve o cursor pro fim,
   // com o teclado já aberto. É a diferença entre "escreva sobre a memória de

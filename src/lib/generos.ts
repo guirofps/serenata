@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/i18n";
-import { ehEspanha, ehArgentina } from "./mercado-es.js";
+import { ehEspanha, ehArgentina, ehEua } from "./mercado-es.js";
 
 // OS GÊNEROS, num lugar só.
 //
@@ -387,6 +387,43 @@ const GOSPEL_EN: Genero[] = [
     estiloSuno: "contemporary Christian pop, acoustic guitar and piano, polished pop beat, catchy uplifting chorus" },
 ];
 
+// ── HISPANOS DOS EUA (o `/es` da Ballad Gift, 09/10) ──────────────
+//
+// Quem compra é, na maioria, de origem MEXICANA (e depois centro-americana e
+// caribenha), morando nos EUA. O que ele escuta no carro e numa festa de
+// família é o regional mexicano: mariachi, banda, norteño, corrido. Por isso
+// eles voltam pra FRENTE, ao contrário da lista `latam` de cima (que foi
+// reordenada pra Argentina/Chile/Peru/Colômbia).
+//
+// Os `value` que já existem são OS MESMOS objetos de `ES` (mesmo estilo do
+// Suno, mesmo rótulo): o `acharGenero` acha o primeiro que bate, e dois
+// estilos diferentes com o mesmo `value` seriam o defeito da `balada` de novo.
+// O único novo é o regional mexicano romântico: a balada ranchera moderna de
+// rádio, que não é nem mariachi nem banda. Fora daqui: vallenato, tango, huayno, cueca, trova e rock en
+// español, que são de outros países e só alongariam o seletor.
+const doEs = (value: string): Genero => {
+  const g = ES.find((x) => x.value === value);
+  if (!g) throw new Error(`gênero ${value} sumiu da lista ES`);
+  return g;
+};
+const ES_EUA: Genero[] = [
+  doEs("mariachi"),
+  doEs("banda"),
+  doEs("nortena"),
+  { value: "regional_romantico", label: "Regional mexicano romántico", emoji: "🌹",
+    rotuloPrompt: "regional mexicano romántico",
+    estiloSuno: "regional mexicano romántico, guitarras acústicas y requinto, bajo, acordeón suave, voz sentida con vibrato, balada ranchera moderna" },
+  doEs("corrido"),
+  doEs("bolero"),
+  doEs("balada"),
+  doEs("bachata"),
+  doEs("cumbia"),
+  doEs("pop_latino"),
+  doEs("salsa"),
+  doEs("reggaeton"),
+  { ...doEs("cristiana"), label: "Alabanza / cristiana" },
+];
+
 // O `acharGenero` varre ESTE objeto, então as TRÊS listas espanholas precisam
 // estar aqui dentro mesmo quando só uma está no ar. Uma música gerada na
 // campanha LatAm é aberta meses depois; se o valor dela sumisse do mapa, a
@@ -396,6 +433,7 @@ const TODAS: Record<string, Genero[]> = {
   es: ES,
   es_espanha: ES_ESPANHA,
   es_ar: ES_AR,
+  es_eua: ES_EUA,
   en: EN,
   // Não é idioma: está aqui só pro `acharGenero` (job da música, página
   // presente) achar os estilos gospel. `generos()` nunca devolve esta chave.
@@ -405,6 +443,7 @@ const TODAS: Record<string, Genero[]> = {
 
 export function generos(locale: Locale): Genero[] {
   if (locale === "es") {
+    if (ehEua()) return ES_EUA;
     if (ehEspanha()) return ES_ESPANHA;
     if (ehArgentina()) return ES_AR;
     return ES;
