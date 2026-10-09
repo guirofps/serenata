@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { MOEDA } from "@/lib/i18n";
 import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { stripeApi, confirmarSessaoStripe, ErroStripe } from "../../api/lib/stripe";
+import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 
 // O CHECKOUT DA BALLAD GIFT, do lado do servidor.
 //
@@ -156,6 +157,7 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
         },
         { onConflict: "payment_id", ignoreDuplicates: true },
       );
+      await marcarSeVeioDeEmail(db, `stripe:${sessao.id}`);
       if (error) throw new Error(error.message);
 
       await db.from("funnel_events").insert({

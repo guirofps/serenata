@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import {
   renderMediaOnLambda,
   getRenderProgress,
@@ -446,7 +447,7 @@ export const renderizarVideo = inngest.createFunction(
       // sozinha. Um segundo "seu vídeo está pronto" seria só ruído.
       if (preparo.atualizacoes > 0) return;
       const linkVideo = `${SITE}/editar/${preparo.tokenEdicao}#video`;
-      const { data: enviado, error } = await new Resend(chave).emails.send({
+      const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
         tags: [{ name: "template", value: "video_pronto" }],
         from: MARCA_ATIVA.remetenteTransacional,
         to: [preparo.email],

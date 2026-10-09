@@ -3,6 +3,7 @@ import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import {
   assuntoLembreteData,
@@ -106,12 +107,12 @@ export const lembrarDatas = inngest.createFunction(
           : { data: null };
         const link = m?.token_edicao
           ? `${SITE}/editar/${m.token_edicao}?de=lembrete_data#outra-musica`
-          : `${SITE}/criar?utm_source=lembrete_data&utm_medium=email`;
+          : `${SITE}/criar?utm_source=email&utm_medium=email&utm_campaign=lembrete_data`;
 
         const nome = String(d.nome);
         const tipo = d.tipo as TipoData;
         const dataTexto = `${d.dia} de ${MESES[(d.mes as number) - 1]}`;
-        const { data: enviado, error } = await new Resend(chave).emails.send({
+        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: "lembrete_data" }],
           from: REMETENTE_RECUPERACAO,
           replyTo: RESPONDER_PARA,

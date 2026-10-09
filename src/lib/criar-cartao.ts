@@ -14,6 +14,7 @@ import { conviteDaCompra } from "@/lib/indicacao-db";
 import { descontoDoConvite } from "@/lib/indicacao";
 import { outroPagamentoDoQuiz } from "@/lib/asaas-regras";
 import { avisarDonos } from "@/lib/avisar-donos";
+import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 
 // A COBRANÇA NO CARTÃO, transparente.
 //
@@ -373,6 +374,7 @@ export const cobrarCartao = createServerFn({ method: "POST" })
       },
       { onConflict: "payment_id" },
     ).select("id").maybeSingle();
+    await marcarSeVeioDeEmail(db, `asaas:${r.idExterno}`);
     if (error) {
       // A COBRANÇA JÁ PASSOU no gateway. Sumir com o resultado seria cobrar e
       // não registrar — o pior desfecho possível. Grita no log e devolve o

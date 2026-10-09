@@ -12,6 +12,10 @@ describe("canalDaVenda", () => {
     expect(canalDaVenda({ ttclid: "x" }, "SRN27")).toBe("email");
     expect(canalDaVenda(null, "MUSICA10")).toBe("email");
   });
+  it("pedido marcado como vindo de e-mail vence o primeiro toque", () => {
+    expect(canalDaVenda({ gclid: "abc" }, null, "email")).toBe("email");
+    expect(canalDaVenda({ gclid: "abc" }, null, null)).toBe("google");
+  });
   it("link de e-mail sem cupom é e-mail", () => {
     expect(canalDaVenda({ utm_source: "email" }, null)).toBe("email");
     expect(canalDaVenda({ utm_source: "lembrete_data" }, null)).toBe("email");

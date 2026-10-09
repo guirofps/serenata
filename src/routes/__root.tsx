@@ -36,6 +36,7 @@ import { LOCALE_PADRAO, TAG_IDIOMA } from "@/lib/i18n";
 import { FONTES, MARCA } from "@/lib/marca";
 import { rotaDeConversao, scriptCarregaGtag, scriptDepoisDaPagina, scriptFontes } from "@/lib/carregar-depois";
 import { guardarCupomDaUrl } from "@/lib/cupom-url";
+import { guardarToqueEmail } from "@/lib/toque-email";
 import { useQuizStore } from "@/lib/quiz-store";
 
 // ── O QUE NÃO EXISTE NA BALLAD GIFT ───────────────────────────────
@@ -397,6 +398,8 @@ function RootComponent() {
     captureFirstTouchAttribution();
     // Depois da atribuição (que lê as UTMs da mesma URL), antes do page_view.
     guardarCupomDaUrl((c) => useQuizStore.getState().setCupom(c));
+    // Voltou por link de e-mail: o checkout marca o pedido (`toque-email.ts`).
+    guardarToqueEmail();
     getDevice();
     // A/B: resolve a variante sticky e carimba em mp_attribution ANTES do
     // primeiro page_view, para todo funnel_event carregar attribution.variant.

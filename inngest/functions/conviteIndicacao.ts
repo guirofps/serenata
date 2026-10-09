@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { cabecalhosDescadastro, linkDescadastroUmClique } from "../lib/descadastro.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { assuntoIndicacao, emailIndicacao, textoIndicacao } from "../../emails/indicacao.js";
@@ -238,7 +239,7 @@ export const conviteIndicacao = inngest.createFunction(
 
     const enviados = await step.run("mandar", async () => {
       const sb = db();
-      const resend = new Resend(process.env.RESEND_API_KEY);
+      const resend = comUtm(new Resend(process.env.RESEND_API_KEY));
       let n = 0;
 
       for (const p of fila) {

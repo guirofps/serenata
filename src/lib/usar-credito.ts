@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Resend } from "resend";
+import { comUtm } from "@/lib/utm-email";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { emailDaSessao } from "@/lib/conta-sessao";
 import { donoPorTokenEdicao } from "@/lib/dono-por-token";
@@ -179,7 +180,7 @@ export const usarCredito = createServerFn({ method: "POST" })
         const site = process.env.SITE_URL ?? MARCA_ATIVA.url;
         const linkEditor = `${site}/editar/${musica.token_edicao}`;
         const linkPresente = `${site}/p/${musica.token}`;
-        const { data: enviado, error: erroEnvio } = await new Resend(chave).emails.send({
+        const { data: enviado, error: erroEnvio } = await comUtm(new Resend(chave)).emails.send({
       // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
       // (entregue, aberto, clicado, devolvido), e e o unico jeito de
       // saber DEPOIS qual e-mail performou: o assunto carrega o nome da

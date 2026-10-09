@@ -6,6 +6,7 @@ import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 import { podeMandarMarketing } from "../lib/frequencia.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import {
   assuntoPedidoReacao,
@@ -159,7 +160,7 @@ export const pedirReacao = inngest.createFunction(
         const assunto = assuntoPedidoReacao(c.nome);
         const linkResposta = `mailto:${MARCA_ATIVA.emailContato}?subject=${encodeURIComponent(`Re: ${assunto}`)}`;
         const linkDescadastro = linkDescadastroUmClique(c.email) ?? `${SITE}/descadastrar`;
-        const { data: enviado, error } = await new Resend(chave).emails.send({
+        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [
             { name: "template", value: "pedido_reacao" },
             { name: "teste", value: "pedido_reacao_b" },

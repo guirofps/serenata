@@ -519,9 +519,16 @@ painel_eventos_dia`) e o cron refazer.
 - **Vendas por canal (08/10)**, abaixo da linha de mídia: Google, TikTok,
   e-mail e orgânico, somando o cartão "Vendas" (`canal-venda.ts`). Venda com
   cupom conta pro E-MAIL mesmo com primeiro toque em anúncio (decisão do
-  dono: todo cupom de `cupom.ts` só existe em e-mail); o e-mail da régua sem
-  cupom não leva utm e fica no canal de origem. O quiz de venda fora da
+  dono: todo cupom de `cupom.ts` só existe em e-mail). O quiz de venda fora da
   janela (recuperação tardia, upsell) é lido à parte, senão cairia em orgânico.
+- **Todo link de e-mail leva `utm_source=email`** (08/10), com o template em
+  `utm_campaign`: o cliente do Resend sai por `comUtm(new Resend(...))`
+  (`utm-email.ts`), não template por template. Fora: alerta dos donos, resumo
+  diário e magic link. A utm sozinha NÃO muda o canal (o primeiro toque mora
+  no quiz): quem chega por ela ganha o cookie `mp_email` de 3 dias
+  (`toque-email.ts`) e os 7 checkouts gravam `pedidos.veio_de = 'email'`
+  (`marcarSeVeioDeEmail`, update à parte que nunca derruba a cobrança).
+  Envio novo: usar `comUtm`; checkout novo: chamar `marcarSeVeioDeEmail`.
 
 ## /criar gospel (02/10/2026)
 

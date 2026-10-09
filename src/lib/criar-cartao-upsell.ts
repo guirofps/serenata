@@ -8,6 +8,7 @@ import { ErroGateway, type DadosCartao, type TitularCartao } from "@/lib/gateway
 import { OFERTAS, type Oferta } from "@/lib/creditos";
 import { centavosComCupom, codigoAplicado, type Alvo } from "@/lib/cupom";
 import { creditarUpsell } from "../../api/lib/creditar-upsell";
+import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 
 // O CARTÃO DOS UPSELLS: música extra, quadro e vídeo, pelo Asaas (02/10).
 //
@@ -118,6 +119,7 @@ async function cobrar(
     })
     .select("id")
     .maybeSingle();
+  await marcarSeVeioDeEmail(db, paymentId);
   if (erroPendente || !pedido?.id) {
     // Sem o pedido, um pagamento sem resposta ficaria sem dono. Não cobra.
     console.error("[cartao-upsell] pedido pendente não gravou:", erroPendente?.message);

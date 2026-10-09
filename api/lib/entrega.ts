@@ -27,6 +27,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
 import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto.js";
 import { emailEmProducao, assuntoEmProducao } from "../../emails/entrega-em-producao.js";
@@ -187,7 +188,7 @@ export async function mandarEmailDeEntrega(
     // pronta" fica pra quando for verdade — quem o manda é o próprio job de
     // geração, ao terminar (`gerarMusica.ts`).
     if (!(args.musica.status === "pronta" && args.musica.audio_path)) {
-      const { data: aviso, error: erroAviso } = await new Resend(chave).emails.send({
+      const { data: aviso, error: erroAviso } = await comUtm(new Resend(chave)).emails.send({
         tags: [{ name: "template", value: "entrega_em_producao" }],
         from: MARCA_ATIVA.remetenteTransacional,
         to: [args.email],
@@ -217,7 +218,7 @@ export async function mandarEmailDeEntrega(
     const varianteEntrega: "a" | "b" =
       locale === "pt" && qid && parseInt(qid.slice(-1), 16) % 2 === 1 ? "b" : "a";
 
-    const { data: enviado, error } = await new Resend(chave).emails.send({
+    const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
       // A ETIQUETA DO ENVIO, que o Resend devolve em todo evento. É o único
       // jeito de medir DEPOIS qual e-mail performou: o assunto carrega o nome
       // da pessoa e nem sempre vem no evento.

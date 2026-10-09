@@ -5,6 +5,7 @@ import { podeMandarMarketing } from "../lib/frequencia.js";
 import { todasAsPaginas } from "../lib/paginar.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import {
   emailVideoOferta,
@@ -215,7 +216,7 @@ export const ofertaVideo = inngest.createFunction(
 
         const semFoto = c.tipo === "semFoto";
         const template = semFoto ? "fotos_video" : "oferta_video";
-        const { data: enviado, error } = await new Resend(chave).emails.send({
+        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: template }],
           // Remetente de RECUPERAÇÃO: é oferta, não entrega (ver `emails/remetentes.ts`).
           from: REMETENTE_RECUPERACAO,

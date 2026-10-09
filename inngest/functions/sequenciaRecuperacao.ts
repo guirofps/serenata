@@ -2,6 +2,7 @@ import { inngest } from "../client.js";
 import { cabecalhosDescadastro } from "../lib/descadastro.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import {
   emailSequencia,
   assuntoSequencia,
@@ -627,7 +628,7 @@ export const sequenciaRecuperacao = inngest.createFunction(
       const sb = db();
       const chave = process.env.RESEND_API_KEY;
       if (!chave) throw new Error("RESEND_API_KEY ausente");
-      const resend = new Resend(chave);
+      const resend = comUtm(new Resend(chave));
       let n = 0;
 
       // RECHECA QUEM COMPROU, agora, no instante do envio.

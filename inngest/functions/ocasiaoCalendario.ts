@@ -5,6 +5,7 @@ import { podeMandarMarketing } from "../lib/frequencia.js";
 import { todasAsPaginas } from "../lib/paginar.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { emailOcasiao, assuntoOcasiao } from "../../emails/ocasiao.js";
 import { ocasiaoDeHoje, templateDaOcasiao } from "../../src/lib/ocasioes.js";
@@ -240,7 +241,7 @@ export const ocasiaoCalendario = inngest.createFunction(
           return;
         }
 
-        const resend = new Resend(process.env.RESEND_API_KEY);
+        const resend = comUtm(new Resend(process.env.RESEND_API_KEY));
         const linkCriar = `${SITE}${p.locale === "es" ? "/es/criar" : "/criar"}?de=ocasiao&o=${ocasiao.slug}`;
         // `/descadastrar?email=` não existia (a rota só aceita `?s=`): o link
         // caía na tela de erro. O um-clique assinado é o mesmo do cabeçalho.

@@ -4,6 +4,7 @@ import { estaBloqueado } from "../lib/emails-mortos.js";
 import { podeMandarMarketing } from "../lib/frequencia.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { emailQuaseComprou, assuntoQuaseComprou } from "../../emails/quase-comprou.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
@@ -287,7 +288,7 @@ export const quaseComprou = inngest.createFunction(
         });
         if (!trava) return false;
 
-        const { data: enviado, error } = await new Resend(chave).emails.send({
+        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: "quase_comprou" }],
           // REMETENTE DE RECUPERAÇÃO, não o transacional.
           //

@@ -1,6 +1,7 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { REMETENTE_TRANSACIONAL } from "../../emails/remetentes.js";
 import { emailCreditoParado, assuntoCreditoParado } from "../../emails/credito-parado.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
@@ -229,7 +230,7 @@ export const creditoParado = inngest.createFunction(
         });
         if (!trava) return false;
 
-        const { data: enviado, error } = await new Resend(chave).emails.send({
+        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: "credito_parado" }],
           from: REMETENTE_TRANSACIONAL,
           to: [c.email],

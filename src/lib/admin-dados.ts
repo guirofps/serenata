@@ -501,6 +501,8 @@ type Pedido = {
   dinheiro_entrou?: boolean | null;
   /** O cupom que baixou o preço (desde 07/10). Todo cupom vem de e-mail. */
   cupom?: string | null;
+  /** 'email' quando a pessoa voltou por link de e-mail (`toque-email.ts`, desde 08/10). */
+  veio_de?: string | null;
 };
 
 type ArgsPainel = {
@@ -792,7 +794,7 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
     janela<Custo>("custos", "id, tipo, custo_brl, quiz_response_id, created_at"),
     janela<Pedido>(
       "pedidos",
-      "id, quiz_response_id, musica_id, gateway, status, valor_centavos, taxa_centavos, email, paid_at, created_at, dinheiro_entrou, cupom",
+      "id, quiz_response_id, musica_id, gateway, status, valor_centavos, taxa_centavos, email, paid_at, created_at, dinheiro_entrou, cupom, veio_de",
     ),
   ]);
   const msLeituras = Date.now() - t0;
@@ -957,6 +959,7 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
         | Record<string, unknown>
         | null,
       cupom: p.cupom,
+      veioDe: p.veio_de,
     })),
   );
 

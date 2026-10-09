@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { bloqueados } from "../lib/emails-mortos.js";
 import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { emailVolteCriar, assuntoVolteCriar } from "../../emails/volte-criar.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
@@ -204,7 +205,7 @@ export const volteCriar = inngest.createFunction(
         // dela aparece se comprar. Mandar direto pro quiz pularia a oferta.
         const linkCriar = `${SITE}/dashboard`;
 
-        const { data: enviado, error } = await new Resend(chave).emails.send({
+        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: "volte_criar" }],
           // REMETENTE DE RECUPERAÇÃO, não o transacional.
           //
