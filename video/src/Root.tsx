@@ -8,7 +8,7 @@ import { Compilado, duracaoCompilado } from "./Compilado";
 import { Mix, duracaoMix } from "./Mix";
 import { FinalBallad, FINAL_BALLAD_S } from "./FinalBallad";
 import { AnuncioUGC, FPS_UGC, duracaoUGC, type PropsAnuncioUGC } from "./AnuncioUGC";
-import { Remarketing, FPS_REMARKETING, DURACAO_REMARKETING_S, type PropsRemarketing } from "./Remarketing";
+import { Remarketing, FPS_REMARKETING, DURACAO_REMARKETING_S, duracaoRemarketing, type PropsRemarketing } from "./Remarketing";
 
 /**
  * O vídeo dura o que a MÚSICA dura, medido no próprio MP3.
@@ -104,6 +104,7 @@ export const RemotionRoot: React.FC = () => {
       fps={FPS_REMARKETING}
       width={1080}
       height={1920}
+      calculateMetadata={({ props }) => ({ durationInFrames: Math.round(duracaoRemarketing(props) * FPS_REMARKETING) })}
       defaultProps={{ variante: "geral", audio: "", capa: "", logo: "", titulo: "", para: "", linhas: [], textos: { gancho: { reta: "", italico: "" }, papel: { reta: "", italico: "" }, ouvindo: { reta: "", italico: "" }, presente: { reta: "", italico: "" }, cta: { reta: "", italico: "", sub: "", botao: "" } } } as PropsRemarketing}
     />
     <Composition id="FinalBallad" component={FinalBallad} durationInFrames={Math.round(FINAL_BALLAD_S * FPS)} fps={FPS} width={1080} height={1920} defaultProps={{}} />

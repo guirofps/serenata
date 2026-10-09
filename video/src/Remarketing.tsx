@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Audio, Easing, Img, Sequence, interpolate, random, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Audio, Easing, Img, OffthreadVideo, Sequence, interpolate, random, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { useAudioData, visualizeAudio } from "@remotion/media-utils";
 import { loadFont as carregarPoppins } from "@remotion/google-fonts/Poppins";
 import { loadFont as carregarPlayfair } from "@remotion/google-fonts/PlayfairDisplay";
@@ -29,6 +29,10 @@ const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 
 export const FPS_REMARKETING = 30;
 export const DURACAO_REMARKETING_S = 30;
+/** Com a montagem de reações antes da chamada (09/10): 34,5s. */
+export const DURACAO_REMARKETING_REACOES_S = 34.5;
+export const duracaoRemarketing = (p: Pick<PropsRemarketing, "reacoes">) =>
+  p.reacoes ? DURACAO_REMARKETING_REACOES_S : DURACAO_REMARKETING_S;
 
 type Frase = { reta: string; italico: string };
 
@@ -42,6 +46,11 @@ export type PropsRemarketing = {
   para: string;
   /** Linhas com o tempo RELATIVO ao trecho. As 2 primeiras vão no papel, as 2 seguintes no karaokê. */
   linhas: LinhaKaraoke[];
+  /**
+   * O vídeo de reações da home (`reacoes.mp4`, horizontal, mudo aqui) entra
+   * como montagem antes da chamada. O áudio precisa cobrir os 34,5s.
+   */
+  reacoes?: { video: string; titulo: Frase };
   textos: {
     gancho: Frase;
     papel: Frase;
@@ -53,13 +62,29 @@ export type PropsRemarketing = {
 
 // Onde cada cena começa e termina (segundos). O refrão entra aos 3s nos dois
 // trechos: o papel abre junto com a primeira palavra cantada.
-const CENAS = {
+type NomeCena = "gancho" | "papel" | "ouvindo" | "presente" | "reacoes" | "cta";
+type Cenas = Record<NomeCena, readonly [number, number] | null>;
+const CENAS_SEM_REACOES: Cenas = {
   gancho: [0, 3.2],
   papel: [3.2, 11.2],
   ouvindo: [11.2, 19.6],
   presente: [19.6, 25.2],
+  reacoes: null,
   cta: [25.2, 30],
-} as const;
+};
+// Com reações: o karaokê e o celular encolhem um pouco pra a montagem caber
+// antes da chamada, sem a chamada perder tempo.
+const CENAS_COM_REACOES: Cenas = {
+  gancho: [0, 3.2],
+  papel: [3.2, 11.2],
+  ouvindo: [11.2, 18.2],
+  presente: [18.2, 23.2],
+  reacoes: [23.2, 29.6],
+  cta: [29.6, 34.5],
+};
+const CenasCtx = React.createContext<Cenas>(CENAS_SEM_REACOES);
+/** Início e fim da cena (as cenas que sempre existem nunca são null). */
+const useCena = (k: NomeCena): readonly [number, number] => React.useContext(CenasCtx)[k] ?? [0, 0];
 
 const useT = () => {
   const f = useCurrentFrame();
@@ -185,7 +210,8 @@ const Titulo: React.FC<{ frase: Frase; t: number; topo: number; tam?: number; co
 
 const CenaGancho: React.FC<{ p: PropsRemarketing }> = ({ p }) => {
   const t = useT();
-  const dur = CENAS.gancho[1] - CENAS.gancho[0];
+  const [gi, gf] = useCena("gancho");
+  const dur = gf - gi;
   // Uma pena escrevendo um traço, embaixo da pergunta.
   const traco = suave(clamp((t - 1.2) / 1.3));
   return (
@@ -211,7 +237,7 @@ const CenaGancho: React.FC<{ p: PropsRemarketing }> = ({ p }) => {
 
 const CenaPapel: React.FC<{ p: PropsRemarketing }> = ({ p }) => {
   const t = useT();
-  const [ini, fim] = CENAS.papel;
+  const [ini, fim] = useCena("papel");
   const dur = fim - ini;
   const g = t + ini; // tempo do trecho de áudio
   const entra = suave(clamp(t / 0.9));
@@ -325,7 +351,7 @@ const Barras: React.FC<{ audio: string; largura: number; n?: number }> = ({ audi
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const dados = useAudioData(staticFile(audio));
-  const off = Math.round(CENAS.ouvindo[0] * fps);
+  const off = Math.round(useCena("ouvindo")[0] * fps);
   const amostras = dados
     ? visualizeAudio({ fps, frame: f + off, audioData: dados, numberOfSamples: 64 }).slice(0, n)
     : Array.from({ length: n }).map((_, i) => 0.2 + 0.2 * Math.sin(f / 4 + i));
@@ -344,7 +370,7 @@ const Barras: React.FC<{ audio: string; largura: number; n?: number }> = ({ audi
 
 const CenaOuvindo: React.FC<{ p: PropsRemarketing }> = ({ p }) => {
   const t = useT();
-  const [ini, fim] = CENAS.ouvindo;
+  const [ini, fim] = useCena("ouvindo");
   const dur = fim - ini;
   const g = t + ini;
   const entra = suave(clamp(t / 0.9));
@@ -465,7 +491,7 @@ const Coracao: React.FC<{ tam: number; cor: string }> = ({ tam, cor }) => (
 
 const CenaPresente: React.FC<{ p: PropsRemarketing }> = ({ p }) => {
   const t = useT();
-  const [ini, fim] = CENAS.presente;
+  const [ini, fim] = useCena("presente");
   const dur = fim - ini;
   const g = t + ini;
   const entra = suave(clamp(t / 1.0));
@@ -542,6 +568,68 @@ const CenaPresente: React.FC<{ p: PropsRemarketing }> = ({ p }) => {
           </div>
         </div>
       </div>
+    </AbsoluteFill>
+  );
+};
+
+// ── Cena 4b: as reações de verdade (opcional) ─────────────────────
+
+// Trechos do `reacoes.mp4` (segundos), dois por leva, cada um dentro de um
+// plano só (cortes do arquivo em 4,23 / 7,07 / 10,5 / 13,93 / 16,27 / 18,9 / 23,1).
+const LEVAS: Array<[number, number]> = [
+  [0.6, 4.4], // fones chorando · motorista enxugando o olho
+  [10.9, 19.5], // mãe com a mão na boca · mãe e filha chorando
+  [13.95, 23.4], // casal no sofá · o abraço
+];
+
+const CartaoReacao: React.FC<{ video: string; inicio: number; topo: number; lado: 1 | -1; t: number; dur: number }> = ({ video, inicio, topo, lado, t, dur }) => {
+  const { fps } = useVideoConfig();
+  const e = suave(clamp(t / 0.45));
+  // Não some no fim: a leva seguinte entra POR CIMA, e esta sai de cena por baixo dela.
+  const s = clamp((t - (dur + 0.35)) / 0.15);
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: 50,
+        top: topo,
+        width: 980,
+        height: 551,
+        borderRadius: 30,
+        overflow: "hidden",
+        border: `4px solid rgba(232,196,106,0.75)`,
+        boxShadow: "0 30px 70px rgba(0,0,0,0.6)",
+        transform: `translateX(${(1 - e) * 900 * lado}px) rotate(${lado * (1.6 - e * 0.6)}deg) scale(${1 + t * 0.012})`,
+        opacity: 1 - s,
+      }}
+    >
+      <OffthreadVideo src={staticFile(video)} startFrom={Math.round(inicio * fps)} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+    </div>
+  );
+};
+
+const CenaReacoes: React.FC<{ p: PropsRemarketing }> = ({ p }) => {
+  const t = useT();
+  const [ini, fim] = useCena("reacoes");
+  const dur = fim - ini;
+  const r = p.reacoes;
+  if (!r) return null;
+  const porLeva = dur / LEVAS.length;
+  return (
+    <AbsoluteFill style={{ opacity: fade(t, dur, 0.35, 0.4) }}>
+      <Titulo frase={r.titulo} t={t - 0.1} topo={150} tam={78} />
+      {LEVAS.map(([a, b], i) => {
+        const tl = t - i * porLeva;
+        if (tl < 0 || tl > porLeva + 0.5) return null;
+        return (
+          <React.Fragment key={i}>
+            <Sequence from={Math.round(i * porLeva * FPS_REMARKETING)} layout="none">
+              <CartaoReacao video={r.video} inicio={a} topo={440} lado={i % 2 ? 1 : -1} t={tl} dur={porLeva} />
+              <CartaoReacao video={r.video} inicio={b} topo={1040} lado={i % 2 ? -1 : 1} t={tl - 0.15} dur={porLeva - 0.15} />
+            </Sequence>
+          </React.Fragment>
+        );
+      })}
     </AbsoluteFill>
   );
 };
@@ -645,14 +733,20 @@ const em = (s: number) => Math.round(s * FPS_REMARKETING);
 
 export const Remarketing: React.FC<PropsRemarketing> = (p) => {
   const f = useCurrentFrame();
-  const total = em(DURACAO_REMARKETING_S);
+  const cenas = p.reacoes ? CENAS_COM_REACOES : CENAS_SEM_REACOES;
+  const total = em(duracaoRemarketing(p));
   const volume = interpolate(f, [0, em(1.2), total - em(2.5), total], [0.25, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const cena = (k: keyof typeof CENAS, el: React.ReactNode) => (
-    <Sequence from={em(CENAS[k][0])} durationInFrames={em(CENAS[k][1] - CENAS[k][0])} layout="absolute-fill">
-      {el}
-    </Sequence>
-  );
+  const cena = (k: NomeCena, el: React.ReactNode) => {
+    const c = cenas[k];
+    if (!c) return null;
+    return (
+      <Sequence from={em(c[0])} durationInFrames={em(c[1] - c[0])} layout="absolute-fill">
+        {el}
+      </Sequence>
+    );
+  };
   return (
+    <CenasCtx.Provider value={cenas}>
     <AbsoluteFill style={{ background: FUNDO }}>
       <Audio src={staticFile(p.audio)} volume={volume} />
       <Fundo gospel={p.variante === "gospel"} />
@@ -660,7 +754,9 @@ export const Remarketing: React.FC<PropsRemarketing> = (p) => {
       {cena("papel", <CenaPapel p={p} />)}
       {cena("ouvindo", <CenaOuvindo p={p} />)}
       {cena("presente", <CenaPresente p={p} />)}
+      {cena("reacoes", <CenaReacoes p={p} />)}
       {cena("cta", <CenaCta p={p} />)}
     </AbsoluteFill>
+    </CenasCtx.Provider>
   );
 };
