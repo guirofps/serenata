@@ -15,6 +15,12 @@ import { ANTECEDE, fimDe } from "./Presente";
 // reais do provedor, os mesmos do vídeo-presente); embaixo, as reações reais
 // de clientes (o `reacoes.mp4` da home), mudas, com a nossa música por cima.
 //
+// v2 (09/10): o texto diz "Le hice una canción a mi esposa" e embaixo
+// apareciam OITO pessoas diferentes. Agora embaixo é UMA pessoa, a que ganha a
+// música, num vídeo só, seguindo o arco da reação (sem saber → percebe →
+// chora/abraça) com o pico no refrão. O vídeo e os trechos vêm por props
+// (`reacoes`), com recorte em pixels do arquivo e tampas pros textos em inglês.
+//
 // ── POR QUE O KARAOKÊ É O DO VÍDEO-PRESENTE ──────────────────────
 //
 // O que vende aqui é "a letra é DELA e a música canta exatamente isso". Se a
@@ -47,8 +53,39 @@ const METADE = 960;
 
 export const FPS_LETRA_REACAO = 30;
 
-/** Um trecho do `reacoes.mp4`: de/até em segundos do arquivo, `x` é o enquadramento horizontal (0-100). */
-export type TrechoReacao = { de: number; ate: number; x?: number };
+/**
+ * Um retângulo do vídeo-fonte, em PIXELS do arquivo (não da tela). Serve pro
+ * recorte e pras tampas: o texto queimado está no pixel do arquivo, e é nele
+ * que se mede (quadro extraído com ffmpeg), não na tela do anúncio.
+ */
+export type RetanguloFonte = { x: number; y: number; w: number; h: number };
+
+/**
+ * O que cobre um texto queimado na fonte (legenda em inglês, adesivo), pelo
+ * tempo DO ARQUIVO em que ele aparece. Com `texto`, vira o nosso adesivo em
+ * espanhol no mesmo lugar (caixa preta, letra amarela, o estilo do adesivo
+ * original), que é o que não parece remendo. Sem `texto`, é um desfoque.
+ */
+export type TampaReacao = RetanguloFonte & { de: number; ate: number; texto?: string; tamanho?: number };
+
+/**
+ * Um trecho do vídeo de reação: de/até em segundos do arquivo.
+ * - Sem `recorte`: o vídeo cobre a metade de baixo e `x` (0-100) escolhe o
+ *   enquadramento horizontal (o jeito do `reacoes.mp4` de 1920x1080).
+ * - Com `recorte`: o retângulo do arquivo que enche a metade de baixo. É o que
+ *   deixa de fora a legenda queimada de um vídeo de terceiro em pé.
+ */
+export type TrechoReacao = {
+  de: number;
+  ate: number;
+  x?: number;
+  recorte?: RetanguloFonte;
+  /** Velocidade só deste trecho (senão vale a de `reacoes`). */
+  velocidade?: number;
+  /** Zoom de partida (1 = o recorte exato); a aproximação lenta soma 0,04. */
+  zoom?: number;
+  tampas?: TampaReacao[];
+};
 
 export type PropsLetraReacao = {
   /** Música sem metadados, em `video/public` (staticFile). */
@@ -68,8 +105,13 @@ export type PropsLetraReacao = {
   gancho: { caixa: string; faixa: string; ate: number };
   /** Frases do meio, na mesma caixa branca, cada uma na sua janela. */
   legendas: Array<{ texto: string; de: number; ate: number }>;
-  /** O vídeo das reações (em `video/public`), os trechos em ordem e a velocidade. */
-  reacoes: { video: string; trechos: TrechoReacao[]; velocidade?: number };
+  /**
+   * O vídeo da metade de baixo (em `video/public`), os trechos em ordem e a
+   * velocidade. `largura`/`altura` são as do ARQUIVO, obrigatórias pra usar
+   * `recorte`. Uma pessoa só: se o texto diz "a minha esposa", embaixo é ELA
+   * do começo ao fim (cortes só dentro do mesmo vídeo).
+   */
+  reacoes: { video: string; trechos: TrechoReacao[]; velocidade?: number; largura?: number; altura?: number };
   /** O cartão final, que ocupa os últimos `duracaoS` segundos. */
   final: { logo: string; titulo: string; destaque: string; sub: string; site: string; duracaoS: number };
 };
@@ -252,11 +294,11 @@ const Equalizador: React.FC<{ bandas: number[] }> = ({ bandas }) => {
 
 const Reacoes: React.FC<{ reacoes: PropsLetraReacao["reacoes"] }> = ({ reacoes }) => {
   const { fps } = useVideoConfig();
-  const vel = reacoes.velocidade ?? 1;
   let inicio = 0;
   const blocos = reacoes.trechos.map((tr) => {
+    const vel = tr.velocidade ?? reacoes.velocidade ?? 1;
     const dur = (tr.ate - tr.de) / vel;
-    const b = { ...tr, de0: inicio, dur };
+    const b = { tr, vel, de0: inicio, dur };
     inicio += dur;
     return b;
   });
@@ -264,7 +306,11 @@ const Reacoes: React.FC<{ reacoes: PropsLetraReacao["reacoes"] }> = ({ reacoes }
     <div style={{ position: "absolute", left: 0, top: METADE, width: 1080, height: METADE, overflow: "hidden", background: "#000" }}>
       {blocos.map((b, i) => (
         <Sequence key={i} from={Math.round(b.de0 * fps)} durationInFrames={Math.max(1, Math.round(b.dur * fps))} layout="none">
-          <TrechoVideo src={reacoes.video} de={b.de} x={b.x ?? 50} vel={vel} dur={b.dur} />
+          {b.tr.recorte ? (
+            <TrechoRecortado src={reacoes.video} tr={b.tr} vel={b.vel} dur={b.dur} largura={reacoes.largura ?? 0} altura={reacoes.altura ?? 0} />
+          ) : (
+            <TrechoVideo src={reacoes.video} de={b.tr.de} x={b.tr.x ?? 50} vel={b.vel} dur={b.dur} />
+          )}
         </Sequence>
       ))}
       {/* Costura entre as metades: sombra curta, pra o cartão "assentar" no vídeo. */}
@@ -287,6 +333,125 @@ const TrechoVideo: React.FC<{ src: string; de: number; x: number; vel: number; d
         muted
         style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${x}% 50%`, transform: `scale(${zoom})`, transformOrigin: `${x}% 45%` }}
       />
+    </AbsoluteFill>
+  );
+};
+
+/**
+ * Trecho com recorte em pixels do arquivo. O vídeo inteiro é escalado pra o
+ * retângulo encher 1080x960 e deslocado pra ele cair na janela; as tampas são
+ * posicionadas com a MESMA conta (inclusive o zoom lento), então acompanham a
+ * imagem. Tampa que passa da borda é puxada pra dentro: o adesivo em espanhol
+ * nunca sai cortado e cobre o que sobrou do original dentro da tela.
+ */
+const TrechoRecortado: React.FC<{ src: string; tr: TrechoReacao; vel: number; dur: number; largura: number; altura: number }> = ({
+  src,
+  tr,
+  vel,
+  dur,
+  largura,
+  altura,
+}) => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const r = tr.recorte!;
+  const s = Math.max(1080 / r.w, METADE / r.h);
+  const offX = (1080 - r.w * s) / 2 - r.x * s;
+  const offY = (METADE - r.h * s) / 2 - r.y * s;
+  const zoom = (tr.zoom ?? 1) + 0.04 * clamp(f / fps / dur, 0, 1);
+  // Ponto do arquivo → ponto da tela, com o zoom em torno do centro da metade.
+  const tela = (px: number, py: number) => ({ x: 540 + (offX + px * s - 540) * zoom, y: 480 + (offY + py * s - 480) * zoom });
+  const tArquivo = tr.de + (f / fps) * vel;
+  const MARGEM = 22;
+  const LARGURA_MIN = 520;
+  return (
+    <AbsoluteFill>
+      <div style={{ position: "absolute", inset: 0, transform: `scale(${zoom})`, transformOrigin: "540px 480px" }}>
+        <OffthreadVideo
+          src={staticFile(src)}
+          startFrom={Math.round(tr.de * fps)}
+          playbackRate={vel}
+          muted
+          style={{ position: "absolute", left: offX, top: offY, width: largura * s, height: altura * s, maxWidth: "none" }}
+        />
+      </div>
+      {(tr.tampas ?? []).map((tp, i) => {
+        if (tArquivo < tp.de || tArquivo > tp.ate) return null;
+        const a = tela(tp.x, tp.y);
+        const b = tela(tp.x + tp.w, tp.y + tp.h);
+        if (!tp.texto) {
+          // Desfoque com borda macia: letra pequena no cenário (a capa de
+          // almofada "THE LORD" no banco de trás), não um adesivo.
+          // A borda macia fica FORA do retângulo medido: dentro dele o
+          // desfoque é inteiro (uma máscara radial deixava os cantos nítidos).
+          const m = 20;
+          const borda = (dir: string) => `linear-gradient(${dir}, transparent 0, #000 ${m}px, #000 calc(100% - ${m}px), transparent 100%)`;
+          return (
+            <div
+              key={i}
+              style={{
+                position: "absolute",
+                left: a.x - m,
+                top: a.y - m,
+                width: b.x - a.x + 2 * m,
+                height: b.y - a.y + 2 * m,
+                backdropFilter: "blur(14px)",
+                maskImage: `${borda("to right")}, ${borda("to bottom")}`,
+                maskComposite: "intersect",
+              }}
+            />
+          );
+        }
+        // O adesivo cobre o original INTEIRO. Se o original passa da borda, o
+        // nosso também passa (sai da tela, como todo o resto do recorte) e o
+        // texto se centra na parte visível, com pelo menos LARGURA_MIN de largura (mais estreito, o
+        // texto quebrava em quatro linhas).
+        // Puxar o adesivo pra dentro deixava uma lasca amarela do inglês na
+        // borda (conferido no quadro).
+        let x0 = a.x - 10;
+        let x1 = b.x + 10;
+        const y0 = a.y - 8;
+        const y1 = b.y + 8;
+        let fora = { esq: 0, dir: 0 };
+        if (x1 > 1080 - MARGEM) {
+          fora.dir = x1 - 1080 + 60;
+          x1 += 60;
+          x0 = Math.min(x0, 1080 - MARGEM - LARGURA_MIN);
+        }
+        if (x0 < MARGEM) {
+          fora = { ...fora, esq: -x0 + 60 };
+          x0 -= 60;
+          x1 = Math.max(x1, MARGEM + LARGURA_MIN);
+        }
+        return (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              left: x0,
+              top: y0,
+              width: x1 - x0,
+              minHeight: y1 - y0,
+              background: "#000",
+              borderRadius: 24,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: `10px ${22 + Math.max(0, fora.dir)}px 10px ${22 + Math.max(0, fora.esq)}px`,
+              boxSizing: "border-box",
+              fontFamily: POPPINS,
+              fontWeight: 700,
+              // Teto: num recorte apertado (s ~3) o tamanho do original vira letreiro.
+              fontSize: Math.min((tp.tamanho ?? 25) * s * zoom, 56),
+              lineHeight: 1.18,
+              color: "#f7c81e",
+              textAlign: "center",
+            }}
+          >
+            {semTravessao(tp.texto)}
+          </div>
+        );
+      })}
     </AbsoluteFill>
   );
 };
