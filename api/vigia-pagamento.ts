@@ -116,20 +116,38 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
   const sb = db();
   const agora = Date.now();
+  // ── UM PEDIDO SÓ, A PEDIDO DA FOLHA DO PIX (09/10) ──────────────
+  //
+  // Em 09/10 o Asaas segurou os postbacks e entregou em lotes (9 de uma vez às
+  // 10h23, depois 50 minutos de nada). Quem pagava ficava até 30 minutos
+  // olhando a folha sem a música liberar, porque o único conserto era esta
+  // rodada de 30 em 30. Com `?pedido=asaas:<id>`, a sonda da folha
+  // (`pixFoiPago`) pede a conferência DAQUELE pedido na hora: mesmas travas,
+  // mesma entrega, sem idade mínima e sem a segunda varredura nem o aviso.
+  const pedidoUnico = (() => {
+    try {
+      const v = new URL(req.url ?? "", "http://x").searchParams.get("pedido") ?? "";
+      return /^(asaas|woovi):[A-Za-z0-9_-]{6,60}$/.test(v) ? v : null;
+    } catch {
+      return null;
+    }
+  })();
   const consertados: Array<{ email: string; pedido: string; horas: number; entregue: boolean }> = [];
   const semResposta: string[] = [];
   /** Pagou, música ficou pronta depois, e-mail de entrega nunca saiu. */
   const semEntrega: Array<{ email: string; horas: number; entregue: boolean }> = [];
 
   try {
-    const { data: pendentes } = await sb
+    let consulta = sb
       .from("pedidos")
       .select("id, payment_id, gateway, email, quiz_response_id, valor_centavos, created_at")
-      .eq("status", "pendente")
+      .eq("status", "pendente");
+    if (pedidoUnico) consulta = consulta.eq("payment_id", pedidoUnico);
+    const { data: pendentes } = await consulta
       // Os dois gateways de PIX. Ver o comentario dentro do laco.
       .in("gateway", ["woovi", "asaas"])
       .gte("created_at", new Date(agora - JANELA_H * 3600000).toISOString())
-      .lte("created_at", new Date(agora - IDADE_MIN_MIN * 60000).toISOString())
+      .lte("created_at", new Date(agora - (pedidoUnico ? 0 : IDADE_MIN_MIN) * 60000).toISOString())
       // DO MAIS NOVO PRO MAIS VELHO, e isto é o conserto de 11/09/2026.
       //
       // Ascendente com teto era um ponto cego que se abria sozinho: naquele
@@ -183,13 +201,21 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         continue;
       }
 
-      const { error: erroUp } = await sb
+      // A data DELES, não a de agora: um conserto de cinco dias depois não pode
+      // virar receita de hoje no painel financeiro. MAS NUNCA NO FUTURO (09/10):
+      // o Asaas manda só o DIA, e `diaAsaasParaInstante` crava meio-dia; um
+      // pagamento das 9h confirmado aqui às 10h ficava "pago às 12h". O CSV
+      // de conversões do Google leva esse horário, e conversão no futuro é
+      // recusada. Dia de hoje vira agora.
+      const pagoEmGateway = st.pagoEm ? Date.parse(st.pagoEm) : NaN;
+      const paidAt = Number.isFinite(pagoEmGateway) && pagoEmGateway <= Date.now()
+        ? (st.pagoEm as string)
+        : new Date().toISOString();
+      const { data: marcados, error: erroUp } = await sb
         .from("pedidos")
         .update({
           status: "pago",
-          // A data DELES, não a de agora: um conserto de cinco dias depois
-          // não pode virar receita de hoje no painel financeiro.
-          paid_at: st.pagoEm ?? new Date().toISOString(),
+          paid_at: paidAt,
           status_gateway: st.statusCru,
           taxa_centavos: st.taxaCentavos,
           titular_pix: st.titularPix,
@@ -197,11 +223,16 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         .eq("payment_id", p.payment_id)
         // Só sai de `pendente`: se o webhook chegou entre a consulta e agora,
         // esta escrita não pisa em cima dele.
-        .eq("status", "pendente");
+        .eq("status", "pendente")
+        .select("id");
       if (erroUp) {
         console.error(`[vigia-pagamento] falha ao marcar ${p.payment_id}:`, erroUp.message);
         continue;
       }
+      // Ninguém mudou: o webhook (ou outra conferência da folha, que agora roda
+      // em paralelo com esta) marcou primeiro e é dele a entrega. Seguir daqui
+      // mandaria a entrega em dobro.
+      if (!marcados?.length) continue;
 
       // ── UPSELL: O PRODUTO É CRÉDITO OU QUADRO, NÃO MÚSICA ─────────
       //
@@ -279,6 +310,16 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         horas: Math.round((agora - Date.parse(p.created_at)) / 3600000),
         entregue,
       });
+    }
+
+    // Conferência de um pedido só (a folha do PIX): responde aqui. A segunda
+    // varredura e o aviso aos donos são da rodada do cron; o aviso, a cada
+    // sonda da folha, viraria um e-mail por venda num dia de postback lento.
+    if (pedidoUnico) {
+      res.statusCode = 200;
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ ok: true, pedido: pedidoUnico, pago: consertados.length > 0, entregue: consertados[0]?.entregue ?? false }));
+      return;
     }
 
     // ── SEGUNDA VARREDURA: PAGO, SEM E-MAIL DE ENTREGA ───────────

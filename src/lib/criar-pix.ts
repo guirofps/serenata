@@ -604,10 +604,50 @@ export const pixFoiPago = createServerFn({ method: "POST" })
     // pode deixar quem está com o QR aberto girando pra sempre: a folha dele
     // nasceu no gateway antigo e a pergunta chega depois da troca. São dois
     // valores numa consulta indexada, custo zero.
-    const { data: pedido } = await supabaseAdmin()
-      .from("pedidos")
-      .select("status")
-      .in("payment_id", [`woovi:${data.referencia}`, `asaas:${data.referencia}`])
-      .maybeSingle();
-    return { pago: pedido?.status === "pago" };
+    const db = supabaseAdmin();
+    const ler = async () =>
+      (
+        await db
+          .from("pedidos")
+          .select("status, payment_id, created_at")
+          .in("payment_id", [`woovi:${data.referencia}`, `asaas:${data.referencia}`])
+          .maybeSingle()
+      ).data;
+    const pedido = await ler();
+    if (pedido?.status === "pago") return { pago: true };
+
+    // ── O POSTBACK ATRASADO (09/10) ─────────────────────────────────
+    //
+    // Em 09/10 o Asaas segurou os postbacks e soltou em lotes: 11 de 52
+    // vendas da manhã só foram confirmadas pelo vigia, de 30 em 30 minutos, e
+    // quem pagava ficava esse tempo olhando a folha. Agora, com a folha aberta
+    // e o banco ainda pendente, a sonda pede ao vigia a conferência DESTE
+    // pedido no gateway (mesmas travas e mesma entrega do webhook). Só no
+    // Asaas, só depois de 25s (o postback normal chega antes), e no máximo
+    // uma vez a cada 20s por cobrança nesta instância: a sonda bate de 4 em 4.
+    if (pedido?.status === "pendente" && String(pedido.payment_id).startsWith("asaas:pay_")) {
+      const idade = Date.now() - Date.parse(String(pedido.created_at));
+      const ultima = CONFERIDO_EM.get(pedido.payment_id) ?? 0;
+      if (idade > 25_000 && idade < 3 * 3600_000 && Date.now() - ultima > 20_000 && process.env.CRON_SECRET) {
+        CONFERIDO_EM.set(pedido.payment_id, Date.now());
+        if (CONFERIDO_EM.size > 500) CONFERIDO_EM.clear();
+        try {
+          const ctl = new AbortController();
+          const t = setTimeout(() => ctl.abort(), 9000);
+          await fetch(`${urlDoSite()}/api/vigia-pagamento?pedido=${encodeURIComponent(pedido.payment_id)}`, {
+            headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+            signal: ctl.signal,
+          }).finally(() => clearTimeout(t));
+        } catch (err) {
+          // Não derruba a sonda: a próxima tenta de novo, e o cron segue de pé.
+          console.warn("[pix-foi-pago] conferência no vigia falhou:", (err as Error).message);
+        }
+        const depois = await ler();
+        return { pago: depois?.status === "pago" };
+      }
+    }
+    return { pago: false };
   });
+
+/** Última conferência no gateway por cobrança, nesta instância (ver `pixFoiPago`). */
+const CONFERIDO_EM = new Map<string, number>();
