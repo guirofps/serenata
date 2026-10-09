@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diaAsaasParaInstante } from "./asaas-pix";
+import { diaAsaasParaInstante, pagoEmParaPaidAt } from "./asaas-pix";
 
 // O `paid_at` decide em que dia a venda aparece no painel financeiro. O
 // Asaas manda o dia do pagamento SEM hora, e gravar isso cru empurra a venda
@@ -30,5 +30,33 @@ describe("diaAsaasParaInstante", () => {
     expect(diaAsaasParaInstante(undefined)).toBeNull();
     expect(diaAsaasParaInstante("")).toBeNull();
     expect(diaAsaasParaInstante("ontem")).toBeNull();
+  });
+});
+
+describe("pagoEmParaPaidAt", () => {
+  // 09/10, 19h20 de Brasília.
+  const AGORA = Date.parse("2026-10-09T22:20:00.000Z");
+  const AGORA_ISO = new Date(AGORA).toISOString();
+
+  it("dia sem hora que é HOJE vira agora, não meio-dia inventado (o caso de 09/10)", () => {
+    expect(pagoEmParaPaidAt(diaAsaasParaInstante("2026-10-09"), AGORA)).toBe(AGORA_ISO);
+  });
+
+  it("dia sem hora de outro dia fica no meio-dia daquele dia (conserto atrasado não vira receita de hoje)", () => {
+    expect(pagoEmParaPaidAt(diaAsaasParaInstante("2026-10-07"), AGORA)).toBe("2026-10-07T15:00:00.000Z");
+  });
+
+  it("hora real do gateway passa", () => {
+    expect(pagoEmParaPaidAt("2026-10-09T21:58:12.000Z", AGORA)).toBe("2026-10-09T21:58:12.000Z");
+  });
+
+  it("nunca no futuro, e sem data vira agora", () => {
+    expect(pagoEmParaPaidAt("2026-10-09T23:00:00.000Z", AGORA)).toBe(AGORA_ISO);
+    expect(pagoEmParaPaidAt(null, AGORA)).toBe(AGORA_ISO);
+  });
+
+  it("antes do meio-dia o meio-dia de hoje é futuro: também vira agora", () => {
+    const manha = Date.parse("2026-10-09T13:00:00.000Z");
+    expect(pagoEmParaPaidAt(diaAsaasParaInstante("2026-10-09"), manha)).toBe(new Date(manha).toISOString());
   });
 });

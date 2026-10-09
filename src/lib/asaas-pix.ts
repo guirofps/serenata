@@ -174,8 +174,35 @@ function hojeEmBrasilia(): string {
 export function diaAsaasParaInstante(cru: string | null | undefined): string | null {
   const s = String(cru ?? "").trim();
   if (!s) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T15:00:00.000Z`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}${MEIO_DIA_UTC}`;
   return Number.isNaN(Date.parse(s)) ? null : s;
+}
+
+/** O sufixo que `diaAsaasParaInstante` crava quando o Asaas só disse o DIA. */
+const MEIO_DIA_UTC = "T15:00:00.000Z";
+
+const diaEmBrasilia = (t: number) => new Date(t - 3 * 3600000).toISOString().slice(0, 10);
+
+/**
+ * O `paid_at` de quem confirma o pagamento DEPOIS dele (o vigia).
+ *
+ * A data do gateway vale pra conserto de dias depois: venda de anteontem não
+ * pode virar receita de hoje. Mas o meio-dia cravado é uma hora INVENTADA, e
+ * em 09/10 ele mentiu pra 73 vendas: a folha do PIX passou a chamar o vigia
+ * segundos depois do pagamento, depois do meio-dia "12h00" já era passado, e
+ * venda de PIX gerado às 19h ficou "paga às 12h". O CSV de conversões do Google
+ * leva esse horário, e conversão ANTES do clique é recusada.
+ *
+ * Então: dia sem hora que é HOJE vira agora (o vigia confirma em segundos ou
+ * minutos); dia sem hora de outro dia fica no meio-dia daquele dia; hora real
+ * do gateway passa, desde que não esteja no futuro.
+ */
+export function pagoEmParaPaidAt(pagoEm: string | null | undefined, agora: number = Date.now()): string {
+  const t = pagoEm ? Date.parse(pagoEm) : NaN;
+  const agoraIso = new Date(agora).toISOString();
+  if (!Number.isFinite(t) || t > agora) return agoraIso;
+  if (String(pagoEm).endsWith(MEIO_DIA_UTC) && diaEmBrasilia(t) === diaEmBrasilia(agora)) return agoraIso;
+  return pagoEm as string;
 }
 
 /**

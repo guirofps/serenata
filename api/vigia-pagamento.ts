@@ -36,7 +36,7 @@ import { createClient } from "@supabase/supabase-js";
 import { segredoConfere } from "./lib/segredo.js";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "./lib/entrega.js";
 import { woovi } from "../src/lib/woovi.js";
-import { asaasPix, consultarPorReferencia } from "../src/lib/asaas-pix.js";
+import { asaasPix, consultarPorReferencia, pagoEmParaPaidAt } from "../src/lib/asaas-pix.js";
 import { creditarUpsell } from "./lib/creditar-upsell.js";
 import { ofertaDaReferencia } from "../src/lib/creditos.js";
 import { donosMais } from "../src/lib/donos.js";
@@ -209,10 +209,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       // pagamento das 9h confirmado aqui às 10h ficava "pago às 12h". O CSV
       // de conversões do Google leva esse horário, e conversão no futuro é
       // recusada. Dia de hoje vira agora.
-      const pagoEmGateway = st.pagoEm ? Date.parse(st.pagoEm) : NaN;
-      const paidAt = Number.isFinite(pagoEmGateway) && pagoEmGateway <= Date.now()
-        ? (st.pagoEm as string)
-        : new Date().toISOString();
+      // E o meio-dia cravado de HOJE também vira agora (`pagoEmParaPaidAt`).
+      const paidAt = pagoEmParaPaidAt(st.pagoEm);
       const { data: marcados, error: erroUp } = await sb
         .from("pedidos")
         .update({
