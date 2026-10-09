@@ -1,6 +1,6 @@
 // src/lib/criativos.test.ts
 import { describe, expect, it } from "vitest";
-import { montarCriativos, miniaturaYoutube, type EntradaCriativos } from "./criativos";
+import { montarCriativos, miniaturaYoutube, ordenarPor, type EntradaCriativos } from "./criativos";
 
 const anuncio = (id: string, videos: string[], nome = `ad ${id}`) => ({
   id, campanha_id: "c1", grupo_id: "g1", nome, tipo: "DEMAND_GEN_VIDEO_RESPONSIVE_AD", status: "ENABLED", videos,
@@ -115,5 +115,25 @@ describe("títulos, descrições e imagens (conversão do Google)", () => {
     expect(r.descricoes).toEqual([]);
     expect(r.imagens.map((i) => i.id)).toEqual(["i1"]);
     expect(r.imagens[0].miniatura).toBe("https://x/i.jpg");
+  });
+});
+
+describe("ordenarPor (colunas clicáveis da aba)", () => {
+  const linhas = [
+    { id: "a", n: 10 as number | null, t: "Zebra" },
+    { id: "b", n: null, t: "árvore" },
+    { id: "c", n: 30, t: "Bola" },
+    { id: "d", n: 20, t: "abacate" },
+  ];
+  it("número do maior pro menor e de volta; vazio sempre no fim", () => {
+    expect(ordenarPor(linhas, (l) => l.n, "desc").map((l) => l.id)).toEqual(["c", "d", "a", "b"]);
+    expect(ordenarPor(linhas, (l) => l.n, "asc").map((l) => l.id)).toEqual(["a", "d", "c", "b"]);
+  });
+  it("texto em ordem alfabética do português, sem diferenciar maiúscula e acento", () => {
+    expect(ordenarPor(linhas, (l) => l.t, "asc").map((l) => l.id)).toEqual(["d", "b", "c", "a"]);
+  });
+  it("não mexe na lista original", () => {
+    ordenarPor(linhas, (l) => l.n, "asc");
+    expect(linhas.map((l) => l.id)).toEqual(["a", "b", "c", "d"]);
   });
 });
