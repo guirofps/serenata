@@ -2017,6 +2017,16 @@ export const carregarAutomacoes = createServerFn({ method: "POST" })
     return carregar(janelaDo(data));
   });
 
+/** A aba "Criativos": ranking do Google Ads por venda real e por conversão do Google. */
+export const carregarAbaCriativos = createServerFn({ method: "POST" })
+  .validator((data: ArgsPainel) => data)
+  .handler(async ({ data }) => {
+    const { exigirAdmin } = await import("@/lib/admin-auth.server");
+    exigirAdmin();
+    const { carregarCriativos } = await import("@/lib/admin-criativos.server");
+    return carregarCriativos(janelaDo(data));
+  });
+
 /**
  * O HTML de um e-mail, renderizado no servidor com dados de exemplo.
  *
