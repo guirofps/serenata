@@ -8,7 +8,8 @@ import { Compilado, duracaoCompilado } from "./Compilado";
 import { Mix, duracaoMix } from "./Mix";
 import { FinalBallad, FINAL_BALLAD_S } from "./FinalBallad";
 import { AnuncioUGC, FPS_UGC, duracaoUGC, type PropsAnuncioUGC } from "./AnuncioUGC";
-import { Remarketing, FPS_REMARKETING, DURACAO_REMARKETING_S, duracaoRemarketing, type PropsRemarketing } from "./Remarketing";
+import { LetraReacao, FPS_LETRA_REACAO, duracaoLetraReacao, type PropsLetraReacao } from "./LetraReacao";
+import { Remarketing,FPS_REMARKETING, DURACAO_REMARKETING_S, duracaoRemarketing, type PropsRemarketing } from "./Remarketing";
 
 /**
  * O vídeo dura o que a MÚSICA dura, medido no próprio MP3.
@@ -49,6 +50,20 @@ const EXEMPLO_ANUNCIO: PropsAnuncio = {
   inicioAudio: 0,
   versos: [],
   karaoke: [],
+};
+
+// Só pro estúdio abrir: o anúncio de verdade sai com as props do script.
+const EXEMPLO_LETRA_REACAO: PropsLetraReacao = {
+  audio: "anuncio-es/es-us-mama.mp3",
+  inicioAudio: 0,
+  duracaoS: 45,
+  karaoke: [],
+  tituloCartao: "LA LETRA QUE ELLA ESTÁ ESCUCHANDO",
+  tituloMusica: "",
+  gancho: { caixa: "", faixa: "", ate: 3 },
+  legendas: [],
+  reacoes: { video: "anuncio-es/reacoes.mp4", trechos: [{ de: 0, ate: 26 }] },
+  final: { logo: "anuncio-es/logo-clara.webp", titulo: "", destaque: "", sub: "", site: "balladgift.com/es", duracaoS: 6 },
 };
 
 export const RemotionRoot: React.FC = () => {
@@ -106,6 +121,17 @@ export const RemotionRoot: React.FC = () => {
       height={1920}
       calculateMetadata={({ props }) => ({ durationInFrames: Math.round(duracaoRemarketing(props) * FPS_REMARKETING) })}
       defaultProps={{ variante: "geral", audio: "", capa: "", logo: "", titulo: "", para: "", linhas: [], textos: { gancho: { reta: "", italico: "" }, papel: { reta: "", italico: "" }, ouvindo: { reta: "", italico: "" }, presente: { reta: "", italico: "" }, cta: { reta: "", italico: "", sub: "", botao: "" } } } as PropsRemarketing}
+    />
+    {/* Letra + reação em espanhol da Ballad (09/10): props de scratch/anuncio-es/_montar.mjs, --public-dir=video/public. */}
+    <Composition
+      id="LetraReacao"
+      component={LetraReacao}
+      durationInFrames={45 * FPS_LETRA_REACAO}
+      fps={FPS_LETRA_REACAO}
+      width={1080}
+      height={1920}
+      calculateMetadata={({ props }) => ({ durationInFrames: duracaoLetraReacao(props) })}
+      defaultProps={EXEMPLO_LETRA_REACAO}
     />
     <Composition id="FinalBallad" component={FinalBallad} durationInFrames={Math.round(FINAL_BALLAD_S * FPS)} fps={FPS} width={1080} height={1920} defaultProps={{}} />
     <Composition id="FinalBallad45" component={FinalBallad} durationInFrames={Math.round(FINAL_BALLAD_S * FPS)} fps={FPS} width={1080} height={1350} defaultProps={{}} />

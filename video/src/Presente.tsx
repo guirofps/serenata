@@ -53,12 +53,12 @@ const semAcento = (s: string) =>
 // A linha entra ANTES de ser cantada: aparecendo só no instante da primeira
 // palavra, o olho chega atrasado e a letra inteira parece fora de tempo (foi
 // a reclamação do primeiro vídeo real, 24/09).
-const ANTECEDE = 0.45;
+export const ANTECEDE = 0.45;
 // Nota sustentada e pausa instrumental vêm como UMA palavra comprida: no
 // refrão da Daiane, "trilho" durou 11,9s atravessando o solo. Sem teto, a
 // palavra fica dourada e a linha fica na tela o solo inteiro.
-const SUSTENTA_MAX = 2.2;
-const fimDe = (w: { s: number; e: number }) => Math.min(w.e, w.s + SUSTENTA_MAX);
+export const SUSTENTA_MAX = 2.2;
+export const fimDe = (w: { s: number; e: number }) => Math.min(w.e, w.s + SUSTENTA_MAX);
 
 function linhaAtiva(karaoke: LinhaKaraoke[], t: number): { idx: number; proxIni: number } {
   let ativa = -1;
