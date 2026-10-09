@@ -197,6 +197,11 @@ export function AbaCriativos({ args }: { args: Args }) {
             {dados.semAnuncio} {dados.semAnuncio === 1 ? "venda" : "vendas"} do Google sem anúncio identificado (clique com mais de 90 dias, ainda não consultado ou não encontrado).
           </p>
         )}
+        {dados.semAnuncioPmax > 0 && (
+          <p className="border-t border-[var(--tinta-fraca)]/25 px-3 py-2 text-xs text-[var(--tinta-suave)]">
+            {dados.semAnuncioPmax} {dados.semAnuncioPmax === 1 ? "venda" : "vendas"} de clique sem anúncio (PMAX): medidas por grupo em "De onde vem".
+          </p>
+        )}
       </Secao>
       <Secao titulo="Títulos" sub={google}><TabelaGoogle linhas={dados.titulos} /></Secao>
       <Secao titulo="Descrições" sub={google}><TabelaGoogle linhas={dados.descricoes} /></Secao>

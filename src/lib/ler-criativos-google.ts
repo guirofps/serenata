@@ -172,3 +172,37 @@ export function somarMetricasCriativo(ms: MetricaCriativoLida[]): MetricaCriativ
   }
   return [...por.values()];
 }
+
+/**
+ * Uma linha por (dia, anúncio). O recurso `adGroupAds/{grupo}~{anúncio}`
+ * permite o mesmo anúncio em dois grupos, e duas linhas com a mesma chave no
+ * mesmo upsert fazem o Postgres recusar o lote inteiro. Quartis por média
+ * ponderada pelas impressões.
+ */
+export function somarMetricasAnuncio(ms: MetricaAnuncioLida[]): MetricaAnuncioLida[] {
+  const por = new Map<string, MetricaAnuncioLida>();
+  const q = (a: number | null, ia: number, b: number | null, ib: number) =>
+    a === null ? b : b === null ? a : ia + ib > 0 ? (a * ia + b * ib) / (ia + ib) : a;
+  for (const m of ms) {
+    const k = `${m.dia}|${m.anuncio_id}`;
+    const a = por.get(k);
+    if (!a) {
+      por.set(k, { ...m });
+      continue;
+    }
+    por.set(k, {
+      ...a,
+      custo_brl: a.custo_brl + m.custo_brl,
+      impressoes: a.impressoes + m.impressoes,
+      cliques: a.cliques + m.cliques,
+      views: soma(a.views, m.views),
+      p25: q(a.p25, a.impressoes, m.p25, m.impressoes),
+      p50: q(a.p50, a.impressoes, m.p50, m.impressoes),
+      p75: q(a.p75, a.impressoes, m.p75, m.impressoes),
+      p100: q(a.p100, a.impressoes, m.p100, m.impressoes),
+      conversoes_google: a.conversoes_google + m.conversoes_google,
+      valor_conv_google: a.valor_conv_google + m.valor_conv_google,
+    });
+  }
+  return [...por.values()];
+}

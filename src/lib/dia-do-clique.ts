@@ -48,3 +48,26 @@ export function planejarConsultas(
     .slice(0, maxDias)
     .map(([dia, s]) => ({ dia, gclids: [...s] }));
 }
+
+export type RegistroClique = {
+  anuncio_id: string | null;
+  campanha_id: string | null;
+  dia: string | null;
+  tentado_em: string;
+};
+
+/**
+ * Se o gclid volta pra consulta nesta hora. Achado (com anúncio, ou SEM
+ * anúncio, que é o clique de PMAX: `click_view` devolve a campanha e nada de
+ * `ad_group_ad`) não volta nunca. Não achado: clique de hoje ou ontem tenta de
+ * novo em 2h, porque o Google ainda pode não ter processado o clique; mais
+ * velho, em 24h.
+ */
+export function precisaConsultar(r: RegistroClique | undefined, agora: Date, fuso: string): boolean {
+  if (!r) return true;
+  if (r.anuncio_id || r.campanha_id) return false;
+  const hoje = diaNoFuso(agora.toISOString(), fuso) ?? "";
+  const recente = !!r.dia && r.dia >= diaAnterior(hoje);
+  const espera = (recente ? 2 : 24) * 3600000;
+  return agora.getTime() - Date.parse(r.tentado_em) >= espera;
+}

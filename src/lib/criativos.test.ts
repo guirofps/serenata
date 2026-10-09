@@ -69,6 +69,16 @@ describe("anúncios (venda real)", () => {
     const r = montarCriativos(entrada({ vendas: [{ anuncioId: null, valorBrl: 38 }, { anuncioId: "x", valorBrl: 38 }] }));
     expect(r.semAnuncio).toBe(1);
   });
+  it("clique achado sem anúncio (PMAX) fica separado do não encontrado", () => {
+    const r = montarCriativos(entrada({
+      vendas: [
+        { anuncioId: null, valorBrl: 38, achadoSemAnuncio: true },
+        { anuncioId: null, valorBrl: 38 },
+      ],
+    }));
+    expect(r.semAnuncio).toBe(1);
+    expect(r.semAnuncioPmax).toBe(1);
+  });
 });
 
 describe("vídeos (venda real)", () => {

@@ -9,7 +9,8 @@ import type {
   AnuncioLido, CriativoLido, MetricaAnuncioLida, MetricaCriativoLida,
 } from "./ler-criativos-google";
 
-export type VendaLigada = { anuncioId: string | null; valorBrl: number };
+/** `achadoSemAnuncio`: o `click_view` achou o clique, mas sem anúncio (PMAX). */
+export type VendaLigada = { anuncioId: string | null; valorBrl: number; achadoSemAnuncio?: boolean };
 export type EntradaCriativos = {
   anuncios: AnuncioLido[];
   criativos: CriativoLido[];
@@ -31,7 +32,7 @@ export type LinhaGoogle = {
 };
 export type Criativos = {
   videos: LinhaVenda[]; anuncios: LinhaVenda[]; titulos: LinhaGoogle[]; descricoes: LinhaGoogle[];
-  imagens: LinhaGoogle[]; semAnuncio: number;
+  imagens: LinhaGoogle[]; semAnuncio: number; semAnuncioPmax: number;
 };
 
 export const miniaturaYoutube = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
@@ -96,8 +97,13 @@ export function montarCriativos(e: EntradaCriativos): Criativos {
     acc.set(m.anuncio_id, a);
   }
   let semAnuncio = 0;
+  let semAnuncioPmax = 0;
   for (const v of e.vendas) {
-    if (!v.anuncioId) { semAnuncio++; continue; }
+    if (!v.anuncioId) {
+      if (v.achadoSemAnuncio) semAnuncioPmax++;
+      else semAnuncio++;
+      continue;
+    }
     const a = pegar(v.anuncioId);
     a.vendas++;
     a.receita += v.valorBrl;
@@ -174,5 +180,6 @@ export function montarCriativos(e: EntradaCriativos): Criativos {
     descricoes: linhasGoogle.filter((l) => l.campo === "DESCRIPTION" || l.campo === "LONG_DESCRIPTION"),
     imagens: linhasGoogle.filter((l) => ehImagem(l.campo)),
     semAnuncio,
+    semAnuncioPmax,
   };
 }

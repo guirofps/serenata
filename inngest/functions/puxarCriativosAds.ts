@@ -8,12 +8,20 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { inngest } from "../client.js";
 import { consultarGoogleAds, fusoDaConta, tokenGoogleAds } from "../lib/google-ads.js";
-import { diaAnterior, planejarConsultas } from "../../src/lib/dia-do-clique.js";
+import {
+  diaAnterior,
+  planejarConsultas,
+  precisaConsultar,
+  type RegistroClique,
+} from "../../src/lib/dia-do-clique.js";
+import { lotesPorTamanho } from "../../src/lib/lotes.js";
+import { tentar } from "../../src/lib/tentar.js";
 import {
   lerAsset,
   lerClique,
   lerLinhaAnuncio,
   lerLinhaCriativo,
+  somarMetricasAnuncio,
   somarMetricasCriativo,
   type AnuncioLido,
   type Clique,
@@ -122,6 +130,31 @@ async function gravarEmLotes(
   }
 }
 
+/** As consultas de relatório, também usadas pela sonda (com LIMIT 5) pra
+ * acusar nome de campo errado ANTES da primeira coleta. */
+const gaqlAnuncios = (de: string, ate: string) => `
+        SELECT ad_group_ad.ad.id, ad_group_ad.ad.name, ad_group_ad.ad.type, ad_group_ad.status,
+               ad_group_ad.ad.video_ad.video.asset,
+               ad_group_ad.ad.video_responsive_ad.videos,
+               ad_group_ad.ad.demand_gen_video_responsive_ad.videos,
+               campaign.id, ad_group.id, segments.date,
+               metrics.cost_micros, metrics.impressions, metrics.clicks,
+               metrics.video_trueview_views,
+               metrics.video_quartile_p25_rate, metrics.video_quartile_p50_rate,
+               metrics.video_quartile_p75_rate, metrics.video_quartile_p100_rate,
+               metrics.conversions, metrics.conversions_value
+        FROM ad_group_ad
+        WHERE segments.date BETWEEN '${de}' AND '${ate}'`;
+const gaqlRecursos = (de: string, ate: string) => `
+        SELECT ad_group_ad_asset_view.field_type,
+               asset.id, asset.type, asset.name, asset.text_asset.text,
+               asset.youtube_video_asset.youtube_video_id, asset.youtube_video_asset.youtube_video_title,
+               asset.image_asset.full_size.url,
+               segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros,
+               metrics.conversions, metrics.conversions_value
+        FROM ad_group_ad_asset_view
+        WHERE segments.date BETWEEN '${de}' AND '${ate}'`;
+
 export const puxarCriativosAds = inngest.createFunction(
   {
     id: "puxar-criativos-ads",
@@ -168,11 +201,25 @@ export const puxarCriativosAds = inngest.createFunction(
           if (c) conta(c.tipoCampanha ?? "?", "achados");
           else conta(tipoDe.get(v.utmCampaign ?? "") ?? "sem campanha conhecida", "faltando");
         }
+        const hoje = diaDaConta(fuso, 0);
+        const ontem = diaDaConta(fuso, 1);
+        const chaves = async (gaql: string) =>
+          tentar("sonda", async () => {
+            const [l] = await consultarGoogleAds(`${gaql} LIMIT 5`, acesso);
+            return l
+              ? Object.keys(l).map((k) => `${k}: ${Object.keys((l[k] as object) ?? {}).join(",")}`)
+              : ["(sem linhas)"];
+          });
+        const consultas = {
+          anuncios: await chaves(gaqlAnuncios(ontem, hoje)),
+          recursos: await chaves(gaqlRecursos(ontem, hoje)),
+        };
         const resumo = {
           fuso,
           vendasComGclid: vistos.size,
           diasConsultados: plano.length,
           porTipo,
+          consultas,
         };
         console.log("[criativos] sonda", JSON.stringify(resumo));
         return resumo;
@@ -184,133 +231,118 @@ export const puxarCriativosAds = inngest.createFunction(
     const ate = diaDaConta(fuso, 0);
     const agoraIso = () => new Date().toISOString();
 
-    const anuncios = await step.run("anuncios", async () => {
-      const linhas = await consultarGoogleAds(`
-        SELECT ad_group_ad.ad.id, ad_group_ad.ad.name, ad_group_ad.ad.type, ad_group_ad.status,
-               ad_group_ad.ad.video_ad.video.asset,
-               ad_group_ad.ad.video_responsive_ad.videos,
-               ad_group_ad.ad.demand_gen_video_responsive_ad.videos,
-               campaign.id, ad_group.id, segments.date,
-               metrics.cost_micros, metrics.impressions, metrics.clicks,
-               metrics.video_trueview_views,
-               metrics.video_quartile_p25_rate, metrics.video_quartile_p50_rate,
-               metrics.video_quartile_p75_rate, metrics.video_quartile_p100_rate,
-               metrics.conversions, metrics.conversions_value
-        FROM ad_group_ad
-        WHERE segments.date BETWEEN '${de}' AND '${ate}'`);
-      const porId = new Map<string, AnuncioLido>();
-      const metricas: MetricaAnuncioLida[] = [];
-      for (const l of linhas) {
-        const x = lerLinhaAnuncio(l);
-        if (!x) continue;
-        porId.set(x.anuncio.id, x.anuncio);
-        if (x.metrica) metricas.push(x.metrica);
-      }
-      await gravarEmLotes(
-        db,
-        "anuncios_ads",
-        [...porId.values()].map((a) => ({ ...a, atualizado_em: agoraIso() })),
-        "id",
-      );
-      await gravarEmLotes(db, "metricas_anuncio", metricas, "dia,anuncio_id");
-      return { anuncios: porId.size, metricas: metricas.length };
-    });
+    const anuncios = await step.run("anuncios", () =>
+      tentar("anuncios", async () => {
+        const linhas = await consultarGoogleAds(gaqlAnuncios(de, ate));
+        const porId = new Map<string, AnuncioLido>();
+        const metricas: MetricaAnuncioLida[] = [];
+        for (const l of linhas) {
+          const x = lerLinhaAnuncio(l);
+          if (!x) continue;
+          porId.set(x.anuncio.id, x.anuncio);
+          if (x.metrica) metricas.push(x.metrica);
+        }
+        await gravarEmLotes(
+          db,
+          "anuncios_ads",
+          [...porId.values()].map((a) => ({ ...a, atualizado_em: agoraIso() })),
+          "id",
+        );
+        await gravarEmLotes(db, "metricas_anuncio", somarMetricasAnuncio(metricas), "dia,anuncio_id");
+        return { anuncios: porId.size, metricas: metricas.length };
+      }),
+    );
 
-    const criativos = await step.run("criativos", async () => {
-      const porId = new Map<string, CriativoLido>();
-      for (const l of await consultarGoogleAds(`
+    const criativos = await step.run("criativos", () =>
+      tentar("criativos", async () => {
+        const porId = new Map<string, CriativoLido>();
+        for (const l of await consultarGoogleAds(`
         SELECT asset.id, asset.type, asset.name,
                asset.youtube_video_asset.youtube_video_id, asset.youtube_video_asset.youtube_video_title
         FROM asset WHERE asset.type = 'YOUTUBE_VIDEO'`)) {
-        const a = lerAsset(l);
-        if (a) porId.set(a.id, a);
-      }
-      const metricas: MetricaCriativoLida[] = [];
-      for (const l of await consultarGoogleAds(`
-        SELECT ad_group_ad_asset_view.field_type,
-               asset.id, asset.type, asset.name, asset.text_asset.text,
-               asset.youtube_video_asset.youtube_video_id, asset.youtube_video_asset.youtube_video_title,
-               asset.image_asset.full_size.url,
-               segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros,
-               metrics.conversions, metrics.conversions_value
-        FROM ad_group_ad_asset_view
-        WHERE segments.date BETWEEN '${de}' AND '${ate}'`)) {
-        const x = lerLinhaCriativo(l);
-        if (!x) continue;
-        porId.set(x.criativo.id, x.criativo);
-        if (x.metrica) metricas.push(x.metrica);
-      }
-      const somadas = somarMetricasCriativo(metricas);
-      await gravarEmLotes(
-        db,
-        "criativos_ads",
-        [...porId.values()].map((c) => ({ ...c, atualizado_em: agoraIso() })),
-        "id",
-      );
-      await gravarEmLotes(db, "metricas_criativo", somadas, "dia,criativo_id,campo");
-      return { criativos: porId.size, metricas: somadas.length };
-    });
+          const a = lerAsset(l);
+          if (a) porId.set(a.id, a);
+        }
+        const metricas: MetricaCriativoLida[] = [];
+        for (const l of await consultarGoogleAds(gaqlRecursos(de, ate))) {
+          const x = lerLinhaCriativo(l);
+          if (!x) continue;
+          porId.set(x.criativo.id, x.criativo);
+          if (x.metrica) metricas.push(x.metrica);
+        }
+        const somadas = somarMetricasCriativo(metricas);
+        await gravarEmLotes(
+          db,
+          "criativos_ads",
+          [...porId.values()].map((c) => ({ ...c, atualizado_em: agoraIso() })),
+          "id",
+        );
+        await gravarEmLotes(db, "metricas_criativo", somadas, "dia,criativo_id,campo");
+        return { criativos: porId.size, metricas: somadas.length };
+      }),
+    );
 
-    const cliques = await step.run("cliques", async () => {
-      const acesso = await tokenGoogleAds();
-      const vendas = await lerVendasComClique(
-        db,
-        new Date(Date.now() - 89 * 86400000).toISOString(),
-      );
-      // Já resolvido, ou tentado nas últimas 24h: não consulta de novo.
-      const conhecidos = new Set<string>();
-      const gclids = [...new Set(vendas.map((v) => v.gclid))];
-      const ontem = Date.now() - 86400000;
-      for (let i = 0; i < gclids.length; i += 200) {
-        const { data, error } = await db
-          .from("cliques_anuncio")
-          .select("gclid, anuncio_id, tentado_em")
-          .in("gclid", gclids.slice(i, i + 200));
-        if (error) throw new Error("cliques_anuncio: " + error.message);
-        for (const c of data ?? []) {
-          if (c.anuncio_id || Date.parse(String(c.tentado_em)) > ontem)
-            conhecidos.add(String(c.gclid));
+    const cliques = await step.run("cliques", () =>
+      tentar("cliques", async () => {
+        const acesso = await tokenGoogleAds();
+        const vendas = await lerVendasComClique(
+          db,
+          new Date(Date.now() - 89 * 86400000).toISOString(),
+        );
+        // Já resolvido, ou tentado nas últimas 24h: não consulta de novo.
+        const conhecidos = new Set<string>();
+        const gclids = [...new Set(vendas.map((v) => v.gclid))];
+        const agora = new Date();
+        for (const lote of lotesPorTamanho(gclids)) {
+          const { data, error } = await db
+            .from("cliques_anuncio")
+            .select("gclid, anuncio_id, campanha_id, dia, tentado_em")
+            .in("gclid", lote);
+          if (error) throw new Error("cliques_anuncio: " + error.message);
+          for (const c of (data ?? []) as Array<RegistroClique & { gclid: string }>) {
+            if (!precisaConsultar(c, agora, fuso)) conhecidos.add(String(c.gclid));
+          }
         }
-      }
-      const plano = planejarConsultas(
-        vendas.filter((v) => !conhecidos.has(v.gclid)),
-        fuso,
-        new Date(),
-        30,
-      );
-      let achados = 0;
-      let faltando = 0;
-      let falhas = 0;
-      for (const { dia, gclids: doDia } of plano) {
-        try {
-          const vistos = new Map<string, Clique>();
-          for (const c of await consultarCliques(dia, doDia, acesso)) vistos.set(c.gclid, c);
-          const resto = doDia.filter((g) => !vistos.has(g));
-          if (resto.length)
-            for (const c of await consultarCliques(diaAnterior(dia), resto, acesso))
-              vistos.set(c.gclid, c);
-          const linhas = doDia.map((g) => {
-            const c = vistos.get(g);
-            return {
-              gclid: g,
-              anuncio_id: c?.anuncioId ?? null,
-              grupo_id: c?.grupoId ?? null,
-              campanha_id: c?.campanhaId ?? null,
-              dia: c?.dia ?? dia,
-              tentado_em: agoraIso(),
-            };
-          });
-          await gravarEmLotes(db, "cliques_anuncio", linhas, "gclid");
-          achados += linhas.filter((l) => l.anuncio_id).length;
-          faltando += linhas.filter((l) => !l.anuncio_id).length;
-        } catch (err) {
-          // Um dia que falha não derruba os outros: tenta de novo na próxima hora.
-          falhas++;
-          console.error("[criativos] click_view do dia", dia, "falhou:", err);
+        const plano = planejarConsultas(
+          vendas.filter((v) => !conhecidos.has(v.gclid)),
+          fuso,
+          new Date(),
+          30,
+        );
+        let achados = 0;
+        let faltando = 0;
+        let falhas = 0;
+        for (const { dia, gclids: doDia } of plano) {
+          try {
+            const vistos = new Map<string, Clique>();
+            for (const c of await consultarCliques(dia, doDia, acesso)) vistos.set(c.gclid, c);
+            const resto = doDia.filter((g) => !vistos.has(g));
+            if (resto.length)
+              for (const c of await consultarCliques(diaAnterior(dia), resto, acesso))
+                vistos.set(c.gclid, c);
+            const linhas = doDia.map((g) => {
+              const c = vistos.get(g);
+              return {
+                gclid: g,
+                anuncio_id: c?.anuncioId ?? null,
+                grupo_id: c?.grupoId ?? null,
+                campanha_id: c?.campanhaId ?? null,
+                dia: c?.dia ?? dia,
+                tentado_em: agoraIso(),
+              };
+            });
+            await gravarEmLotes(db, "cliques_anuncio", linhas, "gclid");
+            achados += linhas.filter((l) => l.anuncio_id).length;
+            faltando += linhas.filter((l) => !l.anuncio_id).length;
+          } catch (err) {
+            // Um dia que falha não derruba os outros: tenta de novo na próxima hora.
+            falhas++;
+            console.error("[criativos] click_view do dia", dia, "falhou:", err);
+          }
         }
-      }
-      return { dias: plano.length, achados, faltando, falhas };
-    });
+        return { dias: plano.length, achados, faltando, falhas };
+      }),
+    );
 
     console.log("[criativos]", JSON.stringify({ anuncios, criativos, cliques }));
     return { anuncios, criativos, cliques };

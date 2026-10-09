@@ -1,7 +1,7 @@
 // src/lib/ler-criativos-google.test.ts
 import { describe, expect, it } from "vitest";
 import { idDoAnuncio, lerClique } from "./ler-criativos-google";
-import { lerAsset, lerLinhaAnuncio, lerLinhaCriativo, somarMetricasCriativo } from "./ler-criativos-google";
+import { lerAsset, lerLinhaAnuncio, lerLinhaCriativo, somarMetricasAnuncio, somarMetricasCriativo } from "./ler-criativos-google";
 
 describe("idDoAnuncio", () => {
   it("tira o id do anúncio do recurso", () => {
@@ -118,4 +118,15 @@ it("somarMetricasCriativo junta o mesmo recurso de anúncios diferentes", () => 
   expect(somarMetricasCriativo([m(1, 10), m(null, 5)])).toEqual([
     { dia: "2026-10-07", criativo_id: "9", campo: "HEADLINE", custo_brl: 1, impressoes: 15, cliques: null, conversoes_google: 2, valor_conv_google: null },
   ]);
+});
+
+it("somarMetricasAnuncio junta o mesmo anúncio no mesmo dia (dois grupos), sem duplicar a chave do upsert", () => {
+  const m = (imp: number, p25: number | null, views: number | null) => ({
+    dia: "2026-10-07", anuncio_id: "777", custo_brl: 1, impressoes: imp, cliques: 1, views,
+    p25, p50: p25, p75: p25, p100: p25, conversoes_google: 1, valor_conv_google: 10,
+  });
+  const r = somarMetricasAnuncio([m(100, 0.8, 10), m(300, 0.4, null)]);
+  expect(r).toHaveLength(1);
+  expect(r[0]).toMatchObject({ impressoes: 400, custo_brl: 2, cliques: 2, views: 10, conversoes_google: 2, valor_conv_google: 20 });
+  expect(r[0].p25).toBeCloseTo(0.5);
 });

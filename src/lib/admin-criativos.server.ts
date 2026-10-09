@@ -4,6 +4,7 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { ehVenda } from "@/lib/painel-resumo";
 import { cambioDoDia } from "@/lib/cambio";
+import { lotesPorTamanho } from "@/lib/lotes";
 import { montarCriativos, type Criativos, type VendaLigada } from "@/lib/criativos";
 import type {
   AnuncioLido, CriativoLido, MetricaAnuncioLida, MetricaCriativoLida,
@@ -14,7 +15,7 @@ const diaBr = (d: Date) => new Date(d.getTime() - 3 * 3600000).toISOString().sli
 
 async function emLotes<T>(ids: string[], ler: (lote: string[]) => Promise<T[]>): Promise<T[]> {
   const saida: T[] = [];
-  for (let i = 0; i < ids.length; i += 200) saida.push(...(await ler(ids.slice(i, i + 200))));
+  for (const lote of lotesPorTamanho(ids)) saida.push(...(await ler(lote)));
   return saida;
 }
 
@@ -77,11 +78,11 @@ export async function carregarCriativos(janela: { inicio: Date; fim: Date }): Pr
 
   const gclids = [...new Set(quizzes.map((q) => q.gclid).filter((g): g is string => !!g))];
   const cliques = await emLotes(gclids, async (lote) => {
-    const { data, error } = await db.from("cliques_anuncio").select("gclid, anuncio_id").in("gclid", lote);
+    const { data, error } = await db.from("cliques_anuncio").select("gclid, anuncio_id, campanha_id").in("gclid", lote);
     if (error) throw new Error("cliques_anuncio: " + error.message);
-    return (data ?? []) as Array<{ gclid: string; anuncio_id: string | null }>;
+    return (data ?? []) as Array<{ gclid: string; anuncio_id: string | null; campanha_id: string | null }>;
   });
-  const anuncioDoGclid = new Map(cliques.map((c) => [c.gclid, c.anuncio_id]));
+  const cliquePorGclid = new Map(cliques.map((c) => [c.gclid, c]));
 
   const vendas: VendaLigada[] = [];
   for (const p of pagos) {
@@ -89,7 +90,8 @@ export async function carregarCriativos(janela: { inicio: Date; fim: Date }): Pr
     if (!q?.gclid) continue;
     const dolar = q.locale === "es" || q.locale === "en";
     vendas.push({
-      anuncioId: anuncioDoGclid.get(q.gclid) ?? null,
+      anuncioId: cliquePorGclid.get(q.gclid)?.anuncio_id ?? null,
+      achadoSemAnuncio: !!cliquePorGclid.get(q.gclid)?.campanha_id && !cliquePorGclid.get(q.gclid)?.anuncio_id,
       valorBrl: ((p.valor_centavos ?? 0) / 100) * (dolar ? cambio : 1),
     });
   }
