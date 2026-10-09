@@ -130,8 +130,14 @@ export function CartaoOutraMusica24h({
       <div className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-[var(--acento)]/10 text-[var(--acento)]">
         <Music className="h-5 w-5" />
       </div>
-      <h2 className="mt-3 font-medium" style={{ fontSize: "var(--t-lg)", lineHeight: 1.3 }}>
-        Faça outra pra mais alguém
+      {/* 08/10: um comprador leu o R$ 28 deste cartão como cobrança da PRÓPRIA
+          música ("paguei 38 e querem mais 28"). A primeira linha diz que a dele
+          já está paga; o resto é convite pra OUTRA pessoa. */}
+      <p className="mt-3 text-emerald-800" style={{ fontSize: "var(--t-xs)" }}>
+        ✓ A sua música já está paga e liberada.
+      </p>
+      <h2 className="mt-1 font-medium" style={{ fontSize: "var(--t-lg)", lineHeight: 1.3 }}>
+        Quer fazer outra pra mais alguém?
       </h2>
       <p
         className="mx-auto mt-2 max-w-sm text-[var(--tinta-suave)]"
