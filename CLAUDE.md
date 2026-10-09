@@ -521,6 +521,11 @@ painel_eventos_dia`) e o cron refazer.
   cupom conta pro E-MAIL mesmo com primeiro toque em anúncio (decisão do
   dono: todo cupom de `cupom.ts` só existe em e-mail). O quiz de venda fora da
   janela (recuperação tardia, upsell) é lido à parte, senão cairia em orgânico.
+  **Influenciador (09/10)** é o 5º cartão: `utm_source`/`utm_medium` com
+  "influenc", ou link só com `utm_campaign` sem fonte nem clique de anúncio
+  (o da Gleysi saiu assim). Na tabela "De onde vem" a campanha acompanha em
+  todo caminho (`origem.ts`). Link novo de influenciador:
+  `?utm_source=influencer&utm_campaign=<nome>`.
 - **Todo link de e-mail leva `utm_source=email`** (08/10), com o template em
   `utm_campaign`: o cliente do Resend sai por `comUtm(new Resend(...))`
   (`utm-email.ts`), não template por template. Fora: alerta dos donos, resumo
