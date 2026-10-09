@@ -40,3 +40,135 @@ export function lerClique(r: Linha): Clique | null {
     dia: texto(obj(r.segments).date),
   };
 }
+
+function num(v: unknown): number | null {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+function idDoAsset(recurso: unknown): string | null {
+  const m = /\/assets\/(\d+)$/.exec(String(recurso ?? ""));
+  return m ? m[1] : null;
+}
+
+export type AnuncioLido = {
+  id: string; campanha_id: string | null; grupo_id: string | null; nome: string | null;
+  tipo: string | null; status: string | null; videos: string[];
+};
+export type MetricaAnuncioLida = {
+  dia: string; anuncio_id: string; custo_brl: number; impressoes: number; cliques: number;
+  views: number | null; p25: number | null; p50: number | null; p75: number | null; p100: number | null;
+  conversoes_google: number; valor_conv_google: number;
+};
+
+export function lerLinhaAnuncio(r: Linha): { anuncio: AnuncioLido; metrica: MetricaAnuncioLida | null } | null {
+  const aga = obj(r.adGroupAd);
+  const ad = obj(aga.ad);
+  const id = texto(ad.id);
+  if (!id) return null;
+  const listas = [obj(ad.demandGenVideoResponsiveAd).videos, obj(ad.videoResponsiveAd).videos];
+  const videos: string[] = [];
+  for (const l of listas) if (Array.isArray(l)) for (const v of l) { const a = idDoAsset(obj(v).asset); if (a) videos.push(a); }
+  const avulso = idDoAsset(obj(obj(ad.videoAd).video).asset);
+  if (avulso) videos.push(avulso);
+  const anuncio: AnuncioLido = {
+    id,
+    campanha_id: texto(obj(r.campaign).id),
+    grupo_id: texto(obj(r.adGroup).id),
+    nome: texto(ad.name),
+    tipo: texto(ad.type),
+    status: texto(aga.status),
+    videos: [...new Set(videos)],
+  };
+  const dia = texto(obj(r.segments).date);
+  const m = obj(r.metrics);
+  const metrica: MetricaAnuncioLida | null = dia
+    ? {
+        dia,
+        anuncio_id: id,
+        custo_brl: (num(m.costMicros) ?? 0) / 1e6,
+        impressoes: num(m.impressions) ?? 0,
+        cliques: num(m.clicks) ?? 0,
+        views: num(m.videoTrueviewViews),
+        p25: num(m.videoQuartileP25Rate),
+        p50: num(m.videoQuartileP50Rate),
+        p75: num(m.videoQuartileP75Rate),
+        p100: num(m.videoQuartileP100Rate),
+        conversoes_google: num(m.conversions) ?? 0,
+        valor_conv_google: num(m.conversionsValue) ?? 0,
+      }
+    : null;
+  return { anuncio, metrica };
+}
+
+export type CriativoLido = {
+  id: string; tipo: "video" | "imagem" | "texto" | "outro"; texto: string | null;
+  youtube_id: string | null; imagem_url: string | null; nome: string | null;
+};
+export type MetricaCriativoLida = {
+  dia: string; criativo_id: string; campo: string; custo_brl: number | null; impressoes: number | null;
+  cliques: number | null; conversoes_google: number | null; valor_conv_google: number | null;
+};
+
+export function lerAsset(r: Linha): CriativoLido | null {
+  const a = obj(r.asset);
+  const id = texto(a.id);
+  if (!id) return null;
+  const t = String(a.type ?? "");
+  const yt = obj(a.youtubeVideoAsset);
+  return {
+    id,
+    tipo: t === "YOUTUBE_VIDEO" ? "video" : t === "IMAGE" ? "imagem" : t === "TEXT" ? "texto" : "outro",
+    texto: texto(obj(a.textAsset).text),
+    youtube_id: texto(yt.youtubeVideoId),
+    imagem_url: texto(obj(obj(a.imageAsset).fullSize).url),
+    nome: texto(yt.youtubeVideoTitle) ?? texto(a.name),
+  };
+}
+
+export function lerLinhaCriativo(r: Linha): { criativo: CriativoLido; metrica: MetricaCriativoLida | null } | null {
+  const criativo = lerAsset(r);
+  if (!criativo) return null;
+  const dia = texto(obj(r.segments).date);
+  const campo = texto(obj(r.adGroupAdAssetView).fieldType);
+  const m = obj(r.metrics);
+  const custo = num(m.costMicros);
+  return {
+    criativo,
+    metrica:
+      dia && campo
+        ? {
+            dia, criativo_id: criativo.id, campo,
+            custo_brl: custo === null ? null : custo / 1e6,
+            impressoes: num(m.impressions),
+            cliques: num(m.clicks),
+            conversoes_google: num(m.conversions),
+            valor_conv_google: num(m.conversionsValue),
+          }
+        : null,
+  };
+}
+
+const soma = (a: number | null, b: number | null) => (a === null ? b : b === null ? a : a + b);
+
+export function somarMetricasCriativo(ms: MetricaCriativoLida[]): MetricaCriativoLida[] {
+  const por = new Map<string, MetricaCriativoLida>();
+  for (const m of ms) {
+    const k = `${m.dia}|${m.criativo_id}|${m.campo}`;
+    const a = por.get(k);
+    por.set(
+      k,
+      a
+        ? {
+            ...a,
+            custo_brl: soma(a.custo_brl, m.custo_brl),
+            impressoes: soma(a.impressoes, m.impressoes),
+            cliques: soma(a.cliques, m.cliques),
+            conversoes_google: soma(a.conversoes_google, m.conversoes_google),
+            valor_conv_google: soma(a.valor_conv_google, m.valor_conv_google),
+          }
+        : { ...m },
+    );
+  }
+  return [...por.values()];
+}
