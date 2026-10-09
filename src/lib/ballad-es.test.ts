@@ -256,8 +256,14 @@ describe("na Ballad, o /es é dos hispanos dos EUA", () => {
     expect(JSON.stringify(m.seo.linksDeIdioma("es"))).not.toContain("serenatagift");
   });
 
-  it("os exemplos nascem vazios, e o que é exemplo da Serenata não vaza", async () => {
-    expect(m.exemplos.exemplosEsUsProntos()).toEqual([]);
+  it("os exemplos são da Ballad (token ex…, capa da Ballad), e o áudio não vaza pra Serenata", async () => {
+    const prontos = m.exemplos.exemplosEsUsProntos();
+    expect(prontos.length).toBe(6);
+    for (const e of prontos) {
+      expect(e.token.startsWith("exesus")).toBe(true);
+      expect(e.capa).toBe(`/ballad/exemplos/${e.slug}.webp`);
+      semVoseo(e.versos.join(" "), e.slug);
+    }
     // O áudio sai do bucket do PRÓPRIO deploy (`VITE_SUPABASE_URL`, que na Ballad é
     // o banco dela), nunca de um endereço da Serenata escrito no código. Comparar
     // com o host fixo dependeria do `.env.local` de quem roda o teste.
