@@ -1134,10 +1134,11 @@ export const liberarAcesso = createServerFn({ method: "POST" })
     if (p.email) {
       try {
         const { Resend } = await import("resend");
+        const { comUtm } = await import("./utm-email");
         const { emailPresentePronto, assuntoPresentePronto } = await import("../../emails/presente-pronto");
         const chave = process.env.RESEND_API_KEY;
         if (chave) {
-          await new Resend(chave).emails.send({
+          await comUtm(new Resend(chave)).emails.send({
             from: MARCA_ATIVA.remetenteTransacional,
             replyTo: MARCA_ATIVA.responderPara,
             to: [p.email],

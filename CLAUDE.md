@@ -516,6 +516,27 @@ painel_eventos_dia`) e o cron refazer.
   cron usam a mesma.
 - **`?vivo=1`** no `/admin` ignora o resumo. Pra conferir um dia, não pra 30.
 - Cada painel loga `[admin] painel …` com os tempos nos logs da Vercel.
+- **Vendas por canal (08/10)**, abaixo da linha de mídia: Google, TikTok,
+  e-mail e orgânico, somando o cartão "Vendas" (`canal-venda.ts`). Venda com
+  cupom conta pro E-MAIL mesmo com primeiro toque em anúncio (decisão do
+  dono: todo cupom de `cupom.ts` só existe em e-mail). O quiz de venda fora da
+  janela (recuperação tardia, upsell) é lido à parte, senão cairia em orgânico.
+- **Todo link de e-mail leva `utm_source=email`** (08/10), com o template em
+  `utm_campaign`: o cliente do Resend sai por `comUtm(new Resend(...))`
+  (`utm-email.ts`), não template por template. Fora: alerta dos donos, resumo
+  diário e magic link. A utm sozinha NÃO muda o canal (o primeiro toque mora
+  no quiz): quem chega por ela ganha o cookie `mp_email` de 3 dias
+  (`toque-email.ts`) e os 7 checkouts gravam `pedidos.veio_de = 'email'`
+  (`marcarSeVeioDeEmail`, update à parte que nunca derruba a cobrança).
+  Envio novo: usar `comUtm`; checkout novo: chamar `marcarSeVeioDeEmail`.
+- **Aba Criativos (08/10)**: vídeo e anúncio do Google Ads por VENDA REAL
+  (gclid → `click_view` → anúncio, em `cliques_anuncio`), título, descrição e
+  imagem pela CONVERSÃO DO GOOGLE. Job `puxarCriativosAds` (de hora em hora,
+  nas duas marcas, 7 dias reescritos; `click_view` só alcança 89 dias). A
+  aba só lê o banco (`admin-criativos.server.ts`, conta em `criativos.ts`).
+  Vídeo só soma anúncio com UM vídeo. Venda com cupom/e-mail conta pro
+  anúncio (não bate com o cartão "Vendas Google", de propósito). Sonda:
+  evento `criativos/sonda`. Spec: `docs/superpowers/specs/2026-10-08-aba-criativos-design.md`.
 
 ## /criar gospel (02/10/2026)
 
@@ -968,6 +989,7 @@ caractere do id do quiz (braço recalculável na leitura).
 | Ballad: leva Dylan de 04/10 | 04/10 | Os campeões da Serenata refeitos com a voz "Dylan" (ElevenLabs, roteiro coloquial) + lip sync, mais esposa e gospel novos: 25 vid5 dylan (YouTube HI0TI4K1ZXQ), 26 fone dylan (BZa9IwqyfW4), 27 esposa dylan (9Oxdfpnmyw0), 28 gospel worship (iEPfgiz7jH0, destino /criar?t=gospel, copy de worship). Campanhas NOVAS no molde das campeãs: público Concorrentes EUA + segmentação LIGADA, R$ 50/dia cada. A 13 (Vid 5 com a voz antiga) foi pausada. `scratch/ballad-ads-criar-04out.mjs` (`--ligar` confere público, segmentação, EUA, inglês e URL). Ballad em 12 ligadas, R$ 650/dia | % que responde a 1ª pergunta, R$/lead, venda; 25/26 contra 13/14 antigos | 07/10 | é a Ballad |
 | Ballad: vídeo 1 do Ralph em inglês | 08/10 | O vídeo que validou na Serenata (Isabela 1 / Adoração 1) com a fala do PRÓPRIO Ralph dublada em inglês com lip sync (dublagem automática do Higgsfield, sem voz de estúdio: o dono achou o Dylan com cara de narrador), mesma montagem do português (fade in aos 17s, caixa "Listen to this song I made for my wife 🥹", chamada "Turn your own story into a song too 💛 Tap Learn more" aos 41s). Músicas geradas pela Ballad pro público que compra lá (55+), com estilo curado fora do catálogo, gravação 2, refrão do meio: 29 country clássico "Pour My Coffee First" (YouTube mTogAzeZC7g), 30 country gospel "Before I Knew Your Name" (ZepeMs-iteE). Molde das campeãs (Concorrentes EUA, segmentação LIGADA, só celular), R$ 50/dia cada, destino /criar nos dois. `scratch/criativo-ballad-esposa.mts`, `scratch/ballad-ads-criar-08out-ralph.mjs` (relido); arquivos em `materiais/ballad/ralph-en/`. Outras vozes custam 1 lip sync cada (>31 créditos; o dono não quis recarregar) | % que responde a 1ª pergunta, lead e venda; country × faith | 11/10 | é a Ballad |
 | Ballad: porta cristã + criativos dublados de 03/10 | 03/10 | Não é A/B: porta nova (`/criar?t=gospel` em inglês) e dois criativos traduzidos dos de 03/10 da Serenata, voz "Dylan" (ElevenLabs) dublada com lip sync: `materiais/ballad/ballad-esposa-en.mp4` (destino /criar, página da Emily) e `ballad-gospel-en.mp4` (destino /criar?t=gospel, louvor de exemplo). Montagem: `scratchpad` → legendas palavra a palavra em Poppins por cima da faixa borrada da legenda em português | começou o quiz e venda; gospel: louvor × presente | 07/10 | é a Ballad |
+| Aba Criativos | 08/10 | Não é A/B: leitura nova. Ranking de vídeo/anúncio por venda real e de título/descrição/imagem pela conversão do Google | se os vídeos campeões batem com o que o dono vê nos testes; quantas vendas ficam "sem anúncio identificado" | 15/10 | sim (mesmo código, conta da Ballad) |
 | Campanha MUSICA10 (e-mail pra base + cupom de R$ 10) | ao ligar | Não é A/B: campanha. Base `pt` inteira em 2 versões (comprador × lead), 300/h, fila `campanha_envios`, job `campanhaMusica10` (liga com `CAMPANHA_MUSICA10_ON=1`). Cupom vale em música, extra, quadro e vídeo até `MUSICA10_VALE_ATE` | abertura/clique por versão, vendas com `pedidos.cupom = 'MUSICA10'`, receita, bounce e reclamação | 3 e 7 dias depois do último envio | não (só Serenata) |
 | `/criar?t=gospel` | 02/10 | Não é A/B: porta própria dos anúncios gospel (louvor pra Deus ou presente com fé, 5 estilos gospel). Comparado contra o resto do funil na seção "Gospel" do painel | receita por lead do gospel contra o resto; louvor × presente | 09/10 | não (só Serenata) |
 | Blog (30 artigos de SEO: 10 em 03/10 + 20 gospel em 03/10) | 03/10 | Não é A/B: canal novo. Artigos em `/blog/<slug>` por intenção de presente (pessoa, ocasião, gospel, guia), cada um com música real e CTA pro `/criar` (`?t=gospel` no louvor) | visitas, leads e vendas por página de entrada; impressões e cliques no Search Console (o dono manda o sitemap) | 23/10 | não (só Serenata) |

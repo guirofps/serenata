@@ -4,6 +4,7 @@ import { estaBloqueado } from "../lib/emails-mortos.js";
 import { podeMandarMarketing } from "../lib/frequencia.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { emailLembretePresente, assuntoLembrete, textoLembreteEn } from "../../emails/lembrete-presente.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
@@ -149,7 +150,7 @@ export const lembrarPresente = inngest.createFunction(
         // volta na próxima rodada. No A não vai ao banco.
         if (!(await podeMandarMarketing(sb, c.email, c.quizId, { locale: c.locale }))) return false;
 
-        const { data: enviado, error } = await new Resend(chave).emails.send({
+        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
       // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
       // (entregue, aberto, clicado, devolvido), e e o unico jeito de
       // saber DEPOIS qual e-mail performou: o assunto carrega o nome da

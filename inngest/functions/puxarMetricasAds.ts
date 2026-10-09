@@ -1,5 +1,6 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
+import { tokenGoogleAds } from "../lib/google-ads.js";
 
 // O CUSTO DE CADA CAMPANHA, DIRETO DO GOOGLE, DE HORA EM HORA.
 //
@@ -66,22 +67,6 @@ function diaEm(desloc: number): string {
   return agora.toISOString().slice(0, 10);
 }
 
-async function token(): Promise<string> {
-  const r = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: process.env.GOOGLE_ADS_CLIENT_ID ?? "",
-      client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET ?? "",
-      refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN ?? "",
-      grant_type: "refresh_token",
-    }),
-  });
-  const j = (await r.json()) as { access_token?: string; error_description?: string };
-  if (!j.access_token) throw new Error("OAuth do Google Ads falhou: " + (j.error_description ?? "sem token"));
-  return j.access_token;
-}
-
 export const puxarMetricasAds = inngest.createFunction(
   {
     id: "puxar-metricas-ads",
@@ -99,7 +84,7 @@ export const puxarMetricasAds = inngest.createFunction(
     const db = createClient(url, key, { auth: { persistSession: false } });
 
     const linhas = await step.run("ler-google", async () => {
-      const acesso = await token();
+      const acesso = await tokenGoogleAds();
       const H: Record<string, string> = {
         Authorization: `Bearer ${acesso}`,
         "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN ?? "",

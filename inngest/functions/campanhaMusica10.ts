@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { inngest } from "../client.js";
 import { cabecalhosDescadastro, linkDescadastroUmClique } from "../lib/descadastro.js";
 import { bloqueados } from "../lib/emails-mortos.js";
@@ -91,7 +92,7 @@ export const campanhaMusica10 = inngest.createFunction(
       const para = String((event.data as { para?: string } | undefined)?.para ?? "").trim().toLowerCase();
       if (!para.includes("@")) return { erro: "evento sem `para`" };
       return step.run("teste", async () => {
-        const resend = new Resend(process.env.RESEND_API_KEY);
+        const resend = comUtm(new Resend(process.env.RESEND_API_KEY));
         const out: Array<{ versao: VersaoEnvio; id: string | null; erro: string | null }> = [];
         for (const versao of ["comprador", "lead"] as const) {
           const e = montarEmail({ email: para, versao, quiz_response_id: null, nome: "Maria" });
@@ -193,7 +194,7 @@ export const campanhaMusica10 = inngest.createFunction(
         if (!validos.length) return { enviados: 0, pulados: puladosAqui, erro: null as string | null };
 
         const chave = createHash("sha256").update(validos.map((l) => l.email).join(",")).digest("hex").slice(0, 40);
-        const resend = new Resend(process.env.RESEND_API_KEY);
+        const resend = comUtm(new Resend(process.env.RESEND_API_KEY));
         // PERMISSIVE: um endereço que o Resend recusar não leva os outros 99
         // junto; ele volta em `errors` com o índice e vira `pulado`.
         const resp = await resend.batch.send(validos.map(montarEmail), {

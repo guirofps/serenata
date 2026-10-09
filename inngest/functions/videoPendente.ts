@@ -3,6 +3,7 @@ import { estaBloqueado } from "../lib/emails-mortos.js";
 import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { REMETENTE_TRANSACIONAL } from "../../emails/remetentes.js";
 import {
   assuntoVideoEsperando,
@@ -166,7 +167,7 @@ export const videoPendente = inngest.createFunction(
         });
         if (!trava) continue;
 
-        const { data: enviado, error } = await new Resend(chave).emails.send({
+        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: "video_esperando" }],
           from: REMETENTE_TRANSACIONAL,
           to: [v.email as string],

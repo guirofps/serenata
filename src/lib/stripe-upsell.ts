@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { OFERTAS } from "@/lib/creditos";
 import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { stripeApi, confirmarSessaoStripe, ErroStripe } from "../../api/lib/stripe";
+import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 
 // O VÍDEO-PRESENTE NA BALLAD GIFT (EUA), pelo Stripe (30/09/2026).
 //
@@ -123,6 +124,7 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
         },
         { onConflict: "payment_id", ignoreDuplicates: true },
       );
+      await marcarSeVeioDeEmail(db, `stripe:${sessao.id}`);
       if (error) throw new Error(error.message);
 
       await db.from("funnel_events").insert({

@@ -8,6 +8,7 @@ import { ErroGateway } from "@/lib/gateway";
 import { OFERTAS, type Oferta } from "@/lib/creditos";
 import { centavosComCupom, codigoAplicado, type Alvo } from "@/lib/cupom";
 import { MARCA_ATIVA } from "./marca-identidade.js";
+import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 
 // O PIX DOS UPSELLS: música extra, três músicas e quadro.
 //
@@ -209,6 +210,7 @@ async function gerarCobranca(
       },
       { onConflict: "payment_id" },
     );
+    await marcarSeVeioDeEmail(db, `${cobranca.gateway}:${referencia}`);
     if (error) {
       // A cobrança JÁ EXISTE no gateway; sumir com o QR seria pior. Entrega e
       // grita no log — mesma decisão do `criar-pix` do funil.

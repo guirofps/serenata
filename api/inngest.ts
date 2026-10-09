@@ -19,6 +19,7 @@ import { guardeOLink } from "../inngest/functions/guardeOLink.js";
 import { repescarFalhadas } from "../inngest/functions/repescarFalhadas.js";
 import { vigiaExperimento } from "../inngest/functions/vigiaExperimento.js";
 import { puxarMetricasAds } from "../inngest/functions/puxarMetricasAds.js";
+import { puxarCriativosAds } from "../inngest/functions/puxarCriativosAds.js";
 import { resumoDiario } from "../inngest/functions/resumoDiario.js";
 import { taxasFaltando } from "../inngest/functions/taxasFaltando.js";
 import { vigiaEntrega } from "../inngest/functions/vigiaEntrega.js";
@@ -62,6 +63,7 @@ const DA_BALLAD = [
   // O gasto do Google pro painel (custo por venda e ROAS por campanha). Lê a
   // conta de `GOOGLE_ADS_CUSTOMER_ID`, que no projeto da Ballad é a Projeto GM2.
   puxarMetricasAds,
+  puxarCriativosAds,
   // O vídeo-presente, vendido pelo Stripe no editor desde 30/09: o render na
   // Lambda e o e-mail "your video is ready". Precisa das REMOTION_* no projeto.
   renderizarVideo,
@@ -117,6 +119,7 @@ export default serve({
     vigiaExperimento,
     taxasFaltando,
     puxarMetricasAds,
+    puxarCriativosAds,
     resumoDiario,
     ofertaQuadro,
     vigiaGeracao,

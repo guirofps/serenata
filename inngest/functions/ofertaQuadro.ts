@@ -5,6 +5,7 @@ import { podeMandarMarketing } from "../lib/frequencia.js";
 import { todasAsPaginas } from "../lib/paginar.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { emailQuadro, assuntoQuadro } from "../../emails/quadro-na-parede.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
@@ -226,7 +227,7 @@ export const ofertaQuadro = inngest.createFunction(
         // volta na próxima rodada. No A não vai ao banco.
         if (!(await podeMandarMarketing(sb, c.email, c.quizId, { locale: c.locale }))) return false;
 
-        const { data: enviado, error } = await new Resend(chave).emails.send({
+        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: "oferta_quadro" }],
           // REMETENTE DE RECUPERAÇÃO, não o transacional.
           //

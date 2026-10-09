@@ -15,6 +15,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto.js";
 import { segredoConfere } from "../lib/segredo.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
@@ -216,7 +217,7 @@ export default async function handler(req: Req, res: Res) {
 
         const linkEditor = `${SITE}/editar/${musica.token_edicao}`;
         const linkPresente = `${SITE}/p/${musica.token}`;
-        const { error } = await new Resend(chave).emails.send({
+        const { error } = await comUtm(new Resend(chave)).emails.send({
           from: MARCA_ATIVA.remetenteTransacional,
           to: [email],
           // Sem emoji no assunto: emoji tende a mandar pra aba Promoções,

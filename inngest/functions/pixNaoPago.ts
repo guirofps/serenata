@@ -4,6 +4,7 @@ import { estaBloqueado } from "../lib/emails-mortos.js";
 import { podeMandarMarketing } from "../lib/frequencia.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { emailPixNaoPago, assuntoPixNaoPago } from "../../emails/pix-nao-pago.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
@@ -428,7 +429,7 @@ export const pixNaoPago = inngest.createFunction(
           return false;
         }
 
-        const { data: enviado, error } = await new Resend(chave).emails.send({
+        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: "pix_nao_pago" }],
           from: MARCA_ATIVA.remetenteTransacional,
           to: [c.email],

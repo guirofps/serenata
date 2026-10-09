@@ -14,6 +14,7 @@ import { outroPagamentoDoQuiz } from "@/lib/asaas-regras";
 import { conviteDaCompra } from "@/lib/indicacao-db";
 import { descontoDoConvite } from "@/lib/indicacao";
 import { MARCA_ATIVA } from "./marca-identidade.js";
+import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 
 // GERA O PIX DO CHECKOUT TRANSPARENTE.
 //
@@ -572,6 +573,7 @@ export const criarPix = createServerFn({ method: "POST" })
       },
       { onConflict: "payment_id" },
     );
+    await marcarSeVeioDeEmail(db, `${cobranca.gateway}:${refFinal}`);
     if (error) {
       // A cobrança JÁ EXISTE no gateway. Não dá pra desfazer, e sumir com o
       // QR seria pior: a pessoa pagaria por outro caminho e ninguém saberia.

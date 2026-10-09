@@ -6,6 +6,7 @@ import { cpfParaGateway } from "@/lib/cpf";
 import { conferirOferta } from "@/lib/oferta-assinada";
 import { OFERTA, type DegrauEscada } from "../../emails/escada";
 import { MARCA_ATIVA } from "./marca-identidade.js";
+import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 
 // O PIX DO DEGRAU DA ESCADA.
 //
@@ -212,6 +213,7 @@ export const criarPixOferta = createServerFn({ method: "POST" })
       },
       { onConflict: "payment_id" },
     );
+    await marcarSeVeioDeEmail(db, `${cobranca.gateway}:${refFinal}`);
     if (error) console.error("[pix-oferta] pedido pendente não gravou:", error.message);
 
     return {

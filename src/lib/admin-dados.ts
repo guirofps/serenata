@@ -8,6 +8,7 @@ import { filtroCursor, lerJanela } from "@/lib/ler-janela";
 import { porTemaDe, type LinhaTema } from "@/lib/admin-tema";
 import { diasDaJanela, somarGasto } from "@/lib/gasto-midia";
 import { taxaDoPedido } from "@/lib/taxa-gateway";
+import { contarPorCanal, type CanalVenda } from "@/lib/canal-venda";
 import {
   ehVenda,
   faixasVivas,
@@ -120,6 +121,8 @@ export type Painel = {
     taxaCheckoutVenda: number; // clicou -> pagou
     taxaGeral: number; // abriu /criar -> venda
     custoPorVendaBrl: number;
+    /** As vendas por canal (`canalDaVenda`). Os quatro somam `vendas`. */
+    vendasPorCanal: Record<CanalVenda, number>;
   };
 
   /** O funil inteiro, do clique à venda. É o mapa de onde fura. */
@@ -496,6 +499,10 @@ type Pedido = {
   created_at: string;
   /** Só em liberação manual: se entrou grana mesmo. null na venda do gateway. */
   dinheiro_entrou?: boolean | null;
+  /** O cupom que baixou o preço (desde 07/10). Todo cupom vem de e-mail. */
+  cupom?: string | null;
+  /** 'email' quando a pessoa voltou por link de e-mail (`toque-email.ts`, desde 08/10). */
+  veio_de?: string | null;
 };
 
 type ArgsPainel = {
@@ -787,7 +794,7 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
     janela<Custo>("custos", "id, tipo, custo_brl, quiz_response_id, created_at"),
     janela<Pedido>(
       "pedidos",
-      "id, quiz_response_id, musica_id, gateway, status, valor_centavos, taxa_centavos, email, paid_at, created_at, dinheiro_entrou",
+      "id, quiz_response_id, musica_id, gateway, status, valor_centavos, taxa_centavos, email, paid_at, created_at, dinheiro_entrou, cupom, veio_de",
     ),
   ]);
   const msLeituras = Date.now() - t0;
@@ -922,6 +929,39 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
   // registro, não por não ter acontecido.
   const pendentes = pedidosF.filter((p) => p.status === "pendente");
   const gerouCobranca = pagos.length + pendentes.length;
+
+  // ── VENDAS POR CANAL ─────────────────────────────────────────
+  // A atribuição mora no quiz, e o quiz de muita venda é de ANTES da janela:
+  // quem comprou pela recuperação dias depois, e todo upsell do editor. Sem
+  // ler esses quizzes à parte, elas cairiam em "orgânico" por falta de dado.
+  const atribuicaoDoQuiz = new Map<string, unknown>(leadsCru.map((l) => [l.id, l.attribution]));
+  const faltando = [
+    ...new Set(
+      pagos
+        .map((p) => p.quiz_response_id)
+        .filter((q): q is string => !!q && !atribuicaoDoQuiz.has(q)),
+    ),
+  ];
+  for (let i = 0; i < faltando.length; i += 200) {
+    const { data: quizzes, error: erroQuizzes } = await db
+      .from("quiz_responses")
+      .select("id, attribution")
+      .in("id", faltando.slice(i, i + 200));
+    if (erroQuizzes) {
+      console.error("[admin] atribuição das vendas não lida:", erroQuizzes.message);
+      break;
+    }
+    for (const q of quizzes ?? []) atribuicaoDoQuiz.set(String(q.id), q.attribution);
+  }
+  const vendasPorCanal = contarPorCanal(
+    pagos.map((p) => ({
+      atribuicao: (p.quiz_response_id ? atribuicaoDoQuiz.get(p.quiz_response_id) : null) as
+        | Record<string, unknown>
+        | null,
+      cupom: p.cupom,
+      veioDe: p.veio_de,
+    })),
+  );
 
   // A MOEDA de cada pedido vem do idioma da venda: o produto brasileiro da
   // Perfect Pay cobra em real, o internacional em dólar. Não há coluna de
@@ -1493,6 +1533,7 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
       taxaCheckoutVenda: pct(pagos.length, cliquesCheckout),
       taxaGeral: pct(pagos.length, abriramQuiz),
       custoPorVendaBrl: pagos.length ? custoTotal / pagos.length : 0,
+      vendasPorCanal,
       gastoAdsBrl: gastoAds,
       gastoGoogleApiBrl: gasto.googleApiBrl,
       gastoManualBrl: gasto.manualBrl,
@@ -1974,6 +2015,16 @@ export const carregarAutomacoes = createServerFn({ method: "POST" })
     exigirAdmin();
     const { carregarAutomacoes: carregar } = await import("@/lib/automacoes.server");
     return carregar(janelaDo(data));
+  });
+
+/** A aba "Criativos": ranking do Google Ads por venda real e por conversão do Google. */
+export const carregarAbaCriativos = createServerFn({ method: "POST" })
+  .validator((data: ArgsPainel) => data)
+  .handler(async ({ data }) => {
+    const { exigirAdmin } = await import("@/lib/admin-auth.server");
+    exigirAdmin();
+    const { carregarCriativos } = await import("@/lib/admin-criativos.server");
+    return carregarCriativos(janelaDo(data));
   });
 
 /**

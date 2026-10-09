@@ -19,6 +19,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { emailPresentePronto, assuntoPresentePronto } from "../../emails/presente-pronto.js";
 import { enviarVendaUtmify } from "../lib/utmify.js";
 import { pareceTypo, sugerirEmail } from "../../src/lib/email-typo.js";
@@ -856,7 +857,7 @@ export default async function handler(req: Req, res: Res) {
 
         const linkEditor = `${SITE}/editar/${musica.token_edicao}`;
         const linkPresente = `${SITE}/p/${musica.token}`;
-        const { data: enviado, error } = await new Resend(chave).emails.send({
+        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           // A ETIQUETA DO ENVIO, que o Resend devolve em todo evento. E o
           // unico jeito de medir DEPOIS qual e-mail performou: o assunto
           // carrega o nome da pessoa e nem sempre vem no evento.

@@ -5,6 +5,7 @@ import { bloqueados } from "../lib/emails-mortos.js";
 import { jaComprou } from "../lib/ja-comprou.js";
 import { soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
 import { emailLetraPronta, assuntoLetraPronta } from "../../emails/letra-pronta.js";
 import { REMETENTE_TRANSACIONAL } from "../../emails/remetentes.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
@@ -259,7 +260,7 @@ export const mandarLetra = inngest.createFunction(
       const sb = db();
       const chave = process.env.RESEND_API_KEY;
       if (!chave) throw new Error("RESEND_API_KEY ausente");
-      const resend = new Resend(chave);
+      const resend = comUtm(new Resend(chave));
       let n = 0;
 
       // Mesma recheca do `sequenciaRecuperacao`: a trava da fila é avaliada na
