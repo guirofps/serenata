@@ -183,3 +183,26 @@ export function montarCriativos(e: EntradaCriativos): Criativos {
     semAnuncioPmax,
   };
 }
+
+/**
+ * A ordem de uma coluna clicada na aba. Vazio ("—") vai sempre pro fim, nos
+ * dois sentidos: quem clica em CPA quer ver os CPAs, não as linhas sem venda.
+ * Texto pela ordem do português (sem diferenciar maiúscula e acento).
+ */
+export function ordenarPor<T>(
+  linhas: T[],
+  valor: (l: T) => number | string | null,
+  dir: "asc" | "desc",
+): T[] {
+  const sinal = dir === "asc" ? 1 : -1;
+  return [...linhas].sort((x, y) => {
+    const a = valor(x);
+    const b = valor(y);
+    if (a === null || b === null) return a === b ? 0 : a === null ? 1 : -1;
+    const c =
+      typeof a === "string" || typeof b === "string"
+        ? String(a).localeCompare(String(b), "pt-BR", { sensitivity: "base" })
+        : a - b;
+    return c * sinal;
+  });
+}

@@ -20,6 +20,16 @@ describe("canalDaVenda", () => {
     expect(canalDaVenda({ utm_source: "email" }, null)).toBe("email");
     expect(canalDaVenda({ utm_source: "lembrete_data" }, null)).toBe("email");
   });
+  it("influenciador: utm_source/utm_medium 'influencer', ou link só com utm_campaign", () => {
+    expect(canalDaVenda({ utm_source: "influencer", utm_campaign: "gleysi" }, null)).toBe("influencer");
+    expect(canalDaVenda({ utm_source: "instagram", utm_medium: "Influenciador", utm_campaign: "gleysi" }, null)).toBe("influencer");
+    expect(canalDaVenda({ utm_campaign: "gleysi", referrer: "https://l.instagram.com/" }, null)).toBe("influencer");
+  });
+  it("anúncio e e-mail continuam vencendo o influenciador", () => {
+    expect(canalDaVenda({ gclid: "x", utm_campaign: "24116713654" }, null)).toBe("google");
+    expect(canalDaVenda({ utm_campaign: "gleysi" }, "MUSICA10")).toBe("email");
+    expect(canalDaVenda({ utm_source: "email", utm_campaign: "letra_pronta" }, null)).toBe("email");
+  });
   it("o resto é orgânico", () => {
     expect(canalDaVenda(null, null)).toBe("organico");
     expect(canalDaVenda({}, "")).toBe("organico");
@@ -36,5 +46,5 @@ it("contarPorCanal soma o total de vendas", () => {
     { atribuicao: null, cupom: null },
     { atribuicao: { ttclid: "c" }, cupom: null },
   ]);
-  expect(n).toEqual({ google: 1, tiktok: 1, email: 1, organico: 1 });
+  expect(n).toEqual({ google: 1, tiktok: 1, email: 1, influencer: 0, organico: 1 });
 });

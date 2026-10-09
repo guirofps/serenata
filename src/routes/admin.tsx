@@ -1169,14 +1169,15 @@ function Corpo({
             </div>
 
             {/* ── DE ONDE VIERAM AS VENDAS ──────────────────────────
-              Os quatro somam o cartão "Vendas". Venda com cupom conta pro
+              Os cinco somam o cartão "Vendas". Venda com cupom conta pro
               e-mail mesmo se a pessoa chegou por anúncio (`canal-venda.ts`). */}
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
               {(
                 [
                   ["google", "Vendas Google", "primeiro toque no anúncio"],
                   ["tiktok", "Vendas TikTok", "primeiro toque no anúncio"],
                   ["email", "Vendas e-mail", "com cupom ou link de e-mail"],
+                  ["influencer", "Vendas influenciador", "link de influenciador"],
                   ["organico", "Vendas orgânico", "direto, blog, indicação"],
                 ] as const
               ).map(([canal, rotulo, regra]) => {

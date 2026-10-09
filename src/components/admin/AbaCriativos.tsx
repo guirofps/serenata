@@ -4,7 +4,7 @@
 // docs/superpowers/specs/2026-10-08-aba-criativos-design.md
 import { useEffect, useState, type ReactNode } from "react";
 import { carregarAbaCriativos } from "@/lib/admin-dados";
-import type { Criativos, LinhaGoogle, LinhaVenda } from "@/lib/criativos";
+import { ordenarPor, type Criativos, type LinhaGoogle, type LinhaVenda } from "@/lib/criativos";
 import { cn } from "@/lib/utils";
 
 type Args = { dias?: number; de?: string; ate?: string };
@@ -51,21 +51,86 @@ function VerTodos({ sobra, todos, alternar }: { sobra: number; todos: boolean; a
 }
 
 const th = "px-3 py-2 text-right font-medium whitespace-nowrap";
+
+// ── COLUNAS CLICÁVEIS (09/10, dono) ──────────────────────────────
+// Um clique ordena pela coluna (número do maior pro menor, texto de A a Z);
+// o segundo clique inverte. Sem clique, fica a ordem de `montarCriativos`
+// (vendas, desempate pelo gasto). Ordena ANTES de cortar nos 20 primeiros.
+type Coluna<T> = { id: string; rotulo: string; valor: (l: T) => number | string | null; texto?: boolean };
+type Ordem = { id: string; dir: "asc" | "desc" } | null;
+
+function useOrdem<T>(linhas: T[], colunas: Coluna<T>[]) {
+  const [ordem, setOrdem] = useState<Ordem>(null);
+  const col = ordem ? colunas.find((c) => c.id === ordem.id) : undefined;
+  const ordenadas = col && ordem ? ordenarPor(linhas, col.valor, ordem.dir) : linhas;
+  const clicar = (c: Coluna<T>) =>
+    setOrdem((o) =>
+      o?.id === c.id
+        ? { id: c.id, dir: o.dir === "asc" ? "desc" : "asc" }
+        : { id: c.id, dir: c.texto ? "asc" : "desc" },
+    );
+  return { ordenadas, ordem, clicar };
+}
+
+function Cabecalhos<T>({ colunas, ordem, clicar }: { colunas: Coluna<T>[]; ordem: Ordem; clicar: (c: Coluna<T>) => void }) {
+  return (
+    <tr>
+      {colunas.map((c, i) => {
+        const ativa = ordem?.id === c.id;
+        return (
+          <th key={c.id} className={i === 0 ? "px-3 py-2 text-left font-medium" : th} aria-sort={ativa ? (ordem.dir === "asc" ? "ascending" : "descending") : "none"}>
+            <button
+              type="button"
+              onClick={() => clicar(c)}
+              className={cn("inline-flex items-center gap-1 whitespace-nowrap hover:text-[var(--tinta)]", ativa && "text-[var(--tinta)]")}
+            >
+              {c.rotulo}
+              <span className={cn("text-[10px]", !ativa && "opacity-0")}>{ativa && ordem.dir === "asc" ? "▲" : "▼"}</span>
+            </button>
+          </th>
+        );
+      })}
+    </tr>
+  );
+}
+
+const COLUNAS_VENDA: Coluna<LinhaVenda>[] = [
+  { id: "titulo", rotulo: "Criativo", valor: (l) => l.titulo, texto: true },
+  { id: "vendas", rotulo: "Vendas", valor: (l) => l.vendas },
+  { id: "receita", rotulo: "Receita", valor: (l) => l.receitaBrl },
+  { id: "gasto", rotulo: "Gasto", valor: (l) => l.gastoBrl },
+  { id: "cpa", rotulo: "CPA", valor: (l) => l.cpaBrl },
+  { id: "roas", rotulo: "ROAS", valor: (l) => l.roas },
+  { id: "impressoes", rotulo: "Impr.", valor: (l) => l.impressoes },
+  { id: "cliques", rotulo: "Cliques", valor: (l) => l.cliques },
+  { id: "ctr", rotulo: "CTR", valor: (l) => l.ctr },
+  { id: "views", rotulo: "Views", valor: (l) => l.views },
+  // Pela taxa de quem assistiu até o FIM, a que separa vídeo que prende.
+  { id: "assistido", rotulo: "Assistido 25/50/75/100", valor: (l) => l.assistido?.p100 ?? null },
+];
+
+function colunasGoogle(imagem?: boolean): Coluna<LinhaGoogle>[] {
+  return [
+    { id: "titulo", rotulo: imagem ? "Imagem" : "Texto", valor: (l) => l.titulo, texto: true },
+    { id: "conversoes", rotulo: "Conv. Google", valor: (l) => l.conversoes },
+    { id: "valor", rotulo: "Valor conv.", valor: (l) => l.valorConv },
+    { id: "gasto", rotulo: "Gasto", valor: (l) => l.gastoBrl },
+    { id: "custo", rotulo: "Custo/conv.", valor: (l) => l.custoPorConv },
+    { id: "impressoes", rotulo: "Impr.", valor: (l) => l.impressoes },
+    { id: "cliques", rotulo: "Cliques", valor: (l) => l.cliques },
+    { id: "ctr", rotulo: "CTR", valor: (l) => l.ctr },
+  ];
+}
 const td = "px-3 py-2 text-right tabular-nums whitespace-nowrap";
 
 function TabelaVenda({ linhas, vazio }: { linhas: LinhaVenda[]; vazio: string }) {
-  const l = useLista(linhas);
+  const o = useOrdem(linhas, COLUNAS_VENDA);
+  const l = useLista(o.ordenadas);
   return (
     <>
       <table className="w-full text-sm">
         <thead className="text-xs text-[var(--tinta-suave)]">
-          <tr>
-            <th className="px-3 py-2 text-left font-medium">Criativo</th>
-            <th className={th}>Vendas</th><th className={th}>Receita</th><th className={th}>Gasto</th>
-            <th className={th}>CPA</th><th className={th}>ROAS</th><th className={th}>Impr.</th>
-            <th className={th}>Cliques</th><th className={th}>CTR</th><th className={th}>Views</th>
-            <th className={th}>Assistido 25/50/75/100</th>
-          </tr>
+          <Cabecalhos colunas={COLUNAS_VENDA} ordem={o.ordem} clicar={o.clicar} />
         </thead>
         <tbody>
           {l.visiveis.length === 0 ? (
@@ -115,16 +180,14 @@ function TabelaVenda({ linhas, vazio }: { linhas: LinhaVenda[]; vazio: string })
 }
 
 function TabelaGoogle({ linhas, imagem }: { linhas: LinhaGoogle[]; imagem?: boolean }) {
-  const l = useLista(linhas);
+  const colunas = colunasGoogle(imagem);
+  const o = useOrdem(linhas, colunas);
+  const l = useLista(o.ordenadas);
   return (
     <>
       <table className="w-full text-sm">
         <thead className="text-xs text-[var(--tinta-suave)]">
-          <tr>
-            <th className="px-3 py-2 text-left font-medium">{imagem ? "Imagem" : "Texto"}</th>
-            <th className={th}>Conv. Google</th><th className={th}>Valor conv.</th><th className={th}>Gasto</th>
-            <th className={th}>Custo/conv.</th><th className={th}>Impr.</th><th className={th}>Cliques</th><th className={th}>CTR</th>
-          </tr>
+          <Cabecalhos colunas={colunas} ordem={o.ordem} clicar={o.clicar} />
         </thead>
         <tbody>
           {l.visiveis.length === 0 ? (
