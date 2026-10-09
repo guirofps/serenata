@@ -5,7 +5,7 @@ import { podeMandarMarketing } from "../lib/frequencia.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { comUtm } from "../../src/lib/utm-email.js";
-import { emailLembretePresente, assuntoLembrete, textoLembreteEn } from "../../emails/lembrete-presente.js";
+import { emailLembretePresente, assuntoLembrete, textoLembreteEn, textoLembreteEsEua } from "../../emails/lembrete-presente.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
@@ -120,8 +120,14 @@ export const lembrarPresente = inngest.createFunction(
           // e o assunto sairia com espaço duplo.
           nome:
             ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-            (locale === "es" ? "quien vos querés" : locale === "en" ? "someone you love" : "quem você ama"),
-          titulo: m.titulo ?? (locale === "en" ? "Your song" : "Sua música"),
+            // `tú` no espanhol da Ballad (hispanos dos EUA); o da Serenata é
+            // argentino.
+            (locale === "es"
+              ? MARCA_ATIVA.chave === "ballad" ? "quien tú quieres" : "quien vos querés"
+              : locale === "en" ? "someone you love" : "quem você ama"),
+          titulo:
+            m.titulo ??
+            (locale === "en" ? "Your song" : locale === "es" && MARCA_ATIVA.chave === "ballad" ? "Tu canción" : "Sua música"),
           linkEditor: `${SITE}/editar/${m.token_edicao}`,
           musicaId: m.id,
           quizId: p.quiz_response_id ?? null,
@@ -163,6 +169,8 @@ export const lembrarPresente = inngest.createFunction(
           html: emailLembretePresente({ nome: c.nome, titulo: c.titulo, linkEditor: c.linkEditor, locale: c.locale }),
           text: c.locale === "en"
             ? textoLembreteEn({ nome: c.nome, linkEditor: c.linkEditor })
+            : c.locale === "es" && MARCA_ATIVA.chave === "ballad"
+            ? textoLembreteEsEua({ nome: c.nome, linkEditor: c.linkEditor })
             :
             `A música de ${c.nome} está pronta, mas a página ainda não foi montada.\n\n` +
             `Escolha a gravação, ponha as fotos e escreva uma frase sua:\n${c.linkEditor}\n\n` +

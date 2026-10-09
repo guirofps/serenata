@@ -135,8 +135,14 @@ function esperaDe(numero: number, locale: "pt" | "es" | "en"): number {
 // a Ballad tem e o concorrente de lá não tem. O degrau 3 do português é
 // desconto pela `/oferta/`, que é só PIX: não existe lá. O 4 (encerramento)
 // está escrito e fica desligado; ligar é trocar o 3 por 4 aqui.
+//
+// O ESPANHOL DA BALLAD (hispanos dos EUA, 09/10) segue o INGLÊS, não o
+// espanhol da Serenata: a mesma régua curta em preço cheio até o 3, com o 2
+// de quem ouviu a prévia (`emails/sequencia.ts` tem a copy dele). O espanhol
+// da Serenata continua parando no 2.
 function ultimoEmailDe(locale: "pt" | "es" | "en"): number {
-  return locale === "es" ? 2 : 3;
+  if (locale === "es" && MARCA_ATIVA.chave !== "ballad") return 2;
+  return 3;
 }
 
 // Janela de entrada. Mais velho que isso não entra na sequência: e-mail sobre
@@ -495,10 +501,11 @@ export const sequenciaRecuperacao = inngest.createFunction(
         }
 
         if (numero >= ultimoEmailDe(locale)) continue; // a régua acabou
-        // Sem sessão, o botão do inglês não tem pra onde voltar: a Ballad não
-        // tem checkout hospedado, e `/retomar` sem `s` cai na tela de erro.
-        // Mesma trava do `quaseComprou`.
-        if (locale === "en" && !l.session_id) continue;
+        // Sem sessão, o botão da Ballad não tem pra onde voltar: ela não tem
+        // checkout hospedado, e `/retomar` sem `s` cai na tela de erro. Vale
+        // pros DOIS idiomas dela (inglês e o espanhol dos EUA). Mesma trava
+        // do `quaseComprou`.
+        if ((locale === "en" || MARCA_ATIVA.chave === "ballad") && !l.session_id) continue;
         const proximo = numero + 1;
 
         const horas = (agora - quando) / 3600000;
@@ -837,7 +844,8 @@ export const sequenciaRecuperacao = inngest.createFunction(
                 linkDescadastro,
                 locale: p.locale,
                 verso: p.verso,
-                // Só o inglês tem a versão "ouviu" do 2; nos outros não muda nada.
+                // Só o inglês e o espanhol da Ballad têm a versão "ouviu" do 2;
+                // nos outros não muda nada.
                 ouviu: p.ouviu,
               }),
         });

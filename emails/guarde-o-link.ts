@@ -108,9 +108,28 @@ const COPY: Record<
   },
 };
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA, 09/10). O espanhol de cima é da
+// Serenata argentina: voseo ("Guardá", "mandás"), WhatsApp e o rodapé dela.
+// Aqui, o mesmo e-mail em `tú`, com o link indo "por mensaje" como no inglês.
+const COPY_ES_EUA: (typeof COPY)["es"] = {
+  ...COPY.es,
+  titulo: "Guarda este correo.",
+  delaTexto:
+    "Es el regalo en sí. Quien lo abra ve el homenaje con la foto y la canción sonando. Este es el que mandas por mensaje.",
+  rodapeAviso:
+    "Consejo: en el celular, el botón de descargar abre la pantalla de compartir y puedes mandar el audio directo por mensaje.<br>¿Perdiste algo? Responde este correo y lo resolvemos.",
+  rodape: `${MARCA_ATIVA.nome} · una canción hecha de la historia de quien tú quieres`,
+};
+
+/** A copy do idioma NESTE deploy: o espanhol da Ballad tem a sua. */
+function copyDe(locale: IdiomaEmail | undefined) {
+  if (locale === "es" && MARCA_ATIVA.chave === "ballad") return COPY_ES_EUA;
+  return COPY[locale ?? "pt"] ?? COPY.pt;
+}
+
 /** O assunto, no idioma da venda. */
 export function assuntoGuardeOLink(nome: string, locale: IdiomaEmail = "pt") {
-  return (COPY[locale] ?? COPY.pt).assunto(nome);
+  return copyDe(locale).assunto(nome);
 }
 
 /**
@@ -130,6 +149,20 @@ export function textoGuardeOLinkEn(args: {
   );
 }
 
+/** O texto puro do espanhol da Ballad (hispanos dos EUA). */
+export function textoGuardeOLinkEsEua(args: {
+  nome: string;
+  linkEditor: string;
+  linkPresente: string;
+}): string {
+  return (
+    `Guarda este correo: son los dos links de la canción de ${args.nome}.\n\n` +
+    `TU LINK (descargar el MP3 y editar la página):\n${args.linkEditor}\n\n` +
+    `EL LINK QUE ENVÍAS:\n${args.linkPresente}\n\n` +
+    `Tu canción no expira y la página sigue en línea.`
+  );
+}
+
 export function emailGuardeOLink(args: {
   nome: string;
   titulo: string;
@@ -137,7 +170,7 @@ export function emailGuardeOLink(args: {
   linkPresente: string;
   locale?: IdiomaEmail;
 }): string {
-  const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
+  const C = copyDe(args.locale);
   const { nome, titulo, linkEditor, linkPresente } = args;
 
   // Os dois blocos têm o MESMO peso visual de propósito: aqui não existe ação

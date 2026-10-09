@@ -41,8 +41,9 @@ const COPY: Record<
     a2Corpo: string;
     a2Botao: string;
     /**
-     * 2, pra quem TOCOU a prévia. Só o inglês tem: o português usa o
-     * `PASSO_2_OUVIU` da escada, e o espanhol segue com o texto único. Ver a
+     * 2, pra quem TOCOU a prévia. O inglês e o espanhol da Ballad têm: o
+     * português usa o `PASSO_2_OUVIU` da escada, e o espanhol da Serenata
+     * segue com o texto único. Ver a
      * nota "O DEGRAU 2 TEM DUAS VERSÕES" em `escada.ts`: dizer "você foi
      * embora antes da gravação" pra quem ouviu é contar uma história falsa.
      */
@@ -190,6 +191,40 @@ const COPY: Record<
   },
 };
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA, 09/10). O texto espanhol de cima é
+// `tú`, mas foi escrito pra Serenata argentina: WhatsApp, caixa de bombons, um
+// "preferís" e a marca no rodapé. Aqui vai o que muda pro país, e o degrau 2
+// pra quem OUVIU a prévia, que só o inglês tinha (a régua da Ballad usa os
+// dois, ver `sequenciaRecuperacao`). Sem cupom: a Ballad não tem.
+const COPY_ES_EUA: (typeof COPY)["es"] = {
+  ...COPY.es,
+  a2Ouviu: {
+    assunto: (n) => `El resto de la canción de ${n}`,
+    titulo: (n) => `Te quedaste en la mejor parte de la canción de <em style="color:#7d2b3a;">${n}</em>.`,
+    intro: () =>
+      "La vista previa se corta en el coro a propósito, y es un poco cruel: justo ahí es donde la canción empieza a ser lo que es.",
+    corpo: (n) =>
+      `Lo que sigue todavía no lo has escuchado: el segundo verso, la parte donde vuelve el nombre de ${n}, y el final. Y hay algo que la vista previa no enseña: hay DOS grabaciones de tu letra, cada una cantada un poco distinta. Tú eliges cuál suena cuando ${n} abra el link.`,
+    botao: "ESCUCHAR LA CANCIÓN COMPLETA →",
+  },
+  a3Titulo: "No es un MP3 que mandas por mensaje.",
+  a3Itens: [
+    "La canción suena sola cuando abre el link.",
+    "La letra se ilumina palabra por palabra, al ritmo de lo que se está cantando.",
+    "Las fotos de ustedes pasan de fondo, cambiando con los momentos de la canción.",
+    "Un código QR para imprimir y poner en una tarjeta o en una caja de chocolates, si prefieres entregarlo en mano.",
+  ],
+  a4Cupom: undefined,
+  a4CupomBotao: undefined,
+  rodape: `${MARCA_ATIVA.nome} · una canción hecha de la historia de quien tú quieres`,
+};
+
+/** A copy do idioma NESTE deploy: o espanhol da Ballad tem a sua. */
+function copyDe(locale: IdiomaEmail) {
+  if (locale === "es" && MARCA_ATIVA.chave === "ballad") return COPY_ES_EUA;
+  return COPY[locale] ?? COPY.pt;
+}
+
 /** Qual e-mail da sequência: 2, 3 ou 4. */
 export type NumeroDaSequencia = 2 | 3 | 4;
 
@@ -200,7 +235,7 @@ export function assuntoSequencia(
   /** Tocou a prévia? Só muda o 2, e só no idioma que tem `a2Ouviu`. */
   ouviu?: boolean,
 ): string {
-  const C = COPY[locale] ?? COPY.pt;
+  const C = copyDe(locale);
   if (n === 2 && ouviu && C.a2Ouviu) return C.a2Ouviu.assunto(nome);
   return n === 2 ? C.a2Assunto(nome) : n === 3 ? C.a3Assunto(nome) : C.a4Assunto(nome);
 }
@@ -219,7 +254,7 @@ export function moldura(args: {
   link: string;
   linkDescadastro: string;
 }): string {
-  const C = COPY[args.locale] ?? COPY.pt;
+  const C = copyDe(args.locale);
   return `<!DOCTYPE html>
 <html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${args.preheader}</title></head>
 <body style="margin:0;padding:0;background:#faf5ee;">
@@ -277,7 +312,7 @@ export function emailSequencia(args: {
   ouviu?: boolean;
 }): string {
   const locale = args.locale ?? "pt";
-  const C = COPY[locale] ?? COPY.pt;
+  const C = copyDe(locale);
   const p = (t: string) =>
     `<p style="margin:0 0 14px;">${t}</p>`;
 

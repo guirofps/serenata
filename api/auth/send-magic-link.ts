@@ -288,7 +288,7 @@ export default async function handler(req: Req, res: Res) {
             : "Ou vá direto, sem entrar na conta:") +
         "\n" +
         presentes
-          .map((p) => `${p.titulo?.trim() || (ingles ? "Your song" : "Sua música")}: ${site}/editar/${p.tokenEdicao}`)
+          .map((p) => `${p.titulo?.trim() || (ingles ? "Your song" : locale === "es" && MARCA_ATIVA.chave === "ballad" ? "Tu canción" : "Sua música")}: ${site}/editar/${p.tokenEdicao}`)
           .join("\n")
       : "";
     const avisoUltimo =
@@ -297,9 +297,16 @@ export default async function handler(req: Req, res: Res) {
         : ingles
           ? "\n\nIf you asked for the link more than once, use the MOST RECENT email: as soon as you ask for a new one, the older ones stop working."
           : "\n\nSe você pediu o link mais de uma vez, use o e-mail MAIS RECENTE: ao pedir um novo, os anteriores param de funcionar.";
-    // O começo do texto puro sempre saiu em português, inclusive no espanhol.
-    // Fica assim de propósito; só o inglês ganha o seu.
-    const inicioTexto = ingles
+    // O começo do texto puro sempre saiu em português, inclusive no espanhol
+    // da Serenata. Fica assim de propósito lá; o inglês e o espanhol da
+    // Ballad (hispanos dos EUA) ganham o seu, com a marca do deploy.
+    const inicioTexto = locale === "es" && MARCA_ATIVA.chave === "ballad"
+      ? `Entra a tu cuenta de ${MARCA_ATIVA.nome}, sin contraseña:
+${actionLink}
+
+` +
+        `Este link es de un solo uso y expira en 60 minutos. Si no fuiste tú quien lo pidió, puedes ignorar este correo.`
+      : ingles
       ? `Sign in to your ${MARCA_ATIVA.nome} account, no password needed:\n${actionLink}\n\n` +
         `This link can only be used once and expires in 60 minutes. If you didn't ask for it, you can ignore this email.`
       : `Entrar na sua conta Serenata, sem senha:\n${actionLink}\n\n` +

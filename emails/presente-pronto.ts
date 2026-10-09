@@ -166,9 +166,40 @@ const COPY: Record<IdiomaEmail, {
   },
 };
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA, 09/10). A base espanhola de cima é
+// da Serenata: WhatsApp, a segunda música a R$ 28, voseo em três frases e o
+// vídeo em português. Aqui sai o que o inglês da Ballad tem, em `tú`: socorro
+// por e-mail, a linha da fatura do cartão, sem quadro e sem pacote em real.
+const COPY_ES_EUA: (typeof COPY)["es"] = {
+  ...COPY.es,
+  duasVersoes:
+    "Son DOS grabaciones de la misma letra. Escucha las dos en el link de arriba y elige la que va a sonar cuando abra el regalo.",
+  semAnexo:
+    "La canción no va adjunta en este correo: vive en estos links, y son tuyos para siempre. En el estado de cuenta de tu tarjeta, el cargo aparece como STRIPEONLI* BALLADGIFT.",
+  comPressa:
+    "Y este es el link <strong style=\"color:#2a1518;\">que le envías</strong>, por mensaje o como prefieras. El regalo ya funciona tal como está, aunque todavía no pongas la foto:",
+  ajuda: "¿No pudiste abrir tu canción? Responde este correo o escríbenos.",
+  ajudaBotao: MARCA_ATIVA.emailContato,
+  meuQuadroTexto:
+    "Ya lo pagaste. Es la letra y su foto en una hoja tamaño carta, con el código QR que reproduce la canción. Eliges la foto, armamos el PDF y lo mandas a imprimir.",
+  videoTitulo: "Tu video ya está pagado",
+  videoTexto:
+    "Se hace con las fotos de ustedes. Sube las fotos a la página, dale play para revisarlo y toca \"Generar mi video\".",
+  videoBotao: "SUBIR LAS FOTOS Y GENERAR",
+  outraMusica: "",
+  outraMusicaLink: "",
+  rodape: `${MARCA_ATIVA.nome} · una canción hecha de la historia de quien tú quieres`,
+};
+
+/** A copy do idioma NESTE deploy: o espanhol da Ballad tem a sua. */
+function copyDe(locale: IdiomaEmail | undefined) {
+  if (locale === "es" && MARCA_ATIVA.chave === "ballad") return COPY_ES_EUA;
+  return COPY[locale ?? "pt"] ?? COPY.pt;
+}
+
 /** O assunto, no idioma da venda. */
 export function assuntoPresentePronto(nome: string, locale: IdiomaEmail = "pt") {
-  return (COPY[locale] ?? COPY.pt).assunto(nome);
+  return copyDe(locale).assunto(nome);
 }
 
 export function emailPresentePronto(args: {
@@ -196,15 +227,16 @@ export function emailPresentePronto(args: {
    */
   variante?: "a" | "b";
 }): string {
-  const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
+  const C = copyDe(args.locale);
   const b = args.variante === "b" && (args.locale ?? "pt") === "pt";
   const { nome, titulo, linkEditor, linkPresente } = args;
   const jaTemQuadro = args.temQuadroPraMontar === true;
   const ingles = args.locale === "en";
   // Devolve null quando o número não está configurado, e aí o bloco de ajuda
   // não é renderizado: melhor sem canal do que com um link que não abre.
-  // Em inglês não existe WhatsApp: o socorro vira o e-mail de contato.
-  const linkAjuda = ingles
+  // Na Ballad não existe WhatsApp (em inglês nem em espanhol): o socorro vira
+  // o e-mail de contato.
+  const linkAjuda = ingles || MARCA_ATIVA.chave === "ballad"
     ? `mailto:${MARCA_ATIVA.emailContato}`
     : linkSuporte({
         locale: args.locale === "es" ? "es" : "pt",

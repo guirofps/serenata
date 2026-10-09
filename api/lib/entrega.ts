@@ -126,6 +126,9 @@ export async function mandarEmailDeEntrega(
     // cai no padrão da marca (pt na Serenata, en na Ballad Gift).
     const locale = normalizarLocale((q as { locale?: string } | null)?.locale);
     const ingles = locale === "en";
+    // O espanhol da Ballad (hispanos dos EUA) tem texto puro próprio, em
+    // espanhol e sem WhatsApp. O da Serenata segue como sempre foi.
+    const espanholDaBallad = locale === "es" && MARCA_ATIVA.chave === "ballad";
     // `.trim()`: o nome digitado no quiz costuma vir com espaço sobrando
     // ("Cardoso "), e o assunto saía com espaço duplo.
     const nome =
@@ -194,9 +197,17 @@ export async function mandarEmailDeEntrega(
         to: [args.email],
         subject: assuntoEmProducao(nome, locale),
         html: emailEmProducao({ nome, linkEditor, locale }),
-        // O texto puro sempre saiu em português, inclusive no espanhol. Fica
-        // assim de propósito; só o inglês ganha o seu.
-        text: ingles
+        // O texto puro sempre saiu em português, inclusive no espanhol da
+        // Serenata. Fica assim de propósito lá; o inglês e o espanhol da Ballad
+        // ganham o seu.
+        text: espanholDaBallad
+          ? `Recibimos tu pago. La canción de ${nome} se está grabando ahora mismo.
+
+Normalmente tarda menos de 5 minutos. Si nuestro proveedor tiene fila, puede tardar hasta 30. No tienes que hacer nada: en cuanto esté lista, te mandamos otro correo con todo.
+
+TU LINK (ya es tuyo y no cambia; la página avisa sola cuando entre el audio):
+${linkEditor}`
+          : ingles
           ? `We got your payment. ${nome}'s song is being recorded right now.\n\nIt usually takes less than 5 minutes. If our provider has a queue, it can take up to 30. You don't need to do anything: as soon as it's ready, we'll send you another email with everything.\n\nYOUR LINK (it's already yours and won't change; the page lets you know on its own when the audio is in):\n${linkEditor}`
           : `Recebemos o seu pagamento. A música de ${nome} está sendo gravada agora.\n\nNormalmente leva menos de 5 minutos. Se o nosso fornecedor estiver com fila, pode chegar a 30. Você não precisa fazer nada: assim que ficar pronta, mandamos outro e-mail com tudo.\n\nSEU LINK (ele já é seu e não muda, a página avisa sozinha quando o áudio entrar):\n${linkEditor}`,
       });
@@ -228,7 +239,7 @@ export async function mandarEmailDeEntrega(
       subject: assuntoPresentePronto(nome, locale),
       html: emailPresentePronto({
         nome,
-        titulo: args.musica.titulo ?? (ingles ? "Your song" : "Sua música"),
+        titulo: args.musica.titulo ?? (ingles ? "Your song" : espanholDaBallad ? "Tu canción" : "Sua música"),
         linkEditor,
         linkPresente,
         temQuadroPraMontar,
@@ -236,8 +247,35 @@ export async function mandarEmailDeEntrega(
         locale,
         variante: varianteEntrega,
       }),
-      // Em inglês: sem WhatsApp, e quadro e vídeo só entram se forem dela.
-      text: ingles
+      // Em inglês: sem WhatsApp, e quadro e vídeo só entram se forem dela. O
+      // espanhol da Ballad é o mesmo texto, em espanhol.
+      text: espanholDaBallad
+        ? `La canción de ${nome} ya está lista.
+
+TU LINK (arma el regalo y descarga el MP3):
+${linkEditor}
+
+EL LINK QUE LE ENVÍAS (por mensaje o como prefieras):
+${linkPresente}
+
+Son DOS grabaciones de la misma letra: escucha las dos en el primer link y elige la que va a sonar cuando abra el regalo.
+
+La canción no va adjunta en este correo: vive en estos links, y son tuyos para siempre.${
+            temQuadroPraMontar
+              ? `
+
+TU CUADRO: ya lo pagaste y solo falta armarlo. Está en el mismo link de arriba: ${linkEditor}?de=quadro`
+              : ""
+          }${
+            temVideoPraGerar
+              ? `
+
+TU VIDEO: ya está pagado. Sube las fotos a la página y toca "Generar mi video": ${linkEditor}#video`
+              : ""
+          }
+
+¿Necesitas ayuda? Responde este correo o escríbenos a ${MARCA_ATIVA.emailContato}.`
+        : ingles
         ? `${nome}'s song is ready.\n\nYOUR LINK (set up the gift and download the MP3):\n${linkEditor}\n\nTHE LINK YOU SEND TO THEM (by text message or however you like):\n${linkPresente}\n\nThere are TWO recordings of the same lyrics: listen to both at the first link and pick the one that will play for them.\n\nThe song isn't attached to this email: it lives at these links, and they're yours forever.${
             temQuadroPraMontar
               ? `\n\nYOUR PRINT: you've already paid for it, and it just needs to be set up. It's at the same link above: ${linkEditor}?de=quadro`
