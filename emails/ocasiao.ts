@@ -54,7 +54,10 @@ const COPY: Record<
     titulo: (filho) => `E a música de <em style="color:#7d2b3a;">${filho}</em>?`,
     intro: (nomeMusica, ocasiao, dias) =>
       `Quando você fez a música de ${nomeMusica}, escreveu esse nome pra gente. ` +
-      `O ${ocasiao} é daqui a ${dias} dias.`,
+      // "Filho é criança pra sempre" (09/10): o campo `filhos` não diz idade, e o Roberto
+      // recebeu "Betinho ainda não tem uma música" pro Dia das Crianças com o Betinho
+      // de 42 anos. A frase serve pro bebê e pro filho barbado, sem adivinhar idade.
+      `O ${ocasiao} é daqui a ${dias} dias, e filho é criança pra sempre, tenha a idade que tiver.`,
     proposta: (filho) =>
       `Uma música com o nome de ${filho} cantado, feita da história de vocês. ` +
       `Não é playlist nem trilha pronta: é uma canção que só existe por causa de uma pessoa.`,
@@ -71,7 +74,7 @@ const COPY: Record<
     titulo: (filho) => `¿Y la canción de <em style="color:#7d2b3a;">${filho}</em>?`,
     intro: (nomeMusica, ocasiao, dias) =>
       `Cuando hiciste la canción de ${nomeMusica}, nos escribiste ese nombre. ` +
-      `El ${ocasiao} es en ${dias} días.`,
+      `El ${ocasiao} es en ${dias} días, y un hijo es niño para siempre, tenga la edad que tenga.`,
     proposta: (filho) =>
       `Una canción con el nombre de ${filho} cantado, hecha de la historia de ustedes. ` +
       `No es una playlist ni una pista lista: es una canción que existe por una sola persona.`,
