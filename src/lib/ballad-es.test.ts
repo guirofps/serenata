@@ -256,9 +256,15 @@ describe("na Ballad, o /es é dos hispanos dos EUA", () => {
     expect(JSON.stringify(m.seo.linksDeIdioma("es"))).not.toContain("serenatagift");
   });
 
-  it("os exemplos nascem vazios, e o que é exemplo da Serenata não vaza", () => {
+  it("os exemplos nascem vazios, e o que é exemplo da Serenata não vaza", async () => {
     expect(m.exemplos.exemplosEsUsProntos()).toEqual([]);
-    expect(m.exemplos.audioDoExemploEsUs("es-us-esposa")).not.toContain("ouwijepgctgtfzrrwpvt");
+    // O áudio sai do bucket do PRÓPRIO deploy (`VITE_SUPABASE_URL`, que na Ballad é
+    // o banco dela), nunca de um endereço da Serenata escrito no código. Comparar
+    // com o host fixo dependeria do `.env.local` de quem roda o teste.
+    const url = m.exemplos.audioDoExemploEsUs("es-us-esposa");
+    const { audioDoExemplo } = await import("./exemplos-en");
+    expect(url).toBe(audioDoExemplo("es-us-esposa"));
+    expect(url).toContain("/storage/v1/object/public/exemplos/es-us-esposa.mp3");
   });
 
   describe("os e-mails em espanhol", () => {
