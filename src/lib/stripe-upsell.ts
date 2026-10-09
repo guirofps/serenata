@@ -55,8 +55,15 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
     const { data: jaTem } = await db.from("videos").select("id").eq("musica_id", m.id).limit(1);
     if (jaTem?.length) return { ok: false, erro: "ja-tem" };
 
-    const { data: q } = await db.from("quiz_responses").select("email").eq("id", m.quiz_response_id).maybeSingle();
+    const { data: q } = await db
+      .from("quiz_responses")
+      .select("email, locale")
+      .eq("id", m.quiz_response_id)
+      .maybeSingle();
     const email = String(q?.email ?? "").trim().toLowerCase() || undefined;
+    // O idioma da compra, da linha do quiz (ver `stripe-checkout.ts`): quem
+    // comprou pelo `/es` vê o caixa do vídeo em espanhol também.
+    const espanhol = q?.locale === "es";
     const centavos = Math.round(oferta.precoUsd * 100);
 
     try {
@@ -69,7 +76,7 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
             // Ver `stripe-checkout.ts`: o nome e a cor da Ballad, não os da conta.
             branding_settings: { display_name: MARCA_ATIVA.nome, button_color: "#bd404d" },
             mode: "payment",
-            locale: "en",
+            locale: espanhol ? "es-419" : "en",
             // Sem redirecionar: a folha fica no editor, e o `onComplete` do
             // navegador chama a confirmação. O webhook confirma do mesmo jeito
             // se a pessoa fechar a aba no meio.
@@ -80,11 +87,17 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
                 price_data: {
                   currency: "usd",
                   unit_amount: centavos,
-                  product_data: {
-                    name: m.titulo ? `Gift video: ${m.titulo}` : "Your gift video",
-                    description:
-                      "Your photos moving to the rhythm of your song, with the lyrics lighting up word by word. In HD, to download and share.",
-                  },
+                  product_data: espanhol
+                    ? {
+                        name: m.titulo ? `Video regalo: ${m.titulo}` : "Tu video regalo",
+                        description:
+                          "Sus fotos al ritmo de tu canción, con la letra iluminándose palabra por palabra. En HD, para descargar y compartir.",
+                      }
+                    : {
+                        name: m.titulo ? `Gift video: ${m.titulo}` : "Your gift video",
+                        description:
+                          "Your photos moving to the rhythm of your song, with the lyrics lighting up word by word. In HD, to download and share.",
+                      },
                 },
               },
             ],
@@ -97,8 +110,9 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
             },
           },
           // Reabrir a folha devolve a MESMA sessão (idempotência de 24h do
-          // Stripe). Mexeu no corpo, sobe a versão da chave.
-          { idempotencia: `ballad-video:v2:${m.id}:${centavos}` },
+          // Stripe). Mexeu no corpo, sobe a versão da chave (v3 em 09/10: o
+          // idioma do caixa e do produto passou a seguir o da compra).
+          { idempotencia: `ballad-video:v3:${m.id}:${centavos}` },
         );
       let sessao: { id: string; client_secret: string } | null = null;
       for (let tentativa = 0; !sessao; tentativa++) {

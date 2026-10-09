@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n";
+import { ehBallad } from "./marca-identidade.js";
 
 // O VALOR QUE VAI PROS ANÚNCIOS (08/10).
 //
@@ -23,7 +24,8 @@ import type { Locale } from "@/lib/i18n";
  */
 function moedaBate(locale: Locale, gateway: string | null | undefined): boolean {
   const g = String(gateway ?? "");
-  if (locale === "en") return g === "stripe";
+  // Na Ballad o espanhol paga pelo MESMO Stripe do inglês, em dólar.
+  if (locale === "en" || (locale === "es" && ehBallad())) return g === "stripe";
   if (locale === "pt") return g === "asaas" || g === "woovi" || g === "perfectpay" || g === "cakto";
   return false;
 }
@@ -49,7 +51,8 @@ export function valorDaCompra(args: {
  * No português e no inglês quem cobra é o servidor, pelo braço COBRÁVEL e com
  * o cupom aplicado lá (`criar-pix.ts`, `stripe-checkout.ts`). No espanhol quem
  * cobra é o link da Perfect Pay do braço que a tela mostrou, então vale o
- * plano da tela.
+ * plano da tela. Na BALLAD o espanhol é o caso do inglês (Stripe, braço
+ * cobrável): o link da Perfect Pay não existe lá.
  */
 export function valorDoCheckout(args: {
   locale: Locale;
@@ -62,7 +65,7 @@ export function valorDoCheckout(args: {
   /** O preço final com o desconto do convite, quando há. */
   comConviteCentavos?: number | null;
 }): number {
-  if (args.locale === "es") return args.valorDaTela;
+  if (args.locale === "es" && !ehBallad()) return args.valorDaTela;
   if (args.comCupomCentavos && args.comCupomCentavos > 0) return args.comCupomCentavos / 100;
   if (args.comConviteCentavos && args.comConviteCentavos > 0) return args.comConviteCentavos / 100;
   return args.valorCobravel;

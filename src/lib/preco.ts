@@ -1,4 +1,5 @@
-import { type Locale, LOCALE_PADRAO, MOEDA } from "@/lib/i18n";
+import { type Locale, LOCALE_PADRAO, MOEDA, emDolarExplicito } from "@/lib/i18n";
+import { ehBallad } from "@/lib/marca-identidade";
 import {
   EXPERIMENTOS,
   type Plano,
@@ -170,7 +171,34 @@ export const PLANOS: Record<Locale, Record<string, Plano>> = {
  * o que impede o "lê 19, paga 24". O espanhol segue fora, no catálogo.
  */
 function usaConfigViva(locale: Locale): boolean {
-  return locale === "pt" || locale === "en";
+  return locale === "pt" || locale === "en" || espanholDaBallad(locale);
+}
+
+// ── O ESPANHOL DA BALLAD COBRA O PREÇO DO INGLÊS ─────────────────
+//
+// No balladgift.com o `/es` (hispanos dos EUA) paga pelo MESMO Stripe, em
+// dólar, e o servidor cobra pela MESMA linha `preco` do banco da Ballad
+// (`stripe-checkout.ts` não olha idioma). Então a tela em espanhol lê o plano
+// do inglês: config viva, braço sorteado e catálogo. `PLANOS.es` é o produto
+// da Serenata (US$ 9,90 na Perfect Pay) e nunca pode aparecer lá.
+//
+// Só o RÓTULO muda: "US$ 19" e não "$19". Numa tela em espanhol o "$" sozinho
+// é peso mexicano pra boa parte de quem lê, e o número que a pessoa vê tem
+// que ser, sem conversão mental, o que o Stripe cobra.
+function espanholDaBallad(locale: Locale): boolean {
+  return locale === "es" && ehBallad();
+}
+
+/** O catálogo em código do idioma, com o espanhol da Ballad lendo o do inglês. */
+function catalogoDe(locale: Locale): Record<string, Plano> {
+  if (espanholDaBallad(locale)) return PLANOS.en;
+  return PLANOS[locale] ?? PLANOS.pt;
+}
+
+/** O plano como a tela do idioma escreve. Só o espanhol da Ballad muda. */
+function rotulado(locale: Locale, p: Plano): Plano {
+  if (!espanholDaBallad(locale)) return p;
+  return { ...p, texto: emDolarExplicito(p.texto), ancora: emDolarExplicito(p.ancora) };
 }
 
 function experimentoPrecoDaConfig(): ExperimentoConfigPublica | undefined {
@@ -238,20 +266,19 @@ export function planoControle(locale: Locale = LOCALE_PADRAO): Plano {
   if (usaConfigViva(locale)) {
     const nomeControle = experimentoPrecoDaConfig()?.variantes[0]?.nome;
     const plano = nomeControle ? planosDaConfig()?.[nomeControle] : undefined;
-    if (plano) return plano;
+    if (plano) return rotulado(locale, plano);
   }
-  const doIdioma = PLANOS[locale] ?? PLANOS.pt;
-  return doIdioma.A;
+  return rotulado(locale, catalogoDe(locale).A);
 }
 
 /** O plano de uma variante nomeada. Desconhecida cai no controle. */
 export function planoDe(locale: Locale, variante: string): Plano {
   if (usaConfigViva(locale)) {
     const daConfig = planosDaConfig();
-    if (daConfig) return daConfig[variante] ?? planoControle(locale);
+    if (daConfig) return daConfig[variante] ? rotulado(locale, daConfig[variante]) : planoControle(locale);
   }
-  const doIdioma = PLANOS[locale] ?? PLANOS.pt;
-  return doIdioma[variante] ?? doIdioma.A;
+  const doIdioma = catalogoDe(locale);
+  return rotulado(locale, doIdioma[variante] ?? doIdioma.A);
 }
 
 /**
@@ -281,7 +308,7 @@ export function variantesComPlano(locale: Locale): string[] {
     const daConfig = planosDaConfig();
     if (daConfig) return Object.keys(daConfig);
   }
-  const planos = PLANOS[locale] ?? PLANOS.pt;
+  const planos = catalogoDe(locale);
   const exp = EXPERIMENTOS.find((e) => e.id === EXP_PRECO);
   if (!exp) return ["A"];
   return exp.variantes.filter((v) => planos[v]);

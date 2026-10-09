@@ -15,6 +15,7 @@ import { marcarSessaoGasta, getOrCreateSessionId, getStoredAttribution } from "@
 import { trackEvent } from "@/lib/track";
 import { varianteDe } from "@/lib/experimentos";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
+import { ehBallad } from "@/lib/marca-identidade";
 import { Logo } from "@/components/marca/Logo";
 import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
 import { AtalhoOutraMusica } from "@/components/conta/AtalhoOutraMusica";
@@ -165,6 +166,21 @@ const COPY = {
   },
 } as const;
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA). O mesmo `tú` de cima, com o que é
+// do PAÍS trocado: sem botão de WhatsApp (a Ballad não tem, ver `ehBallad`), o
+// link vai "por mensaje", e o e-mail a abrir é o da marca do deploy.
+const COPY_ES_EUA = {
+  ...COPY.es,
+  entregaPorLink:
+    "Tu canción no llega sola: está en este botón. No mandamos archivos por mensaje ni adjuntos por correo.",
+  enviarZap: null,
+  passos: [
+    `Abre el correo de ${MARCA.nome} (revisa también el spam).`,
+    COPY.es.passos[1],
+    COPY.es.passos[2],
+  ],
+};
+
 export function Obrigado({
   locale = "pt",
   email,
@@ -177,7 +193,7 @@ export function Obrigado({
   /** O `session_id` que o Stripe devolve no `return_url` (Ballad Gift). */
   sessaoStripe?: string;
 }) {
-  const C = COPY[locale] ?? COPY.pt;
+  const C = locale === "es" && ehBallad() ? COPY_ES_EUA : (COPY[locale] ?? COPY.pt);
   // Ballad Gift: o Stripe pode trazer a pessoa de volta ANTES do webhook. A
   // confirmação aqui só adianta a entrega (a trava no banco impede entregar
   // duas vezes); quem mostra o botão continua sendo `sessaoJaPagou`, abaixo.
@@ -273,7 +289,9 @@ export function Obrigado({
     const reserva =
       locale === "pt"
         ? centavosComCupom(Math.round((Number(meuPlanoCobravel("pt").valor) || 0) * 100), cupom) / 100
-        : locale === "en"
+        : // Ballad, em inglês OU espanhol: o Stripe cobra o braço cobrável da
+          // linha `preco` do banco dela, a mesma nos dois idiomas.
+          locale === "en" || ehBallad()
           ? Number(meuPlanoCobravel("en").valor) || 0
           : // Espanhol: o link da Perfect Pay do braço da tela (o cupom é produto de lá).
             meuPlano(locale, { temCupom: Boolean(cupom) }).valor;
@@ -659,7 +677,9 @@ export function Obrigado({
             atendente recebe "oi" e gasta três mensagens perguntando quem é;
             assim ele já procura e responde. É esse trabalho que o botão
             existe pra poupar. */}
-        {locale !== "en" && (() => {
+        {/* Pela MARCA, não pelo idioma: o espanhol da Ballad também não tem
+            WhatsApp nenhum. */}
+        {!ehBallad() && (() => {
           const zap = linkSuporte({
             locale: locale === "es" ? "es" : "pt",
             motivo: "receber",
@@ -701,8 +721,8 @@ export function Obrigado({
             visível pra quem já sabe que quer outra, que é o caso de quem
             comprou pensando em duas pessoas. */}
         {/* A segunda música (e o pacote barato dela) é produto brasileiro,
-            em PIX. Na Ballad Gift não existe ainda. */}
-        {locale !== "en" && (
+            em PIX. Na Ballad Gift não existe ainda, em idioma nenhum. */}
+        {!ehBallad() && (
         <div className="mt-10 text-center">
           <ConviteOutraMusica
             locale={locale === "es" ? "es" : "pt"}
