@@ -2,6 +2,8 @@
 <!--
   Ballad Gift: só as páginas públicas. Sem hreflang com a Serenata de
   propósito: é outro site, outra marca e outro preço, não versão de idioma.
+  O espanhol (/es, hispanos dos EUA, 09/10) é versão de idioma da PRÓPRIA
+  Ballad: o par en-US/es-US vai no <head> de cada página (`linksDeIdioma`).
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
@@ -13,6 +15,16 @@
     <loc>https://www.balladgift.com/criar</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.balladgift.com/es</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://www.balladgift.com/es/criar</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://www.balladgift.com/termos</loc>

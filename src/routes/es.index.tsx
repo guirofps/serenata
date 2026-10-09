@@ -12,7 +12,9 @@ import { Entregavel } from "@/components/landing/Entregavel";
 import { linksDeIdioma, METATAGS_COMPARTILHAR, dadosEstruturados } from "@/lib/seo";
 import { useProfundidadeRolagem } from "@/lib/rolagem";
 import { OfereceIdioma, lembrarIdioma } from "@/components/OfereceIdioma";
-import { MOEDA } from "@/lib/i18n";
+import { moeda } from "@/lib/i18n";
+import { ehBallad } from "@/lib/marca-identidade";
+import { exemplosEsUsProntos } from "@/lib/exemplos-es-us";
 import { ZapFlutuante } from "@/components/marca/ZapFlutuante";
 import {
   ArrowRight, Menu, X, Check, ChevronDown, Sparkles, Gift, Clock, Link2,
@@ -50,19 +52,42 @@ import {
 // O "tú" fica: é correto na Colômbia, no Peru e no Chile. Só a Argentina usa
 // "vos", e trocar o tratamento inteiro por causa de um país quebraria os
 // outros três. Onde der, a frase é escrita sem tratamento nenhum.
+//
+// ── NA BALLAD GIFT, ESTA É A HOME DOS HISPANOS DOS EUA (09/10) ───
+//
+// O mesmo arquivo serve o `/es` do balladgift.com. O que muda lá, e só lá
+// (`BALLAD`, decidido no build pela `VITE_MARCA`):
+//   - tudo em `tú` (os textos em voseo daqui são da Serenata argentina);
+//   - nada de WhatsApp: o link vai "por mensaje", e o botão flutuante de
+//     suporte não existe (lá o suporte é só e-mail);
+//   - o preço é o do Stripe em dólar (`moeda`), o mesmo do inglês;
+//   - os exemplos são os da própria Ballad (`exemplos-es-us.ts`): sem
+//     nenhum gerado, a vitrine e os links de exemplo somem em vez de abrir
+//     uma página da Serenata que dá 404 no banco de lá;
+//   - rodapé com o e-mail da marca e os termos e a privacidade.
+const BALLAD = ehBallad();
+
+// O presente de exemplo dos links "abrir un regalo de ejemplo". Na Ballad, o
+// primeiro exemplo espanhol gerado pelo funil dela; sem nenhum, o link some.
+const TOKEN_EXEMPLO = BALLAD ? exemplosEsUsProntos()[0]?.token : "exesmama651ba4fe";
 
 export const Route = createFileRoute("/es/")({
   component: HomeEs,
   head: () => ({
     meta: [
-      { title: "Una canción hecha de la historia de quien vos querés | Serenata" },
+      {
+        title: BALLAD
+          ? `Una canción hecha de la historia de quien tú quieres | ${MARCA.nome}`
+          : "Una canción hecha de la historia de quien vos querés | Serenata",
+      },
       {
         name: "description",
-        content:
-          "Contá su historia y recibí la letra al instante, gratis. Después la canción cantada y una página regalo con link y código QR para enviarla.",
+        content: BALLAD
+          ? "Cuenta su historia y recibe la letra al instante, gratis. Después, la canción cantada y una página regalo con link y código QR para enviarla."
+          : "Contá su historia y recibí la letra al instante, gratis. Después la canción cantada y una página regalo con link y código QR para enviarla.",
       },
       { property: "og:title", content: "Una canción hecha de su historia" },
-      { property: "og:locale", content: "es_MX" },
+      { property: "og:locale", content: BALLAD ? "es_US" : "es_MX" },
       { property: "og:type", content: "website" },
       ...METATAGS_COMPARTILHAR,
     ],
@@ -74,7 +99,7 @@ export const Route = createFileRoute("/es/")({
 const PASOS = [
   {
     n: "01",
-    titulo: "Contá la historia",
+    titulo: BALLAD ? "Cuenta la historia" : "Contá la historia",
     texto:
       "Quién es la persona, qué han vivido, ese detalle que solo ustedes dos saben. Puedes escribirlo o decirlo hablando.",
   },
@@ -108,14 +133,16 @@ const BENEFICIOS = [
   {
     icone: Clock,
     titulo: "No necesitas saber nada",
-    texto:
-      "No necesitás escribir lindo, ni cantar, ni tener idea. Contás la historia a tu manera. Hasta podés hablar en vez de escribir.",
+    texto: BALLAD
+      ? "No necesitas escribir bonito, ni cantar, ni saber de música. Cuentas la historia a tu manera. Hasta puedes hablar en vez de escribir."
+      : "No necesitás escribir lindo, ni cantar, ni tener idea. Contás la historia a tu manera. Hasta podés hablar en vez de escribir.",
   },
   {
     icone: Link2,
     titulo: "Fácil de entregar",
-    texto:
-      "Recibes un link con una página lista. La mandas por WhatsApp y se abre con la canción sonando y la letra encendiéndose.",
+    texto: BALLAD
+      ? "Recibes un link con una página lista. La mandas por mensaje y se abre con la canción sonando y la letra iluminándose."
+      : "Recibes un link con una página lista. La mandas por WhatsApp y se abre con la canción sonando y la letra encendiéndose.",
   },
 ];
 
@@ -127,6 +154,40 @@ const INCLUYE = [
   "La página regalo con link para enviar",
   "El archivo MP3 para guardar y descargar",
   "Código QR para imprimir y pegar en un regalo físico",
+];
+
+// As perguntas da Ballad (hispanos dos EUA): `tú`, sem WhatsApp, e duas que
+// só existem lá: a história em inglês e a cobrança no cartão em dólar (quem
+// não reconhece a cobrança abre contestação; ver `oferta-es-eua.ts`).
+const PREGUNTAS_EUA = [
+  {
+    q: "¿Y si la letra no queda bien?",
+    a: "La lees antes de pagar nada. Si no te gusta, puedes pedir que se reescriba gratis. Y si aun así no es la cara de la persona, simplemente no sigues. No pagas nada por la letra.",
+  },
+  {
+    q: "¿Cuánto tarda?",
+    a: "La letra queda lista en segundos. La canción grabada tarda unos 2 minutos. No tienes que esperar frente a la pantalla: si te vas, te avisamos por correo cuando esté lista.",
+  },
+  {
+    q: "¿La canción es realmente solo mía?",
+    a: "Sí. Se compone y se graba desde cero a partir de la historia que contaste. No es catálogo, no es una plantilla con el nombre cambiado. Nadie más recibe esa canción.",
+  },
+  {
+    q: "¿Necesito escribir bonito para que quede bien?",
+    a: "No. Mientras más simple y verdadero, mejor. Un detalle chiquito (el apodo, la comida del domingo, su manía) vale más que un texto bonito. Puedes hablar en vez de escribir, y si te sale mejor en inglés o en spanglish, cuéntala así: la letra sale en español.",
+  },
+  {
+    q: "¿Cómo se lo entrego a la persona?",
+    a: "Recibes un link con una página lista: la canción sonando, la letra iluminándose al ritmo y su nombre en la portada. Se la mandas por mensaje, o imprimes el código QR y lo pones en una tarjeta o en la caja del regalo. Quien la entrega eres tú.",
+  },
+  {
+    q: "¿Cómo se paga?",
+    a: "Con tarjeta, Apple Pay o Google Pay, en dólares y en un solo pago, sin suscripción. En tu estado de cuenta aparece como STRIPEONLI* BALLADGIFT.",
+  },
+  {
+    q: "¿Y si no le gusta?",
+    a: "Tú eres quien conoce a la persona. Por eso la letra va primero: la lees y decides si eso es ella. Es el mismo cuidado de elegir un regalo, solo que aquí lo revisas antes.",
+  },
 ];
 
 const PREGUNTAS = [
@@ -162,7 +223,11 @@ function HomeEs() {
   const [menuAberto, setMenuAberto] = useState(false);
   const [faqAberta, setFaqAberta] = useState<number | null>(0);
   const heroRef = useRef<HTMLElement>(null);
-  const preco = MOEDA.es;
+  const preco = moeda("es");
+  const perguntas = BALLAD ? PREGUNTAS_EUA : PREGUNTAS;
+  // Sem exemplo gerado na Ballad, a vitrine some: o link "Ver un ejemplo"
+  // apontaria pra uma âncora que não existe.
+  const temExemplos = !BALLAD || exemplosEsUsProntos().length > 0;
 
   return (
     <div className="min-h-screen bg-[var(--papel)] text-[var(--tinta)]" style={TEMA_CLARO}>
@@ -178,9 +243,11 @@ function HomeEs() {
             <a href="#como-funciona" className="transition-colors hover:text-[var(--tinta)]">
               Cómo funciona
             </a>
-            <a href="#ejemplo" className="transition-colors hover:text-[var(--tinta)]">
-              Ver un ejemplo
-            </a>
+            {temExemplos && (
+              <a href="#ejemplo" className="transition-colors hover:text-[var(--tinta)]">
+                Ver un ejemplo
+              </a>
+            )}
             <Link to="/es/login" className="transition-colors hover:text-[var(--tinta)]">
               Entrar
             </Link>
@@ -211,9 +278,11 @@ function HomeEs() {
             <a href="#como-funciona" className="block py-2 text-sm" onClick={() => setMenuAberto(false)}>
               Cómo funciona
             </a>
-            <a href="#ejemplo" className="block py-2 text-sm" onClick={() => setMenuAberto(false)}>
-              Ver un ejemplo
-            </a>
+            {temExemplos && (
+              <a href="#ejemplo" className="block py-2 text-sm" onClick={() => setMenuAberto(false)}>
+                Ver un ejemplo
+              </a>
+            )}
             <Link to="/es/login" className="block py-2 text-sm" onClick={() => setMenuAberto(false)}>
               Entrar
             </Link>
@@ -325,7 +394,7 @@ function HomeEs() {
       </section>
 
       {/* ── 02.5 · PARA QUIÉN ES (perene, posición noble) ───── */}
-      <ProQuemE exemploToken="exesmama651ba4fe" locale="es" />
+      <ProQuemE exemploToken={TOKEN_EXEMPLO} locale="es" />
 
       {/* ── 03 · DOLOR ──────────────────────────────────────── */}
       <section style={{ paddingBlock: "var(--secao)" }}>
@@ -417,7 +486,7 @@ function HomeEs() {
       </section>
 
       {/* ── 05.5 · EL ENTREGABLE (la página regalo) ─────────── */}
-      <Entregavel exemploToken="exesmama651ba4fe" locale="es" />
+      <Entregavel exemploToken={TOKEN_EXEMPLO} locale="es" />
 
       {/* ── 06 · EJEMPLOS REALES (tocables) ─────────────────── */}
       <ExemplosEs />
@@ -525,7 +594,7 @@ function HomeEs() {
             Preguntas
           </h2>
           <div className="mt-10 divide-y divide-[var(--tinta-fraca)]/30 border-y border-[var(--tinta-fraca)]/30">
-            {PREGUNTAS.map((p, i) => (
+            {perguntas.map((p, i) => (
               <div key={p.q}>
                 <button
                   onClick={() => setFaqAberta(faqAberta === i ? null : i)}
@@ -577,15 +646,24 @@ function HomeEs() {
 
       <footer className="border-t border-[var(--tinta-fraca)]/30 py-10 text-center">
         <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
-          {MARCA.nome} · <a href="mailto:contato@serenatagift.com" className="underline underline-offset-4">contato@serenatagift.com</a>
+          {MARCA.nome} · <a href={`mailto:${MARCA.emailContato}`} className="underline underline-offset-4">{MARCA.emailContato}</a>
         </p>
+        {/* Na Ballad, os termos e a privacidade dela (as mesmas páginas do
+            inglês: é a mesma empresa e o mesmo contrato). */}
+        {BALLAD && (
+          <p className="mt-2 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
+            <Link to="/termos" className="underline underline-offset-4">Términos</Link>
+            {" · "}
+            <Link to="/privacidade" className="underline underline-offset-4">Privacidad</Link>
+          </p>
+        )}
       </footer>
 
       {/* O SOCORRO DE QUEM JÁ COMPROU. Fica na home e NUNCA no /criar: as
           campanhas mandam direto pro quiz, então a home não está no caminho
           de quem ainda vai comprar, e está no caminho de quem já comprou e
           veio procurar ajuda. */}
-      <ZapFlutuante locale="es" />
+      {!BALLAD && <ZapFlutuante locale="es" />}
 
       <BarraCTA alvoRef={heroRef} locale="es" />
     </div>

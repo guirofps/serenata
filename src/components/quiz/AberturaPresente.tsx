@@ -7,7 +7,7 @@ import { ProvaImediata } from "@/components/landing/Secoes";
 import { Button } from "@/components/ui/button";
 import { CORES, FONTES, TEMA_CLARO } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
-import { ehEspanha, ehArgentina } from "@/lib/mercado-es";
+import { ehEspanha, ehArgentina, ehEua } from "@/lib/mercado-es";
 import { trackEvent } from "@/lib/track";
 import { exemploEn, audioDoExemplo } from "@/lib/exemplos-en";
 import type { Tema } from "@/lib/tema";
@@ -247,6 +247,16 @@ const COPY_GOSPEL_EN: (typeof COPY)["en"] = {
   versos: EXEMPLO_CRISTAO_EN?.versos ?? [],
 };
 
+// O ESPANHOL DA BALLAD (hispanos dos EUA, 09/10). `tú` no título e na promessa
+// (o "querés" de cima é argentino), e a tela é a do INGLÊS da Ballad: o vídeo
+// de reações no lugar do cartão (decisão do dono pra marca, 03/10). Sem
+// cartão, nenhum exemplo da Serenata (Ceci, a foto, os versos) aparece lá.
+const COPY_ES_EUA: (typeof COPY)["es"] = {
+  ...COPY.es,
+  tituloDepois: " de quien tú quieres",
+  explicacao: "Tú cuentas la historia. La canción queda lista en 1 minuto, gratis.",
+};
+
 // ── O EXEMPLO SEGUE O MERCADO, e isso é um buraco que eu deixei ──
 //
 // O interruptor de `mercado-es.ts` já trocava prompt e gêneros, mas esta tela
@@ -319,13 +329,18 @@ export function AberturaPresente({
   aoEscolher?: (valor: string) => void;
 }) {
   const gospel = tema === "gospel" && (locale === "pt" || locale === "en");
+  const espanholDaBallad = locale === "es" && ehEua();
+  // O vídeo de reações no lugar do cartão: o inglês e o espanhol da Ballad.
+  const comVideo = (locale === "en" || espanholDaBallad) && !gospel;
   // O espanhol troca o EXEMPLO conforme o mercado que a mídia está comprando.
   // O resto da copy (título, promessa, CTA) serve os dois: a diferença entre
   // Espanha e LatAm mora no exemplo, no prompt e nos gêneros, não na promessa.
   const base = COPY[locale] ?? COPY.pt;
   const C = gospel
     ? locale === "en" ? COPY_GOSPEL_EN : COPY_GOSPEL
-    : locale === "es"
+    : espanholDaBallad
+      ? COPY_ES_EUA
+      : locale === "es"
       ? { ...base, ...EXEMPLO_ES[ehEspanha() ? "espanha" : ehArgentina() ? "argentina" : "latam"] }
       : locale === "en" && EXEMPLO_EN
         ? { ...base, nome: EXEMPLO_EN.nome, foto: EXEMPLO_EN.capa, versos: EXEMPLO_EN.versos }
@@ -467,7 +482,7 @@ export function AberturaPresente({
           (0 plays em 139 visitas pagas). O mesmo vídeo da home, sem texto na
           tela, sem som e em loop. Vale pros três braços do `abertura_en`; o
           C mantém o botão "Hear Emily's song", por isso o <audio> vem junto. */}
-      {locale === "en" && !gospel ? (
+      {comVideo ? (
         <div className="mt-5 w-full">
           <div className="relative overflow-hidden rounded-[18px] border" style={{ borderColor: "rgba(42,21,24,0.12)", boxShadow: "0 24px 50px -22px rgba(42,21,24,0.55)" }}>
             <video
@@ -481,7 +496,7 @@ export function AberturaPresente({
               className="block aspect-video w-full object-cover"
             />
             <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-white">
-              real reactions
+              {espanholDaBallad ? "reacciones reales" : "real reactions"}
             </span>
           </div>
           <audio

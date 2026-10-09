@@ -1,6 +1,7 @@
 ﻿import { FONTES } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
 import { exemploEn } from "@/lib/exemplos-en";
+import { ehBallad } from "@/lib/marca-identidade";
 
 // O exemplo em inglês é o do pai, igual ao português. Os versos são os que
 // o funil da Ballad gerou (`exemplos-en.ts`); vazios até gerar.
@@ -98,6 +99,18 @@ const T: Record<
   },
 };
 
+// O espanhol da Ballad (hispanos dos EUA): o mesmo bloco, sem WhatsApp. O link
+// vai "por mensaje", como no inglês de lá, e o QR vai na caixa do presente.
+const T_ES_EUA: (typeof T)["es"] = {
+  ...T.es,
+  sub: "Los demás mandan un archivo de audio que se pierde en el chat. Aquí, quien lo recibe abre un link y vive un momento: la canción, la letra iluminándose, las fotos de ustedes y su nombre en la portada.",
+  itens: T.es.itens.map((i) =>
+    i.icone === QrCode
+      ? { ...i, texto: "Lo mandas por mensaje, o imprimes el QR y lo pones en una tarjeta o en la caja del regalo." }
+      : i,
+  ),
+};
+
 export function Entregavel({
   exemploToken,
   locale = "pt",
@@ -105,7 +118,7 @@ export function Entregavel({
   exemploToken?: string;
   locale?: Locale;
 }) {
-  const t = T[locale] ?? T.pt;
+  const t = locale === "es" && ehBallad() ? T_ES_EUA : (T[locale] ?? T.pt);
   const ITENS = t.itens;
   return (
     // A NOITE no meio do papel. É a narrativa da marca acontecendo na home:

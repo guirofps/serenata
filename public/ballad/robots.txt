@@ -8,6 +8,9 @@
 User-agent: *
 Allow: /$
 Allow: /criar
+# O espanhol dos hispanos dos EUA (09/10): a home e o quiz, como no inglês.
+Allow: /es$
+Allow: /es/criar
 Allow: /termos
 Allow: /privacidade
 
@@ -20,6 +23,8 @@ Disallow: /recuperar
 Disallow: /login
 Disallow: /auth/
 Disallow: /obrigado
+Disallow: /es/gracias
+Disallow: /es/login
 Disallow: /descadastrar
 Disallow: /api/
 

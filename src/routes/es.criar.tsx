@@ -2,6 +2,7 @@
 import { linksDeIdioma } from "@/lib/seo";
 import { z } from "zod";
 import { Quiz } from "@/components/quiz/Quiz";
+import { MARCA } from "@/lib/marca";
 
 // El quiz en ESPAÑOL. Mismo componente, mismo banco, misma sesión — solo
 // cambia el idioma. Ver `components/quiz/Quiz.tsx`.
@@ -20,7 +21,9 @@ export const Route = createFileRoute("/es/criar")({
   // historial y al compartir el link, justo en la pantalla donde la persona
   // decide si el sitio es de fiar.
   head: () => ({
-    meta: [{ title: "Crea tu canción personalizada | Serenata" }],
+    // A marca do deploy: no `/es` da Ballad (hispanos dos EUA) a aba dizia
+    // "Serenata", que é outro site.
+    meta: [{ title: `Crea tu canción personalizada | ${MARCA.nome}` }],
     links: linksDeIdioma("es", "criar"),
   }),
   component: function CriarEs() {
