@@ -146,7 +146,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const { data: pendentes } = await consulta
       // Os dois gateways de PIX. Ver o comentario dentro do laco.
       .in("gateway", ["woovi", "asaas"])
-      .gte("created_at", new Date(agora - JANELA_H * 3600000).toISOString())
+      // Um pedido só olha 7 dias: é o suporte conferindo quem disse "paguei"
+      // ontem (o PIX do Asaas continua pagável depois de vencer).
+      .gte("created_at", new Date(agora - (pedidoUnico ? 7 * 24 : JANELA_H) * 3600000).toISOString())
       .lte("created_at", new Date(agora - (pedidoUnico ? 0 : IDADE_MIN_MIN) * 60000).toISOString())
       // DO MAIS NOVO PRO MAIS VELHO, e isto é o conserto de 11/09/2026.
       //
