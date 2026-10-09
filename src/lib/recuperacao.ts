@@ -1083,7 +1083,7 @@ export const liberarAcesso = createServerFn({ method: "POST" })
     const locale = (q as { locale?: string } | null)?.locale === "es" ? "es" : "pt";
     const nome =
       ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-      (locale === "es" ? "quien vos querés" : "quem você ama");
+      (locale === "es" ? (MARCA_ATIVA.chave === "ballad" ? "quien tú quieres" : "quien vos querés") : "quem você ama");
 
     const { error: erroPedido } = await db
       .from("pedidos")
