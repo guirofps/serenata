@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { AbaTestes } from "@/components/admin/AbaTestes";
+import { AbaCriativos } from "@/components/admin/AbaCriativos";
 import { GraficoVendas } from "@/components/admin/GraficoVendas";
 import { ImportarRelatorioAds } from "@/components/admin/ImportarRelatorioAds";
 import { carregarTeto, salvarTeto, type EstadoDoTeto } from "@/lib/admin-teto";
@@ -61,6 +62,7 @@ export const Route = createFileRoute("/admin")({
       .enum([
         "operacao",
         "origem",
+        "criativos",
         "vendas",
         "email",
         "automacoes",
@@ -627,7 +629,8 @@ function Admin() {
   // as abas Automações e Financeiro, que nunca usaram `dados`, deixam de
   // esperar por ele.
   const dados = nucleo.data;
-  const precisaDoNucleo = aba !== "automacoes" && aba !== "financeiro" && aba !== "indicacoes";
+  const precisaDoNucleo =
+    aba !== "automacoes" && aba !== "financeiro" && aba !== "indicacoes" && aba !== "criativos";
 
   // ── O "MANTÉM E ESMAECE" ─────────────────────────────────────
   //
@@ -797,6 +800,7 @@ function Admin() {
             [
               ["operacao", "Operação"],
               ["origem", "De onde vem"],
+              ["criativos", "Criativos"],
               ["vendas", "Vendas"],
               ["email", "E-mail"],
               ["automacoes", "Automações"],
@@ -834,6 +838,11 @@ function Admin() {
             sistema (estourou o tempo do banco em 27/08), e pendurar nela a
             leitura de `pedidos`, `custos`, `metricas_campanha` e
             `custos_fixos` inteiros derrubaria as cinco outras abas junto. */}
+        {/* Como Automações: carrega a própria consulta, no período do seletor. */}
+        {aba === "criativos" && (
+          <AbaCriativos args={usandoDatas ? { de, ate } : { dias: periodo }} />
+        )}
+
         {aba === "financeiro" && <AbaFinanceiro />}
 
         {/* Também não usa `dados`: a fila de saques não depende do período. */}
