@@ -516,6 +516,12 @@ painel_eventos_dia`) e o cron refazer.
   cron usam a mesma.
 - **`?vivo=1`** no `/admin` ignora o resumo. Pra conferir um dia, não pra 30.
 - Cada painel loga `[admin] painel …` com os tempos nos logs da Vercel.
+- **Vendas por canal (08/10)**, abaixo da linha de mídia: Google, TikTok,
+  e-mail e orgânico, somando o cartão "Vendas" (`canal-venda.ts`). Venda com
+  cupom conta pro E-MAIL mesmo com primeiro toque em anúncio (decisão do
+  dono: todo cupom de `cupom.ts` só existe em e-mail); o e-mail da régua sem
+  cupom não leva utm e fica no canal de origem. O quiz de venda fora da
+  janela (recuperação tardia, upsell) é lido à parte, senão cairia em orgânico.
 
 ## /criar gospel (02/10/2026)
 
