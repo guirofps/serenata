@@ -1,9 +1,18 @@
 ﻿import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
-import { iniciarGeracao, consultarGeracao, obterTimestamps } from "../lib/kie.js";
+import { iniciarGeracao, consultarGeracao } from "../lib/kie.js";
 import { acharGenero, estiloParaSuno } from "../../src/lib/generos.js";
 import { podeGerar } from "../lib/disjuntor.js";
-import { musicaDoQuiz, mandarEmailDeEntrega } from "../../api/lib/entrega.js";
+import {
+  CREDITOS,
+  registrarCusto as registrarCustoEm,
+  principalEAlternativa,
+  guardarFaixas,
+  timestampsDaFaixa,
+  marcarPronta,
+  entregarSeJaPagou,
+} from "../lib/guardar-musica.js";
+import { RESERVA_SEGURA_MIN } from "../../src/lib/reserva-decisao.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
 import { restaurarSeAjusteFalhou } from "../lib/restaurar-ajuste.js";
 import { semOTermo, termoBarrado } from "../../src/lib/recusa-provedor.js";
@@ -16,8 +25,6 @@ import { semOTermo, termoBarrado } from "../../src/lib/recusa-provedor.js";
 // provedor falhar, o prejuízo é R$ 0,32 pré-venda em vez de reembolso.
 //
 // Passos separados de propósito: o Inngest reexecuta só o que falhou.
-
-const bucket = "musicas";
 
 // Preço do provedor (tabela pública do kie.ai) e câmbio, espelhando
 // src/lib/custos.ts. O custo em BRL é congelado na linha: se o preço mudar,
@@ -39,34 +46,10 @@ function estiloSemReferencias(estilo: string | null, genero: string | null): str
   return limpo || acharGenero(genero)?.estiloSuno || "música emotiva, arranjo acústico";
 }
 
-const USD_POR_CREDITO = 0.005;
-const CAMBIO = 5.4;
-const CREDITOS = { musica: 12, timestamps: 0.5 };
-
-async function registrarCusto(args: {
-  quizResponseId: string | null;
-  musicaId: string;
-  tipo: "musica" | "timestamps";
-  creditos: number;
-  modelo?: string;
-}) {
-  try {
-    const usd = args.creditos * USD_POR_CREDITO;
-    await db().from("custos").insert({
-      quiz_response_id: args.quizResponseId,
-      musica_id: args.musicaId,
-      tipo: args.tipo,
-      provider: "kie.ai",
-      modelo: args.modelo ?? null,
-      creditos: args.creditos,
-      custo_usd: usd,
-      custo_brl: usd * CAMBIO,
-      cambio: CAMBIO,
-    });
-  } catch (err) {
-    // Custo nunca derruba a entrega.
-    console.error("[custos] falha ao registrar:", err);
-  }
+// O fim da geração (custo, Storage, timestamps, pronta, entrega) mora em
+// `../lib/guardar-musica.ts`, dividido com o gerador reserva.
+function registrarCusto(args: Parameters<typeof registrarCustoEm>[1]) {
+  return registrarCustoEm(db(), args);
 }
 
 function db() {
@@ -129,7 +112,7 @@ export const gerarMusica = inngest.createFunction(
       const { data, error } = await sb
         .from("musicas")
         .select(
-          "id, status, letra, titulo, estilo_suno, genero, quiz_response_id, erro, provider_job_id, gerada_em",
+          "id, status, letra, titulo, estilo_suno, genero, quiz_response_id, erro, provider_job_id, gerada_em, reserva_em",
         )
         .eq("id", musicaId)
         .single();
@@ -137,6 +120,13 @@ export const gerarMusica = inngest.createFunction(
       if (!data.letra) throw new Error("musica sem letra");
       // Idempotência: se já está pronta, não gera de novo (não queima crédito).
       if (data.status === "pronta") return { ...data, jaPronta: true, taskAtrasada: null };
+      // O GERADOR RESERVA ESTÁ CUIDANDO DELA (09/10). Ele só assume música
+      // que o Inngest não tocou por minutos (queda do orquestrador), e quando
+      // o Inngest volta despeja a fila inteira aqui. Gerar de novo seria pagar
+      // o Suno duas vezes e duas gravações brigando pelo mesmo `v1.mp3`.
+      if (data.reserva_em && Date.now() - Date.parse(data.reserva_em) < RESERVA_SEGURA_MIN * 60000) {
+        return { ...data, jaPronta: true, taskAtrasada: null };
+      }
       // A TASK QUE ESTOUROU O TEMPO PODE TER TERMINADO DEPOIS (08/10).
       //
       // Até aqui o timeout jogava fora o `taskId`: se o provedor entregasse a
@@ -161,7 +151,7 @@ export const gerarMusica = inngest.createFunction(
       return { ...data, jaPronta: false, taskAtrasada };
     });
 
-    if (musica.jaPronta) return { pulado: "já estava pronta" };
+    if (musica.jaPronta) return { pulado: musica.status === "pronta" ? "já estava pronta" : "gerador reserva cuidando" };
 
     type Faixa = { id: string; audioUrl: string; duration?: number };
     let faixas: Faixa[] = [];
@@ -320,6 +310,13 @@ export const gerarMusica = inngest.createFunction(
       const estiloDaVez = barrados.reduce((t, b) => semOTermo(t, b), estilo.valor);
 
       taskId = await step.run(`iniciar-${estilo.rotulo}`, async () => {
+        // O reserva pode ter assumido enquanto esta execução dormia (o
+        // respiro de 10 minutos, ou a fila parada de uma queda). Confere antes
+        // de pagar.
+        const { data: agora } = await db().from("musicas").select("reserva_em, status").eq("id", musicaId).maybeSingle();
+        if (agora?.status === "pronta" || (agora?.reserva_em && Date.now() - Date.parse(agora.reserva_em) < RESERVA_SEGURA_MIN * 60000)) {
+          return "";
+        }
         const id = await iniciarGeracao({
           letra: letraDaVez,
           titulo: musica.titulo ?? "Sua música",
@@ -334,8 +331,16 @@ export const gerarMusica = inngest.createFunction(
           creditos: CREDITOS.musica,
           modelo: "V4_5PLUS",
         });
+        // A task em andamento fica na linha: se o Inngest cair no meio do
+        // polling, o reserva termina ESTA gravação em vez de pagar outra.
+        const { error: eTask } = await db()
+          .from("musicas")
+          .update({ task_atual: id, task_em: new Date().toISOString() })
+          .eq("id", musicaId);
+        if (eTask) console.error("[musica] task_atual não gravou:", eTask.message);
         return id;
       });
+      if (!taskId) return { pulado: "gerador reserva assumiu" };
 
       recusou = false;
       // Medido: 84s a 250s. Folga de 6 minutos antes de desistir.
@@ -440,6 +445,9 @@ export const gerarMusica = inngest.createFunction(
         restaurarSeAjusteFalhou(db(), musicaId),
       );
       if (restaurou) {
+        await step.run("limpar-task-do-ajuste", async () => {
+          await db().from("musicas").update({ task_atual: null, task_em: null }).eq("id", musicaId);
+        });
         console.warn("[gerar-musica] ajuste falhou no provedor; versão anterior restaurada", musicaId);
         return { restaurado: true };
       }
@@ -455,6 +463,8 @@ export const gerarMusica = inngest.createFunction(
             // depois, e a próxima execução confere antes de pagar de novo
             // (ver `taskAtrasada`). Na recusa ele não serve pra nada.
             ...(!recusou && taskId ? { provider_job_id: taskId } : {}),
+            task_atual: null,
+            task_em: null,
           })
           .eq("id", musicaId);
       });
@@ -512,151 +522,42 @@ export const gerarMusica = inngest.createFunction(
     }
 
     // ─── 4. Escolhe a PRINCIPAL e guarda no Storage ────────────────
-    //
-    // O Suno devolve 2 versões. Julgamento do dono, consistente nos testes:
-    // a SEGUNDA costuma sair melhor. Então ela vira a principal (entregue e
-    // tocada), e a primeira fica como alternativa — útil de dar de brinde
-    // quando a pessoa pedir "uma outra versão", já pronta e sem custo novo.
-    //
-    // A ordem é trocada AQUI, na origem, e não na hora de servir: os
-    // timestamps do karaokê são de UMA faixa específica, então principal e
-    // timestamps precisam ser sempre a mesma — senão a letra acende fora
-    // de sincronia.
-    const principal = faixas.length > 1 ? faixas[1] : faixas[0];
-    const alternativa = faixas.length > 1 ? faixas[0] : null;
+    // A SEGUNDA gravação é a principal (ver `principalEAlternativa`).
+    const { principal, alternativa } = principalEAlternativa(faixas);
 
-    // As URLs do kie.ai são TEMPORÁRIAS: sem baixar, a música do cliente some.
-    const caminhos = await step.run("guardar-audio", async () => {
-      const sb = db();
-      const salvos: string[] = [];
-      const ordenadas = [principal, alternativa].filter(Boolean) as Faixa[];
-      for (let i = 0; i < ordenadas.length; i++) {
-        const resp = await fetch(ordenadas[i].audioUrl);
-        if (!resp.ok) throw new Error(`download falhou: ${resp.status}`);
-        const buf = new Uint8Array(await resp.arrayBuffer());
-        const caminho = `${musicaId}/v${i + 1}.mp3`;
-        const { error } = await sb.storage
-          .from(bucket)
-          .upload(caminho, buf, { contentType: "audio/mpeg", upsert: true });
-        if (error) throw new Error(`upload falhou: ${error.message}`);
-        salvos.push(caminho);
-      }
-      return salvos;
-    });
+    const caminhos = await step.run("guardar-audio", () =>
+      guardarFaixas(db(), musicaId, [principal, alternativa].filter(Boolean) as Faixa[]),
+    );
 
     // ─── 5. Timestamps (karaokê real) das DUAS gravações ───────────
     // Cada gravação tem timing próprio, então precisa dos seus timestamps:
-    // usar os da v1 na v2 acenderia a letra fora do que se ouve. ~0,5 crédito
-    // (R$ 0,013) cada. Tolerante a falha: sem timestamps a faixa ainda toca,
-    // só sem destaque.
-    const timestamps = await step.run("timestamps", async () => {
-      try {
-        const t = await obterTimestamps(taskId, principal.id);
-        await registrarCusto({
-          quizResponseId: musica.quiz_response_id,
-          musicaId,
-          tipo: "timestamps",
-          creditos: CREDITOS.timestamps,
-        });
-        return t;
-      } catch (err) {
-        console.error("[musica] timestamps v1 falharam:", err);
-        return null;
-      }
-    });
-
-    // Timestamps da alternativa (v2). Só se ela existir.
+    // usar os da v1 na v2 acenderia a letra fora do que se ouve.
+    const timestamps = await step.run("timestamps", () =>
+      timestampsDaFaixa(db(), { taskId, audioId: principal.id, musicaId, quizResponseId: musica.quiz_response_id }),
+    );
     const timestampsV2 = alternativa
-      ? await step.run("timestamps-v2", async () => {
-          try {
-            const t = await obterTimestamps(taskId, alternativa.id);
-            await registrarCusto({
-              quizResponseId: musica.quiz_response_id,
-              musicaId,
-              tipo: "timestamps",
-              creditos: CREDITOS.timestamps,
-            });
-            return t;
-          } catch (err) {
-            console.error("[musica] timestamps v2 falharam:", err);
-            return null;
-          }
-        })
+      ? await step.run("timestamps-v2", () =>
+          timestampsDaFaixa(db(), { taskId, audioId: alternativa.id, musicaId, quizResponseId: musica.quiz_response_id }),
+        )
       : null;
 
     // ─── 6. Fecha ──────────────────────────────────────────────────
-    await step.run("marcar-pronta", async () => {
-      const sb = db();
-      const { error } = await sb
-        .from("musicas")
-        .update({
-          status: "pronta",
-          // audio_path é sempre a PRINCIPAL (a que toca e casa com os
-          // timestamps); audio_path_v2 é a alternativa de brinde.
-          audio_path: caminhos[0] ?? null,
-          audio_path_v2: caminhos[1] ?? null,
-          timestamps,
-          timestamps_v2: timestampsV2,
-          duracao_s: principal.duration ?? null,
-          provider: "kie.ai",
-          provider_job_id: taskId,
-          gerada_em: new Date().toISOString(),
-          erro: null,
-        })
-        .eq("id", musicaId);
-      if (error) throw new Error(`update final falhou: ${error.message}`);
-    });
+    await step.run("marcar-pronta", () =>
+      marcarPronta(db(), musicaId, {
+        caminhos,
+        timestamps,
+        timestampsV2,
+        duracao: principal.duration ?? null,
+        taskId,
+      }),
+    );
 
     // ─── 7. QUEM JÁ PAGOU E ESPEROU RECEBE AGORA ──────────────────
-    //
-    // O caso normal é o inverso: a música fica pronta ANTES do pagamento, e
-    // o webhook manda a entrega. Este passo é pro caminho que existe quando
-    // isso não acontece — o comprador pagou com a música ainda em produção,
-    // recebeu o e-mail honesto que diz "está sendo gravada", e agora ela
-    // existe. Sem isto, ele ficaria esperando um e-mail que nunca viria.
-    //
-    // Foi exatamente o buraco de 04/09/2026, quando o Inngest ficou 58
-    // minutos fora: um comprador pagou às 15h29 e a música só saiu depois.
-    //
-    // A TRAVA CONTRA E-MAIL DOBRADO é o registro de envio, não uma flag nova:
-    // se já existe uma linha `entrega` pra este quiz, alguém já entregou (o
-    // webhook, ou uma rodada anterior deste passo) e aqui não se faz nada. É
-    // a mesma tabela que o webhook escreve, então as duas pontas concordam
-    // sem precisar se conhecer.
-    await step.run("entregar-a-quem-ja-pagou", async () => {
-      const sb = db();
-      const { data: pedido } = await sb
-        .from("pedidos")
-        .select("email")
-        .eq("musica_id", musicaId)
-        .eq("status", "pago")
-        .limit(1)
-        .maybeSingle();
-      if (!pedido?.email) return { entregue: false, motivo: "ninguém pagou ainda" };
-
-      if (musica.quiz_response_id) {
-        const { data: jaFoi } = await sb
-          .from("emails_enviados")
-          .select("email_id")
-          .eq("template", "entrega")
-          .eq("quiz_response_id", musica.quiz_response_id)
-          .limit(1);
-        if (jaFoi?.length) return { entregue: false, motivo: "entrega já enviada" };
-      }
-
-      const pronta = await musicaDoQuiz(sb, musica.quiz_response_id ?? "");
-      if (!pronta) return { entregue: false, motivo: "música não relida" };
-      const r = await mandarEmailDeEntrega(sb, { email: pedido.email, musica: pronta });
-      if (!r.ok) {
-        // Não derruba o job: a música ESTÁ pronta e o link do comprador já
-        // funciona. E-mail que falha aqui é recuperável (o vigia de entrega
-        // e o `guardeOLink` alcançam a mesma pessoa); job que falha aqui
-        // reexecutaria a geração inteira e cobraria de novo.
-        console.error("[musica] entrega pós-geração falhou:", r.erro);
-        return { entregue: false, motivo: r.erro };
-      }
-      return { entregue: true, para: pedido.email };
-    });
+    // Ver `entregarSeJaPagou`: a trava contra e-mail dobrado é o registro de
+    // envio, que o webhook e o reserva também escrevem.
+    await step.run("entregar-a-quem-ja-pagou", () =>
+      entregarSeJaPagou(db(), musicaId, musica.quiz_response_id),
+    );
 
     return { musicaId, taskId, versoes: caminhos.length, palavras: timestamps?.length ?? 0 };
   },
