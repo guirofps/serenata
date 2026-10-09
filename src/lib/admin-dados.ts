@@ -9,6 +9,7 @@ import { porTemaDe, type LinhaTema } from "@/lib/admin-tema";
 import { diasDaJanela, somarGasto } from "@/lib/gasto-midia";
 import { taxaDoPedido } from "@/lib/taxa-gateway";
 import { contarPorCanal, type CanalVenda } from "@/lib/canal-venda";
+import { chaveOrigem } from "@/lib/origem";
 import {
   ehVenda,
   faixasVivas,
@@ -1171,20 +1172,6 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
   });
 
   // ── ATRIBUIÇÃO: de onde vem lead e venda ─────────────────────
-  const chaveOrigem = (attr: unknown): { origem: string; campanha: string | null } => {
-    const a = (attr ?? {}) as Record<string, string | undefined>;
-    if (a.utm_source) return { origem: a.utm_source, campanha: a.utm_campaign ?? null };
-    if (a.gclid) return { origem: "google (gclid)", campanha: a.utm_campaign ?? null };
-    if (a.fbclid) return { origem: "meta (fbclid)", campanha: null };
-    if (a.referrer && !String(a.referrer).includes("serenatagift")) {
-      try {
-        return { origem: new URL(String(a.referrer)).hostname, campanha: null };
-      } catch {
-        return { origem: "referência", campanha: null };
-      }
-    }
-    return { origem: "direto / orgânico", campanha: null };
-  };
 
   const origemMap = new Map<
     string,
