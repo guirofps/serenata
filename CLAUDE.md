@@ -500,13 +500,19 @@ editor, entre a dedicatória e a entrega, com a prévia TOCANDO pelo
 vivo do editor e a marca "PRÉVIA". Ela vê o que compra antes de pagar, a
 custo zero.
 
+### Vigia do vídeo e cota nova da AWS (10/10/2026)
+
+O vídeo do Odilon começou a renderizar segundos antes da queda do Inngest de 09/10: o render TERMINOU na Lambda e o job nunca voltou pra buscar, 19h "renderizando" com o MP4 no S3 (resgatado à mão, `scratch/_resgatar-video-10out.mjs`). `api/vigia-video.ts` (Vercel Cron, 5 min, fora do Inngest): `renderizando` há 25+ min com `render_id` → pergunta à Lambda; pronto → baixa, sobe, marca `pronto` (com a assinatura) e manda o "vídeo pronto"; falhou na AWS ou nem disparou → `falhou`, e o `videoPendente` refaz. Não dispara render novo. Avisa os donos quando entrega.
+
+A AWS aprovou **1.000 Lambdas simultâneas em 03/10** (caso 179098992600639) e ninguém tinha subido o código: agora 20 Lambdas por render (era 6, ~3x mais rápido) e até 6 renders no ar por marca (era 1 por vez). Consulta da cota: `scratch/_aws-cota-lambda.mjs` (o usuário da Remotion lê o Service Quotas, não o `GetAccountSettings`). Custo de outubro até 10/10: ~511 renders, ~US$ 21.
+
 ### Invariantes
 
 - **Uma cópia só do Remotion, na raiz.** `video/` não tem package próprio
   (tinha React 18 e o app tem 19: duas cópias quebram hooks). Estúdio e
   deploy: `npm run video:estudio | video:site | video:funcao`. Mudou o
   template, **rodar `video:site`**: o site no S3 é o que a Lambda usa.
-- **Conta nova da AWS: cota de 10 Lambdas simultâneas**, sem aumento pela
+- **Conta nova da AWS: cota de 10 Lambdas simultâneas** (SUBIU pra 1.000 em 03/10, ver acima), sem aumento pela
   API (a conta é sub-conta de organização, pedido só pelo console). Por isso
   6 Lambdas por render e 1 render por vez (8+1 deu `Rate Exceeded`). Com a
   cota maior, subir `LAMBDAS_POR_RENDER` e o `concurrency` do job. Medido:
