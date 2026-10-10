@@ -482,6 +482,8 @@ Inngest, ao voltar, gerava tudo de novo; hoje ele pula o que está pronto ou
 com o reserva. O `plantao-musica.mjs` vira plano C (reserva também fora: a
 Vercel caiu junto).
 
+**1ª queda de verdade (10/10, desde ~11h):** o Inngest caiu de novo e o reserva gerou 158 músicas na Serenata e 1 na Ballad, todas prontas, 30+ compradas; o dia seguiu vendendo acima do anterior. Preço: espera de ~4,5 min por música (3 min antes de assumir + ciclo de 1 min) contra ~1 min normal. Conserto no mesmo dia: **modo queda** — com 3+ músicas assumidas nos últimos 15 min, o reserva assume com 30s (`PARADA_EM_QUEDA_MIN`); a rota devolve `emQueda`.
+
 Colunas novas em `musicas` nas DUAS marcas (`20261009000000_gerador_reserva`).
 Mesma noite: a Ballad estava sem as migrations de 08/10 (`pedidos_veio_de`,
 `criativos_ads`); aplicadas com `scratch/ballad-migrar.mjs`.
