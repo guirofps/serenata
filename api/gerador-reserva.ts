@@ -61,6 +61,8 @@ import {
   oQueFazer,
   depoisDaConsulta,
   PARADA_MIN,
+  PARADA_EM_QUEDA_MIN,
+  ASSUMIDAS_PRA_QUEDA,
   MAX_TENTATIVAS,
   type EstadoDaTask,
 } from "../src/lib/reserva-decisao.js";
@@ -277,7 +279,15 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
   const agora = Date.now();
   const desde = new Date(agora - JANELA_H * 3600000).toISOString();
-  const parada = new Date(agora - PARADA_MIN * 60000).toISOString();
+  // MODO QUEDA: várias músicas assumidas há pouco = Inngest fora; aí a espera antes de assumir cai pra 30s.
+  const { count: assumidasRecentes } = await sb
+    .from("musicas")
+    .select("id", { count: "exact", head: true })
+    .gt("reserva_tentativas", 0)
+    .gte("updated_at", new Date(agora - 15 * 60000).toISOString());
+  const emQueda = (assumidasRecentes ?? 0) >= ASSUMIDAS_PRA_QUEDA;
+  const paradaMin = emQueda ? PARADA_EM_QUEDA_MIN : PARADA_MIN;
+  const parada = new Date(agora - paradaMin * 60000).toISOString();
   const [minhas, paradas] = await Promise.all([
     sb.from("musicas").select(COLUNAS).in("status", ["aguardando", "gerando"]).not("reserva_em", "is", null).limit(200),
     sb
@@ -301,7 +311,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   const relatorio: Array<{ id: string; decisao: string; resultado?: string }> = [];
   const novas = { n: 0 };
   for (const m of linhas) {
-    const decisao = oQueFazer(m, agora);
+    const decisao = oQueFazer(m, agora, paradaMin);
     if (decisao === "nada") continue;
     if (seco) {
       relatorio.push({ id: m.id, decisao });
@@ -348,5 +358,5 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
   if (relatorio.length) console.log("[reserva]", JSON.stringify(relatorio));
   res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify({ ok: true, seco, olhadas: linhas.length, agiu: relatorio, ms: Date.now() - inicio }));
+  res.end(JSON.stringify({ ok: true, seco, emQueda, olhadas: linhas.length, agiu: relatorio, ms: Date.now() - inicio }));
 }

@@ -17,6 +17,14 @@
 
 /** Linha `aguardando` sem ninguém mexer por este tempo: o job nunca começou. */
 export const PARADA_MIN = 3;
+/**
+ * O MESMO limite em MODO QUEDA (10/10): quando o reserva já assumiu várias músicas nos últimos minutos, o Inngest
+ * está fora, e esperar 3 minutos por música só alonga a espera do cliente (medido em 10/10: ~4,5 min contra ~1 min
+ * normal). Em queda, 30 segundos bastam pra não atropelar uma que o job ia pegar.
+ */
+export const PARADA_EM_QUEDA_MIN = 0.5;
+/** Quantas músicas assumidas nos últimos 15 minutos põem o reserva em modo queda. */
+export const ASSUMIDAS_PRA_QUEDA = 3;
 /** `gerando` sem task do provedor: marcaram pra gerar e o job não disparou. */
 export const SEM_TASK_MIN = 5;
 /**
@@ -49,7 +57,7 @@ const minutos = (desde: string | null, agora: number) =>
   desde ? (agora - Date.parse(desde)) / 60000 : Infinity;
 
 /** Antes de perguntar ao provedor: a linha merece atenção? */
-export function oQueFazer(m: LinhaAndando, agora: number): Decisao {
+export function oQueFazer(m: LinhaAndando, agora: number, parada: number = PARADA_MIN): Decisao {
   if (m.status !== "aguardando" && m.status !== "gerando") return "nada";
 
   // Já é do reserva.
@@ -60,7 +68,7 @@ export function oQueFazer(m: LinhaAndando, agora: number): Decisao {
   }
 
   // Alguém mexeu há pouco: o job (ou o ajuste, ou o webhook) está vivo nela.
-  if (minutos(m.updated_at, agora) < PARADA_MIN) return "nada";
+  if (minutos(m.updated_at, agora) < parada) return "nada";
 
   if (m.status === "aguardando") return m.task_atual ? "acompanhar" : "gerar";
 

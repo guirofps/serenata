@@ -22,6 +22,12 @@ describe("oQueFazer", () => {
     expect(oQueFazer(linha({ updated_at: ha(3) }), AGORA)).toBe("gerar");
   });
 
+  it("em modo queda, assume com 30 segundos em vez de 3 minutos", () => {
+    expect(oQueFazer(linha({ updated_at: ha(0.6) }), AGORA, 0.5)).toBe("gerar");
+    expect(oQueFazer(linha({ updated_at: ha(0.2) }), AGORA, 0.5)).toBe("nada");
+    expect(oQueFazer(linha({ updated_at: ha(0.6) }), AGORA)).toBe("nada");
+  });
+
   it("pronta e falhou nunca são tocadas", () => {
     expect(oQueFazer(linha({ status: "pronta", updated_at: ha(60) }), AGORA)).toBe("nada");
     expect(oQueFazer(linha({ status: "falhou", updated_at: ha(60) }), AGORA)).toBe("nada");
