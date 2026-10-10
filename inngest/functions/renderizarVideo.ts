@@ -48,9 +48,13 @@ const VALIDADE_URL_S = 60 * 60 * 24;
 const ESCALA = 2 / 3;
 const FECHAMENTO_S = 5;
 // Lambdas renderizando em paralelo num render (fora a orquestradora). A conta
-// nova tem cota de 10, e 8 + 1 já deu "Rate Exceeded" na prática (24/09): 6
-// deixa folga. Com a cota maior, subir aqui encurta o render na mesma proporção.
-const LAMBDAS_POR_RENDER = 6;
+// nascia com cota de 10 (8 + 1 deu "Rate Exceeded" em 24/09) e rodava com 6.
+// A AWS aprovou 1.000 em 03/10 (caso 179098992600639): 20 encurta o render ~3x
+// (~2 min contra ~6 de uma música de 3,5 min) pelo mesmo custo de computação.
+const LAMBDAS_POR_RENDER = 20;
+// Renders no ar ao mesmo tempo, somando as DUAS marcas (a conta da AWS é uma só):
+// 6 x (20 + 1) = 126 Lambdas, folga larga na cota de 1.000. Era 1 por vez.
+const RENDERS_SIMULTANEOS = 6;
 
 function db(): SupabaseClient {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -122,9 +126,9 @@ export function taxaDeVideo(duracaoS: number): string {
 export const renderizarVideo = inngest.createFunction(
   {
     id: "renderizar-video",
-    // A conta nova da AWS nasce com cota de 10 Lambdas simultâneas, e um render
-    // usa 1 orquestradora + LAMBDAS_POR_RENDER. Dois renders juntos estouram a
-    // cota e a AWS recusa (throttle). Subir junto com a cota, quando ela subir.
+    // UM PASSO por vez, de propósito: é o que faz "olhar a fila e reservar a vez"
+    // (abaixo) não disputar entre execuções. Quantos renders ficam no ar ao mesmo
+    // tempo quem decide é `RENDERS_SIMULTANEOS`, não este número.
     concurrency: { limit: 1 },
     retries: 2,
     triggers: [{ event: "video/renderizar" }],
@@ -275,8 +279,8 @@ export const renderizarVideo = inngest.createFunction(
       // ── A VEZ NA FILA (27/09) ──────────────────────────────────
       // O `concurrency: 1` acima limita PASSOS rodando, não renders no ar:
       // enquanto um espera a Lambda, o próximo disparava, e três juntos pediam
-      // ~21 Lambdas numa cota de 10. Aqui o job só dispara quando nenhum outro
-      // vídeo está renderizando (começado há menos de 25 min), e já reserva a
+      // ~21 Lambdas numa cota de 10. Aqui o job só dispara quando há menos de
+      // `RENDERS_SIMULTANEOS` vídeos renderizando (começado há menos de 25 min), e já reserva a
       // vez no MESMO passo: como os passos desta função rodam um de cada vez,
       // olhar e reservar não disputam entre si. Teto de ~30 min na fila; depois
       // disso dispara mesmo assim, e a nova tentativa acima cobre a recusa.
@@ -290,7 +294,7 @@ export const renderizarVideo = inngest.createFunction(
             .eq("status", "renderizando")
             .neq("id", videoId)
             .gt("render_iniciado_em", desde);
-          if (count) return false;
+          if ((count ?? 0) >= RENDERS_SIMULTANEOS) return false;
           await sb
             .from("videos")
             .update({ status: "renderizando", render_iniciado_em: new Date().toISOString() })

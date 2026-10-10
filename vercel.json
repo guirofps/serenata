@@ -87,6 +87,9 @@
     },
     "api/gerador-reserva.ts": {
       "maxDuration": 60
+    },
+    "api/vigia-video.ts": {
+      "maxDuration": 120
     }
   },
   "redirects": [
@@ -157,6 +160,10 @@
     {
       "path": "/api/gerador-reserva",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/vigia-video",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
