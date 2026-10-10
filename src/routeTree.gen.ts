@@ -32,6 +32,7 @@ import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as CreditoTokenEdicaoRouteImport } from './routes/credito.$tokenEdicao'
 import { Route as EditarTokenEdicaoRouteImport } from './routes/editar.$tokenEdicao'
 import { Route as EsIndexRouteImport } from './routes/es.index'
+import { Route as EsCrearRouteImport } from './routes/es.crear'
 import { Route as EsCriarRouteImport } from './routes/es.criar'
 import { Route as EsGraciasRouteImport } from './routes/es.gracias'
 import { Route as EsLoginRouteImport } from './routes/es.login'
@@ -156,6 +157,11 @@ const EsIndexRoute = EsIndexRouteImport.update({
   path: '/es/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EsCrearRoute = EsCrearRouteImport.update({
+  id: '/es/crear',
+  path: '/es/crear',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EsCriarRoute = EsCriarRouteImport.update({
   id: '/es/criar',
   path: '/es/criar',
@@ -214,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/blog/$slug': typeof BlogSlugRoute
   '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
+  '/es/crear': typeof EsCrearRoute
   '/es/criar': typeof EsCriarRoute
   '/es/gracias': typeof EsGraciasRoute
   '/es/login': typeof EsLoginRoute
@@ -246,6 +253,7 @@ export interface FileRoutesByTo {
   '/blog/$slug': typeof BlogSlugRoute
   '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
+  '/es/crear': typeof EsCrearRoute
   '/es/criar': typeof EsCriarRoute
   '/es/gracias': typeof EsGraciasRoute
   '/es/login': typeof EsLoginRoute
@@ -279,6 +287,7 @@ export interface FileRoutesById {
   '/blog/$slug': typeof BlogSlugRoute
   '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
+  '/es/crear': typeof EsCrearRoute
   '/es/criar': typeof EsCriarRoute
   '/es/gracias': typeof EsGraciasRoute
   '/es/login': typeof EsLoginRoute
@@ -313,6 +322,7 @@ export interface FileRouteTypes {
     | '/blog/$slug'
     | '/credito/$tokenEdicao'
     | '/editar/$tokenEdicao'
+    | '/es/crear'
     | '/es/criar'
     | '/es/gracias'
     | '/es/login'
@@ -345,6 +355,7 @@ export interface FileRouteTypes {
     | '/blog/$slug'
     | '/credito/$tokenEdicao'
     | '/editar/$tokenEdicao'
+    | '/es/crear'
     | '/es/criar'
     | '/es/gracias'
     | '/es/login'
@@ -377,6 +388,7 @@ export interface FileRouteTypes {
     | '/blog/$slug'
     | '/credito/$tokenEdicao'
     | '/editar/$tokenEdicao'
+    | '/es/crear'
     | '/es/criar'
     | '/es/gracias'
     | '/es/login'
@@ -410,6 +422,7 @@ export interface RootRouteChildren {
   BlogSlugRoute: typeof BlogSlugRoute
   CreditoTokenEdicaoRoute: typeof CreditoTokenEdicaoRoute
   EditarTokenEdicaoRoute: typeof EditarTokenEdicaoRoute
+  EsCrearRoute: typeof EsCrearRoute
   EsCriarRoute: typeof EsCriarRoute
   EsGraciasRoute: typeof EsGraciasRoute
   EsLoginRoute: typeof EsLoginRoute
@@ -584,6 +597,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/es/crear': {
+      id: '/es/crear'
+      path: '/es/crear'
+      fullPath: '/es/crear'
+      preLoaderRoute: typeof EsCrearRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/es/criar': {
       id: '/es/criar'
       path: '/es/criar'
@@ -658,6 +678,7 @@ const rootRouteChildren: RootRouteChildren = {
   BlogSlugRoute: BlogSlugRoute,
   CreditoTokenEdicaoRoute: CreditoTokenEdicaoRoute,
   EditarTokenEdicaoRoute: EditarTokenEdicaoRoute,
+  EsCrearRoute: EsCrearRoute,
   EsCriarRoute: EsCriarRoute,
   EsGraciasRoute: EsGraciasRoute,
   EsLoginRoute: EsLoginRoute,
