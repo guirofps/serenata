@@ -30,6 +30,7 @@ import { enviarVendaUtmify } from "../lib/utmify.js";
 import { venderNoTiktok } from "../lib/tiktok-eventos.js";
 import { OFERTAS } from "../../src/lib/creditos.js";
 import { valorEsperadoDoUpsell, type Alvo } from "../../src/lib/cupom.js";
+import { centavosDoVideoDaMusica } from "../../src/lib/preco-video.js";
 import { Resend } from "resend";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
@@ -120,15 +121,18 @@ async function pagarUpsell(
 
   const { data: pendente } = await sb
     .from("pedidos")
-    .select("id, email, status, cupom, created_at")
+    .select("id, email, status, cupom, created_at, musica_id")
     .eq("payment_id", paymentId)
     .maybeSingle();
 
   // O VALOR TEM QUE BATER com o catálogo (ou o catálogo com o cupom que o
   // pedido gravou ao nascer, 07/10), e não com o que a Woovi ecoa: é a segunda
-  // trava contra alguém pagar R$ 1 num crédito de R$ 28.
+  // trava contra alguém pagar R$ 1 num crédito de R$ 28. O vídeo tem preço por
+  // música (teste `preco_video`, 11/10).
   const esperado = valorEsperadoDoUpsell(
-    Math.round(oferta.precoBrl * 100),
+    oferta.id === "video"
+      ? await centavosDoVideoDaMusica(sb, (pendente as { musica_id?: string | null } | null)?.musica_id ?? null)
+      : Math.round(oferta.precoBrl * 100),
     oferta.id as Alvo,
     pendente as { cupom?: string | null; created_at?: string | null } | null,
   );

@@ -1,5 +1,5 @@
-import { type Locale, LOCALE_PADRAO } from "@/lib/i18n";
-import { acharGenero } from "@/lib/generos";
+import { type Locale, LOCALE_PADRAO } from "./i18n.js";
+import { acharGenero } from "./generos.js";
 import {
   LETRA_SYSTEM_ES,
   LETRA_SYSTEM_ES_ESPANHA,
@@ -8,9 +8,9 @@ import {
   RELACAO_ES,
   OCASIAO_ES,
   VOZ_ES,
-} from "@/lib/letra-prompt-es";
+} from "./letra-prompt-es.js";
 import { ehEspanha, ehArgentina, ehEua } from "./mercado-es.js";
-import { LETRA_SYSTEM_EN, RELACAO_EN, OCASIAO_EN, VOZ_EN, TOM_EN, WORSHIP_INSTRUCTIONS_EN } from "@/lib/letra-prompt-en";
+import { LETRA_SYSTEM_EN, RELACAO_EN, OCASIAO_EN, VOZ_EN, TOM_EN, WORSHIP_INSTRUCTIONS_EN } from "./letra-prompt-en.js";
 
 // Prompt de geração de letra (de prompts/letra.md). System estável e cacheável;
 // respostas do quiz vão por último (cache é casamento de prefixo — nada de

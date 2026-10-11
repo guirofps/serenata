@@ -7,6 +7,7 @@ import { asaas } from "@/lib/asaas";
 import { ErroGateway, type DadosCartao, type TitularCartao } from "@/lib/gateway-cartao";
 import { OFERTAS, type Oferta } from "@/lib/creditos";
 import { centavosComCupom, codigoAplicado, type Alvo } from "@/lib/cupom";
+import { centavosDoVideoDaMusica } from "@/lib/preco-video";
 import { creditarUpsell } from "../../api/lib/creditar-upsell";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 
@@ -79,11 +80,13 @@ async function cobrar(
   // Só o vídeo é de UMA música (ver `gerarCobranca` no PIX do upsell).
   const musicaDoPedido = oferta.id === "video" ? (args.musicaId ?? null) : null;
   // O cupom (campanha MUSICA10, 07/10): só o código vem do navegador.
-  const catalogo = Math.round(oferta.precoBrl * 100);
+  const db = supabaseAdmin();
+  // O vídeo tem preço por música (teste `preco_video`, `preco-video.ts`).
+  const catalogo =
+    oferta.id === "video" ? await centavosDoVideoDaMusica(db, musicaDoPedido) : Math.round(oferta.precoBrl * 100);
   const agora = new Date();
   const valorCentavos = centavosComCupom(catalogo, args.cupom, agora, oferta.id as Alvo);
   const cupomAplicado = codigoAplicado(catalogo, args.cupom, agora, oferta.id as Alvo);
-  const db = supabaseAdmin();
 
   const ip = ipDoPagador();
   if (!ip) return { ok: false, erro: "sem-ip" };

@@ -20,8 +20,9 @@ const COPY = {
   corpo:
     "As fotos que você escolheu, passando no ritmo da música, com a letra acendendo palavra por palavra no instante em que é cantada. Já está montado: é só abrir e dar o play.",
   botao: "VER O MEU VÍDEO",
-  rodapeAviso:
-    "Assistir não custa nada. Pra baixar em HD, sem a marca de prévia, e mandar no WhatsApp ou postar no story, são R$ 24,90, pagamento único.",
+  // O preço vem de quem chama (teste `preco_video`, 11/10): R$ 24,90 ou R$ 19,90 conforme a música.
+  rodapeAviso: (preco: string) =>
+    `Assistir não custa nada. Pra baixar em HD, sem a marca de prévia, e mandar no WhatsApp ou postar no story, são ${preco}, pagamento único.`,
   rodape: "Serenata · uma música feita da história de quem você ama",
 };
 
@@ -29,16 +30,16 @@ export function assuntoVideoOferta(nome: string): string {
   return COPY.assunto(nome);
 }
 
-export function textoVideoOferta(args: { nome: string; link: string }): string {
+export function textoVideoOferta(args: { nome: string; link: string; preco?: string }): string {
   return (
     `A página de ${args.nome} virou vídeo.\n\n` +
     `As fotos que você escolheu, passando no ritmo da música, com a letra acendendo palavra por palavra. ` +
     `Já está montado: é só abrir e dar o play.\n\n${args.link}\n\n` +
-    `Assistir não custa nada. Pra baixar em HD e mandar no WhatsApp, são R$ 24,90.`
+    `Assistir não custa nada. Pra baixar em HD e mandar no WhatsApp, são ${args.preco ?? "R$ 24,90"}.`
   );
 }
 
-export function emailVideoOferta(args: { nome: string; titulo: string; link: string }): string {
+export function emailVideoOferta(args: { nome: string; titulo: string; link: string; preco?: string }): string {
   const { nome, titulo, link } = args;
   return `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${COPY.assunto(nome)}</title></head>
@@ -61,7 +62,7 @@ export function emailVideoOferta(args: { nome: string; titulo: string; link: str
           </a>
         </td></tr>
         <tr><td style="padding:10px 36px 30px;text-align:center;color:rgba(42,21,24,0.5);font-size:13px;font-family:Helvetica,Arial,sans-serif;line-height:1.7;">
-          ${COPY.rodapeAviso}
+          ${COPY.rodapeAviso(args.preco ?? "R$ 24,90")}
         </td></tr>
       </table>
       <p style="margin:18px 0 0;color:rgba(42,21,24,0.4);font-size:11px;font-family:Helvetica,Arial,sans-serif;">${COPY.rodape}</p>

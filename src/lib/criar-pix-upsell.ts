@@ -7,6 +7,7 @@ import { cpfValido, soDigitosCpf } from "@/lib/cpf";
 import { ErroGateway } from "@/lib/gateway";
 import { OFERTAS, type Oferta } from "@/lib/creditos";
 import { centavosComCupom, codigoAplicado, type Alvo } from "@/lib/cupom";
+import { centavosDoVideoDaMusica } from "@/lib/preco-video";
 import { MARCA_ATIVA } from "./marca-identidade.js";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 
@@ -107,7 +108,9 @@ async function gerarCobranca(
     const musicaDoPedido = oferta.id === "video" ? (musicaId ?? null) : null;
 
     const db = supabaseAdmin();
-    const catalogo = Math.round(oferta.precoBrl * 100);
+    // O vídeo tem preço por música (teste `preco_video`, `preco-video.ts`).
+    const catalogo =
+      oferta.id === "video" ? await centavosDoVideoDaMusica(db, musicaDoPedido) : Math.round(oferta.precoBrl * 100);
     const agora = new Date();
     // O CUPOM, recalculado aqui (07/10). O navegador manda o código; o valor
     // sai do catálogo. A busca do PIX vivo logo abaixo já filtra por

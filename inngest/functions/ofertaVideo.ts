@@ -14,6 +14,7 @@ import {
 } from "../../emails/video-oferta.js";
 import { emailFotosVideo, assuntoFotosVideo, textoFotosVideo } from "../../emails/fotos-video.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { textoPrecoVideo } from "../../src/lib/preco-video.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O VÍDEO, no dia seguinte à compra, pra quem já subiu foto.
@@ -216,6 +217,8 @@ export const ofertaVideo = inngest.createFunction(
 
         const semFoto = c.tipo === "semFoto";
         const template = semFoto ? "fotos_video" : "oferta_video";
+        // O preço da música DESTA pessoa (teste `preco_video`): o e-mail diz o que a tela vai cobrar.
+        const preco = textoPrecoVideo(c.link.match(/\/editar\/([0-9a-f]+)/)?.[1]);
         const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: template }],
           // Remetente de RECUPERAÇÃO: é oferta, não entrega (ver `emails/remetentes.ts`).
@@ -228,8 +231,9 @@ export const ofertaVideo = inngest.createFunction(
             nome: c.nome,
             titulo: c.titulo,
             link: c.link,
+            preco,
           }),
-          text: (semFoto ? textoFotosVideo : textoVideoOferta)({ nome: c.nome, link: c.link }),
+          text: (semFoto ? textoFotosVideo : textoVideoOferta)({ nome: c.nome, link: c.link, preco }),
         });
         if (error) {
           console.error("[oferta-video] envio falhou:", error.message);

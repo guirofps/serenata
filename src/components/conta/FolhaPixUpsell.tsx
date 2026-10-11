@@ -15,6 +15,7 @@ import { cpfValido, formatarCpf, soDigitosCpf } from "@/lib/cpf";
 import { useQuizStore } from "@/lib/quiz-store";
 import { OFERTAS } from "@/lib/creditos";
 import { descontoNaTela, type Alvo } from "@/lib/cupom";
+import { centavosDoVideo } from "@/lib/preco-video";
 import { reaisDeCentavos } from "@/lib/indicacao";
 
 // A FOLHA DE PAGAMENTO DO UPSELL: música extra, quadro e vídeo. PIX OU
@@ -80,7 +81,11 @@ export function FolhaPixUpsell({
   // folha mostra o preço com desconto e manda SÓ o código; o servidor
   // recalcula do catálogo. Sem cupom, nada muda.
   const cupom = useQuizStore((s) => s.cupom);
-  const catalogoC = Math.round((OFERTAS.find((o) => o.id === ofertaId)?.precoBrl ?? 0) * 100);
+  // O vídeo tem preço por música (teste `preco_video`), lido do token, como no servidor.
+  const catalogoC =
+    ofertaId === "video" && tokenEdicao
+      ? centavosDoVideo(tokenEdicao)
+      : Math.round((OFERTAS.find((o) => o.id === ofertaId)?.precoBrl ?? 0) * 100);
   const desconto = descontoNaTela(cupom, "pt", catalogoC, ofertaId as Alvo);
   const precoMostrado = desconto?.por ?? precoTexto;
   const cupomDaCompra = desconto?.codigo;

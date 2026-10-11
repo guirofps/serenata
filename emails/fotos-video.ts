@@ -21,8 +21,9 @@ const COPY = {
   corpo:
     "Escolha umas fotos no celular e veja acontecer: elas passam no ritmo da música, com a letra acendendo palavra por palavra no instante em que é cantada. Leva um minuto, e a página que você manda fica muito mais bonita.",
   botao: "ESCOLHER AS FOTOS",
-  rodapeAviso:
-    "Colocar as fotos e assistir não custa nada. Se quiser o vídeo em HD pra mandar no WhatsApp ou postar no story, são R$ 24,90, pagamento único.",
+  // O preço vem de quem chama (teste `preco_video`, 11/10): R$ 24,90 ou R$ 19,90 conforme a música.
+  rodapeAviso: (preco: string) =>
+    `Colocar as fotos e assistir não custa nada. Se quiser o vídeo em HD pra mandar no WhatsApp ou postar no story, são ${preco}, pagamento único.`,
   rodape: "Serenata · uma música feita da história de quem você ama",
 };
 
@@ -30,16 +31,16 @@ export function assuntoFotosVideo(nome: string): string {
   return COPY.assunto(nome);
 }
 
-export function textoFotosVideo(args: { nome: string; link: string }): string {
+export function textoFotosVideo(args: { nome: string; link: string; preco?: string }): string {
   return (
     `A página de ${args.nome} ainda está sem as fotos de vocês.\n\n` +
     `Escolha umas fotos no celular e veja elas passando no ritmo da música, com a letra acendendo palavra por palavra. ` +
     `Leva um minuto:\n\n${args.link}\n\n` +
-    `Colocar as fotos e assistir não custa nada. O vídeo em HD, pra mandar no WhatsApp, sai por R$ 24,90.`
+    `Colocar as fotos e assistir não custa nada. O vídeo em HD, pra mandar no WhatsApp, sai por ${args.preco ?? "R$ 24,90"}.`
   );
 }
 
-export function emailFotosVideo(args: { nome: string; titulo: string; link: string }): string {
+export function emailFotosVideo(args: { nome: string; titulo: string; link: string; preco?: string }): string {
   const { nome, titulo, link } = args;
   return `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${COPY.assunto(nome)}</title></head>
@@ -62,7 +63,7 @@ export function emailFotosVideo(args: { nome: string; titulo: string; link: stri
           </a>
         </td></tr>
         <tr><td style="padding:10px 36px 30px;text-align:center;color:rgba(42,21,24,0.5);font-size:13px;font-family:Helvetica,Arial,sans-serif;line-height:1.7;">
-          ${COPY.rodapeAviso}
+          ${COPY.rodapeAviso(args.preco ?? "R$ 24,90")}
         </td></tr>
       </table>
       <p style="margin:18px 0 0;color:rgba(42,21,24,0.4);font-size:11px;font-family:Helvetica,Arial,sans-serif;">${COPY.rodape}</p>

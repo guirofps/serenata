@@ -86,7 +86,13 @@ const MAX_H = 48;
 // passos de propósito: a taxa de 2,7% foi medida em quem é alcançado HOJE,
 // que é a fatia mais quente da fila. A margem pode converter pior, e é isso
 // que o passo seguinte (16 -> 24) vai dizer.
-const MAX_POR_RODADA = 16;
+//
+// 11/10: o passo seguinte. ~680 pessoas/dia clicam em comprar e não pagam, e
+// o teto de 16 alcançava ~330 (o envio diário batia no teto todo dia: 291-363).
+// Reclamação de spam zero; o bounce deste e-mail (5%) é caixa CHEIA no Gmail
+// (452 4.2.2), não reputação. Se a conversão da margem cair muito abaixo de
+// 2,2%, volta pra 16.
+const MAX_POR_RODADA = 24;
 
 function db() {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;

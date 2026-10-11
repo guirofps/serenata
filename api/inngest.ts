@@ -26,6 +26,7 @@ import { vigiaEntrega } from "../inngest/functions/vigiaEntrega.js";
 import { ofertaQuadro } from "../inngest/functions/ofertaQuadro.js";
 import { vigiaGeracao } from "../inngest/functions/vigiaGeracao.js";
 import { quaseComprou } from "../inngest/functions/quaseComprou.js";
+import { resgatarCoautoria } from "../inngest/functions/resgatarCoautoria.js";
 import { quadroParado } from "../inngest/functions/quadroParado.js";
 import { creditoParado } from "../inngest/functions/creditoParado.js";
 import { renderizarVideo } from "../inngest/functions/renderizarVideo.js";
@@ -136,5 +137,7 @@ export default serve({
     campanhaMusica10,
     // Teste `pedido_reacao` (08/10): só português, só Serenata.
     pedirReacao,
+    // Teste `resgate_coautoria` (11/10): quem largou a letra no meio. Só português.
+    resgatarCoautoria,
   ],
 });

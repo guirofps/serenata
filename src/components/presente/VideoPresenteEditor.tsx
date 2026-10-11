@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Download, Loader2, Film, ImagePlus, RefreshCw } from "lucide-react";
 import { OFERTAS } from "@/lib/creditos";
+import { textoPrecoVideo } from "@/lib/preco-video";
 import {
   atualizarVideo,
   gerarVideoPago,
@@ -531,7 +532,7 @@ export function VideoPresenteEditor({
   const precoTexto =
     precoUsd && locale === "es"
       ? emDolarExplicito(precoUsd)
-      : (precoUsd ?? `R$ ${oferta.precoBrl.toFixed(2).replace(".", ",")}`);
+      : (precoUsd ?? textoPrecoVideo(tokenEdicao));
   const semFoto = fotos.length === 0;
 
   return (
