@@ -41,6 +41,14 @@ import { avisarDonos } from "../../src/lib/avisar-donos.js";
 const MIN_POR_BRACO = 120; // sessões que viram a oferta, por braço
 const Z_CORTE = -2.5; // o braço testado convertendo pior que o controle
 
+// 5. TESTE PÓS-COMPRA NÃO É DELE (11/10). A régua é o clique na oferta, que
+//    acontece ANTES de pagar; um teste que só muda o que a pessoa vê DEPOIS
+//    (/obrigado, editor) não mexe nela, e a diferença entre braços é puro
+//    acaso. Olhando de hora em hora numa janela móvel, o acaso cruza o -2,5
+//    cedo ou tarde: o `outra_musica_24h` foi desligado assim DUAS vezes (08/10
+//    e 10/10, 06h56), sem ninguém mandar, e a leitura dele perdeu dias.
+const POS_COMPRA = new Set(["outra_musica_24h", "video_fotos_ja", "obrigado_direto"]);
+
 type Ev = { session_id: string; event_name: string; event_data: Record<string, unknown> | null };
 
 /** Erro padrão da diferença de duas proporções. `null` quando é cedo demais. */
@@ -105,6 +113,7 @@ export const vigiaExperimento = inngest.createFunction(
 
     const relatos: string[] = [];
     for (const exp of ligados) {
+      if (POS_COMPRA.has(exp.id)) continue; // trava 5
       // O controle é o PRIMEIRO da lista, que é como o resto do projeto trata.
       const controle = exp.variantes?.[0]?.nome;
       if (!controle) continue;
