@@ -223,6 +223,96 @@ Write the full lyrics around it (short intro, verses, bridge, outro) using the t
   },
 };
 
+// ── A LETRA DE DENTRO DE UM JSON PELA METADE ─────────────────────
+//
+// O modelo devolve `{"titulo": "...", "letra": "...", ...}`. Em streaming,
+// os pedaços chegam como JSON INVÁLIDO — `{"titulo": "Vira`, depois
+// `{"titulo": "Viradinho", "letra": "Você chegou dev` — e nada disso pode
+// ir pra tela do jeito que está.
+//
+// Esta função lê o que já existe do campo `letra` e devolve só isso, com as
+// escapadas desfeitas. É o que permite mostrar a letra NASCENDO sem trocar o
+// formato de saída do modelo — o que mexeria em música, karaokê e e-mails.
+//
+// Ela é deliberadamente tolerante: string sem fechar, escapada cortada no
+// meio, campo ainda inexistente. Tudo isso é estado NORMAL no meio de um
+// stream, não erro.
+/**
+ * Lê UM campo de texto do JSON do modelo, mesmo com o resto do JSON torto.
+ * `fechado` diz se a aspa final chegou: campo cortado não vale como final.
+ */
+export function campoDoModelo(bruto: string, chave: string): { texto: string; fechado: boolean } {
+  const m = bruto.match(new RegExp(`"${chave}"\\s*:\\s*"`));
+  if (!m || m.index === undefined) return { texto: "", fechado: false };
+  let i = m.index + m[0].length;
+  let saida = "";
+  while (i < bruto.length) {
+    const c = bruto[i];
+    if (c === "\\") {
+      if (i + 1 >= bruto.length) break;
+      const p = bruto[i + 1];
+      saida += p === "n" ? "\n" : p === "t" ? "\t" : p === "r" ? "" : p;
+      i += 2;
+      continue;
+    }
+    if (c === '"') return { texto: saida, fechado: true };
+    saida += c;
+    i += 1;
+  }
+  return { texto: saida, fechado: false };
+}
+
+/**
+ * A LETRA QUE JÁ CHEGOU NÃO VAI FORA (01/10).
+ *
+ * 6% das letras ao vivo caíam no caminho antigo (uma segunda chamada ao
+ * Claude, ~13s a mais) porque o JSON final vinha torto ("Expected ':' after
+ * property name", 130 em 24h) ou sem JSON nenhum (34). A letra em si estava
+ * inteira na tela. Aqui ela é recuperada campo a campo; e, sem JSON, aceita o
+ * texto puro quando ele tem cara de letra (as marcações [Verse]/[Chorus]).
+ * Devolve null quando não há letra confiável, e aí o caminho antigo assume.
+ */
+export function recuperarLetra(bruto: string, tituloPadrao: string): LetraGerada | null {
+  const letra = campoDoModelo(bruto, "letra");
+  if (letra.fechado && letra.texto.trim().length >= 200) {
+    const titulo = campoDoModelo(bruto, "titulo");
+    const estilo = campoDoModelo(bruto, "estilo_suno");
+    const verso = campoDoModelo(bruto, "verso_destaque");
+    return {
+      titulo: (titulo.fechado && titulo.texto.trim()) || tituloPadrao,
+      letra: letra.texto.trim(),
+      estilo_suno: estilo.fechado ? estilo.texto : "",
+      verso_destaque: verso.fechado ? verso.texto : "",
+    };
+  }
+  if (!bruto.includes("{") && /\[(Verse|Chorus|Verso|Refr[aã]o|Coro|Estrofa)/i.test(bruto) && bruto.trim().length >= 200) {
+    return { titulo: tituloPadrao, letra: bruto.trim(), estilo_suno: "", verso_destaque: "" };
+  }
+  return null;
+}
+
+export function letraParcial(bruto: string): string {
+  const m = bruto.match(/"letra"\s*:\s*"/);
+  if (!m || m.index === undefined) return "";
+  let i = m.index + m[0].length;
+  let saida = "";
+  while (i < bruto.length) {
+    const c = bruto[i];
+    if (c === "\\") {
+      // Escapada cortada no fim do pedaço: para aqui e espera o resto chegar.
+      if (i + 1 >= bruto.length) break;
+      const p = bruto[i + 1];
+      saida += p === "n" ? "\n" : p === "t" ? "\t" : p === "r" ? "" : p;
+      i += 2;
+      continue;
+    }
+    if (c === '"') break; // fim do campo
+    saida += c;
+    i += 1;
+  }
+  return saida;
+}
+
 export type LetraSozinha = LetraGerada & { usos: Array<{ modelo: string; uso: UsoClaude }> };
 
 /**
@@ -244,10 +334,18 @@ export async function escreverLetraSozinha(
 
   const r2 = await chamarClaude(`${base}\n\n${INSTRUCOES[locale].montar(refrao)}`, 4000, locale, MODEL);
   if (r2.stopReason === "max_tokens") throw new Error("Letra truncada pelo limite de tokens");
-  const p2 = extrairJson<Partial<LetraGerada>>(r2.texto);
+  const tituloPadrao = locale === "en" ? "Your song" : locale === "es" ? "Tu canción" : "Sua música";
+  // JSON torto com a letra inteira: recupera campo a campo, como a tela faz.
+  let p2: Partial<LetraGerada>;
+  try {
+    p2 = extrairJson<Partial<LetraGerada>>(r2.texto);
+  } catch (errJson) {
+    const recuperada = recuperarLetra(r2.texto, tituloPadrao);
+    if (!recuperada) throw errJson;
+    p2 = recuperada;
+  }
   const letra = String(p2.letra ?? "").trim();
   if (letra.length < 200) throw new Error("letra curta demais");
-  const tituloPadrao = locale === "en" ? "Your song" : locale === "es" ? "Tu canción" : "Sua música";
   return {
     titulo: String(p2.titulo ?? p1.titulo ?? tituloPadrao),
     letra,
