@@ -9,6 +9,7 @@ import { Mix, duracaoMix } from "./Mix";
 import { FinalBallad, FINAL_BALLAD_S } from "./FinalBallad";
 import { AnuncioUGC, FPS_UGC, duracaoUGC, type PropsAnuncioUGC } from "./AnuncioUGC";
 import { LetraReacao, FPS_LETRA_REACAO, duracaoLetraReacao, type PropsLetraReacao } from "./LetraReacao";
+import { AnuncioAngulo, FPS_ANGULO, DURACAO_ANGULO_S, type PropsAngulo } from "./AnuncioAngulo";
 import { Remarketing,FPS_REMARKETING, DURACAO_REMARKETING_S, duracaoRemarketing, type PropsRemarketing } from "./Remarketing";
 
 /**
@@ -132,6 +133,16 @@ export const RemotionRoot: React.FC = () => {
       height={1920}
       calculateMetadata={({ props }) => ({ durationInFrames: duracaoLetraReacao(props) })}
       defaultProps={EXEMPLO_LETRA_REACAO}
+    />
+    {/* Anúncios de ângulo (12/10): props de scratch/anuncios-12out/props-*.json. */}
+    <Composition
+      id="AnuncioAngulo"
+      component={AnuncioAngulo}
+      durationInFrames={DURACAO_ANGULO_S * FPS_ANGULO}
+      fps={FPS_ANGULO}
+      width={1080}
+      height={1920}
+      defaultProps={{} as PropsAngulo}
     />
     <Composition id="FinalBallad" component={FinalBallad} durationInFrames={Math.round(FINAL_BALLAD_S * FPS)} fps={FPS} width={1080} height={1920} defaultProps={{}} />
     <Composition id="FinalBallad45" component={FinalBallad} durationInFrames={Math.round(FINAL_BALLAD_S * FPS)} fps={FPS} width={1080} height={1350} defaultProps={{}} />
