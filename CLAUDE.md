@@ -567,6 +567,14 @@ painel_eventos_dia`) e o cron refazer.
 - **A regra de venda mora em `ehVenda`** (`painel-resumo.ts`). O painel e o
   cron usam a mesma.
 - **`?vivo=1`** no `/admin` ignora o resumo. Pra conferir um dia, não pra 30.
+- **O comparativo corta o GASTO na mesma hora (13/10).** Vendas, receita e custos
+  sempre obedeceram ao "ontem até esta hora" (`janelaAnterior`), mas o gasto é
+  guardado por DIA e entrava inteiro: o cartão de gasto mostrava ~-70% toda
+  tarde e CPA, ROAS e lucro saíam errados junto. Agora o dia cortado vem hora a
+  hora da API (`segments.hour`, `corteDoGasto` em `admin-dados.ts`) e o manual
+  entra na fração do dia (`cortarDiaDoGasto`, `gasto-midia.ts`); sem a API, o
+  Google também vai na fração. Hoje até agora continua vindo de
+  `metricas_campanha`, que atualiza de hora em hora (até ~1h de atraso).
 - Cada painel loga `[admin] painel …` com os tempos nos logs da Vercel.
 - **Vendas por canal (08/10)**, abaixo da linha de mídia: Google, TikTok,
   e-mail e orgânico, somando o cartão "Vendas" (`canal-venda.ts`). Venda com
