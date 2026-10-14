@@ -215,6 +215,9 @@ prioridade é vender fumaça, e no Google Ads isso derruba conta.
 
 - **Entrega imediata após o pagamento**, mas **prometer conservador**:
   "em até 30 minutos, normalmente menos de 5". Nunca prometer 60 segundos.
+  **Exceção decidida pelo dono (14/10):** nos anúncios gravados por ele no formato do Vid 5, as falas
+  "fica pronto em menos de um minuto" e "é de graça" (a prévia) FICAM: a música sai em ~51s de mediana e
+  a prévia é grátis. Não cortar essas falas dos vídeos dele. A promessa conservadora segue no site e nos e-mails.
 - **Antecipação vai no agendamento**, não na entrega: o comprador recebe na
   hora, e escolhe quando o presenteado recebe (e isso coleta um lead novo).
 - **Gateway BR com API** (Asaas, Pagar.me ou Appmax), não plataforma de
