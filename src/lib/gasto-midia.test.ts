@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diasDaJanela, somarGasto } from "./gasto-midia";
+import { cortarDiaDoGasto, diasDaJanela, gastoAteOMinuto, somarGasto } from "./gasto-midia";
 
 describe("somarGasto", () => {
   it("soma o Google da API com os lançamentos de outras origens", () => {
@@ -64,5 +64,36 @@ describe("diasDaJanela (tabelas por DIA, no fuso de Brasília)", () => {
     expect(
       diasDaJanela(new Date("2026-09-25T03:00:00.000Z"), new Date("2026-10-02T03:00:00.000Z")),
     ).toEqual({ de: "2026-09-25", ate: "2026-10-01" });
+  });
+});
+
+describe("o dia cortado da janela anterior (comparativo até a mesma hora)", () => {
+  it("soma as horas inteiras antes do corte e a fração da hora corrente", () => {
+    const porHora = Array.from({ length: 24 }, (_, h) => ({ hora: h, brl: 100 }));
+    // 14h30: 14 horas inteiras + meia hora das 14h
+    expect(gastoAteOMinuto(porHora, 14 * 60 + 30)).toBe(1450);
+    expect(gastoAteOMinuto(porHora, 0)).toBe(0);
+    expect(gastoAteOMinuto([{ hora: 3, brl: 900 }, { hora: 20, brl: 50 }], 10 * 60)).toBe(900);
+  });
+
+  it("troca o Google do dia cortado pelo gasto até a hora e reduz o manual na fração do dia", () => {
+    const r = cortarDiaDoGasto(
+      [
+        { dia: "2026-10-12", origem: "tiktok", brl: 240 },
+        { dia: "2026-10-11", origem: "tiktok", brl: 100 },
+      ],
+      [
+        { dia: "2026-10-12", brl: 4000 },
+        { dia: "2026-10-12", brl: 2000 },
+        { dia: "2026-10-11", brl: 5000 },
+      ],
+      { dia: "2026-10-12", minutoDoDia: 12 * 60, googleAteAgoraBrl: 1800 },
+    );
+    expect(somarGasto(r.manuais, r.google)).toEqual({ totalBrl: 1800 + 5000 + 120 + 100, googleApiBrl: 6800, manualBrl: 220 });
+  });
+
+  it("sem o gasto por hora (API fora), o Google do dia cortado também é proporcional", () => {
+    const r = cortarDiaDoGasto([], [{ dia: "2026-10-12", brl: 6000 }], { dia: "2026-10-12", minutoDoDia: 6 * 60, googleAteAgoraBrl: null });
+    expect(somarGasto(r.manuais, r.google).totalBrl).toBe(1500);
   });
 });

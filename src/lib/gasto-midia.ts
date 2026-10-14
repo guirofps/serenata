@@ -42,3 +42,52 @@ export function somarGasto(
     .reduce((s, m) => s + m.brl, 0);
   return { totalBrl: googleApiBrl + manualBrl, googleApiBrl, manualBrl };
 }
+
+// ── O DIA CORTADO DO COMPARATIVO (13/10) ────────────────────────────────
+//
+// O comparativo lê "ontem até esta mesma hora" (`janelaAnterior`), e vendas,
+// receita e custos obedecem ao corte porque têm horário. O gasto NÃO tinha:
+// `metricas_campanha` e `gastos_ads` guardam DIA, então o gasto de ontem
+// entrava inteiro contra o de hoje pela metade. O cartão de gasto mostrava
+// queda toda manhã, e CPA, ROAS e lucro, que dividem ou subtraem o gasto,
+// saíam errados junto (dono, 13/10: "↘70%" no gasto, "↘189%" no lucro).
+//
+// O conserto mexe só no dia cortado: o Google vem hora a hora da API
+// (`segments.hour`) até o minuto do corte; o manual é por dia e entra na
+// fração do dia que já passou. Sem a API por hora, o Google também entra na
+// fração: não é exato (de madrugada se gasta mais), mas é da mesma ordem do
+// dia de hoje, e o dia inteiro não era.
+
+/** O gasto por hora de um dia até `minutoDoDia` (0-1440): horas inteiras + a fração da hora corrente. */
+export function gastoAteOMinuto(porHora: { hora: number; brl: number }[], minutoDoDia: number): number {
+  const hora = Math.floor(minutoDoDia / 60);
+  const fracao = (minutoDoDia % 60) / 60;
+  return porHora.reduce((s, h) => s + (h.hora < hora ? h.brl : h.hora === hora ? h.brl * fracao : 0), 0);
+}
+
+export type CorteDoGasto = {
+  /** O dia (no fuso das tabelas) que a janela anterior corta no meio. */
+  dia: string;
+  /** Minutos desde a meia-noite em que a janela anterior termina. */
+  minutoDoDia: number;
+  /** O Google daquele dia até o corte, hora a hora da API; `null` quando a API não respondeu. */
+  googleAteAgoraBrl: number | null;
+};
+
+/** As linhas de gasto com o dia cortado trocado pelo que foi gasto até o corte. */
+export function cortarDiaDoGasto(
+  manuais: GastoManual[],
+  google: GastoGoogleApi[],
+  corte: CorteDoGasto,
+): { manuais: GastoManual[]; google: GastoGoogleApi[] } {
+  const fracao = Math.min(1, Math.max(0, corte.minutoDoDia / 1440));
+  const doDia = google.filter((g) => g.dia === corte.dia);
+  const outros = google.filter((g) => g.dia !== corte.dia);
+  const googleDoDia =
+    corte.googleAteAgoraBrl ?? doDia.reduce((s, g) => s + g.brl, 0) * fracao;
+  return {
+    manuais: manuais.map((m) => (m.dia === corte.dia ? { ...m, brl: m.brl * fracao } : m)),
+    // Sem linha da API no dia, continua sem: o manual de google vale (plano B do `somarGasto`).
+    google: doDia.length ? [...outros, { dia: corte.dia, brl: googleDoDia }] : outros,
+  };
+}

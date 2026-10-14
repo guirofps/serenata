@@ -6,11 +6,12 @@ import { isQuestion } from "@/lib/flow-engine";
 import { cambioDoDia } from "@/lib/cambio";
 import { filtroCursor, lerJanela } from "@/lib/ler-janela";
 import { porTemaDe, type LinhaTema } from "@/lib/admin-tema";
-import { diasDaJanela, somarGasto } from "@/lib/gasto-midia";
+import { cortarDiaDoGasto, diasDaJanela, gastoAteOMinuto, somarGasto, type CorteDoGasto } from "@/lib/gasto-midia";
 import { taxaDoPedido } from "@/lib/taxa-gateway";
 import { contarPorCanal, type CanalVenda } from "@/lib/canal-venda";
 import { chaveOrigem } from "@/lib/origem";
 import {
+  diaBr,
   ehVenda,
   faixasVivas,
   fatiarJanela,
@@ -726,7 +727,12 @@ async function lerResumoEventos(
  * tela busca cada uma no seu tempo. Um `if` que só tem um lado não é opção,
  * é o comportamento.
  */
-async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Promise<Painel> {
+async function montarPainel(
+  data: ArgsPainel,
+  { inicio, fim, dias }: Janela,
+  /** Só no comparativo: o dia que a janela anterior corta no meio (ver `corteDoGasto`). */
+  corteGasto?: CorteDoGasto,
+): Promise<Painel> {
   const t0 = Date.now();
   const db = supabaseAdmin();
   const desde = inicio.toISOString();
@@ -914,7 +920,9 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
     const ultima: LinhaMet = pagina[pagina.length - 1];
     cursorMet = { dia: String(ultima.dia), campanha_id: String(ultima.campanha_id) };
   }
-  const gasto = somarGasto(gastos, googleApi);
+  // No comparativo, o dia cortado entra só até a mesma hora (`cortarDiaDoGasto`).
+  const paraSomar = corteGasto ? cortarDiaDoGasto(gastos, googleApi, corteGasto) : { manuais: gastos, google: googleApi };
+  const gasto = somarGasto(paraSomar.manuais, paraSomar.google);
   const gastoAds = gasto.totalBrl;
 
   // Liberação manual sem dinheiro (cortesia, acesso interno, teste) NÃO é
@@ -1644,6 +1652,52 @@ async function montarPainel(data: ArgsPainel, { inicio, fim, dias }: Janela): Pr
  * de hoje é o que não pode faltar.
  */
 /**
+ * O DIA QUE A JANELA ANTERIOR CORTA NO MEIO, com o Google gasto até o corte.
+ *
+ * `undefined` quando a janela anterior termina à meia-noite (intervalo do
+ * passado, nada cortado). O gasto por hora vem da API, ao vivo, só desse dia;
+ * se a API não responder em 6s, ou a conta não estiver no fuso de Brasília
+ * (as tabelas são por dia de Brasília), volta `null` e o Google desse dia entra
+ * na fração do dia (`cortarDiaDoGasto`).
+ */
+async function corteDoGasto(antes: Janela): Promise<CorteDoGasto | undefined> {
+  const fimMs = antes.fim.getTime();
+  const local = new Date(fimMs - 3 * 3600000); // Brasília, sem horário de verão desde 2019
+  const minutoDoDia = local.getUTCHours() * 60 + local.getUTCMinutes();
+  if (minutoDoDia === 0) return undefined;
+  const dia = diaBr(fimMs - 1);
+  let googleAteAgoraBrl: number | null = null;
+  try {
+    const { consultarGoogleAds, fusoDaConta, tokenGoogleAds } = await import("../../inngest/lib/google-ads");
+    const porHora = await Promise.race([
+      (async () => {
+        const acesso = await tokenGoogleAds();
+        const [fuso, linhas] = await Promise.all([
+          fusoDaConta(acesso),
+          consultarGoogleAds(
+            `SELECT segments.hour, metrics.cost_micros FROM campaign WHERE segments.date = '${dia}' AND metrics.cost_micros > 0`,
+            acesso,
+          ),
+        ]);
+        if (fuso !== "America/Sao_Paulo") return null;
+        const horas = new Map<number, number>();
+        for (const l of linhas) {
+          const h = Number((l.segments as { hour?: unknown } | undefined)?.hour);
+          const custo = Number((l.metrics as { costMicros?: unknown } | undefined)?.costMicros ?? 0) / 1e6;
+          if (Number.isFinite(h)) horas.set(h, (horas.get(h) ?? 0) + custo);
+        }
+        return [...horas].map(([hora, brl]) => ({ hora, brl }));
+      })(),
+      new Promise<null>((ok) => setTimeout(() => ok(null), 6000)),
+    ]);
+    if (porHora) googleAteAgoraBrl = gastoAteOMinuto(porHora, minutoDoDia);
+  } catch (err) {
+    console.error("[admin] gasto por hora do dia cortado nao lido:", err);
+  }
+  return { dia, minutoDoDia, googleAteAgoraBrl };
+}
+
+/**
  * A JANELA ANTERIOR INTEIRA — sem o corte em `agora`.
  *
  * `janelaAnterior` corta de propósito, e está certa: é o que faz "hoje até
@@ -1765,8 +1819,9 @@ export const carregarComparativo = createServerFn({ method: "POST" })
     const janela = janelaDo(data);
     const antes = janelaAnterior(janela);
 
+    const corte = await corteDoGasto(antes);
     const [anterior, serieDeAntes] = await Promise.all([
-      montarPainel(data, antes).catch((err) => {
+      montarPainel(data, antes, corte).catch((err) => {
         console.error("[admin] periodo anterior nao lido:", err);
         return null;
       }),
