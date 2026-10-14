@@ -46,6 +46,9 @@ import { LOCALE_PADRAO, type Locale } from "@/lib/i18n";
 // entregue é a noite. A passagem entre os dois é a narrativa da marca.
 
 const MAX_DEDICATORIA = 280;
+// Fotos por requisição da galeria: 3 em base64 (maior lado 1600) ficam bem
+// abaixo dos ~4,5 MB que a Vercel aceita por corpo de requisição.
+const FOTOS_POR_ENVIO = 3;
 
 // O nome da cor em inglês. `nomeCor` (marca.ts) só conhece pt e es; a chave
 // é a mesma do banco, então basta um mapa aqui.
@@ -361,12 +364,19 @@ function Editor() {
         setErro(T.erroFotos);
         return;
       }
-      const r = await adicionarNaGaleria({ data: { tokenEdicao, fotosBase64: prontas } });
-      if (!r.ok) {
-        setErro(r.erro ?? T.erroSalvarFotos);
-        return;
+      // EM LOTES DE 3 (14/10). Mandava todas numa requisição só, e a Vercel
+      // recusa corpo acima de ~4,5 MB: 10 fotos em base64 passavam disso e o
+      // envio inteiro caía como "desconhecido". Ficou pior quando a foto passou
+      // a subir inteira (maior lado 1600, `imagem.ts`). Cada lote soma na
+      // galeria que já está no servidor; se um falhar, os anteriores ficam.
+      for (let i = 0; i < prontas.length; i += FOTOS_POR_ENVIO) {
+        const r = await adicionarNaGaleria({ data: { tokenEdicao, fotosBase64: prontas.slice(i, i + FOTOS_POR_ENVIO) } });
+        if (!r.ok) {
+          setErro(r.erro ?? T.erroSalvarFotos);
+          return;
+        }
+        setGaleria(r.galeria ?? []);
       }
-      setGaleria(r.galeria ?? []);
       setSalvo(true);
     } catch (err) {
       // Rede caiu ou a função estourou o tempo (12 fotos de 5 MB no 4G). Até
