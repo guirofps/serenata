@@ -4,6 +4,7 @@ import { OFERTAS, TEXTO_OFERTA } from "@/lib/creditos";
 import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
 import { trackEvent } from "@/lib/track";
 import { guardarCreditoNoNavegador } from "@/lib/credito-no-navegador";
+import { meusCreditos } from "@/lib/meus-creditos";
 
 // O ATALHO PRA SEGUNDA MÚSICA, MAIS BARATO E SEM REFAZER TUDO.
 //
@@ -60,7 +61,32 @@ export function AtalhoOutraMusica({
   origem: "obrigado" | "editor";
 }) {
   const [aberto, setAberto] = useState(false);
+  // QUEM JÁ TEM CRÉDITO NÃO VÊ PIX (14/10). O atalho só vendia: abria a folha
+  // de R$ 28 mesmo pra quem já tinha a música paga (pacote comprado e ainda
+  // não usado) ou de cortesia do suporte. O Ademir tocou aqui com uma cortesia
+  // liberada e recebeu um QR Code de R$ 28. Agora o saldo é lido pelo
+  // `token_edicao` (a mesma credencial do PIX) e, havendo saldo, o crachá vai
+  // pro navegador e a pessoa segue direto pro quiz, que resgata o crédito no
+  // fim (`TelaOferta`). Se a leitura falhar, cai no caminho de sempre.
+  const [saldo, setSaldo] = useState(0);
   const es = locale === "es";
+  useEffect(() => {
+    if (es) return;
+    let vivo = true;
+    meusCreditos({ data: { tokenEdicao } })
+      .then((c) => {
+        if (vivo) setSaldo(c.saldo ?? 0);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [es, tokenEdicao]);
+  const usarCredito = () => {
+    trackEvent("atalho_extra_com_credito", { origem, locale });
+    guardarCreditoNoNavegador(tokenEdicao);
+    window.location.href = "/criar";
+  };
   const oferta = OFERTAS.find((o) => o.id === "extra");
 
   // QUEM VEIO DO E-MAIL JÁ CLICOU, ENTÃO A FOLHA ABRE SOZINHA.
@@ -75,8 +101,12 @@ export function AtalhoOutraMusica({
     if (es || origem !== "editor") return;
     if (window.location.hash === "#outra-musica") {
       trackEvent("atalho_extra_click", { origem, locale, via: "email" });
-      setAberto(true);
+      // Com saldo, nem abre a folha: quem já pagou não pode ver cobrança.
+      meusCreditos({ data: { tokenEdicao } })
+        .then((c) => ((c.saldo ?? 0) > 0 ? usarCredito() : setAberto(true)))
+        .catch(() => setAberto(true));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [es, origem, locale]);
 
   if (!oferta) return null;
@@ -88,7 +118,11 @@ export function AtalhoOutraMusica({
   // O preço sai em REAL nos dois idiomas, e não é descuido: os três upsells
   // são cobrados em real pela Perfect Pay, e é isso que o painel já mostra.
   // Escrever "US$ 6" aqui seria prometer uma moeda que a fatura não usa.
-  const rotulo = es ? `¿Quién es la próxima? Por ${preco}` : `Quem é a próxima? Por ${preco}`;
+  const rotulo = es
+    ? `¿Quién es la próxima? Por ${preco}`
+    : saldo > 0
+      ? `Quem é a próxima? Você já tem ${saldo === 1 ? "1 música paga" : `${saldo} músicas pagas`}`
+      : `Quem é a próxima? Por ${preco}`;
 
   // ── POR QUE `inline` E NÃO `inline-flex` ─────────────────────
   //
@@ -122,6 +156,7 @@ export function AtalhoOutraMusica({
           <button
             type="button"
             onClick={() => {
+              if (saldo > 0) return usarCredito();
               trackEvent("atalho_extra_click", { origem, locale, via: "pix" });
               setAberto(true);
             }}
