@@ -1172,6 +1172,8 @@ trava "já mandei?" das 12 rotinas de e-mail falha FECHADA.
 
 **Conserto sem teste (14/10):** toda foto subia cortada num QUADRADO pelo CENTRO (`src/lib/imagem.ts`), e em foto em pé o rosto saía (a Edna pagou o vídeo e 3 fotos chegaram sem rosto). Agora sobe inteira, só reduzida (maior lado 1600): a página (`FotoAdaptativa`), o quadro (`AjusteDaFoto`) e o vídeo (`Presente.tsx`) já enquadram pela proporção real. Foto antiga continua quadrada até a pessoa subir de novo. Teste em `imagem.test.ts`.
 
+**Consertos sem teste (14/10, tarde):** (1) a galeria mandava TODAS as fotos numa requisição só e a Vercel recusa corpo acima de ~4,5 MB; com a foto inteira (conserto da madrugada) as falhas da galeria foram de 4 pra 11 por dia. Agora sobe em lotes de 3 (`FOTOS_POR_ENVIO`, `editar.$tokenEdicao.tsx`). (2) "Quem é a próxima?" (`AtalhoOutraMusica.tsx`) só vendia: abria o PIX de R$ 28 até pra quem tinha crédito (pacote pago e não usado, ou cortesia do suporte; o Ademir recebeu QR Code com cortesia liberada). Agora lê o saldo pelo `token_edicao` (`meusCreditos`); com saldo, o rótulo vira "Você já tem 1 música paga", guarda o crachá e vai direto pro quiz. Conferido no site publicado. Crédito de cortesia do suporte é usado por ESTE botão.
+
 **Consertos sem teste (06-07/10):** o ajuste regrava a música INTEIRA (melodia
 e voz novas), mesmo pra trocar uma palavra; o Silvio pediu "querida" → "querido",
 recebeu outra música e quis a primeira de volta. O aviso ao lado do botão de
