@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { novosPorCodigo, separarCompras } from "@/lib/indicacao-links";
 
 // A INDICAÇÃO NO PAINEL: a fila de saques e o que sustenta cada um.
 //
@@ -222,6 +223,10 @@ export type LinkIndicacao = {
   quizzes: number;
   letras: number;
   pagos: number;
+  /** Compras que geraram comissão: primeira compra de alguém novo. */
+  novos: number;
+  /** O resto: o dono comprando pelo próprio link, ou quem já era cliente. */
+  outras: number;
   receitaCentavos: number;
   comissaoCentavos: number;
 };
@@ -232,6 +237,8 @@ export type PainelLinks = {
   totalCodigos: number;
   /** Preenchido quando a RPC não respondeu. Ver o comentário abaixo. */
   erro?: string;
+  /** A leitura das comissões falhou: novos × outras não é confiável. */
+  semSeparacao?: boolean;
 };
 
 type LinhaLink = {
@@ -257,10 +264,21 @@ export const carregarLinksIndicacao = createServerFn({ method: "POST" }).handler
     exigirAdmin();
     const db = supabaseAdmin();
 
-    const [links, codigos] = await Promise.all([
+    const [links, codigos, comissoes] = await Promise.all([
       db.rpc("admin_indicacao_links"),
       db.from("indicacao_codigos").select("email", { count: "exact", head: true }),
+      // Só comissão de pedido AINDA pago, igual à coluna Comissão da RPC:
+      // reembolso tira o convidado de "novos" e o devolve pra lugar nenhum.
+      db
+        .from("indicacao_comissoes")
+        .select("codigo, pedidos!inner(status)")
+        .eq("pedidos.status", "pago")
+        .range(0, 9999),
     ]);
+    if (comissoes.error) {
+      console.error("[admin] comissões por link falhou:", comissoes.error.message);
+    }
+    const novos = novosPorCodigo((comissoes.data ?? []) as { codigo: string | null }[]);
 
     // ── QUANDO A RPC NÃO EXISTE ──────────────────────────────────
     //
@@ -274,6 +292,7 @@ export const carregarLinksIndicacao = createServerFn({ method: "POST" }).handler
 
     return {
       totalCodigos: codigos.count ?? 0,
+      semSeparacao: !!comissoes.error,
       links: ((links.data ?? []) as LinhaLink[]).map((l) => ({
         codigo: l.codigo,
         dono: l.dono ?? "—",
@@ -283,6 +302,7 @@ export const carregarLinksIndicacao = createServerFn({ method: "POST" }).handler
         quizzes: n(l.quizzes),
         letras: n(l.letras),
         pagos: n(l.pagos),
+        ...separarCompras(n(l.pagos), novos.get(l.codigo.toUpperCase()) ?? 0),
         receitaCentavos: n(l.receita_centavos),
         comissaoCentavos: n(l.comissao_centavos),
       })),

@@ -56,10 +56,22 @@ export function AbaIndicacaoLinks() {
       quizzes: a.quizzes + l.quizzes,
       letras: a.letras + l.letras,
       pagos: a.pagos + l.pagos,
+      novos: a.novos + l.novos,
+      outras: a.outras + l.outras,
       receita: a.receita + l.receitaCentavos,
       comissao: a.comissao + l.comissaoCentavos,
     }),
-    { cliques: 0, pessoas: 0, quizzes: 0, letras: 0, pagos: 0, receita: 0, comissao: 0 },
+    {
+      cliques: 0,
+      pessoas: 0,
+      quizzes: 0,
+      letras: 0,
+      pagos: 0,
+      novos: 0,
+      outras: 0,
+      receita: 0,
+      comissao: 0,
+    },
   );
 
   return (
@@ -83,9 +95,13 @@ export function AbaIndicacaoLinks() {
           nota={pct(t.letras, t.quizzes)}
         />
         <Cartao
-          rotulo="Compraram"
-          valor={String(t.pagos)}
-          nota={`${pct(t.pagos, t.pessoas)} de quem chegou`}
+          rotulo="Clientes novos"
+          valor={dados.semSeparacao ? "—" : String(t.novos)}
+          nota={
+            dados.semSeparacao
+              ? "não deu pra ler as comissões"
+              : `${pct(t.novos, t.pessoas)} de quem chegou · +${t.outras} outras compras`
+          }
         />
       </section>
 
@@ -108,7 +124,8 @@ export function AbaIndicacaoLinks() {
                   <th className="px-3 py-2 font-normal">Pessoas</th>
                   <th className="px-3 py-2 font-normal">Quiz</th>
                   <th className="px-3 py-2 font-normal">Letra</th>
-                  <th className="px-3 py-2 font-normal">Comprou</th>
+                  <th className="px-3 py-2 font-normal">Clientes novos</th>
+                  <th className="px-3 py-2 font-normal">Outras compras</th>
                   <th className="px-3 py-2 font-normal">Receita</th>
                   <th className="px-3 py-2 font-normal">Comissão</th>
                 </tr>
@@ -126,7 +143,12 @@ export function AbaIndicacaoLinks() {
                     <td className="px-3 py-2 tabular-nums">{l.pessoas || "—"}</td>
                     <td className="px-3 py-2 tabular-nums">{l.quizzes || "—"}</td>
                     <td className="px-3 py-2 tabular-nums">{l.letras || "—"}</td>
-                    <td className="px-3 py-2 font-medium tabular-nums">{l.pagos || "—"}</td>
+                    <td className="px-3 py-2 font-medium tabular-nums">
+                      {dados.semSeparacao ? "—" : l.novos || "—"}
+                    </td>
+                    <td className="px-3 py-2 tabular-nums text-[var(--tinta-suave)]">
+                      {dados.semSeparacao ? l.pagos || "—" : l.outras || "—"}
+                    </td>
                     <td className="px-3 py-2 tabular-nums">
                       {l.receitaCentavos ? reaisDeCentavos(l.receitaCentavos) : "—"}
                     </td>
@@ -152,10 +174,10 @@ export function AbaIndicacaoLinks() {
             "Compraram" aqui e "Compras por convite" em Saques dão números
             diferentes de propósito, e nada na tela dizia isso. */}
         <p className="text-xs leading-relaxed text-[var(--tinta-suave)]">
-          <strong>Comprou</strong> pode passar de "Compras por convite" na aba de Saques, e as duas
-          estão certas: comissão só nasce na PRIMEIRA compra do convidado. Quem já era cliente e
-          voltou pelo link é venda que o link trouxe, e não é comissão. A diferença entre as duas
-          colunas é esse caso.
+          <strong>Clientes novos</strong> são as compras que geraram comissão: a primeira compra de
+          alguém que nunca tinha comprado, pagando com 10% de desconto.{" "}
+          <strong>Outras compras</strong> chegaram pelo link mas não dão comissão: o próprio dono
+          comprando outra música pelo link dele, ou quem já era cliente. As duas entram na Receita.
         </p>
       </section>
     </div>
