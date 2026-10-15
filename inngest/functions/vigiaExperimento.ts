@@ -47,7 +47,10 @@ const Z_CORTE = -2.5; // o braço testado convertendo pior que o controle
 //    acaso. Olhando de hora em hora numa janela móvel, o acaso cruza o -2,5
 //    cedo ou tarde: o `outra_musica_24h` foi desligado assim DUAS vezes (08/10
 //    e 10/10, 06h56), sem ninguém mandar, e a leitura dele perdeu dias.
-const POS_COMPRA = new Set(["outra_musica_24h", "video_fotos_ja", "obrigado_direto"]);
+//    Vale também pra teste que muda só o que vem DEPOIS do clique (15/10): a
+//    `folha_pix` é a folha que o clique abre, e foi desligada assim em 14/10
+//    00h, sem ninguém mandar, no meio da leitura (B estava na frente).
+const POS_COMPRA = new Set(["outra_musica_24h", "video_fotos_ja", "obrigado_direto", "folha_pix"]);
 
 type Ev = { session_id: string; event_name: string; event_data: Record<string, unknown> | null };
 
