@@ -293,9 +293,10 @@ export const mandarLetra = inngest.createFunction(
         // O B cita o nome no começo, então sem nome real fica no A: "quem você
         // ama ganhou uma música" não é frase. O teste é só em português: o
         // espanhol e o inglês saem sempre no A.
+        // ENCERRADO 15/10 (dono): empate em 17 dias (venda em 48h 5,4% × 5,6%,
+        // ~11 mil envios por braço). Fica o B pra todo português com nome real.
         const nomeReal = !Object.values(NOME_GENERICO).includes(p.nome);
-        const variante: "a" | "b" =
-          p.locale === "pt" && nomeReal && parseInt(p.quizId.slice(-1), 16) % 2 === 1 ? "b" : "a";
+        const variante: "a" | "b" = p.locale === "pt" && nomeReal ? "b" : "a";
 
         // A TRAVA ANTES DO ENVIO (08/10). Este evento é a trava (`jaMandou`)
         // e a porta da escada; ele era gravado DEPOIS do Resend e sem ler o

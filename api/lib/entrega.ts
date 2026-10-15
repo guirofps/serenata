@@ -225,9 +225,9 @@ ${linkEditor}`
     // do id do quiz, o mesmo critério do teste de assunto da letra (a mesma
     // pessoa cai sempre no mesmo lado, e a leitura recalcula o braço pelo id).
     // Só português. Ver `variante` em `emails/presente-pronto.ts`.
-    const qid = args.musica.quiz_response_id ?? "";
-    const varianteEntrega: "a" | "b" =
-      locale === "pt" && qid && parseInt(qid.slice(-1), 16) % 2 === 1 ? "b" : "a";
+    // ENCERRADO 15/10 (dono): empate (foto em 24h 40,3% × 42,0%, vídeo e
+    // extras iguais, ~2 mil compradores por braço). Fica o B pra todo português.
+    const varianteEntrega: "a" | "b" = locale === "pt" ? "b" : "a";
 
     const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
       // A ETIQUETA DO ENVIO, que o Resend devolve em todo evento. É o único
