@@ -20,7 +20,7 @@ import { aplicarTipo, numeroCanonico } from "@/lib/quiz-flow-gospel";
 import { carimbarTema, idiomaTemTema, temaEfetivo, type Tema } from "@/lib/tema";
 import { type Locale, TAG_IDIOMA, caminho } from "@/lib/i18n";
 import { t } from "@/lib/textos";
-import { sugerirEmail } from "@/lib/email-typo";
+import { corrigirTypoCerto, sugerirEmail } from "@/lib/email-typo";
 import { carimbarExperimentos, varianteDe } from "@/lib/experimentos";
 import { dominioRecebeEmail } from "@/lib/dominio-email";
 import { AberturaPresente } from "@/components/quiz/AberturaPresente";
@@ -460,9 +460,9 @@ export function Quiz({
     navigate({ to: rota, search: { step: "revisao" } } as never);
   }
 
-  async function abrirConfirmacaoEmail() {
+  async function abrirConfirmacaoEmail(corrigido?: string) {
     if (conferindoEmail) return;
-    const alvo = (email ?? "").trim();
+    const alvo = (corrigido ?? email ?? "").trim();
     setConferindoEmail(true);
     let r = { recebe: true, dominio: null as string | null };
     try {
@@ -973,6 +973,16 @@ export function Quiz({
                   }
                 : isContact(step)
                 ? () => {
+                    // Typo de quase-certeza (gamil.com, hotemail.com…) é
+                    // corrigido sozinho e SEMPRE passa pela folha de conferir,
+                    // pra pessoa ver o endereço novo antes de seguir (15/10).
+                    const corrigido = corrigirTypoCerto(email ?? "");
+                    if (corrigido !== (email ?? "").trim()) {
+                      setEmail(corrigido);
+                      trackEvent("email_typo_auto", { de: email, para: corrigido });
+                      void abrirConfirmacaoEmail(corrigido);
+                      return;
+                    }
                     if (varianteDe("email_confirma") === "B") void abrirConfirmacaoEmail();
                     else seguirDoContato();
                   }

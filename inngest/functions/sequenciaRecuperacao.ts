@@ -31,6 +31,9 @@ import { centavosComCupom, codigoComPrazo } from "../../src/lib/cupom.js";
 import { caminhoDeVolta } from "../../src/lib/volta-ao-funil.js";
 import { assuntoPrazo, emailPrazo, textoPrazo } from "../../emails/recuperacao-prazo.js";
 
+/** Teste `recuperacao_prazo`: encerrado em 15/10 (B sem venda). `true` religa o braço B. */
+const RECUPERACAO_PRAZO_LIGADO = false;
+
 // A SEQUENCIA DE RECUPERACAO: hoje so o e-mail 2 (ver ULTIMO_EMAIL).
 //
 // O e-mail 1 (a letra) já roda em `mandarLetra` e é uma fila FINITA: pega quem
@@ -475,7 +478,10 @@ export const sequenciaRecuperacao = inngest.createFunction(
         // termina nela. Sem gate de engajamento de propósito: o teste é a
         // oferta com prazo pra quem entra na régua, e barrar 87% dela no
         // gate faria o B medir "menos e-mail", não "prazo".
-        if (bracoDoTeste("recuperacao_prazo", quizId, locale) === "b") {
+        // ENCERRADO 15/10 (dono): o B mandou 753 e-mails com 0,8% de clique e
+        // nenhuma venda depois do clique (24/09-13/10). Todo mundo segue a
+        // escada de sempre; quem já recebeu o toque 1 continua dela pelo degrau.
+        if (RECUPERACAO_PRAZO_LIGADO && bracoDoTeste("recuperacao_prazo", quizId, locale) === "b") {
           const est = toquesPrazo.get(quizId) ?? { toques: {}, temEscadaAntiga: false };
           const d = proximoToquePrazo({ numero, quando, ...est }, agora);
           if (d.tipo === "esperar") continue;

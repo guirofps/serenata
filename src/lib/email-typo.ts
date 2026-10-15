@@ -143,3 +143,20 @@ export function sugerirEmail(email: string): string | null {
   const teto = perto.bom.length > 12 ? 2 : 1;
   return perto.n <= teto ? `${conta}@${perto.bom}` : null;
 }
+
+/**
+ * A CORREÇÃO SOZINHA, só pro typo de quase-certeza (15/10).
+ *
+ * Em 7 dias, 150 e-mails da letra voltaram por endereço que não existe, e os
+ * campeões eram `gamil.com`, `hotemail.com`, `gnail.com`, `gail.com`: a tela
+ * SUGERIA a correção e a pessoa seguia sem tocar. Aqui o quiz troca sozinho
+ * quando `pareceTypo` (a régua do servidor, que só acusa o que não pode ser
+ * domínio de verdade) concorda com o palpite da tela. A folha "Confere o seu
+ * e-mail" mostra o endereço corrigido antes de seguir, então quem tinha
+ * digitado certo ainda vê e volta. Fora disso, devolve o e-mail como veio.
+ */
+export function corrigirTypoCerto(email: string): string {
+  const limpo = (email ?? "").trim();
+  if (!pareceTypo(limpo)) return limpo;
+  return sugerirEmail(limpo) ?? limpo;
+}
