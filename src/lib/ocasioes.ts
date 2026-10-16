@@ -65,6 +65,11 @@ export type Ocasiao = {
    * "filho" vira `respostas.nome`). Só liga depois de escrever a copy dela.
    */
   temCopy: boolean;
+  /**
+   * Envios por rodada (o cron roda 12 vezes por dia). Sem isto, 12: dava
+   * ~144 por dia e o Dia das Crianças alcançou menos da metade da base.
+   */
+  maxPorRodada?: number;
 };
 
 export const OCASIOES: Ocasiao[] = [
@@ -93,7 +98,11 @@ export const OCASIOES: Ocasiao[] = [
     terminaDiasAntes: 5,
     exigeCampo: null,
     pulaSeJaFezPara: [],
-    temCopy: false,
+    // Copy própria em `emails/ocasiao.ts` (`COPY_NATAL`, 16/10).
+    temCopy: true,
+    // ~12 a 19 mil compradores elegíveis até 25/11. 40 por rodada = ~480 por
+    // dia, ~12 mil nos 26 dias da janela, sem pico no subdomínio.
+    maxPorRodada: 40,
   },
   {
     slug: "maes",

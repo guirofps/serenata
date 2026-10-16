@@ -96,8 +96,8 @@ describe("nome do filho, vindo de campo livre", () => {
 
 describe("ocasião sem copy própria", () => {
   const em = (iso: string) => new Date(iso + "T15:00:00Z");
-  it("Natal e Dia das Mães não abrem enquanto o e-mail for o do Dia das Crianças", () => {
-    expect(ocasiaoDeHoje(em("2026-11-25"))).toBeNull();
+  it("Natal abre com a copy dele; Dia das Mães segue fechado até ter a sua", () => {
+    expect(ocasiaoDeHoje(em("2026-11-25"))?.ocasiao.slug).toBe("natal");
     expect(ocasiaoDeHoje(em("2027-04-25"))).toBeNull();
   });
 });

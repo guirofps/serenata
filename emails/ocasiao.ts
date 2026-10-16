@@ -25,9 +25,7 @@ type IdiomaEmail = "pt" | "es";
 // e-mail ou não. Dizer quantos dias faltam é informação, não pressão — e é
 // justamente por ser verdade que ela pode ser dita.
 
-const COPY: Record<
-  IdiomaEmail,
-  {
+type Copy = {
     assunto: (filho: string) => string;
     preheader: (dias: number) => string;
     titulo: (filho: string) => string;
@@ -37,8 +35,9 @@ const COPY: Record<
     botao: (filho: string) => string;
     rodape: string;
     sair: string;
-  }
-> = {
+};
+
+const COPY: Record<IdiomaEmail, Copy> = {
   // ── SEM GÊNERO, E ISSO NÃO É ESTILO ────────────────────────────
   //
   // O nome vem do campo `filhos` e pode ser de qualquer gênero: Renata,
@@ -87,8 +86,59 @@ const COPY: Record<
   },
 };
 
-export function assuntoOcasiao(filho: string, locale: IdiomaEmail = "pt") {
-  return (COPY[locale] ?? COPY.pt).assunto(filho);
+// ── NATAL (16/10): OUTRA CONVERSA, NÃO O DIA DAS CRIANÇAS ──────────
+//
+// O texto de cima fala de UM filho que "ainda não tem uma música". No Natal o
+// alvo é quem já comprou, e o nome que temos é de quem JÁ GANHOU a música:
+// "Maria ainda não tem uma música" seria falso pra ela. Aqui a conversa é a
+// família inteira: ela já sabe como é emocionar alguém assim, e o Natal é a
+// data em que todo mundo procura presente. O nome entra só como prova de que
+// a gente lembra dela (`nomeMusica`), nunca como quem falta.
+const COPY_NATAL: Record<IdiomaEmail, Copy> = {
+  pt: {
+    assunto: () => `Neste Natal, uma música pra quem você ama`,
+    preheader: (dias) => `Faltam ${dias} dias pro Natal. A letra sai na hora, de graça.`,
+    titulo: () => `Quem vai ganhar uma música <em style="color:#7d2b3a;">neste Natal</em>?`,
+    intro: (nomeMusica, _ocasiao, dias) =>
+      `Você já viu o que acontece quando ${nomeMusica} ouve a própria história cantada. ` +
+      `O Natal é daqui a ${dias} dias, e é o único presente que ninguém mais vai dar igual.`,
+    proposta: () =>
+      `Pode ser pra mãe, pro pai, pra avó, pra quem dividiu o ano com você. ` +
+      `Uma música com o nome da pessoa cantado e as lembranças que só vocês têm.`,
+    comoFunciona:
+      "Você conta a história, lê a letra na hora e de graça, e só paga se quiser ouvir cantada. " +
+      "Se não emocionar, não paga nada.",
+    botao: () => `Criar a música de Natal`,
+    rodape: "Serenata · música feita da história de quem você ama",
+    sair: "Não quero mais estes e-mails",
+  },
+  es: {
+    assunto: () => `Esta Navidad, una canción para quien amás`,
+    preheader: (dias) => `Faltan ${dias} días para Navidad. La letra sale al momento, gratis.`,
+    titulo: () => `¿Quién va a recibir una canción <em style="color:#7d2b3a;">esta Navidad</em>?`,
+    intro: (nomeMusica, _ocasiao, dias) =>
+      `Ya viste lo que pasa cuando ${nomeMusica} escucha su propia historia cantada. ` +
+      `Navidad es en ${dias} días, y es el único regalo que nadie más va a dar igual.`,
+    proposta: () =>
+      `Puede ser para tu mamá, tu papá, tu abuela, para quien compartió el año con vos. ` +
+      `Una canción con su nombre cantado y los recuerdos que solo ustedes tienen.`,
+    comoFunciona:
+      "Contás la historia, leés la letra al momento y gratis, y solo pagás si querés escucharla cantada. " +
+      "Si no te emociona, no pagás nada.",
+    botao: () => `Crear la canción de Navidad`,
+    rodape: "Serenata · música hecha de la historia de quien amás",
+    sair: "No quiero más estos correos",
+  },
+};
+
+/** O texto de cada data. Sem texto próprio, a régua nem abre (`temCopy` em `ocasioes.ts`). */
+function copyDe(slug: string | undefined, locale: IdiomaEmail): Copy {
+  const mapa = slug === "natal" ? COPY_NATAL : COPY;
+  return mapa[locale] ?? mapa.pt;
+}
+
+export function assuntoOcasiao(filho: string, locale: IdiomaEmail = "pt", slug?: string) {
+  return copyDe(slug, locale).assunto(filho);
 }
 
 export function emailOcasiao(args: {
@@ -101,9 +151,11 @@ export function emailOcasiao(args: {
   linkCriar: string;
   linkDescadastro: string;
   locale?: IdiomaEmail;
+  /** A data (`natal`, `criancas`…): escolhe o texto. Sem ela, o do Dia das Crianças. */
+  slug?: string;
 }): string {
   const locale = args.locale ?? "pt";
-  const C = COPY[locale] ?? COPY.pt;
+  const C = copyDe(args.slug, locale);
   const { filho, nomeMusica, ocasiao, diasQueFaltam, linkCriar, linkDescadastro } = args;
 
   return `<!DOCTYPE html>

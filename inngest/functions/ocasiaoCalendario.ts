@@ -164,7 +164,8 @@ export const ocasiaoCalendario = inngest.createFunction(
       // Em lotes: as respostas vêm só com os campos que a regra lê (a
       // `historia` inteira de 100 pessoas por consulta pesaria à toa), e o
       // bloqueio é conferido só pra quem passou na regra.
-      for (let i = 0; i < candidatos.length && out.length < MAX_POR_RODADA; i += LOTE) {
+      const maxRodada = ocasiao.maxPorRodada ?? MAX_POR_RODADA;
+      for (let i = 0; i < candidatos.length && out.length < maxRodada; i += LOTE) {
         const lote = candidatos.slice(i, i + LOTE);
         const { data: quizzes, error } = await sb
           .from("quiz_responses")
@@ -188,7 +189,7 @@ export const ocasiaoCalendario = inngest.createFunction(
 
         const fora = await bloqueados(sb, passaram.map((p) => p.email), { incluirExcluidos: true });
         for (const p of passaram) {
-          if (out.length >= MAX_POR_RODADA) break;
+          if (out.length >= maxRodada) break;
           if (!fora.has(p.email)) out.push(p);
         }
       }
@@ -252,7 +253,10 @@ export const ocasiaoCalendario = inngest.createFunction(
           replyTo: RESPONDER_PARA,
           to: p.email,
           headers: cabecalhosDescadastro(p.email),
-          subject: assuntoOcasiao(p.filho, p.locale),
+          subject: assuntoOcasiao(p.filho, p.locale, ocasiao.slug),
+          // A etiqueta, que faltava (auditoria de 16/10): sem ela a utm saía
+          // `utm_campaign=email` e o painel do Resend não separava as datas.
+          tags: [{ name: "template", value: template }],
           html: emailOcasiao({
             filho: p.filho,
             nomeMusica: p.nomeMusica,
@@ -261,6 +265,7 @@ export const ocasiaoCalendario = inngest.createFunction(
             linkCriar,
             linkDescadastro,
             locale: p.locale,
+            slug: ocasiao.slug,
           }),
         });
 
