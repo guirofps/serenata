@@ -1,0 +1,266 @@
+<title>Rumo ao Milhão</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: uma coluna de leitura (68ch) com tabelas e gráfico respirando até 920px; seções numeradas só onde a ordem é o plano. */
+:root {
+  --fundo: #f7f5f6;
+  --papel: #ffffff;
+  --tinta: #1f1a1d;
+  --tinta-2: #5d5459;
+  --linha: #e4dde0;
+  --vinho: #8a2e40;
+  --vinho-claro: #f3e6e9;
+  --ouro: #a87a1f;
+  --ok: #2f7a4f;
+  --alerta: #b5651d;
+  --critico: #b3261e;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --texto: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fundo: #161215; --papel: #201b1f; --tinta: #efe9ec; --tinta-2: #b4a9af; --linha: #3a3237;
+    --vinho: #e08a9b; --vinho-claro: #3a2229; --ouro: #e0b45a; --ok: #6cc292; --alerta: #e8a25c; --critico: #f08a80;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --fundo: #161215; --papel: #201b1f; --tinta: #efe9ec; --tinta-2: #b4a9af; --linha: #3a3237;
+  --vinho: #e08a9b; --vinho-claro: #3a2229; --ouro: #e0b45a; --ok: #6cc292; --alerta: #e8a25c; --critico: #f08a80;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--fundo); color: var(--tinta); font-family: var(--texto); font-size: 16px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px;
+}
+.folha { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px; }
+.ler { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2rem, 1.4rem + 2.6vw, 3.1rem); font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: clamp(1.4rem, 1.2rem + 0.9vw, 1.85rem); font-weight: 700; }
+h3 { font-size: 1.1rem; font-weight: 600; font-family: var(--texto); }
+p { margin: 0; }
+.rotulo { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--vinho); }
+.sub { color: var(--tinta-2); }
+section { display: flex; flex-direction: column; gap: 16px; }
+.topo { display: flex; flex-direction: column; gap: 14px; border-bottom: 1px solid var(--linha); padding-bottom: 28px; }
+.numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.num { background: var(--papel); border: 1px solid var(--linha); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.num b { font-family: var(--display); font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.num span { font-size: 0.85rem; color: var(--tinta-2); }
+.num.meta { border-color: var(--vinho); background: var(--vinho-claro); }
+.grafico-caixa { background: var(--papel); border: 1px solid var(--linha); border-radius: 10px; padding: 12px; overflow-x: auto; }
+.grafico { width: 100%; min-width: 560px; height: auto; display: block; }
+.g-grade { stroke: var(--linha); stroke-width: 1; }
+.g-rot { fill: var(--tinta-2); font: 11px var(--mono); }
+.g-barra { fill: var(--vinho); opacity: 0.55; }
+.g-pico { fill: var(--vinho); }
+.g-meta { stroke: var(--ouro); stroke-width: 2; stroke-dasharray: 6 5; }
+.g-meta-t { fill: var(--ouro); font: 600 12px var(--texto); }
+.g-pico-t { fill: var(--tinta); font: 600 11px var(--texto); }
+.tabela { overflow-x: auto; background: var(--papel); border: 1px solid var(--linha); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--linha); vertical-align: top; }
+th { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tinta-2); font-weight: 600; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 0.86rem; white-space: nowrap; }
+tr.total td { font-weight: 600; background: var(--vinho-claro); }
+.lista { display: flex; flex-direction: column; gap: 10px; padding: 0; margin: 0; list-style: none; }
+.lista li { background: var(--papel); border: 1px solid var(--linha); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lista li strong { font-weight: 600; }
+.lista li small { color: var(--tinta-2); font-size: 0.86rem; }
+.pill { display: inline-block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; margin-right: 6px; vertical-align: 1px; white-space: nowrap; }
+.pill.dinheiro { color: var(--critico); }
+.pill.conversao { color: var(--alerta); }
+.pill.ballad { color: var(--ouro); }
+.pill.feito { color: var(--ok); }
+.pill.dono { color: var(--vinho); }
+.passos { counter-reset: p; display: flex; flex-direction: column; gap: 12px; padding: 0; margin: 0; list-style: none; }
+.passos li { counter-increment: p; display: grid; grid-template-columns: 2.2rem 1fr; gap: 10px; align-items: start; }
+.passos li::before { content: counter(p); font-family: var(--display); font-weight: 700; font-size: 1.2rem; color: var(--vinho); text-align: right; line-height: 1.5; }
+.passos li > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nota { border-left: 3px solid var(--ouro); padding: 4px 0 4px 14px; color: var(--tinta-2); font-size: 0.95rem; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--vinho-claro); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.duas { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.duas > div { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+a { color: var(--vinho); }
+@media (prefers-reduced-motion: no-preference) { .num { transition: transform .15s ease; } .num:hover { transform: translateY(-1px); } }
+</style>
+
+<div class="folha">
+
+<header class="topo">
+  <p class="rotulo">Serenata + Ballad Gift · plano de 16/10/2026</p>
+  <h1>Rumo ao milhão em dezembro</h1>
+  <p class="ler sub">O que achei de cabo a rabo no código e no banco esta noite, o que já consertei, a conta que leva as duas marcas a R$ 1 milhão por mês e o que depende de você. Números tirados do banco em 16/10, 05h.</p>
+  <div class="numeros">
+    <div class="num"><b>R$ 9,8 mil</b><span>receita média por dia da Serenata, 09 a 15/10</span></div>
+    <div class="num"><b>R$ 19,0 mil</b><span>o pico, 02/10, com o Vid 5 e o TikTok rodando</span></div>
+    <div class="num"><b>US$ 100</b><span>por dia na Ballad, quase tudo do funil em espanhol</span></div>
+    <div class="num meta"><b>R$ 33,3 mil</b><span>por dia é o milhão no mês (3,4× a semana atual)</span></div>
+  </div>
+</header>
+
+<section>
+  <p class="rotulo">Onde estamos</p>
+  <h2>O pico já mostrou o caminho, e ele é criativo</h2>
+  <div class="grafico-caixa"><svg viewBox="0 0 720 300" role="img" aria-label="Receita diária da Serenata de 15/09 a 15/10, contra a meta de R$ 33,3 mil por dia" class="grafico"><line x1="48" x2="708" y1="264.0" y2="264.0" class="g-grade"/><text x="42" y="268.0" text-anchor="end" class="g-rot">0k</text><line x1="48" x2="708" y1="195.1" y2="195.1" class="g-grade"/><text x="42" y="199.1" text-anchor="end" class="g-rot">10k</text><line x1="48" x2="708" y1="126.2" y2="126.2" class="g-grade"/><text x="42" y="130.2" text-anchor="end" class="g-rot">20k</text><line x1="48" x2="708" y1="57.3" y2="57.3" class="g-grade"/><text x="42" y="61.3" text-anchor="end" class="g-rot">30k</text><rect x="51.2" y="224.9" width="14.9" height="39.1" class="g-barra"><title>15/09: R$ 5.677</title></rect><text x="58.6" y="280" text-anchor="middle" class="g-rot">15/09</text><rect x="72.5" y="213.3" width="14.9" height="50.7" class="g-barra"><title>16/09: R$ 7.360</title></rect><rect x="93.8" y="215.1" width="14.9" height="48.9" class="g-barra"><title>17/09: R$ 7.094</title></rect><rect x="115.1" y="221.3" width="14.9" height="42.7" class="g-barra"><title>18/09: R$ 6.204</title></rect><rect x="136.4" y="214.5" width="14.9" height="49.5" class="g-barra"><title>19/09: R$ 7.179</title></rect><rect x="157.6" y="230.1" width="14.9" height="33.9" class="g-barra"><title>20/09: R$ 4.924</title></rect><text x="165.1" y="280" text-anchor="middle" class="g-rot">20/09</text><rect x="178.9" y="232.8" width="14.9" height="31.2" class="g-barra"><title>21/09: R$ 4.528</title></rect><rect x="200.2" y="225.5" width="14.9" height="38.5" class="g-barra"><title>22/09: R$ 5.584</title></rect><rect x="221.5" y="231.4" width="14.9" height="32.6" class="g-barra"><title>23/09: R$ 4.737</title></rect><rect x="242.8" y="237.3" width="14.9" height="26.7" class="g-barra"><title>24/09: R$ 3.877</title></rect><rect x="264.1" y="221.7" width="14.9" height="42.3" class="g-barra"><title>25/09: R$ 6.137</title></rect><text x="271.5" y="280" text-anchor="middle" class="g-rot">25/09</text><rect x="285.4" y="203.8" width="14.9" height="60.2" class="g-barra"><title>26/09: R$ 8.739</title></rect><rect x="306.7" y="197.3" width="14.9" height="66.7" class="g-barra"><title>27/09: R$ 9.689</title></rect><rect x="328.0" y="180.0" width="14.9" height="84.0" class="g-barra"><title>28/09: R$ 12.194</title></rect><rect x="349.3" y="181.4" width="14.9" height="82.6" class="g-barra"><title>29/09: R$ 11.994</title></rect><rect x="370.5" y="168.2" width="14.9" height="95.8" class="g-barra"><title>30/09: R$ 13.910</title></rect><text x="378.0" y="280" text-anchor="middle" class="g-rot">30/09</text><rect x="391.8" y="147.6" width="14.9" height="116.4" class="g-barra"><title>01/10: R$ 16.902</title></rect><rect x="413.1" y="133.2" width="14.9" height="130.8" class="g-pico"><title>02/10: R$ 18.983</title></rect><rect x="434.4" y="145.9" width="14.9" height="118.1" class="g-barra"><title>03/10: R$ 17.148</title></rect><rect x="455.7" y="174.9" width="14.9" height="89.1" class="g-barra"><title>04/10: R$ 12.927</title></rect><rect x="477.0" y="200.6" width="14.9" height="63.4" class="g-barra"><title>05/10: R$ 9.202</title></rect><text x="484.5" y="280" text-anchor="middle" class="g-rot">05/10</text><rect x="498.3" y="205.4" width="14.9" height="58.6" class="g-barra"><title>06/10: R$ 8.509</title></rect><rect x="519.6" y="210.0" width="14.9" height="54.0" class="g-barra"><title>07/10: R$ 7.839</title></rect><rect x="540.9" y="191.6" width="14.9" height="72.4" class="g-barra"><title>08/10: R$ 10.516</title></rect><rect x="562.2" y="202.4" width="14.9" height="61.6" class="g-barra"><title>09/10: R$ 8.938</title></rect><rect x="583.5" y="186.1" width="14.9" height="77.9" class="g-barra"><title>10/10: R$ 11.312</title></rect><text x="590.9" y="280" text-anchor="middle" class="g-rot">10/10</text><rect x="604.7" y="194.1" width="14.9" height="69.9" class="g-barra"><title>11/10: R$ 10.148</title></rect><rect x="626.0" y="188.5" width="14.9" height="75.5" class="g-barra"><title>12/10: R$ 10.961</title></rect><rect x="647.3" y="200.3" width="14.9" height="63.7" class="g-barra"><title>13/10: R$ 9.251</title></rect><rect x="668.6" y="206.4" width="14.9" height="57.6" class="g-barra"><title>14/10: R$ 8.362</title></rect><rect x="689.9" y="198.2" width="14.9" height="65.8" class="g-barra"><title>15/10: R$ 9.555</title></rect><text x="697.4" y="280" text-anchor="middle" class="g-rot">15/10</text><line x1="48" x2="708" y1="34.4" y2="34.4" class="g-meta"/><text x="708" y="28.4" text-anchor="end" class="g-meta-t">meta: R$ 33,3 mil/dia</text><text x="426.6" y="127.2" class="g-pico-t">02/10 · R$ 19,0 mil (Vid 5 + TikTok)</text></svg></div>
+  <p class="ler">A semana de 01 a 03/10 fez R$ 17 a 19 mil por dia com quase o mesmo gasto de Google de hoje (R$ 5,5 a 6,3 mil). A diferença foi o Vid 5 vendendo a R$ 14-18 e o TikTok trazendo ~70 vendas por dia. Sem os dois, a conta caiu para R$ 9-11 mil, com o mesmo funil. Em números da última semana: <strong>1.590 leads por dia, 14,7% compram, R$ 42 por venda</strong> (música + upsell), Google R$ 5,4 mil e TikTok R$ 650 por dia, ROAS 1,6.</p>
+</section>
+
+<section>
+  <p class="rotulo">A conta</p>
+  <h2>Receita = leads × conversão × receita por venda</h2>
+  <p class="ler">Nenhuma alavanca sozinha chega lá. As três juntas, com dezembro a favor (Natal é o maior mês de presente do ano), chegam.</p>
+  <div class="tabela">
+    <table>
+      <thead><tr><th></th><th class="n">Leads/dia</th><th class="n">Compram</th><th class="n">R$ por venda</th><th class="n">Receita/dia</th><th class="n">No mês</th></tr></thead>
+      <tbody>
+        <tr><td>Serenata hoje (09-15/10)</td><td class="n">1.590</td><td class="n">14,7%</td><td class="n">42</td><td class="n">9.800</td><td class="n">295 mil</td></tr>
+        <tr><td>Serenata no pico (01-03/10)</td><td class="n">2.520</td><td class="n">16,7%</td><td class="n">42</td><td class="n">17.700</td><td class="n">530 mil</td></tr>
+        <tr><td>Serenata em dezembro</td><td class="n">3.800</td><td class="n">17%</td><td class="n">47</td><td class="n">30.400</td><td class="n">940 mil</td></tr>
+        <tr><td>Ballad em dezembro (EUA, en + es)</td><td class="n">300</td><td class="n">10%</td><td class="n">≈ 105</td><td class="n">3.150</td><td class="n">95 mil</td></tr>
+        <tr class="total"><td>As duas em dezembro</td><td class="n"></td><td class="n"></td><td class="n"></td><td class="n">33.550</td><td class="n">1,04 milhão</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="nota">Custo dessa receita: com CPA real de R$ 25, 646 vendas por dia pedem ~R$ 16 mil de mídia por dia (ROAS ~1,9) e ~R$ 2 mil de custo variável (Suno, gateway, Claude, AWS). Sobra ~R$ 12 mil por dia de lucro bruto, perto de R$ 360 mil no mês. O que segura o CPA em R$ 25 com o gasto 3× maior é criativo novo validado, não orçamento: a regra que você já escreveu no manual v2.</p>
+</section>
+
+<section>
+  <p class="rotulo">Feito esta noite</p>
+  <h2>21 commits, mais de 30 consertos, todos com teste passando</h2>
+  <p class="ler">Cinco auditorias em paralelo (funil, pagamento e entrega, e-mail, geração da música e Ballad, rastreio), cada achado conferido no código e no banco antes de mexer. A suíte inteira passa (1.512 testes) e o build de produção também. Ficaram em commits locais no branch <code>ballad</code>; <strong>falta você dar o push</strong>.</p>
+  <ul class="lista">
+    <li><span><span class="pill dinheiro">dinheiro</span><strong>Preço da tela ≠ preço cobrado</strong></span><small>Quem ficou grudado num braço antigo do teste de preço via R$ 29 ou R$ 54,90 na oferta e a folha cobrava R$ 38. Agora a tela mostra o que o servidor cobra. É justamente o público dos remarketings.</small></li>
+    <li><span><span class="pill dinheiro">dinheiro</span><strong>Ballad: o caixa do Stripe travava por 24h</strong></span><small>Quem fechava o caixa e refazia o quiz levava erro em toda tentativa (chave de idempotência igual com corpo diferente). 2 compradores do /es presos em 15-16/10. A chave agora leva a impressão do corpo.</small></li>
+    <li><span><span class="pill dinheiro">dinheiro</span><strong>Vigia de pagamento pulava TikTok, bump e auditoria</strong></span><small>Quando o vigia confirmava o PIX antes do webhook (12,7% dos PIX), a venda não subia pro TikTok pelo servidor (18 de 141 com ttclid em 7 dias). E o webhook podia entregar em dobro (6 casos). Pós-pagamento num módulo só, e o webhook só entrega se virou o pendente.</small></li>
+    <li><span><span class="pill dinheiro">dinheiro</span><strong>Cartão pago e não liberado ficava calado</strong></span><small>Bump, upsell ou pedido não gravado depois do cartão aprovado só iam pro log, e o webhook depois saía como duplicado. Agora avisa vocês. E o PIX cai no Asaas por padrão: antes, a variável de ambiente sumida ou com um caractere a mais mandava o PIX pra Woovi em silêncio.</small></li>
+    <li><span><span class="pill dinheiro">dinheiro</span><strong>Alarme de entrega mentia toda hora</strong></span><small>O vigia via 1.000 de ~6.500 confirmações (corte do PostgREST) e acusava ~200 "entregas sem confirmação" por hora. Os de verdade eram 5. Agora busca por id, em lotes.</small></li>
+    <li><span><span class="pill conversao">conversão</span><strong>Folha do PIX: voltar do Android, vídeo atrás, evento repetido</strong></span><small>O voltar fechava a oferta inteira com o QR na tela; agora fecha só a folha. O vídeo de reações para por trás. "PIX pago" disparava de 2 a 15 vezes por pagamento no GA4.</small></li>
+    <li><span><span class="pill conversao">conversão</span><strong>Letra ao vivo morria na sobrecarga da IA</strong></span><small>Nos picos das 15h (14 e 15/10), 29 sessões perderam a letra e 31% delas desistiram. O erro agora é reconhecido, e a segunda tentativa espera mais. "Outra opção" de refrão ganhou teto de 5 e não apaga os refrões quando falha.</small></li>
+    <li><span><span class="pill conversao">conversão</span><strong>Espera da música, crédito e textos falsos no pagamento</strong></span><small>A espera aparece na tela e para na recusa; quem tem crédito não vê mais a folha de R$ 38 por clicar rápido; saíram "sem CPF" (logo depois de pedir o CPF) e "parcelar" (não existe). Quem refaz a letra antes de pagar recebe a música da letra nova.</small></li>
+    <li><span><span class="pill conversao">conversão</span><strong>/criar mais leve</strong></span><small>Oferta e revelação carregam sob demanda (quiz 46 → 23 KB gzip) e o zod saiu da entrada de toda página (170 → 157 KB). Menos espera antes do primeiro toque no 4G.</small></li>
+    <li><span><span class="pill conversao">e-mail</span><strong>Guarde o link, lembrete, escada, Natal</strong></span><small>"Guarde o link" via 3,5 dos 17 dias (376 compradores sem ele). O degrau 2 da escada dizia "Ouvir a música" e abria uma folha de PIX sem áudio (1.247 envios, 2 vendas): agora vai pro /retomar. O Natal abriria sozinho em 25/11 com o texto do Dia das Crianças ("Maria ainda não tem uma música") pra ~9 mil compradores: bloqueado até ter copy própria. Domínio digitado errado bloqueia no 1º bounce.</small></li>
+    <li><span><span class="pill ballad">Ballad</span><strong>Português vazando nos EUA</strong></span><small>O vídeo pago saía escrito "SERENATA"; o ajuste da letra aportuguesava a pronúncia; "guarde o link" e lembrete saíam em português pra quem comprou o vídeo; texto do MP3 compartilhado e "sair" no painel. Estorno e contestação do Stripe agora marcam o pedido e avisam vocês.</small></li>
+    <li><span><span class="pill feito">rastreio</span><strong>/obrigado em aba nova contava a venda de novo</strong></span><small>Com outro id, no GA4, na tag do Ads e no pixel do TikTok. O id agora fica guardado por sessão.</small></li>
+  </ul>
+</section>
+
+<section>
+  <p class="rotulo">Depende de você</p>
+  <h2>Para os consertos valerem e as próximas decisões</h2>
+  <ol class="passos">
+    <li><div><strong>Push do branch <code>ballad</code></strong><span class="sub">Publica as duas marcas. Depois, o <code>curl -X PUT …/api/inngest</code> nas duas, como sempre.</span></div></li>
+    <li><div><strong>Rodar <code>npm run video:site</code> depois do deploy</strong><span class="sub">Sem isso a Lambda continua escrevendo "SERENATA" no vídeo da Ballad. A Serenata não muda nada.</span></div></li>
+    <li><div><strong>Marcar eventos de estorno nos painéis</strong><span class="sub">Stripe: <code>charge.refunded</code> e <code>charge.dispute.created</code> no endpoint do webhook. Asaas: conferir se os eventos de estorno e chargeback estão ligados (nenhum pedido virou "reembolsado" em 60 dias, apesar das disputas do dossiê).</span></div></li>
+    <li><div><strong>A UTMify ainda é lida?</strong><span class="sub">Desde 12/09 ela não recebe nenhuma venda brasileira (só a Woovi e a Perfect Pay chamavam). Se for usada, ligo no Asaas; se não, tiro o script de todas as páginas.</span></div></li>
+    <li><div><strong>Teto diário de geração: 2.500 → 4.000</strong><span class="sub">O recorde (02/10) foi 2.498. Acima do teto o lead fica sem música e não compra. Subir custa no máximo ~R$ 480 a mais no pior dia.</span></div></li>
+    <li><div><strong>Garantia "Reembolso total, sem perguntas" na oferta</strong><span class="sub">Contradiz a regra de dar crédito. Prometer na tela e negar no suporte vira contestação. Sugiro "Se não emocionar, a gente refaz ou você leva outra música", respeitando os 7 dias do CDC. Teste A/B, porque mexe em conversão.</span></div></li>
+    <li><div><strong>Plano do Resend antes do Natal</strong><span class="sub">A régua normal sozinha dá ~80 mil envios por mês. Com o crescimento e o Natal passa dos 100 mil. Cortar e-mail que vende pra caber no plano é o pior negócio da lista.</span></div></li>
+    <li><div><strong>Testar a barra do teclado no iPhone (<code>?barra=1</code>)</strong><span class="sub">Está pronta desde 08/10 e desligada. ~15% das sessões nos passos de digitar.</span></div></li>
+  </ol>
+</section>
+
+<section>
+  <p class="rotulo">Alavanca 1 · volume</p>
+  <h2>Leads: de 1.590 para 3.800 por dia</h2>
+  <div class="duas">
+    <div>
+      <h3>Criativo é o gargalo</h3>
+      <p>Desde 25/09, ~60 criativos novos e nenhum segura abaixo de R$ 30 depois do 2º dia. O que vende é pessoa real e reação real (Vid 5, Video Fone, Adoração 1). A fábrica precisa render 10-15 vídeos por semana nesse formato, com 5-8 rostos diferentes no roteiro exato do Vid 5 (abre falando, toca a música ao vivo, canta junto, duas caixas). As reações compradas (NossaCanção, Canção Divina) com você na abertura e no fecho são a ponte até ter rostos próprios.</p>
+    </div>
+    <div>
+      <h3>Canais além do Google</h3>
+      <p>O TikTok já deu 70 vendas por dia a ~R$ 32 em 01-03/10 e caiu pra R$ 200-1.400 de gasto. Ele aceita o mesmo UGC, e é onde o volume extra de dezembro mais barato está. Kwai entra com os mesmos vídeos. A Search de presente (16/10) e o blog pegam a demanda de "presente de Natal", que explode a partir de 20/11. O grupo de Natal da Search entra em 01/11.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="rotulo">Alavanca 2 · conversão</p>
+  <h2>De 14,7% para 17% dos leads comprando</h2>
+  <p class="ler">O maior vazamento medido: <strong>61% de quem toca em "comprar" nunca gera o PIX</strong>, e 29% fecham a folha nos primeiros 3 segundos. Os consertos desta noite atacam parte disso (voltar, vídeo, crédito, espera). Os testes que proponho, cada um com A = como é hoje:</p>
+  <div class="tabela">
+    <table>
+      <thead><tr><th>Teste</th><th>Por quê</th><th>Mede</th></tr></thead>
+      <tbody>
+        <tr><td>Letra começa na tela de revisão</td><td>23% somem entre o recado e os refrões, com 127s de espera. A Cantoria começa a gerar antes do clique.</td><td>chegou aos refrões, venda por lead</td></tr>
+        <tr><td>"Ouvir de novo" depois do corte da prévia</td><td>Hoje o play morre no pico emocional. Mostrar de novo pra quem está do lado é o que vende presente.</td><td>clique em comprar, venda por lead</td></tr>
+        <tr><td>Folha do PIX reabre sozinha</td><td>Quem vai ao app do banco e volta (o iOS recarrega a aba) cai na oferta sem o QR e refaz CPF e resumo.</td><td>PIX pago por folha aberta</td></tr>
+        <tr><td>Garantia de crédito no lugar de reembolso</td><td>Alinha tela e suporte e corta o motivo nº 1 de contestação.</td><td>venda por lead, contestações</td></tr>
+        <tr><td>Nome cantado na letra, sempre</td><td>Em ~7% das letras o nome escrito não aparece (vira apelido ou "meu amor"). Elas convertem 14,5% contra 16,8%.</td><td>venda por lead</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <p class="rotulo">Alavanca 3 · receita por venda</p>
+  <h2>De R$ 42 para R$ 47 por venda</h2>
+  <div class="duas">
+    <div>
+      <h3>O que já existe, mais bem vendido</h3>
+      <p>O vídeo-presente vende pra 12% dos compradores e 95% de quem abre a folha paga: a oferta funciona, falta exposição. O teste <code>preco_video</code> (R$ 19,90 × 24,90) lê em 18/10. A música extra de R$ 28 para Natal ("faça uma pra cada pessoa da família") é o upsell da estação. Cada R$ 1 a mais por venda, em 650 vendas por dia, vale ~R$ 20 mil no mês.</p>
+    </div>
+    <div>
+      <h3>O upsell novo: clipe animado da música</h3>
+      <p>Engenharia reversa da AnimaVida (mesmo grupo da LoveTune): trailer 3D estilo Pixar a partir das fotos, 40s, R$ 97, feito semi-manual em 8-24h. Para nós o custo fica entre R$ 13 e 40 por vídeo (keyframes no Nano Banana ou Seedream, clipes no Wan, Kling ou Seedance pelo kie.ai, montagem no Remotion). A nossa versão tem o que eles não têm: a MÚSICA da pessoa de trilha e a letra acendendo. Preço de teste R$ 47-67, para casal, pedido de casamento e bodas. Antes de construir: 5 clipes feitos à mão para medir custo, tempo e semelhança, que é a reclamação nº 1 deles.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="rotulo">E-mail</p>
+  <h2>O canal mais barato, e com risco de reputação</h2>
+  <ul class="lista">
+    <li><strong>Natal para compradores: R$ 3 a 15 mil na temporada</strong><small>~9,4 mil compradores elegíveis hoje, ~19 mil até o fim de novembro. Copy própria citando a música que a pessoa já deu ("o Natal da família inteira"), lotes maiores que os 144 por dia de hoje, filtro de typo e etiqueta. Só compradores, nunca a base fria (a MUSICA10 pra lead rendeu R$ 8-40 por mil e sujou o subdomínio).</small></li>
+    <li><strong>O subdomínio de recuperação está cansando</strong><small>Abertura do <code>quase_comprou</code> caiu de 27% para 11% quando o subdomínio foi de ~450 para ~8.500 envios por dia (convite + MUSICA10). A venda por envio ainda segura. Proposta: campanha e ocasião num terceiro subdomínio, e o de recuperação de volta ao volume de antes até a abertura passar de 20%.</small></li>
+    <li><strong>Datas importantes cadastradas</strong><small>Só 413 de 6.391 compradores em 30 dias cadastraram uma data, e o lembrete rende R$ 1.273 a 2.177 por mil. Pedir a data na /obrigado e no e-mail de entrega é receita que cresce o ano inteiro.</small></li>
+    <li><strong>Tempo de envio</strong><small>90% dos PIX são pagos em até 4,6 minutos e o 1º lembrete sai com mediana de 26. Cron de 10 em 10 minutos no <code>pix_nao_pago</code> e de 15 em 15 no <code>quase_comprou</code>, como teste.</small></li>
+  </ul>
+</section>
+
+<section>
+  <p class="rotulo">Ballad Gift</p>
+  <h2>O espanhol vende; o inglês ainda não</h2>
+  <p class="ler">Em 14 dias: 43 vendas, 34 delas no <code>/es</code>, com a 37 Aberto a ~R$ 27-56 por venda contra ~R$ 97 que cada venda deixa. O inglês gastou R$ 3,5 mil sem venda fora da Search. Para chegar a ~30 vendas por dia em dezembro: escalar o vídeo da banda nos públicos que vendem (Aberto, Comprando regalo, Casamento), mais variações de música regional (norteño, corrido, cumbia já prontas), e portar o que venceu na Serenata (<code>obrigado_direto</code> já foi, <code>email_confirma</code> B e o vídeo-presente com oferta por e-mail em inglês e espanhol). Natal nos EUA começa no Thanksgiving (26/11).</p>
+</section>
+
+<section>
+  <p class="rotulo">Calendário</p>
+  <h2>Até 31/12</h2>
+  <div class="tabela">
+    <table>
+      <thead><tr><th>Quando</th><th>O quê</th></tr></thead>
+      <tbody>
+        <tr><td>16 a 20/10</td><td>Push e deploy dos consertos; leituras de 17-20/10 (JBL, reações, Search Presente, Aberto); decisões da lista acima; 5 clipes animados de teste.</td></tr>
+        <tr><td>21/10 a 02/11</td><td>Testes de conversão no ar (revisão, ouvir de novo, folha que reabre, garantia); copy do Natal escrita e aprovada; terceiro subdomínio aquecendo; 10-15 criativos UGC por semana; TikTok de volta a R$ 1-2 mil por dia com os vídeos validados.</td></tr>
+        <tr><td>01 a 19/11</td><td>Search de Natal; vencedores dos testes fixados; upsell do clipe animado como A/B no editor, se os 5 de teste passarem; Ballad escalando o espanhol.</td></tr>
+        <tr><td>20/11 a 24/12</td><td>Janela de Natal: e-mail de Natal pros compradores em lotes diários, orçamento acompanhando o CPA real dia a dia, música extra "pra família toda" em destaque na /obrigado. Black Friday (27/11) sem desconto de preço: a régua da casa proíbe preço que some.</td></tr>
+        <tr><td>26 a 31/12</td><td>Ano Novo e férias: homenagem e aniversário, que não são sazonais, seguram o volume.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <p class="rotulo">Fora desta noite</p>
+  <h2>Achados que ficaram como proposta</h2>
+  <ul class="lista">
+    <li><strong>Último clique pago na lista do Google</strong><small>O primeiro toque nunca expira: 13,5% das vendas com gclid usam um clique de mais de 1 dia antes e 34 têm gclid com mais de 30 dias. Os de agosto começam a ser recusados pelo Google por volta de 05/11. Guardar à parte o último gclid/ttclid muda o que o Smart Bidding aprende, então decido com você.</small></li>
+    <li><strong>Vendas do iPhone fora da lista</strong><small>19 vendas em 14 dias só com gbraid/wbraid e ~13 Google sem id nenhum. Subir pela API ou ligar enhanced conversions.</small></li>
+    <li><strong>A escada de recuperação lê 100 mil linhas a cada 30 minutos</strong><small>Funciona hoje, mas é o mesmo formato que a fez morrer calada em 29/09. Reescrever para ler só quem está na régua.</small></li>
+    <li><strong>A URL da música inteira chega ao lead que não pagou</strong><small>O corte de 40s é só no navegador. Servir uma versão cortada pra sessão não paga.</small></li>
+    <li><strong>Prévia no navegador do TikTok</strong><small>29 de 40 falhas de play em 3 dias foram no app do TikTok. O link novo automático de hoje ajuda; atender pedido parcial (Range) na rota da prévia é o resto, com risco no Chrome, então fica para teste.</small></li>
+  </ul>
+  <p class="ler sub">Relatórios completos das auditorias, a análise da AnimaVida (<code>docs/analise-animavida.md</code>) e os scripts de leitura (<code>scratch/_plano-1m-numeros.mjs</code>, <code>scratch/_plano-1m-ballad.mjs</code>) ficaram no repositório. Suporte: 28 e-mails respondidos nas duas caixas; uma resposta nova (Giordano, vídeo de reação) às 05h.</p>
+</section>
+
+</div>
