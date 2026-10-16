@@ -29,7 +29,7 @@ import { createClient } from "@supabase/supabase-js";
 import { asaas } from "../../src/lib/asaas.js";
 import { segredoConfere } from "../lib/segredo.js";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../lib/entrega.js";
-import { venderNoTiktok } from "../lib/tiktok-eventos.js";
+import { subirVendaTiktok } from "../lib/pos-pagamento.js";
 import { creditarUpsell, liberarItensDoBump } from "../lib/creditar-upsell.js";
 import { ofertaDaReferencia } from "../../src/lib/creditos.js";
 import { valorEsperadoDoUpsell, type Alvo } from "../../src/lib/cupom.js";
@@ -464,27 +464,44 @@ export default async function handler(req: Req, res: Res) {
 
   const musica = quizId ? await musicaDoQuiz(sb, quizId) : null;
 
-  const { data: pedido, error: erroPedido } = await sb
-    .from("pedidos")
-    .upsert(
-      {
-        payment_id: paymentId,
-        gateway: "asaas",
-        status: "pago",
-        status_gateway: status.statusCru,
-        valor_centavos: status.valorCentavos,
-        taxa_centavos: status.taxaCentavos,
-        quiz_response_id: quizId,
-        musica_id: musica?.id ?? null,
-        // `paid_at` sÃ³ na primeira vez: o CSV de conversÃµes do Google usa este
-        // horÃ¡rio como chave de deduplicaÃ§Ã£o. Reescrever faria a mesma venda
-        // entrar duas vezes lÃ¡.
-        ...(existente?.status === "pago" ? {} : { paid_at: new Date().toISOString() }),
-      },
-      { onConflict: "payment_id" },
-    )
-    .select("id")
-    .maybeSingle();
+  const linhaPaga = {
+    payment_id: paymentId,
+    gateway: "asaas",
+    status: "pago",
+    status_gateway: status.statusCru,
+    valor_centavos: status.valorCentavos,
+    taxa_centavos: status.taxaCentavos,
+    quiz_response_id: quizId,
+    musica_id: musica?.id ?? null,
+    paid_at: new Date().toISOString(),
+  };
+  // COM PEDIDO PENDENTE, SÓ QUEM VIRA O STATUS ENTREGA (16/10). O vigia de
+  // pagamento corre em paralelo (a sonda da folha o chama aos 25s) e pode ter
+  // marcado `pago` entre a leitura da idempotência e esta escrita. O upsert
+  // incondicional entregava de novo e reescrevia o `paid_at`, que é a chave de
+  // deduplicação do CSV do Google (6 quizzes com entrega em dobro em 7 dias).
+  // Mesmo desenho do Stripe (`api/lib/stripe.ts`).
+  let pedido: { id: string } | null = null;
+  let erroPedido: { message: string } | null = null;
+  if (existente?.status === "pendente") {
+    const r = await sb
+      .from("pedidos")
+      .update(linhaPaga)
+      .eq("payment_id", paymentId)
+      .eq("status", "pendente")
+      .select("id");
+    erroPedido = r.error;
+    if (!r.error && !r.data?.length) {
+      return res.status(200).json({ ok: true, duplicado: true, nota: "outro caminho marcou primeiro" });
+    }
+    pedido = (r.data?.[0] as { id: string } | undefined) ?? null;
+  } else {
+    // Sem pendente (gravação que falhou no `criar-pix`, cobrança antiga): o
+    // upsert de sempre. `existente` aqui nunca é `pago` (saiu na idempotência).
+    const r = await sb.from("pedidos").upsert(linhaPaga, { onConflict: "payment_id" }).select("id").maybeSingle();
+    erroPedido = r.error;
+    pedido = (r.data as { id: string } | null) ?? null;
+  }
 
   if (erroPedido) {
     // 200, NUNCA 500. Ver o cabeÃ§alho: 5xx repetido para a fila deles.
@@ -591,43 +608,18 @@ export default async function handler(req: Req, res: Res) {
   // DEPOIS da entrega, de propÃ³sito: relatÃ³rio nunca atrasa nem arrisca o que
   // a pessoa pagou pra receber. E `venderNoTiktok` nÃ£o joga, entÃ£o nem precisa
   // de try: o pior caso dele Ã© uma venda nÃ£o contada.
-  try {
-    const { data: q } = await sb
-      .from("quiz_responses")
-      .select("attribution")
-      .eq("id", quizId)
-      .maybeSingle();
-    const attr = (q?.attribution ?? null) as Record<string, string | undefined> | null;
-    // SÓ manda pro TikTok venda que REALMENTE veio dele (tem `ttclid`). Antes a
-    // gente disparava CompletePayment em TODA venda, inclusive Google/direto/
-    // orgânico, e o TikTok reivindicava essas por view-through, inflando o
-    // painel. Não é o TikTok reportando errado, era a gente entregando venda de
-    // outro canal. Venda sem ttclid não é do TikTok e não sobe.
-    if (attr?.ttclid) {
-      // O event_id É o `idCobranca` CRU, NÃO o `paymentId`. O pixel na /obrigado
-      // guarda e manda o id da cobrança sem prefixo; o `paymentId` carrega o
-      // `asaas:` na frente. Mandar ele aqui fazia o TikTok NÃO deduplicar e
-      // contar duas vezes o comprador que voltava pra /obrigado. Agora batem.
-      const tiktok = await venderNoTiktok({
-        eventId: idCobranca,
-        valor: (dono?.valor_centavos as number | null ?? 0) / 100,
-        moeda: "BRL",
-        email,
-        telefone: (dono?.telefone as string | null) ?? null,
-        ttclid: attr.ttclid,
-        quando: new Date(),
-      });
-      // Grava sucesso E fracasso, igual ao Woovi: sem isso o silêncio é ambíguo
-      // entre "não vendeu" e "o server-side parou de mandar".
-      await auditar(sb, tiktok.ok ? "tiktok_conversao_enviada" : "tiktok_conversao_falhou", {
-        payment_id: paymentId,
-        valor: (dono?.valor_centavos as number | null ?? 0) / 100,
-        motivo: tiktok.motivo ?? null,
-      });
-    }
-  } catch (err) {
-    console.error("[asaas] tiktok falhou:", (err as Error).message);
-  }
+  // Pelo módulo comum (`pos-pagamento.ts`): o vigia de pagamento, quando ganha
+  // a corrida do webhook, sobe a mesma venda pelo mesmo código. O event_id é o
+  // `idCobranca` CRU, o mesmo que o pixel da /obrigado manda.
+  await subirVendaTiktok(sb, {
+    quizId,
+    eventId: idCobranca,
+    paymentId,
+    valorCentavos: (dono?.valor_centavos as number | null) ?? null,
+    email,
+    telefone: (dono?.telefone as string | null) ?? null,
+    via: "webhook",
+  });
 
   return res.status(200).json({ ok: true, pedido: paymentId });
 }

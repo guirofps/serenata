@@ -37,7 +37,8 @@ import { segredoConfere } from "./lib/segredo.js";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "./lib/entrega.js";
 import { woovi } from "../src/lib/woovi.js";
 import { asaasPix, consultarPorReferencia, pagoEmParaPaidAt } from "../src/lib/asaas-pix.js";
-import { creditarUpsell } from "./lib/creditar-upsell.js";
+import { creditarUpsell, liberarItensDoBump } from "./lib/creditar-upsell.js";
+import { subirVendaTiktok } from "./lib/pos-pagamento.js";
 import { ofertaDaReferencia } from "../src/lib/creditos.js";
 import { donosMais } from "../src/lib/donos.js";
 import { avisarDonos } from "../src/lib/avisar-donos.js";
@@ -140,7 +141,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   try {
     let consulta = sb
       .from("pedidos")
-      .select("id, payment_id, gateway, email, quiz_response_id, valor_centavos, created_at")
+      .select("id, payment_id, gateway, email, telefone, quiz_response_id, valor_centavos, created_at, bump_video, bump_quadro")
       .eq("status", "pendente");
     if (pedidoUnico) consulta = consulta.eq("payment_id", pedidoUnico);
     const { data: pendentes } = await consulta
@@ -302,6 +303,59 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         }
       } catch (err) {
         console.error(`[vigia-pagamento] entrega falhou em ${p.payment_id}:`, err);
+      }
+
+      // ── O RESTO DO PÓS-PAGAMENTO, IGUAL AO WEBHOOK (16/10) ────────
+      //
+      // Quando o vigia ganha a corrida, o webhook chega depois e sai como
+      // duplicado: o que só ele fazia (bump, auditoria `asaas_pago`, venda
+      // do TikTok pelo servidor) não acontecia nunca. 12,7% dos PIX em 7 dias.
+      if ((p.bump_video === true || p.bump_quadro === true) && p.email) {
+        try {
+          const musicaBump = p.quiz_response_id ? await musicaDoQuiz(sb, p.quiz_response_id) : null;
+          const erros = await liberarItensDoBump(sb, {
+            email: p.email,
+            pedidoId: p.id,
+            musicaId: musicaBump?.id ?? null,
+            video: p.bump_video === true,
+            quadro: p.bump_quadro === true,
+          });
+          if (erros.length) {
+            await avisarDonos({
+              assunto: "Bump pago e NAO liberado (vigia de pagamento)",
+              html: `<p>${erros.join("<br>")}<br>${p.email} · ${p.payment_id}</p>`,
+            });
+          }
+        } catch (err) {
+          console.error(`[vigia-pagamento] bump falhou em ${p.payment_id}:`, err);
+        }
+      }
+      if (p.gateway === "asaas") {
+        try {
+          await sb.from("funnel_events").insert({
+            event_name: "asaas_pago",
+            event_data: {
+              paymentId: p.payment_id,
+              valor: st.valorCentavos ?? p.valor_centavos,
+              taxa: st.taxaCentavos ?? null,
+              quiz_response_id: p.quiz_response_id,
+              via: "vigia-pagamento",
+            },
+          });
+        } catch {
+          // auditoria nunca derruba a rodada
+        }
+        if (p.quiz_response_id && p.email) {
+          await subirVendaTiktok(sb, {
+            quizId: p.quiz_response_id,
+            eventId: idExterno,
+            paymentId: p.payment_id,
+            valorCentavos: p.valor_centavos,
+            email: p.email,
+            telefone: (p.telefone as string | null) ?? null,
+            via: "vigia-pagamento",
+          });
+        }
       }
 
       consertados.push({
