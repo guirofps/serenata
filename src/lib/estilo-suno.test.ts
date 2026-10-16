@@ -53,6 +53,20 @@ describe("estiloParaSuno", () => {
     expect(r).toContain("voz feminina");
   });
 
+  it("gênero em espanhol leva a voz em espanhol, com o timbre do modelo", () => {
+    // Até 16/10 saía "voz feminina" (português) colado num estilo espanhol.
+    const r = estiloParaSuno({
+      genero: "mariachi",
+      estiloDoModelo: "mariachi romántico, voz femenina suave y cálida, trompetas",
+      voz: "feminina",
+    });
+    expect(r).toContain("voz femenina suave y cálida");
+    expect(r).not.toContain("feminina");
+    expect(r.startsWith(acharGenero("mariachi")!.estiloSuno)).toBe(true);
+    const m = estiloParaSuno({ genero: "cumbia", estiloDoModelo: "cumbia", voz: "masculina" });
+    expect(m.endsWith("voz masculina")).toBe(true);
+  });
+
   it("voz surpresa não vira texto nenhum", () => {
     // "surpresa" é o cliente deixando o provedor decidir. Escrever a palavra
     // no estilo faria o Suno tentar cantar a surpresa.

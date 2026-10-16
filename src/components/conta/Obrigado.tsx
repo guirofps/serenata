@@ -720,12 +720,14 @@ export function Obrigado({
             cartão inteiro fica no editor, que é depois. Aqui é só uma porta
             visível pra quem já sabe que quer outra, que é o caso de quem
             comprou pensando em duas pessoas. */}
-        {/* A segunda música (e o pacote barato dela) é produto brasileiro,
-            em PIX. Na Ballad Gift não existe ainda, em idioma nenhum. */}
-        {!ehBallad() && (
+        {/* Na Ballad Gift (16/10) o convite também aparece, em inglês e em
+            espanhol: ele é só a porta pro `/criar` (ou `/es/criar`) a preço
+            cheio, cobrado pelo Stripe como a primeira, e a letra sai de graça
+            de novo. Fica de fora lá só o pacote barato, que é produto
+            brasileiro, em PIX. */}
         <div className="mt-10 text-center">
           <ConviteOutraMusica
-            locale={locale === "es" ? "es" : "pt"}
+            locale={ehBallad() ? (locale === "es" ? "es" : "en") : locale === "es" ? "es" : "pt"}
             origem="obrigado"
             variante="discreto"
           />
@@ -735,7 +737,7 @@ export function Obrigado({
               recompras saíram a R$ 38+ (R$ 1.317,40) quando o pacote teria
               cobrado R$ 896. O pacote precisa do `token_edicao` desta compra
               pra cobrar sem login, por isso só aparece com o presente na mão. */}
-          {presente?.tokenEdicao && (
+          {!ehBallad() && presente?.tokenEdicao && (
             <AtalhoOutraMusica
               locale={locale === "es" ? "es" : "pt"}
               tokenEdicao={presente.tokenEdicao}
@@ -743,7 +745,6 @@ export function Obrigado({
             />
           )}
         </div>
-        )}
 
         <p
           className="mt-8 text-center text-[var(--tinta-suave)]"

@@ -515,9 +515,15 @@ export function estiloParaSuno(args: {
   // só, e o Suno lê "female vocals" do mesmo jeito que o resto da string.
   // Os estilos cristãos da Ballad (`GOSPEL_EN`) também são inglês.
   const ingles = EN.includes(g) || GOSPEL_EN.includes(g);
+  // Gênero em espanhol (16/10), das quatro listas: o estilo curado já é
+  // espanhol ("voz emotiva", "voz dulce") e a voz ia em português ("voz
+  // feminina"), uma string em duas línguas. Agora "voz femenina".
+  const espanhol = [ES, ES_ESPANHA, ES_AR, ES_EUA].some((l) => l.includes(g));
   const voz = ingles
     ? args.voz === "feminina" ? "female vocals" : args.voz === "masculina" ? "male vocals" : null
-    : args.voz === "feminina" ? "voz feminina" : args.voz === "masculina" ? "voz masculina" : null;
+    : espanhol
+      ? args.voz === "feminina" ? "voz femenina" : args.voz === "masculina" ? "voz masculina" : null
+      : args.voz === "feminina" ? "voz feminina" : args.voz === "masculina" ? "voz masculina" : null;
 
   // O timbre que o modelo escolheu ("grave e emotiva", "suave e calorosa"),
   // sem os adjetivos de ARRANJO que sao justamente os que derrapam.
@@ -525,9 +531,15 @@ export function estiloParaSuno(args: {
     ? String(args.estiloDoModelo ?? "").match(
         /(?:male|female)\s+vocals?,?\s+([a-z]+(?:\s+and\s+[a-z]+)?)/i,
       )?.[1]
-    : String(args.estiloDoModelo ?? "").match(
-        /voz\s+(?:masculina|feminina)\s+([a-zà-ú]+(?:\s+e\s+[a-zà-ú]+)?)/i,
-      )?.[1];
+    : espanhol
+      ? // "voz femenina suave y cálida". Aceita também o "feminina" do
+        // português: o prompt não fixa a língua do estilo, e o timbre vale igual.
+        String(args.estiloDoModelo ?? "").match(
+          /voz\s+(?:masculina|femenina|feminina)\s+([a-zà-ú]+(?:\s+y\s+[a-zà-ú]+)?)/i,
+        )?.[1]
+      : String(args.estiloDoModelo ?? "").match(
+          /voz\s+(?:masculina|feminina)\s+([a-zà-ú]+(?:\s+e\s+[a-zà-ú]+)?)/i,
+        )?.[1];
 
   return [g.estiloSuno, voz && timbre ? `${voz} ${timbre}` : voz]
     .filter(Boolean)

@@ -19,6 +19,8 @@ import { BlocoVideo } from "@/components/conta/BlocoVideo";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
 import { urlDaMusica } from "@/lib/personalizar";
 import { type Locale, LOCALE_PADRAO, normalizarLocale, caminho } from "@/lib/i18n";
+import { formatoDoQuando } from "@/lib/quando-musica";
+import { ehBallad } from "@/lib/marca-identidade";
 import {
   Loader2, Pencil, ExternalLink, Plus, LogOut, Music, Sparkles, Frame, Lock, ChevronRight, Gift,
 } from "lucide-react";
@@ -54,26 +56,9 @@ type Musica = {
   created_at: string;
 };
 
-// Duas músicas da mesma pessoa costumam ter o MESMO título (é o título da
-// canção, não do arquivo): quando ela pede um ajuste na letra, a nova nasce
-// com o nome da antiga. Sem a data no card não dá pra saber qual é qual.
-const QUANDO = new Intl.DateTimeFormat("pt-BR", {
-  day: "2-digit",
-  month: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "America/Sao_Paulo",
-});
-// Nos EUA: mês antes do dia, e o fuso do próprio aparelho (o país tem seis;
-// a lista só aparece no navegador, depois da sessão, então não há SSR pra
-// divergir).
-const QUANDO_EN = new Intl.DateTimeFormat("en-US", {
-  day: "2-digit",
-  month: "2-digit",
-  hour: "numeric",
-  minute: "2-digit",
-});
-const quando = (locale: Locale, d: Date) => (locale === "en" ? QUANDO_EN : QUANDO).format(d);
+// A data no card: por que existe e por que o formato muda por país, em
+// `quando-musica.ts`.
+const quando = (locale: Locale, d: Date) => formatoDoQuando(locale, ehBallad()).format(d);
 
 // A COR do status é do idioma nenhum; o texto vem do dicionário.
 const COR_STATUS: Record<string, string> = {
