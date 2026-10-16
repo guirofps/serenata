@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
+import { texto, numero, umDe } from "@/lib/busca-url";
 import { MARCA } from "@/lib/marca";
 import { Obrigado } from "@/components/conta/Obrigado";
 import { LOCALE_PADRAO } from "@/lib/i18n";
@@ -7,10 +7,11 @@ import { LOCALE_PADRAO } from "@/lib/i18n";
 // Página de conversão. O corpo vive em `components/conta/Obrigado.tsx`, que
 // recebe o idioma — a rota espanhola (`es.gracias.tsx`) usa o mesmo.
 // `session_id`: o Stripe (Ballad Gift) volta pra cá com o id da sessão paga.
-const busca = z.object({
-  email: z.string().optional(),
-  code: z.string().optional(),
-  session_id: z.string().optional(),
+type Busca = { email?: string; code?: string; session_id?: string };
+const busca = (b: Busca): Busca => ({
+  email: texto(b.email),
+  code: texto(b.code),
+  session_id: texto(b.session_id),
 });
 
 export const Route = createFileRoute("/obrigado")({

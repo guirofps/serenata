@@ -81,7 +81,7 @@ describe("painel lê o resumo diário", () => {
   });
 
   it("a tela aceita ?vivo=1 e manda pro servidor", () => {
-    expect(TELA).toMatch(/vivo:\s*z\.coerce\.number\(\)\.optional\(\)/);
+    expect(TELA).toMatch(/vivo:\s*numero\(b\.vivo\)/);
     expect(TELA).toMatch(/vivo === 1/);
   });
 

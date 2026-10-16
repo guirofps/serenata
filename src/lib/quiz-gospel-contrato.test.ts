@@ -11,7 +11,7 @@ const TEXTOS = readFileSync("src/lib/textos.ts", "utf8");
 
 describe("telas do quiz gospel", () => {
   it("/criar aceita ?t e passa o tema ao quiz", () => {
-    expect(ROTA).toMatch(/t: z\.string\(\)\.optional\(\)/);
+    expect(ROTA).toMatch(/t: texto\(b\.t\)/);
     expect(ROTA).toMatch(/temaUrl=\{temaDoParametro\(t\)\}/);
   });
 

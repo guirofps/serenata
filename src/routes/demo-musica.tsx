@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { z } from "zod";
+import { texto, numero, umDe } from "@/lib/busca-url";
 import { MusicaKaraoke, type PalavraAlinhada } from "@/components/quiz/MusicaKaraoke";
 import { cn } from "@/lib/utils";
 
@@ -20,11 +20,11 @@ const EXEMPLOS: Record<string, { slug: string; nome: string; titulo: string; ver
 };
 
 export const Route = createFileRoute("/demo-musica")({
-  validateSearch: z.object({
-    m: z.string().optional(),
-    v: z.coerce.number().optional(),
+  validateSearch: (b: { m?: string; v?: number; full?: number }): { m?: string; v?: number; full?: number } => ({
+    m: texto(b.m),
+    v: numero(b.v),
     // ?full=1 libera a música inteira (pra mandar pra alguém ouvir).
-    full: z.coerce.number().optional(),
+    full: numero(b.full),
   }),
   component: Demo,
 });

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { z } from "zod";
+import { texto, numero, umDe } from "@/lib/busca-url";
 import {
   carregarPainel,
   carregarComparativo,
@@ -46,31 +46,38 @@ import {
 // desiste? Todo dado vem de server function autenticada — nada sensível no
 // bundle do cliente (erro herdado dos repos antigos: rota admin exposta).
 
+type BuscaAdmin = {
+  dias?: number;
+  de?: string;
+  ate?: string;
+  funil?: "todos" | "pt" | "es";
+  vivo?: number;
+  aba?: "operacao" | "origem" | "criativos" | "vendas" | "email" | "automacoes" | "testes" | "financeiro" | "indicacoes";
+};
+
 export const Route = createFileRoute("/admin")({
-  validateSearch: z.object({
-    dias: z.coerce.number().optional(),
-    de: z.string().optional(),
-    ate: z.string().optional(),
-    funil: z.enum(["todos", "pt", "es"]).optional(),
+  validateSearch: (b: BuscaAdmin): BuscaAdmin => ({
+    dias: numero(b.dias),
+    de: texto(b.de),
+    ate: texto(b.ate),
+    funil: umDe(b.funil, ["todos", "pt", "es"] as const),
     // Auditoria do resumo diário: `?vivo=1` calcula o funil inteiro no banco,
     // ignorando `painel_eventos_dia`. Só pra janela curta: em 30 dias ao vivo
     // volta a estourar.
-    vivo: z.coerce.number().optional(),
+    vivo: numero(b.vivo),
     // A ABA na URL, como os campos acima: reload e botão voltar funcionam, e
     // dá pra mandar o link direto pra alguém já na aba certa.
-    aba: z
-      .enum([
-        "operacao",
-        "origem",
-        "criativos",
-        "vendas",
-        "email",
-        "automacoes",
-        "testes",
-        "financeiro",
-        "indicacoes",
-      ])
-      .optional(),
+    aba: umDe(b.aba, [
+      "operacao",
+      "origem",
+      "criativos",
+      "vendas",
+      "email",
+      "automacoes",
+      "testes",
+      "financeiro",
+      "indicacoes",
+    ] as const),
   }),
   head: () => ({
     meta: [{ title: `Painel · ${MARCA.nome}` }, { name: "robots", content: "noindex, nofollow" }],

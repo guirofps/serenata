@@ -1,6 +1,6 @@
 ﻿import { createFileRoute } from "@tanstack/react-router";
 import { linksDeIdioma } from "@/lib/seo";
-import { z } from "zod";
+import { texto, numero, umDe } from "@/lib/busca-url";
 import { Quiz } from "@/components/quiz/Quiz";
 import { LOCALE_PADRAO } from "@/lib/i18n";
 import { MARCA } from "@/lib/marca";
@@ -12,7 +12,7 @@ import { temaDoParametro } from "@/lib/tema";
 //
 // Passo na URL (?step=<id>): reload não zera, back do navegador funciona.
 // `?t=gospel` abre o quiz gospel (`quiz-flow-gospel.ts`).
-const searchSchema = z.object({ step: z.string().optional(), t: z.string().optional() });
+const searchSchema = (b: { step?: string; t?: string }): { step?: string; t?: string } => ({ step: texto(b.step), t: texto(b.t) });
 
 export const Route = createFileRoute("/criar")({
   validateSearch: searchSchema,

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
+import { texto, numero, umDe } from "@/lib/busca-url";
 import { MARCA } from "@/lib/marca";
 import { Obrigado } from "@/components/conta/Obrigado";
 
@@ -9,10 +9,11 @@ import { Obrigado } from "@/components/conta/Obrigado";
 // `session_id` é o que o Stripe devolve no `return_url` do espanhol da Ballad
 // (hispanos dos EUA, `stripe-checkout.ts`): com ele a confirmação adiantada da
 // `/obrigado` roda aqui também. Na Serenata ele nunca vem, e nada muda.
-const busca = z.object({
-  email: z.string().optional(),
-  code: z.string().optional(),
-  session_id: z.string().optional(),
+type Busca = { email?: string; code?: string; session_id?: string };
+const busca = (b: Busca): Busca => ({
+  email: texto(b.email),
+  code: texto(b.code),
+  session_id: texto(b.session_id),
 });
 
 export const Route = createFileRoute("/es/gracias")({

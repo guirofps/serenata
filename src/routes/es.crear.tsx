@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { linksDeIdioma } from "@/lib/seo";
-import { z } from "zod";
+import { texto, numero, umDe } from "@/lib/busca-url";
 import { Quiz } from "@/components/quiz/Quiz";
 import { MARCA } from "@/lib/marca";
 
@@ -16,7 +16,7 @@ import { MARCA } from "@/lib/marca";
 // assim que a pessoa avança, então nada no funil muda.
 //
 // O canonical continua apontando pra `/es/criar`: é a mesma página.
-const searchSchema = z.object({ step: z.string().optional() });
+const searchSchema = (b: { step?: string }): { step?: string } => ({ step: texto(b.step) });
 
 export const Route = createFileRoute("/es/crear")({
   validateSearch: searchSchema,
