@@ -103,7 +103,7 @@ function Pagina() {
   const r = fase.t === "fim" ? fase.r : null;
 
   return (
-    <div className={`${TEMA_CLARO} min-h-dvh bg-background`}>
+    <div style={TEMA_CLARO} className="min-h-dvh bg-background">
       <div className="mx-auto w-full max-w-md px-5 py-8">
         <div className="mb-6 flex justify-center">
           <Logo />

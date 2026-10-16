@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FONTES } from "@/lib/marca";
 import { aprimorarLetra } from "@/lib/coautoria";
 import { getOrCreateSessionId } from "@/lib/session-context";
@@ -87,6 +87,13 @@ export function EditorLetra({
     // exata, e sem a folga o aviso ficaria aceso pra sempre no fim.
     setTemMais(el.scrollHeight - el.scrollTop - el.clientHeight > 8);
   }
+  // MEDE NA MONTAGEM E A CADA LETRA NOVA (16/10). O comentário do textarea
+  // prometia isto e o efeito não existia: o aviso nascia apagado e só
+  // acendia se a pessoa digitasse ou rolasse, exatamente quem não precisa
+  // dele. Também recalcula depois do "Melhorar com IA", que troca a letra.
+  useEffect(() => {
+    if (areaRef.current) conferirFim(areaRef.current);
+  }, [letra]);
 
   async function melhorar() {
     setAprimorando(true);
@@ -193,7 +200,7 @@ export function EditorLetra({
         )}
       </button>
 
-      <div className="sticky bottom-0 -mx-4 bg-gradient-to-t from-background via-background to-transparent px-4 pb-2 pt-4">
+      <div className="sticky bottom-0 -mx-3 bg-gradient-to-t from-background via-background to-transparent px-3 pb-2 pt-4">
         <Button
           size="lg"
           className="w-full"

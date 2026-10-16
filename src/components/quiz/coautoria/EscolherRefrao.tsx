@@ -105,7 +105,7 @@ export function EscolherRefrao({
       )}
 
       {/* Rodapé fixo no polegar: só habilita com um refrão escolhido. */}
-      <div className="sticky bottom-0 -mx-4 bg-gradient-to-t from-background via-background to-transparent px-4 pb-2 pt-4">
+      <div className="sticky bottom-0 -mx-3 bg-gradient-to-t from-background via-background to-transparent px-3 pb-2 pt-4">
         <Button
           size="lg"
           className="w-full"

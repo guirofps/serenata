@@ -426,7 +426,7 @@ export function ResumoDoPedido({
   const blocoCartao = (
     <div className="border-t border-primary/10 pt-4">
       <p className="mb-2 text-center text-xs text-muted-foreground">
-        Prefere cartão, ou quer parcelar?
+        Prefere pagar com cartão?
       </p>
       <Button variant="outline" size="lg" className="w-full" onClick={aoEscolherCartao}>
         <CreditCard className="mr-2 h-4 w-4" /> Pagar com cartão

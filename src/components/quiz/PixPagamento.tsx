@@ -175,8 +175,10 @@ export function PixPagamento({
             que a do concorrente escalado, no exato momento em que a pessoa
             mais desiste. Se um dia alguém for trocar de gateway, isto aqui é
             parte do que se perde. */}
+        {/* 16/10: dizia "Sem cadastro e sem CPF", logo depois de o Asaas ter
+            pedido o CPF. Frase falsa no instante de pagar custa confiança. */}
         <p className="mt-1 text-xs text-muted-foreground">
-          Sem cadastro e sem CPF. É só copiar e pagar.
+          É só copiar o código e pagar no app do seu banco.
         </p>
       </div>
 
@@ -236,7 +238,7 @@ export function PixPagamento({
       {aoEscolherCartao ? (
         <div className="border-t border-primary/10 pt-4">
           <p className="mb-2 text-center text-xs text-muted-foreground">
-            Prefere cartão, ou quer parcelar?
+            Prefere pagar com cartão?
           </p>
           <Button
             variant="outline"

@@ -61,7 +61,7 @@ export function Documento({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`${TEMA_CLARO} min-h-dvh bg-background`}>
+    <div style={TEMA_CLARO} className="min-h-dvh bg-background">
       <div className="mx-auto w-full max-w-2xl px-6 py-10">
         <Link to="/" className="inline-block">
           <Logo tamanho="sm" />
