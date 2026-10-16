@@ -30,4 +30,10 @@ export type PropsPresente = {
    * tela. O render pago nunca manda isto.
    */
   previa?: boolean;
+  /**
+   * O nome da marca na abertura sem nome e no fechamento, em caixa alta.
+   * Sem ele, "SERENATA" (o vídeo nasceu só na Serenata). A Ballad manda
+   * "BALLAD": até 16/10 o vídeo pago dela saía escrito SERENATA.
+   */
+  marca?: string;
 };

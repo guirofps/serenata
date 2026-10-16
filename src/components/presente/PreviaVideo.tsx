@@ -5,6 +5,7 @@ import { trackEvent } from "@/lib/track";
 import { getAudioDurationInSeconds } from "@remotion/media-utils";
 import { Presente } from "../../../video/src/Presente";
 import type { LinhaKaraoke, PropsPresente } from "../../../video/src/props";
+import { MARCA_VIDEO } from "@/lib/marca-identidade";
 
 // A PRÉVIA AO VIVO do vídeo-presente, tocando no navegador.
 //
@@ -90,6 +91,7 @@ export default function PreviaVideo({
       locale,
       previa: !semMarca,
       para,
+      marca: MARCA_VIDEO,
     }),
     [audioUrl, fotos, karaoke, titulo, dedicatoria, duracaoS, reserva, locale, para, semMarca],
   );

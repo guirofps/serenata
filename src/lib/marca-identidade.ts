@@ -100,6 +100,9 @@ export function chaveDaMarca(v: string | undefined = envMarca()): ChaveMarca {
 
 export const MARCA_ATIVA: Marca = MARCAS[chaveDaMarca()];
 
+/** O nome que o vídeo-presente escreve (abertura sem nome e fechamento): a palavra do logo, sem "Gift". */
+export const MARCA_VIDEO = MARCA_ATIVA.chave === "ballad" ? "BALLAD" : "SERENATA";
+
 /**
  * Este deploy é a Ballad Gift?
  *

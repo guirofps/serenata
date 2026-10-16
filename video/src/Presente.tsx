@@ -299,6 +299,7 @@ const Montagem: React.FC<PropsPresente & { pulso: number }> = ({
   para,
   trecho,
   pulso,
+  marca = "SERENATA",
 }) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
@@ -429,7 +430,7 @@ const Montagem: React.FC<PropsPresente & { pulso: number }> = ({
             </>
           ) : (
             <div style={{ fontFamily: LORA, color: OURO, letterSpacing: 14, fontSize: 32, marginBottom: 30, textShadow: "0 2px 20px rgba(0,0,0,0.6)" }}>
-              SERENATA
+              {marca}
             </div>
           )}
           <div style={{ opacity: nome ? opTituloTexto : 1, fontFamily: PLAYFAIR, color: CREME, fontSize: nome ? 62 : 80, lineHeight: 1.15, fontWeight: 500, textShadow: "0 4px 34px rgba(0,0,0,0.75)" }}>
@@ -476,7 +477,7 @@ const Montagem: React.FC<PropsPresente & { pulso: number }> = ({
               <div style={{ fontFamily: PLAYFAIR, fontStyle: "italic", color: OURO, fontSize: 92, marginBottom: 22 }}>{nome}</div>
             ) : null}
             <div style={{ fontFamily: LORA, fontStyle: "italic", color: CREME, fontSize: 38, lineHeight: 1.45 }}>{T.fecho}</div>
-            <div style={{ fontFamily: LORA, color: "rgba(232,196,106,0.8)", letterSpacing: 14, fontSize: 26, marginTop: 40 }}>SERENATA</div>
+            <div style={{ fontFamily: LORA, color: "rgba(232,196,106,0.8)", letterSpacing: 14, fontSize: 26, marginTop: 40 }}>{marca}</div>
           </div>
         </AbsoluteFill>
       )}

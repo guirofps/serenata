@@ -14,7 +14,7 @@ import { assinaturaDoVideo, entradaDaMusica } from "../../src/lib/assinatura-vid
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { emailVideoPronto, assuntoVideoPronto } from "../../emails/video-pronto.js";
 import type { PropsPresente } from "../../video/src/props.js";
-import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { MARCA_ATIVA, MARCA_VIDEO } from "../../src/lib/marca-identidade.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
 // O VÍDEO-PRESENTE, do pagamento ao MP4 no bucket.
@@ -235,7 +235,8 @@ export const renderizarVideo = inngest.createFunction(
         pular: false,
         musicaId: m.id as string,
         email: v.email as string,
-        titulo: (m.titulo as string | null) ?? "Sua música",
+        // O fallback vai no assunto do "vídeo pronto": no idioma da compra.
+        titulo: (m.titulo as string | null) ?? (m.locale === "es" ? "Tu canción" : m.locale === "en" ? "Your song" : "Sua música"),
         tokenEdicao: m.token_edicao as string,
         locale: m.locale === "es" ? "es" : m.locale === "en" ? "en" : "pt",
         quizId: (m.quiz_response_id as string | null) ?? null,
@@ -248,6 +249,7 @@ export const renderizarVideo = inngest.createFunction(
           duracaoS,
           locale: m.locale === "es" ? "es" : m.locale === "en" ? "en" : "pt",
           para: para || undefined,
+          marca: MARCA_VIDEO,
         },
         assinatura,
         atualizacoes: Number(v.atualizacoes) || 0,
