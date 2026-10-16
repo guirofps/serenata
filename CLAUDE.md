@@ -549,6 +549,24 @@ Código em `src/lib/ga4.ts`; desenho em
   desligado (o WhatsApp da `/obrigado` leva nome e título da música) e
   redação de e-mail e dos parâmetros `email`, `code`, `session_id`, `text`.
 
+## Clarity e Omnisend (16/10/2026)
+
+Dois scripts novos no site da Serenata, no molde do pixel do TikTok: só na
+Serenata (`clarityDaMarca`, `omnisendDaMarca`), fora das rotas de
+`rotas-sensiveis.ts`, e o arquivo remoto entra pela porta de
+`carregar-depois.ts`.
+
+- **Clarity (`clarity.ts`) grava a TELA, não só a URL.** Por isso o script
+  envolve o `pushState`: navegar pelo SPA até uma rota sensível (`/obrigado` →
+  editor) manda `clarity("stop")` ANTES de a URL mudar, e sair dela manda
+  `start`. Ele mascara campo de digitar por padrão, mas texto desenhado (a
+  letra, o nome do presenteado) aparece nas gravações.
+- **Omnisend (`omnisend.ts`) é SÓ campanha de marketing** (decisão do dono,
+  15/10). Letra, recuperação, entrega e as outras réguas continuam no Resend.
+  Antes da primeira campanha grande: subdomínio próprio pro envio e
+  descadastro sincronizado com `descadastros`/`emails_mortos`, senão quem saiu
+  de um continua recebendo do outro.
+
 ## Painel rápido (02/10/2026)
 
 O `/admin` parou de abrir até em 7 dias (`statement timeout`). Desenho em
