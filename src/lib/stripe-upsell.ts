@@ -172,9 +172,3 @@ export const confirmarVideoStripe = createServerFn({ method: "POST" })
       return { pago: false };
     }
   });
-
-/** Pra folha do editor mostrar o preço certo sem importar o catálogo inteiro. */
-export function precoVideoUsdTexto(): string | null {
-  const v = OFERTAS.find((o) => o.id === "video")?.precoUsd;
-  return v ? `$${Number.isInteger(v) ? v : v.toFixed(2)}` : null;
-}

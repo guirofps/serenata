@@ -10,7 +10,7 @@ import {
 } from "@/lib/video-presente";
 import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
 import { FolhaStripeVideo } from "@/components/presente/FolhaStripeVideo";
-import { precoVideoUsdTexto } from "@/lib/stripe-upsell";
+import { precoVideoUsdTexto } from "@/lib/creditos";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { MARCA } from "@/lib/marca";
 import { ehBallad } from "@/lib/marca-identidade";
