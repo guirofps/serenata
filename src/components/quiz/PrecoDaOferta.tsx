@@ -1,7 +1,7 @@
 import { Variante } from "@/components/Variante";
 import type { Locale } from "@/lib/i18n";
 import type { Cupom } from "@/lib/cupom";
-import { EXP_PRECO, planoControle, planoDe, variantesComPlano } from "@/lib/preco";
+import { EXP_PRECO, planoCobravelDe, planoControle, variantesComPlano } from "@/lib/preco";
 
 // O NÚMERO NA TELA, no formato que sobrevive ao servidor.
 //
@@ -18,6 +18,14 @@ import { EXP_PRECO, planoControle, planoDe, variantesComPlano } from "@/lib/prec
 //
 // Com o experimento desligado, o CSS deixa só o controle visível: esta tela
 // volta a ser a de sempre sem nenhuma mudança aqui.
+//
+// O NÚMERO É O COBRÁVEL (16/10), nunca o do braço cru. Braço zerado pelo peso
+// (D R$ 29, E R$ 54,90, B/C) continua grudado no navegador de quem foi
+// sorteado em agosto, e o servidor cobra esses como o controle
+// (`braco-cobravel.ts`). Com `planoDe` a tela mostrava R$ 29 e a folha cobrava
+// R$ 38 (cara de isca e troca), ou mostrava R$ 54,90 e cobrava R$ 38 (venda
+// perdida no preço que converte pela metade). O público dos remarketings é
+// justamente essa visita antiga.
 
 export function PrecoDaOferta({
   locale,
@@ -53,7 +61,7 @@ export function PrecoDaOferta({
   return (
     <>
       {variantesComPlano(locale).map((v) => {
-        const plano = planoDe(locale, v);
+        const plano = planoCobravelDe(locale, v);
         return (
           <Variante key={v} exp={EXP_PRECO} v={v}>
             <p className="text-sm text-muted-foreground">
@@ -91,7 +99,7 @@ export function PrecoCurto({
     <>
       {variantesComPlano(locale).map((v) => (
         <Variante key={v} exp={EXP_PRECO} v={v}>
-          <p className={className}>{planoDe(locale, v).texto}</p>
+          <p className={className}>{planoCobravelDe(locale, v).texto}</p>
         </Variante>
       ))}
     </>
@@ -119,7 +127,7 @@ export function APartirDe({
     <>
       {variantesComPlano(locale).map((v) => (
         <Variante key={v} exp={EXP_PRECO} v={v}>
-          <p className={className}>{frase(planoDe(locale, v).texto)}</p>
+          <p className={className}>{frase(planoCobravelDe(locale, v).texto)}</p>
         </Variante>
       ))}
     </>
