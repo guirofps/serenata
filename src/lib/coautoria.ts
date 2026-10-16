@@ -525,6 +525,16 @@ export const sessaoJaPagou = createServerFn({ method: "POST" })
     },
   );
 
+/** A letra sem diferença de espaço, quebra de linha e caixa: o que conta como "outra letra". */
+function normalizarLetra(s: string | null | undefined): string {
+  return String(s ?? "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s*\n\s*/g, "\n")
+    .trim()
+    .toLowerCase();
+}
+
 export const finalizarLetra = createServerFn({ method: "POST" })
   .validator(
     (data: {
@@ -605,12 +615,23 @@ export const finalizarLetra = createServerFn({ method: "POST" })
       // a idempotência acima devolveria a NOSSA música com a letra dela na
       // tela. Troca pela dela e regrava, mas só sem execução viva (`pronta` ou
       // `falhou`) e sem compra: pago já é presente entregue.
-      if (existente.letra !== data.letra && (existente.status === "pronta" || existente.status === "falhou")) {
-        const [{ data: resgate }, { data: pago }] = await Promise.all([
-          db.from("coautoria_resgates").select("quiz_response_id").eq("musica_id", existente.id).maybeSingle(),
-          db.from("pedidos").select("id").eq("quiz_response_id", quizId).eq("status", "pago").limit(1),
-        ]);
-        if (resgate && !pago?.length) {
+      //
+      // E A LETRA QUE ELA MESMA REFEZ (16/10). Quem muda uma resposta depois de
+      // finalizar (o caso típico: viu o nome errado, voltou e corrigiu) tem a
+      // `letraFinal` zerada e refaz a coautoria. A idempotência devolvia a
+      // música VELHA, com o nome errado, enquanto a tela mostrava a letra nova
+      // — o contrário do "a música é igual à letra que você leu" do FAQ. Vale
+      // a mesma troca do resgate. A comparação ignora espaço e quebra de
+      // linha: reenviar a mesma letra nunca pode custar outra gravação.
+      const mesmaLetra = normalizarLetra(existente.letra) === normalizarLetra(data.letra);
+      if (!mesmaLetra && (existente.status === "pronta" || existente.status === "falhou")) {
+        const { data: pago } = await db
+          .from("pedidos")
+          .select("id")
+          .eq("quiz_response_id", quizId)
+          .eq("status", "pago")
+          .limit(1);
+        if (!pago?.length) {
           const { error: eTroca } = await db
             .from("musicas")
             .update({
@@ -630,7 +651,7 @@ export const finalizarLetra = createServerFn({ method: "POST" })
             await dispararGeracaoMusica(existente.id);
             return { musicaId: existente.id, statusMusica: "aguardando" };
           }
-          console.error("[coautoria] troca da música do resgate falhou:", eTroca);
+          console.error("[coautoria] troca da música pela letra nova falhou:", eTroca);
         }
       }
       return { musicaId: existente.id, statusMusica: existente.status ?? "aguardando" };
