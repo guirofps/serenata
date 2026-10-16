@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { emailPlausivel } from "@/lib/email-limpo";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   isIntro,
   isQuestion,
@@ -39,9 +39,25 @@ import {
 import { ChipsStep } from "@/components/quiz/ChipsStep";
 import { FaixaPresente } from "@/components/quiz/FaixaPresente";
 import { CampoNome } from "@/components/quiz/CampoNome";
-import { TelaOferta } from "@/components/quiz/TelaOferta";
 import { StoryStep, storyIsValid, validateStory } from "@/components/quiz/StoryStep";
-import { RevealStep } from "@/components/quiz/RevealStep";
+// A REVELAÇÃO E A OFERTA SOB DEMANDA (16/10). Elas trazem o karaokê, o PIX,
+// o cartão e o CPF, e vinham no primeiro carregamento do /criar, atrasando o
+// primeiro toque de quem ainda nem respondeu a primeira pergunta (99% celular,
+// boa parte em 4G). O download é adiantado em segundo plano logo depois da
+// abertura (`adiantarTelasDoFim`), então quem chega nelas já as tem.
+const carregarReveal = () => import("@/components/quiz/RevealStep");
+const carregarOferta = () => import("@/components/quiz/TelaOferta");
+const RevealStep = lazy(() => carregarReveal().then((m) => ({ default: m.RevealStep })));
+const TelaOferta = lazy(() => carregarOferta().then((m) => ({ default: m.TelaOferta })));
+let telasAdiantadas = false;
+function adiantarTelasDoFim() {
+  if (telasAdiantadas) return;
+  telasAdiantadas = true;
+  void carregarReveal().catch(() => {
+    telasAdiantadas = false;
+  });
+  void carregarOferta().catch(() => {});
+}
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -109,6 +125,12 @@ export function Quiz({
   temaUrl?: Tema | null;
 }) {
   const navigate = useNavigate();
+  // Baixa a revelação e a oferta em segundo plano, 3s depois de a tela
+  // responder: o quiz tem 8+ passos antes delas, sobra tempo de sobra.
+  useEffect(() => {
+    const t = setTimeout(adiantarTelasDoFim, 3000);
+    return () => clearTimeout(t);
+  }, []);
   const respostas = useQuizStore((s) => s.respostas);
   const setResposta = useQuizStore((s) => s.setResposta);
   const setRespostas = useQuizStore((s) => s.setRespostas);
@@ -919,14 +941,16 @@ export function Quiz({
           <ReviewScreen locale={locale} onGerar={() => navigate({ to: rota, search: { step: "reveal" } } as never)} />
         )}
 
-        {isReveal(step) && <RevealStep locale={locale} />}
+        <Suspense fallback={<div className="py-20 text-center text-sm text-muted-foreground">…</div>}>
+          {isReveal(step) && <RevealStep locale={locale} />}
 
-        {isOferta(step) && (
-          <TelaOferta
-            locale={locale}
-            aoVoltar={() => navigate({ to: rota, search: { step: "reveal" } } as never)}
-          />
-        )}
+          {isOferta(step) && (
+            <TelaOferta
+              locale={locale}
+              aoVoltar={() => navigate({ to: rota, search: { step: "reveal" } } as never)}
+            />
+          )}
+        </Suspense>
       </div>
 
       {/* Rodapé: continuar (some nos passos que têm CTA próprio)
