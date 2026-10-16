@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
+import { decidirTeto, TETO_MAXIMO } from "../../src/lib/teto-auto.js";
 
 // O DISJUNTOR DE GASTO DO SUNO.
 //
@@ -137,8 +138,41 @@ async function avisarPerto(sb: SupabaseClient, teto: number): Promise<void> {
     if (alerta < 1) return;
     // Enquanto couber nos 80%, não há o que avisar.
     if (await cabe(sb, `perto-teto-musica:${diaBr()}`, alerta)) return;
-    // Cruzou. A trava do e-mail é a mesma dos outros: contador de teto 1.
-    if (!(await cabe(sb, `alerta-perto-musica:${diaBr()}`, 1))) return;
+    // Cruzou. Uma vez por NÍVEL de teto no dia (o contador de teto 1 é a
+    // trava): depois de subir sozinho, os 80% do teto novo valem de novo.
+    if (!(await cabe(sb, `alerta-perto-musica:${diaBr()}:${teto}`, 1))) return;
+
+    // ── SOBE SOZINHO EM DIA BOM (16/10, pedido do dono) ─────────────
+    // Ver `teto-auto.ts`: venda por música separa tráfego de verdade de robô.
+    const inicioDoDia = `${diaBr()}T03:00:00Z`;
+    const { count: vendasHoje } = await sb
+      .from("pedidos")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pago")
+      .not("quiz_response_id", "is", null)
+      .gte("paid_at", inicioDoDia);
+    const decisao = decidirTeto({ teto, musicasHoje: alerta, vendasHoje: vendasHoje ?? 0 });
+    const taxa = `${(decisao.taxa * 100).toFixed(1)}%`;
+    if (decisao.subir) {
+      const { error } = await sb
+        .from("config_operacao")
+        .upsert(
+          { chave: CHAVE_TETO, valor: String(decisao.novo), atualizado_em: new Date().toISOString() },
+          { onConflict: "chave" },
+        );
+      if (!error) {
+        await avisarDonos({
+          assunto: `📈 Teto de músicas subiu sozinho: ${teto} → ${decisao.novo} (dia bom)`,
+          html:
+            `<p>Hoje já foram ${alerta} músicas de quem ainda não pagou, 80% do teto de ${teto}.</p>` +
+            `<p>As vendas acompanham (${vendasHoje} vendas, ${taxa} das músicas; robô não paga), ` +
+            `então o teto subiu sozinho pra <strong>${decisao.novo}</strong>. Vale até alguém mudar no ` +
+            `painel (/admin, aba Operação). O máximo automático é ${TETO_MAXIMO}.</p>`,
+        });
+        return;
+      }
+      console.error("[disjuntor] subir o teto falhou:", error.message);
+    }
 
     await avisarDonos({
       assunto: `⚠️ 80% do teto de músicas usado hoje (${alerta} de ${teto})`,
@@ -149,7 +183,13 @@ async function avisarPerto(sb: SupabaseClient, teto: number): Promise<void> {
         `<p>Quando desarmar, quem pagar continua recebendo (o webhook refaz na hora), ` +
         `mas passa a esperar uns 90 segundos em vez de receber pronto — e a regra de ` +
         `nunca cobrar por algo que ainda não existe fica invertida.</p>` +
-        `<p>Se o dia está bom de verdade, suba o teto agora, no painel ou em ` +
+        (decisao.subir
+          ? `<p>Tentei subir o teto sozinho e a gravação falhou: suba no painel.</p>`
+          : decisao.motivo === "no-maximo"
+            ? `<p>O teto já está no máximo automático (${TETO_MAXIMO}). Se o dia está bom, suba no painel.</p>`
+            : `<p><strong>NÃO subi sozinho:</strong> só ${vendasHoje} vendas pra ${alerta} músicas (${taxa}; ` +
+              `o normal é 12-15%). Pode ser robô rodando o funil. Confira no painel antes de subir.</p>`) +
+        `<p>Pra subir à mão: painel (/admin, aba Operação) ou ` +
         `<code>TETO_MUSICAS_DIA</code> na Vercel. Não precisa de deploy e vale na hora.</p>`,
     });
   } catch (err) {

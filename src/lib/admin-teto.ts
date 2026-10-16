@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { TETO_MAXIMO } from "@/lib/teto-auto";
 
 // O TETO DIÁRIO DE GERAÇÃO, lido e escrito pelo painel.
 //
@@ -31,7 +32,8 @@ const PADRAO = 300;
 // Teto do teto. Não é burocracia: um dígito a mais digitado sem querer
 // (3000 em vez de 300) transforma a proteção em enfeite, e é o tipo de erro
 // que ninguém percebe até a fatura chegar.
-const MAX = 5_000;
+// 16/10: 5.000 → o mesmo máximo do teto automático (`teto-auto.ts`).
+const MAX = TETO_MAXIMO;
 
 /** O dia no fuso do Brasil, igual ao `diaBr` do disjuntor. */
 function diaBr(): string {
