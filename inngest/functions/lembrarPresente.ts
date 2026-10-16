@@ -8,6 +8,7 @@ import { comUtm } from "../../src/lib/utm-email.js";
 import { emailLembretePresente, assuntoLembrete, textoLembreteEn, textoLembreteEsEua } from "../../emails/lembrete-presente.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { todasAsPaginas } from "../lib/paginar.js";
 
 // LEMBRETE de quem pagou e não montou o presente.
 //
@@ -30,6 +31,11 @@ const SITE = MARCA_ATIVA.url;
 // com o presente na cabeça. 96h evita ressuscitar compra velha e parecer spam.
 const MIN_H = 1;
 const MAX_H = 96;
+// Teto por rodada (16/10). Antes não precisava: a consulta sem página via só
+// 1.000 pedidos quaisquer. Com a janela inteira à vista, a 1ª rodada acharia
+// o represamento de dias de uma vez; 40 por hora drena sem pico no domínio
+// (o regime normal é ~7 por hora).
+const MAX_POR_RODADA = 40;
 
 function db() {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -69,69 +75,117 @@ export const lembrarPresente = inngest.createFunction(
     const candidatos = await step.run("achar-quem-nao-montou", async () => {
       const sb = db();
       const agora = Date.now();
-      const { data: pedidos } = await sb
-        .from("pedidos")
-        .select("id, email, musica_id, quiz_response_id, paid_at")
-        .eq("status", "pago")
-        .gte("paid_at", new Date(agora - MAX_H * 3600000).toISOString())
-        .lte("paid_at", new Date(agora - MIN_H * 3600000).toISOString());
+      // Por página e ordenado (16/10): sem isto o PostgREST devolvia 1.000
+      // pedidos quaisquer dos ~1.500 da janela, e o resto nunca era lembrado.
+      const pedidos = await todasAsPaginas<{
+        id: string; email: string | null; musica_id: string | null; quiz_response_id: string | null; paid_at: string;
+      }>((de, ate) =>
+        sb
+          .from("pedidos")
+          .select("id, email, musica_id, quiz_response_id, paid_at")
+          .eq("status", "pago")
+          .gte("paid_at", new Date(agora - MAX_H * 3600000).toISOString())
+          .lte("paid_at", new Date(agora - MIN_H * 3600000).toISOString())
+          .order("paid_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(de, ate),
+      );
+
+      // Quem já foi lembrado, numa leitura só e com janela de tempo. Falhou,
+      // a rodada para (na dúvida, não manda).
+      const jaLembrados = new Set(
+        (
+          await todasAsPaginas<{ event_data: { musica_id?: string } | null }>((de, ate) =>
+            sb
+              .from("funnel_events")
+              .select("event_data")
+              .eq("event_name", "lembrete_presente_enviado")
+              .gte("created_at", new Date(agora - (MAX_H + 48) * 3600000).toISOString())
+              .order("created_at", { ascending: true })
+              .order("id", { ascending: true })
+              .range(de, ate),
+          )
+        )
+          .map((e) => e.event_data?.musica_id)
+          .filter(Boolean) as string[],
+      );
+
+      // Um pedido por música: o do vídeo pelo Stripe nasce só com `musica_id`
+      // e, sem quiz, mandava o lembrete em português pro comprador da Ballad.
+      const porMusica = new Map<string, (typeof pedidos)[number]>();
+      for (const p of pedidos) {
+        if (!p.email || !p.musica_id || jaLembrados.has(p.musica_id)) continue;
+        const atual = porMusica.get(p.musica_id);
+        if (!atual || (!atual.quiz_response_id && p.quiz_response_id)) porMusica.set(p.musica_id, p);
+      }
+      const fila = [...porMusica.values()];
 
       const out: Array<{
         email: string; nome: string; titulo: string; linkEditor: string;
         musicaId: string; locale: "pt" | "es" | "en"; quizId: string | null;
       }> = [];
 
-      for (const p of pedidos ?? []) {
-        if (!p.email || !p.musica_id) continue;
-
-        const { data: m } = await sb
+      type LinhaMusica = {
+        id: string; token_edicao: string | null; titulo: string | null; status: string; personalizada_em: string | null;
+        foto_path: string | null; galeria: string[] | null; dedicatoria: string | null;
+        quiz_response_id: string | null; locale: string | null;
+      };
+      for (let i = 0; i < fila.length && out.length < MAX_POR_RODADA; i += 100) {
+        const lote = fila.slice(i, i + 100);
+        const { data: linhas, error: erroMusicas } = await sb
           .from("musicas")
-          .select("id, token_edicao, titulo, status, personalizada_em, foto_path, galeria, dedicatoria")
-          .eq("id", p.musica_id)
-          .maybeSingle();
-        if (!m || m.status !== "pronta" || !m.token_edicao) continue;
+          .select("id, token_edicao, titulo, status, personalizada_em, foto_path, galeria, dedicatoria, quiz_response_id, locale")
+          .in("id", lote.map((p) => p.musica_id as string));
+        if (erroMusicas) throw new Error(erroMusicas.message);
+        const porId = new Map(((linhas ?? []) as LinhaMusica[]).map((m) => [m.id, m]));
 
-        // "Montou" é qualquer sinal de que a pessoa mexeu no presente, não só
-        // `personalizada_em` (que só é escrito quando sobe foto). Sem isso o
-        // lembrete iria pra quem já escolheu versão, cor e efeito.
-        const montou =
-          Boolean(m.personalizada_em) ||
-          Boolean(m.foto_path) ||
-          Boolean(m.dedicatoria) ||
-          ((m.galeria as string[] | null)?.length ?? 0) > 0;
-        if (montou) continue;
+        for (const p of lote) {
+          if (out.length >= MAX_POR_RODADA) break;
+          if (!p.email || !p.musica_id) continue;
+          const m = porId.get(p.musica_id);
+          if (!m || m.status !== "pronta" || !m.token_edicao) continue;
 
-        if (await jaLembrado(sb, m.id)) continue;
+          // "Montou" é qualquer sinal de que a pessoa mexeu no presente, não só
+          // `personalizada_em` (que só é escrito quando sobe foto). Sem isso o
+          // lembrete iria pra quem já escolheu versão, cor e efeito.
+          const montou =
+            Boolean(m.personalizada_em) ||
+            Boolean(m.foto_path) ||
+            Boolean(m.dedicatoria) ||
+            ((m.galeria as string[] | null)?.length ?? 0) > 0;
+          if (montou) continue;
 
-        const { data: q } = p.quiz_response_id
-          ? await sb.from("quiz_responses").select("respostas, locale").eq("id", p.quiz_response_id).maybeSingle()
-          : { data: null };
+          const quizId = p.quiz_response_id ?? m.quiz_response_id ?? null;
+          const { data: q } = quizId
+            ? await sb.from("quiz_responses").select("respostas, locale").eq("id", quizId).maybeSingle()
+            : { data: null };
 
-        // O idioma vem do registro: um cron não tem requisição de onde
-        // deduzir. Ver a migration 20260807000000_locale. `en` é a Ballad
-        // Gift, onde o padrão da coluna já é 'en'.
-        const bruto = (q as { locale?: string } | null)?.locale;
-        const locale = bruto === "es" ? "es" : bruto === "en" ? "en" : "pt";
+          // O idioma vem do registro: um cron não tem requisição de onde
+          // deduzir. Ver a migration 20260807000000_locale. `en` é a Ballad
+          // Gift, onde o padrão da coluna já é 'en'.
+          const bruto = (q as { locale?: string } | null)?.locale ?? m.locale;
+          const locale = bruto === "es" ? "es" : bruto === "en" ? "en" : "pt";
 
-        out.push({
-          email: p.email,
-          locale,
-          // `.trim()`: nome digitado no quiz vem com espaço sobrando ("Cardoso ")
-          // e o assunto sairia com espaço duplo.
-          nome:
-            ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-            // `tú` no espanhol da Ballad (hispanos dos EUA); o da Serenata é
-            // argentino.
-            (locale === "es"
-              ? MARCA_ATIVA.chave === "ballad" ? "quien tú quieres" : "quien vos querés"
-              : locale === "en" ? "someone you love" : "quem você ama"),
-          titulo:
-            m.titulo ??
-            (locale === "en" ? "Your song" : locale === "es" && MARCA_ATIVA.chave === "ballad" ? "Tu canción" : "Sua música"),
-          linkEditor: `${SITE}/editar/${m.token_edicao}`,
-          musicaId: m.id,
-          quizId: p.quiz_response_id ?? null,
-        });
+          out.push({
+            email: p.email,
+            locale,
+            // `.trim()`: nome digitado no quiz vem com espaço sobrando ("Cardoso ")
+            // e o assunto sairia com espaço duplo.
+            nome:
+              ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() ||
+              // `tú` no espanhol da Ballad (hispanos dos EUA); o da Serenata é
+              // argentino.
+              (locale === "es"
+                ? MARCA_ATIVA.chave === "ballad" ? "quien tú quieres" : "quien vos querés"
+                : locale === "en" ? "someone you love" : "quem você ama"),
+            titulo:
+              m.titulo ??
+              (locale === "en" ? "Your song" : locale === "es" && MARCA_ATIVA.chave === "ballad" ? "Tu canción" : "Sua música"),
+            linkEditor: `${SITE}/editar/${m.token_edicao}`,
+            musicaId: m.id,
+            quizId,
+          });
+        }
       }
       return out;
     });
