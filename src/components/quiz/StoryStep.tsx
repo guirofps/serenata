@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { QuestionStep } from "@/lib/flow-engine";
 import { Textarea } from "@/components/ui/textarea";
-import { useDictation } from "@/lib/use-dictation";
+import { useDictation, type ErroDitado } from "@/lib/use-dictation";
 import { trackEventOnce } from "@/lib/track";
 import { type Locale, tagIdioma } from "@/lib/i18n";
 import { t as textos } from "@/lib/textos";
@@ -138,6 +138,13 @@ export function StoryStep({
     vivoRef.current = novo;
     onChange(novo);
   }, tagIdioma(locale));
+  // O hook diz O QUE deu errado; a frase é do idioma do funil.
+  const MSG_DITADO: Record<ErroDitado, string> = {
+    sem_suporte: T.ditadoSemSuporte,
+    sem_permissao: T.ditadoSemPermissao,
+    sem_fala: T.ditadoSemFala,
+    falhou: T.ditadoFalhou,
+  };
 
   // Gatilho tocado: escreve o COMEÇO da frase e devolve o cursor pro fim,
   // com o teclado já aberto. É a diferença entre "escreva sobre a memória de
@@ -229,7 +236,9 @@ export function StoryStep({
         </button>
       )}
 
-      {ditado.erro && <p className="text-center text-xs text-destructive">{ditado.erro}</p>}
+      {ditado.erro && (
+        <p className="text-center text-xs text-destructive">{MSG_DITADO[ditado.erro]}</p>
+      )}
 
       <div className="text-center text-xs">
         <span

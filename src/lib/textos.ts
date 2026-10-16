@@ -57,6 +57,12 @@ const PT = {
   naoRepita: "Evite repetir o mesmo caractere várias vezes seguidas.",
   preferoFalar: "Prefiro contar falando",
   pararGravar: "Parar de gravar",
+  // Os avisos do ditado por voz (16/10). Moravam em português dentro do hook
+  // (`use-dictation.ts`) e apareciam assim no inglês e no espanhol da Ballad.
+  ditadoSemSuporte: "Seu navegador não suporta ditado. Pode escrever no campo.",
+  ditadoSemPermissao: "Preciso da permissão do microfone pra te ouvir.",
+  ditadoSemFala: "Não consegui ouvir nada. Tenta de novo?",
+  ditadoFalhou: "Deu ruim na gravação. Pode escrever no campo.",
   naoLembro: "Não lembro de nada agora, seguir sem isso",
 
   // ── campo de nome ────────────────────────────────────────────
@@ -255,6 +261,10 @@ const ES: Textos = {
   naoRepita: "Evita repetir el mismo carácter varias veces seguidas.",
   preferoFalar: "Mejor lo cuento hablando",
   pararGravar: "Dejar de grabar",
+  ditadoSemSuporte: "Tu navegador no permite dictar. Puedes escribir en el campo.",
+  ditadoSemPermissao: "Necesito permiso para usar el micrófono y escucharte.",
+  ditadoSemFala: "No escuché nada. ¿Lo intentas de nuevo?",
+  ditadoFalhou: "Algo falló en la grabación. Puedes escribir en el campo.",
   naoLembro: "No me acuerdo de nada ahorita, seguir sin esto",
 
   avisoComposto: (primeiro: string) =>
@@ -395,6 +405,9 @@ const AR: Partial<Textos> = {
   desbloqueieCompleta:
     "Ya está grabada entera, con la letra que escribiste vos. Acá escuchaste solo el comienzo.",
   zapInvalido: "Revisá el número, parece que falta un dígito.",
+  ditadoSemSuporte: "Tu navegador no permite dictar. Podés escribir en el campo.",
+  ditadoSemFala: "No escuché nada. ¿Lo intentás de nuevo?",
+  ditadoFalhou: "Algo falló en la grabación. Podés escribir en el campo.",
 };
 
 // INGLÊS, pra Ballad Gift (EUA). Redigido a partir do PORTUGUÊS, que é o
@@ -440,6 +453,10 @@ const EN: Textos = {
   naoRepita: "Avoid repeating the same character over and over.",
   preferoFalar: "I'd rather say it out loud",
   pararGravar: "Stop recording",
+  ditadoSemSuporte: "Your browser doesn't support voice typing. You can type it in instead.",
+  ditadoSemPermissao: "I need access to your microphone to hear you.",
+  ditadoSemFala: "I didn't catch anything. Want to try again?",
+  ditadoFalhou: "Something went wrong with the recording. You can type it in instead.",
   naoLembro: "Nothing comes to mind right now, skip this",
 
   avisoComposto: (primeiro: string) =>
