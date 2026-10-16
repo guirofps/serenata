@@ -87,7 +87,10 @@ export async function chamarClaude(
   // inválido falham igual na segunda vez, e repetir só atrasa o usuário e
   // esconde o defeito real.
   const PASSAGEIRO = new Set([408, 409, 429, 500, 502, 503, 504, 529]);
-  const ESPERAS = [700, 2000];
+  // 16/10: [700, 2000] → mais uma, de 5s. Nos picos de sobrecarga (15h de
+  // 14 e 15/10) 2,7s de insistência não bastavam: 29 sessões perderam a
+  // letra ao vivo e 9 delas (31%) desistiram, contra 2,9% normal.
+  const ESPERAS = [700, 2000, 5000];
   let r: Response | null = null;
   let ultimoErro: unknown = null;
   let ultimoStatus: number | null = null;

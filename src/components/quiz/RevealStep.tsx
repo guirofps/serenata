@@ -63,6 +63,13 @@ function useStoreHidratada() {
   return hidratada;
 }
 
+// TETO DO "OUTRA OPÇÃO" (16/10). Sem teto, cada toque gasta uma chamada do
+// limite de 24 por hora da sessão: uma pessoa regerou ~20 vezes em 9 minutos
+// e ficou travada uma hora sem conseguir montar a letra (10 sessões bateram
+// o limite em 3 dias, 5 nunca finalizaram). Cinco opções novas é mais do que
+// quase todo mundo usa, e sobra folga pra letra.
+const MAX_REGERAR = 5;
+
 export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
   const T = t(locale);
   const respostas = useQuizStore((s) => s.respostas);
@@ -75,6 +82,8 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
   /** A prévia cortou aos 40s e o paywall subiu. Recolhe o pedido de WhatsApp. */
   const [paywallSubiu, setPaywallSubiu] = useState(false);
   const jaComecou = useRef(false);
+  /** Quantas vezes pediu "outra opção" de refrão. Ver `MAX_REGERAR`. */
+  const regeracoes = useRef(0);
 
   // respostas VIVAS (pós-hidratação), nunca o snapshot do render.
   const vivas = () => useQuizStore.getState().respostas;
@@ -117,8 +126,11 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
   }
 
   async function carregarRefroes(regen = false) {
-    if (regen) setRegerando(true);
-    else setFase({ t: "carregando", msg: T.loadingLetra[0] });
+    if (regen) {
+      if (regeracoes.current >= MAX_REGERAR) return;
+      regeracoes.current += 1;
+      setRegerando(true);
+    } else setFase({ t: "carregando", msg: T.loadingLetra[0] });
     try {
       const dados = await gerarRefroes({
         data: { sessionId: getOrCreateSessionId(), respostas: vivas(), locale },
@@ -127,6 +139,10 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
       trackEventOnce("coautoria_refroes", "v1");
     } catch (err) {
       console.error("[coautoria] refrões falharam:", err);
+      // A REGERAÇÃO QUE FALHA NÃO APAGA O QUE ESTAVA NA TELA (16/10). Antes
+      // ela trocava os dois refrões pela tela de erro, e quem já tinha um
+      // bom ficava sem nenhum. Os refrões de antes continuam escolhíveis.
+      if (regen) return;
       setFase({ t: "erro", msg: T.naoConsegui, tentar: () => carregarRefroes() });
     } finally {
       setRegerando(false);
@@ -166,6 +182,10 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
       });
       console.error("[coautoria] streaming falhou, tentando o caminho antigo:", err);
       try {
+        // Respiro antes do caminho antigo (16/10): a falha do stream quase
+        // sempre é sobrecarga, que passa em segundos. Pedir de novo no mesmo
+        // instante era bater na mesma parede.
+        await new Promise((r) => setTimeout(r, 1500));
         const letra = await montarLetra({ data: dados });
         setFase({ t: "editando", letra });
       } catch (err2) {
@@ -433,9 +453,11 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
   if (fase.t === "refroes") {
     return (
       <EscolherRefrao
+        key={fase.dados.refroes.join("|")}
         dados={fase.dados}
         aoEscolher={escolherRefrao}
         aoRegerar={() => carregarRefroes(true)}
+        podeRegerar={regeracoes.current < MAX_REGERAR}
         regerando={regerando}
         locale={locale}
       />

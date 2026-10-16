@@ -20,12 +20,15 @@ export function EscolherRefrao({
   dados,
   aoEscolher,
   aoRegerar,
+  podeRegerar = true,
   regerando,
   locale = "pt",
 }: {
   dados: RefroesGerados;
   aoEscolher: (refrao: string) => void;
   aoRegerar: () => void;
+  /** Some depois do teto de regerações (`MAX_REGERAR` no `RevealStep`). */
+  podeRegerar?: boolean;
   regerando: boolean;
   locale?: Locale;
 }) {
@@ -89,6 +92,7 @@ export function EscolherRefrao({
         })}
       </div>
 
+      {podeRegerar && (
       <button
         type="button"
         onClick={aoRegerar}
@@ -98,6 +102,7 @@ export function EscolherRefrao({
         <RefreshCw className={cn("h-4 w-4", regerando && "animate-spin")} />
         {regerando ? T.gerandoOutras : T.outraOpcao}
       </button>
+      )}
 
       {/* Rodapé fixo no polegar: só habilita com um refrão escolhido. */}
       <div className="sticky bottom-0 -mx-4 bg-gradient-to-t from-background via-background to-transparent px-4 pb-2 pt-4">

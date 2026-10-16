@@ -274,6 +274,15 @@ ${INSTRUCOES[locale].montar(data.refrao)}`;
               } catch {
                 continue; // pedaço de SSE malformado não derruba o stream
               }
+              // SOBRECARGA NO MEIO DO STREAM (16/10). A Anthropic responde 200 e
+              // manda o erro como EVENTO (`overloaded_error`). Ignorado, o
+              // texto acabava vazio e virava "Resposta do modelo não continha
+              // JSON", o que escondia a causa. Agora lança com o motivo e o
+              // cliente cai no `montarLetra`, que insiste com espera.
+              if (ev.type === "error") {
+                const e = (ev.error ?? {}) as { type?: string; message?: string };
+                throw new Error(`Anthropic ${e.type ?? "erro"} no stream: ${String(e.message ?? "").slice(0, 120)}`);
+              }
               const delta = (ev.delta ?? {}) as { text?: string };
               if (typeof delta.text === "string") bruto += delta.text;
               const u = (ev.usage ?? (ev.message as { usage?: UsoClaude } | undefined)?.usage) as
