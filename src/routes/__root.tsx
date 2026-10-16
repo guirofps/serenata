@@ -31,11 +31,18 @@ import { trackEvent } from "@/lib/track";
 import { PREFIXOS, rotaSensivel } from "@/lib/rotas-sensiveis";
 import { GA4_ID, scriptGuardaGa4 } from "@/lib/ga4";
 import { TIKTOK_PIXEL_ID, scriptTiktok } from "@/lib/tiktok-pixel";
+import { CLARITY_ID, scriptClarity } from "@/lib/clarity";
+import { OMNISEND_ID, scriptOmnisend } from "@/lib/omnisend";
 import { GOOGLE_ADS_ID } from "@/lib/google-ads";
 import { LOCALE_PADRAO, localeDaRota, tagIdioma } from "@/lib/i18n";
 import { FONTES, MARCA } from "@/lib/marca";
 import { ehBallad } from "@/lib/marca-identidade";
-import { rotaDeConversao, scriptCarregaGtag, scriptDepoisDaPagina, scriptFontes } from "@/lib/carregar-depois";
+import {
+  rotaDeConversao,
+  scriptCarregaGtag,
+  scriptDepoisDaPagina,
+  scriptFontes,
+} from "@/lib/carregar-depois";
 import { guardarCupomDaUrl } from "@/lib/cupom-url";
 import { guardarToqueEmail } from "@/lib/toque-email";
 import { useQuizStore } from "@/lib/quiz-store";
@@ -99,7 +106,9 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
           {en ? NAO_ACHEI_EN.erroTitulo : "Essa página não carregou"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {en ? NAO_ACHEI_EN.erroTexto : "Algo deu errado do nosso lado. Tente de novo ou volte para o início."}
+          {en
+            ? NAO_ACHEI_EN.erroTexto
+            : "Algo deu errado do nosso lado. Tente de novo ou volte para o início."}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -308,7 +317,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
             )}
             {/* O arquivo de googletagmanager.com/gtag/js espera a página
                 (exceto na /obrigado); a fila `gtag()` logo abaixo nasce na hora. */}
-            <script dangerouslySetInnerHTML={{ __html: scriptCarregaGtag(GOOGLE_ADS_ID, imediato) }} />
+            <script
+              dangerouslySetInnerHTML={{ __html: scriptCarregaGtag(GOOGLE_ADS_ID, imediato) }}
+            />
             <script
               dangerouslySetInnerHTML={{
                 __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GOOGLE_ADS_ID}');`,
@@ -325,6 +336,20 @@ function RootShell({ children }: { children: React.ReactNode }) {
             precisar de deploy de código. Ver `tiktok-pixel.ts`. */}
         {podeMedir && TIKTOK_PIXEL_ID && (
           <script dangerouslySetInnerHTML={{ __html: scriptTiktok(TIKTOK_PIXEL_ID, imediato) }} />
+        )}
+        {/* Microsoft Clarity (mapa de calor e gravação), só na Serenata e
+            fora das rotas sensíveis. Ele grava a TELA, então o próprio script
+            para de gravar quando o SPA navega pra uma rota sensível. Ver
+            `clarity.ts`. */}
+        {podeMedir && CLARITY_ID && (
+          <script
+            dangerouslySetInnerHTML={{ __html: scriptClarity(CLARITY_ID, PREFIXOS, imediato) }}
+          />
+        )}
+        {/* Omnisend: só campanha de marketing (as réguas seguem no Resend), só
+            na Serenata e fora das rotas sensíveis. Ver `omnisend.ts`. */}
+        {podeMedir && OMNISEND_ID && (
+          <script dangerouslySetInnerHTML={{ __html: scriptOmnisend(OMNISEND_ID, imediato) }} />
         )}
         {/* UTMify NÃO fica aqui. Ver `carregarUtmify` mais abaixo: o script
             reescreve todo <a href> interno, e no HTML do servidor isso quebra
@@ -389,8 +414,9 @@ function carregarUtmify() {
   s.setAttribute("data-utmify-prevent-subids", "");
   const injetar = () => document.body.appendChild(s);
   if ("requestIdleCallback" in window) {
-    (window as Window & { requestIdleCallback: (cb: () => void, o?: { timeout: number }) => void })
-      .requestIdleCallback(injetar, { timeout: 4000 });
+    (
+      window as Window & { requestIdleCallback: (cb: () => void, o?: { timeout: number }) => void }
+    ).requestIdleCallback(injetar, { timeout: 4000 });
   } else {
     setTimeout(injetar, 2500);
   }
