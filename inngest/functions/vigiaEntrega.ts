@@ -2,6 +2,7 @@ import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
+import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // A ENTREGA QUE SAI E NÃO CHEGA.
 //
@@ -76,20 +77,34 @@ export const vigiaEntrega = inngest.createFunction(
 
       if (!enviados?.length) return [];
 
-      // Um SELECT só pros eventos da janela, e o cruzamento em memória: uma
-      // consulta por e-mail seria dezenas de idas ao banco por rodada, e o
-      // PostgREST corta em 8s (o `service_role` herda o timeout do
-      // authenticator — ver o CLAUDE.md).
-      const { data: eventos } = await sb
-        .from("funnel_events")
-        .select("event_data")
-        .in("event_name", ["email_delivered", "email_bounced", "email_complained"])
-        .gte("created_at", new Date(agora - (JANELA_H + 2) * 3600000).toISOString())
-        .limit(20000);
-
-      const confirmados = new Set(
-        (eventos ?? []).map((e) => String((e.event_data as { email_id?: string })?.email_id)),
-      );
+      // A confirmação é buscada SÓ pros `email_id` da janela, em lotes. Antes
+      // era um SELECT de todos os eventos de entrega das últimas 26h com
+      // `.limit(20000)`, mas o PostgREST corta em 1000 linhas e o `.limit()`
+      // não levanta o teto: com ~6.500 `email_delivered` por dia o vigia via
+      // 1/6 deles e gritava toda hora com ~200 "órfãos" (168 alarmes falsos em
+      // 7 dias, quando os de verdade eram ~6). O caso real sumia no meio.
+      const ids = [...new Set((enviados ?? []).map((e) => e.email_id).filter(Boolean))] as string[];
+      const confirmados = new Set<string>();
+      for (let i = 0; i < ids.length; i += 100) {
+        const lote = ids.slice(i, i + 100);
+        const { data: eventos, error } = await sb
+          .from("funnel_events")
+          .select("event_data")
+          .in("event_name", ["email_delivered", "email_bounced", "email_complained"])
+          .gte("created_at", new Date(agora - (JANELA_H + 2) * 3600000).toISOString())
+          .in("event_data->>email_id", lote);
+        // Falha de leitura NÃO vira alarme de "não entregue": o lote inteiro
+        // conta como confirmado e a próxima volta tenta de novo.
+        if (error) {
+          console.error("[vigia-entrega] leitura falhou", error.message);
+          lote.forEach((id) => confirmados.add(id));
+          continue;
+        }
+        for (const e of eventos ?? []) {
+          const id = (e.event_data as { email_id?: string } | null)?.email_id;
+          if (id) confirmados.add(String(id));
+        }
+      }
 
       return (enviados ?? [])
         .filter((e) => e.email_id && !confirmados.has(e.email_id))
@@ -123,7 +138,7 @@ export const vigiaEntrega = inngest.createFunction(
           `sete dias achando que tinha sido roubado, com a música pronta no servidor.</p>` +
           `<ul>${linhas}</ul>` +
           (orfaos.length > 25 ? `<p>…e mais ${orfaos.length - 25}.</p>` : "") +
-          `<p>Procure a pessoa em <a href="https://www.serenatagift.com/recuperar">/recuperar</a> ` +
+          `<p>Procure a pessoa em <a href="${MARCA_ATIVA.url}/recuperar">/recuperar</a> ` +
           `e reenvie os links à mão. Ela pagou e não recebeu nada.</p>`,
       });
 
