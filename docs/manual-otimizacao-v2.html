@@ -1,0 +1,204 @@
+<title>Manual de Otimização Serenata</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Public+Sans:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: uma coluna de leitura (manual de bolso), seções numeradas porque é uma ordem de consulta; tabelas roláveis no celular. */
+:root{
+  --bg:#fcfafb; --fg:#1f1a1d; --suave:#6e6369; --linha:#e8e1e4; --painel:#f5f0f2;
+  --vinho:#7a1f3d; --vinho-fraco:#f6e8ed;
+  --bom:#11734f; --bom-bg:#e6f4ed; --ruim:#b3261e; --ruim-bg:#fbe9e7; --alerta:#9a5b00; --alerta-bg:#fdf1de;
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --texto:"Public Sans","Segoe UI",Roboto,Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#161214; --fg:#efe8eb; --suave:#a89aa1; --linha:#352c31; --painel:#211b1e;
+  --vinho:#e07a9c; --vinho-fraco:#3a1f2a;
+  --bom:#5fcf9c; --bom-bg:#173126; --ruim:#ff8a80; --ruim-bg:#3a1c1a; --alerta:#f0b45a; --alerta-bg:#36290f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#161214; --fg:#efe8eb; --suave:#a89aa1; --linha:#352c31; --painel:#211b1e;
+  --vinho:#e07a9c; --vinho-fraco:#3a1f2a;
+  --bom:#5fcf9c; --bom-bg:#173126; --ruim:#ff8a80; --ruim-bg:#3a1c1a; --alerta:#f0b45a; --alerta-bg:#36290f; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--texto);font-size:15px;line-height:1.55}
+.pg{max-width:760px;margin:0 auto;padding-block:28px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--vinho)}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(28px,6vw,40px);line-height:1.08;margin:6px 0 10px;text-wrap:balance}
+.lead{color:var(--suave);max-width:62ch;margin:0}
+h2{font-family:var(--display);font-weight:800;font-size:21px;margin:40px 0 12px;display:flex;gap:10px;align-items:baseline;text-wrap:balance}
+h2 .n{font-family:var(--mono);font-size:13px;color:var(--vinho);font-weight:500}
+h3{font-size:15.5px;margin:20px 0 6px}
+p{margin:8px 0;max-width:68ch}
+ul,ol{margin:8px 0;padding-left:20px;display:grid;gap:6px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.tab{overflow-x:auto;margin:12px 0;border:1px solid var(--linha);border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--linha);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{background:var(--painel);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--suave);font-weight:700}
+td.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.metas{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:16px 0}
+.meta{background:var(--painel);border-radius:8px;padding:12px 14px;min-width:0}
+.meta b{display:block;font-family:var(--mono);font-size:22px;font-weight:500}
+.meta span{font-size:12.5px;color:var(--suave)}
+.regra{border-left:3px solid var(--vinho);background:var(--vinho-fraco);padding:12px 14px;border-radius:0 8px 8px 0;margin:14px 0}
+.regra.perigo{border-color:var(--ruim);background:var(--ruim-bg)}
+.regra.ok{border-color:var(--bom);background:var(--bom-bg)}
+.regra .t{font-weight:700;margin-bottom:2px}
+.pill{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:20px;white-space:nowrap}
+.pill.g{background:var(--bom-bg);color:var(--bom)} .pill.r{background:var(--ruim-bg);color:var(--ruim)} .pill.a{background:var(--alerta-bg);color:var(--alerta)}
+.passos{counter-reset:p;list-style:none;padding:0;display:grid;gap:10px}
+.passos li{counter-increment:p;display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start}
+.passos li::before{content:counter(p);font-family:var(--mono);font-size:12px;background:var(--vinho);color:var(--bg);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;margin-top:1px}
+.duas{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.duas > div{background:var(--painel);border-radius:8px;padding:12px 14px;min-width:0}
+.duas h3{margin-top:0}
+.rodape{margin-top:44px;padding-top:12px;border-top:1px solid var(--linha);color:var(--suave);font-size:12.5px}
+a{color:var(--vinho)}
+</style>
+
+<div class="pg">
+  <div class="eyebrow">Google Ads + TikTok · Serenata · v2 · 16/10/2026</div>
+  <h1>Manual de otimização e escala</h1>
+  <p class="lead">O que a conta ensinou de 25/09 a 15/10, escrito como regra. Toda proposta de mudança passa por aqui antes de ir pro dono. Base: venda real do banco (1º toque), gasto pela API do Google e TikTok lançado no painel.</p>
+
+  <h2><span class="n">01</span>A meta que manda</h2>
+  <p>O número do dia é o <b>ROAS total</b>: receita bruta ÷ (Google + TikTok). Taxa e produção comem ~13% da receita, então o lucro é <span class="num">receita × (0,87 − 1/ROAS)</span>.</p>
+  <div class="metas">
+    <div class="meta"><b>2,0</b><span>ROAS mínimo pra escalar</span></div>
+    <div class="meta"><b>R$ 25</b><span>custo por venda real máximo numa campeã</span></div>
+    <div class="meta"><b>1,15</b><span>ROAS em que o lucro vira zero</span></div>
+  </div>
+  <div class="tab"><table>
+    <tr><th>Período</th><th>Receita/dia</th><th>Mídia/dia</th><th>ROAS</th><th>Lucro/dia</th></tr>
+    <tr><td>01 a 03/10 (com o Vid 5)</td><td class="r">R$ 17.678</td><td class="r">R$ 8.250</td><td class="r">2,14</td><td class="r">R$ 7.233</td></tr>
+    <tr><td>06 a 15/10 (sem o Vid 5)</td><td class="r">R$ 9.539</td><td class="r">R$ 5.752</td><td class="r">1,66</td><td class="r">R$ 2.540</td></tr>
+    <tr><td><b>Meta: R$ 1 milhão/mês</b></td><td class="r">R$ 33.300</td><td class="r">R$ 16.650</td><td class="r">2,00</td><td class="r">~R$ 12.300</td></tr>
+  </table></div>
+  <p>A ROAS 1,66 sobram 27 centavos de cada real vendido; a ROAS 2,0 sobram 37. Escalar abaixo de 2 só aumenta o trabalho.</p>
+
+  <h2><span class="n">02</span>Rotina diária</h2>
+  <ol class="passos">
+    <li><div><b>23h59:</b> lançar o gasto do TikTok do dia no painel. Sem ele o lucro do painel é mentira.</div></li>
+    <li><div><b>00h:</b> fechamento do dia: lucro real, ROAS, custo por venda real de cada campanha (<code>scratch/_fechamento-15out.mjs</code>). Aplicar a régua de corte nos testes do dia.</div></li>
+    <li><div><b>Proposta ao dono</b> com os números ao lado de cada mudança. Nada se aplica antes do ok.</div></li>
+    <li><div><b>Manhã:</b> aplicar o aprovado. Campanha nova só nasce de manhã: à noite ela gasta o dia inteiro de madrugada.</div></li>
+    <li><div><b>Depois de toda mudança:</b> reler pela API. Conferir se nada pausado foi religado no painel (já aconteceu 4 vezes).</div></li>
+  </ol>
+
+  <h2><span class="n">03</span>Régua de corte dos testes</h2>
+  <div class="tab"><table>
+    <tr><th>Quando</th><th>Sinal</th><th>Ação</th></tr>
+    <tr><td>Fim do 1º dia</td><td>2 leads ou menos nos R$ 40 (lead acima de R$ 20)</td><td><span class="pill r">pausa</span></td></tr>
+    <tr><td>Qualquer dia</td><td>R$ 80 gastos e nenhuma venda</td><td><span class="pill r">pausa</span></td></tr>
+    <tr><td>Dia 4 a 5</td><td>custo por venda real acima de R$ 35</td><td><span class="pill r">pausa</span></td></tr>
+    <tr><td>Dia 4 a 5</td><td>R$ 25 a 35</td><td><span class="pill a">segura mais 2 dias</span></td></tr>
+    <tr><td>Dia 4 a 5</td><td>abaixo de R$ 30 em 4 dias seguidos</td><td><span class="pill g">vira ESCALA</span></td></tr>
+  </table></div>
+  <div class="regra perigo"><div class="t">O 1º dia bom não promove nada</div>Dos ~100 testes desde 25/09: os de lead mais barato no 1º dia (abaixo de R$ 5) fizeram <b>R$ 45 por venda</b> depois. A Isabela 1 teve R$ 2 por lead e terminou em R$ 167 por venda. O 1º dia só serve pra <b>cortar</b>: de 33 testes com 2 leads ou menos, só 2 viraram bons.</div>
+
+  <h2><span class="n">04</span>Caminho de um criativo ou público novo</h2>
+  <ol class="passos">
+    <li><div><b>TESTE isolado:</b> R$ 40/dia, uma coisa nova por vez (ou o vídeo, ou o público), segmentação otimizada ligada, 7h às 23h, <b>fora do Remkt Concorrentes</b>. Vídeo novo roda em público validado (Semelhante, Casamento, Fãs de TV).</div></li>
+    <li><div><b>4 a 5 dias abaixo de R$ 30:</b> ganha uma ESCALA própria a R$ 100.</div></li>
+    <li><div><b>Mais 3 dias abaixo de R$ 25 na ESCALA:</b> entra em <b>uma</b> campeã. Leitura de 2 dias.</div></li>
+    <li><div><b>Segurou:</b> entra na próxima campeã. Nunca em várias de uma vez (a Isabela 1 entrou em 15 e saturou em 2 dias).</div></li>
+  </ol>
+  <div class="regra"><div class="t">Campeã só recebe o que tem 5+ dias de venda barata</div>Em 14-15/10 entraram na CAMPEÃO 2# três vídeos sem validação e um público com 1 dia de teste: R$ 478 perdidos e a campanha não reviveu. No mesmo dia, um público validado (Música e homenagem) dentro da CAMPEÃO 1# vendeu a R$ 16.</div>
+  <p><b>Teto de testes:</b> no máximo 5 testes de criativo ao mesmo tempo na Serenata. Teste de público conta à parte.</p>
+
+  <h2><span class="n">05</span>Quando subir orçamento</h2>
+  <ul>
+    <li>Sobe só com <b>custo por venda real dos últimos 3 dias até R$ 25</b> e gastando <b>95% ou mais</b> do orçamento.</li>
+    <li>Degrau de <b>+15 a 20%</b>. No dia seguinte confere: passou de R$ 35, volta.</li>
+    <li>Campanha que gasta <b>menos de 90%</b> do orçamento não está travada por dinheiro. Subir não traz venda: o público acabou naquele preço (Semelhante, Search e Fãs de TV em 11-15/10).</li>
+    <li>"Limitada por orçamento" no painel não é ordem pra subir.</li>
+    <li>Lance padrão: <b>maximizar conversões sem alvo</b>. Alvo apertado sufoca a entrega (CAMPEÃO 3# em 07/10). Em 16/10 a 2# saiu do alvo de R$ 25 pra comparar com a 1#.</li>
+    <li>O teto da campeã é o do criativo dela: a 2# aguentou R$ 3.000 a R$ 18-20 com o Vid 5; sem ele, R$ 1.300 a R$ 37-43.</li>
+  </ul>
+
+  <h2><span class="n">06</span>Públicos</h2>
+  <div class="tab"><table>
+    <tr><th>Público</th><th>Custo por venda real</th><th>Status</th></tr>
+    <tr><td>Busca: Música e homenagem</td><td class="r">R$ 16-18</td><td><span class="pill g">melhor da conta</span></td></tr>
+    <tr><td>Semelhante aos compradores</td><td class="r">R$ 17-20</td><td><span class="pill g">validado</span></td></tr>
+    <tr><td>Casamento</td><td class="r">R$ 17-20</td><td><span class="pill g">validado</span></td></tr>
+    <tr><td>Fãs de programas de TV</td><td class="r">R$ 22</td><td><span class="pill g">validado</span></td></tr>
+    <tr><td>Intenção de busca: presente 35+</td><td class="r">R$ 25</td><td><span class="pill a">ok</span></td></tr>
+    <tr><td>Remkt Concorrentes (das campeãs)</td><td class="r">R$ 27-30</td><td><span class="pill a">saturado: nada novo entra</span></td></tr>
+    <tr><td>Concorrentes novos 25+</td><td class="r">R$ 51</td><td><span class="pill r">perdeu</span></td></tr>
+    <tr><td>Nicho: Aniversário, Gospel e fé, Visitantes 30d</td><td class="r">R$ 67-342</td><td><span class="pill r">morre</span></td></tr>
+  </table></div>
+  <ul>
+    <li>Público existente <b>nunca é editado</b>: é compartilhado entre campanhas. Mudar idade ou segmento = público novo, trocado só no grupo alvo.</li>
+    <li>Demand Gen aceita 1 público por grupo. Somar = um público com vários segmentos.</li>
+    <li>Segmentação otimizada <b>sempre ligada</b> (pela API ela nasce desligada). Idade 25+.</li>
+    <li>Horário: não cortar a noite das campeãs. Historicamente ela dá lucro; quando piora, é o público cansado, não a hora.</li>
+  </ul>
+
+  <h2><span class="n">07</span>Criativos</h2>
+  <div class="duas">
+    <div><h3>O que segura</h3><ul>
+      <li><b>Pessoa real + reação real.</b> Os únicos que duraram: Vid 5, Video Fone, Adoração 1.</li>
+      <li>Video Fone e Adoração 1: R$ 21-27 há 10+ dias nas campeãs, mas cansando desde 12/10.</li>
+    </ul></div>
+    <div><h3>O que morreu</h3><ul>
+      <li>Motion graphics, ângulos (perfume, POV), remarketing animado.</li>
+      <li>Gospel como criativo frio.</li>
+      <li>Video Fone com só a música trocada.</li>
+      <li>De ~60 criativos novos desde 25/09, nenhum segurou abaixo de R$ 30 depois do 2º dia.</li>
+    </ul></div>
+  </div>
+
+  <h2><span class="n">08</span>Canais</h2>
+  <div class="tab"><table>
+    <tr><th>Canal</th><th>Regra</th></tr>
+    <tr><td>Search</td><td>O mais estável (R$ 20). Sobe por degrau; não gasta tudo, então subir é barato. A 2ª Search, de presente, começou em 16/10.</td></tr>
+    <tr><td>PMAX</td><td>Não usar. O painel dá crédito de venda que outra campanha trouxe: 65 conversões no Google contra 20 vendas reais.</td></tr>
+    <tr><td>TikTok</td><td>Entre <b>R$ 500 e 1.250/dia</b> vendeu a R$ 18-30. Acima de R$ 2.000: R$ 38-40. Em 15/10, com muitos testes juntos: R$ 59. Lançar o gasto todo dia.</td></tr>
+    <tr><td>Meta</td><td>Não anunciar (copiadores). Só pesquisa.</td></tr>
+    <tr><td>Medição</td><td>Conversão do Google = lista importada em último clique, nunca a tag da /obrigado. Quem decide é o custo por venda real do banco, não o painel.</td></tr>
+  </table></div>
+
+  <h2><span class="n">09</span>Plano pra repor o Vid 5</h2>
+  <p>Ele valia <b>~R$ 4.700 de lucro por dia</b> (R$ 7.233 com ele, R$ 2.540 sem). Nenhuma otimização de orçamento repõe isso; só um criativo do mesmo nível.</p>
+  <ol class="passos">
+    <li><div><b>Testar a hipótese do rosto.</b> Contratar 5 a 8 criadores de UGC (R$ 100-300 por vídeo), pessoas diferentes, idade 30-50, gravando o <b>mesmo roteiro</b> do Vid 5. Uma campanha de teste por rosto. Se 1 em 8 pegar, custou ~R$ 2 mil e paga em meio dia.</div></li>
+    <li><div><b>Reação de cliente de verdade.</b> O teste <code>pedido_reacao</code> pede vídeo de reação aos compradores; o que chegar vira criativo (com autorização por escrito).</div></li>
+    <li><div><b>Dono e Ralph:</b> seguir gravando no formato pessoa + reação real, com a reação de outra pessoa na tela (como o Vid 5 e as reações compradas da Canção Divina).</div></li>
+    <li><div><b>Cadência:</b> 5 criativos novos por semana, sempre 5 em teste, cada um pelo caminho da seção 04.</div></li>
+    <li><div><b>Se a saída do influenciador foi só preço,</b> a conta mostra que pagar mais se paga em 1 dia. Decisão do dono.</div></li>
+  </ol>
+
+  <h2><span class="n">10</span>Erros que não se repetem</h2>
+  <div class="tab"><table>
+    <tr><th>Data</th><th>Erro</th><th>Regra que nasceu</th></tr>
+    <tr><td class="r">04/10</td><td>Campanhas criadas pela API com a segmentação otimizada desligada</td><td>Criar ligada e reler</td></tr>
+    <tr><td class="r">05/10</td><td>Escala montada em cima do CPA do Vid 5 seguiu sem ele</td><td>O orçamento da campeã acompanha o criativo dela</td></tr>
+    <tr><td class="r">09/10</td><td>Isabela 1 em 15 campanhas depois de 1 dia bom</td><td>Uma campeã por vez, 2 dias de leitura</td></tr>
+    <tr><td class="r">14/10</td><td>Público compartilhado editado</td><td>Público novo, nunca editar</td></tr>
+    <tr><td class="r">14-15/10</td><td>Vídeos e público não validados dentro da CAMPEÃO 2#</td><td>Campeã só com 5+ dias de venda barata</td></tr>
+    <tr><td class="r">15/10</td><td>Painel e banco divergindo (atribuição por dados)</td><td>Conversão em último clique</td></tr>
+    <tr><td class="r">15/10</td><td>TikTok com 6x o gasto num dia de muitos testes</td><td>TikTok entre R$ 500 e 1.250 até ter vencedor</td></tr>
+  </table></div>
+
+  <h2><span class="n">11</span>Resumo de bolso</h2>
+  <div class="duas">
+    <div><h3>Pode</h3><ul>
+      <li>Subir +15-20% com 3 dias até R$ 25 e gastando 95%+</li>
+      <li>Cortar no 1º dia teste com 2 leads ou menos</li>
+      <li>Testar público novo com criativo validado, e vice-versa</li>
+      <li>Promover só pelo caminho da seção 04</li>
+    </ul></div>
+    <div><h3>Não pode</h3><ul>
+      <li>Promover pelo 1º dia bom</li>
+      <li>Pôr qualquer coisa nova em campeã ou no Remkt Concorrentes</li>
+      <li>Subir orçamento de quem não gasta o que tem</li>
+      <li>Mudar qualquer coisa sem reler pela API</li>
+      <li>Escalar com ROAS total abaixo de 2</li>
+    </ul></div>
+  </div>
+
+  <div class="rodape">Montado por Claude com os dados reais das contas em 16/10/2026. Substitui o manual de 22/09 (<code>docs/manual-otimizacao-campanhas.html</code>). Revisar a cada 2 semanas ou quando entrar um criativo vencedor.</div>
+</div>
