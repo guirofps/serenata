@@ -3,6 +3,7 @@
 // Config: endpoint registrado pela API em 29/09, na conta do Stripe da Ballad,
 //   URL     = https://www.balladgift.com/api/webhook/stripe
 //   Eventos = checkout.session.completed, checkout.session.async_payment_succeeded
+//             (+ charge.refunded e charge.dispute.created, a marcar no painel)
 //   Segredo (whsec_...) em STRIPE_WEBHOOK_SECRET, SÓ no projeto balladgift.
 //
 // FAIL-CLOSED: sem segredo configurado, recusa (o erro herdado que o CLAUDE.md
@@ -15,6 +16,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { assinaturaStripeConfere, confirmarSessaoStripe } from "../lib/stripe.js";
+import { EVENTOS_ESTORNO, registrarEstornoStripe } from "../lib/stripe-estorno.js";
 
 type Req = IncomingMessage & { method?: string; headers: Record<string, string | string[] | undefined> };
 type Res = ServerResponse & { status: (c: number) => Res; json: (b: unknown) => void };
@@ -60,6 +62,24 @@ export default async function handler(req: Req, res: Res) {
     ev = JSON.parse(corpo);
   } catch {
     return res.status(400).json({ error: "json invalido" });
+  }
+
+  // ESTORNO E CONTESTAÇÃO (16/10): ver `stripe-estorno.ts`. Só chegam se os
+  // eventos estiverem marcados no endpoint do painel do Stripe.
+  if (ev.type && EVENTOS_ESTORNO.has(ev.type)) {
+    const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
+    const chave = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !chave) return res.status(500).json({ error: "supabase env ausente" });
+    try {
+      const r = await registrarEstornoStripe(createClient(url, chave, { auth: { persistSession: false } }), {
+        type: ev.type,
+        data: ev.data,
+      });
+      return res.status(200).json({ ok: true, ...r });
+    } catch (err) {
+      console.error("[stripe] estorno falhou:", err);
+      return res.status(500).json({ error: "falhou, tente de novo" });
+    }
   }
 
   const sessaoId = ev.data?.object?.id;
