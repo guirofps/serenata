@@ -12,6 +12,23 @@ describe("chaveOrigem (tabela 'De onde vem')", () => {
     });
     expect(chaveOrigem({ utm_campaign: "gleysi" })).toEqual({ origem: "direto / orgânico", campanha: "gleysi" });
   });
+  it("gbraid/wbraid é Google (iPhone, 16/10)", () => {
+    expect(chaveOrigem({ gbraid: "b", utm_campaign: "123" })).toEqual({ origem: "google (gbraid/wbraid)", campanha: "123" });
+    expect(chaveOrigem({ wbraid: "w" })).toEqual({ origem: "google (gbraid/wbraid)", campanha: null });
+  });
+  it("primeiro toque sem fonte nem clique: vale o último clique de anúncio", () => {
+    const em = "2026-10-15T10:00:00Z";
+    expect(chaveOrigem({ referrer: "https://l.instagram.com/", ultimo_clique: { gbraid: "b", em } })).toEqual({
+      origem: "google (último clique)",
+      campanha: null,
+    });
+    expect(chaveOrigem({ ultimo_clique: { ttclid: "t", em } })).toEqual({ origem: "tiktok (último clique)", campanha: null });
+    // UTM do primeiro toque continua mandando.
+    expect(chaveOrigem({ utm_source: "instagram", ultimo_clique: { gclid: "g", em } })).toEqual({
+      origem: "instagram",
+      campanha: null,
+    });
+  });
   it("o resto continua como era", () => {
     expect(chaveOrigem({ gclid: "x", utm_campaign: "123" })).toEqual({ origem: "google (gclid)", campanha: "123" });
     expect(chaveOrigem({ fbclid: "x" })).toEqual({ origem: "meta (fbclid)", campanha: null });

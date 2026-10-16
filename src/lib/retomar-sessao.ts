@@ -1,4 +1,5 @@
 import { FORA } from "@/lib/experimentos";
+import { cliqueMaisRecente } from "@/lib/clique-recente";
 
 // O QUE O `/retomar` DEVOLVE AO NAVEGADOR NOVO, além da letra (08/10).
 //
@@ -32,6 +33,11 @@ export function mesclarAtribuicao(local: Atrib | null | undefined, registro: Atr
   const reg = registro && typeof registro === "object" && Object.keys(registro).length ? registro : null;
   if (!reg) return local ?? null;
   const out: Atrib = { ...(local ?? {}), ...reg };
+  // O ÚLTIMO CLIQUE é a exceção ao "registro por cima" (16/10): ele não é
+  // primeiro toque, é o mais novo. Se este aparelho capturou um clique depois
+  // do que está no registro, é o deste aparelho que vale.
+  const clique = cliqueMaisRecente(local?.ultimo_clique, reg.ultimo_clique);
+  if (clique) out.ultimo_clique = clique;
   if (!out.captured_at) out.captured_at = new Date().toISOString();
   return out;
 }

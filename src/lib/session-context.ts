@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { normalizarCodigo } from "@/lib/indicacao";
+import { ultimoCliqueDaUrl, type UltimoClique } from "@/lib/clique-recente";
 
 const SESSION_KEY = "mp_session_id";
 const SESSION_TS_KEY = "mp_session_ts";
@@ -59,6 +60,13 @@ export type Attribution = {
   ref_em?: string;
   /** O tema do funil (`tema.ts`), carimbado no início do quiz. */
   tema?: "gospel";
+  /**
+   * Os ids da ÚLTIMA chegada com clique de anúncio, com a hora (16/10). FORA
+   * da trava de first-touch: as UTMs acima continuam sendo do primeiro toque,
+   * mas o Google recusa `gclid` de mais de 90 dias e o TikTok só casa venda
+   * com `ttclid`. Ver `clique-recente.ts` e `capturarUltimoClique`.
+   */
+  ultimo_clique?: UltimoClique;
   captured_at: string;
 };
 
@@ -275,6 +283,54 @@ export function captureFirstTouchAttribution(): Attribution | null {
   return attribution;
 }
 
+/**
+ * O ÚLTIMO CLIQUE, gravado em toda chegada que traz `gclid`/`gbraid`/
+ * `wbraid`/`ttclid` (16/10). Roda DEPOIS de `captureFirstTouchAttribution`
+ * (que pode criar o objeto) e não toca em nenhum campo do primeiro toque.
+ *
+ * Sobrescreve o `ultimo_clique` inteiro, não mescla: ver `clique-recente.ts`.
+ * Chega no banco pelo mesmo caminho do resto da atribuição: a captura de lead
+ * manda o `mp_attribution` inteiro pra RPC (`lead-capture.ts`).
+ *
+ * Devolve `true` quando gravou um clique novo (quem chama decide se precisa
+ * levar ele pro banco agora).
+ */
+export function capturarUltimoClique(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const clique = ultimoCliqueDaUrl(window.location.search);
+    if (!clique) return false;
+    const base: Attribution = getStoredAttribution() ?? { captured_at: clique.em };
+    localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify({ ...base, ultimo_clique: clique }));
+    return true;
+  } catch {
+    // localStorage bloqueado: fica o primeiro toque, como antes. Não pode
+    // derrubar a montagem da raiz, que é quem chama isto.
+    return false;
+  }
+}
+
+/**
+ * Esta sessão já tem LETRA escrita (e portanto linha em `quiz_responses`).
+ *
+ * Lido direto do `mp_quiz`, como `compraEmAndamento`: a raiz roda antes de a
+ * store do quiz importar. A letra carimba a sessão dona dela; letra de outra
+ * sessão (sessão girada) não conta, e aí a captura de lead nasceria linha
+ * nova vazia.
+ */
+export function sessaoTemLetra(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const cru = localStorage.getItem("mp_quiz");
+    if (!cru) return false;
+    const st = (JSON.parse(cru) as { state?: { letraFinal?: { sessionId?: unknown } | null } }).state;
+    const dona = st?.letraFinal?.sessionId;
+    return typeof dona === "string" && dona === localStorage.getItem(SESSION_KEY);
+  } catch {
+    return false;
+  }
+}
+
 // ────────────────────────────────────────────────────────────────
 // Resolução da variante A/B, controle por campanha (sem sorteio).
 // Prioridade da fonte de verdade:
@@ -381,6 +437,7 @@ export function useSessionContext(): SessionContext | null {
   useEffect(() => {
     const sessionId = getOrCreateSessionId();
     captureFirstTouchAttribution();
+    capturarUltimoClique();
     const attribution = getStoredAttribution();
     const device = getDevice();
     const { fbp, fbc } = getFbIdentifiers();

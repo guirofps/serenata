@@ -10,6 +10,7 @@ import { emailPlausivel, semPontoNoFim } from "@/lib/email-limpo";
 import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../../api/lib/entrega";
 import { liberarItensDoBump } from "../../api/lib/creditar-upsell";
 import { venderNoTiktok } from "../../api/lib/tiktok-eventos";
+import { ttclidDaVenda } from "@/lib/clique-recente";
 import { conviteDaCompra } from "@/lib/indicacao-db";
 import { descontoDoConvite } from "@/lib/indicacao";
 import { outroPagamentoDoQuiz } from "@/lib/asaas-regras";
@@ -477,7 +478,8 @@ export const cobrarCartao = createServerFn({ method: "POST" })
     // vendas com ttclid e zero eventos). Só na primeira confirmação, só com
     // ttclid, e com o id CRU da cobrança, que é o mesmo que a /obrigado usa.
     if (r.confirmado && !jaExiste?.paid_at) {
-      const ttclid = (quiz.attribution as { ttclid?: string } | null)?.ttclid;
+      // Último clique primeiro, senão o do primeiro toque (`clique-recente.ts`).
+      const ttclid = ttclidDaVenda(quiz.attribution as Record<string, unknown> | null);
       if (ttclid) {
         const tiktok = await venderNoTiktok({
           eventId: r.idExterno,

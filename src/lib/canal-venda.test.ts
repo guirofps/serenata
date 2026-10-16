@@ -7,6 +7,26 @@ describe("canalDaVenda", () => {
     expect(canalDaVenda({ utm_source: "google" }, null)).toBe("google");
     expect(canalDaVenda({ ttclid: "x" }, null)).toBe("tiktok");
   });
+  it("gbraid/wbraid (iPhone, sem gclid) é Google", () => {
+    expect(canalDaVenda({ gbraid: "b" }, null)).toBe("google");
+    expect(canalDaVenda({ wbraid: "w", utm_campaign: "24116713654" }, null)).toBe("google");
+  });
+  it("primeiro toque sem canal: vale o último clique de anúncio", () => {
+    const em = "2026-10-15T10:00:00Z";
+    expect(canalDaVenda({ referrer: "https://www.bing.com/", ultimo_clique: { gbraid: "b", em } }, null)).toBe("google");
+    expect(canalDaVenda({ ultimo_clique: { wbraid: "w", em } }, null)).toBe("google");
+    expect(canalDaVenda({ ultimo_clique: { gclid: "g", em } }, null)).toBe("google");
+    expect(canalDaVenda({ ultimo_clique: { ttclid: "t", em } }, null)).toBe("tiktok");
+  });
+  it("primeiro toque com canal continua mandando sobre o último clique", () => {
+    const em = "2026-10-15T10:00:00Z";
+    expect(canalDaVenda({ gclid: "g", ultimo_clique: { ttclid: "t", em } }, null)).toBe("google");
+    expect(canalDaVenda({ ttclid: "t", ultimo_clique: { gclid: "g", em } }, null)).toBe("tiktok");
+    expect(canalDaVenda({ utm_campaign: "gleysi", ultimo_clique: { gclid: "g", em } }, null)).toBe("influencer");
+    expect(canalDaVenda({ utm_source: "email", ultimo_clique: { gclid: "g", em } }, null)).toBe("email");
+    expect(canalDaVenda({ ref: "K7M2QX", ultimo_clique: { gclid: "g", em } }, null)).toBe("organico");
+    expect(canalDaVenda({ ultimo_clique: { gclid: "g", em } }, "MUSICA10")).toBe("email");
+  });
   it("cupom de e-mail vence o primeiro toque", () => {
     expect(canalDaVenda({ gclid: "abc" }, "MUSICA10")).toBe("email");
     expect(canalDaVenda({ ttclid: "x" }, "SRN27")).toBe("email");

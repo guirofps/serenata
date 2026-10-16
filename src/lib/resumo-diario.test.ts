@@ -7,6 +7,12 @@ describe("canalDe", () => {
   });
   it("gclid sem utm é Google", () => {
     expect(canalDe({ gclid: "abc" })).toBe("Google");
+    // iPhone: o clique do Google sem gclid (16/10).
+    expect(canalDe({ gbraid: "b" })).toBe("Google");
+    expect(canalDe({ wbraid: "w" })).toBe("Google");
+    // Primeiro toque sem canal: o último clique decide; com canal, não.
+    expect(canalDe({ ultimo_clique: { gbraid: "b", em: "2026-10-15T10:00:00Z" } })).toBe("Google");
+    expect(canalDe({ ref: "K7M2QX", ultimo_clique: { gclid: "g", em: "2026-10-15T10:00:00Z" } })).toBe("Indicação");
   });
   it("convite da página presente", () => {
     expect(canalDe({ utm_source: "presente" })).toBe("Convite");

@@ -15,7 +15,8 @@
 // link de e-mail leva `utm_source=email` (`utm-email.ts`), e quem chega por
 // ele e compra em até 3 dias tem o pedido marcado (`toque-email.ts`).
 
-import { canalDe, type Atribuicao } from "./resumo-diario";
+import { canalPrimeiroToque, type Atribuicao } from "./resumo-diario";
+import { canalDoUltimoClique } from "./clique-recente";
 
 export type CanalVenda = "google" | "tiktok" | "email" | "influencer" | "organico";
 
@@ -32,7 +33,7 @@ function ehInfluencer(a: Atribuicao): boolean {
   const fonte = String(a.utm_source ?? "").toLowerCase();
   const meio = String(a.utm_medium ?? "").toLowerCase();
   if (fonte.includes("influenc") || meio.includes("influenc")) return true;
-  return !fonte && !!a.utm_campaign && !a.gclid && !a.ttclid && !a.fbclid;
+  return !fonte && !!a.utm_campaign && !a.gclid && !a.gbraid && !a.wbraid && !a.ttclid && !a.fbclid;
 }
 
 export function canalDaVenda(
@@ -41,11 +42,19 @@ export function canalDaVenda(
   veioDe: string | null | undefined = null,
 ): CanalVenda {
   if (veioDe === "email" || String(cupom ?? "").trim()) return "email";
-  const canal = canalDe(atribuicao);
+  const canal = canalPrimeiroToque(atribuicao);
   if (canal === "Google") return "google";
   if (canal === "TikTok") return "tiktok";
   if (FONTES_DE_EMAIL.has(String(atribuicao?.utm_source ?? "").toLowerCase())) return "email";
   if (ehInfluencer(atribuicao)) return "influencer";
+  // O ÚLTIMO CLIQUE (16/10), só quando o primeiro toque não deu canal nenhum
+  // (o "Direto" do `canalDe`). Depois do e-mail e do influenciador de
+  // propósito: primeiro toque com canal continua mandando, como no `canalDe`.
+  if (canal === "Direto") {
+    const ultimo = canalDoUltimoClique(atribuicao);
+    if (ultimo === "Google") return "google";
+    if (ultimo === "TikTok") return "tiktok";
+  }
   return "organico";
 }
 

@@ -13,6 +13,7 @@ import { sessaoJaPagou, entrarNaConta } from "@/lib/coautoria";
 import { confirmarCheckoutStripe } from "@/lib/stripe-checkout";
 import { marcarSessaoGasta, getOrCreateSessionId, getStoredAttribution } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
+import { ttclidDaVenda } from "@/lib/clique-recente";
 import { varianteDe } from "@/lib/experimentos";
 import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { ehBallad } from "@/lib/marca-identidade";
@@ -304,6 +305,10 @@ export function Obrigado({
       // PIX guarda a referência antes de mandar a pessoa pra cá. Sem um dos
       // dois, `transaction_id` sai vazio e um F5 conta a venda de novo.
       transactionId: code ?? sessaoStripe ?? transacaoGuardada(),
+      // Só a Ballad usa (conversões otimizadas, ver `conversaoCompra`): o
+      // e-mail que a página já tem, o da URL quando o checkout manda, senão
+      // o que a pessoa digitou no quiz deste navegador.
+      email: email || useQuizStore.getState().email,
     });
     // GA4 recebe a MESMA venda, com o MESMO id. `send_to` vai fixo no GA4
     // dentro de `compraGa4`: sem ele este `purchase` chegaria também no
@@ -324,7 +329,8 @@ export function Obrigado({
     // CompletePayment, e o TikTok reivindicava a venda por view-through,
     // inflando o painel. Venda de TikTok que volta por e-mail numa sessão sem
     // `ttclid` aqui é coberta pelo server-side, que lê o ttclid do banco.
-    if (getStoredAttribution()?.ttclid) {
+    // O último clique conta também (16/10), a mesma régua do servidor.
+    if (ttclidDaVenda(getStoredAttribution())) {
       compraTiktok({
         valor: plano.valor,
         moeda: locale === "pt" ? "BRL" : "USD",
@@ -336,7 +342,7 @@ export function Obrigado({
     // Marcado DEPOIS da conversão de propósito: o evento de venda tem que
     // sair na sessão que gerou a venda.
     marcarSessaoGasta();
-  }, [presente, code, sessaoStripe, locale]);
+  }, [presente, code, sessaoStripe, locale, email]);
 
   // Busca o presente pra dar o botão AQUI em vez de mandar a pessoa caçar
   // e-mail. Faz polling porque o redirect chega antes do webhook: a pessoa
