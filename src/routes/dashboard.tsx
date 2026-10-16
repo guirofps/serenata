@@ -266,7 +266,7 @@ function Dashboard() {
             className="inline-flex items-center gap-1.5 text-[var(--tinta-suave)] transition-colors hover:text-[var(--tinta)]"
             style={{ fontSize: "var(--t-sm)" }}
           >
-            <LogOut className="h-4 w-4" /> {locale === "en" ? T.sair : "sair"}
+            <LogOut className="h-4 w-4" /> {locale === "pt" ? "sair" : T.sair}
             </button>
           </div>
         </div>

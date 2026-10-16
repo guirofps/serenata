@@ -351,7 +351,7 @@ export default async function handler(req: Req, res: Res) {
               `Motivo: ${d.bounce?.type ?? "-"}</p>` +
               (m?.token
                 ? `<p>Link do presente, pra mandar no WhatsApp:<br>` +
-                  `https://www.serenatagift.com/p/${m.token}</p>`
+                  `${MARCA_ATIVA.url}/p/${m.token}</p>`
                 : "") +
               `<p>O jeito mais rápido é o botão "mandar o link de acesso no WhatsApp", na aba Recuperados do /recuperar.</p>`,
           });

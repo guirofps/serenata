@@ -153,7 +153,13 @@ export function BotaoGuardar({
       await navigator.share({
         files: [file],
         title: titulo,
-        text: locale === "en" ? `A song made for ${nome} 🎁` : `Uma música feita para ${nome} 🎁`,
+        // O texto vai junto com o arquivo PRO PRESENTEADO: no idioma da compra.
+        text:
+          locale === "en"
+            ? `A song made for ${nome} 🎁`
+            : locale === "es"
+              ? `Una canción hecha para ${nome} 🎁`
+              : `Uma música feita para ${nome} 🎁`,
       });
       setEstado("ok");
       setTimeout(() => setEstado("parado"), 2500);
