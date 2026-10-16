@@ -1,0 +1,22 @@
+// SÓ LEITURA: campanhas criadas em 14-16/10 (Serenata), HOJE: gasto e cliques (Google) + leads e vendas reais (banco).
+import { readFileSync } from "node:fs";
+import pg from "pg";
+const env = Object.fromEntries(readFileSync(".env.local","utf8").split(/\r?\n/).filter(l=>l.includes("=")).map(l=>{const i=l.indexOf("=");return [l.slice(0,i).trim(),l.slice(i+1).trim()]}));
+const { access_token } = await (await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:env.GOOGLE_ADS_CLIENT_ID,client_secret:env.GOOGLE_ADS_CLIENT_SECRET,refresh_token:env.GOOGLE_ADS_REFRESH_TOKEN,grant_type:"refresh_token"})})).json();
+const cab={Authorization:"Bearer "+access_token,"developer-token":env.GOOGLE_ADS_DEVELOPER_TOKEN,"content-type":"application/json","login-customer-id":"3442238598"};
+const q = async (query) => { const j = await (await fetch(`https://googleads.googleapis.com/v25/customers/6923198164/googleAds:search`, { method: "POST", headers: cab, body: JSON.stringify({ query }) })).json(); if (j.error) throw new Error(JSON.stringify(j.error).slice(0,400)); return j.results ?? []; };
+const novo = (n) => /1[456] Out/.test(n);
+const todas = (await q(`SELECT campaign.id, campaign.name, campaign.primary_status FROM campaign WHERE campaign.status = 'ENABLED'`)).filter(x=>novo(x.campaign.name));
+const met = Object.fromEntries((await q(`SELECT campaign.id, metrics.cost_micros, metrics.impressions, metrics.clicks FROM campaign WHERE segments.date DURING TODAY AND campaign.status = 'ENABLED'`)).map(x=>[x.campaign.id, x.metrics]));
+const u = new URL(readFileSync("supabase/.temp/pooler-url","utf8").trim());
+const c = new pg.Client({ host:u.hostname, port:Number(u.port||5432), user:decodeURIComponent(u.username), database:"postgres", password:env.SUPABASE_DB_PASSWORD, ssl:{rejectUnauthorized:false} });
+await c.connect(); await c.query("begin read only");
+const hoje = new Date(Date.now()-3*3600e3).toISOString().slice(0,10);
+const ini = `${hoje}T03:00Z`;
+const L = Object.fromEntries((await c.query(`select attribution->>'utm_campaign' k, count(*) n from quiz_responses where created_at >= $1 and email is not null and attribution->>'utm_campaign' ~ '^[0-9]+$' group by 1`, [ini])).rows.map(r=>[r.k, Number(r.n)]));
+const V = Object.fromEntries((await c.query(`select q.attribution->>'utm_campaign' k, count(*) n from pedidos p join quiz_responses q on q.id=p.quiz_response_id where p.status='pago' and p.payment_id not like '%:up:%' and p.payment_id not like 'credito:%' and p.payment_id not like 'cortesia:%' and p.paid_at >= $1 and q.attribution->>'utm_campaign' ~ '^[0-9]+$' group by 1`, [ini])).rows.map(r=>[r.k, Number(r.n)]));
+await c.end();
+const linhas = todas.map(x => { const m = met[x.campaign.id] ?? {}; const g = Number(m.costMicros||0)/1e6; return { nome: x.campaign.name, st: x.campaign.primaryStatus, g, imp: Number(m.impressions||0), cl: Number(m.clicks||0), l: L[x.campaign.id]??0, v: V[x.campaign.id]??0 }; }).sort((a,b)=>b.g-a.g);
+for (const r of linhas) console.log(`${r.nome.padEnd(72)} | ${r.st.padEnd(8)} | R$ ${r.g.toFixed(2).padStart(6)} | ${String(r.imp).padStart(5)} imp | ${String(r.cl).padStart(3)} cl | ${r.l} leads | ${r.v} vendas`);
+const t = linhas.reduce((a,r)=>({g:a.g+r.g,l:a.l+r.l,v:a.v+r.v}),{g:0,l:0,v:0});
+console.log(`TOTAL R$ ${t.g.toFixed(2)} | ${t.l} leads | ${t.v} vendas`);
