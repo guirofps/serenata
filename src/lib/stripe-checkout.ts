@@ -13,6 +13,13 @@ import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 // cobra música que não existe; o pedido nasce pendente ANTES do pagamento,
 // pra que o webhook saiba de quem é o dinheiro sem adivinhar.
 
+/** SHA-256 curto do corpo, pela Web Crypto (sem `node:crypto` no bundle do cliente). */
+async function impressaoDoCorpo(corpo: unknown): Promise<string> {
+  const bytes = new TextEncoder().encode(JSON.stringify(corpo));
+  const hash = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(hash).slice(0, 12), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 /** O preço do braço que ESTA sessão sorteou, em centavos. Mesmo leitor do PIX. */
 async function valorCentavosDaSessao(
   db: ReturnType<typeof supabaseAdmin>,
@@ -91,10 +98,7 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
       // montando a folha duas vezes) fazem o Stripe responder 409 pra segunda:
       // "outra requisição com esta chave em andamento". Não é erro de verdade,
       // é espera: um instante depois ele devolve a MESMA sessão já criada.
-      const criar = () => stripeApi<{ id: string; client_secret: string }>(
-        "POST",
-        "/checkout/sessions",
-        {
+      const corpo = {
           ui_mode: "embedded",
           mode: "payment",
           // O idioma DA PÁGINA, nunca o do navegador: o Stripe seguia o do
@@ -145,11 +149,20 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
           // A porta de volta no idioma da compra: `/es/gracias` é a `/obrigado`
           // em espanhol, com a mesma confirmação adiantada pelo `session_id`.
           return_url: `${urlDoSite()}${espanhol ? "/es/gracias" : "/obrigado"}?session_id={CHECKOUT_SESSION_ID}`,
-        },
-        // `v5`: a versão dos PARÂMETROS. O Stripe recusa a mesma chave com corpo
-        // diferente, então mexeu no corpo desta chamada, sobe a versão. (v5 em
-        // 09/10: idioma, produto e `return_url` passaram a depender do `locale`.)
-        { idempotencia: `ballad-checkout:v5:${quiz.id}:${centavos}` },
+        };
+      // A CHAVE LEVA A IMPRESSÃO DO CORPO (16/10). O Stripe recusa a mesma chave
+      // com corpo diferente (400 de idempotência), e o corpo muda sem a gente
+      // mexer no código: quem fecha o caixa e REFAZ o quiz troca o nome no
+      // produto, o e-mail ou o título. Com a chave só por quiz e valor, essa
+      // pessoa levava `falhou` em toda tentativa por 24h (29 erros de 2
+      // compradores do `/es` em 15-16/10, os dois sem pagar). Corpo igual =
+      // mesma chave = mesma sessão (reabrir a folha continua sem criar outra).
+      const impressao = await impressaoDoCorpo(corpo);
+      const criar = () => stripeApi<{ id: string; client_secret: string }>(
+        "POST",
+        "/checkout/sessions",
+        corpo,
+        { idempotencia: `ballad-checkout:v6:${quiz.id}:${impressao}` },
       );
       let sessao: { id: string; client_secret: string } | null = null;
       for (let tentativa = 0; !sessao; tentativa++) {
