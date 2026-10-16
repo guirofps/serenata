@@ -326,75 +326,17 @@ function RootShell({ children }: { children: React.ReactNode }) {
         {podeMedir && TIKTOK_PIXEL_ID && (
           <script dangerouslySetInnerHTML={{ __html: scriptTiktok(TIKTOK_PIXEL_ID, imediato) }} />
         )}
-        {/* UTMify NÃO fica aqui. Ver `carregarUtmify` mais abaixo: o script
-            reescreve todo <a href> interno, e no HTML do servidor isso quebra
-            a hidratação do React. */}
         <Scripts />
       </body>
     </html>
   );
 }
 
-/**
- * CARREGA A UTMIFY DEPOIS DA HIDRATAÇÃO, e não no HTML do servidor.
- *
- * ── O BUG QUE ISTO CONSERTA ──────────────────────────────────────
- *
- * O script da UTMify reescreve TODO `<a href>` interno da página, colando
- * `?utm_source=organic&utm_campaign=&utm_medium=&utm_content=&utm_term=` em
- * cada um. Quando ele roda antes da hidratação, o React encontra `/criar` no
- * HTML que o servidor mandou e `/criar?utm_source=...` no DOM, declara
- * "hydration failed" e JOGA FORA a árvore inteira, remontando tudo no cliente.
- *
- * Achado no console em 19/08, na home e na página presente. O custo é maior
- * justamente onde dói: num Android lento, remontar a página inteira é uma
- * piscada e um punhado de segundos sem interatividade, e 99% do nosso tráfego
- * é celular.
- *
- * Efeito colateral que some junto: o link que a pessoa copia da barra de
- * endereço pra mandar no WhatsApp ia com UTMs vazias grudadas, e o
- * presenteado entrava carimbado como "organic".
- *
- * ── POR QUE ISTO NÃO QUEBRA A ATRIBUIÇÃO ─────────────────────────
- *
- * O que a gente usa da UTMify é o `localStorage.utmify_data`, lido lá na ida
- * pro checkout (`src/lib/checkout.ts`), que acontece minutos depois. Carregar
- * o script um tique mais tarde não muda nada nisso: os UTMs da URL continuam
- * lá pra ele ler.
- */
-function carregarUtmify() {
-  if (typeof document === "undefined") return;
-  if (document.getElementById("utmify-utms")) return;
-  // Mesma régua do gtag: a UTMify também vê a URL da página, e o que ela
-  // precisa medir (a origem do clique) acontece no funil, nunca no editor nem
-  // nos painéis. Ver `rotas-sensiveis.ts`.
-  if (rotaSensivel(window.location.pathname)) return;
-  // A UTMify é a conta brasileira de atribuição. Na Ballad Gift (EUA) ela
-  // mediria venda americana no painel da Serenata.
-  if (MARCA.chave !== "serenata") return;
-  // NÃO BASTA ESPERAR O ROOT MONTAR. As rotas são carregadas em `lazy`, então
-  // elas hidratam DEPOIS do root: um script que já esteja reescrevendo links
-  // pega a próxima rota no meio da hidratação e o problema volta, só que mais
-  // difícil de enxergar. Esperar o navegador ficar ocioso cobre todas.
-  //
-  // Atrasar não custa nada aqui: o que a gente lê dele é o
-  // `localStorage.utmify_data` na ida pro checkout, que acontece minutos
-  // depois, e os UTMs continuam na URL o tempo todo.
-  const s = document.createElement("script");
-  s.id = "utmify-utms";
-  s.src = "https://cdn.utmify.com.br/scripts/utms/latest.js";
-  s.async = true;
-  s.defer = true;
-  s.setAttribute("data-utmify-prevent-xcod-sck", "");
-  s.setAttribute("data-utmify-prevent-subids", "");
-  const injetar = () => document.body.appendChild(s);
-  if ("requestIdleCallback" in window) {
-    (window as Window & { requestIdleCallback: (cb: () => void, o?: { timeout: number }) => void })
-      .requestIdleCallback(injetar, { timeout: 4000 });
-  } else {
-    setTimeout(injetar, 2500);
-  }
-}
+// A UTMIFY SAIU (16/10, dono: "não usamos mais utmify"). Desde 12/09 ela não
+// recebia nenhuma venda brasileira (só a Woovi e a Perfect Pay avisavam) e o
+// script seguia carregando em toda página. O `checkout.ts` ainda lê as chaves
+// que ela deixava no navegador, como fonte extra de UTM: sem ela, fica a URL e
+// o `mp_attribution`, que sempre foram as primeiras.
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
@@ -427,9 +369,6 @@ function RootComponent() {
     // Nome novo, fora dos doze que `admin_eventos_resumo` filtra: não entra em
     // nenhuma conta do painel de funil, só na aba de indicações.
     if (convite) trackEvent("convite_clique", { ref: convite });
-    // DEPOIS de tudo montado. Ver o comentário de `carregarUtmify`: rodando
-    // antes da hidratação ele quebrava a página inteira.
-    carregarUtmify();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const router = useRouter();

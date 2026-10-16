@@ -10,10 +10,10 @@
 // O conserto é subir a barra pela diferença entre o fim da barra e o fim da
 // área VISÍVEL (`visualViewport`), que é o que o teclado encolhe no iOS.
 //
-// Liga por aparelho (`?barra=1` grava no navegador) até o dono conferir no
-// iPhone dele; depois `LIGADA_PRA_TODOS` vira true.
+// Ligava por aparelho (`?barra=1`) até o dono conferir no iPhone; ligada pra
+// todos em 16/10 por decisão dele. `?barra=0` não desliga mais (a flag vence).
 
-export const LIGADA_PRA_TODOS = false;
+export const LIGADA_PRA_TODOS = true;
 const CHAVE = "barra_teclado";
 
 /** Abaixo disso é arredondamento do `visualViewport`, não teclado (ver o Quiz). */
