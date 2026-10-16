@@ -129,7 +129,12 @@ function telefoneParaGateway(cru: unknown, locale: "pt" | "es"): string | null {
 }
 
 export function gatewayPix(): GatewayPix {
-  return process.env.PIX_GATEWAY === "asaas" ? asaasPix : woovi;
+  // ASAAS POR PADRÃO (16/10). Era o contrário: só `PIX_GATEWAY === "asaas"`
+  // exato ligava o Asaas, e a env sumida ou gravada com um retorno de carro no
+  // fim (o pipe do PowerShell já fez isso com segredo aqui) mandava o PIX em
+  // silêncio pra Woovi, contra a decisão "venda brasileira só pelo Asaas" de
+  // 26/09. A Woovi só volta com `PIX_GATEWAY=woovi` escrito.
+  return (process.env.PIX_GATEWAY ?? "").trim().toLowerCase() === "woovi" ? woovi : asaasPix;
 }
 
 /**

@@ -10,6 +10,7 @@ import { centavosComCupom, codigoAplicado, type Alvo } from "@/lib/cupom";
 import { centavosDoVideoDaMusica } from "@/lib/preco-video";
 import { creditarUpsell } from "../../api/lib/creditar-upsell";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
+import { avisarDonos } from "@/lib/avisar-donos";
 
 // O CARTÃO DOS UPSELLS: música extra, quadro e vídeo, pelo Asaas (02/10).
 //
@@ -167,7 +168,13 @@ async function cobrar(
     .update({ status: "pago", status_gateway: r.statusCru, paid_at: new Date().toISOString() })
     .eq("id", pedido.id)
     .eq("status", "pendente");
-  if (erroPago) console.error("[cartao-upsell] pago e pedido NÃO gravado:", erroPago.message, r.idExterno);
+  if (erroPago) {
+    console.error("[cartao-upsell] pago e pedido NÃO gravado:", erroPago.message, r.idExterno);
+    await avisarDonos({
+      assunto: "Upsell pago no cartão e pedido NÃO gravado",
+      html: `<p>${erroPago.message}<br>${email} · ${referencia} · asaas:${r.idExterno}</p>`,
+    });
+  }
 
   const c = await creditarUpsell(db, {
     oferta,
@@ -175,7 +182,15 @@ async function cobrar(
     pedidoId: pedido.id as string,
     nota: { gateway: "asaas", meio: "cartao", referencia, cobranca: r.idExterno },
   });
-  if (c.erro) console.error("[cartao-upsell] pago e NÃO liberado:", c.erro, referencia);
+  if (c.erro) {
+    console.error("[cartao-upsell] pago e NÃO liberado:", c.erro, referencia);
+    // O webhook depois sai como duplicado: sem este aviso, quem pagou fica sem
+    // o produto e ninguém fica sabendo.
+    await avisarDonos({
+      assunto: "Upsell pago no cartão e NÃO liberado",
+      html: `<p>${c.erro}<br>${email} · ${referencia}</p><p>Liberar à mão.</p>`,
+    });
+  }
 
   return { ok: true, pago: true };
 }

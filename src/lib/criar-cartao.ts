@@ -380,6 +380,10 @@ export const cobrarCartao = createServerFn({ method: "POST" })
       // não registrar — o pior desfecho possível. Grita no log e devolve o
       // sucesso; o webhook conserta a linha depois.
       console.error("[cartao] gravar pedido falhou:", error.message);
+      await avisarDonos({
+        assunto: "Cartão pago e pedido NÃO gravado",
+        html: `<p>${error.message}<br>quiz ${quiz.id} · asaas:${r.idExterno}</p><p>Conferir no painel do Asaas.</p>`,
+      });
     }
 
     // ── UM QUIZ, UMA ENTREGA (08/10) ─────────────────────────────
@@ -439,7 +443,15 @@ export const cobrarCartao = createServerFn({ method: "POST" })
         video: BUMPS[item].video,
         quadro: BUMPS[item].quadro,
       });
-      if (erros.length) console.error("[cartao] bump pago e NÃO liberado:", erros.join(" | "), r.idExterno);
+      if (erros.length) {
+        console.error("[cartao] bump pago e NÃO liberado:", erros.join(" | "), r.idExterno);
+        // O webhook sai cedo com o pedido pago: se ninguém for avisado aqui,
+        // quem pagou fica sem o item e ninguém fica sabendo.
+        await avisarDonos({
+          assunto: "Bump pago no cartão e NÃO liberado",
+          html: `<p>${erros.join("<br>")}<br>${emailDaVenda} · asaas:${r.idExterno}</p><p>Liberar à mão.</p>`,
+        });
+      }
     }
 
     if (r.confirmado) {
