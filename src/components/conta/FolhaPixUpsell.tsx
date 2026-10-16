@@ -17,6 +17,7 @@ import { OFERTAS } from "@/lib/creditos";
 import { descontoNaTela, type Alvo } from "@/lib/cupom";
 import { centavosDoVideo } from "@/lib/preco-video";
 import { reaisDeCentavos } from "@/lib/indicacao";
+import { TEMA_CLARO } from "@/lib/marca";
 
 // A FOLHA DE PAGAMENTO DO UPSELL: música extra, quadro e vídeo. PIX OU
 // cartão, os dois pelo Asaas, o que a pessoa preferir (dono, 02/10).
@@ -190,7 +191,13 @@ export function FolhaPixUpsell({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+    // O TEMA VEM AQUI, NA PRÓPRIA FOLHA (16/10). As cores (`--papel`, `--tinta`,
+    // `--acento`) só existem dentro de tela que aplica o `TEMA_CLARO`, e o
+    // `/quadro/<token>` é escuro e não aplica: lá a folha abria TRANSPARENTE por
+    // cima do fundo borrado ("a tela fica turva e parada", cliente em 16/10).
+    // 7 pedidos de CPF e ZERO PIX gerados no quadro em 3 dias, contra 24 de 28
+    // no vídeo, que abre no editor. Dentro de tela já tematizada nada muda.
+    <div className="fixed inset-0 z-50 flex items-end justify-center text-[var(--tinta)] sm:items-center" style={TEMA_CLARO}>
       <button
         aria-label="Fechar"
         onClick={() => {
