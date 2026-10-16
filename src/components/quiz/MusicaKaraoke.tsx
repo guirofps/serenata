@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Play, Pause, Lock, Music, Check } from "lucide-react";
+import { Play, Pause, Lock, Music, Check, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { type Locale } from "@/lib/i18n";
@@ -8,6 +8,7 @@ import { trackEvent, trackEventOnce } from "@/lib/track";
 import { rotuloDaSecao } from "@/lib/karaoke-linhas";
 import { familiaDoNavegador } from "@/lib/familia-navegador";
 import { varianteDe } from "@/lib/experimentos";
+import { EXP_OUVIR_DE_NOVO, ouvirDeNovoLigado } from "@/lib/ouvir-de-novo";
 import {
   PREVIA_PADRAO_S,
   corteDaPrevia,
@@ -177,6 +178,17 @@ export function MusicaKaraoke({
   // corte de agora.
   const corteRef = useRef(corte);
   corteRef.current = corte;
+
+  // ── TESTE `ouvir_de_novo` (`ouvir-de-novo.ts`) ───────────────────
+  //
+  // No B, depois do corte, a prévia pode voltar pro começo. Lido UMA vez,
+  // como o `previa_refrao`. `replays` conta as voltas, e também mantém o
+  // convite de desbloquear na tela durante a volta (sem ele, `travou` vira
+  // falso ao recomeçar e o convite sumiria enquanto ela ouve de novo). No A
+  // ele fica em 0 pra sempre, e a tela é a de sempre.
+  const [bracoOuvir] = useState(() => varianteDe(EXP_OUVIR_DE_NOVO));
+  const ouvirDeNovo = ouvirDeNovoLigado(bracoOuvir, locale, completo);
+  const [replays, setReplays] = useState(0);
 
   // POPUP DO FIM DA PRÉVIA.
   //
@@ -360,6 +372,33 @@ export function MusicaKaraoke({
     }
   }
 
+  // Volta pro 0 e toca. O corte NÃO é desligado: a trava do `timeupdate` olha
+  // o `currentTime` contra o mesmo limite e para no mesmo ponto de novo. O
+  // `travouRef` fica como está, então o corte do `previa_refrao` não muda.
+  async function ouvirDeNovoAgora() {
+    const a = audioRef.current;
+    if (!a || !travou) return;
+    const vez = replays + 1;
+    setReplays(vez);
+    trackEvent("previa_ouvir_de_novo", { vez, previa_corte_s: limite });
+    a.currentTime = 0;
+    setT(0);
+    setTravou(false);
+    try {
+      await a.play();
+      setTocando(true);
+    } catch (err) {
+      // O mesmo registro do play normal: botão que não toca precisa de rastro.
+      trackEvent("musica_play_falhou", {
+        erro: err instanceof Error ? err.name || "Error" : "desconhecido",
+        navegador: familiaDoNavegador(typeof navigator !== "undefined" ? navigator.userAgent : ""),
+        prontidao: a.readyState,
+        origem: "ouvir_de_novo",
+      });
+      if (!(err instanceof Error && err.name === "NotAllowedError")) void renovarFonte(true);
+    }
+  }
+
   async function alternar() {
     const a = audioRef.current;
     if (!a || travou) return;
@@ -439,6 +478,18 @@ export function MusicaKaraoke({
             : relogio(limite)}
         </span>
       </div>
+
+      {/* Braço B do `ouvir_de_novo`: a volta da prévia, colada no player que
+          acabou de parar. Só aparece parado no corte. */}
+      {ouvirDeNovo && travou && (
+        <button
+          type="button"
+          onClick={() => void ouvirDeNovoAgora()}
+          className="mx-auto flex items-center gap-1.5 rounded-full border border-primary/20 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
+        >
+          <RotateCcw className="h-4 w-4" /> Ouvir de novo
+        </button>
+      )}
 
       {/* Braço B do `previa_refrao`: o cartão de compra no lugar do popup,
           logo abaixo do player, no instante em que o refrão termina. */}
@@ -534,7 +585,7 @@ export function MusicaKaraoke({
 
       {/* Paywall no pico: a música corta no melhor momento. No braço B do
           `previa_refrao` o cartão de cima já faz este papel. */}
-      {travou && !noRefrao && (
+      {(travou || replays > 0) && !noRefrao && (
         <div className="space-y-3 rounded-2xl border bg-card p-5 text-center">
           <Lock className="mx-auto h-5 w-5 text-muted-foreground" />
           <p className="font-semibold">{T.musicaContinua}</p>

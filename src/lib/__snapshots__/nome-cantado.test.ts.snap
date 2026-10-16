@@ -1,0 +1,23 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`a mensagem do braço B > o texto da instrução (congelado) 1`] = `"Nome cantado: o nome de quem recebe é "Carolina", escrito exatamente assim por quem encomendou. Ele tem que ser CANTADO com essa mesma grafia pelo menos uma vez no refrão ou na intro, nunca trocado por apelido, diminutivo ou "meu amor". Se a tarefa for escrever refrões, cada refrão leva "Carolina". Se o refrão já estiver escolhido e não tiver "Carolina", o nome entra na intro. Apelido carinhoso pode aparecer também, junto do nome, nunca no lugar dele."`;
+
+exports[`a mensagem do braço B > é a mensagem do A mais o bloco do nome no fim, e só isso 1`] = `
+"Homenageado: Carolina
+Relação com quem encomendou: esposa (Carolina é esposa de quem encomendou. A música é cantada por quem encomendou PARA Carolina: nunca chame Carolina pelo papel de quem encomendou, por exemplo nunca "vó" quando Carolina é a neta.)
+Ocasião: aniversário
+Gênero musical: sertanejo
+Voz: masculina
+Tom pedido: emocionante — para arrepiar e fazer chorar, intensidade contida
+Filhos: não citar nenhum filho pelo nome.
+
+História contada:
+A gente se conheceu no ônibus 312.
+
+Ela ri alto.
+
+Recado especial (pode estar vazio):
+Te amo, Carol
+
+Nome cantado: o nome de quem recebe é "Carolina", escrito exatamente assim por quem encomendou. Ele tem que ser CANTADO com essa mesma grafia pelo menos uma vez no refrão ou na intro, nunca trocado por apelido, diminutivo ou "meu amor". Se a tarefa for escrever refrões, cada refrão leva "Carolina". Se o refrão já estiver escolhido e não tiver "Carolina", o nome entra na intro. Apelido carinhoso pode aparecer também, junto do nome, nunca no lugar dele."
+`;

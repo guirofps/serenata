@@ -5,7 +5,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { registrarCustoLetra, type UsoClaude } from "@/lib/custos";
 import { dispararGeracaoMusica } from "@/lib/gerar-letra";
 import { recusaDeConteudo } from "@/lib/recusa-provedor";
-import { systemDaLetra, buildUserMessage, type LetraGerada } from "@/lib/letra-prompt";
+import { systemDaLetra, buildUserMessage, sanitizeNome, type LetraGerada } from "@/lib/letra-prompt";
+import { EXP_NOME_CANTADO, nomeCantadoLigado } from "@/lib/nome-cantado";
 import {
   MODEL,
   MODEL_CURTO,
@@ -118,6 +119,61 @@ async function cobrarMusica(sessionId: string): Promise<void> {
   await m.cobrarUso(m.TETO_MUSICA, sessionId);
 }
 
+// ── TESTE `nome_cantado` (`nome-cantado.ts`) ─────────────────────
+//
+// O braço sai do BANCO, nunca do corpo da requisição: a atribuição gravada
+// do quiz desta sessão e a linha viva do experimento. A linha é guardada por
+// um minuto por instância, pra não somar uma consulta a cada etapa da letra;
+// desligar pelo painel leva no máximo isso pra valer.
+//
+// Falha SEMPRE pro A: banco piscando aqui não pode custar a letra de ninguém.
+const LINHA_NOME_CANTADO_MS = 60_000;
+let linhaNomeCantado: { em: number; linha: Parameters<typeof nomeCantadoLigado>[1] } | null = null;
+
+async function linhaDoNomeCantado(): Promise<Parameters<typeof nomeCantadoLigado>[1]> {
+  if (linhaNomeCantado && Date.now() - linhaNomeCantado.em < LINHA_NOME_CANTADO_MS) {
+    return linhaNomeCantado.linha;
+  }
+  const { data, error } = await supabaseAdmin()
+    .from("experimentos")
+    .select("ativo, variantes")
+    .eq("id", EXP_NOME_CANTADO)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const linha = (data ?? null) as Parameters<typeof nomeCantadoLigado>[1];
+  linhaNomeCantado = { em: Date.now(), linha };
+  return linha;
+}
+
+/**
+ * O nome a exigir na letra (braço B), ou `undefined` (o A). Só Serenata, só
+ * português, e só com nome de verdade: o "essa pessoa" de quem não escreveu
+ * nome nenhum não é nome pra cantar.
+ */
+async function nomeCantadoDaSessao(
+  sessionId: string,
+  respostas: Record<string, unknown>,
+  locale: Locale,
+): Promise<string | undefined> {
+  if (MARCA_ATIVA.chave === "ballad" || locale !== "pt") return undefined;
+  if (respostas.tema === "gospel" && respostas.tipo === "louvor") return undefined;
+  const nome = sanitizeNome(respostas.nome);
+  if (!nome) return undefined;
+  try {
+    const linha = await linhaDoNomeCantado();
+    if (!linha?.ativo) return undefined;
+    const { data } = await supabaseAdmin()
+      .from("quiz_responses")
+      .select("attribution")
+      .eq("session_id", sessionId)
+      .maybeSingle();
+    return nomeCantadoLigado(data?.attribution ?? null, linha) ? nome : undefined;
+  } catch (err) {
+    console.error("[coautoria] braço do nome_cantado não lido; segue o A:", err);
+    return undefined;
+  }
+}
+
 /** Erro de entrada grande demais. Mensagem única: não descreve o teto. */
 function exigirTamanho(valor: unknown, teto: number, campo: string): void {
   const texto = typeof valor === "string" ? valor : JSON.stringify(valor ?? "");
@@ -131,9 +187,13 @@ export const gerarRefroes = createServerFn({ method: "POST" })
   .validator((data: { sessionId: string; respostas: Record<string, unknown>; locale?: string }) => data)
   .handler(async ({ data }): Promise<RefroesGerados> => {
     exigirTamanho(data.respostas, MAX_RESPOSTAS, "respostas");
-    await cobrarLetra(data.sessionId);
     const locale = normalizarLocale(data.locale);
-    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas, locale), locale)}
+    // O braço do `nome_cantado` é lido junto com a cobrança: não soma espera.
+    const [, nomeCantado] = await Promise.all([
+      cobrarLetra(data.sessionId),
+      nomeCantadoDaSessao(data.sessionId, data.respostas, locale),
+    ]);
+    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas, locale), locale, { nomeCantado })}
 
 ${INSTRUCOES[locale].refroes}`;
 
@@ -170,9 +230,13 @@ export const montarLetra = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<LetraGerada> => {
     exigirTamanho(data.respostas, MAX_RESPOSTAS, "respostas");
     exigirTamanho(data.refrao, MAX_REFRAO, "refrão");
-    await cobrarLetra(data.sessionId);
     const locale = normalizarLocale(data.locale);
-    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas, locale), locale)}
+    // O braço do `nome_cantado` é lido junto com a cobrança: não soma espera.
+    const [, nomeCantado] = await Promise.all([
+      cobrarLetra(data.sessionId),
+      nomeCantadoDaSessao(data.sessionId, data.respostas, locale),
+    ]);
+    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas, locale), locale, { nomeCantado })}
 
 ${INSTRUCOES[locale].montar(data.refrao)}`;
 
@@ -222,9 +286,13 @@ export const montarLetraStream = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     exigirTamanho(data.respostas, MAX_RESPOSTAS, "respostas");
     exigirTamanho(data.refrao, MAX_REFRAO, "refrão");
-    await cobrarLetra(data.sessionId);
     const locale = normalizarLocale(data.locale);
-    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas, locale), locale)}
+    // O braço do `nome_cantado` é lido junto com a cobrança: não soma espera.
+    const [, nomeCantado] = await Promise.all([
+      cobrarLetra(data.sessionId),
+      nomeCantadoDaSessao(data.sessionId, data.respostas, locale),
+    ]);
+    const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas, locale), locale, { nomeCantado })}
 
 ${INSTRUCOES[locale].montar(data.refrao)}`;
 

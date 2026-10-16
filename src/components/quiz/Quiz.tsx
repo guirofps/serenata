@@ -26,7 +26,13 @@ import { dominioRecebeEmail } from "@/lib/dominio-email";
 import { AberturaPresente } from "@/components/quiz/AberturaPresente";
 import { lembrarIdioma } from "@/components/OfereceIdioma";
 import { useQuizStore } from "@/lib/quiz-store";
-import { sessaoJaPagou } from "@/lib/coautoria";
+import { gerarRefroes, sessaoJaPagou } from "@/lib/coautoria";
+import {
+  EXP_LETRA_NA_REVISAO,
+  adiantarRefroes,
+  chaveDosRefroes,
+  letraNaRevisaoLigada,
+} from "@/lib/letra-na-revisao";
 import { captureLeadProgress } from "@/lib/lead-capture";
 import { barraSobeComTeclado, subidaDaBarra } from "@/lib/barra-teclado";
 import { trackEvent, trackEventOnce } from "@/lib/track";
@@ -1145,6 +1151,32 @@ function ReviewScreen({ locale, onGerar }: { locale: Locale; onGerar: () => void
     }
     return valor;
   };
+  // ── TESTE `letra_na_revisao` (`letra-na-revisao.ts`) ─────────────
+  //
+  // No B, os refrões começam a ser escritos AGORA, enquanto a pessoa confere
+  // as respostas, e a tela dos refrões pega a promessa pronta. No A nada
+  // acontece aqui: a primeira chamada continua sendo a da tela dos refrões.
+  //
+  // As mesmas condições em que o `RevealStep` chamaria `gerarRefroes`: store
+  // hidratada (sem isso a chave sairia de respostas vazias), história escrita
+  // e nenhuma letra desta sessão já guardada (quem volta da oferta cai direto
+  // na revelação, e adiantar ali seria gastar uma chamada que ninguém usa).
+  useEffect(() => {
+    if (!letraNaRevisaoLigada(varianteDe(EXP_LETRA_NA_REVISAO), locale)) return;
+    const st = useQuizStore.getState();
+    if (!useQuizStore.persist.hasHydrated()) return;
+    const sessionId = getOrCreateSessionId();
+    if (st.letraFinal?.sessionId === sessionId) return;
+    const vivas = st.respostas;
+    if (!String(vivas.historia1 ?? "").trim() && !String(vivas.historia2 ?? "").trim()) return;
+    const disparou = adiantarRefroes(chaveDosRefroes(sessionId, vivas, locale), () =>
+      gerarRefroes({ data: { sessionId, respostas: vivas, locale } }),
+    );
+    if (disparou) trackEvent("letra_adiantada", {});
+    // Só na montagem: quem edita uma resposta sai desta tela e volta, e a
+    // revisão nova monta de novo com as respostas novas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <div className="space-y-6 text-center">
       <div className="space-y-2">
