@@ -378,6 +378,44 @@ export const EXPERIMENTOS: Experimento[] = [
     ativo: false,
     nota: "SERENATA, 08/10. A folha do PIX. A = como é hoje (resumo, 'Gerar meu PIX', tela do CPF, QR). B = o CPF no próprio resumo, colado no botão, lembrado no navegador; um toque gera o PIX. C = B com o resumo enxuto: título, preço, e-mail numa linha, CPF e um botão 'Gerar PIX de R$ X'; a lista do que vem fica atrás de 'O que eu recebo?'. Cartão, bump, cupom e erro iguais nos três. Ler por PAGO ÷ FOLHAS ABERTAS por braço (pix_transparente_abriu -> pix_transparente_pago + cartao_pago, com attribution.exp.folha_pix), não por toque no botão: no A o toque ainda tem a tela do CPF pela frente. Diagnóstico: pix_folha_variante (abriu), pix_folha_gerar (tocou e passou), pix_cpf_inline_faltou (tocou sem CPF), pix_transparente_gerado (código na tela).",
   },
+  // ── OS QUATRO DE 16/10 ────────────────────────────────────────────
+  //
+  // Nascem DESLIGADOS (a linha do banco vem de
+  // `20261016000000_experimentos_16out.sql`, também com `ativo = false`).
+  // Quem liga é o dono, pelo painel, um de cada vez ou juntos: os sorteios
+  // são independentes entre si.
+  {
+    // SÓ SERENATA, funil pt. Ver `letra-na-revisao.ts`.
+    id: "letra_na_revisao",
+    variantes: ["A", "B"],
+    peso: [1, 1],
+    ativo: false,
+    nota: "SERENATA, 16/10. Os refrões começam a ser escritos na revisão. A = como é hoje (gerarRefroes só quando a tela dos refrões abre). B = a revisão dispara gerarRefroes em segundo plano ao montar e a tela dos refrões reaproveita a promessa se as respostas não mudaram (mesma cobrança do teto, uma chamada só). 23% somem entre o último passo e os refrões, com ~127s de espera. Ler por quem CHEGOU NOS REFRÕES (coautoria_refroes ÷ coautoria_pedida) e RECEITA POR LEAD; diagnóstico: letra_adiantada, letra_adiantada_usada (pronta, idade_s), letra_adiantada_falhou.",
+  },
+  {
+    // SÓ SERENATA, funil pt. Ver `ouvir-de-novo.ts`.
+    id: "ouvir_de_novo",
+    variantes: ["A", "B"],
+    peso: [1, 1],
+    ativo: false,
+    nota: "SERENATA, 16/10. Depois que a prévia corta. A = o player trava e não volta. B = botão 'Ouvir de novo' que volta a prévia pro 0 e toca; o corte vale de novo no mesmo ponto e o popup não reaparece. Ler por RECEITA POR LEAD (attribution.exp.ouvir_de_novo); uso do botão em previa_ouvir_de_novo (vez).",
+  },
+  {
+    // SÓ SERENATA (a folha do PIX é do funil pt). Ver `pix-reabre.ts`.
+    id: "pix_reabre",
+    variantes: ["A", "B"],
+    peso: [1, 1],
+    ativo: false,
+    nota: "SERENATA, 16/10. A folha do PIX depois de a aba recarregar (iPhone descarta a aba enquanto a pessoa está no banco). A = recarregou, a folha não volta. B = o PIX gerado fica no sessionStorage da aba e a oferta reabre a folha direto no QR se ele tem menos de 1h e segue pendente (buscarPix, a leitura da /pix/<ref>); já pago vai pra /obrigado. Ler por PAGO ÷ PIX GERADO por braço (pix_transparente_gerado -> pix_transparente_pago, attribution.exp.pix_reabre); diagnóstico: pix_reaberto, pix_reabre_descartado (motivo).",
+  },
+  {
+    // SÓ SERENATA, funil pt. O braço é lido NO SERVIDOR. Ver `nome-cantado.ts`.
+    id: "nome_cantado",
+    variantes: ["A", "B"],
+    peso: [1, 1],
+    ativo: false,
+    nota: "SERENATA, 16/10. ~7% das letras não têm o nome como foi digitado (apelido, 'meu amor') e convertem 14,5% contra 16,8%. A = a mensagem da letra de hoje. B = a mesma mensagem + instrução: o nome exatamente como digitado, cantado pelo menos no refrão ou na intro, apelido só junto. Braço lido pelo servidor (quiz_responses.attribution.exp.nome_cantado + esta linha). Ler por RECEITA POR LEAD e % de letras finais com o nome exato, por braço.",
+  },
 ];
 
 /**

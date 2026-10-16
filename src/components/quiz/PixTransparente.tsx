@@ -86,6 +86,9 @@ export function PixTransparente({
   cupom,
   aoDesistir,
   aoVoltar,
+  pixInicial,
+  aoGerar,
+  aoPago,
 }: {
   nome: string;
   titulo: string | null;
@@ -101,8 +104,22 @@ export function PixTransparente({
   aoDesistir: () => void;
   /** O voltar do celular fecha a folha (e só ela). Ver `folha-pagamento.ts`. */
   aoVoltar: () => void;
+  /**
+   * TESTE `pix_reabre` (`pix-reabre.ts`), braço B: um PIX JÁ GERADO, relido
+   * do servidor depois de a aba recarregar. A folha abre direto no QR. Sem
+   * ele (o A, e o B que não tinha nada pra reabrir), começa no resumo.
+   */
+  pixInicial?: { copiaECola: string; valorCentavos: number; referencia: string };
+  /** Braço B do `pix_reabre`: o QR acabou de aparecer, guarda a referência. */
+  aoGerar?: (referencia: string) => void;
+  /** Braço B do `pix_reabre`: caiu, esquece a referência antes de sair. */
+  aoPago?: () => void;
 }) {
-  const [fase, setFase] = useState<Fase>({ t: "resumo" });
+  const [fase, setFase] = useState<Fase>(() =>
+    pixInicial
+      ? { t: "pronto", dados: { ok: true, expiraEm: null, ...pixInicial } }
+      : { t: "resumo" },
+  );
   // As mesmas duas travas do caixa da Ballad (16/10): o voltar fecha a folha
   // em vez de sair da oferta, e o vídeo de reações para por trás dela.
   useVoltarFechaAFolha(aoVoltar);
@@ -124,6 +141,9 @@ export function PixTransparente({
   useEffect(() => {
     if (contouAbertura.current) return;
     contouAbertura.current = true;
+    // A folha REABERTA pelo `pix_reabre` não é abertura nova: contar aqui
+    // inflaria o diagnóstico do `folha_pix` com quem só recarregou a aba.
+    if (pixInicial) return;
     trackEvent("pix_folha_variante", { braco, cpf_lembrado: Boolean(cpfLembrado) });
   }, [braco, cpfLembrado]);
 
@@ -227,6 +247,8 @@ export function PixTransparente({
         // usa como transaction_id. Sem isto ela pegava a referência de um PIX
         // antigo da mesma aba, ou nenhuma, e cada F5 contava de novo.
         if (r.pago) guardarTransacao(r.idExterno);
+        // Pagou no cartão: o PIX guardado pelo `pix_reabre` não pode voltar.
+        aoPago?.();
         window.location.href = "/obrigado";
         return;
       }
@@ -331,6 +353,7 @@ export function PixTransparente({
       // função quer unidade cheia: a divisão mora aqui, onde a unidade é
       // conhecida. PIX só existe em real, por isso BRL sem consultar locale.
       pagamentoGa4({ valor: r.valorCentavos / 100, moeda: "BRL", meio: "pix" });
+      aoGerar?.(r.referencia);
       setFase({ t: "pronto", dados: r });
     } catch (err) {
       console.error("[pix] criar falhou:", err);
@@ -425,6 +448,7 @@ export function PixTransparente({
         // A tela de obrigado é a mesma de quem pagou pelo checkout antigo: um
         // só lugar decide o que acontece depois da compra.
         aoPagar={() => {
+          aoPago?.();
           window.location.href = "/obrigado";
         }}
         aoEscolherCartao={cartaoAqui ? () => setFase({ t: "cartao" }) : aoDesistir}

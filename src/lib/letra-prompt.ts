@@ -248,9 +248,27 @@ export function sanitizeNome(raw: unknown): string {
   return n;
 }
 
+/**
+ * TESTE `nome_cantado` (`nome-cantado.ts`), braço B: o nome como foi
+ * digitado, cantado. Na mensagem do usuário pelo mesmo motivo do louvor: o
+ * system é cacheado e não muda uma vírgula pra quem está no A.
+ *
+ * Serve às duas etapas da coautoria com um texto só: nos refrões, cada opção
+ * leva o nome; na letra inteira, o refrão escolhido não pode ser mexido, então
+ * se ele não tem o nome, o nome vai pra intro.
+ */
+export function instrucaoNomeCantado(nome: string): string {
+  return `Nome cantado: o nome de quem recebe é "${nome}", escrito exatamente assim por quem encomendou. Ele tem que ser CANTADO com essa mesma grafia pelo menos uma vez no refrão ou na intro, nunca trocado por apelido, diminutivo ou "meu amor". Se a tarefa for escrever refrões, cada refrão leva "${nome}". Se o refrão já estiver escolhido e não tiver "${nome}", o nome entra na intro. Apelido carinhoso pode aparecer também, junto do nome, nunca no lugar dele.`;
+}
+
 export function buildUserMessage(
   respostas: Record<string, unknown>,
   locale: Locale = LOCALE_PADRAO,
+  /**
+   * TESTE `nome_cantado`: o nome a exigir, já sanitizado pelo servidor, ou
+   * nada (o A). Só vale no português e fora do louvor; vazio não muda nada.
+   */
+  opcoes: { nomeCantado?: string } = {},
 ): string {
   const L = ROTULOS[locale] ?? ROTULOS.pt;
   const es = locale === "es";
@@ -326,6 +344,14 @@ Fé: quem encomendou é evangélico(a). A letra pode falar de Deus, gratidão e 
       ? `(${nome} es ${relacao} de quien la encargó. La canción la canta quien la encargó PARA ${nome}: nunca llames a ${nome} por el papel de quien la encargó, por ejemplo nunca "abuela" cuando ${nome} es la nieta.)`
       : `(${nome} é ${relacao} de quem encomendou. A música é cantada por quem encomendou PARA ${nome}: nunca chame ${nome} pelo papel de quem encomendou, por exemplo nunca "vó" quando ${nome} é a neta.)`;
 
+  // O bloco do `nome_cantado` vai no FIM, depois do recado: a mensagem do A
+  // fica byte a byte igual (o snapshot de `letra-prompt-gospel.test.ts`
+  // segura isso), e a instrução fica colada na tarefa que vem logo depois.
+  const nomeCantado = locale === "pt" ? sanitizeNome(opcoes.nomeCantado) : "";
+  const blocoNome = nomeCantado ? `
+
+${instrucaoNomeCantado(nomeCantado)}` : "";
+
   return `${L.homenageado}: ${nome}
 ${L.relacao}: ${relacao} ${direcao}
 ${L.ocasiao}: ${ocasiao}
@@ -337,7 +363,7 @@ ${L.historia}:
 ${historia}
 
 ${L.recado}:
-${recado}`;
+${recado}${blocoNome}`;
 }
 
 /**

@@ -50,7 +50,9 @@ const Z_CORTE = -2.5; // o braço testado convertendo pior que o controle
 //    Vale também pra teste que muda só o que vem DEPOIS do clique (15/10): a
 //    `folha_pix` é a folha que o clique abre, e foi desligada assim em 14/10
 //    00h, sem ninguém mandar, no meio da leitura (B estava na frente).
-const POS_COMPRA = new Set(["outra_musica_24h", "video_fotos_ja", "obrigado_direto", "folha_pix"]);
+//    O `pix_reabre` (16/10) também: ele só age depois de o PIX ser GERADO,
+//    que vem depois do clique, então a régua dele é pago ÷ PIX gerado.
+const POS_COMPRA = new Set(["outra_musica_24h", "video_fotos_ja", "obrigado_direto", "folha_pix", "pix_reabre"]);
 
 type Ev = { session_id: string; event_name: string; event_data: Record<string, unknown> | null };
 

@@ -25,6 +25,16 @@ import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
 import { varianteDe, EXP_PROVA_BLOCOS } from "@/lib/experimentos";
 import { PixTransparente } from "@/components/quiz/PixTransparente";
+import { buscarPix } from "@/lib/buscar-pix";
+import { guardarTransacao } from "@/lib/google-ads";
+import {
+  EXP_PIX_REABRE,
+  esquecerPixAberto,
+  guardarPixAberto,
+  lerPixAberto,
+  pixParaReabrir,
+  pixReabreLigado,
+} from "@/lib/pix-reabre";
 import { CheckoutStripe } from "@/components/quiz/CheckoutStripe";
 import { MARCA } from "@/lib/marca";
 import { SorteioSemanal } from "@/components/quiz/SorteioSemanal";
@@ -575,6 +585,64 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     ancora?: string;
     valor: number;
   } | null>(null);
+  // ── TESTE `pix_reabre` (`pix-reabre.ts`) ─────────────────────────
+  //
+  // B: o PIX gerado fica guardado na aba, e a oferta que monta depois de um
+  // recarregamento (o iPhone descartou a aba enquanto ela estava no banco)
+  // reabre a folha direto no QR. `pixReaberto` é o PIX relido do servidor;
+  // sem ele a folha abre no resumo, como sempre. No A nada disto encosta no
+  // armazenamento: `reabre` é falso e todo caminho abaixo sai antes.
+  const [pixReaberto, setPixReaberto] = useState<{
+    copiaECola: string;
+    valorCentavos: number;
+    referencia: string;
+  } | null>(null);
+  const reabre = () => pixReabreLigado(varianteDe(EXP_PIX_REABRE), locale);
+  /** Fechou a folha: no B, o PIX guardado não volta mais. */
+  function esquecerFolhaPix() {
+    setPixReaberto(null);
+    if (reabre()) esquecerPixAberto();
+  }
+  useEffect(() => {
+    if (!reabre()) return;
+    const registro = pixParaReabrir(lerPixAberto(), Date.now(), getOrCreateSessionId());
+    if (!registro) {
+      esquecerPixAberto(); // torto, vencido ou de outra sessão
+      return;
+    }
+    let vivo = true;
+    buscarPix({ data: { referencia: registro.referencia } })
+      .then((d) => {
+        if (!vivo) return;
+        if (d.ok && !d.upsell) {
+          trackEvent("pix_reaberto", { segundos: Math.round((Date.now() - registro.criadoEm) / 1000) });
+          setPixReaberto({
+            copiaECola: d.copiaECola,
+            valorCentavos: d.valorCentavos,
+            referencia: registro.referencia,
+          });
+          setPagandoComPix({ texto: registro.texto, ancora: registro.ancora, valor: registro.valor });
+          return;
+        }
+        esquecerPixAberto();
+        trackEvent("pix_reabre_descartado", { motivo: d.ok ? "upsell" : d.motivo });
+        // PAGOU enquanto estava no banco: é o que a folha faria se a aba não
+        // tivesse recarregado (`PixPagamento`): guarda o id da venda pra
+        // dedupe da conversão e vai pra /obrigado.
+        if (!d.ok && d.motivo === "ja-pago") {
+          guardarTransacao(registro.referencia);
+          window.location.href = "/obrigado";
+        }
+      })
+      .catch(() => {
+        // Consulta caiu: a oferta segue normal, e o registro fica pra próxima
+        // montagem. Na dúvida, não abre folha nenhuma.
+      });
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [aberta, setAberta] = useState<number | null>(null);
   // O pagamento da Ballad Gift. Guarda só o preço já formatado, pro título da
   // folha: quem decide o valor cobrado é o servidor (`stripe-checkout.ts`).
@@ -1072,6 +1140,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
             onClick={() => {
               trackEvent("pix_transparente_fechou");
               setPagandoComPix(null);
+              esquecerFolhaPix();
             }}
             className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]"
           />
@@ -1090,11 +1159,31 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
               aoDesistir={() => {
                 trackEvent("pix_transparente_desistiu");
                 setPagandoComPix(null);
+                esquecerFolhaPix();
               }}
               aoVoltar={() => {
                 trackEvent("pix_transparente_fechou", { pelo: "voltar" });
                 setPagandoComPix(null);
+                esquecerFolhaPix();
               }}
+              // TESTE `pix_reabre`: no A as três ficam `undefined` e a folha
+              // é a de sempre. No B, o QR guardado ao aparecer, reaberto
+              // depois de recarregar, e esquecido ao pagar.
+              pixInicial={pixReaberto ?? undefined}
+              aoGerar={
+                reabre()
+                  ? (referencia) =>
+                      guardarPixAberto({
+                        referencia,
+                        sessionId: getOrCreateSessionId(),
+                        criadoEm: Date.now(),
+                        texto: pagandoComPix.texto,
+                        ancora: pagandoComPix.ancora,
+                        valor: pagandoComPix.valor,
+                      })
+                  : undefined
+              }
+              aoPago={reabre() ? () => esquecerPixAberto() : undefined}
             />
           </div>
         </div>

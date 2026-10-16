@@ -25,6 +25,7 @@ import { APartirDe } from "@/components/quiz/PrecoDaOferta";
 import { t } from "@/lib/textos";
 import { ehArgentina } from "@/lib/mercado-es";
 import { varianteDe, FORA } from "@/lib/experimentos";
+import { chaveDosRefroes, pegarRefroesAdiantados } from "@/lib/letra-na-revisao";
 
 // A REVELAÇÃO — agora é COAUTORIA, não letra pronta.
 //
@@ -90,6 +91,38 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
   const temHistoria = (r: Record<string, unknown>) =>
     Boolean(String(r.historia1 ?? "").trim() || String(r.historia2 ?? "").trim());
 
+  // ── TESTE `letra_na_revisao` (`letra-na-revisao.ts`) ─────────────
+  //
+  // A primeira chamada dos refrões. No B, a revisão pode ter disparado essa
+  // mesma chamada (mesma sessão, mesmo idioma, mesmas respostas) e guardado
+  // a promessa: aqui ela é reaproveitada, sem chamar o servidor de novo e,
+  // portanto, sem cobrar o teto duas vezes. Respostas diferentes dão outra
+  // chave e caem na chamada normal, exatamente como no A.
+  //
+  // Se a promessa adiantada falhou, uma chamada nova (a de sempre): a falha
+  // da revisão não pode virar tela de erro que o A não teria mostrado.
+  // "Outra opção" e "tentar de novo" nunca passam por aqui com a promessa: ela
+  // é consumida no primeiro uso.
+  async function primeirosRefroes(): Promise<RefroesGerados> {
+    const sessionId = getOrCreateSessionId();
+    const adiantada = pegarRefroesAdiantados(chaveDosRefroes(sessionId, vivas(), locale));
+    if (adiantada) {
+      try {
+        const dados = await adiantada.promessa;
+        trackEvent("letra_adiantada_usada", {
+          pronta: adiantada.pronta,
+          idade_s: Math.round(adiantada.idadeMs / 1000),
+        });
+        return dados;
+      } catch (err) {
+        trackEvent("letra_adiantada_falhou", {
+          motivo: err instanceof Error ? err.message.slice(0, 120) : "desconhecido",
+        });
+      }
+    }
+    return gerarRefroes({ data: { sessionId, respostas: vivas(), locale } });
+  }
+
   // ── A VARIANTE B: DIRETO AO PONTO ─────────────────────────────
   //
   // Mesmas funções do A, sem as perguntas. Escolhe o primeiro refrão sozinho,
@@ -106,9 +139,7 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
   async function caminhoDireto() {
     setFase({ t: "carregando", msg: T.loadingLetra[0] });
     try {
-      const dados = await gerarRefroes({
-        data: { sessionId: getOrCreateSessionId(), respostas: vivas(), locale },
-      });
+      const dados = await primeirosRefroes();
       const letra = await montarLetra({
         data: {
           sessionId: getOrCreateSessionId(),
@@ -132,9 +163,13 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
       setRegerando(true);
     } else setFase({ t: "carregando", msg: T.loadingLetra[0] });
     try {
-      const dados = await gerarRefroes({
-        data: { sessionId: getOrCreateSessionId(), respostas: vivas(), locale },
-      });
+      // Só a carga inicial pode reaproveitar a revisão (`primeirosRefroes`);
+      // a regeração é sempre uma chamada nova.
+      const dados = regen
+        ? await gerarRefroes({
+            data: { sessionId: getOrCreateSessionId(), respostas: vivas(), locale },
+          })
+        : await primeirosRefroes();
       setFase({ t: "refroes", dados });
       trackEventOnce("coautoria_refroes", "v1");
     } catch (err) {
