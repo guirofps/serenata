@@ -46,11 +46,13 @@ const ROTULO: Record<Locale, string> = {
 };
 
 // O que ESTE site oferece. A Serenata fala português e espanhol; a Ballad Gift
-// (EUA) é outro site, só inglês. Sem este filtro, um navegador em inglês
-// visitando a Serenata ganharia um "View in English" que leva pra home em
-// português (o inglês não existe neste domínio), e na Ballad um navegador em
-// português ganharia um link pra uma página que não existe.
-const OFERECIDOS: readonly Locale[] = LOCALE_PADRAO === "en" ? [] : ["pt", "es"];
+// (EUA) fala inglês e, desde 09/10, o espanhol dos hispanos (`/es`). Sem este
+// filtro, um navegador em inglês visitando a Serenata ganharia um "View in
+// English" que leva pra home em português (o inglês não existe neste domínio),
+// e na Ballad um navegador em português ganharia um link pra uma página que
+// não existe. Até 16/10 a Ballad não oferecia nada: um hispano com o celular
+// em espanhol que digitava `balladgift.com` caía no inglês sem saber do `/es`.
+const OFERECIDOS: readonly Locale[] = LOCALE_PADRAO === "en" ? ["en", "es"] : ["pt", "es"];
 
 export function OfereceIdioma() {
   // Renderiza vazio no servidor e no primeiro render do cliente: o localStorage

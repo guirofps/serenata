@@ -141,6 +141,17 @@ export const OFERTAS: Oferta[] = [
 ];
 
 /**
+ * O preço do vídeo na Ballad, como a folha do editor mostra ("$12"). Mora aqui,
+ * no catálogo puro, e não em `stripe-upsell.ts` (16/10): o e-mail do vídeo
+ * (job `ofertaVideo`) precisa dele, e importar o módulo do Stripe num job do
+ * Inngest arrastaria a função de servidor e o cliente do Stripe junto.
+ */
+export function precoVideoUsdTexto(): string | null {
+  const v = OFERTAS.find((o) => o.id === "video")?.precoUsd;
+  return v ? `$${Number.isInteger(v) ? v : v.toFixed(2)}` : null;
+}
+
+/**
  * A oferta de uma referência de upsell, `up:<oferta>:<uuid>`, com ou sem o
  * prefixo do gateway (`asaas:up:extra:...`). Conferida contra o CATÁLOGO:
  * texto que não bate com nenhuma oferta devolve null, nunca uma oferta inventada.

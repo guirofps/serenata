@@ -11,10 +11,12 @@ import {
   emailVideoOferta,
   assuntoVideoOferta,
   textoVideoOferta,
+  idiomaDaOfertaVideo,
+  precoDoVideoNoEmail,
+  type IdiomaOfertaVideo,
 } from "../../emails/video-oferta.js";
 import { emailFotosVideo, assuntoFotosVideo, textoFotosVideo } from "../../emails/fotos-video.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
-import { textoPrecoVideo } from "../../src/lib/preco-video.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O VÍDEO, no dia seguinte à compra, pra quem já subiu foto.
@@ -37,6 +39,14 @@ import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 // PIX). E só com o render configurado: vender o que a infraestrutura não
 // sabe produzir é a regra que este projeto não quebra.
 //
+// ── NA BALLAD (16/10) ────────────────────────────────────────────
+//
+// Lá o vídeo é vendido pelo Stripe, em dólar, em inglês E em espanhol, e não
+// havia e-mail nenhum: o comprador só via a oferta se voltasse ao editor por
+// conta própria. Mesmo job, mesma régua, copy escrita pra cada idioma
+// (`idiomaDaOfertaVideo`), preço da folha do editor (`precoDoVideoNoEmail`).
+// O cron é o mesmo: 10h50 às 19h50 de Brasília é 9h50 às 18h50 em Nova York.
+//
 // ── E QUEM NÃO SUBIU FOTO (25/09) ────────────────────────────────
 //
 // Metade dos compradores não tinha foto nenhuma (21 de 40), e os 3 vídeos
@@ -58,6 +68,18 @@ const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
   : MARCA_ATIVA.url;
 const linkDoVideo = (tokenEdicao: string) => `${SITE}/editar/${tokenEdicao}?de=video#video`;
+// Quando o quiz não guardou o nome nem a música o título. O espanhol é só o da
+// Ballad (`tú`): o da Serenata não recebe este e-mail.
+const NOME_PADRAO: Record<IdiomaOfertaVideo, string> = {
+  pt: "quem você ama",
+  en: "someone you love",
+  es: "quien tú quieres",
+};
+const TITULO_PADRAO: Record<IdiomaOfertaVideo, string> = {
+  pt: "Sua música",
+  en: "Your song",
+  es: "Tu canción",
+};
 
 const MIN_DIAS = 1;
 const MIN_DIAS_SEM_FOTO = 2;
@@ -128,6 +150,7 @@ export const ofertaVideo = inngest.createFunction(
         musicaId: string;
         tipo: Tipo;
         quizId: string | null;
+        locale: IdiomaOfertaVideo;
       }> = [];
       const conta = { comFoto: 0, semFoto: 0 };
       // Quem JÁ recebeu cada tipo, numa consulta só por tipo. Com a janela
@@ -162,7 +185,7 @@ export const ofertaVideo = inngest.createFunction(
 
         const { data: m } = await sb
           .from("musicas")
-          .select("id, titulo, status, token_edicao, foto_path, galeria")
+          .select("id, titulo, status, token_edicao, foto_path, galeria, locale")
           .eq("id", p.musica_id)
           .maybeSingle();
         if (!m || m.status !== "pronta") continue;
@@ -184,16 +207,24 @@ export const ofertaVideo = inngest.createFunction(
               .eq("id", p.quiz_response_id)
               .maybeSingle()
           : { data: null };
-        if ((q as { locale?: string } | null)?.locale === "es") continue;
+        // O idioma da VENDA. Na Serenata só o do quiz decide, como sempre foi
+        // (espanhol fica de fora). Na Ballad, sem quiz, vale o da música, cujo
+        // padrão lá é 'en' (ver `guardeOLink`).
+        const ballad = MARCA_ATIVA.chave === "ballad";
+        const brutoLocale =
+          (q as { locale?: string } | null)?.locale ?? (ballad ? (m.locale as string | null) : null);
+        const locale = idiomaDaOfertaVideo(brutoLocale, ballad);
+        if (!locale) continue;
 
         out.push({
           email: p.email,
-          nome: ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() || "quem você ama",
-          titulo: m.titulo ?? "Sua música",
+          nome: ((q?.respostas ?? {}) as Record<string, string>).nome?.trim() || NOME_PADRAO[locale],
+          titulo: m.titulo ?? TITULO_PADRAO[locale],
           link: linkDoVideo(m.token_edicao as string),
           musicaId: m.id,
           tipo,
           quizId: p.quiz_response_id ?? null,
+          locale,
         });
         conta[tipo] += 1;
       }
@@ -213,12 +244,14 @@ export const ofertaVideo = inngest.createFunction(
         // Teste `limite_frequencia` (08/10): no braço B, no máximo 2 e-mails
         // de marketing por endereço em 24h. Barrado aqui não grava marca, e
         // volta na próxima rodada. No A não vai ao banco.
-        if (!(await podeMandarMarketing(sb, c.email, c.quizId))) return false;
+        if (!(await podeMandarMarketing(sb, c.email, c.quizId, { locale: c.locale }))) return false;
 
         const semFoto = c.tipo === "semFoto";
         const template = semFoto ? "fotos_video" : "oferta_video";
         // O preço da música DESTA pessoa (teste `preco_video`): o e-mail diz o que a tela vai cobrar.
-        const preco = textoPrecoVideo(c.link.match(/\/editar\/([0-9a-f]+)/)?.[1]);
+        // Na Ballad, o dólar do catálogo; sem ele a oferta não existe no editor, e o e-mail não sai.
+        const preco = precoDoVideoNoEmail(c.locale, c.link.match(/\/editar\/([0-9a-f]+)/)?.[1]);
+        if (!preco) return false;
         const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: template }],
           // Remetente de RECUPERAÇÃO: é oferta, não entrega (ver `emails/remetentes.ts`).
@@ -226,14 +259,20 @@ export const ofertaVideo = inngest.createFunction(
           replyTo: RESPONDER_PARA,
           to: [c.email],
           headers: cabecalhosDescadastro(c.email),
-          subject: semFoto ? assuntoFotosVideo(c.nome) : assuntoVideoOferta(c.nome),
+          subject: semFoto ? assuntoFotosVideo(c.nome, c.locale) : assuntoVideoOferta(c.nome, c.locale),
           html: (semFoto ? emailFotosVideo : emailVideoOferta)({
             nome: c.nome,
             titulo: c.titulo,
             link: c.link,
             preco,
+            locale: c.locale,
           }),
-          text: (semFoto ? textoFotosVideo : textoVideoOferta)({ nome: c.nome, link: c.link, preco }),
+          text: (semFoto ? textoFotosVideo : textoVideoOferta)({
+            nome: c.nome,
+            link: c.link,
+            preco,
+            locale: c.locale,
+          }),
         });
         if (error) {
           console.error("[oferta-video] envio falhou:", error.message);

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { type Locale, normalizarLocale } from "@/lib/i18n";
 import { ehArgentina } from "@/lib/mercado-es";
+import { MAX_DEDICATORIA, MAX_GALERIA, type ErroPersonalizar } from "@/lib/erro-personalizar";
 
 // Personalização da página-presente pelo COMPRADOR.
 //
@@ -61,9 +62,11 @@ export type PresenteEditavel = {
   }>;
 };
 
-export const MAX_GALERIA = 12;
+// Os dois limites moram em `erro-personalizar.ts` (16/10), junto da frase que
+// os cita: o servidor recusa por código e a tela escreve o número, no idioma
+// dela. Um número só nos dois lados.
+export { MAX_GALERIA };
 
-const MAX_DEDICATORIA = 280;
 // O bucket recusa acima de 5 MB, mas a checagem aqui evita subir o payload
 // inteiro só para o storage rejeitar no fim.
 const MAX_FOTO_BYTES = 5 * 1024 * 1024;
@@ -261,14 +264,14 @@ export const adicionarNaGaleria = createServerFn({ method: "POST" })
     }): Promise<{
       ok: boolean;
       galeria?: Array<{ caminho: string; url: string }>;
-      erro?: string;
+      erro?: ErroPersonalizar;
     }> => {
       const m = await buscarPorTokenEdicao(data.tokenEdicao);
-      if (!m) return { ok: false, erro: "não encontrado" };
+      if (!m) return { ok: false, erro: "nao_encontrado" };
 
       const atual: string[] = m.galeria ?? [];
       const cabem = MAX_GALERIA - atual.length;
-      if (cabem <= 0) return { ok: false, erro: `A galeria já tem ${MAX_GALERIA} fotos.` };
+      if (cabem <= 0) return { ok: false, erro: "galeria_cheia" };
 
       const db = supabaseAdmin();
       const novos: string[] = [];
@@ -297,7 +300,7 @@ export const adicionarNaGaleria = createServerFn({ method: "POST" })
         novos.push(caminho);
       }
 
-      if (!novos.length) return { ok: false, erro: "Nenhuma foto pôde ser usada." };
+      if (!novos.length) return { ok: false, erro: "nenhuma_foto" };
 
       const galeria = [...atual, ...novos];
       const { error } = await db
@@ -306,7 +309,7 @@ export const adicionarNaGaleria = createServerFn({ method: "POST" })
         .eq("id", m.id);
       if (error) {
         console.error("[galeria] update falhou:", error.message);
-        return { ok: false, erro: "Não consegui salvar agora." };
+        return { ok: false, erro: "salvar" };
       }
       return { ok: true, galeria: await assinarGaleria(galeria) };
     },
@@ -359,10 +362,10 @@ export const salvarPersonalizacao = createServerFn({ method: "POST" })
     (data: { tokenEdicao: string; dedicatoria?: string | null; fotoBase64?: string | null }) =>
       data,
   )
-  .handler(async ({ data }): Promise<{ ok: boolean; fotoUrl?: string | null; erro?: string }> => {
+  .handler(async ({ data }): Promise<{ ok: boolean; fotoUrl?: string | null; erro?: ErroPersonalizar }> => {
     const m = await buscarPorTokenEdicao(data.tokenEdicao);
     // Mensagem genérica de propósito: não confirma se o token existe.
-    if (!m) return { ok: false, erro: "não encontrado" };
+    if (!m) return { ok: false, erro: "nao_encontrado" };
 
     const db = supabaseAdmin();
     const patch: Record<string, unknown> = { personalizada_em: new Date().toISOString() };
@@ -371,7 +374,7 @@ export const salvarPersonalizacao = createServerFn({ method: "POST" })
     if (data.dedicatoria !== undefined) {
       const texto = (data.dedicatoria ?? "").trim();
       if (texto.length > MAX_DEDICATORIA) {
-        return { ok: false, erro: `A dedicatória passa de ${MAX_DEDICATORIA} caracteres.` };
+        return { ok: false, erro: "frase_longa" };
       }
       patch.dedicatoria = texto || null;
     }
@@ -380,18 +383,18 @@ export const salvarPersonalizacao = createServerFn({ method: "POST" })
     let fotoUrl: string | null | undefined;
     if (data.fotoBase64) {
       const casa = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/.exec(data.fotoBase64);
-      if (!casa) return { ok: false, erro: "Formato de imagem não aceito." };
+      if (!casa) return { ok: false, erro: "formato" };
       const [, tipo, b64] = casa;
       if (!TIPOS_OK.includes(tipo as (typeof TIPOS_OK)[number])) {
-        return { ok: false, erro: "Formato de imagem não aceito." };
+        return { ok: false, erro: "formato" };
       }
 
       const bytes = Buffer.from(b64, "base64");
       if (bytes.length > MAX_FOTO_BYTES) {
-        return { ok: false, erro: "A imagem é grande demais." };
+        return { ok: false, erro: "grande" };
       }
       if (!conferirAssinatura(bytes, tipo)) {
-        return { ok: false, erro: "Formato de imagem não aceito." };
+        return { ok: false, erro: "formato" };
       }
 
       // Caminho fixo por música: republicar SUBSTITUI em vez de acumular
@@ -403,7 +406,7 @@ export const salvarPersonalizacao = createServerFn({ method: "POST" })
         .upload(caminho, bytes, { contentType: tipo, upsert: true });
       if (error) {
         console.error("[personalizar] upload falhou:", error);
-        return { ok: false, erro: "Não consegui subir a foto agora." };
+        return { ok: false, erro: "subir" };
       }
 
       // Trocou de extensão? Apaga a anterior, senão fica órfã no bucket.
@@ -417,7 +420,7 @@ export const salvarPersonalizacao = createServerFn({ method: "POST" })
     const { error } = await db.from("musicas").update(patch).eq("id", m.id);
     if (error) {
       console.error("[personalizar] update falhou:", error);
-      return { ok: false, erro: "Não consegui salvar agora." };
+      return { ok: false, erro: "salvar" };
     }
     return { ok: true, fotoUrl };
   });

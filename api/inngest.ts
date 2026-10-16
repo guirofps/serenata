@@ -77,6 +77,10 @@ const DA_BALLAD = [
   // do bump do checkout brasileiro (`liberarVideoDoBump`); o vídeo do Stripe
   // nasce `aguardando` (`creditarUpsell`, padrão da tabela).
   videoPendente,
+  // O e-mail do vídeo no dia seguinte à compra (16/10), em inglês e no
+  // espanhol dos EUA, com o preço em dólar da folha do editor. Antes a Ballad
+  // vendia o vídeo só pra quem voltasse ao editor sozinho.
+  ofertaVideo,
   // Pós-compra em inglês (30/09): o lembrete de montar a página (quem pagou e
   // não mexeu) e o "guarde seus links" (quem montou), com a copy `en`.
   lembrarPresente,

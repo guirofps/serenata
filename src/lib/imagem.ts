@@ -12,6 +12,10 @@
 // (`Presente.tsx`) medem a proporção real e cortam com cuidado. Cortar aqui,
 // antes de saber onde a foto vai aparecer, só perdia informação.
 
+// Recusa com CÓDIGO (`ErroFoto`, 16/10): o editor escreve a frase no idioma
+// da venda. A mensagem em português fica só pro log.
+import { ErroFoto } from "@/lib/erro-personalizar";
+
 const MAIOR_LADO = 1600; // cobre tela 2x em pé sem exagero de peso
 const QUALIDADE = 0.85;
 
@@ -25,7 +29,7 @@ export function tamanhoFinal(largura: number, altura: number, maiorLado = MAIOR_
 
 export async function prepararFoto(arquivo: File): Promise<FotoPreparada> {
   if (!/^image\/(jpeg|png|webp)$/.test(arquivo.type)) {
-    throw new Error("Use uma foto JPG, PNG ou WEBP.");
+    throw new ErroFoto("tipo", "Use uma foto JPG, PNG ou WEBP.");
   }
 
   // `imageOrientation: "from-image"` respeita o EXIF: sem isso, foto tirada
@@ -37,7 +41,7 @@ export async function prepararFoto(arquivo: File): Promise<FotoPreparada> {
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Não consegui preparar a foto neste navegador.");
+  if (!ctx) throw new ErroFoto("navegador", "Não consegui preparar a foto neste navegador.");
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(bitmap, 0, 0, w, h);
   bitmap.close();

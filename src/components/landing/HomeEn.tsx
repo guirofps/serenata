@@ -13,6 +13,7 @@ import { PresenteNoTopo } from "@/components/landing/PresenteNoTopo";
 import { ProvaSocial } from "@/components/landing/ProvaSocial";
 import { useProfundidadeRolagem } from "@/lib/rolagem";
 import { exemploEn } from "@/lib/exemplos-en";
+import { OfereceIdioma } from "@/components/OfereceIdioma";
 import { ArrowRight, Menu, X } from "lucide-react";
 
 // A HOME DA BALLAD GIFT (EUA).
@@ -65,6 +66,8 @@ export function HomeEn() {
   return (
     <div className="min-h-screen bg-[var(--papel)] text-[var(--tinta)]" style={TEMA_CLARO}>
       <div className="fio-marca fixed inset-x-0 top-0 z-40" aria-hidden />
+      {/* "¿Prefieres español?" pra quem tem o celular em espanhol (16/10). */}
+      <OfereceIdioma />
 
       <header className="sticky top-0 z-30 border-b border-[var(--tinta-fraca)]/30 bg-[var(--papel)]/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">

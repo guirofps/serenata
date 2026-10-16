@@ -12,6 +12,7 @@ import {
   MAX_GALERIA,
 } from "@/lib/personalizar";
 import { prepararFoto } from "@/lib/imagem";
+import { ErroFoto, mensagemDoErro } from "@/lib/erro-personalizar";
 import { QrCode } from "@/components/presente/QrCode";
 import { Efeitos, EFEITOS, rotuloEfeito } from "@/components/presente/Efeitos";
 import { BotaoGuardar } from "@/components/presente/BotaoGuardar";
@@ -316,7 +317,8 @@ function Editor() {
       setFotoUrl(base64);
       const r = await salvarPersonalizacao({ data: { tokenEdicao, fotoBase64: base64 } });
       if (!r.ok) {
-        setErro(r.erro ?? T.erroFoto);
+        // O servidor manda o MOTIVO em código; a frase sai no idioma da venda.
+        setErro(r.erro ? mensagemDoErro(r.erro, locale) : T.erroFoto);
         setFotoUrl(p.fotoUrl); // desfaz o otimismo
         return;
       }
@@ -330,7 +332,10 @@ function Editor() {
         motivo: err instanceof Error ? err.message.slice(0, 80) : "desconhecido",
       });
       console.error("[editar] foto falhou:", err);
-      setErro(err instanceof Error ? err.message : T.erroUsarFoto);
+      // Só o nosso `ErroFoto` vira frase própria. O resto (o navegador que
+      // não decodifica a imagem, a rede) vinha com a mensagem crua do
+      // navegador, em inglês até na Serenata: vira o genérico do idioma.
+      setErro(err instanceof ErroFoto ? mensagemDoErro(err.codigo, locale) : T.erroUsarFoto);
       setFotoUrl(p.fotoUrl);
     } finally {
       setSalvando(false);
@@ -373,7 +378,7 @@ function Editor() {
       for (let i = 0; i < prontas.length; i += FOTOS_POR_ENVIO) {
         const r = await adicionarNaGaleria({ data: { tokenEdicao, fotosBase64: prontas.slice(i, i + FOTOS_POR_ENVIO) } });
         if (!r.ok) {
-          setErro(r.erro ?? T.erroSalvarFotos);
+          setErro(r.erro ? mensagemDoErro(r.erro, locale) : T.erroSalvarFotos);
           return;
         }
         setGaleria(r.galeria ?? []);
@@ -429,7 +434,7 @@ function Editor() {
     setErro(null);
     const r = await salvarPersonalizacao({ data: { tokenEdicao, dedicatoria: texto } });
     if (!r.ok) {
-      setErro(r.erro ?? T.erroFrase);
+      setErro(r.erro ? mensagemDoErro(r.erro, locale) : T.erroFrase);
       setFraseStatus("idle");
     } else {
       setFraseStatus("salvo");

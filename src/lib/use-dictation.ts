@@ -37,10 +37,24 @@ function getRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+/**
+ * O que deu errado no ditado, como CÓDIGO (16/10). A frase sai em quem mostra
+ * (`StoryStep`, pelos textos do idioma do funil): o hook não sabe o idioma da
+ * tela, e as frases em português daqui apareciam no inglês e no espanhol.
+ */
+export type ErroDitado = "sem_suporte" | "sem_permissao" | "sem_fala" | "falhou";
+
+/** O código do `onerror` da Web Speech API traduzido pro nosso. */
+export function erroDoReconhecedor(cod: string | undefined): ErroDitado {
+  if (cod === "not-allowed") return "sem_permissao";
+  if (cod === "no-speech") return "sem_fala";
+  return "falhou";
+}
+
 export type DictationState = {
   suportado: boolean;
   gravando: boolean;
-  erro: string | null;
+  erro: ErroDitado | null;
   parcial: string;
   alternar: () => void;
 };
@@ -51,7 +65,7 @@ export function useDictation(
 ): DictationState {
   const [suportado, setSuportado] = useState(false);
   const [gravando, setGravando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro, setErro] = useState<ErroDitado | null>(null);
   const [parcial, setParcial] = useState("");
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   // Guarda o callback num ref: evita recriar o reconhecedor a cada tecla.
@@ -81,7 +95,7 @@ export function useDictation(
   const iniciar = useCallback(() => {
     const Ctor = getRecognitionCtor();
     if (!Ctor) {
-      setErro("Seu navegador não suporta ditado. Pode escrever no campo.");
+      setErro("sem_suporte");
       return;
     }
     setErro(null);
@@ -108,14 +122,7 @@ export function useDictation(
       setParcial(interino);
     };
     rec.onerror = (e) => {
-      const cod = e.error ?? "";
-      setErro(
-        cod === "not-allowed"
-          ? "Preciso da permissão do microfone pra te ouvir."
-          : cod === "no-speech"
-            ? "Não consegui ouvir nada. Tenta de novo?"
-            : "Deu ruim na gravação. Pode escrever no campo.",
-      );
+      setErro(erroDoReconhecedor(e.error));
       setGravando(false);
       recRef.current = null;
     };
@@ -133,7 +140,7 @@ export function useDictation(
     recRef.current = rec;
     rec.start();
     setGravando(true);
-  }, []);
+  }, [lang]);
 
   // Solta o microfone se o componente sair da tela no meio da gravação.
   useEffect(() => () => recRef.current?.stop(), []);
