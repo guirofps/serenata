@@ -56,6 +56,15 @@ export type Ocasiao = {
    * a graça da oferta é falar de quem ainda não tem.
    */
   pulaSeJaFezPara: string[];
+  /**
+   * Existe copy própria pra esta data em `emails/ocasiao.ts`? Sem ela a régua
+   * NÃO abre. Até 16/10 o e-mail era um só, escrito pro Dia das Crianças: o
+   * Natal (janela abrindo sozinha em 25/11, ~9 mil compradores) e o Dia das
+   * Mães sairiam "Maria ainda não tem uma música… filho é criança pra
+   * sempre", com o NOME de quem já ganhou a música (sem `exigeCampo`, o
+   * "filho" vira `respostas.nome`). Só liga depois de escrever a copy dela.
+   */
+  temCopy: boolean;
 };
 
 export const OCASIOES: Ocasiao[] = [
@@ -72,6 +81,7 @@ export const OCASIOES: Ocasiao[] = [
     // não funciona.
     exigeCampo: "filhos",
     pulaSeJaFezPara: ["filho", "filha"],
+    temCopy: true,
   },
   {
     slug: "natal",
@@ -83,6 +93,7 @@ export const OCASIOES: Ocasiao[] = [
     terminaDiasAntes: 5,
     exigeCampo: null,
     pulaSeJaFezPara: [],
+    temCopy: false,
   },
   {
     slug: "maes",
@@ -93,6 +104,7 @@ export const OCASIOES: Ocasiao[] = [
     exigeCampo: null,
     // 99% nunca fizeram pra mãe: é o maior espaço vazio da base inteira.
     pulaSeJaFezPara: ["mae", "mãe"],
+    temCopy: false,
   },
 ];
 
@@ -105,13 +117,17 @@ export const OCASIAO_PROIBIDA = "memorial";
  * Devolve uma só: duas ofertas de calendário na mesma semana, pra mesma
  * pessoa, é perseguição. Se as janelas se cruzarem, ganha a mais próxima.
  */
-export function ocasiaoDeHoje(agora: Date = new Date()): { ocasiao: Ocasiao; ano: number } | null {
+export function ocasiaoDeHoje(
+  agora: Date = new Date(),
+  // Só as que têm copy própria (`temCopy`). O teste da janela passa a lista inteira.
+  lista: Ocasiao[] = OCASIOES.filter((o) => o.temCopy),
+): { ocasiao: Ocasiao; ano: number } | null {
   // Fuso de Brasília: o cron roda em UTC e a virada do dia importa aqui,
   // porque a janela é contada em dias inteiros.
   const hoje = new Date(agora.getTime() - 3 * 3600000);
   const candidatos: Array<{ ocasiao: Ocasiao; ano: number; faltam: number }> = [];
 
-  for (const o of OCASIOES) {
+  for (const o of lista) {
     const [mes, dia] = o.dia.split("-").map(Number);
     // Este ano e o que vem: em dezembro, o Dia das Mães que importa é o do
     // ano seguinte, e sem isso a janela nunca abriria pra ele.

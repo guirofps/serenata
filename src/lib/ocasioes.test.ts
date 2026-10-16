@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ocasiaoDeHoje, primeiroNome, templateDaOcasiao } from "./ocasioes";
+import { OCASIOES, ocasiaoDeHoje, primeiroNome, templateDaOcasiao } from "./ocasioes";
 
 // A JANELA DE DISPARO E O NOME QUE VAI NO ASSUNTO.
 //
@@ -36,14 +36,14 @@ describe("janela da ocasião", () => {
 
   it("enxerga a data do ANO QUE VEM quando ela está mais perto", () => {
     // 20/04 está a 20 dias do Dia das Mães de 2026 — dentro dos 21.
-    const r = ocasiaoDeHoje(em("2026-04-20"));
+    const r = ocasiaoDeHoje(em("2026-04-20"), OCASIOES);
     expect(r?.ocasiao.slug).toBe("maes");
     expect(r?.ano).toBe(2026);
   });
 
   it("quando duas janelas se cruzam, ganha a mais próxima", () => {
     // 25/11: Natal está a 30 dias (dentro da janela). Nenhuma outra abre.
-    expect(ocasiaoDeHoje(em("2026-11-25"))?.ocasiao.slug).toBe("natal");
+    expect(ocasiaoDeHoje(em("2026-11-25"), OCASIOES)?.ocasiao.slug).toBe("natal");
   });
 });
 
@@ -91,5 +91,13 @@ describe("nome do filho, vindo de campo livre", () => {
     for (const lixo of ["", "   ", "-", "1", "x", "nao", "não tenho", "n/a"]) {
       expect(primeiroNome(lixo)).toBeNull();
     }
+  });
+});
+
+describe("ocasião sem copy própria", () => {
+  const em = (iso: string) => new Date(iso + "T15:00:00Z");
+  it("Natal e Dia das Mães não abrem enquanto o e-mail for o do Dia das Crianças", () => {
+    expect(ocasiaoDeHoje(em("2026-11-25"))).toBeNull();
+    expect(ocasiaoDeHoje(em("2027-04-25"))).toBeNull();
   });
 });
