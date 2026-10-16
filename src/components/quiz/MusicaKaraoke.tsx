@@ -97,8 +97,16 @@ export function MusicaKaraoke({
   // demos que mandamos pra alguém ouvir; o funil real nunca passa isso.
   completo = false,
   locale = "pt",
+  renovarAudio,
 }: {
   audioUrl: string;
+  /**
+   * Pede ao servidor um link novo do áudio (16/10). O link assinado vale 1h e
+   * a prévia por stream morre quando a gravação termina: quem voltava à aba
+   * depois disso apertava play e nada tocava, em silêncio. Devolve a URL nova
+   * (ou null), e o player troca o `src` sozinho.
+   */
+  renovarAudio?: () => Promise<string | null>;
   /**
    * Timestamps pra acender palavra por palavra. `null` quando a musica ainda
    * esta na PREVIA: eles so nascem com o arquivo final, uns 60s depois.
@@ -311,6 +319,24 @@ export function MusicaKaraoke({
   // continua valendo, porque ela olha o `currentTime`, não o arquivo.
   const [fonte, setFonte] = useState(audioUrl);
   const retomar = useRef<{ em: number; tocando: boolean } | null>(null);
+  // Até 2 renovações por tela: link que falha de novo logo depois não é
+  // vencimento, e insistir viraria laço.
+  const renovacoes = useRef(0);
+  async function renovarFonte(tocarDepois: boolean) {
+    if (!renovarAudio || renovacoes.current >= 2) return false;
+    renovacoes.current += 1;
+    const a = audioRef.current;
+    try {
+      const nova = await renovarAudio();
+      if (!nova || nova === fonte) return false;
+      retomar.current = { em: a?.currentTime ?? 0, tocando: tocarDepois };
+      setFonte(nova);
+      trackEvent("musica_audio_renovado", { tocarDepois });
+      return true;
+    } catch {
+      return false;
+    }
+  }
   useEffect(() => {
     if (audioUrl === fonte) return;
     const a = audioRef.current;
@@ -358,6 +384,9 @@ export function MusicaKaraoke({
         navegador: familiaDoNavegador(typeof navigator !== "undefined" ? navigator.userAgent : ""),
         prontidao: a.readyState,
       });
+      // Arquivo que não abre (link vencido, prévia que acabou): busca um link
+      // novo e toca de lá. Política de autoplay não se resolve trocando link.
+      if (!(err instanceof Error && err.name === "NotAllowedError")) void renovarFonte(true);
     }
   }
 
@@ -368,6 +397,9 @@ export function MusicaKaraoke({
         src={fonte}
         preload="auto"
         onLoadedMetadata={aoCarregar}
+        // O link pode vencer ANTES do play (aba esquecida aberta): o erro de
+        // carregamento já pede o novo, e o próximo toque toca.
+        onError={() => void renovarFonte(false)}
       />
 
       {/* Player */}

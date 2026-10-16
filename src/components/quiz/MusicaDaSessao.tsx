@@ -188,6 +188,19 @@ export function MusicaDaSessao({
         }
         aoTravar={aoTravarPrevia}
         locale={locale}
+        renovarAudio={async () => {
+          const r = await statusMusica({ data: { sessionId: getOrCreateSessionId() } });
+          if (r.status === "pronta" && r.audioUrl) {
+            setAudioUrl(r.audioUrl);
+            setWords(r.timestamps ?? null);
+            return r.audioUrl;
+          }
+          if (r.previaUrl) {
+            setPreviaUrl(r.previaUrl);
+            return r.previaUrl;
+          }
+          return null;
+        }}
       />
     );
   }
