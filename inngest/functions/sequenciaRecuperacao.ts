@@ -781,10 +781,19 @@ export const sequenciaRecuperacao = inngest.createFunction(
         // música casada".
         // O inglês (Ballad Gift) nunca entra aqui: sem desconto e sem PIX, o
         // botão dele é sempre o `/retomar`, no preço que ela viu na oferta.
+        //
+        // SÓ O DEGRAU COM DESCONTO vai direto pro checkout (16/10). O degrau 2
+        // é preço CHEIO e o botão dele diz "Ouvir a música inteira": levava a
+        // `/oferta/<token>`, que não toca áudio e pede CPF logo de cara (14
+        // dias: 110 aberturas, 70 pedidos de CPF, 8 PIX; 1.247 envios e 2
+        // vendas). A preço cheio o motivo de pular o funil não existe, e o
+        // `/retomar` é onde a música toca, com PIX e cartão, no preço do braço
+        // dela: o mesmo destino do `quase_comprou`.
         const naEscada = p.locale === "pt" && p.numero >= 2 && p.numero <= 11;
-        const link = naEscada
-          ? linkDeCompra(p.numero as DegrauEscada, p.sessao, p.email)
-          : `${SITE}/retomar?s=${encodeURIComponent(p.sessao)}`;
+        const link =
+          naEscada && temDesconto(p.numero as DegrauEscada)
+            ? linkDeCompra(p.numero as DegrauEscada, p.sessao, p.email)
+            : `${SITE}/retomar?s=${encodeURIComponent(p.sessao)}${naEscada ? "&de=escada" : ""}`;
 
         // A TRAVA ANTES DO ENVIO (08/10). O `numero` deste evento é o que faz
         // a régua andar: a próxima rodada lê ele pra saber em que degrau a
