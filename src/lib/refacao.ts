@@ -113,11 +113,12 @@ export const pedirRefacao = createServerFn({ method: "POST" })
     const { data: m } = await db
       .from("musicas")
       .select(
-        "id, letra, titulo, estilo_suno, genero, audio_path, audio_path_v2, timestamps, timestamps_v2, status, quiz_response_id, refacoes_incluidas, refacoes_usadas",
+        "id, letra, titulo, estilo_suno, genero, audio_path, audio_path_v2, timestamps, timestamps_v2, status, quiz_response_id, refacoes_incluidas, refacoes_usadas, locale",
       )
       .eq("token_edicao", data.tokenEdicao)
       .maybeSingle();
     if (!m?.id || !m.letra) return { ok: false, erro: "nao-encontrada" };
+    const idioma: "pt" | "es" | "en" = m.locale === "en" ? "en" : m.locale === "es" ? "es" : "pt";
 
     // ── VOZ OU ESTILO IGUAIS AOS DE AGORA NÃO SÃO PEDIDO (04/10) ──
     //
@@ -192,6 +193,17 @@ export const pedirRefacao = createServerFn({ method: "POST" })
           extras.push(
             "O pedido parece ser uma letra inteira escrita pelo cliente. Se for, ela é a letra nova: use os versos dele.",
           );
+        // O IDIOMA DA LETRA (16/10). O system é escrito pro português e manda
+        // reescrever pronúncia "como se fosse português" ("Simon" vira
+        // "Sáimon") e trocar "vc" por "você". Numa letra em inglês ou espanhol
+        // isso estraga a regravação, e o `falta` que o cliente lê saía em
+        // português. A instrução vai na mensagem, não no system cacheado.
+        if (idioma !== "pt")
+          extras.push(
+            idioma === "en"
+              ? "IDIOMA: a letra está em INGLÊS (EUA) e o cantor canta em inglês. Mantenha a letra em inglês. As regras de pronúncia e de abreviação do system valem para o INGLÊS, não para o português (não aportuguese nomes nem palavras). Escreva os campos \"falta\" e \"aviso\" em inglês."
+              : "IDIOMA: a letra está em ESPANHOL e o cantor canta em espanhol. Mantenha a letra em espanhol. As regras de pronúncia e de abreviação do system valem para o ESPANHOL, não para o português. Escreva os campos \"falta\" e \"aviso\" em espanhol, no mesmo tratamento (tú ou vos) que a letra usa.",
+          );
         const { texto, uso, stopReason } = await chamarClaude(
           `LETRA ATUAL:\n${m.letra}\n\nPEDIDO DO CLIENTE:\n${pedido}` +
             (extras.length ? `\n\n${extras.join("\n")}` : ""),
@@ -223,6 +235,7 @@ export const pedirRefacao = createServerFn({ method: "POST" })
           resposta: j,
           pedido,
           mudaSom: Boolean(novoGenero || novaVoz),
+          idioma,
         });
         if (decisao.tipo === "vago") {
           // O pedido vai pro log (só servidor): é a única forma de ler depois

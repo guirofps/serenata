@@ -101,6 +101,13 @@ const LETRA_MIN = 80;
 
 export const FALTA_PADRAO = "Me diz também o que você quer no lugar desse trecho.";
 
+/** A mesma pergunta no idioma da compra (16/10): a Ballad via a de português. */
+export const FALTA_PADRAO_POR_IDIOMA: Record<"pt" | "es" | "en", string> = {
+  pt: FALTA_PADRAO,
+  es: "Dime también qué quieres en lugar de esa parte.",
+  en: "Tell me what you'd like in place of that part, too.",
+};
+
 /**
  * Decide o que fazer com a resposta do modelo.
  *
@@ -116,6 +123,7 @@ export function decidirAjuste(args: {
   resposta: RespostaAjuste;
   pedido: string;
   mudaSom: boolean;
+  idioma?: "pt" | "es" | "en";
 }): DecisaoAjuste {
   const reescrita = (args.resposta.letra ?? "").trim();
   if (reescrita.length < LETRA_MIN) throw new Error("modelo não devolveu letra");
@@ -130,7 +138,7 @@ export function decidirAjuste(args: {
   if (args.mudaSom && !pedeLetra(args.pedido)) return { tipo: "so-som" };
 
   const falta = textoProCliente(args.resposta.falta || args.resposta.aviso || "");
-  return { tipo: "vago", falta: falta || FALTA_PADRAO };
+  return { tipo: "vago", falta: falta || FALTA_PADRAO_POR_IDIOMA[args.idioma ?? "pt"] };
 }
 
 /** A voz que o modelo leu no texto do pedido, quando a pessoa não usou o botão. */
