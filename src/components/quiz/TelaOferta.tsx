@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuizStore } from "@/lib/quiz-store";
 import { irParaCheckout } from "@/lib/checkout";
 import { temMusicaDaSessao, finalizarLetra } from "@/lib/coautoria";
@@ -510,6 +510,24 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   //   "esperando"-> gravando, o relógio corre na tela
   //   "demorou"  -> passou o teto, aí sim oferece a saída manual
   const [semMusica, setSemMusica] = useState<null | "esperando" | "demorou">(null);
+  // OS RELÓGIOS DA ESPERA MORREM COM A TELA (16/10). Sem isto, quem saía da
+  // oferta durante a espera tinha o `pagar()` disparado sozinho quando a
+  // música ficava pronta: `checkout_click`, `begin_checkout` e o
+  // InitiateCheckout do TikTok sem ninguém ter clicado (e, no espanhol da
+  // Serenata, um pulo pra Perfect Pay no meio da escuta).
+  const pararEspera = useRef<null | (() => void)>(null);
+  const avisoEspera = useRef<HTMLDivElement>(null);
+  useEffect(() => () => pararEspera.current?.(), []);
+  // VOLTAR DO CHECKOUT EXTERNO (16/10). No espanhol da Serenata o botão leva
+  // pra Perfect Pay; o "voltar" do navegador restaura esta página do cache
+  // com o `indo` preso, e o botão ficava em "Abriendo el pago…" pra sempre.
+  useEffect(() => {
+    const aoVoltar = (e: PageTransitionEvent) => {
+      if (e.persisted) setIndo(false);
+    };
+    window.addEventListener("pageshow", aoVoltar);
+    return () => window.removeEventListener("pageshow", aoVoltar);
+  }, []);
   const [esperaSeg, setEsperaSeg] = useState(0);
   // ── O MODO CRÉDITO ────────────────────────────────────────────
   //
@@ -532,6 +550,11 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     tokenEdicao: string | null;
   } | null>(null);
   const [erroCredito, setErroCredito] = useState<string | null>(null);
+  // A CONSULTA DO SALDO É ASSÍNCRONA (16/10): quem tem crédito e tocava em
+  // comprar antes dela voltar via a folha de R$ 38. `pagar` espera esta
+  // promessa (até 3s) e lê o resultado pelo ref, que não fica velho.
+  const consultaCredito = useRef<Promise<unknown> | null>(null);
+  const creditoAchado = useRef<typeof credito>(null);
   const respostas = useQuizStore((s) => s.respostas);
   const email = useQuizStore((s) => s.email);
   const whatsapp = useQuizStore((s) => s.whatsapp);
@@ -630,7 +653,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
 
   useEffect(() => {
     let vivo = true;
-    (async () => {
+    consultaCredito.current = (async () => {
       // Dinâmico pelo mesmo motivo do `lead-capture`: 207 KB de SDK não
       // podem estar no caminho que precisa terminar antes de o botão
       // "continuar" ganhar comportamento.
@@ -656,7 +679,8 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       });
       if (!vivo) return;
       if (c.saldo > 0) {
-        setCredito({ saldo: c.saldo, token: tk ?? null, tokenEdicao: cracha });
+        creditoAchado.current = { saldo: c.saldo, token: tk ?? null, tokenEdicao: cracha };
+        setCredito(creditoAchado.current);
         trackEvent("oferta_com_credito", { saldo: c.saldo, via: tk ? "sessao" : "cracha" });
       } else if (cracha) {
         // Saldo zerado com crachá na mão: ele já foi gasto. Some, senão a
@@ -693,14 +717,14 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   // Sem argumento: as credenciais vivem no estado `credito`, preenchido pelo
   // efeito que consulta o saldo. Passar o token por parametro era resto de
   // quando so existia a sessao.
-  async function resgatar() {
+  async function resgatar(c: typeof credito = credito) {
     setIndo(true);
     setErroCredito(null);
     try {
       const r = await usarCredito({
         data: {
-          token: credito?.token ?? undefined,
-          tokenEdicao: credito?.tokenEdicao ?? undefined,
+          token: c?.token ?? undefined,
+          tokenEdicao: c?.tokenEdicao ?? undefined,
           sessionId: getOrCreateSessionId(),
         },
       });
@@ -800,9 +824,13 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   }
 
   function esperarMusica(origem: "checkout" | "credito") {
+    pararEspera.current?.();
     setIndo(true);
     setSemMusica("esperando");
     setEsperaSeg(0);
+    // O aviso mora no cartão de preço: quem tocou na barra fixa, lá no fim do
+    // FAQ, só via o botão desabilitado. Leva a pessoa até ele.
+    setTimeout(() => avisoEspera.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
     // Dispara antes do relógio: quem chegou aqui sem música ou está gerando
     // (e o poll resolve) ou nunca foi criada (e só isto resolve).
     void tentarRecriarMusica();
@@ -813,6 +841,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     const parar = () => {
       clearInterval(relogio);
       clearInterval(sonda);
+      pararEspera.current = null;
     };
     const sonda = setInterval(async () => {
       const decorrido = (Date.now() - t0) / 1000;
@@ -830,6 +859,15 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
         // PRONTA, não só existente (auditoria 30/09): a linha da música nasce
         // 5s depois de recriada e ainda está gerando. Liberar o pagamento
         // ali era cobrar antes de produzir, a regra que não se quebra.
+        // RECUSADA não volta sozinha: esperar 4 minutos com "estamos
+        // terminando de gravar" era mentir. Sai já pro aviso honesto.
+        if (status === "falhou") {
+          parar();
+          trackEvent("espera_musica_falhou", { origem, locale });
+          setSemMusica("demorou");
+          setIndo(false);
+          return;
+        }
         if (!existe || status !== "pronta") return;
         parar();
         trackEvent("espera_musica_resolvida", {
@@ -840,13 +878,15 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
         setSemMusica(null);
         // Segue o caminho que ela tinha escolhido. `pagar` é declaração de
         // função e está içada, então dá pra chamar daqui de cima.
-        if (origem === "credito" && credito) void resgatar();
+        const comCredito = credito ?? creditoAchado.current;
+        if (origem === "credito" && comCredito) void resgatar(comCredito);
         else void pagar();
       } catch {
         // Consulta caiu: tenta de novo no próximo tique. Não desiste por uma
         // falha de rede em cima de alguém que quer pagar.
       }
     }, 5000);
+    pararEspera.current = parar;
   }
 
   async function pagar() {
@@ -864,8 +904,13 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     // dois, ela nao tocou. Custa um evento e transforma o proximo incidente
     // de mistério em leitura.
     trackEvent("botao_comprar", { locale, braco_bump: varianteDe("bump_quadro") });
-    if (credito) {
-      await resgatar();
+    if (!credito && consultaCredito.current) {
+      setIndo(true);
+      await Promise.race([consultaCredito.current.catch(() => {}), new Promise((r) => setTimeout(r, 3000))]);
+    }
+    const comCredito = credito ?? creditoAchado.current;
+    if (comCredito) {
+      await resgatar(comCredito);
       return;
     }
     setIndo(true);
@@ -1046,6 +1091,10 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
                 trackEvent("pix_transparente_desistiu");
                 setPagandoComPix(null);
               }}
+              aoVoltar={() => {
+                trackEvent("pix_transparente_fechou", { pelo: "voltar" });
+                setPagandoComPix(null);
+              }}
             />
           </div>
         </div>
@@ -1183,7 +1232,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
             O texto conta a verdade (está gravando) e mostra o relógio, que é
             o oposto da barra que trava em 99% da Cantoria. */}
         {semMusica === "esperando" && (
-          <div className="mt-5 rounded-2xl border border-primary/25 bg-secondary/50 px-4 py-3 text-left">
+          <div ref={avisoEspera} className="mt-5 rounded-2xl border border-primary/25 bg-secondary/50 px-4 py-3 text-left">
             <p className="flex items-center gap-2 text-sm font-semibold">
               <RefreshCw className="h-4 w-4 animate-spin text-primary" />
               {locale === "es"
@@ -1366,6 +1415,9 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
             {indo ? (
               credito ? (
                 C.creditoIndo
+              ) : semMusica === "esperando" ? (
+                // Na barra fixa também: "Abrindo…" parado por minutos parecia travado.
+                `${locale === "es" ? "Grabando" : locale === "en" ? "Recording" : "Gravando"} ${Math.floor(esperaSeg / 60)}:${String(esperaSeg % 60).padStart(2, "0")}`
               ) : (
                 C.abrindoCurto
               )

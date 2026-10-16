@@ -108,11 +108,20 @@ export function PixPagamento({
   // pessoa seria gastar a API deles pra saber o que a gente já sabe.
   useEffect(() => {
     const t0 = Date.now();
+    // UMA PERGUNTA POR VEZ, E UM "PAGO" SÓ (16/10). A sonda roda a cada 4s e o
+    // `pixFoiPago` pode levar ~9s (ele chama o vigia do gateway): várias
+    // respostas "pago" chegavam e cada uma disparava o evento, a transação e
+    // o `aoPagar` de novo (1.079 `pix_transparente_pago` em 290 sessões).
+    let perguntando = false;
+    let feito = false;
     const relogio = setInterval(() => setSegundos(Math.round((Date.now() - t0) / 1000)), 1000);
     const sonda = setInterval(async () => {
+      if (perguntando || feito) return;
+      perguntando = true;
       try {
         const r = await pixFoiPago({ data: { referencia } });
-        if (!r.pago) return;
+        if (!r.pago || feito) return;
+        feito = true;
         clearInterval(sonda);
         clearInterval(relogio);
         trackEvent("pix_transparente_pago", { segundos: Math.round((Date.now() - t0) / 1000) });
@@ -125,6 +134,8 @@ export function PixPagamento({
       } catch {
         // Rede piscou: tenta no próximo tique. Não desiste em cima de alguém
         // que talvez já tenha pago.
+      } finally {
+        perguntando = false;
       }
     }, 4000);
     return () => {

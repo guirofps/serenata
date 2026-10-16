@@ -10,6 +10,7 @@ const reais = (v: number) => `R$ ${v.toFixed(2).replace(".", ",").replace(/,00$/
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { useQuizStore } from "@/lib/quiz-store";
 import { trackEvent } from "@/lib/track";
+import { usePausarVideosAtras, useVoltarFechaAFolha } from "@/lib/folha-pagamento";
 import { guardarTransacao } from "@/lib/google-ads";
 import { pagamentoGa4 } from "@/lib/ga4";
 import { PixPagamento } from "@/components/quiz/PixPagamento";
@@ -84,6 +85,7 @@ export function PixTransparente({
   email,
   cupom,
   aoDesistir,
+  aoVoltar,
 }: {
   nome: string;
   titulo: string | null;
@@ -97,8 +99,14 @@ export function PixTransparente({
   cupom?: string;
   /** Fecha a folha. Desde 26/09 NÃO leva mais pra Perfect Pay. */
   aoDesistir: () => void;
+  /** O voltar do celular fecha a folha (e só ela). Ver `folha-pagamento.ts`. */
+  aoVoltar: () => void;
 }) {
   const [fase, setFase] = useState<Fase>({ t: "resumo" });
+  // As mesmas duas travas do caixa da Ballad (16/10): o voltar fecha a folha
+  // em vez de sair da oferta, e o vídeo de reações para por trás dela.
+  useVoltarFechaAFolha(aoVoltar);
+  usePausarVideosAtras();
 
   // ── TESTE `folha_pix` (08/10) ──────────────────────────────────
   //
