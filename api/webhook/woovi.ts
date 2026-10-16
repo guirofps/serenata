@@ -33,6 +33,7 @@ import { valorEsperadoDoUpsell, type Alvo } from "../../src/lib/cupom.js";
 import { centavosDoVideoDaMusica } from "../../src/lib/preco-video.js";
 import { Resend } from "resend";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
+import { ttclidDaVenda } from "../../src/lib/clique-recente.js";
 
 // Mesmo molde do `perfectpay.ts`. Duplicado de proposito e nao extraido: sao
 // dois webhooks que precisam sobreviver um ao outro, e a unica coisa que
@@ -566,7 +567,10 @@ export default async function handler(req: Req, res: Res) {
     // gente disparava CompletePayment em toda venda, inclusive Google/direto/
     // orgânico, e o TikTok reivindicava essas por view-through, inflando o
     // painel. Venda sem ttclid não é do TikTok e não sobe.
-    if (attr?.ttclid) {
+    // O `ttclid` do último clique, senão o do primeiro toque (16/10,
+    // `clique-recente.ts`).
+    const ttclid = ttclidDaVenda(attr);
+    if (ttclid) {
       // O event_id É o `correlationID` cru, NÃO o `paymentId`. O pixel na
       // /obrigado manda a referência sem prefixo, e o `paymentId` carrega o
       // `woovi:` na frente. Mandar ele aqui fazia o TikTok NÃO deduplicar e
@@ -577,7 +581,7 @@ export default async function handler(req: Req, res: Res) {
         moeda: "BRL",
         email,
         telefone: (pedido?.telefone as string | null) ?? null,
-        ttclid: attr.ttclid,
+        ttclid,
         quando: new Date(),
       });
 

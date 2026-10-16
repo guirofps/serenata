@@ -21,6 +21,15 @@ describe("mesclarAtribuicao", () => {
     expect(m?.referrer).toBe("https://mail.google.com/");
   });
 
+  it("o último clique é o mais NOVO dos dois, não o do registro por cima", () => {
+    const local = { ultimo_clique: { ttclid: "T", em: "2026-10-15T10:00:00Z" }, captured_at: "x" };
+    const registro = { gclid: "G", ultimo_clique: { gclid: "G", em: "2026-10-01T10:00:00Z" }, captured_at: "c" };
+    expect(mesclarAtribuicao(local, registro)?.ultimo_clique).toEqual({ ttclid: "T", em: "2026-10-15T10:00:00Z" });
+    expect(mesclarAtribuicao({ captured_at: "x" }, registro)?.ultimo_clique).toEqual(registro.ultimo_clique);
+    const regNovo = { ultimo_clique: { gclid: "H", em: "2026-10-16T10:00:00Z" } };
+    expect(mesclarAtribuicao(local, regNovo)?.ultimo_clique).toEqual(regNovo.ultimo_clique);
+  });
+
   it("registro vazio ou ausente não apaga o local", () => {
     const local = { utm_source: "email", captured_at: "x" };
     expect(mesclarAtribuicao(local, null)).toEqual(local);

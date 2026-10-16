@@ -20,17 +20,34 @@
 // - LUCRO = receita - gasto de mídia - custo de produção - taxas. Não tira
 //   custo fixo nem imposto: é o lucro de operação do dia, pra comparar dias.
 
+import { canalDoUltimoClique } from "./clique-recente.js";
+
 export type Atribuicao = Record<string, unknown> | null | undefined;
 
 export type Canal = "Google" | "TikTok" | "Convite" | "Indicação" | "Direto" | string;
 
-/** Canal de origem, first-touch. Mesma leitura dos scripts de canal. */
+/**
+ * Canal de origem, first-touch. Mesma leitura dos scripts de canal.
+ *
+ * Com uma exceção (16/10): quando o primeiro toque não diz canal nenhum
+ * ("Direto"), vale o do ÚLTIMO clique de anúncio (`attribution.ultimo_clique`,
+ * `clique-recente.ts`). Primeiro toque com canal continua mandando.
+ */
 export function canalDe(a: Atribuicao): Canal {
+  const primeiro = canalPrimeiroToque(a);
+  if (primeiro !== "Direto") return primeiro;
+  return canalDoUltimoClique(a) ?? "Direto";
+}
+
+/** Só o primeiro toque, sem olhar o último clique. */
+export function canalPrimeiroToque(a: Atribuicao): Canal {
   if (!a) return "Direto";
   const fonte = String(a.utm_source ?? "").toLowerCase();
   const ref = String(a.referrer ?? "").toLowerCase();
   if (a.ttclid || fonte.includes("tiktok") || ref.includes("tiktok")) return "TikTok";
-  if (a.gclid || fonte.includes("google")) return "Google";
+  // `gbraid`/`wbraid` (16/10): o clique do Google no iPhone chega SEM `gclid`,
+  // e essa venda caía em "Direto"/orgânico.
+  if (a.gclid || a.gbraid || a.wbraid || fonte.includes("google")) return "Google";
   if (fonte === "presente") return "Convite";
   // O link de indicação (member get member). Depois dos anúncios: quem
   // chegou por anúncio e depois recebeu o link continua contando pro

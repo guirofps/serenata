@@ -28,6 +28,7 @@ import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "./entrega.j
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
 import { venderNoTiktok } from "./tiktok-eventos.js";
+import { ttclidDaVenda } from "../../src/lib/clique-recente.js";
 import { creditarUpsell } from "./creditar-upsell.js";
 
 const API = "https://api.stripe.com/v1";
@@ -271,7 +272,8 @@ export async function confirmarSessaoStripe(
   // ver a memória do gate por ttclid). `eventId` = id da sessão do Stripe, o
   // MESMO que o pixel usa na /obrigado: os dois se deduplicam. Nunca joga.
   const { data: q } = await sb.from("quiz_responses").select("attribution").eq("id", quizId).maybeSingle();
-  const ttclid = (q?.attribution as { ttclid?: string } | null)?.ttclid;
+  // Último clique primeiro, senão o do primeiro toque (`clique-recente.ts`).
+  const ttclid = ttclidDaVenda(q?.attribution as Record<string, unknown> | null);
   if (ttclid) {
     const t = await venderNoTiktok({
       eventId: s.id,

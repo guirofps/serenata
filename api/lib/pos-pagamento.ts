@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { venderNoTiktok } from "./tiktok-eventos.js";
+import { ttclidDaVenda } from "../../src/lib/clique-recente.js";
 
 // O QUE VEM DEPOIS DA ENTREGA, E TEM QUE VIR POR QUALQUER PORTA.
 //
@@ -39,10 +40,13 @@ export async function subirVendaTiktok(
 ): Promise<void> {
   try {
     const { data: q } = await sb.from("quiz_responses").select("attribution").eq("id", v.quizId).maybeSingle();
-    const attr = (q?.attribution ?? null) as Record<string, string | undefined> | null;
+    // O `ttclid` do ÚLTIMO clique, senão o do primeiro toque (16/10): quem
+    // chegou antes pelo Google e depois pelo TikTok só tinha o clique do
+    // TikTok fora da trava do first-touch. Ver `clique-recente.ts`.
+    const ttclid = ttclidDaVenda(q?.attribution as Record<string, unknown> | null);
     // Venda sem ttclid não é do TikTok: mandá-la deixava ele reivindicar por
     // view-through venda do Google e inflava o painel.
-    if (!attr?.ttclid) return;
+    if (!ttclid) return;
     const valor = (v.valorCentavos ?? 0) / 100;
     const tiktok = await venderNoTiktok({
       eventId: v.eventId,
@@ -50,7 +54,7 @@ export async function subirVendaTiktok(
       moeda: "BRL",
       email: v.email,
       telefone: v.telefone,
-      ttclid: attr.ttclid,
+      ttclid,
       quando: new Date(),
     });
     await auditar(sb, tiktok.ok ? "tiktok_conversao_enviada" : "tiktok_conversao_falhou", {

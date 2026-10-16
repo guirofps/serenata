@@ -52,6 +52,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { autorizadoBasic, logRequisicao } from "./lib/basic-auth.js";
+import { gclidParaConversao } from "../src/lib/clique-recente.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -117,6 +118,7 @@ type PedidoComLead = {
   id: string;
   paid_at: string | null;
   valor_centavos: number | null;
+  gateway: string | null;
   quiz_responses: { attribution: Record<string, unknown> | null; locale: string | null } | null;
 };
 
@@ -171,7 +173,7 @@ export default async function handler(req: Req, res: Res) {
         .from("pedidos")
         // O lead vem embutido pela chave estrangeira: o `gclid` mora na
         // `attribution` dele, e o idioma decide a moeda.
-        .select("id, paid_at, valor_centavos, quiz_responses(attribution, locale)")
+        .select("id, paid_at, valor_centavos, gateway, quiz_responses(attribution, locale)")
         .eq("status", "pago")
         // Resgate de crédito não é dinheiro novo entrando: contar como
         // conversão ensinaria o Google a comprar tráfego pra uma venda que já
@@ -199,20 +201,28 @@ export default async function handler(req: Req, res: Res) {
     "Google Click ID,Conversion Name,Conversion Time,Conversion Value,Conversion Currency,Order ID",
   ];
   let semGclid = 0;
+  const agora = Date.now();
 
   for (const p of linhas) {
     const attr = p.quiz_responses?.attribution as Record<string, unknown> | null;
-    const gclid = typeof attr?.gclid === "string" ? attr.gclid.trim() : "";
+    // O CLIQUE MAIS NOVO DENTRO DOS 90 DIAS (16/10): o do último clique se
+    // estiver fresco, senão o do primeiro toque se estiver. Antes ia sempre o
+    // do primeiro toque, que nunca expira no navegador: venda de quem clicou
+    // num anúncio novo subia com o clique de meses atrás, e o Google recusa
+    // clique com mais de 90 dias. Ver `clique-recente.ts`.
+    const gclid = gclidParaConversao(attr, agora) ?? "";
     // Sem `gclid` a linha não serve: o Google casa a conversão com o clique
     // por ele, e uma linha sem clique é recusada do outro lado.
     if (!gclid || !p.paid_at || !p.valor_centavos) {
       semGclid += 1;
       continue;
     }
-    // O IDIOMA DECIDE A MOEDA, e ele mora no lead. Mandar tudo em BRL faria
-    // uma venda de US$ 9 entrar como R$ 9 e o Google otimizaria o funil
-    // espanhol por um retorno cinco vezes menor do que o real.
-    const moeda = p.quiz_responses?.locale === "es" ? "USD" : "BRL";
+    // A MOEDA É DO GATEWAY, não do idioma (16/10), a mesma régua do
+    // `moedaBate` (`valor-conversao.ts`). `valor_centavos` é gravado na moeda
+    // em que o gateway cobrou: o Stripe cobra em dólar, e a Perfect Pay do
+    // funil espanhol cobra em dólar mas o webhook grava em REAIS. Ler pelo
+    // idioma mandava essa venda como US$ 170 quando eram R$ 170.
+    const moeda = p.gateway === "stripe" ? "USD" : "BRL";
     saida.push(
       [
         csv(gclid),

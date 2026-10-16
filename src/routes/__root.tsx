@@ -26,7 +26,10 @@ import {
   getOrAssignVariant,
   stampVariantIntoAttribution,
   carimbarIndicacao,
+  capturarUltimoClique,
+  sessaoTemLetra,
 } from "@/lib/session-context";
+import { captureLeadProgress } from "@/lib/lead-capture";
 import { trackEvent } from "@/lib/track";
 import { PREFIXOS, rotaSensivel } from "@/lib/rotas-sensiveis";
 import { GA4_ID, scriptGuardaGa4 } from "@/lib/ga4";
@@ -372,6 +375,16 @@ function RootComponent() {
     // bucket de device. Capturado uma vez no primeiro mount, persiste entre rotas.
     getOrCreateSessionId();
     captureFirstTouchAttribution();
+    // O último clique de anúncio, fora da trava do first-touch (16/10). Quem
+    // volta por um anúncio novo com a letra já escrita normalmente vai direto
+    // pra oferta, sem passar por nenhum passo que grave o lead: o clique novo
+    // ficaria só no navegador e o checkout (que lê a atribuição do BANCO)
+    // nunca o veria. Então leva pro banco agora, pela mesma RPC do quiz.
+    // `respostas: {}` e passos nulos não mexem em nada da linha (a RPC mantém
+    // o que existe); só a atribuição é trocada, como em toda captura.
+    if (capturarUltimoClique() && sessaoTemLetra()) {
+      void captureLeadProgress({ respostas: {} });
+    }
     // Depois da atribuição (que lê as UTMs da mesma URL), antes do page_view.
     guardarCupomDaUrl((c) => useQuizStore.getState().setCupom(c));
     // Voltou por link de e-mail: o checkout marca o pedido (`toque-email.ts`).

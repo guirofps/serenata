@@ -10,7 +10,8 @@
 // a ficar ABAIXO do real — o que é seguro (não infla resultado), mas precisa
 // ser lembrado ao comparar com o painel da Perfect Pay, que é a verdade.
 
-import { MARCA_ATIVA } from "./marca-identidade.js";
+import { MARCA_ATIVA, ehBallad } from "./marca-identidade.js";
+import { emailPlausivel } from "./email-limpo.js";
 
 // ── A CONTA DE ANÚNCIO É DA MARCA ─────────────────────────────────
 //
@@ -184,13 +185,43 @@ export function idDaTransacao(passado?: string): string | undefined {
   return undefined;
 }
 
+/**
+ * O e-mail do comprador como o Google quer pras conversões otimizadas: sem
+ * espaço nas pontas e minúsculo (a tag faz o hash SHA-256 antes de mandar).
+ * Fora do formato, nada: e-mail inválido não casa ninguém e só polui.
+ */
+export function emailParaConversao(email: string | null | undefined): string | null {
+  const e = String(email ?? "").trim().toLowerCase();
+  return e && emailPlausivel(e) ? e : null;
+}
+
 export function conversaoCompra(args: {
   valor?: number;
   moeda?: "BRL" | "USD";
   transactionId?: string;
+  /** O e-mail de quem comprou. Só é usado na Ballad (ver abaixo). */
+  email?: string | null;
 }) {
   if (typeof window === "undefined" || !window.gtag || !CONVERSAO) return;
   const id = idDaTransacao(args.transactionId);
+  // ── CONVERSÕES OTIMIZADAS, SÓ NA BALLAD (16/10) ──────────────────
+  //
+  // Na Ballad a TAG da /obrigado é a conversão principal: a conta nova não
+  // aceita a lista importada (`CUSTOMER_NOT_ALLOWLISTED`), então o Google só
+  // sabe da venda por aqui, e sem dado do comprador ele só casa quem ainda
+  // tem o cookie do clique. Com o e-mail (a tag faz o hash, ele nunca sai
+  // cru), o Google casa também quem trocou de aparelho ou bloqueou cookie.
+  //
+  // Na Serenata NADA muda: lá a principal é a lista em último clique
+  // (`api/conversoes.ts`) e esta tag é secundária; mexer nela não ensina nada
+  // ao lance e só mandaria dado pessoal à toa.
+  //
+  // Pelo `gtag('set')`, nunca pela URL: o endereço da /obrigado vai inteiro
+  // pro Google. E ANTES do evento, que é o que a tag lê na hora de mandar.
+  if (ehBallad()) {
+    const email = emailParaConversao(args.email);
+    if (email) window.gtag("set", "user_data", { email });
+  }
   window.gtag("event", "conversion", {
     send_to: CONVERSAO,
     // Sem default mágico: o valor vem do catálogo de moeda pelo chamador.

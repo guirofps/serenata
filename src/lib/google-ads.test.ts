@@ -1,6 +1,14 @@
 // @vitest-environment jsdom
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { conversaoCompra, guardarTransacao } from "./google-ads";
+import { conversaoCompra, emailParaConversao, guardarTransacao } from "./google-ads";
+
+// A marca do teste: Serenata (o padrão do deploy), com `ehBallad` trocável
+// pra segurar as conversões otimizadas, que só existem na Ballad.
+const marca = vi.hoisted(() => ({ ballad: false }));
+vi.mock("./marca-identidade.js", async (original) => ({
+  ...(await original<typeof import("./marca-identidade.js")>()),
+  ehBallad: () => marca.ballad,
+}));
 
 // O QUE ESTE TESTE SEGURA, E POR QUE ELE EXISTE
 //
@@ -75,5 +83,44 @@ describe("conversaoCompra — o transaction_id nunca sai vazio", () => {
   it("sem gtag na página, não explode", () => {
     (window as unknown as { gtag: unknown }).gtag = undefined;
     expect(() => conversaoCompra({ valor: 38 })).not.toThrow();
+  });
+});
+
+describe("conversões otimizadas (e-mail do comprador)", () => {
+  beforeEach(() => {
+    (window as unknown as { gtag: unknown }).gtag = vi.fn();
+    localStorage.clear();
+    sessionStorage.clear();
+    marca.ballad = false;
+  });
+  const chamadas = () => (window.gtag as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+
+  it("na Serenata o e-mail NUNCA vai pro Google (a tag lá é secundária)", () => {
+    conversaoCompra({ valor: 38, transactionId: "x", email: "Ana@Gmail.com" });
+    expect(chamadas().some((c) => c[0] === "set")).toBe(false);
+    expect(JSON.stringify(chamadas())).not.toContain("gmail");
+  });
+
+  it("na Ballad, `set user_data` com o e-mail normalizado ANTES da conversão", () => {
+    marca.ballad = true;
+    conversaoCompra({ valor: 19, moeda: "USD", transactionId: "cs_1", email: "  Ana@Gmail.com " });
+    const c = chamadas();
+    expect(c[0]).toEqual(["set", "user_data", { email: "ana@gmail.com" }]);
+    expect(c[1]?.[0]).toBe("event");
+    expect(c[1]?.[1]).toBe("conversion");
+  });
+
+  it("na Ballad, sem e-mail válido, só a conversão", () => {
+    marca.ballad = true;
+    conversaoCompra({ valor: 19, transactionId: "cs_1", email: "não é e-mail" });
+    conversaoCompra({ valor: 19, transactionId: "cs_2" });
+    expect(chamadas().every((c) => c[0] === "event")).toBe(true);
+  });
+
+  it("emailParaConversao normaliza e recusa lixo", () => {
+    expect(emailParaConversao(" X@Y.COM ")).toBe("x@y.com");
+    expect(emailParaConversao("")).toBeNull();
+    expect(emailParaConversao(null)).toBeNull();
+    expect(emailParaConversao("a@b")).toBeNull();
   });
 });
