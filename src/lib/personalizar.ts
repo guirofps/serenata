@@ -15,6 +15,8 @@ import { ehArgentina } from "@/lib/mercado-es";
 export type PresenteEditavel = {
   /** Idioma da venda. Decide a moldura do editor. */
   locale: Locale;
+  /** A relação respondida no quiz (`esposa`, `namorado`…), pra sugerir o tipo de data. */
+  relacao: string | null;
   titulo: string;
   nome: string;
   dedicatoria: string | null;
@@ -167,6 +169,9 @@ export const carregarParaEditar = createServerFn({ method: "GET" })
       titulo: m.titulo ?? (locale === "en" ? "Your song" : "Sua música"),
       // O espanhol recebia "você" no título do editor (08/10).
       nome: r.nome ?? (locale === "en" ? "you" : locale === "es" ? (ehArgentina() ? "vos" : "ti") : "você"),
+      // Pra o editor já marcar o tipo de data certo (aniversário de casamento
+      // pra esposa, de namoro pra namorada). Ver `tipoSugerido`.
+      relacao: r.relacao ?? null,
       dedicatoria: m.dedicatoria,
       fotoUrl: await urlDaFoto(m.foto_path),
       galeria: await assinarGaleria(m.galeria),

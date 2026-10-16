@@ -10,7 +10,19 @@ export { diasAte, hojeEmBrasilia } from "@/lib/datas-calendario";
 // lista mora no E-MAIL de quem comprou: é dela, não da música, e aparece em
 // qualquer presente que ela montar.
 
-export type TipoData = "aniversario" | "namoro" | "outra";
+export type TipoData = "aniversario" | "namoro" | "casamento" | "outra";
+
+/**
+ * O tipo de data mais provável pra quem ganhou ESTE presente (16/10): é o que
+ * o editor já deixa marcado. Esposa e marido têm aniversário de casamento;
+ * namorados, de namoro; o resto, aniversário. A pessoa troca se não for.
+ */
+export function tipoSugerido(relacao: string | null | undefined): TipoData {
+  const r = String(relacao ?? "").toLowerCase();
+  if (r === "esposa" || r === "marido") return "casamento";
+  if (r === "namorada" || r === "namorado") return "namoro";
+  return "aniversario";
+}
 export type DataEspecial = { id: string; nome: string; tipo: TipoData; dia: number; mes: number };
 
 const MAX_POR_EMAIL = 20;
@@ -20,7 +32,8 @@ function valida(d: { nome?: unknown; tipo?: unknown; dia?: unknown; mes?: unknow
     .trim()
     .replace(/\s+/g, " ")
     .slice(0, 40);
-  const tipo: TipoData = d.tipo === "namoro" || d.tipo === "outra" ? d.tipo : "aniversario";
+  const tipo: TipoData =
+    d.tipo === "namoro" || d.tipo === "casamento" || d.tipo === "outra" ? d.tipo : "aniversario";
   const dia = Number(d.dia);
   const mes = Number(d.mes);
   if (!nome || !Number.isInteger(dia) || !Number.isInteger(mes)) return null;

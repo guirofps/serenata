@@ -22,20 +22,24 @@ import { trackEvent } from "@/lib/track";
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const TIPOS: { v: TipoData; rotulo: string }[] = [
   { v: "aniversario", rotulo: "Aniversário" },
-  { v: "namoro", rotulo: "Namoro ou casamento" },
+  { v: "casamento", rotulo: "Aniversário de casamento" },
+  { v: "namoro", rotulo: "Aniversário de namoro" },
   { v: "outra", rotulo: "Outra data" },
 ];
 
 export function DatasEspeciais({
   tokenEdicao,
   nomeSugerido,
+  tipoInicial = "aniversario",
 }: {
   tokenEdicao: string;
   nomeSugerido?: string;
+  /** Já marcado pela relação de quem ganhou o presente (`tipoSugerido`). */
+  tipoInicial?: TipoData;
 }) {
   const [datas, setDatas] = useState<DataEspecial[] | null>(null);
   const [nome, setNome] = useState(nomeSugerido ?? "");
-  const [tipo, setTipo] = useState<TipoData>("aniversario");
+  const [tipo, setTipo] = useState<TipoData>(tipoInicial);
   const [dia, setDia] = useState("");
   const [mes, setMes] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -63,7 +67,7 @@ export function DatasEspeciais({
         setNome("");
         setDia("");
         setMes("");
-        setTipo("aniversario");
+        setTipo(tipoInicial);
       } else {
         setAviso(
           r.erro === "invalida"

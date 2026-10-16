@@ -21,6 +21,7 @@ import { linkSuporte, TEXTO_SUPORTE } from "@/lib/suporte-whatsapp";
 import { OfertaQuadroEditor } from "@/components/presente/OfertaQuadroEditor";
 import { VideoPresenteEditor } from "@/components/presente/VideoPresenteEditor";
 import { DatasEspeciais } from "@/components/presente/DatasEspeciais";
+import { tipoSugerido } from "@/lib/datas-especiais";
 import { AtalhoOutraMusica } from "@/components/conta/AtalhoOutraMusica";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE, nomeCor } from "@/lib/marca";
@@ -1062,7 +1063,7 @@ function Editor() {
 
             {/* DATAS: depois da entrega, que é a tarefa desta tela. Só em
                 português por enquanto (o lembrete sai em português). */}
-            {br && <DatasEspeciais tokenEdicao={tokenEdicao} nomeSugerido={p.nome ?? undefined} />}
+            {br && <DatasEspeciais tokenEdicao={tokenEdicao} nomeSugerido={p.nome ?? undefined} tipoInicial={tipoSugerido(p.relacao)} />}
           </div>
 
           {/* ── PRÉVIA AO VIVO ────────────────────────────────── */}

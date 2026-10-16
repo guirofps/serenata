@@ -12,6 +12,7 @@ const SITE = MARCA_ATIVA.url;
 
 function frase(nome: string, tipo: TipoData): string {
   if (tipo === "namoro") return `o aniversário de namoro com ${nome}`;
+  if (tipo === "casamento") return `o aniversário de casamento com ${nome}`;
   if (tipo === "outra") return `a data de ${nome}`;
   return `o aniversário de ${nome}`;
 }
