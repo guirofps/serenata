@@ -28,12 +28,15 @@ export async function registrarEnvio(
 ): Promise<void> {
   if (!args.emailId) return;
   try {
-    await db.from("emails_enviados").insert({
+    // O supabase-js NÃO lança: o erro vem no retorno, e sem ler ele o envio
+    // sumia da medição em silêncio (16/10).
+    const { error } = await db.from("emails_enviados").insert({
       email_id: args.emailId,
       template: args.template,
       para: args.para ?? null,
       quiz_response_id: args.quizResponseId ?? null,
     });
+    if (error) console.error("[registro-email] não gravado:", args.template, error.message);
   } catch (err) {
     console.error("[registro-email] não gravado:", err);
   }

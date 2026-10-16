@@ -136,13 +136,16 @@ function db() {
  * de comprar, este e-mail é acusação, não lembrete.
  */
 async function pessoaJaComprou(sb: ReturnType<typeof db>, email: string): Promise<boolean> {
-  const { data } = await sb
+  const { data, error } = await sb
     .from("pedidos")
     .select("id, email")
     .ilike("email", literalLike(email))
     .eq("status", "pago")
     .gte("paid_at", new Date(Date.now() - 14 * 86400000).toISOString())
     .limit(5);
+  // NA DÚVIDA, JÁ COMPROU (16/10): consulta que falha não pode virar "o seu
+  // pagamento não entrou" pra quem pagou (8 de 675 envios foram assim).
+  if (error) return true;
   // Confere em JS também: o `ilike` é sem caixa, e aqui o alvo é a pessoa.
   return (data ?? []).some((x) => String(x.email ?? "").trim().toLowerCase() === email.trim().toLowerCase());
 }
@@ -242,14 +245,14 @@ export const pixNaoPago = inngest.createFunction(
         // PAGOU DEPOIS? O pendente fica no banco pra sempre; o que decide é
         // existir um pago na mesma sessão. Mandar "seu pagamento não entrou"
         // pra quem pagou é o erro mais caro que este job pode cometer.
-        const { data: pago } = await sb
+        const { data: pago, error: erroPago } = await sb
           .from("pedidos")
           .select("id")
           .eq("quiz_response_id", p.quiz_response_id)
           .eq("status", "pago")
           .limit(1)
           .maybeSingle();
-        if (pago?.id) continue;
+        if (pago?.id || erroPago) continue;
         if (p.email && (await pessoaJaComprou(sb, p.email))) continue;
 
         if (!podeMandar(await toquesJaDados(sb, p.quiz_response_id), agora)) continue;
@@ -384,14 +387,14 @@ export const pixNaoPago = inngest.createFunction(
 
         // Recheca na hora do envio: a pessoa pode ter pago entre a busca e
         // agora, e nada é pior que cobrar quem já pagou.
-        const { data: pago } = await sb
+        const { data: pago, error: erroPago } = await sb
           .from("pedidos")
           .select("id")
           .eq("quiz_response_id", c.quizId)
           .eq("status", "pago")
           .limit(1)
           .maybeSingle();
-        if (pago?.id) return false;
+        if (pago?.id || erroPago) return false;
         if (await pessoaJaComprou(sb, c.email)) return false;
         const toquesAntes = await toquesJaDados(sb, c.quizId);
         if (!podeMandar(toquesAntes, Date.now())) return false;

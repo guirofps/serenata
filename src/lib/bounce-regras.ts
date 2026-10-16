@@ -1,3 +1,4 @@
+import { pareceTypo } from "./email-typo.js";
 // QUANDO UM BOUNCE BLOQUEIA O ENDEREÇO.
 //
 // Até 08/10 todo bounce bloqueava pra sempre em `emails_mortos`, inclusive o
@@ -36,10 +37,18 @@ export function decidirBloqueio(args: {
   tipo: string | null | undefined;
   anterior: { vezes?: number | null; liberado_em?: string | null } | null;
   leituraFalhou?: boolean;
+  /** O endereço que voltou: domínio digitado errado bloqueia já na 1ª vez. */
+  email?: string | null;
 }): { bloquear: boolean; vezes: number } {
   const vezes = (args.anterior?.vezes ?? 0) + 1;
   if (args.leituraFalhou) return { bloquear: true, vezes };
   if (bounceEPermanente(args.tipo)) return { bloquear: true, vezes };
+  // DOMÍNIO QUE NÃO PODE EXISTIR (16/10). `gmail.coml`, `gmail.comm`,
+  // `gemail.com` voltam como "Transient/General", e a regra do temporário
+  // esperava a 2ª devolução (~200 endereços em 14 dias). `pareceTypo` só acusa
+  // o que não pode ser domínio de verdade, então aqui não há caixa cheia a
+  // proteger: é endereço morto, e cada reenvio custa reputação.
+  if (args.email && pareceTypo(args.email)) return { bloquear: true, vezes };
   // Já bloqueado continua bloqueado: um temporário não desfaz um Permanent.
   if (args.anterior && !args.anterior.liberado_em) return { bloquear: true, vezes };
   return { bloquear: vezes >= TEMPORARIOS_ATE_BLOQUEAR, vezes };

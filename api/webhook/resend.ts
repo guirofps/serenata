@@ -260,6 +260,7 @@ export default async function handler(req: Req, res: Res) {
           tipo: d.bounce?.type ?? null,
           anterior: (ja as { vezes?: number | null; liberado_em?: string | null } | null) ?? null,
           leituraFalhou: !!erroLeitura,
+          email: alvo,
         });
         const agora = new Date().toISOString();
         await sb.from("emails_mortos").upsert(

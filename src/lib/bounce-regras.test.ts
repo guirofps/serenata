@@ -40,3 +40,10 @@ describe("decidirBloqueio", () => {
     expect(decidirBloqueio({ tipo: "Transient", anterior: null, leituraFalhou: true }).bloquear).toBe(true);
   });
 });
+
+describe("domínio digitado errado", () => {
+  it("bloqueia na 1ª devolução, mesmo temporária", () => {
+    expect(decidirBloqueio({ tipo: "Transient", anterior: null, email: "ana@gmail.coml" }).bloquear).toBe(true);
+    expect(decidirBloqueio({ tipo: "Transient", anterior: null, email: "ana@gmail.com" }).bloquear).toBe(false);
+  });
+});
