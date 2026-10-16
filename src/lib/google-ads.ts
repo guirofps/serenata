@@ -62,18 +62,47 @@ declare global {
 const CHAVE_TX = "mp_tx";
 
 /** Guarda o id desta compra, na hora em que o pagamento é confirmado. */
+// TAMBÉM NO `localStorage`, POR SESSÃO DO FUNIL (16/10). Só na aba, a
+// `/obrigado` reaberta numa aba nova (o link do e-mail, o app do banco que
+// devolve pro navegador) não achava o id e caía no hash da sessão: a mesma
+// venda saía de novo pro GA4, pra tag do Ads e pro pixel do TikTok, com OUTRO
+// id, e nada deduplicava contra o `pay_xxx` da primeira contagem. Chaveado
+// pela sessão: a segunda música no mesmo navegador gira a sessão e ganha o
+// dela.
+function chavePersistente(): string | null {
+  try {
+    const s = localStorage.getItem("mp_session_id")?.trim();
+    return s ? `${CHAVE_TX}:${s}` : null;
+  } catch {
+    return null;
+  }
+}
+
 export function guardarTransacao(id: string): void {
   try {
     sessionStorage.setItem(CHAVE_TX, id);
   } catch {
     // Modo anônimo: perde a dedupe, não perde a venda.
   }
+  try {
+    const k = chavePersistente();
+    if (k) localStorage.setItem(k, id);
+  } catch {
+    // idem
+  }
 }
 
-/** O id guardado, se houver. Some quando a aba fecha, que é o tempo certo. */
+/** O id guardado, se houver: o da aba, ou o da sessão do funil. */
 export function transacaoGuardada(): string | undefined {
   try {
-    return sessionStorage.getItem(CHAVE_TX) ?? undefined;
+    const daAba = sessionStorage.getItem(CHAVE_TX);
+    if (daAba) return daAba;
+  } catch {
+    // segue pro persistente
+  }
+  try {
+    const k = chavePersistente();
+    return (k && localStorage.getItem(k)) || undefined;
   } catch {
     return undefined;
   }
