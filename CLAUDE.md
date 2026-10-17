@@ -624,6 +624,7 @@ painel_eventos_dia`) e o cron refazer.
   (`toque-email.ts`) e os 7 checkouts gravam `pedidos.veio_de = 'email'`
   (`marcarSeVeioDeEmail`, update à parte que nunca derruba a cobrança).
   Envio novo: usar `comUtm`; checkout novo: chamar `marcarSeVeioDeEmail`.
+- **Baixar a base de e-mails (17/10)**, aba E-mail: todo quiz com e-mail, comprando ou não, um endereço por linha, em dois arquivos: Omnisend (Email, Phone, Tags comprador/lead, Entrou em) e Google Customer Match (só Email, Phone, Country, senão o Google recusa). Sempre FORA: descadastro, `emails_mortos` não liberado e `excluidos_email` (lista ilegível = nenhum arquivo sai). Só o idioma da marca. Lido em pedaços por cursor pelo navegador (`admin-leads.ts`, a base passa do teto de 4,5 MB numa resposta só); regras puras em `exportar-leads.ts`. O Omnisend não conhece o nosso descadastro: arquivo velho reimportado traz de volta quem saiu, então baixar de novo a cada campanha.
 - **Aba Criativos (08/10)**: vídeo e anúncio do Google Ads por VENDA REAL
   (gclid → `click_view` → anúncio, em `cliques_anuncio`), título, descrição e
   imagem pela CONVERSÃO DO GOOGLE. Job `puxarCriativosAds` (de hora em hora,

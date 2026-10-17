@@ -28,6 +28,7 @@ import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { AbaTestes } from "@/components/admin/AbaTestes";
 import { AbaCriativos } from "@/components/admin/AbaCriativos";
+import { BaixarLeads } from "@/components/admin/BaixarLeads";
 import { GraficoVendas } from "@/components/admin/GraficoVendas";
 import { ImportarRelatorioAds } from "@/components/admin/ImportarRelatorioAds";
 import { carregarTeto, salvarTeto, type EstadoDoTeto } from "@/lib/admin-teto";
@@ -849,6 +850,9 @@ function Admin() {
         {aba === "criativos" && (
           <AbaCriativos args={usandoDatas ? { de, ate } : { dias: periodo }} />
         )}
+
+        {/* Não usa `dados` nem o período: baixa a base inteira (`BaixarLeads.tsx`). */}
+        {aba === "email" && <BaixarLeads />}
 
         {aba === "financeiro" && <AbaFinanceiro />}
 
