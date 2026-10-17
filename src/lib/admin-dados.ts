@@ -1668,17 +1668,26 @@ async function corteDoGasto(antes: Janela): Promise<CorteDoGasto | undefined> {
   const dia = diaBr(fimMs - 1);
   let googleAteAgoraBrl: number | null = null;
   try {
-    const { consultarGoogleAds, fusoDaConta, tokenGoogleAds } = await import("../../inngest/lib/google-ads");
+    const { consultarGoogleAds, contasGoogleAds, fusoDaConta, tokenGoogleAds } = await import(
+      "../../inngest/lib/google-ads"
+    );
     const porHora = await Promise.race([
       (async () => {
         const acesso = await tokenGoogleAds();
-        const [fuso, linhas] = await Promise.all([
+        // TODAS as contas (a Serenata tem a nova e a suspensa desde 17/10): o dia
+        // cortado pode ser de antes da troca. Uma que falhe derruba o corte inteiro
+        // (vira a fração do dia), porque soma parcial seria gasto a menos.
+        const [fuso, ...porConta] = await Promise.all([
           fusoDaConta(acesso),
-          consultarGoogleAds(
-            `SELECT segments.hour, metrics.cost_micros FROM campaign WHERE segments.date = '${dia}' AND metrics.cost_micros > 0`,
-            acesso,
+          ...contasGoogleAds().map((conta) =>
+            consultarGoogleAds(
+              `SELECT segments.hour, metrics.cost_micros FROM campaign WHERE segments.date = '${dia}' AND metrics.cost_micros > 0`,
+              acesso,
+              conta,
+            ),
           ),
         ]);
+        const linhas = porConta.flat();
         if (fuso !== "America/Sao_Paulo") return null;
         const horas = new Map<number, number>();
         for (const l of linhas) {

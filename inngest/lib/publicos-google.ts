@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { contasGoogleAds } from "../../src/lib/contas-google-ads.js";
 import { createClient } from "@supabase/supabase-js";
 
 // AS LISTAS DE PÚBLICO NO GOOGLE, MONTADAS DO NOSSO BANCO.
@@ -242,8 +243,10 @@ async function enviar(ctx: Ctx, lista: string, adicionar: string[], remover: str
 }
 
 export async function sincronizarPublicos(opts: { seco?: boolean } = {}) {
-  const cid = process.env.GOOGLE_ADS_CUSTOMER_ID;
-  const mcc = process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID;
+  // A lista sobe só na PRIMEIRA conta (`contasGoogleAds`): a suspensa recusa escrita.
+  const [conta] = contasGoogleAds();
+  const cid = conta?.id;
+  const mcc = conta?.login;
   if (!cid) return { pulado: "sem GOOGLE_ADS_CUSTOMER_ID" };
 
   const seg = await segmentos();

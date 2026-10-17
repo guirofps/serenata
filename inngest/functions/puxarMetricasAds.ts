@@ -1,6 +1,6 @@
 import { inngest } from "../client.js";
 import { createClient } from "@supabase/supabase-js";
-import { tokenGoogleAds } from "../lib/google-ads.js";
+import { consultarGoogleAds, contasGoogleAds, tokenGoogleAds } from "../lib/google-ads.js";
 
 // O CUSTO DE CADA CAMPANHA, DIRETO DO GOOGLE, DE HORA EM HORA.
 //
@@ -49,7 +49,6 @@ import { tokenGoogleAds } from "../lib/google-ads.js";
 // `pedidos`. Quando os dois divergirem muito, é sinal de rastreamento
 // duplicado ou de atribuição pegando venda que não é dela.
 
-const API = "https://googleads.googleapis.com/v25";
 const DIAS = 7;
 
 type Metrica = {
@@ -78,44 +77,41 @@ export const puxarMetricasAds = inngest.createFunction(
   async ({ step }) => {
     const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const cid = process.env.GOOGLE_ADS_CUSTOMER_ID;
-    const mcc = process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID;
-    if (!url || !key || !cid) return { pulado: "sem credenciais" };
+    const contas = contasGoogleAds();
+    if (!url || !key || !contas.length) return { pulado: "sem credenciais" };
     const db = createClient(url, key, { auth: { persistSession: false } });
 
-    const linhas = await step.run("ler-google", async () => {
-      const acesso = await tokenGoogleAds();
-      const H: Record<string, string> = {
-        Authorization: `Bearer ${acesso}`,
-        "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN ?? "",
-        "content-type": "application/json",
-      };
-      // A conta é filha de uma MCC: sem este cabeçalho a consulta volta vazia
-      // em vez de dar erro, que é o pior jeito de falhar.
-      if (mcc) H["login-customer-id"] = mcc;
-
-      const de = diaEm(DIAS - 1);
-      const ate = diaEm(0);
-      const r = await fetch(`${API}/customers/${cid}/googleAds:search`, {
-        method: "POST",
-        headers: H,
-        body: JSON.stringify({
-          query: `
+    // ── UMA LEITURA POR CONTA (17/10) ────────────────────────────
+    //
+    // A Serenata lê a conta nova e a suspensa (`contas-google-ads.ts`). Uma
+    // conta que falha não apaga a outra: o upsert só reescreve o que chegou,
+    // e o histórico de quem não respondeu fica como estava. Só lança se
+    // NENHUMA respondeu, pro Inngest tentar de novo.
+    const de = diaEm(DIAS - 1);
+    const ate = diaEm(0);
+    const linhas: Array<Record<string, Record<string, unknown>>> = [];
+    const falhas: string[] = [];
+    for (const conta of contas) {
+      const r = await step.run(`ler-google-${conta.id}`, async () => {
+        try {
+          const acesso = await tokenGoogleAds();
+          return { linhas: (await consultarGoogleAds(`
             SELECT campaign.id, campaign.name, campaign.status,
                    campaign.advertising_channel_type, segments.date,
                    metrics.cost_micros, metrics.clicks, metrics.impressions,
                    metrics.conversions
             FROM campaign
-            WHERE segments.date BETWEEN '${de}' AND '${ate}'`,
-        }),
+            WHERE segments.date BETWEEN '${de}' AND '${ate}'`, acesso, conta)) as Array<Record<string, Record<string, unknown>>>, erro: null };
+        } catch (err) {
+          console.error("[metricas-ads] conta", conta.id, "falhou:", err);
+          return { linhas: [], erro: err instanceof Error ? err.message : String(err) };
+        }
       });
-      const j = (await r.json()) as {
-        results?: Array<Record<string, Record<string, unknown>>>;
-        error?: { message?: string };
-      };
-      if (j.error) throw new Error("Google Ads: " + (j.error.message ?? "erro"));
-      return j.results ?? [];
-    });
+      if (r.erro) falhas.push(`${conta.id}: ${r.erro}`);
+      // O passo volta serializado (JSON): o tipo perde a forma, o conteúdo não.
+      linhas.push(...(r.linhas as Array<Record<string, Record<string, unknown>>>));
+    }
+    if (falhas.length === contas.length) throw new Error("Google Ads: " + falhas.join(" | "));
 
     const metricas = new Map<string, Metrica>();
     const campanhas = new Map<string, { id: string; nome: string; status: string; tipo: string }>();
@@ -180,6 +176,6 @@ export const puxarMetricasAds = inngest.createFunction(
       return lista.length;
     });
 
-    return { campanhas: nomes, metricas: gravadas, dias: DIAS };
+    return { campanhas: nomes, metricas: gravadas, dias: DIAS, contas: contas.length, falhas };
   },
 );

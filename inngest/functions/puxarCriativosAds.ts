@@ -7,7 +7,13 @@
 // nada. Se vídeo/Demand Gen não aparecer, o desenho muda (plano B da spec).
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { inngest } from "../client.js";
-import { consultarGoogleAds, fusoDaConta, tokenGoogleAds } from "../lib/google-ads.js";
+import {
+  consultarGoogleAds,
+  consultarTodasAsContas,
+  contasGoogleAds,
+  fusoDaConta,
+  tokenGoogleAds,
+} from "../lib/google-ads.js";
 import {
   diaAnterior,
   planejarConsultas,
@@ -80,30 +86,49 @@ export async function lerVendasComClique(
 
 const aspas = (s: string) => `'${s.replace(/[^A-Za-z0-9_-]/g, "")}'`;
 
-/** click_view de UM dia pros gclids pedidos, em lotes de 100. */
+/**
+ * click_view de UM dia pros gclids pedidos, em lotes de 100, conta por conta:
+ * o que não aparece na primeira é procurado na seguinte (venda de hoje com
+ * clique antigo na conta suspensa, desde 17/10). Só lança se nenhuma respondeu.
+ */
 export async function consultarCliques(
   dia: string,
   gclids: string[],
   acesso: string,
 ): Promise<Clique[]> {
   const achados: Clique[] = [];
-  for (let i = 0; i < gclids.length; i += 100) {
-    const lote = gclids
-      .slice(i, i + 100)
-      .map(aspas)
-      .join(", ");
-    const linhas = await consultarGoogleAds(
-      `SELECT click_view.gclid, click_view.ad_group_ad, ad_group.id, campaign.id,
-              campaign.advertising_channel_type, segments.date
-       FROM click_view
-       WHERE segments.date = '${dia}' AND click_view.gclid IN (${lote})`,
-      acesso,
-    );
-    for (const l of linhas) {
-      const c = lerClique(l);
-      if (c) achados.push(c);
+  const contas = contasGoogleAds();
+  let resto = gclids;
+  let falhas = 0;
+  for (const conta of contas) {
+    if (!resto.length) break;
+    try {
+      for (let i = 0; i < resto.length; i += 100) {
+        const lote = resto
+          .slice(i, i + 100)
+          .map(aspas)
+          .join(", ");
+        const linhas = await consultarGoogleAds(
+          `SELECT click_view.gclid, click_view.ad_group_ad, ad_group.id, campaign.id,
+                  campaign.advertising_channel_type, segments.date
+           FROM click_view
+           WHERE segments.date = '${dia}' AND click_view.gclid IN (${lote})`,
+          acesso,
+          conta,
+        );
+        for (const l of linhas) {
+          const c = lerClique(l);
+          if (c) achados.push(c);
+        }
+      }
+    } catch (err) {
+      falhas++;
+      console.error("[criativos] click_view da conta", conta.id, "falhou:", err);
     }
+    const vistos = new Set(achados.map((c) => c.gclid));
+    resto = resto.filter((g) => !vistos.has(g));
   }
+  if (contas.length && falhas === contas.length) throw new Error("click_view: nenhuma conta respondeu");
   return achados;
 }
 
@@ -165,7 +190,7 @@ export const puxarCriativosAds = inngest.createFunction(
   async ({ event, step }) => {
     const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key || !process.env.GOOGLE_ADS_CUSTOMER_ID) return { pulado: "sem credenciais" };
+    if (!url || !key || !contasGoogleAds().length) return { pulado: "sem credenciais" };
     const db = createClient(url, key, { auth: { persistSession: false } });
 
     if (event.name === "criativos/sonda") {
@@ -233,7 +258,7 @@ export const puxarCriativosAds = inngest.createFunction(
 
     const anuncios = await step.run("anuncios", () =>
       tentar("anuncios", async () => {
-        const linhas = await consultarGoogleAds(gaqlAnuncios(de, ate));
+        const linhas = await consultarTodasAsContas(gaqlAnuncios(de, ate));
         const porId = new Map<string, AnuncioLido>();
         const metricas: MetricaAnuncioLida[] = [];
         for (const l of linhas) {
@@ -256,7 +281,7 @@ export const puxarCriativosAds = inngest.createFunction(
     const criativos = await step.run("criativos", () =>
       tentar("criativos", async () => {
         const porId = new Map<string, CriativoLido>();
-        for (const l of await consultarGoogleAds(`
+        for (const l of await consultarTodasAsContas(`
         SELECT asset.id, asset.type, asset.name,
                asset.youtube_video_asset.youtube_video_id, asset.youtube_video_asset.youtube_video_title
         FROM asset WHERE asset.type = 'YOUTUBE_VIDEO'`)) {
@@ -264,7 +289,7 @@ export const puxarCriativosAds = inngest.createFunction(
           if (a) porId.set(a.id, a);
         }
         const metricas: MetricaCriativoLida[] = [];
-        for (const l of await consultarGoogleAds(gaqlRecursos(de, ate))) {
+        for (const l of await consultarTodasAsContas(gaqlRecursos(de, ate))) {
           const x = lerLinhaCriativo(l);
           if (!x) continue;
           porId.set(x.criativo.id, x.criativo);
