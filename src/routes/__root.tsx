@@ -36,7 +36,7 @@ import { GA4_ID, scriptGuardaGa4 } from "@/lib/ga4";
 import { TIKTOK_PIXEL_ID, scriptTiktok } from "@/lib/tiktok-pixel";
 import { CLARITY_ID, scriptClarity } from "@/lib/clarity";
 import { OMNISEND_ID, scriptOmnisend } from "@/lib/omnisend";
-import { GOOGLE_ADS_ID } from "@/lib/google-ads";
+import { GOOGLE_ADS_ID, scriptConfigGtag } from "@/lib/google-ads";
 import { LOCALE_PADRAO, localeDaRota, tagIdioma } from "@/lib/i18n";
 import { FONTES, MARCA } from "@/lib/marca";
 import { ehBallad } from "@/lib/marca-identidade";
@@ -325,7 +325,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
             />
             <script
               dangerouslySetInnerHTML={{
-                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GOOGLE_ADS_ID}');`,
+                __html: scriptConfigGtag(GOOGLE_ADS_ID, GA4_ID),
               }}
             />
           </>

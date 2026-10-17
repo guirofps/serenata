@@ -23,13 +23,34 @@ import { emailPlausivel } from "./email-limpo.js";
 // Na Serenata os valores de sempre, sem configuração. Na Ballad, só com as
 // envs do projeto dela; sem elas não carrega tag nenhuma (melhor não medir
 // que medir na conta errada).
+//
+// CONTA NOVA DESDE 17/10: a Climes Ecom (692-319-8164, `AW-16919557808`) foi
+// suspensa; a Serenata anuncia pela Seren Out26 (477-958-6821, gerida pela MCC
+// Falkland). A ação "Compra" daqui é a da conta nova.
 const ENV = (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
 export const GOOGLE_ADS_ID: string | null =
-  MARCA_ATIVA.chave === "serenata" ? "AW-16919557808" : ENV.VITE_GOOGLE_ADS_ID?.trim() || null;
+  MARCA_ATIVA.chave === "serenata" ? "AW-18519340909" : ENV.VITE_GOOGLE_ADS_ID?.trim() || null;
 const CONVERSAO: string | null =
   MARCA_ATIVA.chave === "serenata"
-    ? "AW-16919557808/pSbhCOqvttkcELDt74M_"
+    ? "AW-18519340909/rRbZCLzNo6AdEO3u2v5E"
     : ENV.VITE_GOOGLE_ADS_CONVERSAO?.trim() || null;
+
+/**
+ * A fila do gtag com o Ads e o GA4 configurados PELO SITE.
+ *
+ * Até 17/10 o GA4 chegava como DESTINO da tag do Google da conta de anúncio
+ * (`GT-5TWGDWC6`), então o site só fazia `config` do AW. Com a conta trocada,
+ * esse destino ficou na conta suspensa: sem o `config` explícito o GA4 parava
+ * de receber visita. Não adicionar o GA4 como destino da tag nova no painel
+ * do Google: com este `config` junto, cada página contaria duas vezes.
+ */
+export function scriptConfigGtag(adsId: string, ga4Id: string | null): string {
+  return (
+    `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());` +
+    `gtag('config','${adsId}');` +
+    (ga4Id ? `gtag('config','${ga4Id}');` : "")
+  );
+}
 
 declare global {
   interface Window {

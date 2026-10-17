@@ -567,6 +567,15 @@ Serenata (`clarityDaMarca`, `omnisendDaMarca`), fora das rotas de
   descadastro sincronizado com `descadastros`/`emails_mortos`, senão quem saiu
   de um continua recebendo do outro.
 
+## Conta nova do Google Ads (17/10/2026)
+
+A **Climes Ecom (692-319-8164) foi SUSPENSA em 17/10** por anúncios com rosto trocado (vídeos do carro de 16/10 e o "Vid 5 volta"). Conta suspensa só deixa LER pela API (`ACTION_NOT_PERMITTED_FOR_SUSPENDED_ACCOUNT` em qualquer mutate, até `validateOnly`). A Serenata passou pra **Seren Out26 (477-958-6821)**, gerida pela MCC **Falkland (502-439-4715)**: toda chamada leva `login-customer-id: 5024394715` (`scratch/_gads.mjs` lê `GOOGLE_ADS_LOGIN_CUSTOMER_ID`). A Ballad NÃO muda (conta própria).
+
+- **Ações de conversão copiadas da antiga** (`scratch/conta-nova-conversoes.mjs`): Compra, begin_checkout, add_to_cart, Botão Whatsapp (tag, `AW-18519340909`) e "Compra Serenata (importada)". As do GA4 só nascem vinculando o GA4.
+- **A importada da antiga vinha da IMPORTAÇÃO AGENDADA por URL** (`api/conversoes.ts`, CSV), nunca da API. Pela API, conta nova recebe `CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE` (exige Data Manager API). Até a importação agendada ser recriada no painel da conta nova e a 1ª leva entrar, a **Compra (tag) é a PRIMÁRIA** e a importada secundária (`scratch/conta-nova-primaria.mjs`); depois inverter (duas primárias = venda contada 2x).
+- **Tag do site:** `AW-18519340909`, conversão `AW-18519340909/rRbZCLzNo6AdEO3u2v5E` (`google-ads.ts`). O GA4 era DESTINO da tag da conta antiga (`GT-5TWGDWC6`); agora o site faz `config` do GA4 explicitamente (`scriptConfigGtag`). NÃO adicionar o GA4 como destino da tag nova no painel: contaria cada página 2x.
+- **Vercel (projeto `musica-personalizada`):** `GOOGLE_ADS_CUSTOMER_ID=4779586821` e `GOOGLE_ADS_LOGIN_CUSTOMER_ID=5024394715`. O login `nosfer` na CLI não tem permissão de alterar env de produção: muda pelo painel.
+
 ## Painel rápido (02/10/2026)
 
 O `/admin` parou de abrir até em 7 dias (`statement timeout`). Desenho em

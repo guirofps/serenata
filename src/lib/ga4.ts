@@ -12,9 +12,10 @@
 //
 // ── `send_to` EM TODA CHAMADA ────────────────────────────────────
 //
-// O GA4 entrou como DESTINO da tag que carrega o Ads (`GT-5TWGDWC6`). Um
-// `gtag('event', ...)` sem `send_to` vai pra TODOS os destinos da tag,
-// inclusive o `AW-16919557808`: um `purchase` daqui chegaria no Ads como uma
+// O GA4 e o Ads são configurados na MESMA fila do gtag (`scriptConfigGtag`,
+// desde 17/10; antes o GA4 era destino da tag `GT-5TWGDWC6`). Um
+// `gtag('event', ...)` sem `send_to` vai pra TODOS os ids configurados,
+// inclusive o do Ads (`GOOGLE_ADS_ID`): um `purchase` daqui chegaria no Ads como uma
 // terceira contagem da mesma venda, pelo caminho mais difícil de perceber.
 // O dono decidiu "públicos sim, conversão não" em 01/10; esta é a trava
 // técnica dessa decisão.
