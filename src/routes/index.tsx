@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { Logo } from "@/components/marca/Logo";
 import { MARCA, FONTES, TEMA_CLARO } from "@/lib/marca";
-import { EMPRESA, cnpjFormatado } from "@/lib/empresa";
+import { RESPONSAVEL, cnpjFormatado } from "@/lib/empresa";
 import { ProvaImediata, Dor, Beneficios, Oferta, FAQ } from "@/components/landing/Secoes";
 import { ExemplosReais } from "@/components/landing/ExemplosReais";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
@@ -413,10 +413,12 @@ function Home() {
         <p className="mt-10 text-center text-xs text-[var(--tinta-fraca)]">
           {MARCA.dominio} · © {new Date().getFullYear()} {MARCA.nome}
         </p>
-        {/* A IDENTIFICAÇÃO DO FORNECEDOR é obrigação do CDC pra venda online,
-            e a mesma que aparece na tela de pagamento. */}
+        {/* A IDENTIFICAÇÃO DO FORNECEDOR é obrigação do CDC pra venda online
+            (razão social, CNPJ e endereço físico, Decreto 7.962/2013). */}
         <p className="mt-1 text-center text-xs text-[var(--tinta-fraca)]">
-          {EMPRESA.nome} · CNPJ {cnpjFormatado()}
+          {RESPONSAVEL.razaoSocial} · CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}
+          <br />
+          {RESPONSAVEL.endereco}
         </p>
         {/* Espaço pra barra flutuante não cobrir o rodapé no mobile. */}
         <div className="h-16" aria-hidden />

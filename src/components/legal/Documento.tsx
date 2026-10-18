@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Logo } from "@/components/marca/Logo";
 import { MARCA, TEMA_CLARO } from "@/lib/marca";
-import { EMPRESA, cnpjFormatado } from "@/lib/empresa";
+import { RESPONSAVEL, cnpjFormatado } from "@/lib/empresa";
 import { LOCALE_PADRAO } from "@/lib/i18n";
 
 /**
@@ -30,7 +30,7 @@ const MOLDURA = EN
     }
   : {
       atualizado: "Última atualização: ",
-      empresa: EMPRESA.nome,
+      empresa: RESPONSAVEL.razaoSocial,
       duvidas: "Dúvidas ou pedidos:",
       voltar: "Voltar para o site",
     };
@@ -81,7 +81,10 @@ export function Documento({
           {EN ? (
             <p>CNPJ (Brazilian company ID) {cnpjFormatado()}, São Caetano do Sul, SP, Brazil</p>
           ) : (
-            <p>CNPJ {cnpjFormatado()}</p>
+            <>
+              <p>CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}</p>
+              <p>{RESPONSAVEL.endereco}</p>
+            </>
           )}
           <p className="mt-2">
             {MOLDURA.duvidas}{" "}

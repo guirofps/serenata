@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPRESA, cnpjFormatado, temIdentificacao } from "./empresa";
+import { EMPRESA, RESPONSAVEL, cnpjFormatado, temIdentificacao } from "./empresa";
 
 // O QUE ESTE TESTE SEGURA
 //
@@ -54,6 +54,11 @@ describe("o CNPJ que vai na tela de pagamento", () => {
 
   it("sai formatado do jeito que se lê", () => {
     expect(cnpjFormatado()).toBe("45.835.258/0001-46");
+  });
+
+  it("o CNPJ do responsável (rodapé e termos) também passa na conta", () => {
+    expect(digitosConferem(RESPONSAVEL.cnpj)).toBe(true);
+    expect(cnpjFormatado(RESPONSAVEL.cnpj)).toBe("06.974.663/0001-93");
   });
 
   it("com nome e número, a tela mostra a identificação", () => {

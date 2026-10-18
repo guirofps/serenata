@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Logo } from "@/components/marca/Logo";
-import { EMPRESA, cnpjFormatado } from "@/lib/empresa";
+import { RESPONSAVEL, cnpjFormatado } from "@/lib/empresa";
 import { MARCA, TEMA_CLARO } from "@/lib/marca";
 import { BotaoCriar } from "./CtaCriar";
 
@@ -30,7 +30,9 @@ export function LayoutBlog({ children, tema }: { children: ReactNode; tema?: "go
           <Link to="/privacidade">Privacidade</Link>
         </nav>
         <p className="mt-4">
-          {EMPRESA.nome} · CNPJ {cnpjFormatado()}
+          {RESPONSAVEL.razaoSocial} · CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}
+          <br />
+          {RESPONSAVEL.endereco}
         </p>
       </footer>
     </div>

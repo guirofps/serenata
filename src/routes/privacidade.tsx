@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Documento, Secao, SUPORTE } from "@/components/legal/Documento";
 import { META_PRIVACIDADE_EN, PrivacidadeEn } from "@/components/legal/PrivacidadeEn";
 import { LOCALE_PADRAO } from "@/lib/i18n";
+import { RESPONSAVEL, cnpjFormatado } from "@/lib/empresa";
 
 // POLÍTICA DE PRIVACIDADE.
 //
@@ -46,7 +47,7 @@ export const Route = createFileRoute("/privacidade")({
 
 function Pagina() {
   return (
-    <Documento titulo="Política de Privacidade" atualizado="28 de agosto de 2026">
+    <Documento titulo="Política de Privacidade" atualizado="18 de outubro de 2026">
       <p>
         Esta política explica quais dados a Serenata coleta, por que coleta, com quem
         compartilha e o que você pode pedir a qualquer momento. Ela vale para o site{" "}
@@ -55,7 +56,9 @@ function Pagina() {
 
       <Secao n={1} titulo="Quem é o responsável">
         <p>
-          A Serenata (CNPJ 45.835.258/0001-46) é a controladora dos seus dados. Para
+          A {RESPONSAVEL.razaoSocial} (CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}),
+          responsável pela Serenata, com sede na {RESPONSAVEL.endereco}, é a controladora
+          dos seus dados. Para
           qualquer pedido relacionado a esta política, escreva para{" "}
           <a href={`mailto:${SUPORTE}`} className="text-primary underline underline-offset-4">
             {SUPORTE}
