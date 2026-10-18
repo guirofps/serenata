@@ -25,7 +25,6 @@ export async function tokenGoogleAds(): Promise<string> {
   return j.access_token;
 }
 
-/** Todas as páginas de uma consulta GAQL (a API devolve 10.000 por página). */
 /** Sem `conta`, a primeira de `contasGoogleAds` (a que recebe escrita). */
 export async function consultarGoogleAds(gaql: string, acesso?: string, conta?: ContaGoogleAds): Promise<Linha[]> {
   const alvo = conta ?? contasGoogleAds()[0];
@@ -38,6 +37,20 @@ export async function consultarGoogleAds(gaql: string, acesso?: string, conta?: 
   };
   // Conta filha de MCC: sem este cabeçalho a consulta volta vazia em vez de dar erro.
   if (alvo.login) H["login-customer-id"] = alvo.login;
+  try {
+    return await paginas(cid, gaql, H);
+  } catch (err) {
+    // O login de produção não enxergava a conta nova pela MCC Falkland (18/10,
+    // "The caller does not have permission") e o painel ficou sem o gasto. Com
+    // o login convidado DIRETO na conta, ele só entra sem o cabeçalho da MCC.
+    if (!alvo.login || !/permission/i.test(String(err))) throw err;
+    delete H["login-customer-id"];
+    return paginas(cid, gaql, H);
+  }
+}
+
+/** Todas as páginas de uma consulta GAQL (a API devolve 10.000 por página). */
+async function paginas(cid: string, gaql: string, H: Record<string, string>): Promise<Linha[]> {
   const todas: Linha[] = [];
   let pageToken: string | undefined;
   for (let pagina = 0; pagina < 50; pagina++) {
