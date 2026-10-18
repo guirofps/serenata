@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cortarDiaDoGasto, diasDaJanela, gastoAteOMinuto, somarGasto, cpaDoGoogle } from "./gasto-midia";
+import { cortarDiaDoGasto, diasDaJanela, gastoAteOMinuto, somarGasto, cpaDoCanal } from "./gasto-midia";
 
 describe("somarGasto", () => {
   it("soma o Google da API com os lançamentos de outras origens", () => {
@@ -11,7 +11,7 @@ describe("somarGasto", () => {
         { dia: "2026-10-02", brl: 100 },
       ],
     );
-    expect(g).toEqual({ totalBrl: 650, googleApiBrl: 600, manualBrl: 50, googleBrl: 600 });
+    expect(g).toEqual({ totalBrl: 650, googleApiBrl: 600, manualBrl: 50, googleBrl: 600, tiktokBrl: 50 });
   });
 
   it("lançamento manual de google não conta em dobro no dia que a API trouxe", () => {
@@ -19,7 +19,7 @@ describe("somarGasto", () => {
       [{ dia: "2026-10-01", origem: "google", brl: 480 }],
       [{ dia: "2026-10-01", brl: 500 }],
     );
-    expect(g).toEqual({ totalBrl: 500, googleApiBrl: 500, manualBrl: 0, googleBrl: 500 });
+    expect(g).toEqual({ totalBrl: 500, googleApiBrl: 500, manualBrl: 0, googleBrl: 500, tiktokBrl: 0 });
   });
 
   it("dia com campanha que gastou zero também é dado da API", () => {
@@ -38,11 +38,11 @@ describe("somarGasto", () => {
       ],
       [{ dia: "2026-10-01", brl: 500 }],
     );
-    expect(g).toEqual({ totalBrl: 900, googleApiBrl: 500, manualBrl: 400, googleBrl: 900 });
+    expect(g).toEqual({ totalBrl: 900, googleApiBrl: 500, manualBrl: 400, googleBrl: 900, tiktokBrl: 0 });
   });
 
   it("sem nada, zero", () => {
-    expect(somarGasto([], [])).toEqual({ totalBrl: 0, googleApiBrl: 0, manualBrl: 0, googleBrl: 0 });
+    expect(somarGasto([], [])).toEqual({ totalBrl: 0, googleApiBrl: 0, manualBrl: 0, googleBrl: 0, tiktokBrl: 0 });
   });
 });
 
@@ -89,7 +89,7 @@ describe("o dia cortado da janela anterior (comparativo até a mesma hora)", () 
       ],
       { dia: "2026-10-12", minutoDoDia: 12 * 60, googleAteAgoraBrl: 1800 },
     );
-    expect(somarGasto(r.manuais, r.google)).toEqual({ totalBrl: 1800 + 5000 + 120 + 100, googleApiBrl: 6800, manualBrl: 220, googleBrl: 6800 });
+    expect(somarGasto(r.manuais, r.google)).toEqual({ totalBrl: 1800 + 5000 + 120 + 100, googleApiBrl: 6800, manualBrl: 220, googleBrl: 6800, tiktokBrl: 220 });
   });
 
   it("sem o gasto por hora (API fora), o Google do dia cortado também é proporcional", () => {
@@ -116,10 +116,26 @@ describe("gasto do Google e CPA do Google", () => {
   });
 
   it("CPA do Google divide pelas vendas do canal Google, não pelo total", () => {
-    expect(cpaDoGoogle(200, 8)).toBe(25);
+    expect(cpaDoCanal(200, 8)).toBe(25);
   });
 
   it("sem venda do Google devolve 0, que o cartão mostra como —", () => {
-    expect(cpaDoGoogle(200, 0)).toBe(0);
+    expect(cpaDoCanal(200, 0)).toBe(0);
+  });
+});
+
+// O cartão "CPA TikTok" (18/10) só aparece com gasto lançado do TikTok.
+describe("gasto do TikTok", () => {
+  it("é o manual com origem tiktok, à parte do Google e do resto", () => {
+    const r = somarGasto(
+      [
+        { dia: "2026-10-18", origem: "tiktok", brl: 120 },
+        { dia: "2026-10-18", origem: "outro", brl: 30 },
+      ],
+      [{ dia: "2026-10-18", brl: 200 }],
+    );
+    expect(r.tiktokBrl).toBe(120);
+    expect(r.googleBrl).toBe(200);
+    expect(cpaDoCanal(r.tiktokBrl, 4)).toBe(30);
   });
 });

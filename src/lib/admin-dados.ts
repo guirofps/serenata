@@ -6,7 +6,7 @@ import { isQuestion } from "@/lib/flow-engine";
 import { cambioDoDia } from "@/lib/cambio";
 import { filtroCursor, lerJanela } from "@/lib/ler-janela";
 import { porTemaDe, type LinhaTema } from "@/lib/admin-tema";
-import { cortarDiaDoGasto, cpaDoGoogle, diasDaJanela, gastoAteOMinuto, somarGasto, type CorteDoGasto } from "@/lib/gasto-midia";
+import { cortarDiaDoGasto, cpaDoCanal, diasDaJanela, gastoAteOMinuto, somarGasto, type CorteDoGasto } from "@/lib/gasto-midia";
 import { taxaDoPedido } from "@/lib/taxa-gateway";
 import { contarPorCanal, type CanalVenda } from "@/lib/canal-venda";
 import { chaveOrigem } from "@/lib/origem";
@@ -99,6 +99,10 @@ export type Painel = {
      * orgânico nem TikTok, que baixavam o número.
      */
     cpaBrl: number;
+    /** O TikTok lançado à mão (`gastos_ads`, origem "tiktok"). 0 = sem cartão de CPA TikTok. */
+    gastoTiktokBrl: number;
+    /** Gasto do TikTok ÷ vendas do canal TikTok. */
+    cpaTiktokBrl: number;
     /** Receita dividida pelo gasto. Abaixo de 1 é prejuízo. */
     roas: number;
     /** Taxa do gateway das vendas do período (`taxaDoPedido`). */
@@ -1539,7 +1543,9 @@ async function montarPainel(
       gastoGoogleApiBrl: gasto.googleApiBrl,
       gastoManualBrl: gasto.manualBrl,
       gastoGoogleBrl: gasto.googleBrl,
-      cpaBrl: cpaDoGoogle(gasto.googleBrl, vendasPorCanal.google),
+      cpaBrl: cpaDoCanal(gasto.googleBrl, vendasPorCanal.google),
+      gastoTiktokBrl: gasto.tiktokBrl,
+      cpaTiktokBrl: cpaDoCanal(gasto.tiktokBrl, vendasPorCanal.tiktok),
       roas: gastoAds > 0 ? receita / gastoAds : 0,
       taxaGatewayBrl: taxaGateway,
       taxaEstimadaBrl: taxaEstimada,

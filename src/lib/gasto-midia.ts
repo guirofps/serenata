@@ -32,7 +32,7 @@ export type GastoGoogleApi = { dia: string; brl: number };
 export function somarGasto(
   manuais: GastoManual[],
   google: GastoGoogleApi[],
-): { totalBrl: number; googleApiBrl: number; manualBrl: number; googleBrl: number } {
+): { totalBrl: number; googleApiBrl: number; manualBrl: number; googleBrl: number; tiktokBrl: number } {
   // Dia com linha da API é dia coberto, mesmo com custo zero: a campanha
   // existiu e não gastou, e isso é dado.
   const diasComApi = new Set(google.map((g) => g.dia));
@@ -41,17 +41,19 @@ export function somarGasto(
   const manualBrl = valendo.reduce((s, m) => s + m.brl, 0);
   // Só o Google: o que o CPA do painel divide (18/10).
   const googleBrl = googleApiBrl + valendo.filter((m) => m.origem === "google").reduce((s, m) => s + m.brl, 0);
-  return { totalBrl: googleApiBrl + manualBrl, googleApiBrl, manualBrl, googleBrl };
+  // Só o TikTok: o cartão "CPA TikTok" (18/10). Não tem API, é sempre lançado à mão.
+  const tiktokBrl = valendo.filter((m) => m.origem === "tiktok").reduce((s, m) => s + m.brl, 0);
+  return { totalBrl: googleApiBrl + manualBrl, googleApiBrl, manualBrl, googleBrl, tiktokBrl };
 }
 
 /**
- * O CPA do painel é SÓ do Google Ads (dono, 18/10): gasto do Google ÷ vendas
- * do canal Google (`canalDaVenda`). Dividir o gasto pelas vendas de TODOS os
- * canais misturava e-mail e orgânico e baixava o número. 0 = sem venda do
- * Google (o cartão mostra "—").
+ * CPA de UM canal (dono, 18/10): o gasto dele ÷ as vendas dele (`canalDaVenda`).
+ * O cartão CPA é do Google Ads, e o "CPA TikTok" aparece quando há gasto do
+ * TikTok. Dividir o gasto pelas vendas de TODOS os canais misturava e-mail e
+ * orgânico e baixava o número. 0 = sem venda do canal (o cartão mostra "—").
  */
-export function cpaDoGoogle(gastoGoogleBrl: number, vendasGoogle: number): number {
-  return vendasGoogle > 0 ? gastoGoogleBrl / vendasGoogle : 0;
+export function cpaDoCanal(gastoBrl: number, vendas: number): number {
+  return vendas > 0 ? gastoBrl / vendas : 0;
 }
 
 // ── O DIA CORTADO DO COMPARATIVO (13/10) ────────────────────────────────

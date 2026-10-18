@@ -1153,7 +1153,7 @@ function Corpo({
                 atual={t.cpaBrl > 0 ? t.cpaBrl : undefined}
                 anterior={a?.cpaBrl}
                 alerta={t.cpaBrl > 0 && t.cpaBrl > t.ticketMedioBrl}
-                // Só o Google (18/10): gasto do Google ÷ vendas do canal Google (`cpaDoGoogle`).
+                // Só o Google (18/10): gasto do Google ÷ vendas do canal Google (`cpaDoCanal`).
                 apoio={
                   t.cpaBrl > 0
                     ? `${brl(t.gastoGoogleBrl)} ÷ ${t.vendasPorCanal.google} vendas do Google`
@@ -1162,6 +1162,21 @@ function Corpo({
                       : "precisa do gasto do Google"
                 }
               />
+              {/* Só com gasto do TikTok lançado no período (18/10). */}
+              {t.gastoTiktokBrl > 0 && (
+                <Cartao
+                  rotulo="CPA TikTok"
+                  valor={t.cpaTiktokBrl > 0 ? brl(t.cpaTiktokBrl) : "—"}
+                  atual={t.cpaTiktokBrl > 0 ? t.cpaTiktokBrl : undefined}
+                  anterior={a?.cpaTiktokBrl || undefined}
+                  alerta={t.cpaTiktokBrl > 0 && t.cpaTiktokBrl > t.ticketMedioBrl}
+                  apoio={
+                    t.cpaTiktokBrl > 0
+                      ? `${brl(t.gastoTiktokBrl)} ÷ ${t.vendasPorCanal.tiktok} vendas do TikTok`
+                      : "nenhuma venda do TikTok ainda"
+                  }
+                />
+              )}
               <Cartao
                 rotulo="ROAS"
                 valor={t.roas > 0 ? `${t.roas.toFixed(2)}x` : "—"}
@@ -1982,6 +1997,7 @@ function LancarGasto({ aoSalvar, gastos }: { aoSalvar: () => void; gastos: Paine
           className="rounded-full border border-[var(--tinta-fraca)] bg-[var(--papel)] px-3 py-1.5 text-xs"
         >
           <option value="google">google</option>
+          <option value="tiktok">tiktok</option>
           <option value="meta">meta</option>
           <option value="outro">outro</option>
         </select>
