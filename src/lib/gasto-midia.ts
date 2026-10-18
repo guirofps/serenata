@@ -32,15 +32,26 @@ export type GastoGoogleApi = { dia: string; brl: number };
 export function somarGasto(
   manuais: GastoManual[],
   google: GastoGoogleApi[],
-): { totalBrl: number; googleApiBrl: number; manualBrl: number } {
+): { totalBrl: number; googleApiBrl: number; manualBrl: number; googleBrl: number } {
   // Dia com linha da API é dia coberto, mesmo com custo zero: a campanha
   // existiu e não gastou, e isso é dado.
   const diasComApi = new Set(google.map((g) => g.dia));
   const googleApiBrl = google.reduce((s, g) => s + g.brl, 0);
-  const manualBrl = manuais
-    .filter((m) => !(m.origem === "google" && diasComApi.has(m.dia)))
-    .reduce((s, m) => s + m.brl, 0);
-  return { totalBrl: googleApiBrl + manualBrl, googleApiBrl, manualBrl };
+  const valendo = manuais.filter((m) => !(m.origem === "google" && diasComApi.has(m.dia)));
+  const manualBrl = valendo.reduce((s, m) => s + m.brl, 0);
+  // Só o Google: o que o CPA do painel divide (18/10).
+  const googleBrl = googleApiBrl + valendo.filter((m) => m.origem === "google").reduce((s, m) => s + m.brl, 0);
+  return { totalBrl: googleApiBrl + manualBrl, googleApiBrl, manualBrl, googleBrl };
+}
+
+/**
+ * O CPA do painel é SÓ do Google Ads (dono, 18/10): gasto do Google ÷ vendas
+ * do canal Google (`canalDaVenda`). Dividir o gasto pelas vendas de TODOS os
+ * canais misturava e-mail e orgânico e baixava o número. 0 = sem venda do
+ * Google (o cartão mostra "—").
+ */
+export function cpaDoGoogle(gastoGoogleBrl: number, vendasGoogle: number): number {
+  return vendasGoogle > 0 ? gastoGoogleBrl / vendasGoogle : 0;
 }
 
 // ── O DIA CORTADO DO COMPARATIVO (13/10) ────────────────────────────────

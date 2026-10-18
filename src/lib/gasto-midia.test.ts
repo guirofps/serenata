@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cortarDiaDoGasto, diasDaJanela, gastoAteOMinuto, somarGasto } from "./gasto-midia";
+import { cortarDiaDoGasto, diasDaJanela, gastoAteOMinuto, somarGasto, cpaDoGoogle } from "./gasto-midia";
 
 describe("somarGasto", () => {
   it("soma o Google da API com os lançamentos de outras origens", () => {
@@ -11,7 +11,7 @@ describe("somarGasto", () => {
         { dia: "2026-10-02", brl: 100 },
       ],
     );
-    expect(g).toEqual({ totalBrl: 650, googleApiBrl: 600, manualBrl: 50 });
+    expect(g).toEqual({ totalBrl: 650, googleApiBrl: 600, manualBrl: 50, googleBrl: 600 });
   });
 
   it("lançamento manual de google não conta em dobro no dia que a API trouxe", () => {
@@ -19,7 +19,7 @@ describe("somarGasto", () => {
       [{ dia: "2026-10-01", origem: "google", brl: 480 }],
       [{ dia: "2026-10-01", brl: 500 }],
     );
-    expect(g).toEqual({ totalBrl: 500, googleApiBrl: 500, manualBrl: 0 });
+    expect(g).toEqual({ totalBrl: 500, googleApiBrl: 500, manualBrl: 0, googleBrl: 500 });
   });
 
   it("dia com campanha que gastou zero também é dado da API", () => {
@@ -38,11 +38,11 @@ describe("somarGasto", () => {
       ],
       [{ dia: "2026-10-01", brl: 500 }],
     );
-    expect(g).toEqual({ totalBrl: 900, googleApiBrl: 500, manualBrl: 400 });
+    expect(g).toEqual({ totalBrl: 900, googleApiBrl: 500, manualBrl: 400, googleBrl: 900 });
   });
 
   it("sem nada, zero", () => {
-    expect(somarGasto([], [])).toEqual({ totalBrl: 0, googleApiBrl: 0, manualBrl: 0 });
+    expect(somarGasto([], [])).toEqual({ totalBrl: 0, googleApiBrl: 0, manualBrl: 0, googleBrl: 0 });
   });
 });
 
@@ -89,11 +89,37 @@ describe("o dia cortado da janela anterior (comparativo até a mesma hora)", () 
       ],
       { dia: "2026-10-12", minutoDoDia: 12 * 60, googleAteAgoraBrl: 1800 },
     );
-    expect(somarGasto(r.manuais, r.google)).toEqual({ totalBrl: 1800 + 5000 + 120 + 100, googleApiBrl: 6800, manualBrl: 220 });
+    expect(somarGasto(r.manuais, r.google)).toEqual({ totalBrl: 1800 + 5000 + 120 + 100, googleApiBrl: 6800, manualBrl: 220, googleBrl: 6800 });
   });
 
   it("sem o gasto por hora (API fora), o Google do dia cortado também é proporcional", () => {
     const r = cortarDiaDoGasto([], [{ dia: "2026-10-12", brl: 6000 }], { dia: "2026-10-12", minutoDoDia: 6 * 60, googleAteAgoraBrl: null });
     expect(somarGasto(r.manuais, r.google).totalBrl).toBe(1500);
+  });
+});
+
+// O CPA do painel é SÓ do Google Ads (dono, 18/10): gasto do Google ÷ vendas
+// do canal Google. Antes dividia o gasto de tudo pelas vendas de tudo, e as
+// vendas de e-mail e orgânico baixavam o número (R$ 5,66 em 18/10).
+describe("gasto do Google e CPA do Google", () => {
+  it("o Google é a API mais o manual do Google em dia sem API", () => {
+    const r = somarGasto(
+      [
+        { dia: "2026-10-17", origem: "google", brl: 50 }, // dia COM API: o manual some
+        { dia: "2026-10-16", origem: "google", brl: 30 }, // dia sem API: entra
+        { dia: "2026-10-17", origem: "tiktok", brl: 20 }, // não é Google
+      ],
+      [{ dia: "2026-10-17", brl: 100 }],
+    );
+    expect(r.googleBrl).toBe(130);
+    expect(r.totalBrl).toBe(150);
+  });
+
+  it("CPA do Google divide pelas vendas do canal Google, não pelo total", () => {
+    expect(cpaDoGoogle(200, 8)).toBe(25);
+  });
+
+  it("sem venda do Google devolve 0, que o cartão mostra como —", () => {
+    expect(cpaDoGoogle(200, 0)).toBe(0);
   });
 });

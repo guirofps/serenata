@@ -6,7 +6,7 @@ import { isQuestion } from "@/lib/flow-engine";
 import { cambioDoDia } from "@/lib/cambio";
 import { filtroCursor, lerJanela } from "@/lib/ler-janela";
 import { porTemaDe, type LinhaTema } from "@/lib/admin-tema";
-import { cortarDiaDoGasto, diasDaJanela, gastoAteOMinuto, somarGasto, type CorteDoGasto } from "@/lib/gasto-midia";
+import { cortarDiaDoGasto, cpaDoGoogle, diasDaJanela, gastoAteOMinuto, somarGasto, type CorteDoGasto } from "@/lib/gasto-midia";
 import { taxaDoPedido } from "@/lib/taxa-gateway";
 import { contarPorCanal, type CanalVenda } from "@/lib/canal-venda";
 import { chaveOrigem } from "@/lib/origem";
@@ -91,7 +91,13 @@ export type Painel = {
     gastoGoogleApiBrl: number;
     /** A parte lançada à mão que entrou na conta. */
     gastoManualBrl: number;
-    /** Quanto custa trazer UMA venda. É a conta que decide se a operação vive. */
+    /** O Google inteiro: API + manual de "google" em dia sem API. */
+    gastoGoogleBrl: number;
+    /**
+     * Quanto custa UMA venda do GOOGLE ADS (dono, 18/10): gasto do Google ÷
+     * vendas do canal Google (`vendasPorCanal.google`). Não mistura e-mail,
+     * orgânico nem TikTok, que baixavam o número.
+     */
     cpaBrl: number;
     /** Receita dividida pelo gasto. Abaixo de 1 é prejuízo. */
     roas: number;
@@ -1532,7 +1538,8 @@ async function montarPainel(
       gastoAdsBrl: gastoAds,
       gastoGoogleApiBrl: gasto.googleApiBrl,
       gastoManualBrl: gasto.manualBrl,
-      cpaBrl: pagos.length ? gastoAds / pagos.length : 0,
+      gastoGoogleBrl: gasto.googleBrl,
+      cpaBrl: cpaDoGoogle(gasto.googleBrl, vendasPorCanal.google),
       roas: gastoAds > 0 ? receita / gastoAds : 0,
       taxaGatewayBrl: taxaGateway,
       taxaEstimadaBrl: taxaEstimada,

@@ -1147,13 +1147,20 @@ function Corpo({
                 anterior={a?.gastoAdsBrl}
               />
               <Cartao
-                rotulo="CPA"
+                rotulo="CPA Google Ads"
                 valor={t.cpaBrl > 0 ? brl(t.cpaBrl) : "—"}
                 destaque={t.cpaBrl > 0}
                 atual={t.cpaBrl > 0 ? t.cpaBrl : undefined}
                 anterior={a?.cpaBrl}
                 alerta={t.cpaBrl > 0 && t.cpaBrl > t.ticketMedioBrl}
-                apoio={t.cpaBrl > 0 ? `ticket ${brl(t.ticketMedioBrl)}` : "precisa do gasto"}
+                // Só o Google (18/10): gasto do Google ÷ vendas do canal Google (`cpaDoGoogle`).
+                apoio={
+                  t.cpaBrl > 0
+                    ? `${brl(t.gastoGoogleBrl)} ÷ ${t.vendasPorCanal.google} vendas do Google`
+                    : t.gastoGoogleBrl > 0
+                      ? "nenhuma venda do Google ainda"
+                      : "precisa do gasto do Google"
+                }
               />
               <Cartao
                 rotulo="ROAS"
