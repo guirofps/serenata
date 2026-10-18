@@ -13,6 +13,8 @@ import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
 import { usePausarVideosAtras, useVoltarFechaAFolha } from "@/lib/folha-pagamento";
 import { ShieldCheck, RefreshCw, X } from "lucide-react";
+import { varianteDe } from "@/lib/experimentos";
+import { EXP_AVISO_RECUSA, TEXTO_AVISO_RECUSA, avisoRecusaLigado } from "@/lib/aviso-recusa";
 
 // O PAGAMENTO DA BALLAD GIFT, na própria página.
 //
@@ -101,6 +103,9 @@ export function CheckoutStripe({
   const sp = useMemo(() => stripe(), []);
   const abertaEm = useRef(Date.now());
   const [CheckoutEmbutido, setCheckoutEmbutido] = useState<typeof Embutido | null>(null);
+  // Teste `aviso_recusa` (18/10): ver `aviso-recusa.ts`.
+  const [avisoRecusa] = useState(() => avisoRecusaLigado(varianteDe(EXP_AVISO_RECUSA)));
+  const AVISO = locale === "es" ? TEXTO_AVISO_RECUSA.es : TEXTO_AVISO_RECUSA.en;
 
   // O iframe (ver `carregarEmbutido`). Junto com o "Try again": se o arquivo
   // não veio, a nova tentativa pede de novo.
@@ -224,7 +229,16 @@ export function CheckoutStripe({
             <RefreshCw className="h-4 w-4 animate-spin" /> {T.abrindo}
           </p>
         ) : (
-          <CheckoutEmbutido stripe={sp} options={opcoes} />
+          <>
+            <CheckoutEmbutido stripe={sp} options={opcoes} />
+            {/* Embaixo do botão de pagar, onde o erro de recusa aparece. */}
+            {avisoRecusa && (
+              <div className="mx-2 mt-3 rounded-xl border border-primary/10 bg-muted/50 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+                <p className="font-medium text-foreground">{AVISO.titulo}</p>
+                <p className="mt-0.5">{AVISO.texto}</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

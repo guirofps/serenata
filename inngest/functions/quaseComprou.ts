@@ -6,7 +6,9 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { comUtm } from "../../src/lib/utm-email.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
-import { emailQuaseComprou, assuntoQuaseComprou, textoQuaseComprouEsEua } from "../../emails/quase-comprou.js";
+import { emailQuaseComprou, assuntoQuaseComprou, textoQuaseComprouEsEua, textoQuaseComprouRecusa, temCopyRecusa } from "../../emails/quase-comprou.js";
+import { bracoRecusaEmail } from "../../src/lib/aviso-recusa.js";
+import { teveRecusaStripe } from "../lib/recusa-stripe.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
 import { literalLike } from "../../src/lib/sql-like.js";
@@ -161,6 +163,7 @@ export const quaseComprou = inngest.createFunction(
       const out: Array<{
         email: string; nome: string; titulo: string;
         link: string; quizId: string; quizCriadoEm: string; locale: "pt" | "es" | "en";
+        recusado: boolean;
       }> = [];
       const vistos = new Set<string>();
 
@@ -243,7 +246,13 @@ export const quaseComprou = inngest.createFunction(
         if (!volta.startsWith("/retomar")) continue;
         const link = `${SITE}${volta}&de=quase`;
 
+        // CARTÃO RECUSADO (Ballad, 18/10): pergunta ao Stripe só onde existe
+        // o texto de recusa. Os dois braços perguntam, pra leitura comparar
+        // quem teve recusa no A com quem teve no B.
+        const recusado = temCopyRecusa(locale) ? await teveRecusaStripe(sb, q.id as string) : false;
+
         out.push({
+          recusado,
           email: q.email as string,
           locale,
           // `.trim()`: o nome do quiz vem com espaço sobrando ("Cardoso ").
@@ -288,14 +297,22 @@ export const quaseComprou = inngest.createFunction(
         // A TRAVA ANTES DO ENVIO (08/10): ela era gravada depois do Resend e
         // sem ler o erro, e uma gravação perdida mandava o mesmo e-mail na
         // rodada seguinte. Não gravou, não manda.
+        // Teste de recusa (18/10): só quem teve o cartão recusado entra; no B
+        // ela recebe o texto de recusa. O braço vai na trava pra leitura.
+        const braco = bracoRecusaEmail(c.quizId);
+        const textoRecusa = c.recusado && braco === "B";
         const trava = await travarEnvio(sb, {
           event_name: "quase_comprou_enviado",
-          event_data: { quiz_response_id: c.quizId, email: c.email },
+          event_data: {
+            quiz_response_id: c.quizId,
+            email: c.email,
+            ...(c.recusado ? { recusado: true, braco_recusa: braco } : {}),
+          },
         });
         if (!trava) return false;
 
         const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
-          tags: [{ name: "template", value: "quase_comprou" }],
+          tags: [{ name: "template", value: textoRecusa ? "quase_comprou_recusa" : "quase_comprou" }],
           // REMETENTE DE RECUPERAÇÃO, não o transacional.
           //
           // A doutrina está em `emails/remetentes.ts`: o domínio raiz carrega
@@ -309,14 +326,17 @@ export const quaseComprou = inngest.createFunction(
           replyTo: RESPONDER_PARA,
           to: [c.email],
           headers: cabecalhosDescadastro(c.email),
-          subject: assuntoQuaseComprou(c.nome, c.locale),
+          subject: assuntoQuaseComprou(c.nome, c.locale, textoRecusa),
           html: emailQuaseComprou({
             nome: c.nome,
             titulo: c.titulo,
             link: c.link,
             locale: c.locale,
+            recusado: textoRecusa,
           }),
-          text: c.locale === "es" && MARCA_ATIVA.chave === "ballad"
+          text: textoRecusa
+            ? textoQuaseComprouRecusa({ nome: c.nome, link: c.link, locale: c.locale })
+            : c.locale === "es" && MARCA_ATIVA.chave === "ballad"
             ? textoQuaseComprouEsEua({ nome: c.nome, link: c.link })
             : c.locale === "en"
             ? `${c.nome}'s song already exists: it was recorded from the story you told.\n\n` +
@@ -339,7 +359,7 @@ export const quaseComprou = inngest.createFunction(
 
         await registrarEnvio(sb, {
           emailId: enviado?.id,
-          template: "quase_comprou",
+          template: textoRecusa ? "quase_comprou_recusa" : "quase_comprou",
           para: c.email,
           quizResponseId: c.quizId,
         });

@@ -101,8 +101,51 @@ const COPY_ES_EUA: (typeof COPY)["es"] = {
   rodape: `${MARCA_ATIVA.nome} · una canción hecha de la historia de quien tú quieres`,
 };
 
+// O CARTÃO FOI RECUSADO (Ballad, 18/10, braço B do teste de recusa; ver
+// `src/lib/aviso-recusa.ts`). A pessoa chegou a pagar e o banco barrou: o
+// texto de sempre ("ouça antes de pagar") fala com quem hesitou, não com quem
+// tentou. Este diz o que aconteceu e como passar.
+const COPY_RECUSA: Partial<Record<IdiomaEmail, (typeof COPY)["en"]>> = {
+  en: {
+    assunto: (n) => `Your bank declined the payment for ${n}'s song (easy fix)`,
+    titulo: (n) => `${n}'s song is <em style="color:#7d2b3a;">still waiting</em> for you.`,
+    corpo:
+      "Your bank declined the payment. It happens a lot with US banks on a first purchase from a new international store, and it doesn't mean anything is wrong with your card.",
+    lembrete:
+      "To get it through: open your bank's app and approve the charge (or reply YES to your bank's text), then tap the button below and pay again. Apple Pay, Google Pay or another card also work.",
+    botao: "TRY THE PAYMENT AGAIN",
+    rodapeAviso:
+      "Your song and lyrics are saved, and the link never expires.<br>Still stuck? Just reply to this email and we'll help.",
+    rodape: COPY.en.rodape,
+  },
+  es: {
+    assunto: (n) => `Tu banco rechazó el pago de la canción de ${n} (se arregla fácil)`,
+    titulo: (n) => `La canción de <em style="color:#7d2b3a;">${n}</em> te sigue esperando.`,
+    corpo:
+      "Tu banco rechazó el pago. Pasa mucho con los bancos de EE. UU. en la primera compra a una tienda internacional nueva, y no significa que tu tarjeta tenga algún problema.",
+    lembrete:
+      "Para que pase: abre la app de tu banco y aprueba el cobro (o responde SÍ al mensaje de tu banco), luego toca el botón de abajo y vuelve a pagar. También puedes usar Apple Pay, Google Pay u otra tarjeta.",
+    botao: "INTENTAR EL PAGO DE NUEVO",
+    rodapeAviso:
+      "Tu canción y tu letra están guardadas, y el link no expira.<br>¿Sigue sin pasar? Responde este correo y te ayudamos.",
+    rodape: COPY_ES_EUA.rodape,
+  },
+};
+
+/** O texto puro do e-mail de recusa. */
+export function textoQuaseComprouRecusa(args: { nome: string; link: string; locale: IdiomaEmail }): string {
+  const C = COPY_RECUSA[args.locale] ?? COPY_RECUSA.en!;
+  return `${C.corpo}\n\n${C.lembrete}\n\n${args.link}`;
+}
+
+/** Tem copy de recusa NESTE deploy e idioma? Só na Ballad (en e es). */
+export function temCopyRecusa(locale: IdiomaEmail): boolean {
+  return MARCA_ATIVA.chave === "ballad" && Boolean(COPY_RECUSA[locale]);
+}
+
 /** A copy do idioma NESTE deploy: o espanhol da Ballad tem a sua. */
-function copyDe(locale: IdiomaEmail | undefined) {
+function copyDe(locale: IdiomaEmail | undefined, recusado = false) {
+  if (recusado && locale && temCopyRecusa(locale)) return COPY_RECUSA[locale]!;
   if (locale === "es" && MARCA_ATIVA.chave === "ballad") return COPY_ES_EUA;
   return COPY[locale ?? "pt"] ?? COPY.pt;
 }
@@ -119,8 +162,8 @@ export function textoQuaseComprouEsEua(args: { nome: string; link: string }): st
 }
 
 /** O assunto, no idioma da venda. */
-export function assuntoQuaseComprou(nome: string, locale: IdiomaEmail = "pt") {
-  return copyDe(locale).assunto(nome);
+export function assuntoQuaseComprou(nome: string, locale: IdiomaEmail = "pt", recusado = false) {
+  return copyDe(locale, recusado).assunto(nome);
 }
 
 export function emailQuaseComprou(args: {
@@ -128,8 +171,10 @@ export function emailQuaseComprou(args: {
   titulo: string;
   link: string;
   locale?: IdiomaEmail;
+  /** Cartão recusado no Stripe (Ballad): o texto de quem tentou pagar. */
+  recusado?: boolean;
 }): string {
-  const C = copyDe(args.locale);
+  const C = copyDe(args.locale, args.recusado);
   const { nome, titulo, link } = args;
   return semComentarios(`<!DOCTYPE html>
 <html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>
