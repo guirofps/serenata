@@ -354,6 +354,23 @@ export const pedirRefacao = createServerFn({ method: "POST" })
       }
 
       await dispararGeracaoMusica(m.id);
+
+      // O VÍDEO PRONTO FICA DESATUALIZADO (18/10). A assinatura do vídeo olha
+      // fotos, dedicatória, título e a gravação escolhida, não o áudio: depois
+      // de um ajuste o editor não oferecia "atualizar meu vídeo" e o vídeo
+      // seguia com a música velha (Urano, 17/10). Uma assinatura que nunca bate
+      // acende o botão e faz o job renderizar de novo. Falhar aqui não derruba
+      // o ajuste.
+      await db
+        .from("videos")
+        .update({ assinatura: `ajuste-${ordem}` })
+        .eq("musica_id", m.id)
+        .eq("status", "pronto")
+        .then(
+          () => undefined,
+          () => undefined,
+        );
+
       return { ok: true, restantes: restantes - 1 };
     } catch (err) {
       console.error("[refacao] falhou:", err);
