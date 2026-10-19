@@ -137,7 +137,11 @@ export default async function handler(req: Req, res: Res) {
     return res.status(503).json({ error: "CONVERSOES_SECRET não configurado" });
   }
   const url = new URL(req.url ?? "/", "https://serenatagift.com");
-  if (!autorizadoBasic(req, url, esperado, process.env.CONVERSOES_USUARIO || "google")) {
+  // SÓ A SENHA DECIDE (19/10), igual ao `api/publicos.ts`. A tela nova de
+  // importação do Google Ads (conta nova da Serenata) não aceita mais o `?k=`:
+  // pede URL terminada em .csv + usuário + senha. O usuário nunca foi segundo
+  // fator, e o que está na Vercel ninguém sabia de cor.
+  if (!autorizadoBasic(req, url, esperado, process.env.CONVERSOES_USUARIO || "google", true)) {
     // 401 COM DESAFIO, e não o 404 discreto da primeira versão: o Basic só
     // interopera assim. Cliente que não mandou credencial precisa saber que
     // existe credencial pra mandar, senão nunca tenta.
