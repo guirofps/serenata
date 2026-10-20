@@ -63,7 +63,7 @@ Cumpleaños, boda o aniversario, declaración de amor, homenaje, para quien ya p
 
 ## Paso 3: el estilo y la voz
 
-Elige el estilo que esa persona pone, no el que te gusta a ti: mariachi, banda, norteño, regional mexicano romántico, corrido, bolero, balada, bachata, cumbia, pop latino, salsa, reggaetón o alabanza / cristiana. Si no sabes, piensa qué suena en su carro o en su cocina el domingo.
+Elige el estilo que esa persona pone, no el que te gusta a ti: mariachi, banda, norteño, regional mexicano romántico, corrido tumbado, bolero, balada, bachata, cumbia, pop latino, salsa, reggaetón o alabanza / cristiana. Si no sabes, piensa qué suena en su carro o en su cocina el domingo.
 
 Después eliges voz femenina, voz masculina o "Sorpréndeme", y, si quieres, el tono: romántica, divertida, emotiva o alegre.
 

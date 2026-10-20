@@ -86,7 +86,7 @@ Ese es el testimonio que más pesa: no el de las palabras, sino el de la vida. "
 - **Balada**, para una canción de testimonio suave y emotiva.
 - **Bolero**, para una persona mayor que ama los himnos de antes.
 - **Regional mexicano romántico**, para contar una historia larga con guitarras.
-- **Corrido**, si el testimonio es una historia de vida de principio a fin, de dónde salió y a dónde llegó.
+- **Corrido tumbado**, si el testimonio es de alguien joven y quieres contarlo como una historia, con guitarra y voz narrativa.
 
 ## Cuándo regalarla
 

@@ -75,7 +75,7 @@ Pregúntate qué suena en su troca:
 
 - **Norteño**, con acordeón y bajo sexto, como el ejemplo de arriba.
 - **Banda**, si en las fiestas de la familia eso es lo que se baila.
-- **Corrido**, si quieres contar su vida como una historia, de dónde salió y a dónde llegó.
+- **Corrido tumbado**, si tu papá es joven y quieres contar su vida como una historia, con guitarra y voz narrativa.
 - **Mariachi**, para un cumpleaños grande o un homenaje.
 - **Regional mexicano romántico**, si quieres algo más tranquilo.
 - **Alabanza / cristiana**, si su fe es lo que lo sostuvo. Mira la guía de [regalo para papá cristiano](/es/blog/regalo-para-papa-cristiano).

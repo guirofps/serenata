@@ -79,7 +79,7 @@ Esta canción no es cristiana ni es para un pastor: es un norteño que una espos
 - **Alabanza / cristiana**, para una canción con sonido de iglesia, la más elegida para un pastor.
 - **Balada**, para un homenaje suave y emotivo.
 - **Regional mexicano romántico**, si el pastor es de raíces mexicanas y le gustan las guitarras.
-- **Corrido**, para contar la historia del ministerio de principio a fin, de dónde salió y a dónde llegó.
+- **Bolero**, para un pastor de años que ama los himnos de antes y la voz suave, con guitarras y requinto.
 - **Mariachi**, para un aniversario grande del ministerio, con fiesta.
 
 ## Cuándo dársela

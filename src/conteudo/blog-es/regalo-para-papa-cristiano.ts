@@ -68,7 +68,7 @@ Esta canción no es cristiana ni es de un hijo: es un norteño que una esposa de
 
 - **Alabanza / cristiana**, para una canción con sonido de iglesia.
 - **Norteño**, si es lo que suena en su troca, como el ejemplo de arriba. La fe va en la letra.
-- **Corrido**, para contar su vida como una historia: de dónde salió, cómo llegó a la fe, dónde está hoy.
+- **Balada**, para una canción tranquila que hable de su fe y se escuche con calma, de esas que se ponen el domingo en la tarde.
 - **Regional mexicano romántico**, para algo más tranquilo y sentido.
 - **Mariachi**, para un cumpleaños grande o un homenaje.
 

@@ -55,6 +55,10 @@ describe.each(ARTIGOS_ES.map((a) => [a.slug, a] as const))("artigo %s", (_slug, 
     expect(a.corpo).not.toMatch(/(canci[oó]n|alabanza|letra)\s+(para|a)\s+Dios/i);
   });
 
+  it("o corrido aparece com o nome do quiz (\"Corrido tumbado\"), nunca só \"corrido\"", () => {
+    expect(a.corpo).not.toMatch(/\bcorrido\b(?!\s+tumbado)/i);
+  });
+
   it("tem <url> com lastmod no sitemap da Ballad", () => {
     const loc = `<loc>https://www.balladgift.com/es/blog/${a.slug}</loc>`;
     const i = SITEMAP.indexOf(loc);
