@@ -89,7 +89,8 @@ describe("revisão final", () => {
 describe("perguntas frequentes (03/10)", () => {
   it("cada pergunta mostra uma setinha que gira ao abrir", () => {
     // Sem marcador (`list-none`) e sem ícone, ninguém percebia que a pergunta abre.
-    const rota = ler("src/routes/blog.$slug.tsx");
+    // Desde 20/10 a página mora no componente compartilhado pelos dois blogs.
+    const rota = ler("src/components/blog/PaginaArtigo.tsx");
     const bloco = rota.slice(rota.indexOf("<details"), rota.indexOf("</details>"));
     expect(bloco).toMatch(/<ChevronDown/);
     expect(bloco).toMatch(/group-open:rotate-180/);

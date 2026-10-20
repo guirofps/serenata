@@ -5,12 +5,10 @@ import type { SiteBlog } from "@/lib/blog/site";
 import type { ResumoArtigo } from "@/lib/blog/tipos";
 
 export function CartaoArtigo({ site, artigo }: { site: SiteBlog; artigo: ResumoArtigo }) {
-  return (
-    <Link
-      to="/blog/$slug"
-      params={{ slug: artigo.slug }}
-      className="group block overflow-hidden rounded-2xl border border-[var(--tinta-fraca)]/40 bg-[var(--papel)] transition-shadow hover:shadow-lg"
-    >
+  const classe =
+    "group block overflow-hidden rounded-2xl border border-[var(--tinta-fraca)]/40 bg-[var(--papel)] transition-shadow hover:shadow-lg";
+  const conteudo = (
+    <>
       <img
         src={imagemDoArtigo(site, artigo)}
         alt={artigo.alt}
@@ -25,6 +23,16 @@ export function CartaoArtigo({ site, artigo }: { site: SiteBlog; artigo: ResumoA
         </p>
         <p className="mt-2 line-clamp-2 text-sm text-[var(--tinta-suave)]">{artigo.descricao}</p>
       </div>
+    </>
+  );
+  // Uma rota por site: o Link do TanStack é tipado pelo caminho.
+  return site.prefixo === "/blog" ? (
+    <Link to="/blog/$slug" params={{ slug: artigo.slug }} className={classe}>
+      {conteudo}
+    </Link>
+  ) : (
+    <Link to="/es/blog/$slug" params={{ slug: artigo.slug }} className={classe}>
+      {conteudo}
     </Link>
   );
 }

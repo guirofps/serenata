@@ -15,7 +15,7 @@ import type { GrupoArtigo } from "./tipos";
 export type ExemploBlog = { slug: string; titulo: string; para: string; genero: string; capa: string; audio: string };
 
 /** As rotas que os links do blog podem usar (as do TanStack, tipadas). */
-export type RotaBlog = "/" | "/blog" | "/criar" | "/termos" | "/privacidade" | "/es" | "/es/criar";
+export type RotaBlog = "/" | "/blog" | "/criar" | "/termos" | "/privacidade" | "/es" | "/es/criar" | "/es/blog";
 
 export type TextosBlog = {
   layout: {
@@ -181,6 +181,7 @@ export const BLOG_BALLAD_ES: SiteBlog = {
       inicio: "/es",
       inicioAria: (m) => `${m}, inicio`,
       rodape: [
+        { to: "/es/blog", rotulo: "Blog" },
         { to: "/es/criar", rotulo: "Crear canción" },
         { to: "/termos", rotulo: "Términos" },
         { to: "/privacidade", rotulo: "Privacidad" },

@@ -652,6 +652,8 @@ function HomeEs() {
             inglês: é a mesma empresa e o mesmo contrato). */}
         {BALLAD && (
           <p className="mt-2 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
+            <Link to="/es/blog" className="underline underline-offset-4">Blog</Link>
+            {" · "}
             <Link to="/termos" className="underline underline-offset-4">Términos</Link>
             {" · "}
             <Link to="/privacidade" className="underline underline-offset-4">Privacidad</Link>

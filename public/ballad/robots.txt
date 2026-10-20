@@ -11,6 +11,8 @@ Allow: /criar
 # O espanhol dos hispanos dos EUA (09/10): a home e o quiz, como no inglês.
 Allow: /es$
 Allow: /es/criar
+# O blog em espanhol (20/10).
+Allow: /es/blog
 Allow: /termos
 Allow: /privacidade
 
