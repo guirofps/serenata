@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { trilhoMudo, type DiagnosticoPagamento } from "./sinais-pagamento";
+import { trilhoMudo, LIMIARES_BALLAD, type DiagnosticoPagamento } from "./sinais-pagamento";
 
 const base: DiagnosticoPagamento = {
   minutosSemPagamento: 5,
@@ -39,6 +39,19 @@ describe("trilhoMudo", () => {
   it("respeita a fronteira dos 40 minutos", () => {
     expect(trilhoMudo({ ...base, minutosSemPagamento: 39 }).avisar).toBe(false);
     expect(trilhoMudo({ ...base, minutosSemPagamento: 40 }).avisar).toBe(true);
+  });
+
+  it("Ballad: os 5 checkouts de 20/10 (68 min, venda 4 min depois) não acendem", () => {
+    expect(trilhoMudo({ minutosSemPagamento: 68, pixGeradosNaJanela: 5, maduras: 2 }, LIMIARES_BALLAD).avisar).toBe(false);
+  });
+
+  it("Ballad: 10 checkouts em 150 min sem venda acendem, e o texto fala em checkout", () => {
+    const r = trilhoMudo({ minutosSemPagamento: 150, pixGeradosNaJanela: 10, maduras: 8 }, LIMIARES_BALLAD);
+    expect(r.avisar).toBe(true);
+    expect(r.motivo).toContain("10 checkouts abertos");
+    expect(r.motivo).not.toContain("PIX");
+    expect(trilhoMudo({ minutosSemPagamento: 149, pixGeradosNaJanela: 10, maduras: 8 }, LIMIARES_BALLAD).avisar).toBe(false);
+    expect(trilhoMudo({ minutosSemPagamento: 300, pixGeradosNaJanela: 9, maduras: 9 }, LIMIARES_BALLAD).avisar).toBe(false);
   });
 
   it("respeita a fronteira das 5 cobranças", () => {

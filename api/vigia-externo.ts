@@ -37,7 +37,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { segredoConfere } from "./lib/segredo.js";
 import { lerOsSinais, assuntoDoAlerta, MINUTOS_MATURA } from "../src/lib/sinais-geracao.js";
-import { trilhoMudo, MINUTOS_MUDO } from "../src/lib/sinais-pagamento.js";
+import { trilhoMudo, LIMIARES_BALLAD, LIMIARES_SERENATA } from "../src/lib/sinais-pagamento.js";
+import { ehBallad } from "../src/lib/marca-identidade.js";
 import { escadaMuda, ESCADA_MUDA_H } from "../src/lib/sinais-email.js";
 import { donosMais } from "../src/lib/donos.js";
 import { avisarDonos } from "../src/lib/avisar-donos.js";
@@ -213,7 +214,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     //
     // Ver `sinais-pagamento.ts` pros limiares e pro motivo de ele dormir de
     // madrugada.
-    const janelaPag = new Date(agora - MINUTOS_MUDO * 60000).toISOString();
+    // A Ballad cobra pelo Stripe: o pendente é checkout aberto, que 2 em 3
+    // abandonam. Limiar e texto próprios, senão toca à toa (20/10).
+    const ballad = ehBallad();
+    const limPag = ballad ? LIMIARES_BALLAD : LIMIARES_SERENATA;
+    const janelaPag = new Date(agora - limPag.minutosMudo * 60000).toISOString();
     const { data: ultimoPago } = await sb
       .from("pedidos")
       .select("paid_at")
@@ -238,11 +243,14 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       .gte("created_at", janelaPag)
       .lte("created_at", new Date(agora - 20 * 60000).toISOString())
       .neq("status", "pago");
-    const vp = trilhoMudo({
-      minutosSemPagamento,
-      pixGeradosNaJanela: pixGeradosNaJanela ?? 0,
-      maduras: maduras ?? 0,
-    });
+    const vp = trilhoMudo(
+      {
+        minutosSemPagamento,
+        pixGeradosNaJanela: pixGeradosNaJanela ?? 0,
+        maduras: maduras ?? 0,
+      },
+      limPag,
+    );
 
     if (vp.avisar && process.env.RESEND_API_KEY) {
       // Chave propria: uma queda de pagamento nao pode ser silenciada por um
@@ -259,8 +267,19 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         await avisarDonos({
           extras: PARA,
           assunto: `💸 ${minutosSemPagamento} min sem NENHUM pagamento entrar`,
-          html:
-            `<p style="font-size:17px"><strong>${vp.motivo}</strong></p>` +
+          html: ballad
+            ? `<p style="font-size:17px"><strong>${vp.motivo}</strong></p>` +
+              `<p>Gente esta abrindo o checkout do Stripe e ninguem esta pagando.</p>` +
+              `<p><strong>O teste que responde em dois minutos:</strong> no painel do Stripe ` +
+              `(Pagamentos), veja se ha tentativas recusadas em sequencia ou aviso na conta. ` +
+              `Depois faca uma compra com o seu cartao em balladgift.com. Se o checkout abrir e o ` +
+              `cartao passar, e so movimento fraco ou abandono, nao queda.</p>` +
+              `<ul>` +
+              `<li>ultimo pagamento ha: <strong>${minutosSemPagamento} min</strong></li>` +
+              `<li>checkouts abertos nesses ${limPag.minutosMudo} min: ${pixGeradosNaJanela ?? 0}</li>` +
+              `<li>desses, ja passaram de 20 min sem pagar: ${maduras ?? 0}</li>` +
+              `</ul>`
+            : `<p style="font-size:17px"><strong>${vp.motivo}</strong></p>` +
             `<p>O funil esta gerando cobranca normalmente. O que pode ter parado e a LIQUIDACAO ` +
             `— o dinheiro saindo do banco do cliente e chegando na conta.</p>` +
             `<p><strong>O teste que responde em dois minutos:</strong> abra uma das cobrancas pendentes ` +
@@ -274,7 +293,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
             `todo mundo pro checkout hospedado.</p>` +
             `<ul>` +
             `<li>ultimo pagamento ha: <strong>${minutosSemPagamento} min</strong></li>` +
-            `<li>cobrancas criadas nesses ${MINUTOS_MUDO} min: ${pixGeradosNaJanela ?? 0}</li>` +
+            `<li>cobrancas criadas nesses ${limPag.minutosMudo} min: ${pixGeradosNaJanela ?? 0}</li>` +
             `<li>dessas, ja passaram de 20 min sem pagar: ${maduras ?? 0}</li>` +
             `</ul>`,
         });

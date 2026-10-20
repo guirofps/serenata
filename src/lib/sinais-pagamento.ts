@@ -53,7 +53,37 @@ export const MINUTOS_MUDO = 40;
  */
 export const PIX_MINIMO = 5;
 
-export function trilhoMudo(d: DiagnosticoPagamento): { avisar: boolean; motivo: string | null } {
+export type LimiaresPagamento = {
+  minutosMudo: number;
+  minimoCobrancas: number;
+  /** Como o e-mail chama o pedido pendente: "PIX gerados" ou "checkouts abertos". */
+  rotulo: string;
+};
+
+export const LIMIARES_SERENATA: LimiaresPagamento = {
+  minutosMudo: MINUTOS_MUDO,
+  minimoCobrancas: PIX_MINIMO,
+  rotulo: "PIX gerados",
+};
+
+/**
+ * A Ballad não tem PIX: o pedido pendente é o checkout do Stripe aberto, e
+ * ~2/3 de quem abre sai sem pagar (medido em 20/10: 18 checkouts, 6 pagos).
+ * Com os limiares da Serenata o alarme tocou às 18h10 de 20/10 por 5
+ * checkouts abertos em 8 minutos, 4 deles da campanha do México, e o
+ * pagamento entrou às 18h14. Com 1 em 3 pagando, 10 checkouts sem nenhuma
+ * venda acontece por acaso ~2% das vezes; 5 acontecia ~13%.
+ */
+export const LIMIARES_BALLAD: LimiaresPagamento = {
+  minutosMudo: 150,
+  minimoCobrancas: 10,
+  rotulo: "checkouts abertos",
+};
+
+export function trilhoMudo(
+  d: DiagnosticoPagamento,
+  lim: LimiaresPagamento = LIMIARES_SERENATA,
+): { avisar: boolean; motivo: string | null } {
   const { minutosSemPagamento, pixGeradosNaJanela, maduras } = d;
 
   // Sem nenhum pagamento na história é conta nova ou banco vazio, não queda.
@@ -61,14 +91,14 @@ export function trilhoMudo(d: DiagnosticoPagamento): { avisar: boolean; motivo: 
 
   // A ORDEM IMPORTA: a condição de tráfego vem ANTES do relógio. Sem gente
   // gerando PIX, silêncio não é sintoma de nada.
-  if (pixGeradosNaJanela < PIX_MINIMO) return { avisar: false, motivo: null };
+  if (pixGeradosNaJanela < lim.minimoCobrancas) return { avisar: false, motivo: null };
 
-  if (minutosSemPagamento < MINUTOS_MUDO) return { avisar: false, motivo: null };
+  if (minutosSemPagamento < lim.minutosMudo) return { avisar: false, motivo: null };
 
   return {
     avisar: true,
     motivo:
-      `${minutosSemPagamento} min sem nenhum pagamento, com ${pixGeradosNaJanela} PIX gerados nesse período ` +
+      `${minutosSemPagamento} min sem nenhum pagamento, com ${pixGeradosNaJanela} ${lim.rotulo} nesse período ` +
       `(${maduras} deles já passaram do tempo normal de pagar). ` +
       `O trilho de pagamento pode ter parado de liquidar.`,
   };
