@@ -567,6 +567,8 @@ Serenata (`clarityDaMarca`, `omnisendDaMarca`), fora das rotas de
   descadastro sincronizado com `descadastros`/`emails_mortos`, senão quem saiu
   de um continua recebendo do outro.
 
+- **Base importada em 19/10** (`scratch/omnisend-subir-contatos.mjs`, chave `OMNISEND_API_KEY` no `.env.local`, conta Serenata `6ad0e987…`; o conector Omnisend do claude.ai está na marca Mon Auralis, de OUTRO negócio: não usar pra Serenata): 61.209 e-mails do CSV "Baixar para o Omnisend" (9.262 compradores, 51.947 leads, entrada 22/07-19/10), TODOS como inscritos (dono), etiquetas `serenata` + `comprador`/`lead`, propriedade `entrou_em`, sem telefone. 0 erro. Lote máximo do Omnisend: 100 itens. Ainda NÃO existe: subdomínio de envio autenticado (`news.serenatagift.com`, DNS na Hostinger; o DMARC raiz é quarentena), sincronização de descadastro nos dois sentidos, e entrada contínua dos leads novos. Nenhuma campanha antes do subdomínio e do descadastro.
+
 ## Conta nova do Google Ads (17/10/2026)
 
 A **Climes Ecom (692-319-8164) foi SUSPENSA em 17/10** por anúncios com rosto trocado (vídeos do carro de 16/10 e o "Vid 5 volta"). Conta suspensa só deixa LER pela API (`ACTION_NOT_PERMITTED_FOR_SUSPENDED_ACCOUNT` em qualquer mutate, até `validateOnly`). A Serenata passou pra **Seren Out26 (477-958-6821)**, gerida pela MCC **Falkland (502-439-4715)**: toda chamada leva `login-customer-id: 5024394715` (`scratch/_gads.mjs` lê `GOOGLE_ADS_LOGIN_CUSTOMER_ID`). A Ballad NÃO muda (conta própria).
