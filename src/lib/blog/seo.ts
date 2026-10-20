@@ -12,12 +12,14 @@ export const ALTURA_TOPO = 900;
 export const LARGURA_OG = 1200;
 export const ALTURA_OG = 630;
 
-type ComImagem = Pick<Artigo, "slug" | "imagem">;
+// Artigo inteiro ou o resumo do cartão (que traz só o `arquivo`).
+type ComImagem = Pick<Artigo, "slug" | "imagem"> | { slug: string; arquivo?: string };
+const arquivoDe = (a: ComImagem) => ("imagem" in a ? a.imagem.arquivo : a.arquivo) ?? a.slug;
 
 export const urlDoBlog = (site: SiteBlog) => `${site.origem}${site.prefixo}`;
 export const urlDoArtigo = (site: SiteBlog, slug: string) => `${urlDoBlog(site)}/${slug}`;
-export const imagemDoArtigo = (_site: SiteBlog, a: ComImagem) => `/img/blog/${a.imagem.arquivo ?? a.slug}.webp`;
-export const imagemOgDoArtigo = (_site: SiteBlog, a: ComImagem) => `/img/blog/${a.imagem.arquivo ?? a.slug}-og.jpg`;
+export const imagemDoArtigo = (_site: SiteBlog, a: ComImagem) => `/img/blog/${arquivoDe(a)}.webp`;
+export const imagemOgDoArtigo = (_site: SiteBlog, a: ComImagem) => `/img/blog/${arquivoDe(a)}-og.jpg`;
 export const tituloCompleto = (site: SiteBlog, a: Pick<Artigo, "tituloSeo">) => `${a.tituloSeo}${site.sufixo}`;
 
 export function minutosDeLeitura(palavras: number): number {
