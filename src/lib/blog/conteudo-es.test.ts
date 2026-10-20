@@ -71,6 +71,16 @@ describe("registro em espanhol", () => {
     expect(slugs).toEqual(PAUTA_ES.filter((s) => slugs.includes(s)));
   });
 
+  it("cada verso citado aparece em um artigo só (um trecho diferente por artigo, spec §5)", () => {
+    const dono = new Map<string, string>();
+    for (const a of ARTIGOS_ES) {
+      for (const l of new Set(a.corpo.split("\n").filter((l) => l.startsWith(">")))) {
+        expect(dono.get(l), `"${l}" em ${dono.get(l)} e ${a.slug}`).toBeUndefined();
+        dono.set(l, a.slug);
+      }
+    }
+  });
+
   it("slug desconhecido não acha nada", () => {
     expect(artigoEsPorSlug("nao-existe")).toBeUndefined();
   });

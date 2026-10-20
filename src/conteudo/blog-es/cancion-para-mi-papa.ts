@@ -58,16 +58,16 @@ Cuéntalo como lo recuerdas, sin ordenarlo. Si te cuesta escribir, graba un audi
 
 Esta canción no es de un hijo: la pidió una esposa de Houston para su esposo, Beto. Pero muestra exactamente lo que funciona con un papá. Ella no habló de lo que él siente. Habló de lo que él hace:
 
-> Quince años y todavía me abres la puerta,
-> con la gorra puesta hasta en sueños, Beto, completa.
-> El mismo que me pisó bailando aquella cumbia
-> hoy calienta mi carro pa' que el frío no me consuma.
+> Si el amor tiene forma, tiene forma de tu gorra,
+> la que no te quitas ni para soñar conmigo.
+> Y aunque no diga mucho, cada madrugada lo demuestra,
+> calentando el carro frío para que yo no sienta el frío.
 
 [[musica:es-us-esposo]]
 
-La gorra, la puerta, el carro caliente en la madrugada. Ninguna palabra de amor y todo el amor ahí. La misma idea sirve para tu papá: cambia la puerta por la escuela, el carro por la troca de la familia, y tienes una canción que él va a entender sin que le expliques nada.
+La gorra, el carro caliente en la madrugada. Ninguna palabra de amor y todo el amor ahí. La misma idea sirve para tu papá: cambia el carro por la troca de la familia, la madrugada por la hora en que te llevaba a la escuela, y tienes una canción que él va a entender sin que le expliques nada.
 
-Hay un verso en esa misma canción que resume a muchos papás: "Y aunque no diga mucho, cada madrugada lo demuestra". Si tu papá es así, ese es el corazón de la letra.
+"Y aunque no diga mucho, cada madrugada lo demuestra" resume a muchos papás. Si el tuyo es así, ese es el corazón de la letra. Y en la misma canción hay otro detalle que también es de papá: el asador prendido cada sábado y la carne asada para el vecino, sin pedirle nada a nadie.
 
 ## Qué estilo le queda
 

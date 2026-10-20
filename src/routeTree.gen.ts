@@ -28,9 +28,7 @@ import { Route as RetomarRouteImport } from './routes/retomar'
 import { Route as TermosRouteImport } from './routes/termos'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
-import { Route as EsBlogIndexRouteImport } from './routes/es.blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
-import { Route as EsBlogSlugRouteImport } from './routes/es.blog.$slug'
 import { Route as CreditoTokenEdicaoRouteImport } from './routes/credito.$tokenEdicao'
 import { Route as EditarTokenEdicaoRouteImport } from './routes/editar.$tokenEdicao'
 import { Route as EsIndexRouteImport } from './routes/es.index'
@@ -42,6 +40,8 @@ import { Route as OfertaTokenRouteImport } from './routes/oferta.$token'
 import { Route as PTokenRouteImport } from './routes/p.$token'
 import { Route as PixReferenciaRouteImport } from './routes/pix.$referencia'
 import { Route as QuadroTokenEdicaoRouteImport } from './routes/quadro.$tokenEdicao'
+import { Route as EsBlogIndexRouteImport } from './routes/es.blog.index'
+import { Route as EsBlogSlugRouteImport } from './routes/es.blog.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -139,19 +139,9 @@ const BlogIndexRoute = BlogIndexRouteImport.update({
   path: '/blog/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EsBlogIndexRoute = EsBlogIndexRouteImport.update({
-  id: '/es/blog/',
-  path: '/es/blog/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const BlogSlugRoute = BlogSlugRouteImport.update({
   id: '/blog/$slug',
   path: '/blog/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EsBlogSlugRoute = EsBlogSlugRouteImport.update({
-  id: '/es/blog/$slug',
-  path: '/es/blog/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CreditoTokenEdicaoRoute = CreditoTokenEdicaoRouteImport.update({
@@ -209,6 +199,16 @@ const QuadroTokenEdicaoRoute = QuadroTokenEdicaoRouteImport.update({
   path: '/quadro/$tokenEdicao',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EsBlogIndexRoute = EsBlogIndexRouteImport.update({
+  id: '/es/blog/',
+  path: '/es/blog/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EsBlogSlugRoute = EsBlogSlugRouteImport.update({
+  id: '/es/blog/$slug',
+  path: '/es/blog/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -230,7 +230,6 @@ export interface FileRoutesByFullPath {
   '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
-  '/es/blog/$slug': typeof EsBlogSlugRoute
   '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/crear': typeof EsCrearRoute
@@ -242,8 +241,9 @@ export interface FileRoutesByFullPath {
   '/pix/$referencia': typeof PixReferenciaRoute
   '/quadro/$tokenEdicao': typeof QuadroTokenEdicaoRoute
   '/blog/': typeof BlogIndexRoute
-  '/es/blog/': typeof EsBlogIndexRoute
   '/es/': typeof EsIndexRoute
+  '/es/blog/$slug': typeof EsBlogSlugRoute
+  '/es/blog/': typeof EsBlogIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -265,7 +265,6 @@ export interface FileRoutesByTo {
   '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
-  '/es/blog/$slug': typeof EsBlogSlugRoute
   '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/crear': typeof EsCrearRoute
@@ -277,8 +276,9 @@ export interface FileRoutesByTo {
   '/pix/$referencia': typeof PixReferenciaRoute
   '/quadro/$tokenEdicao': typeof QuadroTokenEdicaoRoute
   '/blog': typeof BlogIndexRoute
-  '/es/blog': typeof EsBlogIndexRoute
   '/es': typeof EsIndexRoute
+  '/es/blog/$slug': typeof EsBlogSlugRoute
+  '/es/blog': typeof EsBlogIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -301,7 +301,6 @@ export interface FileRoutesById {
   '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
-  '/es/blog/$slug': typeof EsBlogSlugRoute
   '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
   '/editar/$tokenEdicao': typeof EditarTokenEdicaoRoute
   '/es/crear': typeof EsCrearRoute
@@ -313,8 +312,9 @@ export interface FileRoutesById {
   '/pix/$referencia': typeof PixReferenciaRoute
   '/quadro/$tokenEdicao': typeof QuadroTokenEdicaoRoute
   '/blog/': typeof BlogIndexRoute
-  '/es/blog/': typeof EsBlogIndexRoute
   '/es/': typeof EsIndexRoute
+  '/es/blog/$slug': typeof EsBlogSlugRoute
+  '/es/blog/': typeof EsBlogIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -338,7 +338,6 @@ export interface FileRouteTypes {
     | '/termos'
     | '/auth/callback'
     | '/blog/$slug'
-    | '/es/blog/$slug'
     | '/credito/$tokenEdicao'
     | '/editar/$tokenEdicao'
     | '/es/crear'
@@ -350,8 +349,9 @@ export interface FileRouteTypes {
     | '/pix/$referencia'
     | '/quadro/$tokenEdicao'
     | '/blog/'
-    | '/es/blog/'
     | '/es/'
+    | '/es/blog/$slug'
+    | '/es/blog/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -373,7 +373,6 @@ export interface FileRouteTypes {
     | '/termos'
     | '/auth/callback'
     | '/blog/$slug'
-    | '/es/blog/$slug'
     | '/credito/$tokenEdicao'
     | '/editar/$tokenEdicao'
     | '/es/crear'
@@ -385,8 +384,9 @@ export interface FileRouteTypes {
     | '/pix/$referencia'
     | '/quadro/$tokenEdicao'
     | '/blog'
-    | '/es/blog'
     | '/es'
+    | '/es/blog/$slug'
+    | '/es/blog'
   id:
     | '__root__'
     | '/'
@@ -408,7 +408,6 @@ export interface FileRouteTypes {
     | '/termos'
     | '/auth/callback'
     | '/blog/$slug'
-    | '/es/blog/$slug'
     | '/credito/$tokenEdicao'
     | '/editar/$tokenEdicao'
     | '/es/crear'
@@ -420,8 +419,9 @@ export interface FileRouteTypes {
     | '/pix/$referencia'
     | '/quadro/$tokenEdicao'
     | '/blog/'
-    | '/es/blog/'
     | '/es/'
+    | '/es/blog/$slug'
+    | '/es/blog/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -444,7 +444,6 @@ export interface RootRouteChildren {
   TermosRoute: typeof TermosRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   BlogSlugRoute: typeof BlogSlugRoute
-  EsBlogSlugRoute: typeof EsBlogSlugRoute
   CreditoTokenEdicaoRoute: typeof CreditoTokenEdicaoRoute
   EditarTokenEdicaoRoute: typeof EditarTokenEdicaoRoute
   EsCrearRoute: typeof EsCrearRoute
@@ -456,8 +455,9 @@ export interface RootRouteChildren {
   PixReferenciaRoute: typeof PixReferenciaRoute
   QuadroTokenEdicaoRoute: typeof QuadroTokenEdicaoRoute
   BlogIndexRoute: typeof BlogIndexRoute
-  EsBlogIndexRoute: typeof EsBlogIndexRoute
   EsIndexRoute: typeof EsIndexRoute
+  EsBlogSlugRoute: typeof EsBlogSlugRoute
+  EsBlogIndexRoute: typeof EsBlogIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -595,25 +595,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BlogIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/es/blog/': {
-      id: '/es/blog/'
-      path: '/es/blog'
-      fullPath: '/es/blog/'
-      preLoaderRoute: typeof EsBlogIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/blog/$slug': {
       id: '/blog/$slug'
       path: '/blog/$slug'
       fullPath: '/blog/$slug'
       preLoaderRoute: typeof BlogSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/es/blog/$slug': {
-      id: '/es/blog/$slug'
-      path: '/es/blog/$slug'
-      fullPath: '/es/blog/$slug'
-      preLoaderRoute: typeof EsBlogSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/credito/$tokenEdicao': {
@@ -693,6 +679,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuadroTokenEdicaoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/es/blog/': {
+      id: '/es/blog/'
+      path: '/es/blog'
+      fullPath: '/es/blog/'
+      preLoaderRoute: typeof EsBlogIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/es/blog/$slug': {
+      id: '/es/blog/$slug'
+      path: '/es/blog/$slug'
+      fullPath: '/es/blog/$slug'
+      preLoaderRoute: typeof EsBlogSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -716,7 +716,6 @@ const rootRouteChildren: RootRouteChildren = {
   TermosRoute: TermosRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   BlogSlugRoute: BlogSlugRoute,
-  EsBlogSlugRoute: EsBlogSlugRoute,
   CreditoTokenEdicaoRoute: CreditoTokenEdicaoRoute,
   EditarTokenEdicaoRoute: EditarTokenEdicaoRoute,
   EsCrearRoute: EsCrearRoute,
@@ -728,8 +727,9 @@ const rootRouteChildren: RootRouteChildren = {
   PixReferenciaRoute: PixReferenciaRoute,
   QuadroTokenEdicaoRoute: QuadroTokenEdicaoRoute,
   BlogIndexRoute: BlogIndexRoute,
-  EsBlogIndexRoute: EsBlogIndexRoute,
   EsIndexRoute: EsIndexRoute,
+  EsBlogSlugRoute: EsBlogSlugRoute,
+  EsBlogIndexRoute: EsBlogIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
