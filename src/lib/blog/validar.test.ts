@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Artigo } from "./tipos";
+import { BLOG_SERENATA } from "./site";
 import { problemasDoArtigo } from "./validar";
 
 const ctx = {
+  site: BLOG_SERENATA,
   slugsPauta: new Set(["musica-personalizada-para-mae", "musica-personalizada-para-pai", "homenagem-para-avo"]),
   slugsExemplos: new Set(["eva", "antonio"]),
 };

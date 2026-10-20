@@ -1,6 +1,7 @@
 // Os tipos do blog (spec docs/superpowers/specs/2026-10-02-blog-seo-design.md).
 
-export type GrupoArtigo = "pessoa" | "ocasiao" | "gospel" | "guia";
+// "regalo" e "fe": os grupos do blog da Ballad em espanhol (20/10).
+export type GrupoArtigo = "pessoa" | "ocasiao" | "gospel" | "guia" | "regalo" | "fe";
 
 export type Artigo = {
   slug: string;
@@ -15,8 +16,12 @@ export type Artigo = {
   descricao: string;
   publicadoEm: string; // "AAAA-MM-DD"
   atualizadoEm: string;
-  /** O prompt do Higgsfield que gerou a foto, pra refazer igual. */
-  imagem: { alt: string; prompt: string };
+  /**
+   * O prompt do Higgsfield que gerou a foto, pra refazer igual. `arquivo` é o
+   * nome em `public/img/blog/` quando não é o próprio slug (a Ballad reaproveita
+   * as fotos da Serenata).
+   */
+  imagem: { alt: string; prompt: string; arquivo?: string };
   /** Slugs dos exemplos públicos tocados no corpo. */
   musicas: string[];
   /** O CTA vai pra /criar?t=gospel. */
@@ -43,8 +48,8 @@ export type Bloco =
   | { tipo: "cta"; texto?: string };
 
 /** O que um cartão de artigo precisa: sem o corpo, que pesa. */
-export type ResumoArtigo = { slug: string; titulo: string; descricao: string; alt: string };
+export type ResumoArtigo = { slug: string; titulo: string; descricao: string; alt: string; imagem: Artigo["imagem"] };
 
 export function resumoDoArtigo(a: Artigo): ResumoArtigo {
-  return { slug: a.slug, titulo: a.titulo, descricao: a.descricao, alt: a.imagem.alt };
+  return { slug: a.slug, titulo: a.titulo, descricao: a.descricao, alt: a.imagem.alt, imagem: a.imagem };
 }

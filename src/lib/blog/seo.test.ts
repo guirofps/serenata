@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Artigo } from "./tipos";
 import { dataBr, headDoArtigo, headDoIndice, minutosDeLeitura, tituloCompleto } from "./seo";
+import { BLOG_SERENATA } from "./site";
 
 const a: Artigo = {
   slug: "musica-personalizada-para-mae",
@@ -22,12 +23,12 @@ const meta = (h: ReturnType<typeof headDoArtigo>, chave: string) =>
   h.meta.find((m) => ("property" in m && m.property === chave) || ("name" in m && m.name === chave));
 
 describe("headDoArtigo", () => {
-  const h = headDoArtigo(a);
+  const h = headDoArtigo(BLOG_SERENATA, a);
 
   it("título com a marca e no máximo 60 caracteres", () => {
-    expect(tituloCompleto(a)).toBe("Música personalizada para mãe: como fazer | Serenata");
-    expect(h.meta[0]).toEqual({ title: tituloCompleto(a) });
-    expect(tituloCompleto(a).length).toBeLessThanOrEqual(60);
+    expect(tituloCompleto(BLOG_SERENATA, a)).toBe("Música personalizada para mãe: como fazer | Serenata");
+    expect(h.meta[0]).toEqual({ title: tituloCompleto(BLOG_SERENATA, a) });
+    expect(tituloCompleto(BLOG_SERENATA, a).length).toBeLessThanOrEqual(60);
   });
 
   it("canonical e og:image absolutos", () => {
@@ -56,7 +57,7 @@ describe("headDoArtigo", () => {
 
 describe("headDoIndice", () => {
   it("canonical do /blog e título até 60", () => {
-    const h = headDoIndice();
+    const h = headDoIndice(BLOG_SERENATA);
     expect(h.links).toContainEqual({ rel: "canonical", href: "https://www.serenatagift.com/blog" });
     expect((h.meta[0] as { title: string }).title.length).toBeLessThanOrEqual(60);
   });

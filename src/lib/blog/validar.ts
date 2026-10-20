@@ -4,14 +4,12 @@
 // TODOS os problemas de um artigo de uma vez, e não só o primeiro.
 
 import { contarPalavras, normalizar, parsearCorpo, textoDoInline } from "./markdown";
+import type { SiteBlog } from "./site";
 import type { Artigo, Bloco } from "./tipos";
 
-export type ContextoValidacao = { slugsPauta: Set<string>; slugsExemplos: Set<string> };
+/** O site decide o sufixo do título, as rotas, o preço e as promessas proibidas (`site.ts`). */
+export type ContextoValidacao = { site: SiteBlog; slugsPauta: Set<string>; slugsExemplos: Set<string> };
 
-const SUFIXO = " | Serenata";
-const ROTAS = new Set(["/", "/criar", "/blog", "/musica-personalizada-para-esposa"]);
-const PRECO = /R\$\s*\d/;
-const PROIBIDAS = /60 segundos|entrega expressa/i;
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 
 function linksDoCorpo(blocos: Bloco[]) {
@@ -22,10 +20,11 @@ function linksDoCorpo(blocos: Bloco[]) {
 
 export function problemasDoArtigo(a: Artigo, ctx: ContextoValidacao): string[] {
   const p: string[] = [];
+  const { sufixo, rotas, preco, proibidas, prefixo } = ctx.site;
   const chave = normalizar(a.palavraChave);
 
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(a.slug)) p.push(`slug fora de kebab-case: ${a.slug}`);
-  if ((a.tituloSeo + SUFIXO).length > 60) p.push(`tituloSeo + "${SUFIXO}" passa de 60 caracteres`);
+  if ((a.tituloSeo + sufixo).length > 60) p.push(`tituloSeo + "${sufixo}" passa de 60 caracteres`);
   if (a.descricao.length < 120 || a.descricao.length > 160)
     p.push(`descricao com ${a.descricao.length} caracteres (120 a 160)`);
   if (!normalizar(a.titulo).includes(chave)) p.push("palavraChave ausente do titulo");
@@ -46,8 +45,8 @@ export function problemasDoArtigo(a: Artigo, ctx: ContextoValidacao): string[] {
   for (const m of a.musicas) if (!ctx.slugsExemplos.has(m)) p.push(`musica não é exemplo público: ${m}`);
 
   const textos = [a.titulo, a.tituloSeo, a.descricao, a.corpo, ...a.faq.flatMap((f) => [f.q, f.a])];
-  if (textos.some((t) => PRECO.test(t))) p.push("preço no texto (R$ seguido de número)");
-  if (textos.some((t) => PROIBIDAS.test(t))) p.push("promessa proibida (60 segundos / entrega expressa)");
+  if (textos.some((t) => preco.test(t))) p.push("preço no texto (R$ seguido de número)");
+  if (textos.some((t) => proibidas.test(t))) p.push("promessa proibida (60 segundos / entrega expressa)");
 
   let blocos: Bloco[];
   try {
@@ -76,8 +75,8 @@ export function problemasDoArtigo(a: Artigo, ctx: ContextoValidacao): string[] {
   for (const l of linksDoCorpo(blocos)) {
     if (l.tipo !== "link" || !l.interno) continue;
     const caminho = l.href.split(/[?#]/)[0];
-    const doBlog = caminho.startsWith("/blog/") && ctx.slugsPauta.has(caminho.slice("/blog/".length));
-    if (!ROTAS.has(caminho) && !doBlog) p.push(`link interno pra rota que não existe: ${l.href}`);
+    const doBlog = caminho.startsWith(`${prefixo}/`) && ctx.slugsPauta.has(caminho.slice(prefixo.length + 1));
+    if (!rotas.has(caminho) && !doBlog) p.push(`link interno pra rota que não existe: ${l.href}`);
   }
 
   return p;

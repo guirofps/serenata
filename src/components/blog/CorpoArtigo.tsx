@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { FONTES } from "@/lib/marca";
-import { AUDIO_EXEMPLOS, exemploPorSlug } from "@/lib/exemplos-pt";
+import type { SiteBlog } from "@/lib/blog/site";
 import type { Bloco, Inline } from "@/lib/blog/tipos";
 import { CartaoMusica } from "./CartaoMusica";
 import { CtaCriar } from "./CtaCriar";
@@ -31,11 +31,11 @@ function Inlines({ itens }: { itens: Inline[] }) {
   );
 }
 
-export function CorpoArtigo({ blocos, tema }: { blocos: Bloco[]; tema?: "gospel" }) {
+export function CorpoArtigo({ site, blocos, tema }: { site: SiteBlog; blocos: Bloco[]; tema?: "gospel" }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [tocando, setTocando] = useState<string | null>(null);
 
-  async function alternar(slug: string) {
+  async function alternar(slug: string, audio: string) {
     const a = audioRef.current;
     if (!a) return;
     if (tocando === slug) {
@@ -43,7 +43,7 @@ export function CorpoArtigo({ blocos, tema }: { blocos: Bloco[]; tema?: "gospel"
       setTocando(null);
       return;
     }
-    a.src = `${AUDIO_EXEMPLOS}/${slug}.mp3`;
+    a.src = audio;
     try {
       await a.play();
       setTocando(slug);
@@ -108,13 +108,19 @@ export function CorpoArtigo({ blocos, tema }: { blocos: Bloco[]; tema?: "gospel"
               </blockquote>
             );
           case "musica": {
-            const ex = exemploPorSlug(b.slug);
+            const ex = site.exemplo(b.slug);
             return ex ? (
-              <CartaoMusica key={i} exemplo={ex} tocando={tocando === ex.slug} onAlternar={() => alternar(ex.slug)} />
+              <CartaoMusica
+                key={i}
+                site={site}
+                exemplo={ex}
+                tocando={tocando === ex.slug}
+                onAlternar={() => alternar(ex.slug, ex.audio)}
+              />
             ) : null;
           }
           case "cta":
-            return <CtaCriar key={i} tema={tema} texto={b.texto} />;
+            return <CtaCriar key={i} site={site} tema={tema} texto={b.texto} />;
         }
       })}
     </div>

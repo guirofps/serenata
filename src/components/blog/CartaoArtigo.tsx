@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { FONTES } from "@/lib/marca";
 import { ALTURA_TOPO, LARGURA_TOPO, imagemDoArtigo } from "@/lib/blog/seo";
+import type { SiteBlog } from "@/lib/blog/site";
 import type { ResumoArtigo } from "@/lib/blog/tipos";
 
-export function CartaoArtigo({ artigo }: { artigo: ResumoArtigo }) {
+export function CartaoArtigo({ site, artigo }: { site: SiteBlog; artigo: ResumoArtigo }) {
   return (
     <Link
       to="/blog/$slug"
@@ -11,7 +12,7 @@ export function CartaoArtigo({ artigo }: { artigo: ResumoArtigo }) {
       className="group block overflow-hidden rounded-2xl border border-[var(--tinta-fraca)]/40 bg-[var(--papel)] transition-shadow hover:shadow-lg"
     >
       <img
-        src={imagemDoArtigo(artigo.slug)}
+        src={imagemDoArtigo(site, artigo)}
         alt={artigo.alt}
         width={LARGURA_TOPO}
         height={ALTURA_TOPO}

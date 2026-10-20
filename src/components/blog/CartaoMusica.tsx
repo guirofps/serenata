@@ -1,15 +1,16 @@
 import { Pause, Play } from "lucide-react";
 import { FONTES } from "@/lib/marca";
-import { capaDoExemplo, type ExemploPt } from "@/lib/exemplos-pt";
+import type { ExemploBlog, SiteBlog } from "@/lib/blog/site";
 
-type Props = { exemplo: ExemploPt; tocando: boolean; onAlternar: () => void };
+type Props = { site: SiteBlog; exemplo: ExemploBlog; tocando: boolean; onAlternar: () => void };
 
-export function CartaoMusica({ exemplo, tocando, onAlternar }: Props) {
+export function CartaoMusica({ site, exemplo, tocando, onAlternar }: Props) {
+  const t = site.textos.musica;
   return (
     <figure className="my-8 flex items-center gap-4 rounded-2xl border border-[var(--tinta-fraca)]/40 bg-[var(--papel-fundo)] p-4">
       <img
-        src={capaDoExemplo(exemplo)}
-        alt={`Capa da música ${exemplo.titulo}`}
+        src={exemplo.capa}
+        alt={t.capa(exemplo.titulo)}
         width={96}
         height={96}
         loading="lazy"
@@ -22,12 +23,12 @@ export function CartaoMusica({ exemplo, tocando, onAlternar }: Props) {
         <p className="mt-1 truncate" style={{ fontFamily: FONTES.display, fontSize: "var(--t-lg)" }}>
           {exemplo.titulo}
         </p>
-        <p className="text-sm text-[var(--tinta-suave)]">Música real, feita neste site. Trecho de 45 segundos.</p>
+        <p className="text-sm text-[var(--tinta-suave)]">{t.legenda}</p>
       </figcaption>
       <button
         type="button"
         onClick={onAlternar}
-        aria-label={tocando ? `Pausar ${exemplo.titulo}` : `Tocar ${exemplo.titulo}`}
+        aria-label={tocando ? t.pausar(exemplo.titulo) : t.tocar(exemplo.titulo)}
         className="cta flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
       >
         {tocando ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}

@@ -3,7 +3,8 @@ import { CartaoArtigo } from "@/components/blog/CartaoArtigo";
 import { CtaCriar } from "@/components/blog/CtaCriar";
 import { LayoutBlog } from "@/components/blog/LayoutBlog";
 import { headDoIndice } from "@/lib/blog/seo";
-import { resumoDoArtigo, type GrupoArtigo } from "@/lib/blog/tipos";
+import { BLOG_SERENATA } from "@/lib/blog/site";
+import { resumoDoArtigo } from "@/lib/blog/tipos";
 import { FONTES } from "@/lib/marca";
 import { chaveDaMarca } from "@/lib/marca-identidade";
 
@@ -13,13 +14,8 @@ import { chaveDaMarca } from "@/lib/marca-identidade";
 // artigo: importado no topo, o corpo dos 30 ia inteiro pro chunk desta página
 // (mais de 200 KB) pra desenhar só cartões.
 
-const GRUPOS: { grupo: GrupoArtigo; titulo: string }[] = [
-  { grupo: "pessoa", titulo: "Para quem" },
-  { grupo: "ocasiao", titulo: "Datas e ocasiões" },
-  { grupo: "guia", titulo: "Como fazer" },
-  // Por último: com a leva de 03/10 são 21 artigos, e no meio escondiam os outros.
-  { grupo: "gospel", titulo: "Gospel" },
-];
+// Os grupos, a ordem e os textos moram no site (`BLOG_SERENATA`, `site.ts`).
+const SITE = BLOG_SERENATA;
 
 export const Route = createFileRoute("/blog/")({
   loader: async () => {
@@ -27,23 +23,23 @@ export const Route = createFileRoute("/blog/")({
     const { ARTIGOS } = await import("@/conteudo/blog");
     return { artigos: ARTIGOS.map((a) => ({ grupo: a.grupo, ...resumoDoArtigo(a) })) };
   },
-  head: () => headDoIndice(),
+  head: () => headDoIndice(SITE),
   component: IndiceBlog,
 });
 
 function IndiceBlog() {
   const { artigos } = Route.useLoaderData();
   return (
-    <LayoutBlog>
+    <LayoutBlog site={SITE}>
       <section className="pt-12 text-center sm:pt-16">
         <h1 style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-hero)", lineHeight: 1.08 }}>
-          Blog da Serenata
+          {SITE.textos.indice.h1}
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-lg)", lineHeight: 1.55 }}>
-          Ideias de presente que emocionam, com músicas de verdade pra ouvir.
+          {SITE.textos.indice.sub}
         </p>
       </section>
-      {GRUPOS.map(({ grupo, titulo }) => {
+      {SITE.textos.indice.grupos.map(({ grupo, titulo }) => {
         const lista = artigos.filter((a) => a.grupo === grupo);
         if (lista.length === 0) return null;
         return (
@@ -51,13 +47,13 @@ function IndiceBlog() {
             <h2 style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-2xl)" }}>{titulo}</h2>
             <div className="mt-6 grid gap-5 sm:grid-cols-2">
               {lista.map((a) => (
-                <CartaoArtigo key={a.slug} artigo={a} />
+                <CartaoArtigo key={a.slug} site={SITE} artigo={a} />
               ))}
             </div>
           </section>
         );
       })}
-      <CtaCriar final />
+      <CtaCriar site={SITE} final />
     </LayoutBlog>
   );
 }

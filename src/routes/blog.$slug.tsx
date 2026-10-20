@@ -6,7 +6,8 @@ import { CorpoArtigo } from "@/components/blog/CorpoArtigo";
 import { CtaCriar } from "@/components/blog/CtaCriar";
 import { LayoutBlog } from "@/components/blog/LayoutBlog";
 import { contarPalavras, parsearCorpo } from "@/lib/blog/markdown";
-import { ALTURA_TOPO, LARGURA_TOPO, dataBr, headDoArtigo, imagemDoArtigo, minutosDeLeitura } from "@/lib/blog/seo";
+import { ALTURA_TOPO, LARGURA_TOPO, headDoArtigo, imagemDoArtigo, minutosDeLeitura } from "@/lib/blog/seo";
+import { BLOG_SERENATA } from "@/lib/blog/site";
 import { resumoDoArtigo, type ResumoArtigo } from "@/lib/blog/tipos";
 import { FONTES } from "@/lib/marca";
 import { chaveDaMarca } from "@/lib/marca-identidade";
@@ -21,6 +22,8 @@ import { useProfundidadeRolagem } from "@/lib/rolagem";
 // estático aqui levava os dez artigos pro chunk de entrada de TODAS as
 // páginas, das duas marcas (~23 KB gzip, revisão de 03/10).
 
+const SITE = BLOG_SERENATA;
+
 export const Route = createFileRoute("/blog/$slug")({
   loader: async ({ params }) => {
     if (chaveDaMarca() !== "serenata") throw notFound();
@@ -33,7 +36,7 @@ export const Route = createFileRoute("/blog/$slug")({
     });
     return { artigo, relacionados };
   },
-  head: ({ loaderData }) => (loaderData ? headDoArtigo(loaderData.artigo) : {}),
+  head: ({ loaderData }) => (loaderData ? headDoArtigo(SITE, loaderData.artigo) : {}),
   component: PaginaArtigo,
 });
 
@@ -42,15 +45,16 @@ function PaginaArtigo() {
   useProfundidadeRolagem(`blog-${artigo.slug}`);
   const blocos = useMemo(() => parsearCorpo(artigo.corpo), [artigo.corpo]);
   const minutos = minutosDeLeitura(contarPalavras(blocos));
+  const t = SITE.textos.artigo;
 
   return (
-    <LayoutBlog tema={artigo.tema}>
+    <LayoutBlog site={SITE} tema={artigo.tema}>
       <article className="pt-8 sm:pt-12">
-        <nav aria-label="Caminho" className="text-sm text-[var(--tinta-suave)]">
+        <nav aria-label={t.caminho} className="text-sm text-[var(--tinta-suave)]">
           <ol className="flex flex-wrap items-center gap-1.5">
-            <li><Link to="/">Início</Link></li>
+            <li><Link to={SITE.textos.layout.inicio}>{t.inicio}</Link></li>
             <li aria-hidden>›</li>
-            <li><Link to="/blog">Blog</Link></li>
+            <li><Link to="/blog">{t.blog}</Link></li>
             <li aria-hidden>›</li>
             <li aria-current="page" className="min-w-0 truncate">{artigo.titulo}</li>
           </ol>
@@ -66,12 +70,12 @@ function PaginaArtigo() {
           {artigo.descricao}
         </p>
         <p className="mt-4 text-xs uppercase tracking-[0.2em] text-[var(--tinta-suave)]">
-          Atualizado em <time dateTime={artigo.atualizadoEm}>{dataBr(artigo.atualizadoEm)}</time> · {minutos} min de
-          leitura
+          {t.atualizadoEm} <time dateTime={artigo.atualizadoEm}>{SITE.data(artigo.atualizadoEm)}</time> · {minutos}{" "}
+          {t.minLeitura}
         </p>
 
         <img
-          src={imagemDoArtigo(artigo.slug)}
+          src={imagemDoArtigo(SITE, artigo)}
           alt={artigo.imagem.alt}
           width={LARGURA_TOPO}
           height={ALTURA_TOPO}
@@ -80,14 +84,14 @@ function PaginaArtigo() {
           className="mt-8 aspect-[16/9] w-full rounded-3xl object-cover"
         />
 
-        <CorpoArtigo blocos={blocos} tema={artigo.tema} />
+        <CorpoArtigo site={SITE} blocos={blocos} tema={artigo.tema} />
 
         <section className="mt-16">
           <h2
             className="text-balance"
             style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-2xl)", lineHeight: 1.2 }}
           >
-            Perguntas frequentes
+            {t.faq}
           </h2>
           <div className="mt-6 divide-y divide-[var(--tinta-fraca)]/40 border-y border-[var(--tinta-fraca)]/40">
             {artigo.faq.map((f) => (
@@ -105,14 +109,14 @@ function PaginaArtigo() {
           </div>
         </section>
 
-        <CtaCriar tema={artigo.tema} final />
+        <CtaCriar site={SITE} tema={artigo.tema} final />
 
         {relacionados.length > 0 && (
           <section className="mt-16">
-            <h2 style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-2xl)" }}>Leia também</h2>
+            <h2 style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-2xl)" }}>{t.leiaTambem}</h2>
             <div className="mt-6 grid gap-5 sm:grid-cols-2">
               {relacionados.map((r) => (
-                <CartaoArtigo key={r.slug} artigo={r} />
+                <CartaoArtigo key={r.slug} site={SITE} artigo={r} />
               ))}
             </div>
           </section>

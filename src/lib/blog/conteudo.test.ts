@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import { ARTIGOS, artigoPorSlug } from "@/conteudo/blog";
 import { PAUTA } from "@/conteudo/blog/pauta";
 import { EXEMPLOS_PT } from "@/lib/exemplos-pt";
+import { BLOG_SERENATA } from "./site";
 import { problemasDoArtigo } from "./validar";
 
 const ctx = {
+  site: BLOG_SERENATA,
   slugsPauta: new Set<string>(PAUTA),
   slugsExemplos: new Set(EXEMPLOS_PT.map((e) => e.slug)),
 };

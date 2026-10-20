@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { PAUTA } from "@/conteudo/blog/pauta";
+import { BLOG_SERENATA } from "@/lib/blog/site";
 
 const ler = (f: string) => readFileSync(f, "utf8");
 
@@ -97,8 +98,8 @@ describe("perguntas frequentes (03/10)", () => {
 
 describe("índice do blog (03/10)", () => {
   it("a seção gospel vem por último, pra não esconder os outros grupos", () => {
-    const indice = ler("src/routes/blog.index.tsx");
-    const ordem = [...indice.matchAll(/grupo: "(\w+)"/g)].map((m) => m[1]);
+    // Desde 20/10 a ordem mora no site (`BLOG_SERENATA`, `site.ts`).
+    const ordem = BLOG_SERENATA.textos.indice.grupos.map((g) => g.grupo);
     expect(ordem).toEqual(["pessoa", "ocasiao", "guia", "gospel"]);
   });
 });
