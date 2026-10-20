@@ -22,7 +22,7 @@ const COM_ABUELA = new Set([
   "regalo-para-mama-cristiana",
   "cancion-de-consuelo",
 ]);
-const PROIBIDAS_NA_CITACAO = /rezar|reza|cruz|cruces|estampita|persign/i;
+const PROIBIDAS_NA_CITACAO = /\b(rezar|reza|cruz|cruces|estampitas?|persign\w*)\b/i; // palavra inteira: "cruzaste" pode
 const FOTOS_DO_RIO = new Set(["louvor-de-gratidao", "louvor-para-momento-dificil"]);
 
 describe.each(ARTIGOS_ES.map((a) => [a.slug, a] as const))("artigo %s", (_slug, a) => {
