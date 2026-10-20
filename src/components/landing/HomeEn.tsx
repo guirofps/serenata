@@ -2,13 +2,13 @@ import { Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { Logo } from "@/components/marca/Logo";
 import { MARCA, FONTES, TEMA_CLARO } from "@/lib/marca";
-import { cnpjFormatado } from "@/lib/empresa";
 import { ProvaImediata, Dor, Beneficios, Oferta, FAQ } from "@/components/landing/Secoes";
 import { ExemplosEn } from "@/components/landing/ExemplosEn";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { Entregavel } from "@/components/landing/Entregavel";
 import { ProQuemE } from "@/components/landing/ProQuemE";
 import { BarraCTA } from "@/components/landing/BarraCTA";
+import { RodapeBallad } from "@/components/landing/RodapeBallad";
 import { PresenteNoTopo } from "@/components/landing/PresenteNoTopo";
 import { ProvaSocial } from "@/components/landing/ProvaSocial";
 import { useProfundidadeRolagem } from "@/lib/rolagem";
@@ -245,43 +245,7 @@ export function HomeEn() {
       </section>
 
       <div className="fio-marca opacity-70" aria-hidden />
-      <footer className="py-12">
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-6 sm:flex-row sm:justify-between">
-          <div className="text-center sm:text-left">
-            <Logo tamanho="sm" />
-            <p className="mt-2 max-w-xs text-sm text-[var(--tinta-suave)]">{MARCA.promessa}.</p>
-          </div>
-          <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-[var(--tinta-suave)]">
-            <a href="#como-funciona" className="hover:text-[var(--tinta)]">
-              How it works
-            </a>
-            <a href="#exemplo" className="hover:text-[var(--tinta)]">
-              Examples
-            </a>
-            <Link to="/criar" className="hover:text-[var(--tinta)]">
-              Create a song
-            </Link>
-            <Link to="/termos" className="hover:text-[var(--tinta)]">
-              Terms
-            </Link>
-            <Link to="/privacidade" className="hover:text-[var(--tinta)]">
-              Privacy
-            </Link>
-            <a href={`mailto:${MARCA.emailContato}`} className="hover:text-[var(--tinta)]">
-              {MARCA.emailContato}
-            </a>
-          </nav>
-        </div>
-        <p className="mt-10 text-center text-xs text-[var(--tinta-fraca)]">
-          {MARCA.dominio} · © {new Date().getFullYear()} {MARCA.nome}
-        </p>
-        {/* Quem vende, como na Serenata (marca + registro), sem nome de pessoa.
-            Provisório: o dono está abrindo um CNPJ novo (29/09). */}
-        <p className="mt-1 text-center text-xs text-[var(--tinta-fraca)]">
-          Operated by a company registered in Brazil · CNPJ {cnpjFormatado()}
-        </p>
-        <div className="h-16" aria-hidden />
-      </footer>
+      <RodapeBallad idioma="en" naHome />
 
       <BarraCTA alvoRef={heroRef} locale="en" />
     </div>

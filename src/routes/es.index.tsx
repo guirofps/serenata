@@ -4,6 +4,7 @@ import { TEMA_CLARO, FONTES, MARCA } from "@/lib/marca";
 import { Logo } from "@/components/marca/Logo";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { BarraCTA } from "@/components/landing/BarraCTA";
+import { RodapeBallad } from "@/components/landing/RodapeBallad";
 import { ExemplosEs } from "@/components/landing/ExemplosEs";
 import { ProvaSocial } from "@/components/landing/ProvaSocial";
 import { PresenteNoTopo } from "@/components/landing/PresenteNoTopo";
@@ -644,22 +645,15 @@ function HomeEs() {
         </div>
       </section>
 
-      <footer className="border-t border-[var(--tinta-fraca)]/30 py-10 text-center">
-        <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
-          {MARCA.nome} · <a href={`mailto:${MARCA.emailContato}`} className="underline underline-offset-4">{MARCA.emailContato}</a>
-        </p>
-        {/* Na Ballad, os termos e a privacidade dela (as mesmas páginas do
-            inglês: é a mesma empresa e o mesmo contrato). */}
-        {BALLAD && (
-          <p className="mt-2 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
-            <Link to="/es/blog" className="underline underline-offset-4">Blog</Link>
-            {" · "}
-            <Link to="/termos" className="underline underline-offset-4">Términos</Link>
-            {" · "}
-            <Link to="/privacidade" className="underline underline-offset-4">Privacidad</Link>
+      {BALLAD ? (
+        <RodapeBallad idioma="es" naHome />
+      ) : (
+        <footer className="border-t border-[var(--tinta-fraca)]/30 py-10 text-center">
+          <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
+            {MARCA.nome} · <a href={`mailto:${MARCA.emailContato}`} className="underline underline-offset-4">{MARCA.emailContato}</a>
           </p>
-        )}
-      </footer>
+        </footer>
+      )}
 
       {/* O SOCORRO DE QUEM JÁ COMPROU. Fica na home e NUNCA no /criar: as
           campanhas mandam direto pro quiz, então a home não está no caminho

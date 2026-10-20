@@ -35,11 +35,12 @@ describe("indexação da Ballad", () => {
     expect(ler("public/ballad/sitemap.xml")).toContain("<loc>https://www.balladgift.com/es/blog</loc>");
   });
 
-  it("a home /es linka o blog só na Ballad", () => {
+  it("a home /es linka o blog só na Ballad (pelo rodapé dela)", async () => {
     const home = ler("src/routes/es.index.tsx");
-    const i = home.indexOf('<Link to="/es/blog"');
-    expect(i).toBeGreaterThan(-1);
-    expect(home.lastIndexOf("{BALLAD && (", i)).toBeGreaterThan(home.lastIndexOf("</footer>", i));
-    expect(home.lastIndexOf("<footer", i)).toBeGreaterThan(-1);
+    expect(home).toMatch(/\{BALLAD \? \(\s*<RodapeBallad idioma="es" naHome \/>/);
+    expect(home).not.toContain('to="/es/blog"');
+    const { rodapeBallad } = await import("@/lib/rodape-ballad");
+    const links = rodapeBallad("es").colunas.flatMap((c) => c.links);
+    expect(links).toContainEqual(expect.objectContaining({ tipo: "rota", to: "/es/blog" }));
   });
 });
