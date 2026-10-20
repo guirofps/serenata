@@ -122,3 +122,58 @@ describe("problemasDoArtigo", () => {
     expect(com({ atualizadoEm: "2026-10-01" }).join()).toMatch(/data/);
   });
 });
+
+// O blog da Ballad em espanhol (20/10): as mesmas regras, com o que o site dela proíbe.
+describe("problemasDoArtigo na Ballad em espanhol", () => {
+  const ctxEs = async () => {
+    const { BLOG_BALLAD_ES } = await import("./site");
+    return {
+      site: BLOG_BALLAD_ES,
+      slugsPauta: new Set(["cancion-para-mi-mama", "cancion-para-mi-papa", "homenaje-a-la-abuela"]),
+      slugsExemplos: new Set(["es-us-mama", "es-us-abuela"]),
+    };
+  };
+  const validoEs = (): Artigo => ({
+    ...valido(),
+    slug: "cancion-de-cumpleanos-personalizada",
+    palavraChave: "canción de cumpleaños personalizada",
+    grupo: "regalo",
+    titulo: "Cancion de cumpleanos personalizada: un regalo con su historia",
+    tituloSeo: "Canción de cumpleaños personalizada: cómo",
+    musicas: ["es-us-mama"],
+    relacionados: ["cancion-para-mi-papa", "homenaje-a-la-abuela"],
+    corpo: `Una canción de cumpleaños personalizada nace de su historia. ${palavras(950)}
+
+## Qué contar
+
+[[musica:es-us-mama]]
+
+Mira [cómo crearla](/es/criar) y [la de papá](/es/blog/cancion-para-mi-papa).
+
+[[cta]]`,
+  });
+  const comEs = async (corpo: string) =>
+    problemasDoArtigo({ ...validoEs(), corpo: validoEs().corpo.replace("nace de su historia.", `nace de su historia. ${corpo}`) }, await ctxEs());
+
+  it("aceita palavra-chave com acento e ñ contra título sem acento", async () => {
+    expect(problemasDoArtigo(validoEs(), await ctxEs())).toEqual([]);
+  });
+
+  it("recusa preço em dólar", async () => {
+    for (const p of ["Cuesta $19.", "Cuesta US$ 19.", "Cuesta USD 19."])
+      expect((await comEs(p)).join(), p).toMatch(/preço no texto/);
+  });
+
+  it("recusa promessa de reembolso e de tempo curto", async () => {
+    for (const p of ["Te damos reembolso.", "Lista en un minuto."])
+      expect((await comEs(p)).join(), p).toMatch(/promessa proibida/);
+  });
+
+  it("link interno só pras rotas da Ballad", async () => {
+    const r = problemasDoArtigo(
+      { ...validoEs(), corpo: validoEs().corpo.replace("(/es/criar)", "(/criar)") },
+      await ctxEs(),
+    );
+    expect(r.join()).toMatch(/link interno pra rota que não existe: \/criar/);
+  });
+});

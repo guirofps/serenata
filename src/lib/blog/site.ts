@@ -7,6 +7,7 @@
 // o <head>, os componentes e as rotas recebem o site. Cópia irmã é o que a home
 // espanhola já mostrou: melhoria numa não chega na outra.
 
+import { audioDoExemploEsUs, exemploEsUs } from "@/lib/exemplos-es-us";
 import { AUDIO_EXEMPLOS, capaDoExemplo, exemploPorSlug } from "@/lib/exemplos-pt";
 import type { GrupoArtigo } from "./tipos";
 
@@ -139,6 +140,84 @@ export const BLOG_SERENATA: SiteBlog = {
         { grupo: "guia", titulo: "Como fazer" },
         // Por último: com a leva de 03/10 são 21 artigos, e no meio escondiam os outros.
         { grupo: "gospel", titulo: "Gospel" },
+      ],
+    },
+  },
+};
+
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+/** "2026-10-20" → "20 de octubre de 2026". Sem `Date`, pelo mesmo motivo do `dataBr`. */
+export function dataEs(iso: string): string {
+  const [ano, mes, dia] = iso.split("-");
+  return `${Number(dia)} de ${MESES[Number(mes) - 1]} de ${ano}`;
+}
+
+// O blog da Ballad pros hispanos dos EUA (spec 2026-10-20-blog-ballad-es-design.md):
+// espanhol neutro com "tú", o quiz em espanhol (/es/criar, sem porta cristã) e os
+// exemplos da PRÓPRIA Ballad, com o áudio do bucket deste deploy.
+export const BLOG_BALLAD_ES: SiteBlog = {
+  chave: "ballad-es",
+  origem: "https://www.balladgift.com",
+  prefixo: "/es/blog",
+  marca: "Ballad Gift",
+  sufixo: " | Ballad Gift",
+  ogLocale: "es_US",
+  inLanguage: "es-US",
+  logo: "/ballad/logo.webp",
+  rotas: new Set(["/es", "/es/criar", "/es/blog"]),
+  preco: /(US\$|USD|\$)\s*\d/,
+  // Garantia de devolução é contra a regra da casa (o anúncio antigo da Ballad que prometia foi barrado).
+  proibidas: /60 segundos|en un minuto|entrega expr[eé]s|reembolso|devoluci[oó]n/i,
+  destinoCriar: "/es/criar",
+  data: dataEs,
+  exemplo: (slug) => {
+    const e = exemploEsUs(slug);
+    return e ? { slug: e.slug, titulo: e.titulo, para: e.para, genero: e.genero, capa: e.capa, audio: audioDoExemploEsUs(e.slug) } : undefined;
+  },
+  textos: {
+    layout: {
+      criarCompacto: "Crear mi canción",
+      inicio: "/es",
+      inicioAria: (m) => `${m}, inicio`,
+      rodape: [
+        { to: "/es/criar", rotulo: "Crear canción" },
+        { to: "/termos", rotulo: "Términos" },
+        { to: "/privacidade", rotulo: "Privacidad" },
+      ],
+    },
+    cta: {
+      botao: "Crear la canción ahora",
+      botaoGospel: "Crear la canción ahora",
+      tituloFinal: "Cuenta la historia de quien amas",
+      tituloFinalGospel: "Cuenta la historia de quien amas",
+      nota: "La letra queda lista al instante y es gratis. Solo pagas si quieres la canción completa.",
+    },
+    musica: {
+      legenda: "Canción real, hecha en este sitio. Fragmento de 45 segundos.",
+      capa: (t) => `Portada de la canción ${t}`,
+      tocar: (t) => `Reproducir ${t}`,
+      pausar: (t) => `Pausar ${t}`,
+    },
+    artigo: {
+      caminho: "Ruta",
+      inicio: "Inicio",
+      blog: "Blog",
+      atualizadoEm: "Actualizado el",
+      minLeitura: "min de lectura",
+      faq: "Preguntas frecuentes",
+      leiaTambem: "Lee también",
+    },
+    indice: {
+      titulo: "Blog: ideas de regalo con música | Ballad Gift",
+      descricao:
+        "Ideas de regalo que emocionan: cómo hacer una canción personalizada para tu esposa, tu mamá, tu papá, una quinceañera o la Navidad, con canciones reales.",
+      h1: "Blog de Ballad Gift",
+      sub: "Ideas de regalo que emocionan, con canciones de verdad para escuchar.",
+      grupos: [
+        { grupo: "regalo", titulo: "Regalos" },
+        { grupo: "guia", titulo: "Cómo hacerlo" },
+        { grupo: "fe", titulo: "Con fe" },
       ],
     },
   },
