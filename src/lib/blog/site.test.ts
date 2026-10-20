@@ -36,12 +36,6 @@ describe("o motor com SiteBlog", () => {
 });
 
 describe("o blog da Ballad em espanhol", () => {
-  it("toca o exemplo em espanhol com o áudio do bucket DESTE deploy", async () => {
-    const { BLOG_BALLAD_ES } = await import("./site");
-    const { audioDoExemploEsUs } = await import("@/lib/exemplos-es-us");
-    expect(BLOG_BALLAD_ES.exemplo("es-us-abuela")?.audio).toBe(audioDoExemploEsUs("es-us-abuela"));
-    expect(BLOG_BALLAD_ES.exemplo("eva")).toBeUndefined();
-  });
   it("endereço, marca e data em espanhol", async () => {
     const { BLOG_BALLAD_ES } = await import("./site");
     expect(BLOG_BALLAD_ES.prefixo).toBe("/es/blog");

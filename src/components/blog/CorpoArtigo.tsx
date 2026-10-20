@@ -4,6 +4,7 @@ import type { SiteBlog } from "@/lib/blog/site";
 import type { Bloco, Inline } from "@/lib/blog/tipos";
 import { CartaoMusica } from "./CartaoMusica";
 import { CtaCriar } from "./CtaCriar";
+import { exemploDoBlog } from "@/lib/blog/exemplos-do-blog";
 
 // O corpo do artigo, bloco a bloco. UM elemento de áudio pro artigo inteiro: duas
 // músicas tocando juntas é impossível por construção (mesma regra da home).
@@ -108,7 +109,7 @@ export function CorpoArtigo({ site, blocos, tema }: { site: SiteBlog; blocos: Bl
               </blockquote>
             );
           case "musica": {
-            const ex = site.exemplo(b.slug);
+            const ex = exemploDoBlog(site, b.slug);
             return ex ? (
               <CartaoMusica
                 key={i}

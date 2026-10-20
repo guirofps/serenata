@@ -7,8 +7,6 @@
 // o <head>, os componentes e as rotas recebem o site. Cópia irmã é o que a home
 // espanhola já mostrou: melhoria numa não chega na outra.
 
-import { audioDoExemploEsUs, exemploEsUs } from "@/lib/exemplos-es-us";
-import { AUDIO_EXEMPLOS, capaDoExemplo, exemploPorSlug } from "@/lib/exemplos-pt";
 import type { GrupoArtigo } from "./tipos";
 
 /** O que o cartão de música precisa, de qualquer catálogo de exemplos. */
@@ -64,7 +62,6 @@ export type SiteBlog = {
   proibidas: RegExp;
   destinoCriar: "/criar" | "/es/criar";
   data: (iso: string) => string;
-  exemplo: (slug: string) => ExemploBlog | undefined;
   textos: TextosBlog;
 };
 
@@ -88,12 +85,6 @@ export const BLOG_SERENATA: SiteBlog = {
   proibidas: /60 segundos|entrega expressa/i,
   destinoCriar: "/criar",
   data: dataBr,
-  exemplo: (slug) => {
-    const e = exemploPorSlug(slug);
-    return e
-      ? { slug: e.slug, titulo: e.titulo, para: e.para, genero: e.genero, capa: capaDoExemplo(e), audio: `${AUDIO_EXEMPLOS}/${e.slug}.mp3` }
-      : undefined;
-  },
   textos: {
     layout: {
       criarCompacto: "Criar minha música",
@@ -155,7 +146,7 @@ export function dataEs(iso: string): string {
 
 // O blog da Ballad pros hispanos dos EUA (spec 2026-10-20-blog-ballad-es-design.md):
 // espanhol neutro com "tú", o quiz em espanhol (/es/criar, sem porta cristã) e os
-// exemplos da PRÓPRIA Ballad, com o áudio do bucket deste deploy.
+// exemplos da PRÓPRIA Ballad (`exemplos-do-blog.ts`), com o áudio do bucket deste deploy.
 export const BLOG_BALLAD_ES: SiteBlog = {
   chave: "ballad-es",
   origem: "https://www.balladgift.com",
@@ -171,10 +162,6 @@ export const BLOG_BALLAD_ES: SiteBlog = {
   proibidas: /60 segundos|en un minuto|entrega expr[eé]s|reembolso|devoluci[oó]n/i,
   destinoCriar: "/es/criar",
   data: dataEs,
-  exemplo: (slug) => {
-    const e = exemploEsUs(slug);
-    return e ? { slug: e.slug, titulo: e.titulo, para: e.para, genero: e.genero, capa: e.capa, audio: audioDoExemploEsUs(e.slug) } : undefined;
-  },
   textos: {
     layout: {
       criarCompacto: "Crear mi canción",
