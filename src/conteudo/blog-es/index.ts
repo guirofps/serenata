@@ -18,6 +18,11 @@ import { artigo as alabanzaPersonalizada } from "./alabanza-personalizada";
 import { artigo as cancionDeTestimonio } from "./cancion-de-testimonio";
 import { artigo as regaloParaMamaCristiana } from "./regalo-para-mama-cristiana";
 import { artigo as regaloParaPapaCristiano } from "./regalo-para-papa-cristiano";
+import { artigo as regaloParaPastor } from "./regalo-para-pastor";
+import { artigo as cancionCristianaParaBoda } from "./cancion-cristiana-para-boda";
+import { artigo as cancionDeGratitud } from "./cancion-de-gratitud";
+import { artigo as regaloDeNavidadCristiano } from "./regalo-de-navidad-cristiano";
+import { artigo as cancionDeConsuelo } from "./cancion-de-consuelo";
 
 export const ARTIGOS_ES: Artigo[] = [
   cancionPersonalizadaParaMiEsposa,
@@ -35,6 +40,11 @@ export const ARTIGOS_ES: Artigo[] = [
   cancionDeTestimonio,
   regaloParaMamaCristiana,
   regaloParaPapaCristiano,
+  regaloParaPastor,
+  cancionCristianaParaBoda,
+  cancionDeGratitud,
+  regaloDeNavidadCristiano,
+  cancionDeConsuelo,
 ];
 
 export function artigoEsPorSlug(slug: string): Artigo | undefined {

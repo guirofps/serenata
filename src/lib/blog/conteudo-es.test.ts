@@ -81,6 +81,10 @@ describe("registro em espanhol", () => {
     }
   });
 
+  it("a pauta inteira está publicada", () => {
+    expect(ARTIGOS_ES.map((a) => a.slug)).toEqual([...PAUTA_ES]);
+  });
+
   it("slug desconhecido não acha nada", () => {
     expect(artigoEsPorSlug("nao-existe")).toBeUndefined();
   });

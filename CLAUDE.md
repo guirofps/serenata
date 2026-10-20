@@ -699,6 +699,40 @@ painel_eventos_dia`) e o cron refazer.
   dela tenha artigo publicado E `<url>` no sitemap.
 - Medição: tabela de páginas de entrada do painel e Search Console.
 
+## Blog da Ballad em espanhol (20/10/2026)
+
+`balladgift.com/es/blog` e 20 artigos (10 de presente/guia + 10 de fé), só
+Ballad e só espanhol. Desenho em
+`docs/superpowers/specs/2026-10-20-blog-ballad-es-design.md`.
+
+- **Um motor, dois sites.** `src/lib/blog/site.ts` tem o `SiteBlog` de cada
+  marca (`BLOG_SERENATA`, `BLOG_BALLAD_ES`): origem, prefixo, textos da tela,
+  rotas que existem, regex de preço e de promessa proibida, e de onde sai a
+  música de exemplo. SEO (`seo.ts`), validador (`validar.ts`) e as telas
+  (`PaginaArtigo`, `IndiceBlog`) recebem o site; o `/blog` da Serenata saiu
+  byte a byte igual (snapshot dos heads em `site.test.ts`).
+- **As rotas `/es/blog` respondem 404 fora da Ballad**, e o `/blog` responde
+  404 na Ballad. Os artigos em espanhol entram por `import()` (não pesam no
+  bundle da Serenata).
+- **O validador da Ballad cobra** o mesmo da Serenata (palavra-chave no
+  título e no 1º parágrafo, 900–2.000 palavras, link interno só pra rota que
+  existe) mais: sem preço em dólar, sem "60 segundos"/"en un minuto", sem
+  reembolso/devolução.
+- **`conteudo-es.test.ts` cobra**: foto do blog da Serenata (`imagem.arquivo`,
+  nunca as do Rio), nenhum `tema` (o quiz em espanhol não tem `?t=gospel`),
+  música da abuela só nos 6 artigos onde cabe, citação sem rezar/cruz/
+  estampitas/persignar (palavra inteira), nenhuma "canción para Dios" (o quiz
+  não tem esse destinatário), CADA VERSO CITADO EM UM ARTIGO SÓ, sitemap com
+  lastmod e a pauta inteira publicada.
+- **Trecho de letra só da letra REAL** (`scratch/blog-es-letras.md`, lida em
+  `balladgift.com/p/<token>`), e nenhum fato da história do exemplo além do
+  que a letra diz. Artigo que toca música de amor num tema de fé (pai,
+  pastor, boda, Navidad) diz que ela não é cristiana.
+- **Artigo novo:** arquivo em `src/conteudo/blog-es/` + `index.ts` +
+  `pauta.ts` + `<url>` no `public/ballad/sitemap.xml`.
+- A foto da quinceañera é a do batismo da Serenata (nenhuma mostra
+  adolescente): trocar quando houver imagem própria.
+
 ## Campanha MUSICA10 (07/10/2026)
 
 E-mail pra base `pt` inteira com R$ 10 de desconto em qualquer compra.
