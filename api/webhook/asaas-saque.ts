@@ -83,8 +83,13 @@ export default async function handler(req: Req, res: Res) {
   //
   // Em tempo constante, como todo segredo do projeto. Token errado não é só
   // "recusa": é sinal de que alguém está batendo aqui sem ser o Asaas.
+  // Troca de conta (21/10/2026): a conta nova pode ter token próprio.
   const esperado = process.env.ASAAS_SAQUE_TOKEN;
-  if (!esperado || !segredoConfere(req.headers["asaas-access-token"], esperado)) {
+  const tokenNovo = process.env.ASAAS_SAQUE_TOKEN_NOVA;
+  const confere =
+    (!!esperado && segredoConfere(req.headers["asaas-access-token"], esperado)) ||
+    (!!tokenNovo && segredoConfere(req.headers["asaas-access-token"], tokenNovo));
+  if (!confere) {
     await registrar("asaas_saque_token_invalido", { tipo, valor });
     // Continua RECUSANDO em vez de devolver 401: a documentação deles diz que
     // resposta sem `APPROVED`/`REFUSED` cancela a operação, mas recusar

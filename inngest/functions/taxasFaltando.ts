@@ -42,10 +42,12 @@ export const taxasFaltando = inngest.createFunction(
   async ({ step }) => {
     const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const chave = process.env.ASAAS_API_KEY;
-    if (!url || !key || !chave) return { pulado: "sem credenciais" };
+    // Troca de conta (21/10/2026): venda nova está na conta nova
+    // (`ASAAS_API_KEY_NOVA`), venda de antes na de sempre. Pergunta nas duas.
+    const chaves = [process.env.ASAAS_API_KEY_NOVA, process.env.ASAAS_API_KEY].filter((c): c is string => !!c);
+    if (!url || !key || !chaves.length) return { pulado: "sem credenciais" };
     const db = createClient(url, key, { auth: { persistSession: false } });
-    const base = chave.startsWith("$aact_prod_") ? ASAAS_PROD : ASAAS_SANDBOX;
+    const base = (chave: string) => (chave.startsWith("$aact_prod_") ? ASAAS_PROD : ASAAS_SANDBOX);
 
     const pendentes = await step.run("listar", async () => {
       const { data } = await db
@@ -70,15 +72,20 @@ export const taxasFaltando = inngest.createFunction(
         // pela referência. Sem isto, cada um virava 404 de hora em hora e
         // ocupava o teto de 50 pra sempre.
         const porReferencia = id.startsWith("up:");
-        const r = await fetch(
-          porReferencia
-            ? `${base}/payments?limit=1&externalReference=${encodeURIComponent(id)}`
-            : `${base}/payments/${id}`,
-          { headers: { access_token: chave } },
-        );
-        if (!r.ok) return false;
-        const corpo = (await r.json()) as { value?: unknown; netValue?: unknown; data?: unknown[] };
-        const j = (porReferencia ? (corpo.data?.[0] ?? {}) : corpo) as { value?: unknown; netValue?: unknown };
+        let j: { value?: unknown; netValue?: unknown } | null = null;
+        for (const chave of chaves) {
+          const r = await fetch(
+            porReferencia
+              ? `${base(chave)}/payments?limit=1&externalReference=${encodeURIComponent(id)}`
+              : `${base(chave)}/payments/${id}`,
+            { headers: { access_token: chave } },
+          );
+          if (!r.ok) continue;
+          const corpo = (await r.json()) as { value?: unknown; netValue?: unknown; data?: unknown[] };
+          const achado = (porReferencia ? corpo.data?.[0] : corpo) as { value?: unknown; netValue?: unknown } | undefined;
+          if (achado) { j = achado; break; }
+        }
+        if (!j) return false;
         const valor = Number(j.value);
         const liquido = Number(j.netValue);
         // `netValue` só existe depois que eles calculam. Sem ele, não inventa:

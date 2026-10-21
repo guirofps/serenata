@@ -35,7 +35,7 @@
 // `api/`, que roda no runtime Node da Vercel, onde o alias não resolve. Foi
 // assim que o `/api/inngest` ficou quatro horas fora do ar em 26/08.
 
-import { chamarAsaas, asaasPagou } from "./asaas.js";
+import { chamarAsaas, asaasPagou, lerEmQualquerConta, listarEmTodasAsContas, type ContaAsaas } from "./asaas.js";
 import { semPontoNoFim } from "./email-limpo.js";
 import {
   COBRANCA_JA_PAGA,
@@ -57,6 +57,8 @@ type PagamentoAsaas = {
   paymentDate?: string;
   clientPaymentDate?: string;
   externalReference?: string;
+  /** De qual conta veio, quando listada das duas (troca de conta, 21/10). */
+  conta?: ContaAsaas;
 };
 
 /**
@@ -98,10 +100,11 @@ function taxaDe(p: PagamentoAsaas): number | null {
  *    (`COBRANCA_JA_PAGA`), igual à Woovi.
  */
 async function cobrancasDaReferencia(referencia: string): Promise<PagamentoAsaas[]> {
-  const r = await chamarAsaas<{ data?: PagamentoAsaas[] }>(
+  // Das DUAS contas durante a troca: um PIX pago na antiga também é "já paga",
+  // e um vivo lá precisa ser cancelado pra pessoa não pagar duas vezes.
+  return listarEmTodasAsContas<PagamentoAsaas>(
     `/payments?externalReference=${encodeURIComponent(referencia)}&limit=10`,
   );
-  return r?.data ?? [];
 }
 
 /**
@@ -113,10 +116,11 @@ async function cobrancasDaReferencia(referencia: string): Promise<PagamentoAsaas
  * próxima abertura da folha tenta de novo (a vencida continua na lista), e o
  * webhook ainda tem a trava "um quiz, uma entrega" como última rede.
  */
-async function cancelarSuperadas(ids: readonly string[]): Promise<void> {
+async function cancelarSuperadas(ids: readonly string[], lista: readonly PagamentoAsaas[] = []): Promise<void> {
   if (!ids.length) return;
+  const contaDe = (id: string): ContaAsaas => lista.find((p) => p.id === id)?.conta ?? "principal";
   const r = await Promise.allSettled(
-    ids.map((id) => chamarAsaas(`/payments/${encodeURIComponent(id)}`, { method: "DELETE" })),
+    ids.map((id) => chamarAsaas(`/payments/${encodeURIComponent(id)}`, { method: "DELETE" }, contaDe(id))),
   );
   r.forEach((x, i) => {
     if (x.status === "rejected") {
@@ -319,11 +323,15 @@ export const asaasPix: GatewayPix = {
     // com o resto, e esperadas só no fim: a pessoa não espera o DELETE pra ver
     // o QR, e a função não termina com chamada pendurada (na Vercel ela
     // congela depois de responder).
-    const decisao = decidirCobrancaExistente(
-      await cobrancasDaReferencia(args.referencia),
-      args.valorCentavos,
-    );
-    const cancelando = cancelarSuperadas(decisao.cancelar);
+    const lista = await cobrancasDaReferencia(args.referencia);
+    let decisao = decidirCobrancaExistente(lista, args.valorCentavos);
+    // A viva do mesmo valor está na conta ANTIGA: não se reaproveita (cobrança
+    // nova nasce na conta nova). Ela é cancelada, senão a pessoa teria dois
+    // códigos pagáveis pro mesmo pedido.
+    if (decisao.tipo === "reusar" && decisao.cobranca.conta === "antiga" && decisao.cobranca.id) {
+      decisao = { tipo: "nova", cancelar: [...decisao.cancelar, decisao.cobranca.id] };
+    }
+    const cancelando = cancelarSuperadas(decisao.cancelar, lista);
     try {
       return await criarOuReaproveitar(args, cpf, decisao);
     } finally {
@@ -332,7 +340,9 @@ export const asaasPix: GatewayPix = {
   },
 
   async consultar(idExterno): Promise<StatusCobranca> {
-    const p = await chamarAsaas<PagamentoAsaas>(`/payments/${encodeURIComponent(idExterno)}`);
+    // Em qualquer conta: o PIX gerado na conta antiga, pago depois da troca,
+    // chega pelo webhook dela e precisa liberar a entrega igual.
+    const p = await lerEmQualquerConta<PagamentoAsaas>(`/payments/${encodeURIComponent(idExterno)}`);
     return {
       pago: asaasPagou(p?.status),
       statusCru: String(p?.status ?? "desconhecido"),
@@ -358,10 +368,7 @@ export const asaasPix: GatewayPix = {
  * upsells pagos entre 12 e 14/09 ficaram sem crédito e sem quadro.
  */
 export async function consultarPorReferencia(referencia: string): Promise<StatusCobranca | null> {
-  const r = await chamarAsaas<{ data?: PagamentoAsaas[] }>(
-    `/payments?externalReference=${encodeURIComponent(referencia)}&limit=10`,
-  );
-  const lista = r?.data ?? [];
+  const lista = await cobrancasDaReferencia(referencia);
   const p = lista.find((x) => asaasPagou(x.status)) ?? lista[0];
   if (!p?.id) return null;
   return asaasPix.consultar(p.id);

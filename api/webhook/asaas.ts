@@ -305,7 +305,13 @@ export default async function handler(req: Req, res: Res) {
     console.error("[asaas] ASAAS_WEBHOOK_TOKEN nÃ£o configurado");
     return res.status(503).json({ error: "webhook nÃ£o configurado" });
   }
-  if (!segredoConfere(req.headers["asaas-access-token"], esperado)) {
+  // Troca de conta (21/10/2026): a conta nova pode ter token próprio
+  // (`ASAAS_WEBHOOK_TOKEN_NOVA`), e a antiga segue mandando com o de sempre.
+  const tokenNovo = process.env.ASAAS_WEBHOOK_TOKEN_NOVA;
+  if (
+    !segredoConfere(req.headers["asaas-access-token"], esperado) &&
+    !(tokenNovo && segredoConfere(req.headers["asaas-access-token"], tokenNovo))
+  ) {
     return res.status(401).json({ error: "token invÃ¡lido" });
   }
 

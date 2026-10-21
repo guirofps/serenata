@@ -40,10 +40,28 @@ function base(chave: string): string {
     : "https://api-sandbox.asaas.com/v3";
 }
 
-function chaveDoAmbiente(): string {
-  const k = process.env.ASAAS_API_KEY ?? process.env.ASAAS_API_KEY_SANDBOX;
-  if (!k) throw new ErroGateway("ASAAS_API_KEY ausente", "asaas", false);
-  return k;
+// ── DUAS CONTAS DURANTE A TROCA DE CNPJ (21/10/2026) ──────────────
+//
+// A conta nova (CNPJ novo) entra por `ASAAS_API_KEY_NOVA`. Com ela setada,
+// TODA cobrança nasce na nova, e a conta de antes (`ASAAS_API_KEY`) vira a
+// "antiga": continua sendo LIDA, porque o PIX gerado lá antes da troca segue
+// pagável (o e-mail de PIX não pago reenvia o mesmo código), e estorno e
+// contestação de venda antiga chegam pelo webhook dela. Sem a env nova, tudo
+// é como sempre foi. Quando a antiga não tiver mais nada vivo, a chave nova
+// passa a ser a `ASAAS_API_KEY` e a `_NOVA` sai.
+export type ContaAsaas = "principal" | "antiga";
+
+function chaves(): { principal: string; antiga: string | null } {
+  const nova = process.env.ASAAS_API_KEY_NOVA?.trim();
+  const atual = (process.env.ASAAS_API_KEY ?? process.env.ASAAS_API_KEY_SANDBOX)?.trim();
+  if (nova) return { principal: nova, antiga: atual && atual !== nova ? atual : null };
+  if (!atual) throw new ErroGateway("ASAAS_API_KEY ausente", "asaas", false);
+  return { principal: atual, antiga: null };
+}
+
+/** Há uma conta antiga pra consultar? (só durante a troca de conta) */
+export function temContaAntiga(): boolean {
+  return chaves().antiga != null;
 }
 
 /**
@@ -63,8 +81,10 @@ function chaveDoAmbiente(): string {
  * evitar — e que já custou caro aqui: quando um dos dois ganha um conserto, o
  * outro fica pra trás em silêncio.
  */
-export async function chamarAsaas<T>(caminho: string, init?: RequestInit): Promise<T> {
-  const chave = chaveDoAmbiente();
+export async function chamarAsaas<T>(caminho: string, init?: RequestInit, conta: ContaAsaas = "principal"): Promise<T> {
+  const { principal, antiga } = chaves();
+  const chave = conta === "antiga" ? antiga : principal;
+  if (!chave) throw new ErroGateway("sem conta antiga do Asaas configurada", "asaas", false);
   let r: Response;
   try {
     r = await fetch(base(chave) + caminho, {
@@ -92,9 +112,46 @@ export async function chamarAsaas<T>(caminho: string, init?: RequestInit): Promi
     const erros = (corpo as { errors?: Array<{ description?: string; code?: string }> })?.errors;
     const desc = erros?.[0]?.description ?? `HTTP ${r.status}`;
     // 5xx e 429 valem outra tentativa; 4xx é pedido nosso errado ou recusa.
-    throw new ErroGateway(desc, "asaas", r.status >= 500 || r.status === 429);
+    const e = new ErroGateway(desc, "asaas", r.status >= 500 || r.status === 429);
+    (e as ErroGateway & { status?: number }).status = r.status;
+    throw e;
   }
   return corpo as T;
+}
+
+/**
+ * GET de uma cobrança pelo id deles, em qualquer das duas contas.
+ *
+ * Tenta a principal; se ela não conhece o id (404) e há conta antiga, pergunta
+ * lá. É o que deixa o webhook e o vigia da conta antiga liberarem a entrega de
+ * um PIX gerado antes da troca.
+ */
+export async function lerEmQualquerConta<T>(caminho: string): Promise<T> {
+  try {
+    return await chamarAsaas<T>(caminho);
+  } catch (err) {
+    const status = (err as { status?: number }).status;
+    if (!temContaAntiga() || (status !== 404 && status !== 400)) throw err;
+    return chamarAsaas<T>(caminho, undefined, "antiga");
+  }
+}
+
+/**
+ * Uma listagem (`/payments?externalReference=...`) somada das duas contas,
+ * cada item marcado com a conta de onde veio. Falha da antiga não derruba a
+ * leitura da principal: a antiga é complemento, a principal é a verdade nova.
+ */
+export async function listarEmTodasAsContas<P>(caminho: string): Promise<Array<P & { conta: ContaAsaas }>> {
+  const principal = await chamarAsaas<{ data?: P[] }>(caminho);
+  const lista = (principal?.data ?? []).map((p) => ({ ...p, conta: "principal" as const }));
+  if (!temContaAntiga()) return lista;
+  try {
+    const antiga = await chamarAsaas<{ data?: P[] }>(caminho, undefined, "antiga");
+    return [...lista, ...(antiga?.data ?? []).map((p) => ({ ...p, conta: "antiga" as const }))];
+  } catch (err) {
+    console.error("[asaas] leitura da conta antiga falhou:", err instanceof Error ? err.message : err);
+    return lista;
+  }
 }
 
 const chamar = chamarAsaas;
@@ -237,7 +294,9 @@ export const asaas: GatewayCartao = {
   },
 
   async consultar(idExterno) {
-    const p = await chamar<{ status?: string; value?: number; netValue?: number; externalReference?: string }>(
+    // Em qualquer conta: estorno e contestação de cartão vendido antes da troca
+    // de conta chegam com um id que só a conta antiga conhece.
+    const p = await lerEmQualquerConta<{ status?: string; value?: number; netValue?: number; externalReference?: string }>(
       `/payments/${encodeURIComponent(idExterno)}`,
     );
     const bruto = Number(p?.value ?? 0);
@@ -256,10 +315,10 @@ export const asaas: GatewayCartao = {
     // `limit=1` porque a pergunta é de existência, não de listagem: qualquer
     // cobrança com esta referência já proíbe o failover, e a primeira basta.
     try {
-      const r = await chamar<{ totalCount?: number; data?: unknown[] }>(
+      const r = await listarEmTodasAsContas<unknown>(
         `/payments?limit=1&externalReference=${encodeURIComponent(referencia)}`,
       );
-      return Number(r?.totalCount ?? (r?.data?.length ?? 0)) > 0;
+      return r.length > 0;
     } catch (err) {
       // FALHA FECHADA PRA VENDA, ABERTA PRO CLIENTE. Se a consulta que existe
       // pra impedir a cobrança dupla também está fora do ar, a única resposta
