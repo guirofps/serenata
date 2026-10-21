@@ -30,6 +30,7 @@ import { avisarDonos } from "../../src/lib/avisar-donos.js";
 import { venderNoTiktok } from "./tiktok-eventos.js";
 import { ttclidDaVenda } from "../../src/lib/clique-recente.js";
 import { creditarUpsell } from "./creditar-upsell.js";
+import { valorEsperadoNaMoeda } from "../../src/lib/preco-mxn.js";
 
 const API = "https://api.stripe.com/v1";
 
@@ -144,14 +145,25 @@ export async function lerSessao(id: string): Promise<SessaoStripe> {
  * com o câmbio do dia. `valor_centavos` do pedido é em dólar; guardar a taxa
  * em real na coluna do lado faria o painel subtrair real de dólar.
  */
-function taxaEmCentavosDaVenda(s: SessaoStripe): number | null {
+function taxaEmCentavosDaVenda(s: SessaoStripe, valorUsdCentavos?: number | null): number | null {
   const pi = typeof s.payment_intent === "object" ? s.payment_intent : null;
   const ch = pi && typeof pi.latest_charge === "object" ? pi.latest_charge : null;
   const bt = ch && typeof ch.balance_transaction === "object" ? ch.balance_transaction : null;
   if (!bt || typeof bt.fee !== "number") return null;
-  if (bt.currency && s.currency && bt.currency === s.currency) return bt.fee;
-  const cambio = Number(bt.exchange_rate);
-  return cambio > 0 ? Math.round(bt.fee / cambio) : null;
+  let naMoedaDaVenda: number | null;
+  if (bt.currency && s.currency && bt.currency === s.currency) naMoedaDaVenda = bt.fee;
+  else {
+    const cambio = Number(bt.exchange_rate);
+    naMoedaDaVenda = cambio > 0 ? bt.fee / cambio : null;
+  }
+  if (naMoedaDaVenda == null) return null;
+  // Venda em peso (México, `preco-mxn.ts`): a taxa sai em centavos de peso e o
+  // pedido é em dólar. Leva pra dólar pela proporção do próprio pedido.
+  if (s.currency && s.currency.toLowerCase() !== "usd") {
+    if (!valorUsdCentavos || !s.amount_total) return null;
+    return Math.round((naMoedaDaVenda * valorUsdCentavos) / s.amount_total);
+  }
+  return Math.round(naMoedaDaVenda);
 }
 
 async function alertarDono(assunto: string, html: string) {
@@ -207,10 +219,13 @@ export async function confirmarSessaoStripe(
   const quizId = String(pedido.quiz_response_id);
   if (pedido.status === "pago") return { ok: true, entregue: false, duplicado: true, quizId };
 
-  if (s.amount_total !== pedido.valor_centavos) {
+  // O pedido é em dólar; a sessão pode ter cobrado em peso (México). Confere na
+  // moeda da sessão, pela MESMA tabela do checkout (`preco-mxn.ts`).
+  const esperado = valorEsperadoNaMoeda(s.currency, Number(pedido.valor_centavos));
+  if (esperado == null || s.amount_total !== esperado) {
     await alertarDono(
       "Valor pago diferente do pedido (Stripe)",
-      `<p>Sessão <code>${s.id}</code>: pago ${s.amount_total}, pedido ${pedido.valor_centavos}. Entrega retida.</p>`,
+      `<p>Sessão <code>${s.id}</code>: pago ${s.amount_total} ${s.currency}, pedido ${pedido.valor_centavos} usd (esperado ${esperado ?? "?"} ${s.currency}). Entrega retida.</p>`,
     );
     return { ok: false, motivo: "valor-diferente" };
   }
@@ -235,7 +250,7 @@ export async function confirmarSessaoStripe(
       status: "pago",
       status_gateway: "paid",
       paid_at: new Date().toISOString(),
-      taxa_centavos: taxaEmCentavosDaVenda(s),
+      taxa_centavos: taxaEmCentavosDaVenda(s, Number(pedido.valor_centavos)),
       email,
       nome_pagador: s.customer_details?.name ?? null,
     })
@@ -277,7 +292,8 @@ export async function confirmarSessaoStripe(
   if (ttclid) {
     const t = await venderNoTiktok({
       eventId: s.id,
-      valor: (s.amount_total ?? 0) / 100,
+      // Em dólar sempre: a venda em peso (México) tem o pedido em dólar.
+      valor: Number(pedido.valor_centavos ?? 0) / 100,
       moeda: "USD",
       email,
       ttclid,
@@ -316,7 +332,7 @@ async function confirmarUpsellStripe(
       status: "pago",
       status_gateway: "paid",
       paid_at: new Date().toISOString(),
-      taxa_centavos: taxaEmCentavosDaVenda(s),
+      taxa_centavos: taxaEmCentavosDaVenda(s, Number(pedido.valor_centavos)),
       email,
       nome_pagador: s.customer_details?.name ?? null,
     })
