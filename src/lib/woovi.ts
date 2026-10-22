@@ -109,11 +109,14 @@ export const woovi: GatewayPix = {
   nome: "woovi",
 
   /**
-   * A Woovi cria a cobrança só com nome e e-mail, e é metade da tese da folha
-   * transparente: sem trocar de domínio e SEM PEDIR CPF. Manter `false` aqui
-   * é o que faz o campo de CPF sumir da tela quando o PIX volta pra cá.
+   * A Woovi aceita cobrança sem CPF, mas a folha CONTINUA pedindo (dono,
+   * 21/10, na volta do PIX pra Woovi com o Asaas só no cartão): medido em
+   * 31/08-06/09 (Woovi sem CPF) × 14-20/09 (Asaas com CPF), quem abre a folha
+   * paga igual nos dois (27,0%), então o campo não custa venda; e com ele a
+   * tela fica igual à do Asaas e o CPF vai pra cobrança (`customer.taxID`),
+   * o que fortalece o dossiê de contestação. `false` volta a esconder o campo.
    */
-  exigeCpf: false,
+  exigeCpf: true,
 
   async criar(args): Promise<CobrancaPix> {
     // ── A WOOVI NÃO É IDEMPOTENTE, E ISSO CUSTA CARO ───────────
@@ -185,12 +188,15 @@ export const woovi: GatewayPix = {
       //     contexto pra decidir entre "mando" e "omito" e quem tem o locale.
       //
       // Aqui, portanto: se veio, vai; se nao veio, o campo some.
-      ...(args.nome || args.email || args.telefone
+      ...(args.nome || args.email || args.telefone || args.cpf
         ? {
             customer: {
               name: args.nome ?? undefined,
               email: args.email ?? undefined,
               phone: args.telefone ?? undefined,
+              // Só dígitos e já validado pelo `criar-pix` (`cpfValido`): CPF
+              // torto faria a Woovi recusar a cobrança inteira.
+              taxID: args.cpf ?? undefined,
             },
           }
         : {}),
