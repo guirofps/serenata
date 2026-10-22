@@ -6,7 +6,7 @@ import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { stripeApi, confirmarSessaoStripe, ErroStripe } from "../../api/lib/stripe";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 import { getRequestHeader } from "@tanstack/react-start/server";
-import { centavosMxnDe, cobrarEmPeso } from "@/lib/preco-mxn";
+import { centavosMxnDe, cobrarEmPeso, usdDoPeso } from "@/lib/preco-mxn";
 
 // O CHECKOUT DA BALLAD GIFT, do lado do servidor.
 //
@@ -89,12 +89,14 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
     if (jaPago?.length) return { ok: false, erro: "ja-pago" };
 
     const centavos = await valorCentavosDaSessao(db, quiz.attribution);
-    // O CAIXA EM PESO PRA QUEM ESTÁ NO MÉXICO (21/10, `preco-mxn.ts`): o mesmo
-    // preço, tabelado em peso (US$ 19 → $349 MXN). O pedido continua em dólar;
-    // só a cobrança muda de moeda. Fora do México, nada muda.
+    // O CAIXA EM PESO PRA QUEM ESTÁ NO MÉXICO (21/10, `preco-mxn.ts`): o preço
+    // tabelado em peso (US$ 19 → $199 MXN, em teste desde 22/10). O pedido
+    // continua em dólar, no equivalente do que se cobrou. Fora do México, nada muda.
     const emPeso = cobrarEmPeso(getRequestHeader("x-vercel-ip-country"));
     const moeda = emPeso ? "mxn" : "usd";
     const valorNaMoeda = emPeso ? centavosMxnDe(centavos) : centavos;
+    // O pedido grava o dólar do que se COBROU (o México tem preço próprio, $199).
+    const valorDoPedido = emPeso ? usdDoPeso(valorNaMoeda) : centavos;
     const nome = String((quiz.respostas as Record<string, unknown> | null)?.nome ?? "").trim().slice(0, 40);
     const email = String(quiz.email ?? "").trim() || undefined;
 
@@ -188,7 +190,7 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
           gateway: "stripe",
           status: "pendente",
           email: email ?? null,
-          valor_centavos: centavos,
+          valor_centavos: valorDoPedido,
           quiz_response_id: quiz.id,
           musica_id: musica.id,
         },
@@ -200,7 +202,7 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
       await db.from("funnel_events").insert({
         event_name: "stripe_checkout_criado",
         session_id: sessionId,
-        event_data: { sessao: sessao.id, valor_centavos: centavos, moeda, valor_na_moeda: valorNaMoeda },
+        event_data: { sessao: sessao.id, valor_centavos: valorDoPedido, moeda, valor_na_moeda: valorNaMoeda },
       });
       return { ok: true, clientSecret: sessao.client_secret, sessaoId: sessao.id };
     } catch (err) {

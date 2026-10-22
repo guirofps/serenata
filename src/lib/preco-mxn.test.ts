@@ -1,11 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { centavosMxnDe, cobrarEmPeso, textoEmPeso, valorEsperadoNaMoeda } from "./preco-mxn";
+import {
+  centavosMxnDe,
+  centavosMxnPorCambio,
+  cobrarEmPeso,
+  textoEmPeso,
+  usdDoPeso,
+  valorPagoConfere,
+} from "./preco-mxn";
 
 describe("checkout em peso pro México", () => {
-  it("US$ 19 vira $349 MXN (equivalente, arredondado em x49/x99)", () => {
-    expect(centavosMxnDe(1900)).toBe(34900);
+  it("a conversão pura arredonda em x49/x99 (US$ 19 → $349)", () => {
+    expect(centavosMxnPorCambio(1900)).toBe(34900);
+    expect(centavosMxnPorCambio(2400)).toBe(44900);
+    expect(centavosMxnPorCambio(1000)).toBe(19900);
+  });
+
+  it("o México tem preço próprio em teste: US$ 19 → $199, âncora US$ 49 → $549", () => {
+    expect(centavosMxnDe(1900)).toBe(19900);
+    expect(centavosMxnDe(4900)).toBe(54900);
+    // fora da tabela, a conversão de sempre
     expect(centavosMxnDe(2400)).toBe(44900);
-    expect(centavosMxnDe(1000)).toBe(19900);
+  });
+
+  it("o pedido grava o dólar do que se cobrou ($199 → US$ 10,82)", () => {
+    expect(usdDoPeso(19900)).toBe(1082);
   });
 
   it("só o México cobra em peso; EUA e o resto seguem em dólar", () => {
@@ -18,16 +36,23 @@ describe("checkout em peso pro México", () => {
   });
 
   it("o webhook confere o valor na moeda da sessão; moeda estranha não libera", () => {
-    expect(valorEsperadoNaMoeda("usd", 1900)).toBe(1900);
-    expect(valorEsperadoNaMoeda("mxn", 1900)).toBe(34900);
-    expect(valorEsperadoNaMoeda(null, 1900)).toBe(1900);
-    expect(valorEsperadoNaMoeda("eur", 1900)).toBeNull();
+    expect(valorPagoConfere("usd", 1900, 1900)).toBe(true);
+    expect(valorPagoConfere(null, 1900, 1900)).toBe(true);
+    expect(valorPagoConfere("usd", 1000, 1900)).toBe(false);
+    // o de hoje: $199 cobrado, pedido no equivalente
+    expect(valorPagoConfere("mxn", 19900, usdDoPeso(19900))).toBe(true);
+    // caixa aberto antes de 22/10: $349 cobrado, pedido a US$ 19
+    expect(valorPagoConfere("mxn", 34900, 1900)).toBe(true);
+    // valor que não bate com nenhum dos dois
+    expect(valorPagoConfere("mxn", 100, 1900)).toBe(false);
+    expect(valorPagoConfere("mxn", 19900, 1900)).toBe(false);
+    expect(valorPagoConfere("eur", 1900, 1900)).toBe(false);
   });
 
   it("a tela escreve em peso o MESMO número que o caixa cobra", () => {
-    expect(textoEmPeso("US$ 19")).toBe("$349 MXN");
-    expect(textoEmPeso("$19")).toBe("$349 MXN");
-    expect(textoEmPeso("US$ 49")).toBe("$949 MXN");
+    expect(textoEmPeso("US$ 19")).toBe("$199 MXN");
+    expect(textoEmPeso("$19")).toBe("$199 MXN");
+    expect(textoEmPeso("US$ 49")).toBe("$549 MXN");
     expect(textoEmPeso("US$ 24,90")).toBe(`$${centavosMxnDe(2490) / 100} MXN`);
     expect(textoEmPeso("grátis")).toBeNull();
   });

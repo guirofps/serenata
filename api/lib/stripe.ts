@@ -30,7 +30,7 @@ import { avisarDonos } from "../../src/lib/avisar-donos.js";
 import { venderNoTiktok } from "./tiktok-eventos.js";
 import { ttclidDaVenda } from "../../src/lib/clique-recente.js";
 import { creditarUpsell } from "./creditar-upsell.js";
-import { valorEsperadoNaMoeda } from "../../src/lib/preco-mxn.js";
+import { valorPagoConfere } from "../../src/lib/preco-mxn.js";
 
 const API = "https://api.stripe.com/v1";
 
@@ -221,11 +221,10 @@ export async function confirmarSessaoStripe(
 
   // O pedido é em dólar; a sessão pode ter cobrado em peso (México). Confere na
   // moeda da sessão, pela MESMA tabela do checkout (`preco-mxn.ts`).
-  const esperado = valorEsperadoNaMoeda(s.currency, Number(pedido.valor_centavos));
-  if (esperado == null || s.amount_total !== esperado) {
+  if (!valorPagoConfere(s.currency, Number(s.amount_total), Number(pedido.valor_centavos))) {
     await alertarDono(
       "Valor pago diferente do pedido (Stripe)",
-      `<p>Sessão <code>${s.id}</code>: pago ${s.amount_total} ${s.currency}, pedido ${pedido.valor_centavos} usd (esperado ${esperado ?? "?"} ${s.currency}). Entrega retida.</p>`,
+      `<p>Sessão <code>${s.id}</code>: pago ${s.amount_total} ${s.currency}, pedido ${pedido.valor_centavos} usd. Entrega retida.</p>`,
     );
     return { ok: false, motivo: "valor-diferente" };
   }
