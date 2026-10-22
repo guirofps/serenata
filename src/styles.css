@@ -323,3 +323,16 @@
       0 18px 40px -22px oklch(0.42 0.13 18 / 0.35);
   }
 }
+
+/* O preço em peso pra quem está no México (Ballad, `pais-acesso.ts`). As duas
+   moedas vêm no HTML (`NaMoeda`) e o carimbo `data-pais` escolhe qual aparece:
+   sem carimbo, dólar, que é o que o caixa cobra fora do México. */
+.preco-mxn {
+  display: none;
+}
+html[data-pais="MX"] .preco-usd {
+  display: none;
+}
+html[data-pais="MX"] .preco-mxn {
+  display: inline;
+}

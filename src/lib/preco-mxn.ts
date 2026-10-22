@@ -41,3 +41,19 @@ export function valorEsperadoNaMoeda(moeda: string | null | undefined, valorUsdC
   if (m === "mxn") return centavosMxnDe(valorUsdCentavos);
   return null;
 }
+
+/**
+ * O texto de um preço em dólar ("US$ 19", "$49") escrito em peso, pela MESMA
+ * tabela do caixa: "$349 MXN". Texto sem número = `null` (a tela fica em dólar).
+ *
+ * É o que a página mostra pra quem está no México (21/10, dono: "mostra o
+ * preço em peso na página também"): o caixa já cobrava $349 e a página dizia
+ * US$ 19, conta de câmbio que ninguém faz no celular.
+ */
+export function textoEmPeso(textoUsd: string): string | null {
+  const m = String(textoUsd).match(/(\d+(?:[.,]\d{1,2})?)/);
+  if (!m) return null;
+  const usd = Number(m[1].replace(",", "."));
+  if (!Number.isFinite(usd) || usd <= 0) return null;
+  return `$${centavosMxnDe(Math.round(usd * 100)) / 100} MXN`;
+}

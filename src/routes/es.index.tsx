@@ -17,6 +17,7 @@ import { moeda } from "@/lib/i18n";
 import { ehBallad } from "@/lib/marca-identidade";
 import { exemplosEsUsProntos } from "@/lib/exemplos-es-us";
 import { ZapFlutuante } from "@/components/marca/ZapFlutuante";
+import { NaMoeda } from "@/components/quiz/PrecoDaOferta";
 import {
   ArrowRight, Menu, X, Check, ChevronDown, Sparkles, Gift, Clock, Link2,
 } from "lucide-react";
@@ -523,7 +524,7 @@ function HomeEs() {
               </div>
               <div className="bg-[var(--papel)] px-4 py-5">
                 <p className="text-[var(--tinta-suave)]">Una canción solo suya</p>
-                <p className="mt-1 font-semibold text-[var(--acento)]">{preco.texto}</p>
+                <p className="mt-1 font-semibold text-[var(--acento)]"><NaMoeda texto={preco.texto} /></p>
                 <p className="mt-1 text-[var(--tinta-fraca)]">se queda para siempre</p>
               </div>
             </div>
@@ -551,13 +552,13 @@ function HomeEs() {
                   className="text-[var(--tinta-fraca)] line-through"
                   style={{ fontSize: "var(--t-xl)" }}
                 >
-                  {preco.ancora}
+                  <NaMoeda texto={preco.ancora} />
                 </span>
                 <span
                   className="texto-ouro leading-none"
                   style={{ fontFamily: FONTES.display, fontWeight: 600, fontSize: "var(--t-hero)" }}
                 >
-                  {preco.texto}
+                  <NaMoeda texto={preco.texto} />
                 </span>
               </div>
               <p className="mt-2 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>

@@ -40,6 +40,7 @@ import { GOOGLE_ADS_ID, scriptConfigGtag } from "@/lib/google-ads";
 import { LOCALE_PADRAO, localeDaRota, tagIdioma } from "@/lib/i18n";
 import { FONTES, MARCA } from "@/lib/marca";
 import { ehBallad } from "@/lib/marca-identidade";
+import { descobrirPais, scriptCarimbarPais } from "@/lib/pais-acesso";
 import {
   rotaDeConversao,
   scriptCarregaGtag,
@@ -284,6 +285,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
             Precisa vir depois do sorteio, que é quem carimba o <html>. Na
             Serenata o carimbo não existe e ele não faz nada. Ver `abertura-en.ts`. */}
         <script dangerouslySetInnerHTML={{ __html: scriptPularAbertura() }} />
+        {/* O país guardado vira `data-pais` antes de pintar: o preço em peso
+            pra quem está no México (`pais-acesso.ts`). Só na Ballad. */}
+        {ehBallad() && <script dangerouslySetInnerHTML={{ __html: scriptCarimbarPais() }} />}
         {/* Depois dos três do teste A/B: a porta dos scripts que esperam a
             página carregar (gtag e TikTok, mais abaixo) e a fonte sem travar a
             pintura. Ver `carregar-depois.ts`. */}
@@ -407,6 +411,9 @@ function RootComponent() {
     // Nome novo, fora dos doze que `admin_eventos_resumo` filtra: não entra em
     // nenhuma conta do painel de funil, só na aba de indicações.
     if (convite) trackEvent("convite_clique", { ref: convite });
+    // O preço em peso no México (`pais-acesso.ts`): o caixa decide pelo país do
+    // acesso, a tela pergunta a mesma coisa ao servidor.
+    if (ehBallad()) void descobrirPais();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const router = useRouter();

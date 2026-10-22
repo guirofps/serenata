@@ -2,6 +2,27 @@ import { Variante } from "@/components/Variante";
 import type { Locale } from "@/lib/i18n";
 import type { Cupom } from "@/lib/cupom";
 import { EXP_PRECO, planoCobravelDe, planoControle, variantesComPlano } from "@/lib/preco";
+import { ehBallad } from "@/lib/marca-identidade";
+import { textoEmPeso } from "@/lib/preco-mxn";
+
+/**
+ * Um preço em dólar, com a versão em peso ao lado pra quem está no México.
+ *
+ * Só na Ballad, a única que cobra em peso (`preco-mxn.ts`). As duas moedas vão
+ * no HTML e o `data-pais` do `<html>` escolhe qual aparece (`pais-acesso.ts`),
+ * pelo mesmo motivo das variantes de preço: nada renderiza de novo e o número
+ * não pisca. `como` monta a frase em volta ("a partir de …") nas duas moedas.
+ */
+export function NaMoeda({ texto, como = (t) => t }: { texto: string; como?: (preco: string) => string }) {
+  const peso = ehBallad() ? textoEmPeso(texto) : null;
+  if (!peso) return <>{como(texto)}</>;
+  return (
+    <>
+      <span className="preco-usd">{como(texto)}</span>
+      <span className="preco-mxn">{como(peso)}</span>
+    </>
+  );
+}
 
 // O NÚMERO NA TELA, no formato que sobrevive ao servidor.
 //
@@ -65,9 +86,9 @@ export function PrecoDaOferta({
         return (
           <Variante key={v} exp={EXP_PRECO} v={v}>
             <p className="text-sm text-muted-foreground">
-              <span className="line-through">{plano.ancora}</span> {hojePor}
+              <span className="line-through"><NaMoeda texto={plano.ancora} /></span> {hojePor}
             </p>
-            <p className="font-display text-5xl font-semibold tracking-tight">{plano.texto}</p>
+            <p className="font-display text-5xl font-semibold tracking-tight"><NaMoeda texto={plano.texto} /></p>
           </Variante>
         );
       })}
@@ -99,7 +120,7 @@ export function PrecoCurto({
     <>
       {variantesComPlano(locale).map((v) => (
         <Variante key={v} exp={EXP_PRECO} v={v}>
-          <p className={className}>{planoCobravelDe(locale, v).texto}</p>
+          <p className={className}><NaMoeda texto={planoCobravelDe(locale, v).texto} /></p>
         </Variante>
       ))}
     </>
@@ -127,7 +148,7 @@ export function APartirDe({
     <>
       {variantesComPlano(locale).map((v) => (
         <Variante key={v} exp={EXP_PRECO} v={v}>
-          <p className={className}>{frase(planoCobravelDe(locale, v).texto)}</p>
+          <p className={className}><NaMoeda texto={planoCobravelDe(locale, v).texto} como={frase} /></p>
         </Variante>
       ))}
     </>

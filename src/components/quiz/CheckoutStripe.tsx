@@ -14,6 +14,7 @@ import { trackEvent } from "@/lib/track";
 import { usePausarVideosAtras, useVoltarFechaAFolha } from "@/lib/folha-pagamento";
 import { ShieldCheck, RefreshCw, X } from "lucide-react";
 import { varianteDe } from "@/lib/experimentos";
+import { NaMoeda } from "@/components/quiz/PrecoDaOferta";
 import { EXP_AVISO_RECUSA, TEXTO_AVISO_RECUSA, avisoRecusaLigado } from "@/lib/aviso-recusa";
 
 // O PAGAMENTO DA BALLAD GIFT, na própria página.
@@ -204,7 +205,7 @@ export function CheckoutStripe({
         </button>
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-muted-foreground/25 sm:hidden" />
         <div className="mb-3 px-2 text-center">
-          <p className="font-display text-lg font-semibold">{T.titulo(precoTexto)}</p>
+          <p className="font-display text-lg font-semibold"><NaMoeda texto={precoTexto} como={T.titulo} /></p>
           <p className="mt-1 flex items-center justify-center gap-1.5 text-xs text-emerald-800">
             <ShieldCheck className="h-3.5 w-3.5" /> {T.seguro}
           </p>

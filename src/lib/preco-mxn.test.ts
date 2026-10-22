@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { centavosMxnDe, cobrarEmPeso, valorEsperadoNaMoeda } from "./preco-mxn";
+import { centavosMxnDe, cobrarEmPeso, textoEmPeso, valorEsperadoNaMoeda } from "./preco-mxn";
 
 describe("checkout em peso pro México", () => {
   it("US$ 19 vira $349 MXN (equivalente, arredondado em x49/x99)", () => {
@@ -22,5 +22,13 @@ describe("checkout em peso pro México", () => {
     expect(valorEsperadoNaMoeda("mxn", 1900)).toBe(34900);
     expect(valorEsperadoNaMoeda(null, 1900)).toBe(1900);
     expect(valorEsperadoNaMoeda("eur", 1900)).toBeNull();
+  });
+
+  it("a tela escreve em peso o MESMO número que o caixa cobra", () => {
+    expect(textoEmPeso("US$ 19")).toBe("$349 MXN");
+    expect(textoEmPeso("$19")).toBe("$349 MXN");
+    expect(textoEmPeso("US$ 49")).toBe("$949 MXN");
+    expect(textoEmPeso("US$ 24,90")).toBe(`$${centavosMxnDe(2490) / 100} MXN`);
+    expect(textoEmPeso("grátis")).toBeNull();
   });
 });
