@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { Check, Copy, CreditCard, Loader2 } from "lucide-react";
+import { Check, Copy, CreditCard, Loader2, ShieldCheck } from "lucide-react";
+import { RECEBEDOR, cnpjFormatado } from "@/lib/empresa";
+import { recebedorDoPix } from "@/lib/pix-emv";
 import { pixFoiPago } from "@/lib/criar-pix";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { guardarTransacao } from "@/lib/google-ads";
@@ -7,6 +9,31 @@ import { IdentificacaoDoVendedor } from "@/components/quiz/IdentificacaoDoVended
 import { CORES, MARCA } from "@/lib/marca";
 import { Button } from "@/components/ui/button";
 import { quandoOcioso } from "@/lib/quando-ocioso";
+
+// O NOME QUE O BANCO VAI MOSTRAR, dito ANTES de a pessoa chegar no banco (22/10).
+//
+// Com a troca de CNPJ (21/10), o app do banco passou a mostrar "ROCKETFY
+// TECNOLOGIA LTDA", de Santo André, e o PIX pago caiu de ~80% pra 33% dos
+// gerados: a pessoa copiava o código, via no banco um nome que nunca leu e
+// desistia. O rodapé discreto (`IdentificacaoDoVendedor`) não segura isso. Este
+// aviso fica colado no botão de copiar, com o nome lido do PRÓPRIO código PIX
+// (`recebedorDoPix`), então diz a verdade em qualquer conta, nova ou antiga.
+// Fica até o nome fantasia "Serenata" aparecer nos bancos.
+function AvisoNomeNoBanco({ copiaECola }: { copiaECola: string }) {
+  const nome = recebedorDoPix(copiaECola);
+  if (!nome) return null;
+  const cnpj = nome === RECEBEDOR.nome ? cnpjFormatado(RECEBEDOR.cnpj) : "";
+  return (
+    <div className="flex gap-2.5 rounded-xl border border-emerald-600/25 bg-emerald-50 px-3.5 py-3 text-left">
+      <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+      <p className="text-[13px] leading-snug text-emerald-950">
+        No seu banco vai aparecer <span className="font-semibold">{nome}</span>. É a empresa
+        responsável pela {MARCA.nome}
+        {cnpj ? ` (CNPJ ${cnpj})` : ""}. Pode pagar tranquilo: assim que cair, a sua música abre aqui.
+      </p>
+    </div>
+  );
+}
 
 // O GERADOR DE QR FICA FORA DO PRIMEIRO CARREGAMENTO DO /criar (08/10).
 //
@@ -230,6 +257,8 @@ export function PixPagamento({
           <span className="font-medium text-foreground">Pix Copia e Cola</span>.
         </p>
       </div>
+
+      <AvisoNomeNoBanco copiaECola={copiaECola} />
 
       {/* A ESPERA, honesta. Sem barra que trava em 99%. */}
       <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
