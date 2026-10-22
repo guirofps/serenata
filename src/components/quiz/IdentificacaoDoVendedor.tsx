@@ -1,4 +1,4 @@
-import { EMPRESA, cnpjFormatado, temIdentificacao } from "@/lib/empresa";
+import { EMPRESA, RECEBEDOR, cnpjFormatado } from "@/lib/empresa";
 
 // QUEM ESTÁ RECEBENDO O DINHEIRO, no rodapé da tela de pagamento.
 //
@@ -11,17 +11,22 @@ import { EMPRESA, cnpjFormatado, temIdentificacao } from "@/lib/empresa";
 // chargeback, e o comprador sabe disso. O que substitui a rede de segurança é
 // saber quem recebeu — e é por isso que a Cantoria põe o CNPJ no checkout.
 //
+// O NOME É O QUE O BANCO MOSTRA (22/10, `RECEBEDOR` em `empresa.ts`): a marca
+// na frente e, logo embaixo, o titular que aparece no app do banco. Se a tela
+// diz um nome e o banco outro, a pessoa desiste achando que é golpe.
+//
 // Discreto de propósito. Isto não é argumento de venda, é lastro: quem está
 // tranquilo nem lê, e quem hesitou procura exatamente por isso.
 
 export function IdentificacaoDoVendedor() {
   // Sem o dado, nada é mostrado. Meia identificação é pior que nenhuma.
-  if (!temIdentificacao()) return null;
+  const cnpj = cnpjFormatado(RECEBEDOR.cnpj);
+  if (!RECEBEDOR.nome || !cnpj) return null;
   return (
     <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
-      {EMPRESA.nome}
+      {EMPRESA.nome} · no seu banco aparece como
       <br />
-      CNPJ {cnpjFormatado()}
+      <span className="font-medium text-foreground/80">{RECEBEDOR.nome}</span> · CNPJ {cnpj}
     </p>
   );
 }

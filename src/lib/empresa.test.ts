@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPRESA, RESPONSAVEL, cnpjFormatado, temIdentificacao } from "./empresa";
+import { EMPRESA, RECEBEDOR, RESPONSAVEL, cnpjFormatado, temIdentificacao } from "./empresa";
 
 // O QUE ESTE TESTE SEGURA
 //
@@ -59,6 +59,12 @@ describe("o CNPJ que vai na tela de pagamento", () => {
   it("o CNPJ do responsável (rodapé e termos) também passa na conta", () => {
     expect(digitosConferem(RESPONSAVEL.cnpj)).toBe(true);
     expect(cnpjFormatado(RESPONSAVEL.cnpj)).toBe("06.974.663/0001-93");
+  });
+
+  it("o CNPJ de quem recebe o pagamento (Asaas/Woovi novos) passa na conta", () => {
+    expect(digitosConferem(RECEBEDOR.cnpj)).toBe(true);
+    expect(cnpjFormatado(RECEBEDOR.cnpj)).toBe("69.498.792/0001-72");
+    expect(RECEBEDOR.nome).toBe("ROCKETFY TECNOLOGIA LTDA");
   });
 
   it("com nome e número, a tela mostra a identificação", () => {

@@ -38,6 +38,20 @@ export const RESPONSAVEL = {
     "Rua Manuel de Oliveira, 269, salas 212, 213 e 220, Vila Mogilar, Mogi das Cruzes/SP, CEP 08773-130",
 } as const;
 
+// QUEM RECEBE O PAGAMENTO DA SERENATA (22/10): o titular da conta do Asaas
+// (PIX e cartão) e da Woovi desde a troca de CNPJ de 21/10. É o nome que o app
+// do banco mostra na hora de pagar ("ROCKETFY TECNOLOGIA LTDA", Santo André),
+// e a tela de pagamento tem que dizer o MESMO nome. Até 21/10 o banco mostrava
+// "45835258 GUILHERME ROJA" e a tela o CNPJ 45.835.258: batiam. Com a conta
+// nova, a tela seguiu dizendo "Serenata, CNPJ 45.835.258" e o banco outra
+// empresa em outra cidade, cara de golpe no instante de transferir.
+// Só a tela de pagamento lê isto; rodapé, termos e a Ballad seguem no EMPRESA.
+export const RECEBEDOR = {
+  /** Como o banco mostra (campo 59 do código PIX). */
+  nome: "ROCKETFY TECNOLOGIA LTDA",
+  cnpj: "69498792000172",
+} as const;
+
 /** `12345678000190` -> `12.345.678/0001-90`. Vazio devolve vazio. */
 export function cnpjFormatado(cnpj: string = EMPRESA.cnpj): string {
   const d = cnpj.replace(/\D/g, "");
