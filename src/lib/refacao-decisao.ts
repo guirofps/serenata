@@ -29,13 +29,55 @@
  */
 export const PEDIDO_MAX = 4000;
 
+// ── "MANTER A LETRA" NÃO É PEDIDO DE LETRA (22/10) ───────────────
+//
+// Quem escolhe só um estilo novo no editor costuma escrever junto "manter a
+// letra como está". A palavra "letra" bastava pro `pedeLetra` dizer que o
+// pedido falava da letra, a letra voltava igual (como pedido) e o ajuste era
+// recusado como `vago`. Antes de procurar as palavras da letra, as menções de
+// MANTER / NÃO MEXER saem do texto; o resto continua valendo, então "mantém o
+// refrão e troca o nome da Ana" segue pedindo letra pelo "nome".
+
+const ALVO = String.raw`(?:letras?|nomes?|versos?|frases?|refr\p{L}*|trechos?|palavras?)`;
+const ART = String.raw`(?:(?:tod[ao]s?\s+)?(?:[ao]s?|ess[ae]s?|est[ae]s?|minhas?|meus?|suas?|seus?)\s+)?(?:mesm[ao]s?\s+)?`;
+const PREP = String.raw`(?:(?:em|n[ao]s?|d[ao]s?|pel[ao]s?)\s+)?`;
+const ESTA = String.raw`(?:est[aá]|t[aá]|estava|ficou)`;
+// "igual" seguido de comparação ("igual ao primeiro verso") é pedido de mudar.
+const COMO = String.raw`(?:como\s+(?:j[aá]\s+)?${ESTA}|igua(?:l|is|lzinh[ao]s?)(?!\s+(?:ao|aos|à|às|a|as|do|da|dos|das|de|que)(?!\p{L}))|assim|intact[ao]s?|do\s+(?:mesmo\s+)?jeito(?:\s+que\s+${ESTA})?|(?:a|o)\s+mesm[ao]s?)`;
+const MEXER = String.raw`(?:mud|mex|alter|troc|modific)\p{L}*(?:\s+nada)?\s+${PREP}(?:nada\s+d[ao]s?\s+)?`;
+
+const MANTER: RegExp[] = [
+  // manter / mantém / mantenha / preservar a letra
+  String.raw`\b(?:mant(?:er|[eé]m|enha|enham|endo)|preserv\p{L}*|conserv\p{L}*)\s+${ART}${ALVO}`,
+  // deixar a letra como está / igual / assim (ou no fim da frase: "deixa a letra.")
+  String.raw`\bdeix(?:ar|a|e|em|ando)\s+${ART}${ALVO}(?:\s+${COMO}|\s*(?=[.,;!?]|$))`,
+  // sem mudar / sem mexer / sem alteração na letra
+  String.raw`\bsem\s+(?:precisar\s+(?:de\s+)?)?(?:${MEXER}|(?:mudan[cç]|altera[cç])\p{L}*\s+${PREP})${ART}${ALVO}`,
+  // não mudar / não mexer / não precisa mexer / não quero mudar a letra
+  String.raw`\bn[aã]o\s+(?:precisa\s+(?:de\s+)?|quero\s+(?:que\s+)?|[eé]\s+pra\s+|vai\s+)?${MEXER}${ART}${ALVO}`,
+  // a letra (pode) ficar igual / continua a mesma / fica como está
+  String.raw`\b${ART}${ALVO}\s+(?:(?:pode|deve|vai|precisa)\s+)?(?:fic|continu|permanec|segu|mant)\p{L}*\s+${COMO}`,
+  // a letra está ótima / ficou perfeita
+  String.raw`\b${ART}${ALVO}\s+${ESTA}\s+(?:muito\s+|bem\s+)?(?:[óo]tim|perfeit|lind|maravilhos|bo[am]\b|bonit)\p{L}*`,
+  // com a mesma letra / com a letra igual
+  String.raw`\b(?:com|usando)\s+(?:[ao]s?\s+)?(?:mesm[ao]s?\s+${ALVO}|${ALVO}\s+${COMO})`,
+  // gostei / amei a letra
+  String.raw`\b(?:gostei|gostamos|amei|amamos|adorei|adoramos)(?:\s+(?:muito|demais))?\s+${PREP}${ART}${ALVO}`,
+].map((s) => new RegExp(s, "giu"));
+
+/** O pedido sem as menções de manter / não mexer na letra. */
+export function semPedidoDeManter(pedido: string): string {
+  return MANTER.reduce((s, re) => s.replace(re, " "), pedido ?? "");
+}
+
 /**
  * O pedido fala da LETRA (incluir, nome, verso, frase, pronúncia...)? "Mudar"
  * e "trocar" ficam de fora de propósito: "quero mudar a voz" é pedido de SOM.
+ * "Manter a letra como está" também não conta (ver `semPedidoDeManter`).
  */
 export function pedeLetra(pedido: string): boolean {
   return /\b(inclu|coloc|acrescent|adicion|remov|substitu|corrig|tir[ae]|nome|verso|frase|letra|refr|trecho|palavra|pron[uú]n)/i.test(
-    pedido,
+    semPedidoDeManter(pedido),
   );
 }
 
