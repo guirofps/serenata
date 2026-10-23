@@ -1,6 +1,38 @@
-// @vitest-environment jsdom
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { conversaoCompra, emailParaConversao, guardarTransacao } from "./google-ads";
+
+// O NAVEGADOR DO TESTE, sem jsdom.
+//
+// Este arquivo pedia o ambiente jsdom (a anotação de ambiente do vitest no
+// topo), e o jsdom não é dependência do projeto: o arquivo inteiro morria na
+// carga e nenhum teste daqui rodava (23/10). O código testado só toca em
+// `window.gtag`, `localStorage` e `sessionStorage`, e um Storage de memória
+// cobre os três. Não escrever a anotação nem em comentário: o vitest a lê em
+// qualquer bloco de comentário e volta a pedir o jsdom.
+class StorageDeMemoria implements Storage {
+  private m = new Map<string, string>();
+  get length() {
+    return this.m.size;
+  }
+  clear() {
+    this.m.clear();
+  }
+  getItem(k: string) {
+    return this.m.has(k) ? this.m.get(k)! : null;
+  }
+  key(i: number) {
+    return [...this.m.keys()][i] ?? null;
+  }
+  removeItem(k: string) {
+    this.m.delete(k);
+  }
+  setItem(k: string, v: string) {
+    this.m.set(k, String(v));
+  }
+}
+vi.stubGlobal("localStorage", new StorageDeMemoria());
+vi.stubGlobal("sessionStorage", new StorageDeMemoria());
+vi.stubGlobal("window", globalThis);
 
 // A marca do teste: Serenata (o padrão do deploy), com `ehBallad` trocável
 // pra segurar as conversões otimizadas, que só existem na Ballad.
