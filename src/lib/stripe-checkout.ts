@@ -23,7 +23,7 @@ async function impressaoDoCorpo(corpo: unknown): Promise<string> {
 }
 
 /** O preço do braço que ESTA sessão sorteou, em centavos. Mesmo leitor do PIX. */
-async function valorCentavosDaSessao(
+export async function valorCentavosDaSessao(
   db: ReturnType<typeof supabaseAdmin>,
   attribution: unknown,
 ): Promise<number> {
@@ -37,7 +37,7 @@ async function valorCentavosDaSessao(
   return Math.round(reais * 100);
 }
 
-function urlDoSite(): string {
+export function urlDoSite(): string {
   const u = process.env.VITE_APP_URL;
   return u?.startsWith("http") ? u.replace(/\/+$/, "") : MARCA_ATIVA.url;
 }

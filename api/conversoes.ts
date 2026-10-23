@@ -226,7 +226,7 @@ export default async function handler(req: Req, res: Res) {
     // em que o gateway cobrou: o Stripe cobra em dólar, e a Perfect Pay do
     // funil espanhol cobra em dólar mas o webhook grava em REAIS. Ler pelo
     // idioma mandava essa venda como US$ 170 quando eram R$ 170.
-    const moeda = p.gateway === "stripe" ? "USD" : "BRL";
+    const moeda = p.gateway === "stripe" || p.gateway === "dlocalgo" ? "USD" : "BRL";
     saida.push(
       [
         csv(gclid),

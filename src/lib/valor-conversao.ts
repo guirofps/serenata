@@ -25,7 +25,8 @@ import { ehBallad } from "./marca-identidade.js";
 function moedaBate(locale: Locale, gateway: string | null | undefined): boolean {
   const g = String(gateway ?? "");
   // Na Ballad o espanhol paga pelo MESMO Stripe do inglês, em dólar.
-  if (locale === "en" || (locale === "es" && ehBallad())) return g === "stripe";
+  // O OXXO do México (dLocal Go, 23/10) também grava o pedido em dólar.
+  if (locale === "en" || (locale === "es" && ehBallad())) return g === "stripe" || g === "dlocalgo";
   if (locale === "pt") return g === "asaas" || g === "woovi" || g === "perfectpay" || g === "cakto";
   return false;
 }

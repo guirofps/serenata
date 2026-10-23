@@ -16,6 +16,8 @@ import { ShieldCheck, RefreshCw, X } from "lucide-react";
 import { varianteDe } from "@/lib/experimentos";
 import { NaMoeda } from "@/components/quiz/PrecoDaOferta";
 import { EXP_AVISO_RECUSA, TEXTO_AVISO_RECUSA, avisoRecusaLigado } from "@/lib/aviso-recusa";
+import { EXP_OXXO_MX, oxxoLigado } from "@/lib/oxxo-mx";
+import { CheckoutDlocal } from "@/components/quiz/CheckoutDlocal";
 
 // O PAGAMENTO DA BALLAD GIFT, na própria página.
 //
@@ -107,6 +109,17 @@ export function CheckoutStripe({
   // Teste `aviso_recusa` (18/10): ver `aviso-recusa.ts`.
   const [avisoRecusa] = useState(() => avisoRecusaLigado(varianteDe(EXP_AVISO_RECUSA)));
   const AVISO = locale === "es" ? TEXTO_AVISO_RECUSA.es : TEXTO_AVISO_RECUSA.en;
+  // Teste `oxxo_mx` (23/10): no México, o OXXO e a transferência da dLocal Go
+  // ao lado do cartão (ver `oxxo-mx.ts`). O país é o que o servidor carimbou.
+  const [paisMx] = useState(
+    () => typeof document !== "undefined" && document.documentElement.getAttribute("data-pais") === "MX",
+  );
+  const [oxxo] = useState(() => oxxoLigado(varianteDe(EXP_OXXO_MX), paisMx ? "MX" : null, locale));
+  const [metodo, setMetodo] = useState<"cartao" | "oxxo">("cartao");
+  useEffect(() => {
+    if (paisMx && locale === "es") trackEvent("oxxo_mx_exposto", { braco: varianteDe(EXP_OXXO_MX) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // O iframe (ver `carregarEmbutido`). Junto com o "Try again": se o arquivo
   // não veio, a nova tentativa pede de novo.
@@ -211,7 +224,9 @@ export function CheckoutStripe({
           </p>
         </div>
 
-        {!sp ? (
+        {metodo === "oxxo" ? (
+          <CheckoutDlocal aoVoltar={() => setMetodo("cartao")} aoSemMusica={aoSemMusica} />
+        ) : !sp ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
             {T.indisponivel}
           </p>
@@ -231,6 +246,17 @@ export function CheckoutStripe({
           </p>
         ) : (
           <>
+            {oxxo && (
+              <button
+                onClick={() => {
+                  trackEvent("dlocal_oxxo_escolhido", {});
+                  setMetodo("oxxo");
+                }}
+                className="mx-2 mb-3 flex w-[calc(100%-1rem)] items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-3 text-sm font-medium text-primary"
+              >
+                ¿Sin tarjeta? Paga en efectivo en OXXO o con transferencia
+              </button>
+            )}
             <CheckoutEmbutido stripe={sp} options={opcoes} />
             {/* Embaixo do botão de pagar, onde o erro de recusa aparece. */}
             {avisoRecusa && (
