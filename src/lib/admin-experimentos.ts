@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { FORA, type ExperimentoConfig, type Plano, type Variante } from "@/lib/experimentos";
-import { planoCompleto } from "@/lib/preco";
+import { EXP_PRECO, planoCompleto } from "@/lib/preco";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 // AS DUAS FUNÇÕES QUE O PAINEL USA.
@@ -372,7 +372,11 @@ export function decidirSalvamento(
     }
 
     // TRAVA 4 — versão sem plano completo (e com preço > 0) não entra no ar.
-    const incompleta = novas.find((v) => !planoProntoParaAtivar(v.plano));
+    //
+    // SÓ no teste de preço: é o único que lê plano (`variantesComPlano`, em
+    // `preco.ts`). Os testes de tela têm versões só com nome e peso, e esta
+    // trava barrava ligar qualquer um deles pelo painel (23/10).
+    const incompleta = entrada.id === EXP_PRECO ? novas.find((v) => !planoProntoParaAtivar(v.plano)) : undefined;
     if (incompleta) {
       return { ok: false, erro: `a versão ${incompleta.nome} está sem preço ou link válido` };
     }

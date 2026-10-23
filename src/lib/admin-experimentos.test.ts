@@ -361,6 +361,31 @@ describe("decidirSalvamento", () => {
     });
   });
 
+  // ── TRAVA 4 só vale pro teste de PREÇO ──
+  //
+  // Os testes de tela (abertura_titulo, abertura_pergunta…) não têm preço nem
+  // checkout: as versões são só um nome e um peso. A exigência de plano
+  // barrava ligar qualquer um deles pelo painel (23/10).
+
+  it("ligar um teste de tela, sem plano em nenhuma versão, é ACEITO", () => {
+    const visuais: Variante[] = ["A", "B", "C"].map((nome) => ({ nome, peso: 1 }));
+    const r = decidirSalvamento(
+      { ativo: false, variantes: visuais },
+      { id: "abertura_titulo", ativo: true, exposicaoPct: 100, nota: "", variantes: visuais },
+    );
+    expect(r).toEqual({ ok: true, variantes: visuais });
+  });
+
+  it("o teste de PREÇO sem plano continua RECUSADO", () => {
+    const semPlano: Variante[] = [planoA, { nome: "C", peso: 1 }];
+    const r = decidirSalvamento(
+      { ativo: false, variantes: semPlano },
+      { id: "preco", ativo: true, exposicaoPct: 100, nota: "", variantes: semPlano },
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.erro).toMatch(/sem preço ou link/);
+  });
+
   // ── TRAVA 3: variante sem plano completo (juiz: planoCompleto de preco.ts) ──
 
   it("TRAVA 3: ligar com uma variante sem checkout é RECUSADO", () => {
