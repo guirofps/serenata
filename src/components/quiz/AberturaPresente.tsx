@@ -21,6 +21,7 @@ import {
   SUBTEXTO_NA_ABERTURA,
   type PassoDeChips,
 } from "@/lib/abertura-pergunta";
+import { aberturaTituloVale, BRACOS_TITULO, cssAberturaTitulo, TITULOS } from "@/lib/abertura-titulo";
 
 // O mesmo bucket publico que a landing usa em `ExemplosReais`: trechos de 45s.
 const AUDIO_BASE =
@@ -350,6 +351,8 @@ export function AberturaPresente({
   // depois), e um segundo toque nesse intervalo não grava outra resposta.
   const [escolhido, setEscolhido] = useState<string | null>(null);
   const comPergunta = Boolean(pergunta && aoEscolher);
+  // TESTE `abertura_titulo`: seis títulos no HTML, o carimbo do braço escolhe.
+  const comTitulo = aberturaTituloVale(locale, tema);
 
   // ── O PLAY PASSA A TOCAR ─────────────────────────────────────────
   //
@@ -436,6 +439,8 @@ export function AberturaPresente({
       {/* TESTE `abertura_pergunta`: o CSS do braço vem ANTES do cartão, senão
           o cartão pintaria grande e encolheria na frente da pessoa. */}
       {comPergunta && <style dangerouslySetInnerHTML={{ __html: cssAberturaPergunta() }} />}
+      {/* TESTE `abertura_titulo`: antes do <h1>, senão o A pintaria e trocaria. */}
+      {comTitulo && <style dangerouslySetInnerHTML={{ __html: cssAberturaTitulo() }} />}
       {/* Quem cai do anúncio não sabe em que site está. A logo responde isso
           em 28px, que é mais barato que uma linha de texto. */}
       <Logo tamanho="sm" />
@@ -471,9 +476,21 @@ export function AberturaPresente({
           Fraunces entre navegadores — passaria aqui e voltaria pra três
           linhas num Safari. 28px é o maior corpo que fecha com folga. */}
       <h1 className="mt-4 text-balance font-display font-semibold leading-tight tracking-tight [@media(max-height:600px)]:text-2xl [@media(min-height:601px)]:text-[28px]">
-        {C.tituloAntes}
-        <span className="texto-ouro">{C.tituloOuro}</span>
-        {C.tituloDepois}
+        {comTitulo ? (
+          BRACOS_TITULO.map((b) => (
+            <span key={b} className={b === "A" ? "abt-A" : `abt-v abt-${b}`}>
+              {TITULOS[b].antes}
+              <span className="texto-ouro">{TITULOS[b].ouro}</span>
+              {TITULOS[b].depois}
+            </span>
+          ))
+        ) : (
+          <>
+            {C.tituloAntes}
+            <span className="texto-ouro">{C.tituloOuro}</span>
+            {C.tituloDepois}
+          </>
+        )}
       </h1>
 
       {/* ── NO INGLÊS, O VÍDEO DE REAÇÕES NO LUGAR DO CARTÃO (03/10) ──────

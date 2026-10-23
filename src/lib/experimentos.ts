@@ -340,6 +340,15 @@ export const EXPERIMENTOS: Experimento[] = [
     nota: "08/10. Segunda música logo depois da compra. A = como era. B = cartão 'Faça outra pra mais alguém' (pacote extra de R$ 28, mesma folha do atalho) na /obrigado e no editor, por 24h desde o pagamento; o prazo é do CARTÃO, o preço não muda. Ler por RECEITA DE EXTRA EM 24H POR COMPRADOR EXPOSTO (outra_musica_24h_exposto -> pedido up:extra pago em 24h), com guarda: editor aberto e vídeo vendido não podem cair no B.",
   },
   {
+    // SÓ SERENATA, funil pt sem tema. Ver `abertura-titulo.ts`.
+    id: "abertura_titulo",
+    variantes: ["A", "B", "C", "D", "E", "F"],
+    peso: [1, 1, 1, 1, 1, 1],
+    // NUNCA `true` aqui: quem liga é a linha da tabela `experimentos`.
+    ativo: false,
+    nota: "SERENATA, 23/10. O título da abertura do /criar, um ângulo por braço; subtítulo, botão e cartão iguais. A = 'Uma música feita da história de quem você ama'. B = 'O presente que vai fazer quem você ama chorar'. C = 'A única música do mundo com o nome dela'. D = 'O presente que não vai parar no fundo da gaveta'. E = 'Imagine a história de vocês virando música'. F = 'Mais de 6.600 famílias já deram esse presente' (número real, o mesmo do bloco de prova). Só pt sem tema. Ler RECEITA POR SESSÃO por braço, entre sessões pt sem tema que montaram a abertura; responder a 1a pergunta é só sinal de saúde (o abertura_pergunta subiu isso 18% e empatou em venda).",
+  },
+  {
     // SÓ SERENATA, funil pt sem tema. Ver `abertura-pergunta.ts`.
     id: "abertura_pergunta",
     variantes: ["A", "B"],

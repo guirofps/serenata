@@ -1,6 +1,7 @@
 import { Star } from "lucide-react";
 import { type Locale } from "@/lib/i18n";
 import { ehBallad } from "@/lib/marca-identidade";
+import { FAMILIAS } from "@/lib/prova-numeros";
 
 // PROVA SOCIAL DO HERÓI — o bloco que fica logo abaixo do CTA principal.
 //
@@ -20,9 +21,8 @@ import { ehBallad } from "@/lib/marca-identidade";
 
 const ROSTOS = [1, 2, 3, 4, 5];
 
-// Um lugar só pra mexer no número. REAL: 6.697 e-mails distintos com pedido
-// pago em 02/10/2026, arredondado pra baixo. Era "+1.274" desde agosto.
-const FAMILIAS = "+6.600";
+// O número de famílias mora em `prova-numeros.ts`: o título da abertura (teste
+// `abertura_titulo`, braço F) usa o mesmo.
 const CONTADOR = "+998";
 
 const T: Record<Locale, { prazo: string; amadoPor: string; amado: (n: string) => string; estrelas: string; numero: string }> = {
