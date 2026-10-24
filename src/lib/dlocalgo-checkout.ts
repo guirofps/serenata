@@ -5,7 +5,7 @@ import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 import { centavosMxnDe, cobrarEmPeso, usdDoPeso } from "@/lib/preco-mxn";
 import { valorCentavosDaSessao, urlDoSite } from "@/lib/stripe-checkout";
-import { dlocalApi, dlocalConfigurado, confirmarPagamentoDlocal, ErroDlocal } from "../../api/lib/dlocalgo";
+import { dlocalApi, dlocalConfigurado, confirmarPagamentoDlocal, ErroDlocal, orderIdDlocal } from "../../api/lib/dlocalgo";
 
 // OXXO E TRANSFERÊNCIA NO MÉXICO (Ballad, 23/10), do lado do servidor.
 //
@@ -95,7 +95,7 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
         currency: "MXN",
         amount: valorMxn / 100,
         country: "MX",
-        order_id: `${quiz.id}:${Date.now().toString(36)}`,
+        order_id: orderIdDlocal(quiz.id),
         description: (nome ? `Canción personalizada para ${nome}` : "Tu canción personalizada").slice(0, 100),
         payer: email ? { email } : undefined,
         // O cartão continua no Stripe: aqui só dinheiro e transferência.

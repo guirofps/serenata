@@ -1,6 +1,14 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { assinaturaDlocalConfere, idDlocalValido, taxaDlocalCentavos } from "../../api/lib/dlocalgo";
+import { assinaturaDlocalConfere, idDlocalValido, orderIdDlocal, taxaDlocalCentavos } from "../../api/lib/dlocalgo";
+
+describe("orderIdDlocal", () => {
+  it("só usa o que a dLocal aceita (letras, números, hífen, sublinhado)", () => {
+    const id = orderIdDlocal("b1c2d3e4-0000-4000-8000-000000000000", 1792800000000);
+    expect(id).toMatch(/^[A-Za-z0-9_-]{1,128}$/);
+    expect(id.startsWith("b1c2d3e4-0000-4000-8000-000000000000-")).toBe(true);
+  });
+});
 
 describe("assinaturaDlocalConfere", () => {
   // O exemplo da documentação: HMAC-SHA256(secretKey, apiKey + corpo).

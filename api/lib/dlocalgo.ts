@@ -102,6 +102,15 @@ export async function lerPagamentoDlocal(id: string): Promise<PagamentoDlocal> {
   return dlocalApi<PagamentoDlocal>("GET", `/payments/${encodeURIComponent(id)}`);
 }
 
+/**
+ * O `order_id` que vai na cobrança. A dLocal só aceita `[A-Za-z0-9-_]` (o
+ * primeiro formato, `<quiz>:<hora>`, deu 400 em todas as 40 tentativas de
+ * 23/10): o quiz, um hífen e a hora em base 36, que muda a cada ficha nova.
+ */
+export function orderIdDlocal(quizId: string, agora = Date.now()): string {
+  return `${quizId}-${agora.toString(36)}`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 128);
+}
+
 /** Id que a dLocal Go devolve (`DP-123`). Só isso entra numa URL de consulta. */
 export function idDlocalValido(id: unknown): id is string {
   return typeof id === "string" && /^[A-Z]{1,4}-[A-Za-z0-9-]{1,40}$/.test(id);
