@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, CreditCard, Loader2, ShieldCheck } from "lucide-react";
-import { RECEBEDOR, cnpjFormatado } from "@/lib/empresa";
+import { RECEBEDOR, cnpjFormatado, ehDoRecebedor } from "@/lib/empresa";
 import { recebedorDoPix } from "@/lib/pix-emv";
 import { pixFoiPago } from "@/lib/criar-pix";
 import { trackEvent, trackEventOnce } from "@/lib/track";
@@ -18,11 +18,12 @@ import { quandoOcioso } from "@/lib/quando-ocioso";
 // desistia. O rodapé discreto (`IdentificacaoDoVendedor`) não segura isso. Este
 // aviso fica colado no botão de copiar, com o nome lido do PRÓPRIO código PIX
 // (`recebedorDoPix`), então diz a verdade em qualquer conta, nova ou antiga.
-// Fica até o nome fantasia "Serenata" aparecer nos bancos.
+// Ficou depois que o nome fantasia virou "SERENATA GIFT" na Woovi (26/10): o
+// nome agora é a marca, e o CNPJ continua sendo o lastro.
 function AvisoNomeNoBanco({ copiaECola }: { copiaECola: string }) {
   const nome = recebedorDoPix(copiaECola);
   if (!nome) return null;
-  const cnpj = nome === RECEBEDOR.nome ? cnpjFormatado(RECEBEDOR.cnpj) : "";
+  const cnpj = ehDoRecebedor(nome) ? cnpjFormatado(RECEBEDOR.cnpj) : "";
   return (
     <div className="flex gap-2.5 rounded-xl border border-emerald-600/25 bg-emerald-50 px-3.5 py-3 text-left">
       <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />

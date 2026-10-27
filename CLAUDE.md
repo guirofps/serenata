@@ -326,6 +326,13 @@ produto da Perfect Pay, e o e-mail já prometeu aquele número).
   que é antes do checkout. Ver isso e concluir "o experimento não está
   pegando" é um falso alarme já cometido.
 
+**Quem recebe o PIX (26/10):** a conta da Woovi e a do Asaas são da Rocketfy
+(CNPJ 69.498.792/0001-72, `RECEBEDOR` em `empresa.ts`). Até 26/10 o banco
+mostrava "ROCKETFY TECNOLOGIA LTDA"; às ~21h50 de 26/10 o dono trocou o nome
+fantasia na Woovi e o código PIX passou a sair com "SERENATA GIFT" (campo 59,
+`scratch/_nome-no-pix-26out.mjs`). O Asaas segue com o nome antigo. O aviso do
+PIX lê o nome do próprio código; o CNPJ vale pros dois nomes (`ehDoRecebedor`).
+
 ## Venda brasileira sai SÓ pelo Asaas (26/09/2026)
 
 Decisão do dono, depois que o Asaas entrou em manutenção programada (01h07 a

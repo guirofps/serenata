@@ -46,11 +46,25 @@ export const RESPONSAVEL = {
 // nova, a tela seguiu dizendo "Serenata, CNPJ 45.835.258" e o banco outra
 // empresa em outra cidade, cara de golpe no instante de transferir.
 // Só a tela de pagamento lê isto; rodapé, termos e a Ballad seguem no EMPRESA.
+//
+// NOME FANTASIA NA WOOVI (26/10, ~21h50): o dono trocou e o código PIX da Woovi
+// passou a sair com "SERENATA GIFT" (campo 59 lido dos pedidos). O Asaas e os
+// códigos gerados antes da troca seguem com "ROCKETFY TECNOLOGIA LTDA": os
+// dois nomes são a mesma conta, e o aviso do PIX mostra o CNPJ pra qualquer um
+// deles (`ehDoRecebedor`).
 export const RECEBEDOR = {
-  /** Como o banco mostra (campo 59 do código PIX). */
-  nome: "ROCKETFY TECNOLOGIA LTDA",
+  /** Como o banco mostra o PIX de hoje (campo 59 do código da Woovi). */
+  nome: "SERENATA GIFT",
+  /** Outros nomes da MESMA conta: o Asaas e os códigos de antes de 26/10. */
+  outrosNomes: ["ROCKETFY TECNOLOGIA LTDA"],
   cnpj: "69498792000172",
 } as const;
+
+/** O nome que veio no código PIX é da nossa conta? */
+export function ehDoRecebedor(nome: string): boolean {
+  const n = nome.trim().toUpperCase();
+  return n === RECEBEDOR.nome || (RECEBEDOR.outrosNomes as readonly string[]).includes(n);
+}
 
 /** `12345678000190` -> `12.345.678/0001-90`. Vazio devolve vazio. */
 export function cnpjFormatado(cnpj: string = EMPRESA.cnpj): string {
