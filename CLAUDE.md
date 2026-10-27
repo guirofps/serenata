@@ -764,6 +764,35 @@ Desenho em `docs/superpowers/specs/2026-10-07-campanha-musica10-design.md`.
 - Ligar e desligar: `CAMPANHA_MUSICA10_ON` na Vercel. Teste sem base: evento
   `campanha/musica10.teste` com `{ "para": "..." }` no painel do Inngest.
 
+## Venda pro Google em tempo real (27/10/2026)
+
+A lista de `api/conversoes.ts` é buscada UMA vez por dia (~0h40): venda das 9h
+chegava ao lance ~16h depois. Envio pela API antiga (`uploadClickConversions`)
+é RECUSADO pra conta nova (`CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE`, "use a
+Data Manager API"). O dono autorizou o escopo `datamanager` em 27/10
+(`scratch/autorizar-datamanager.mjs`, token em `GOOGLE_DM_REFRESH_TOKEN`, linha
+própria; o `GOOGLE_ADS_REFRESH_TOKEN` não mudou) e ligou a Data Manager API no
+projeto 653370826876 do Google Cloud.
+
+- **`api/conversoes-tempo-real.ts`**, Vercel Cron a cada minuto, nas duas
+  marcas, fora do Inngest: pedido pago, com dinheiro novo e sem
+  `pedidos.google_conversao`, sobe (clique + valor + id do pedido + hash do
+  e-mail). Vigia e não chamada no webhook: a venda vira `pago` por oito portas.
+  Regra pura em `src/lib/conversao-servidor.ts` (testada).
+- **Estado no pedido:** `google_conversao` = enviado → confirmado | parcial |
+  recusado, ou sem_clique / sem_valor. A volta seguinte confere o resultado
+  (`requestStatus`) e avisa os donos 1x por hora se o Google recusar ou o envio
+  parar por 20+ min. `?seco=1` mostra o que faria.
+- **Não conta duas vezes:** o `transactionId` é o id do pedido, o mesmo `Order
+  ID` da lista; a lista da madrugada vira reserva. Sobe também `gbraid`/`wbraid`
+  (iPhone), que a lista nunca mandou.
+- **Envs por projeto:** `GOOGLE_DM_CONTA`, `GOOGLE_DM_LOGIN` (padrão = conta),
+  `GOOGLE_DM_ACAO`, `GOOGLE_DM_CLIENT_ID/SECRET`. Serenata: 4779586821 → "Compra
+  Serenata (importada)" (7852320447, já principal). Ballad: 1060198776 pela MCC
+  3442238598 → "Compra Ballad (servidor)" (7753002165), SECUNDÁRIA até bater com
+  o banco por 2-3 dias; aí ela vira principal e a tag "Compra Ballad (site)"
+  secundária (decisão do dono, 27/10).
+
 ## Riscos conhecidos
 
 1. **Dependência de revendedor não oficial do Suno.** Zona cinzenta nos termos

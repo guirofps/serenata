@@ -90,6 +90,9 @@
     },
     "api/vigia-video.ts": {
       "maxDuration": 120
+    },
+    "api/conversoes-tempo-real.ts": {
+      "maxDuration": 60
     }
   },
   "redirects": [
@@ -164,6 +167,10 @@
     {
       "path": "/api/vigia-video",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/conversoes-tempo-real",
+      "schedule": "* * * * *"
     }
   ]
 }
