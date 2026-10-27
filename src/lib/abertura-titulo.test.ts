@@ -6,6 +6,8 @@ import {
   cssAberturaTitulo,
   EXP_ABERTURA_TITULO,
   TITULOS,
+  TITULOS_ES_EUA,
+  titulosDe,
 } from "@/lib/abertura-titulo";
 import { EXPERIMENTOS } from "@/lib/experimentos";
 import { FAMILIAS } from "@/lib/prova-numeros";
@@ -19,6 +21,52 @@ describe("quem recebe o teste do título", () => {
     expect(aberturaTituloVale("pt", "gospel")).toBe(false);
     expect(aberturaTituloVale("es", null)).toBe(false);
     expect(aberturaTituloVale("en", null)).toBe(false);
+  });
+
+  // BALLAD (27/10): o espanhol dos hispanos dos EUA e do México. O `/es` da
+  // Serenata (Argentina, voseo) continua fora: a linha do banco da Serenata
+  // ligaria seis frases em tuteo pra quem vosea.
+  it("o espanhol da Ballad entra; o da Serenata não", () => {
+    expect(aberturaTituloVale("es", null, true)).toBe(true);
+    expect(aberturaTituloVale("es", null, false)).toBe(false);
+    expect(aberturaTituloVale("es", "gospel", true)).toBe(false);
+    expect(aberturaTituloVale("en", null, true)).toBe(false);
+  });
+
+  it("cada funil lê as suas frases", () => {
+    expect(titulosDe("pt")).toBe(TITULOS);
+    expect(titulosDe("es")).toBe(TITULOS_ES_EUA);
+  });
+});
+
+describe("as frases em espanhol (Ballad)", () => {
+  const es = (b: (typeof BRACOS_TITULO)[number]) =>
+    TITULOS_ES_EUA[b].antes + TITULOS_ES_EUA[b].ouro + TITULOS_ES_EUA[b].depois;
+
+  it("A é exatamente o título de hoje do espanhol da Ballad", () => {
+    expect(es("A")).toBe("Una canción hecha de la historia de quien tú quieres");
+    const fonte = readFileSync("src/components/quiz/AberturaPresente.tsx", "utf8");
+    expect(fonte).toMatch(/const COPY_ES_EUA[\s\S]*?tituloDepois: " de quien tú quieres"/);
+  });
+
+  it("as seis aprovadas pelo dono", () => {
+    expect(es("B")).toBe("El regalo que hará llorar a quien más quieres");
+    expect(es("C")).toBe("La única canción del mundo con su nombre");
+    expect(es("D")).toBe("Un regalo que no va a terminar en un cajón");
+    expect(es("E")).toBe("Imagina la historia de ustedes hecha canción");
+    expect(es("F")).toBe(`Más de ${FAMILIAS.replace("+", "").replace(".", ",")} familias ya dieron este regalo`);
+  });
+
+  it("nenhuma mais longa que o controle, todas com palavra dourada", () => {
+    for (const b of BRACOS_TITULO) {
+      expect(es(b).length, b).toBeLessThanOrEqual(es("A").length);
+      expect(TITULOS_ES_EUA[b].ouro.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("número com vírgula de milhar (México e EUA), tuteo, sem voseo", () => {
+    expect(TITULOS_ES_EUA.F.ouro).toMatch(/^\d,\d{3} familias$/);
+    for (const b of BRACOS_TITULO) expect(es(b)).not.toMatch(/querés|contás|vos\b/);
   });
 });
 
@@ -95,8 +143,13 @@ describe("contrato da tela", () => {
 
   it("o <style> do braço vem antes do título, e só no pt sem tema", () => {
     expect(ABERTURA).toMatch(/comTitulo && <style dangerouslySetInnerHTML=\{\{ __html: cssAberturaTitulo\(\) \}\} \/>/);
-    expect(ABERTURA).toMatch(/const comTitulo = aberturaTituloVale\(locale, tema\)/);
+    expect(ABERTURA).toMatch(/const comTitulo = aberturaTituloVale\(locale, tema, espanholDaBallad\)/);
     expect(ABERTURA.indexOf("cssAberturaTitulo()")).toBeLessThan(ABERTURA.indexOf("<h1 className"));
+  });
+
+  it("o título sai das frases do funil, não das do português cravadas", () => {
+    expect(ABERTURA).toMatch(/const titulos = titulosDe\(locale\)/);
+    expect(ABERTURA).toMatch(/\{titulos\[b\]\.ouro\}/);
   });
 
   it("o A nasce visível e os outros com a classe que os esconde", () => {

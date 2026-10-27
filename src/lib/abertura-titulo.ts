@@ -30,6 +30,14 @@ import type { Tema } from "@/lib/tema";
 // O mesmo desenho do `abertura_pergunta`: as seis frases vêm no HTML, o A
 // visível e as outras escondidas, e só o carimbo do braço no <html> troca qual
 // aparece. Sem a linha no banco, sem teste ligado, `fora` ou sem JavaScript: A.
+//
+// ── BALLAD, ESPANHOL (27/10/2026) ────────────────────────────────
+//
+// O mesmo teste no funil dos hispanos dos EUA e do México, com a linha no
+// banco DA BALLAD (mesmo id, mesmos seis braços). As frases são redação, não
+// tradução: "su nombre" no C não marca gênero (o "dela" do português marca),
+// "la historia de ustedes" no E é como se fala no México, e o número do F leva
+// vírgula de milhar. O `/es` da Serenata (Argentina, voseo) fica de fora.
 
 export const EXP_ABERTURA_TITULO = "abertura_titulo";
 
@@ -48,9 +56,31 @@ export const TITULOS: Record<BracoTitulo, Titulo> = {
   F: { antes: "Mais de ", ouro: `${FAMILIAS.replace("+", "")} famílias`, depois: " já deram esse presente" },
 };
 
-/** Pt, fora do gospel. Os outros funis não recebem nada. */
-export function aberturaTituloVale(locale: Locale, tema: Tema | null | undefined): boolean {
-  return locale === "pt" && !tema;
+export const TITULOS_ES_EUA: Record<BracoTitulo, Titulo> = {
+  A: { antes: "Una canción hecha de la ", ouro: "historia", depois: " de quien tú quieres" },
+  B: { antes: "El regalo que hará ", ouro: "llorar", depois: " a quien más quieres" },
+  C: { antes: "La única canción del mundo con ", ouro: "su nombre", depois: "" },
+  D: { antes: "Un regalo que no va a terminar en un ", ouro: "cajón", depois: "" },
+  E: { antes: "Imagina la historia de ustedes hecha ", ouro: "canción", depois: "" },
+  F: { antes: "Más de ", ouro: `${FAMILIAS.replace("+", "").replace(".", ",")} familias`, depois: " ya dieron este regalo" },
+};
+
+/**
+ * Pt (Serenata) ou o espanhol da Ballad, fora do gospel. O inglês e o `/es`
+ * da Serenata não recebem nada.
+ */
+export function aberturaTituloVale(
+  locale: Locale,
+  tema: Tema | null | undefined,
+  espanholDaBallad = false,
+): boolean {
+  if (tema) return false;
+  return locale === "pt" || (locale === "es" && espanholDaBallad);
+}
+
+/** As seis frases do funil: só existem em pt e no espanhol da Ballad. */
+export function titulosDe(locale: Locale): Record<BracoTitulo, Titulo> {
+  return locale === "es" ? TITULOS_ES_EUA : TITULOS;
 }
 
 /**

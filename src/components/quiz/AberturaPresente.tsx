@@ -21,7 +21,7 @@ import {
   SUBTEXTO_NA_ABERTURA,
   type PassoDeChips,
 } from "@/lib/abertura-pergunta";
-import { aberturaTituloVale, BRACOS_TITULO, cssAberturaTitulo, TITULOS } from "@/lib/abertura-titulo";
+import { aberturaTituloVale, BRACOS_TITULO, cssAberturaTitulo, titulosDe } from "@/lib/abertura-titulo";
 
 // O mesmo bucket publico que a landing usa em `ExemplosReais`: trechos de 45s.
 const AUDIO_BASE =
@@ -352,7 +352,8 @@ export function AberturaPresente({
   const [escolhido, setEscolhido] = useState<string | null>(null);
   const comPergunta = Boolean(pergunta && aoEscolher);
   // TESTE `abertura_titulo`: seis títulos no HTML, o carimbo do braço escolhe.
-  const comTitulo = aberturaTituloVale(locale, tema);
+  const comTitulo = aberturaTituloVale(locale, tema, espanholDaBallad);
+  const titulos = titulosDe(locale);
 
   // ── O PLAY PASSA A TOCAR ─────────────────────────────────────────
   //
@@ -479,9 +480,9 @@ export function AberturaPresente({
         {comTitulo ? (
           BRACOS_TITULO.map((b) => (
             <span key={b} className={b === "A" ? "abt-A" : `abt-v abt-${b}`}>
-              {TITULOS[b].antes}
-              <span className="texto-ouro">{TITULOS[b].ouro}</span>
-              {TITULOS[b].depois}
+              {titulos[b].antes}
+              <span className="texto-ouro">{titulos[b].ouro}</span>
+              {titulos[b].depois}
             </span>
           ))
         ) : (
