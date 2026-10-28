@@ -49,8 +49,9 @@ export const TEXTO_AVISO_RECUSA = {
   },
   es: {
     titulo: "¿Te rechazaron la tarjeta?",
+    // Sem "bancos de EE. UU." (28/10): o espanhol da Ballad também é o México.
     texto:
-      "Los bancos de EE. UU. suelen bloquear el primer pago a una tienda internacional nueva. Apruébalo en la app de tu banco (o responde el mensaje de tu banco) y vuelve a pagar. También puedes usar Apple Pay, Google Pay u otra tarjeta.",
+      "Los bancos suelen bloquear el primer pago a una tienda en línea nueva. Apruébalo en la app de tu banco (o responde el mensaje de tu banco) y vuelve a pagar. También puedes usar Apple Pay, Google Pay u otra tarjeta.",
   },
 } as const;
 

@@ -132,6 +132,12 @@ function jaAvisado(sb: ReturnType<typeof db>, quizId: string, quizCriadoEm: stri
 // Mesmo padrão dos outros jobs: `VITE_APP_URL` quando ela existe e é URL,
 // e o domínio fixo como piso. Cron não tem cabeçalho de host de onde deduzir,
 // e em produção host de requisição não pode decidir destino.
+/** Recebeu o aviso de recusa do braço B (`recusaRapida.ts`)? Erro conta como sim. */
+function recebeuRecusaRapida(sb: ReturnType<typeof db>, quizId: string, quizCriadoEm: string) {
+  if (MARCA_ATIVA.chave !== "ballad") return Promise.resolve(false);
+  return jaTravado(sb, "recusa_rapida", { quiz_response_id: quizId, braco: "B" }, quizCriadoEm);
+}
+
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
   : MARCA_ATIVA.url;
@@ -203,6 +209,9 @@ export const quaseComprou = inngest.createFunction(
         if (await pessoaJaComprou(sb, q.email as string)) continue;
 
         if (await jaAvisado(sb, q.id, q.created_at as string)) continue;
+        // Teste `recusa_rapida` (28/10): no B, quem teve o cartão recusado já
+        // recebeu o aviso com o motivo 10 minutos depois. Outro por cima, não.
+        if (await recebeuRecusaRapida(sb, q.id, q.created_at as string)) continue;
 
         // A MÚSICA PRECISA ESTAR PRONTA. O e-mail diz "ela já existe, está
         // gravada": sem arquivo isso é mentira, e é a única que este texto
@@ -284,6 +293,7 @@ export const quaseComprou = inngest.createFunction(
         if (await temPedidoQueBarra(sb, c.quizId)) return false;
         if (await pessoaJaComprou(sb, c.email)) return false;
         if (await jaAvisado(sb, c.quizId, c.quizCriadoEm)) return false;
+        if (await recebeuRecusaRapida(sb, c.quizId, c.quizCriadoEm)) return false;
         // Endereço que já voltou não recebe de novo: 51 destes foram pra
         // endereço morto em 14 dias, e é a reputação que paga. Desde 08/10
         // também quem se descadastrou e os `excluidos_email` (liberados na

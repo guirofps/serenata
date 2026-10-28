@@ -30,18 +30,17 @@ import { semComentarios } from "./sem-comentarios.js";
 // `en` é a Ballad Gift (EUA), com a copy adaptada do português.
 type IdiomaEmail = "pt" | "es" | "en";
 
-const COPY: Record<
-  IdiomaEmail,
-  {
-    assunto: (n: string) => string;
-    titulo: (n: string) => string;
-    corpo: string;
-    lembrete: string;
-    botao: string;
-    rodapeAviso: string;
-    rodape: string;
-  }
-> = {
+export type CopyEmail = {
+  assunto: (n: string) => string;
+  titulo: (n: string) => string;
+  corpo: string;
+  lembrete: string;
+  botao: string;
+  rodapeAviso: string;
+  rodape: string;
+};
+
+const COPY: Record<IdiomaEmail, CopyEmail> = {
   // 28/09, aprovado pelo dono: o texto passa a abrir pela PRÉVIA e pela letra
   // grátis, os dois ganchos que mais vendem nos anúncios. Medido de 14 a
   // 27/09 com o texto antigo: quem abria e NÃO clicava convertia 0,92%,
@@ -121,8 +120,9 @@ const COPY_RECUSA: Partial<Record<IdiomaEmail, (typeof COPY)["en"]>> = {
   es: {
     assunto: (n) => `Tu banco rechazó el pago de la canción de ${n} (se arregla fácil)`,
     titulo: (n) => `La canción de <em style="color:#7d2b3a;">${n}</em> te sigue esperando.`,
+    // Sem "bancos de EE. UU." (28/10): o espanhol da Ballad também é o México.
     corpo:
-      "Tu banco rechazó el pago. Pasa mucho con los bancos de EE. UU. en la primera compra a una tienda internacional nueva, y no significa que tu tarjeta tenga algún problema.",
+      "Tu banco rechazó el pago. Pasa mucho en la primera compra a una tienda en línea nueva, y no significa que tu tarjeta tenga algún problema.",
     lembrete:
       "Para que pase: abre la app de tu banco y aprueba el cobro (o responde SÍ al mensaje de tu banco), luego toca el botón de abajo y vuelve a pagar. También puedes usar Apple Pay, Google Pay u otra tarjeta.",
     botao: "INTENTAR EL PAGO DE NUEVO",
@@ -173,8 +173,10 @@ export function emailQuaseComprou(args: {
   locale?: IdiomaEmail;
   /** Cartão recusado no Stripe (Ballad): o texto de quem tentou pagar. */
   recusado?: boolean;
+  /** Copy pronta de outro e-mail que usa este mesmo molde (`recusa-rapida.ts`). */
+  copy?: CopyEmail;
 }): string {
-  const C = copyDe(args.locale, args.recusado);
+  const C = args.copy ?? copyDe(args.locale, args.recusado);
   const { nome, titulo, link } = args;
   return semComentarios(`<!DOCTYPE html>
 <html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto(nome)}</title></head>

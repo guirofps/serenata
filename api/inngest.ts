@@ -26,6 +26,7 @@ import { vigiaEntrega } from "../inngest/functions/vigiaEntrega.js";
 import { ofertaQuadro } from "../inngest/functions/ofertaQuadro.js";
 import { vigiaGeracao } from "../inngest/functions/vigiaGeracao.js";
 import { quaseComprou } from "../inngest/functions/quaseComprou.js";
+import { recusaRapida } from "../inngest/functions/recusaRapida.js";
 import { resgatarCoautoria } from "../inngest/functions/resgatarCoautoria.js";
 import { quadroParado } from "../inngest/functions/quadroParado.js";
 import { creditoParado } from "../inngest/functions/creditoParado.js";
@@ -61,6 +62,9 @@ const DA_BALLAD = [
   // A recuperação de quem clicou em comprar e não pagou: manda de volta pro
   // funil em inglês (`/retomar`), sem cupom e sem PIX.
   quaseComprou,
+  // Cartão recusado no Stripe: aviso com o motivo 10 minutos depois (teste
+  // `recusa_rapida`, 28/10). Só existe aqui: a Serenata não usa Stripe.
+  recusaRapida,
   // O gasto do Google pro painel (custo por venda e ROAS por campanha). Lê a
   // conta de `GOOGLE_ADS_CUSTOMER_ID`, que no projeto da Ballad é a Projeto GM2.
   puxarMetricasAds,

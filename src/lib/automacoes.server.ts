@@ -18,6 +18,7 @@ import { assuntoSequencia, emailSequencia, type NumeroDaSequencia } from "../../
 import { assuntoIndicacao, emailIndicacao } from "../../emails/indicacao";
 import { assuntoLetraPronta, emailLetraPronta } from "../../emails/letra-pronta";
 import { assuntoQuaseComprou, emailQuaseComprou } from "../../emails/quase-comprou";
+import { assuntoRecusaRapida, emailRecusaRapida } from "../../emails/recusa-rapida";
 import { assuntoPixNaoPago, emailPixNaoPago } from "../../emails/pix-nao-pago";
 import { assuntoPresentePronto, emailPresentePronto } from "../../emails/presente-pronto";
 import { assuntoEmProducao, emailEmProducao } from "../../emails/entrega-em-producao";
@@ -183,6 +184,25 @@ export const AUTOMACOES: Automacao[] = [
         nome: "Você parou na porta",
         quando: "30 min depois do clique em comprar",
         idiomas: ["pt", "es"],
+      },
+    ],
+  },
+  {
+    id: "recusa-rapida",
+    nome: "Cartão recusado (Ballad)",
+    fase: "antes",
+    gatilho: "a cada 5 min",
+    quemRecebe:
+      "Teste recusa_rapida, braço B: quem teve o cartão recusado no Stripe e não pagou nem tentou de novo, 10 min a 2h depois da última recusa. O texto diz o motivo e a saída; no México, o OXXO. Um só por quiz.",
+    quemNao: "Braço A (recebe o 'Quase comprou'). Quem pagou. Cartão roubado ou fraude declarada.",
+    remetente: "recuperacao",
+    arquivo: "inngest/functions/recusaRapida.ts",
+    emails: [
+      {
+        template: "recusa_rapida",
+        nome: "Seu pagamento não passou",
+        quando: "10 min depois da última recusa do cartão (en e es)",
+        idiomas: ["es"],
       },
     ],
   },
@@ -613,6 +633,10 @@ export function renderizarPreview(template: string, locale: "pt" | "es"): Previe
         assuntoQuaseComprou(E.nome, l),
         emailQuaseComprou({ nome: E.nome, titulo: E.titulo, link: E.linkPrevia, locale: l }),
       );
+    case "recusa_rapida": {
+      const a = { nome: E.nome, titulo: E.titulo, link: E.linkPrevia, locale: l === "es" ? ("es" as const) : ("en" as const), grupo: "banco" as const, mexico: l === "es" };
+      return pt(assuntoRecusaRapida(a), emailRecusaRapida(a));
+    }
     case "pix_nao_pago":
       return pt(
         assuntoPixNaoPago(E.nome, l),
