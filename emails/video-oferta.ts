@@ -25,6 +25,7 @@ import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
 import { precoVideoUsdTexto } from "../src/lib/creditos.js";
 import { emDolarExplicito } from "../src/lib/i18n.js";
 import { textoPrecoVideo } from "../src/lib/preco-video.js";
+import { textoEmPeso } from "../src/lib/preco-mxn.js";
 
 export type IdiomaOfertaVideo = "pt" | "en" | "es";
 
@@ -52,15 +53,19 @@ export function idiomaDaOfertaVideo(
  * O preço que o e-mail promete, o MESMO que a tela do editor vai cobrar.
  * Português: o braço do teste `preco_video` daquela música, em real.
  * Ballad: o dólar do catálogo, com "US$" explícito no espanhol (como a folha).
+ * Quem pagou a MÚSICA em peso (México, `emPeso`) lê o preço em peso, pela
+ * mesma tabela do caixa ("$129 MXN"), em qualquer idioma (28/10).
  * `null` = a Ballad sem preço em dólar no catálogo: sem preço, sem oferta.
  */
 export function precoDoVideoNoEmail(
   locale: IdiomaOfertaVideo,
   tokenEdicao: string | null | undefined,
+  emPeso = false,
 ): string | null {
   if (locale === "pt") return textoPrecoVideo(tokenEdicao);
   const usd = precoVideoUsdTexto();
   if (!usd) return null;
+  if (emPeso) return textoEmPeso(usd) ?? usd;
   return locale === "es" ? emDolarExplicito(usd) : usd;
 }
 

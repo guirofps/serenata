@@ -316,10 +316,12 @@ async function confirmarUpsellStripe(
   pedido: { id: string; status: string | null; valor_centavos: number | null; email: string | null },
 ): Promise<ResultadoConfirmacao> {
   if (pedido.status === "pago") return { ok: true, entregue: false, duplicado: true, quizId: "" };
-  if (s.amount_total !== pedido.valor_centavos) {
+  // A mesma régua da música: em peso (México, 28/10), o pedido guarda o dólar
+  // do que se cobrou e confere pela tabela de `preco-mxn.ts`.
+  if (!valorPagoConfere(s.currency, Number(s.amount_total), Number(pedido.valor_centavos))) {
     await alertarDono(
       "Valor pago diferente do pedido (Stripe, upsell)",
-      `<p>Sessão <code>${s.id}</code>: pago ${s.amount_total}, pedido ${pedido.valor_centavos}. Vídeo NÃO liberado.</p>`,
+      `<p>Sessão <code>${s.id}</code>: pago ${s.amount_total} ${s.currency}, pedido ${pedido.valor_centavos} usd. Vídeo NÃO liberado.</p>`,
     );
     return { ok: false, motivo: "valor-diferente" };
   }

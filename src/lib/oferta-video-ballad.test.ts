@@ -48,6 +48,11 @@ describe("na Ballad, o e-mail do vídeo sai em inglês e em espanhol, em dólar"
     expect(m.video.precoDoVideoNoEmail("es", "ab12")).toBe("US$ 12");
   });
 
+  it("quem pagou a música em peso (México) lê o vídeo em peso, nos dois idiomas", () => {
+    expect(m.video.precoDoVideoNoEmail("es", "ab12", true)).toBe("$129 MXN");
+    expect(m.video.precoDoVideoNoEmail("en", "ab12", true)).toBe("$129 MXN");
+  });
+
   for (const locale of ["en", "es"] as const) {
     it(`${locale}: as duas versões (com foto e sem foto) sem nada do Brasil`, () => {
       const preco = m.video.precoDoVideoNoEmail(locale, "ab12")!;

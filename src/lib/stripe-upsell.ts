@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestHeader } from "@tanstack/react-start/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { centavosMxnDe, cobrarEmPeso, usdDoPeso } from "@/lib/preco-mxn";
 import { OFERTAS } from "@/lib/creditos";
 import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { stripeApi, confirmarSessaoStripe, ErroStripe } from "../../api/lib/stripe";
@@ -65,6 +67,14 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
     // comprou pelo `/es` vê o caixa do vídeo em espanhol também.
     const espanhol = q?.locale === "es";
     const centavos = Math.round(oferta.precoUsd * 100);
+    // EM PESO PRA QUEM ESTÁ NO MÉXICO (28/10), o mesmo critério e a mesma
+    // tabela do caixa da música (`stripe-checkout.ts`, `preco-mxn.ts`): o
+    // editor mostrava e cobrava US$ 12 de quem tinha pago a música em peso. O
+    // pedido grava o dólar do que se cobrou, como na música.
+    const emPeso = cobrarEmPeso(getRequestHeader("x-vercel-ip-country"));
+    const moeda = emPeso ? "mxn" : "usd";
+    const valorNaMoeda = emPeso ? centavosMxnDe(centavos) : centavos;
+    const valorDoPedido = emPeso ? usdDoPeso(valorNaMoeda) : centavos;
 
     try {
       const criar = () =>
@@ -85,8 +95,8 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
               {
                 quantity: 1,
                 price_data: {
-                  currency: "usd",
-                  unit_amount: centavos,
+                  currency: moeda,
+                  unit_amount: valorNaMoeda,
                   product_data: espanhol
                     ? {
                         name: m.titulo ? `Video regalo: ${m.titulo}` : "Tu video regalo",
@@ -111,8 +121,9 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
           },
           // Reabrir a folha devolve a MESMA sessão (idempotência de 24h do
           // Stripe). Mexeu no corpo, sobe a versão da chave (v3 em 09/10: o
-          // idioma do caixa e do produto passou a seguir o da compra).
-          { idempotencia: `ballad-video:v3:${m.id}:${centavos}` },
+          // idioma do caixa e do produto passou a seguir o da compra; v4 em
+          // 28/10: a moeda, peso no México).
+          { idempotencia: `ballad-video:v4:${m.id}:${moeda}:${valorNaMoeda}` },
         );
       let sessao: { id: string; client_secret: string } | null = null;
       for (let tentativa = 0; !sessao; tentativa++) {
@@ -130,7 +141,7 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
           gateway: "stripe",
           status: "pendente",
           email: email ?? null,
-          valor_centavos: centavos,
+          valor_centavos: valorDoPedido,
           // Sem `quiz_response_id` de propósito, igual ao upsell por PIX: o
           // pedido base daquele quiz já existe, e as consultas de "quiz pago"
           // não podem confundir o vídeo com uma segunda compra da música.
@@ -144,7 +155,7 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
       await db.from("funnel_events").insert({
         event_name: "stripe_video_criado",
         session_id: "sistema",
-        event_data: { sessao: sessao.id, musica_id: m.id, valor_centavos: centavos },
+        event_data: { sessao: sessao.id, musica_id: m.id, valor_centavos: valorDoPedido, moeda, valor_na_moeda: valorNaMoeda },
       });
       return { ok: true, clientSecret: sessao.client_secret, sessaoId: sessao.id };
     } catch (err) {

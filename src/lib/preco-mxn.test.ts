@@ -56,4 +56,16 @@ describe("checkout em peso pro México", () => {
     expect(textoEmPeso("US$ 24,90")).toBe(`$${centavosMxnDe(2490) / 100} MXN`);
     expect(textoEmPeso("grátis")).toBeNull();
   });
+
+  it("o vídeo-presente no México: US$ 12 → $129, abaixo da música, e o webhook confere", () => {
+    expect(centavosMxnDe(1200)).toBe(12900);
+    expect(centavosMxnDe(1200)).toBeLessThan(centavosMxnDe(1900));
+    expect(textoEmPeso("US$ 12")).toBe("$129 MXN");
+    expect(textoEmPeso("$12")).toBe("$129 MXN");
+    // o pedido grava o dólar do que se cobrou, e o caixa em peso confere contra ele
+    const pedido = usdDoPeso(centavosMxnDe(1200));
+    expect(valorPagoConfere("mxn", 12900, pedido)).toBe(true);
+    expect(valorPagoConfere("usd", 1200, 1200)).toBe(true);
+    expect(valorPagoConfere("mxn", 1200, pedido)).toBe(false);
+  });
 });

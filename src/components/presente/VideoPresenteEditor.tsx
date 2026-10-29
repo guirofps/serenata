@@ -10,6 +10,7 @@ import {
 } from "@/lib/video-presente";
 import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
 import { FolhaStripeVideo } from "@/components/presente/FolhaStripeVideo";
+import { NaMoeda } from "@/components/quiz/PrecoDaOferta";
 import { precoVideoUsdTexto } from "@/lib/creditos";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { MARCA } from "@/lib/marca";
@@ -568,7 +569,8 @@ export function VideoPresenteEditor({
             className="mx-auto mt-5 flex h-12 w-full max-w-[300px] items-center justify-center gap-2 rounded-full cta px-6 font-medium disabled:opacity-50"
             style={{ fontSize: "var(--t-sm)" }}
           >
-            {t.cta} · {precoTexto}
+            {/* Na Ballad, em peso pra quem está no México (o caixa cobra assim). */}
+            {t.cta} · <NaMoeda texto={precoTexto} />
           </button>
           <p
             className="mx-auto mt-2 max-w-[300px] text-center text-[var(--tinta-suave)]"

@@ -18,6 +18,7 @@ import {
 import { emailFotosVideo, assuntoFotosVideo, textoFotosVideo } from "../../emails/fotos-video.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { compraEmPeso } from "../lib/compra-em-peso.js";
 
 // O VÍDEO, no dia seguinte à compra, pra quem já subiu foto.
 //
@@ -129,10 +130,10 @@ export const ofertaVideo = inngest.createFunction(
       const agora = Date.now();
       // PAGINADO (28/09): sem isto a janela parava nas 1.000 compras mais
       // recentes e o resto nunca recebia a oferta. Ver inngest/lib/paginar.ts.
-      const pedidos = await todasAsPaginas<{ email: string | null; musica_id: string | null; quiz_response_id: string | null; paid_at: string }>((de, ate) =>
+      const pedidos = await todasAsPaginas<{ email: string | null; musica_id: string | null; quiz_response_id: string | null; paid_at: string; gateway: string | null; payment_id: string | null }>((de, ate) =>
         sb
           .from("pedidos")
-          .select("email, musica_id, quiz_response_id, paid_at")
+          .select("email, musica_id, quiz_response_id, paid_at, gateway, payment_id")
           .eq("status", "pago")
           .not("musica_id", "is", null)
           .gte("paid_at", new Date(agora - MAX_DIAS * 86400000).toISOString())
@@ -151,6 +152,7 @@ export const ofertaVideo = inngest.createFunction(
         tipo: Tipo;
         quizId: string | null;
         locale: IdiomaOfertaVideo;
+        emPeso: boolean;
       }> = [];
       const conta = { comFoto: 0, semFoto: 0 };
       // Quem JÁ recebeu cada tipo, numa consulta só por tipo. Com a janela
@@ -225,6 +227,8 @@ export const ofertaVideo = inngest.createFunction(
           tipo,
           quizId: p.quiz_response_id ?? null,
           locale,
+          // México: o preço do vídeo no e-mail em peso, como o editor mostra lá.
+          emPeso: ballad ? await compraEmPeso(p) : false,
         });
         conta[tipo] += 1;
       }
@@ -250,7 +254,7 @@ export const ofertaVideo = inngest.createFunction(
         const template = semFoto ? "fotos_video" : "oferta_video";
         // O preço da música DESTA pessoa (teste `preco_video`): o e-mail diz o que a tela vai cobrar.
         // Na Ballad, o dólar do catálogo; sem ele a oferta não existe no editor, e o e-mail não sai.
-        const preco = precoDoVideoNoEmail(c.locale, c.link.match(/\/editar\/([0-9a-f]+)/)?.[1]);
+        const preco = precoDoVideoNoEmail(c.locale, c.link.match(/\/editar\/([0-9a-f]+)/)?.[1], c.emPeso);
         if (!preco) return false;
         const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: template }],

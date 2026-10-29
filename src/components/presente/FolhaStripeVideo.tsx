@@ -6,6 +6,7 @@ import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe
 import { ShieldCheck, RefreshCw } from "lucide-react";
 import { criarCheckoutVideoStripe, confirmarVideoStripe } from "@/lib/stripe-upsell";
 import { trackEvent } from "@/lib/track";
+import { NaMoeda } from "@/components/quiz/PrecoDaOferta";
 
 // A FOLHA DO VÍDEO NA BALLAD GIFT: o checkout embutido do Stripe dentro do
 // editor, no lugar da folha de PIX da Serenata (`FolhaPixUpsell`).
@@ -124,7 +125,8 @@ export function FolhaStripeVideo({
       <div className="relative max-h-[94vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-primary/10 bg-background px-3 pb-6 pt-4 shadow-2xl sm:rounded-3xl">
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-muted-foreground/25 sm:hidden" />
         <div className="mb-3 px-2 text-center">
-          <p className="font-display text-lg font-semibold">{T.titulo(precoTexto)}</p>
+          {/* Em peso no México, como o caixa cobra (`NaMoeda`, `stripe-upsell.ts`). */}
+          <p className="font-display text-lg font-semibold"><NaMoeda texto={precoTexto} como={T.titulo} /></p>
           <p className="mt-1 flex items-center justify-center gap-1.5 text-xs text-emerald-800">
             <ShieldCheck className="h-3.5 w-3.5" /> {T.seguro}
           </p>
