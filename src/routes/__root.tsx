@@ -52,6 +52,7 @@ import {
 import { guardarCupomDaUrl } from "@/lib/cupom-url";
 import { guardarToqueEmail } from "@/lib/toque-email";
 import { useQuizStore } from "@/lib/quiz-store";
+import { recarregarSeArquivoVelho } from "@/lib/arquivo-velho";
 
 // ── O QUE NÃO EXISTE NA BALLAD GIFT ───────────────────────────────
 //
@@ -434,6 +435,10 @@ function RootComponent() {
     // acesso, a tela pergunta a mesma coisa ao servidor.
     if (ehBallad()) void descobrirPais();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Página aberta antes de uma publicação pedindo arquivo que já não existe
+  // (o caixa do Stripe, a oferta): recarrega uma vez (`arquivo-velho.ts`).
+  React.useEffect(() => recarregarSeArquivoVelho(), []);
 
   const router = useRouter();
   React.useEffect(() => {
