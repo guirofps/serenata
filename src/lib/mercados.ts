@@ -215,6 +215,18 @@ export function usdDe(m: Mercado, unidadeMenor: number): number {
   return Math.round((unidadeMenor * 100) / 10 ** m.decimais / m.porDolar);
 }
 
+// As moedas sem casa decimal na API do Stripe (lista deles). Serve pra
+// qualquer moeda que apareça numa transação, inclusive as que não vendemos
+// (a liquidação da conta é em real, que tem 2).
+const SEM_DECIMAL = new Set([
+  "bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg", "rwf", "ugx", "vnd", "vuv", "xaf", "xof", "xpf",
+]);
+
+/** Casas decimais da unidade menor de uma moeda qualquer na API do Stripe (CLP 0, BRL 2). */
+export function casasDaMoeda(moeda: string | null | undefined): 0 | 2 {
+  return SEM_DECIMAL.has(String(moeda ?? "").trim().toLowerCase()) ? 0 : 2;
+}
+
 /** Valor em unidade MAIOR (o que a dLocal devolve, "199.00") → unidade menor do mercado. */
 export function unidadeMenorDe(m: Mercado, valorMaior: number): number {
   return Math.round(valorMaior * 10 ** m.decimais);

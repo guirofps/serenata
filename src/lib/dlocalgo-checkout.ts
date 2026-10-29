@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeader } from "@tanstack/react-start/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
-import { centavosMxnDe, cobrarEmPeso, usdDoPeso } from "@/lib/preco-mxn";
+import { mercadoDoPais, usdDe, valorNaMoeda } from "@/lib/mercados";
+import { paisDaRequisicao } from "@/lib/pais-requisicao.server";
+import { marcarMoedaDoPedido } from "@/lib/pais-quiz";
 import { valorCentavosDaSessao, urlDoSite } from "@/lib/stripe-checkout";
 import { dlocalApi, dlocalConfigurado, confirmarPagamentoDlocal, ErroDlocal, orderIdDlocal } from "../../api/lib/dlocalgo";
 
@@ -29,7 +30,13 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
   .validator((data: { sessionId: string }) => data)
   .handler(async ({ data }): Promise<ResultadoCheckoutDlocal> => {
     if (MARCA_ATIVA.chave !== "ballad" || !dlocalConfigurado()) return { ok: false, erro: "indisponivel" };
-    if (!cobrarEmPeso(getRequestHeader("x-vercel-ip-country"))) return { ok: false, erro: "indisponivel" };
+    // O MERCADO TEM A dLOCAL? (29/10, `temDlocal` em `mercados.ts`). Só o
+    // México por ora: Colômbia, Chile e Peru esperam o dono confirmar no painel
+    // da dLocal os métodos de cada país. O país é o do cabeçalho desta
+    // requisição, nunca do navegador.
+    const pais = paisDaRequisicao();
+    const mercado = mercadoDoPais(pais);
+    if (!mercado.temDlocal) return { ok: false, erro: "indisponivel" };
     const sessionId = String(data.sessionId ?? "").slice(0, 100);
     if (!sessionId) return { ok: false, erro: "falhou" };
     const db = supabaseAdmin();
@@ -60,8 +67,8 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
       .limit(1);
     if (jaPago?.length) return { ok: false, erro: "ja-pago" };
 
-    const valorMxn = centavosMxnDe(await valorCentavosDaSessao(db, quiz.attribution));
-    const valorDoPedido = usdDoPeso(valorMxn);
+    const valorMxn = valorNaMoeda(mercado, await valorCentavosDaSessao(db, quiz.attribution));
+    const valorDoPedido = usdDe(mercado, valorMxn);
 
     // REABRIR A FOLHA NÃO CRIA OUTRA FICHA: a pendente deste quiz, do mesmo
     // valor e com folga de validade, volta igual. Duas fichas do OXXO pro mesmo
@@ -92,9 +99,10 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
 
     try {
       const p = await dlocalApi<{ id: string; redirect_url: string }>("POST", "/payments", {
-        currency: "MXN",
-        amount: valorMxn / 100,
-        country: "MX",
+        currency: mercado.moeda.toUpperCase(),
+        // A dLocal quer unidade MAIOR; as casas vêm do mercado (peso chileno não tem centavo).
+        amount: valorMxn / 10 ** mercado.decimais,
+        country: mercado.pais,
         order_id: orderIdDlocal(quiz.id),
         description: (nome ? `Canción personalizada para ${nome}` : "Tu canción personalizada").slice(0, 100),
         payer: email ? { email } : undefined,
@@ -123,6 +131,7 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
       });
       if (error) throw new Error(error.message);
       await marcarSeVeioDeEmail(db, `dlocalgo:${p.id}`);
+      await marcarMoedaDoPedido(db, `dlocalgo:${p.id}`, { moeda: mercado.moeda, valorMoeda: valorMxn, pais });
       await db.from("funnel_events").insert({
         event_name: "dlocal_checkout_criado",
         session_id: sessionId,

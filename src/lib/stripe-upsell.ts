@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeader } from "@tanstack/react-start/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { centavosMxnDe, cobrarEmPeso, usdDoPeso } from "@/lib/preco-mxn";
+import { localeStripeDe, mercadoDoPais, usdDe, valorNaMoeda as naMoedaDoMercado } from "@/lib/mercados";
+import { paisDaRequisicao } from "@/lib/pais-requisicao.server";
+import { marcarMoedaDoPedido } from "@/lib/pais-quiz";
 import { OFERTAS } from "@/lib/creditos";
 import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { stripeApi, confirmarSessaoStripe, ErroStripe } from "../../api/lib/stripe";
@@ -93,10 +94,12 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
     // tabela do caixa da música (`stripe-checkout.ts`, `preco-mxn.ts`): o
     // editor mostrava e cobrava US$ 12 de quem tinha pago a música em peso. O
     // pedido grava o dólar do que se cobrou, como na música.
-    const emPeso = cobrarEmPeso(getRequestHeader("x-vercel-ip-country"));
-    const moeda = emPeso ? "mxn" : "usd";
-    const valorNaMoeda = emPeso ? centavosMxnDe(centavos) : centavos;
-    const valorDoPedido = emPeso ? usdDoPeso(valorNaMoeda) : centavos;
+    // 29/10: a moeda de cada país da tabela, não só o peso (`mercados.ts`).
+    const pais = paisDaRequisicao();
+    const mercado = mercadoDoPais(pais);
+    const moeda = mercado.moeda;
+    const valorNaMoeda = naMoedaDoMercado(mercado, centavos);
+    const valorDoPedido = usdDe(mercado, valorNaMoeda);
 
     try {
       const criar = () =>
@@ -108,7 +111,7 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
             // Ver `stripe-checkout.ts`: o nome e a cor da Ballad, não os da conta.
             branding_settings: { display_name: MARCA_ATIVA.nome, button_color: "#bd404d" },
             mode: "payment",
-            locale: espanhol ? "es-419" : "en",
+            locale: localeStripeDe(mercado, espanhol ? "es" : "en"),
             // Sem redirecionar: a folha fica no editor, e o `onComplete` do
             // navegador chama a confirmação. O webhook confirma do mesmo jeito
             // se a pessoa fechar a aba no meio.
@@ -192,6 +195,8 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
       );
       await marcarSeVeioDeEmail(db, `stripe:${sessao.id}`);
       if (error) throw new Error(error.message);
+      // À parte, como na música (`stripe-checkout.ts`): sem a coluna, só isto se perde.
+      await marcarMoedaDoPedido(db, `stripe:${sessao.id}`, { moeda, valorMoeda: valorNaMoeda, pais });
 
       await db.from("funnel_events").insert({
         event_name: extra ? "stripe_extra_criado" : "stripe_video_criado",

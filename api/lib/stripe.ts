@@ -30,7 +30,7 @@ import { avisarDonos } from "../../src/lib/avisar-donos.js";
 import { venderNoTiktok } from "./tiktok-eventos.js";
 import { ttclidDaVenda } from "../../src/lib/clique-recente.js";
 import { creditarUpsell } from "./creditar-upsell.js";
-import { valorPagoConfere } from "../../src/lib/preco-mxn.js";
+import { casasDaMoeda, valorPagoConfere } from "../../src/lib/mercados.js";
 import { OFERTAS } from "../../src/lib/creditos.js";
 
 const API = "https://api.stripe.com/v1";
@@ -154,12 +154,22 @@ function taxaEmCentavosDaVenda(s: SessaoStripe, valorUsdCentavos?: number | null
   let naMoedaDaVenda: number | null;
   if (bt.currency && s.currency && bt.currency === s.currency) naMoedaDaVenda = bt.fee;
   else {
+    // O `exchange_rate` do Stripe é entre unidades MAIORES (1 CLP = 0,006 BRL),
+    // e a taxa vem na unidade menor da liquidação (centavo de real). Sem levar
+    // as casas em conta, uma venda em peso chileno (moeda sem decimal) sairia
+    // com a taxa 100 vezes maior (29/10).
     const cambio = Number(bt.exchange_rate);
-    naMoedaDaVenda = cambio > 0 ? bt.fee / cambio : null;
+    naMoedaDaVenda =
+      cambio > 0
+        ? ((bt.fee / 10 ** casasDaMoeda(bt.currency)) / cambio) * 10 ** casasDaMoeda(s.currency)
+        : null;
   }
   if (naMoedaDaVenda == null) return null;
-  // Venda em peso (México, `preco-mxn.ts`): a taxa sai em centavos de peso e o
-  // pedido é em dólar. Leva pra dólar pela proporção do próprio pedido.
+  // Venda em moeda local (México, Espanha, Colômbia, Chile, Peru; `mercados.ts`):
+  // a taxa já está na unidade menor da moeda da venda e o pedido é em dólar.
+  // Leva pra dólar pela PROPORÇÃO do próprio pedido: taxa e `amount_total` vêm
+  // na MESMA unidade (peso chileno inteiro com peso chileno inteiro, centavo de
+  // euro com centavo de euro), então aqui as casas já não importam.
   if (s.currency && s.currency.toLowerCase() !== "usd") {
     if (!valorUsdCentavos || !s.amount_total) return null;
     return Math.round((naMoedaDaVenda * valorUsdCentavos) / s.amount_total);
@@ -220,8 +230,10 @@ export async function confirmarSessaoStripe(
   const quizId = String(pedido.quiz_response_id);
   if (pedido.status === "pago") return { ok: true, entregue: false, duplicado: true, quizId };
 
-  // O pedido é em dólar; a sessão pode ter cobrado em peso (México). Confere na
-  // moeda da sessão, pela MESMA tabela do checkout (`preco-mxn.ts`).
+  // O pedido é em dólar; a sessão pode ter cobrado na moeda do país (peso,
+  // euro…). Confere na moeda da sessão, pela MESMA tabela do checkout
+  // (`mercados.ts`): o `amount_total` vem na unidade menor do Stripe, a mesma
+  // em que o checkout mandou o `unit_amount`.
   if (!valorPagoConfere(s.currency, Number(s.amount_total), Number(pedido.valor_centavos))) {
     await alertarDono(
       "Valor pago diferente do pedido (Stripe)",

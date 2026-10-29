@@ -30,7 +30,7 @@ import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
 import { venderNoTiktok } from "./tiktok-eventos.js";
 import { ttclidDaVenda } from "../../src/lib/clique-recente.js";
-import { valorPagoConfere } from "../../src/lib/preco-mxn.js";
+import { mercadoDaMoeda, unidadeMenorDe, valorPagoConfere } from "../../src/lib/mercados.js";
 
 const API = "https://api.dlocalgo.com/v1";
 
@@ -153,8 +153,15 @@ export async function confirmarPagamentoDlocal(sb: SupabaseClient, id: string): 
   const quizId = String(pedido.quiz_response_id);
   if (pedido.status === "pago") return { ok: true, entregue: false, duplicado: true, quizId };
 
-  // O pedido é em dólar; a dLocal cobrou em peso, pela MESMA tabela do caixa.
-  if (!valorPagoConfere(p.currency, Math.round(Number(p.amount) * 100), Number(pedido.valor_centavos))) {
+  // O pedido é em dólar; a dLocal cobrou na moeda local, pela MESMA tabela do
+  // caixa. A dLocal devolve unidade MAIOR ("199.00"): leva pra unidade menor
+  // pelas casas da moeda (29/10), senão um peso chileno, que não tem centavo,
+  // chegaria 100 vezes maior e toda venda ficaria retida.
+  const mercadoPago = mercadoDaMoeda(p.currency);
+  const pagoNaUnidadeMenor = mercadoPago
+    ? unidadeMenorDe(mercadoPago, Number(p.amount))
+    : Math.round(Number(p.amount) * 100);
+  if (!valorPagoConfere(p.currency, pagoNaUnidadeMenor, Number(pedido.valor_centavos))) {
     await alertar(
       "Valor pago diferente do pedido (dLocal)",
       `<p>Pagamento <code>${p.id}</code>: pago ${p.amount} ${p.currency}, pedido ${pedido.valor_centavos} usd. Entrega retida.</p>`,

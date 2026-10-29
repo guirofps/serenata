@@ -5,8 +5,9 @@ import { MOEDA } from "@/lib/i18n";
 import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { stripeApi, confirmarSessaoStripe, ErroStripe } from "../../api/lib/stripe";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
-import { getRequestHeader } from "@tanstack/react-start/server";
-import { centavosMxnDe, cobrarEmPeso, usdDoPeso } from "@/lib/preco-mxn";
+import { localeStripeDe, mercadoDoPais, usdDe, valorNaMoeda as naMoedaDoMercado } from "@/lib/mercados";
+import { paisDaRequisicao } from "@/lib/pais-requisicao.server";
+import { marcarMoedaDoPedido } from "@/lib/pais-quiz";
 
 // O CHECKOUT DA BALLAD GIFT, do lado do servidor.
 //
@@ -89,14 +90,17 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
     if (jaPago?.length) return { ok: false, erro: "ja-pago" };
 
     const centavos = await valorCentavosDaSessao(db, quiz.attribution);
-    // O CAIXA EM PESO PRA QUEM ESTÁ NO MÉXICO (21/10, `preco-mxn.ts`): o preço
-    // tabelado em peso (US$ 19 → $199 MXN, em teste desde 22/10). O pedido
-    // continua em dólar, no equivalente do que se cobrou. Fora do México, nada muda.
-    const emPeso = cobrarEmPeso(getRequestHeader("x-vercel-ip-country"));
-    const moeda = emPeso ? "mxn" : "usd";
-    const valorNaMoeda = emPeso ? centavosMxnDe(centavos) : centavos;
+    // O CAIXA NA MOEDA DO PAÍS DO ACESSO (21/10 no México, 29/10 nos outros;
+    // `mercados.ts`): o preço tabelado do país (US$ 19 → $199 MXN, 14,99 €,
+    // $39.900 COP…). O país é o do cabeçalho DESTA requisição, nunca um valor
+    // do navegador. O pedido continua em dólar, no equivalente do que se
+    // cobrou. Fora dos mercados locais, dólar, como sempre.
+    const pais = paisDaRequisicao();
+    const mercado = mercadoDoPais(pais);
+    const moeda = mercado.moeda;
+    const valorNaMoeda = naMoedaDoMercado(mercado, centavos);
     // O pedido grava o dólar do que se COBROU (o México tem preço próprio, $199).
-    const valorDoPedido = emPeso ? usdDoPeso(valorNaMoeda) : centavos;
+    const valorDoPedido = usdDe(mercado, valorNaMoeda);
     const nome = String((quiz.respostas as Record<string, unknown> | null)?.nome ?? "").trim().slice(0, 40);
     const email = String(quiz.email ?? "").trim() || undefined;
 
@@ -116,7 +120,9 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
           // via o caixa em outra língua que não a da página que acabou de ler.
           // Quem comprou pelo `/es` vê o caixa em espanhol latino (`es-419`, o
           // código do Stripe pra espanhol da América Latina).
-          locale: espanhol ? "es-419" : "en",
+          // 29/10: o espanhol do caixa segue o país (`es` na Espanha, `es-419`
+          // no resto); o inglês fica inglês.
+          locale: localeStripeDe(mercado, quiz.locale),
           // O NOME E A COR DO CAIXA (08/10). A conta do Stripe é de outro
           // negócio ("WPBN", botão magenta): sem isto, é esse nome que aparece
           // no Apple Pay / Google Pay e no Link, no instante de pagar. A sessão
@@ -198,11 +204,14 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
       );
       await marcarSeVeioDeEmail(db, `stripe:${sessao.id}`);
       if (error) throw new Error(error.message);
+      // A moeda e o valor local num update à parte: sem as colunas da migration
+      // de 29/10, o pedido nasce igual e só este registro se perde.
+      await marcarMoedaDoPedido(db, `stripe:${sessao.id}`, { moeda, valorMoeda: valorNaMoeda, pais });
 
       await db.from("funnel_events").insert({
         event_name: "stripe_checkout_criado",
         session_id: sessionId,
-        event_data: { sessao: sessao.id, valor_centavos: valorDoPedido, moeda, valor_na_moeda: valorNaMoeda },
+        event_data: { sessao: sessao.id, valor_centavos: valorDoPedido, moeda, valor_na_moeda: valorNaMoeda, pais },
       });
       return { ok: true, clientSecret: sessao.client_secret, sessaoId: sessao.id };
     } catch (err) {
