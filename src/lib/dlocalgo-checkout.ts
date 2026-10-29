@@ -95,21 +95,25 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    // SÓ VOLTA A FICHA QUE EXISTE DE VERDADE (29/10). `PENDING` é a ficha emitida
-    // esperando a loja. `CREATED` é a página que a pessoa largou no formulário
-    // (antes desta data, sem o documento: reabrir pediria o documento de novo na
-    // página deles), e recusada/vencida só mostraria o erro outra vez. Nesses
-    // casos o pedido vira `cancelado` e nasce uma cobrança nova, já com o
+    // SÓ VOLTA A FICHA QUE EXISTE DE VERDADE (29/10). `PENDING` com outro
+    // detalhe é a ficha emitida esperando a loja. `PENDING`/`CREATED` é a página
+    // que ninguém preencheu (medido: cobrança recém-criada volta assim; antes
+    // desta data ela foi criada sem o documento, e reabrir pediria o documento
+    // de novo na página deles), e recusada/vencida só mostraria o erro outra vez.
+    // Nesses casos o pedido vira `cancelado` e nasce uma cobrança nova, já com o
     // documento. Sem resposta da dLocal, volta a de sempre.
     if (aberta?.pix_url) {
       const pagamentoId = String(aberta.payment_id).slice("dlocalgo:".length);
       let status = "PENDING";
+      let detalhe = "";
       try {
-        status = (await lerPagamentoDlocal(pagamentoId)).status;
+        const lido = await lerPagamentoDlocal(pagamentoId);
+        status = lido.status;
+        detalhe = String(lido.status_detail ?? "");
       } catch (err) {
         console.error("[dlocal] ler pagamento aberto falhou:", err instanceof ErroDlocal ? err.status : err);
       }
-      if (status === "PENDING") return { ok: true, url: aberta.pix_url, pagamentoId };
+      if (status === "PENDING" && detalhe !== "CREATED") return { ok: true, url: aberta.pix_url, pagamentoId };
       if (status === "PAID") return { ok: false, erro: "ja-pago" };
       await db
         .from("pedidos")
@@ -119,7 +123,7 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
       await db.from("funnel_events").insert({
         event_name: "dlocal_ficha_trocada",
         session_id: sessionId,
-        event_data: { pagamento: pagamentoId, status_antigo: String(status).slice(0, 20) },
+        event_data: { pagamento: pagamentoId, status_antigo: `${status}/${detalhe}`.slice(0, 40) },
       });
     }
 
