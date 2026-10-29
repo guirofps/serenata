@@ -5,7 +5,15 @@ import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 import { centavosMxnDe, cobrarEmPeso, usdDoPeso } from "@/lib/preco-mxn";
 import { valorCentavosDaSessao, urlDoSite } from "@/lib/stripe-checkout";
-import { dlocalApi, dlocalConfigurado, confirmarPagamentoDlocal, ErroDlocal, orderIdDlocal } from "../../api/lib/dlocalgo";
+import { nomeCompletoValido, validarDocumentoMx } from "@/lib/documento-mx";
+import {
+  dlocalApi,
+  dlocalConfigurado,
+  confirmarPagamentoDlocal,
+  ErroDlocal,
+  lerPagamentoDlocal,
+  orderIdDlocal,
+} from "../../api/lib/dlocalgo";
 
 // OXXO E TRANSFERÊNCIA NO MÉXICO (Ballad, 23/10), do lado do servidor.
 //
@@ -23,15 +31,25 @@ const VALIDADE_DIAS = 3;
 
 export type ResultadoCheckoutDlocal =
   | { ok: true; url: string; pagamentoId: string }
-  | { ok: false; erro: "sem-musica" | "ja-pago" | "indisponivel" | "falhou" };
+  | { ok: false; erro: "sem-musica" | "ja-pago" | "indisponivel" | "falhou" | "documento" };
 
 export const criarCheckoutDlocal = createServerFn({ method: "POST" })
-  .validator((data: { sessionId: string }) => data)
+  .validator((data: { sessionId: string; nome?: string; documento?: string }) => ({
+    sessionId: String(data?.sessionId ?? "").slice(0, 100),
+    nome: String(data?.nome ?? "").trim().replace(/\s+/g, " ").slice(0, 100),
+    documento: String(data?.documento ?? "").slice(0, 40),
+  }))
   .handler(async ({ data }): Promise<ResultadoCheckoutDlocal> => {
     if (MARCA_ATIVA.chave !== "ballad" || !dlocalConfigurado()) return { ok: false, erro: "indisponivel" };
     if (!cobrarEmPeso(getRequestHeader("x-vercel-ip-country"))) return { ok: false, erro: "indisponivel" };
-    const sessionId = String(data.sessionId ?? "").slice(0, 100);
+    const sessionId = data.sessionId;
     if (!sessionId) return { ok: false, erro: "falhou" };
+    // O DOCUMENTO É CONFERIDO AQUI, pela mesma regra da folha (`documento-mx.ts`):
+    // na página da dLocal a pessoa digitava "ife" ou o RFC sem homoclave e a
+    // ficha era recusada. Vai pronto no `payer`, e a página deles não pede de
+    // novo. Nunca é gravado no banco nem nos logs.
+    const doc = validarDocumentoMx(data.documento);
+    if (!doc.ok || !nomeCompletoValido(data.nome)) return { ok: false, erro: "documento" };
     const db = supabaseAdmin();
 
     const { data: quiz } = await db
@@ -77,8 +95,32 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    // SÓ VOLTA A FICHA QUE EXISTE DE VERDADE (29/10). `PENDING` é a ficha emitida
+    // esperando a loja. `CREATED` é a página que a pessoa largou no formulário
+    // (antes desta data, sem o documento: reabrir pediria o documento de novo na
+    // página deles), e recusada/vencida só mostraria o erro outra vez. Nesses
+    // casos o pedido vira `cancelado` e nasce uma cobrança nova, já com o
+    // documento. Sem resposta da dLocal, volta a de sempre.
     if (aberta?.pix_url) {
-      return { ok: true, url: aberta.pix_url, pagamentoId: String(aberta.payment_id).slice("dlocalgo:".length) };
+      const pagamentoId = String(aberta.payment_id).slice("dlocalgo:".length);
+      let status = "PENDING";
+      try {
+        status = (await lerPagamentoDlocal(pagamentoId)).status;
+      } catch (err) {
+        console.error("[dlocal] ler pagamento aberto falhou:", err instanceof ErroDlocal ? err.status : err);
+      }
+      if (status === "PENDING") return { ok: true, url: aberta.pix_url, pagamentoId };
+      if (status === "PAID") return { ok: false, erro: "ja-pago" };
+      await db
+        .from("pedidos")
+        .update({ status: "cancelado" })
+        .eq("payment_id", aberta.payment_id)
+        .eq("status", "pendente");
+      await db.from("funnel_events").insert({
+        event_name: "dlocal_ficha_trocada",
+        session_id: sessionId,
+        event_data: { pagamento: pagamentoId, status_antigo: String(status).slice(0, 20) },
+      });
     }
 
     const respostas = (quiz.respostas as Record<string, unknown> | null) ?? {};
@@ -90,14 +132,19 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
     // `/es/gracias`: ela diz "pago confirmado", e a ficha do OXXO ainda não foi paga.
     const volta = `${site}/es/pago-oxxo`;
 
-    try {
-      const p = await dlocalApi<{ id: string; redirect_url: string }>("POST", "/payments", {
+    const criar = (comDocumento: boolean) =>
+      dlocalApi<{ id: string; redirect_url: string }>("POST", "/payments", {
         currency: "MXN",
         amount: valorMxn / 100,
         country: "MX",
         order_id: orderIdDlocal(quiz.id),
         description: (nome ? `Canción personalizada para ${nome}` : "Tu canción personalizada").slice(0, 100),
-        payer: email ? { email } : undefined,
+        // Tudo que vai aqui a página da dLocal NÃO pede de novo.
+        payer: comDocumento
+          ? { ...(email ? { email } : {}), name: data.nome, document_type: doc.tipo, document: doc.documento }
+          : email
+            ? { email }
+            : undefined,
         // O cartão continua no Stripe: aqui só dinheiro e transferência.
         payment_type: "VOUCHER,BANK_TRANSFER",
         expiration_type: "DAYS",
@@ -106,6 +153,23 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
         back_url: volta,
         notification_url: `${site}/api/webhook/dlocalgo`,
       });
+
+    try {
+      // Se a dLocal recusar o documento já na criação (400), a cobrança sai do
+      // jeito de antes, com a página deles pedindo o documento: nunca pior que
+      // antes deste conserto. O motivo vai pro evento, sem o documento.
+      let p: { id: string; redirect_url: string };
+      try {
+        p = await criar(true);
+      } catch (err) {
+        if (!(err instanceof ErroDlocal) || err.status !== 400) throw err;
+        await db.from("funnel_events").insert({
+          event_name: "dlocal_documento_api_recusou",
+          session_id: sessionId,
+          event_data: { tipo: doc.tipo, erro: String(err.message).split(doc.documento).join("***").slice(0, 200) },
+        });
+        p = await criar(false);
+      }
       if (!p?.id || !p.redirect_url?.startsWith("https://")) throw new ErroDlocal("resposta sem id/url", 502);
 
       const { error } = await db.from("pedidos").insert({
