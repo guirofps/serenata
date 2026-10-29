@@ -17,6 +17,14 @@ import { varianteDe } from "@/lib/experimentos";
 import { NaMoeda } from "@/components/quiz/PrecoDaOferta";
 import { EXP_AVISO_RECUSA, TEXTO_AVISO_RECUSA, avisoRecusaLigado } from "@/lib/aviso-recusa";
 import { EXP_OXXO_MX, oxxoLigado } from "@/lib/oxxo-mx";
+
+/** O botão de pagar sem cartão, com os métodos que a dLocal mostra em cada país. */
+const BOTAO_SEM_CARTAO: Record<string, string> = {
+  MX: "¿Sin tarjeta? Paga en efectivo en OXXO o con transferencia",
+  CO: "¿Sin tarjeta? Paga con PSE, Nequi o en efectivo",
+  CL: "¿Sin tarjeta? Paga con Webpay o transferencia",
+  PE: "¿Sin tarjeta? Paga con Yape, transferencia o en efectivo",
+};
 import { CheckoutDlocal } from "@/components/quiz/CheckoutDlocal";
 
 // O PAGAMENTO DA BALLAD GIFT, na própria página.
@@ -111,10 +119,18 @@ export function CheckoutStripe({
   const AVISO = locale === "es" ? TEXTO_AVISO_RECUSA.es : TEXTO_AVISO_RECUSA.en;
   // Teste `oxxo_mx` (23/10): no México, o OXXO e a transferência da dLocal Go
   // ao lado do cartão (ver `oxxo-mx.ts`). O país é o que o servidor carimbou.
-  const [paisMx] = useState(
-    () => typeof document !== "undefined" && document.documentElement.getAttribute("data-pais") === "MX",
+  const [pais] = useState(() =>
+    typeof document !== "undefined" ? String(document.documentElement.getAttribute("data-pais") ?? "").toUpperCase() : "",
   );
-  const [oxxo] = useState(() => oxxoLigado(varianteDe(EXP_OXXO_MX), paisMx ? "MX" : null, locale));
+  const paisMx = pais === "MX";
+  // COLÔMBIA, CHILE E PERU (29/10): a dLocal entra como CANAL do mercado novo,
+  // não como teste (quem está lá nunca viu outra folha). Métodos conferidos com
+  // cobranças de teste: PSE e Nequi, Webpay, Yape. O México segue no `oxxo_mx`.
+  const [oxxo] = useState(() =>
+    paisMx
+      ? oxxoLigado(varianteDe(EXP_OXXO_MX), "MX", locale)
+      : locale === "es" && (pais === "CO" || pais === "CL" || pais === "PE"),
+  );
   const [metodo, setMetodo] = useState<"cartao" | "oxxo">("cartao");
   useEffect(() => {
     if (paisMx && locale === "es") trackEvent("oxxo_mx_exposto", { braco: varianteDe(EXP_OXXO_MX) });
@@ -227,7 +243,11 @@ export function CheckoutStripe({
         </div>
 
         {metodo === "oxxo" ? (
-          <CheckoutDlocal aoVoltar={() => setMetodo("cartao")} aoSemMusica={aoSemMusica} />
+          <CheckoutDlocal
+            pais={pais === "CO" || pais === "CL" || pais === "PE" ? pais : "MX"}
+            aoVoltar={() => setMetodo("cartao")}
+            aoSemMusica={aoSemMusica}
+          />
         ) : !sp ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
             {T.indisponivel}
@@ -251,12 +271,12 @@ export function CheckoutStripe({
             {oxxo && (
               <button
                 onClick={() => {
-                  trackEvent("dlocal_oxxo_escolhido", {});
+                  trackEvent("dlocal_oxxo_escolhido", { pais });
                   setMetodo("oxxo");
                 }}
                 className="mx-2 mb-3 flex w-[calc(100%-1rem)] items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-3 text-sm font-medium text-primary"
               >
-                ¿Sin tarjeta? Paga en efectivo en OXXO o con transferencia
+                {BOTAO_SEM_CARTAO[pais] ?? BOTAO_SEM_CARTAO.MX}
               </button>
             )}
             <CheckoutEmbutido stripe={sp} options={opcoes} />

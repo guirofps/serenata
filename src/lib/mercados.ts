@@ -49,19 +49,19 @@ export type Mercado = {
   /** O `<html lang>` do `/es` neste país. */
   tagIdioma: string;
   /**
-   * A dLocal Go (OXXO, transferência) está ligada aqui? Só o México por ora:
-   * Colômbia, Chile e Peru esperam o dono confirmar no painel da dLocal quais
-   * `payment_type` existem em cada país (PSE, Efecty, Webpay, PagoEfectivo…).
+   * A dLocal Go (dinheiro e transferência) está ligada aqui? México (OXXO,
+   * SPEI), Colômbia (PSE, Nequi, Efecty), Chile (Webpay, bancos) e Peru (Yape,
+   * bancos, PagoEfectivo), conferidos em 29/10 com cobranças de teste.
    */
   temDlocal: boolean;
 };
 
-// ── PREÇOS PROVISÓRIOS: DECISÃO DO DONO ──────────────────────────
+// ── PREÇOS: APROVADOS PELO DONO EM 29/10 ─────────────────────────
 //
-// Os números de Espanha, Colômbia, Chile e Peru são PLACEHOLDER, escritos em
-// 29/10 pra o código ter o que cobrar, na mesma lógica do México (preço de
-// loja do país, um pouco abaixo da conversão pura do US$ 19). Nada disso foi
-// testado. Antes de ligar a mídia em qualquer um, o dono decide os quatro.
+// Colômbia, Chile e Peru perto do México em reais (R$ 54 a 68 a música), preço
+// de loja do país. A Espanha é o MESMO número dos EUA, em euro. O câmbio
+// (`porDolar`) é o de 29/10, arredondado: é com ele que o pedido grava o
+// equivalente em dólar que painel, Google e TikTok leem.
 //
 // A Espanha é preço FINAL ao consumidor, com IVA dentro (na UE, preço exibido
 // a pessoa física tem que incluir o imposto). O registro no OSS e o repasse
@@ -103,9 +103,10 @@ export const MERCADOS: Readonly<Record<Pais, Mercado>> = {
     pais: "ES",
     moeda: "eur",
     decimais: 2,
-    porDolar: 0.86,
-    // €14,99 a música, €34,99 a âncora, €9,99 o vídeo, €10,99 a extra. IVA incluído.
-    precos: { 1900: 1499, 4900: 3499, 1200: 999, 1400: 1099 },
+    porDolar: 0.9,
+    // O MESMO NÚMERO DOS EUA, em euro: €19 a música, €49 a âncora, €12 o vídeo,
+    // €14 a extra. IVA incluído.
+    precos: { 1900: 1900, 4900: 4900, 1200: 1200, 1400: 1400 },
     localeStripe: "es",
     conteudo: "espanha",
     tagIdioma: "es-ES",
@@ -115,37 +116,37 @@ export const MERCADOS: Readonly<Record<Pais, Mercado>> = {
     pais: "CO",
     moeda: "cop",
     decimais: 2,
-    porDolar: 3900,
+    porDolar: 3400,
     // $39.900 / $99.900 / $25.900 / $29.900, em centavos (o Stripe quer 2 casas).
     precos: { 1900: 3990000, 4900: 9990000, 1200: 2590000, 1400: 2990000 },
     localeStripe: "es-419",
     conteudo: "latam",
     tagIdioma: "es-CO",
-    temDlocal: false,
+    temDlocal: true,
   },
   CL: {
     pais: "CL",
     moeda: "clp",
     decimais: 0,
-    porDolar: 950,
+    porDolar: 1060,
     // $9.990 / $24.990 / $6.490 / $7.490. Sem decimal: o número é o peso.
     precos: { 1900: 9990, 4900: 24990, 1200: 6490, 1400: 7490 },
     localeStripe: "es-419",
     conteudo: "latam",
     tagIdioma: "es-CL",
-    temDlocal: false,
+    temDlocal: true,
   },
   PE: {
     pais: "PE",
     moeda: "pen",
     decimais: 2,
-    porDolar: 3.75,
+    porDolar: 3.45,
     // S/ 39 / 99 / 25 / 29.
     precos: { 1900: 3900, 4900: 9900, 1200: 2500, 1400: 2900 },
     localeStripe: "es-419",
     conteudo: "latam",
     tagIdioma: "es-PE",
-    temDlocal: false,
+    temDlocal: true,
   },
 };
 

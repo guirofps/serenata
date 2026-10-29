@@ -34,9 +34,9 @@ describe("a tabela de mercados", () => {
     expect(mercadoDoPais("PE")).toMatchObject({ moeda: "pen", conteudo: "latam", tagIdioma: "es-PE" });
   });
 
-  it("só o México tem a dLocal ligada (o resto espera o dono confirmar os métodos)", () => {
+  it("a dLocal está ligada no México e na LATAM; Espanha e EUA só cartão", () => {
     const comDlocal = Object.values(MERCADOS).filter((m) => m.temDlocal).map((m) => m.pais);
-    expect(comDlocal).toEqual(["MX"]);
+    expect(comDlocal).toEqual(["MX", "CO", "CL", "PE"]);
   });
 
   it("o caixa em inglês fica em inglês; o espanhol segue o país", () => {
@@ -80,6 +80,7 @@ describe("a tabela de mercados", () => {
 
   it("escreve cada moeda como o país lê", () => {
     expect(formatarNaMoeda(MERCADOS.ES, 1499)).toBe("14,99 €");
+    expect(formatarNaMoeda(MERCADOS.ES, 1900)).toBe("19 €");
     expect(formatarNaMoeda(MERCADOS.ES, 1500)).toBe("15 €");
     expect(formatarNaMoeda(MERCADOS.PE, 3900)).toBe("S/ 39");
     expect(formatarNaMoeda(MERCADOS.CO, 9990000)).toBe("$99.900 COP");
@@ -87,14 +88,14 @@ describe("a tabela de mercados", () => {
   });
 
   it("fora da tabela, a conversão arredonda pro preço de loja", () => {
-    // US$ 24 → €20,64 → 20,99
-    expect(valorNaMoeda(MERCADOS.ES, 2400)).toBe(2099);
-    // US$ 24 → $93.600 → $93.900
-    expect(valorNaMoeda(MERCADOS.CO, 2400)).toBe(9390000);
-    // US$ 24 → $22.800 → $22.990
-    expect(valorNaMoeda(MERCADOS.CL, 2400)).toBe(22990);
-    // US$ 24 → S/ 90
-    expect(valorNaMoeda(MERCADOS.PE, 2400)).toBe(9000);
+    // US$ 24 → €21,60 → 21,99
+    expect(valorNaMoeda(MERCADOS.ES, 2400)).toBe(2199);
+    // US$ 24 → $81.600 → $81.900
+    expect(valorNaMoeda(MERCADOS.CO, 2400)).toBe(8190000);
+    // US$ 24 → $25.440 → $25.990
+    expect(valorNaMoeda(MERCADOS.CL, 2400)).toBe(25990);
+    // US$ 24 → S/ 82,80 → S/ 83
+    expect(valorNaMoeda(MERCADOS.PE, 2400)).toBe(8300);
     expect(valorNaMoeda(MERCADOS.US, 2400)).toBe(2400);
   });
 
@@ -109,8 +110,8 @@ describe("a tabela de mercados", () => {
         expect(valorPagoConfere(m.moeda, Math.round(local * 0.9), pedido), `${m.pais} -10%`).toBe(false);
       }
     }
-    expect(usdDe(MERCADOS.ES, 1499)).toBe(1743);
-    expect(usdDe(MERCADOS.CL, 9990)).toBe(1052);
+    expect(usdDe(MERCADOS.ES, 1900)).toBe(2111);
+    expect(usdDe(MERCADOS.CL, 9990)).toBe(942);
   });
 
   it("a conferência genérica mantém os casos antigos do peso e recusa moeda estranha", () => {
@@ -134,8 +135,8 @@ describe("a tabela de mercados", () => {
   it("o texto em dólar vira o texto local pela mesma tabela", () => {
     expect(centavosDoTexto("US$ 19")).toBe(1900);
     expect(centavosDoTexto("$12.50")).toBe(1250);
-    expect(textoNaMoeda(MERCADOS.ES, "US$ 19")).toBe("14,99 €");
-    expect(textoNaMoeda(MERCADOS.ES, "$49")).toBe("34,99 €");
+    expect(textoNaMoeda(MERCADOS.ES, "US$ 19")).toBe("19 €");
+    expect(textoNaMoeda(MERCADOS.ES, "$49")).toBe("49 €");
     expect(textoNaMoeda(MERCADOS.CO, "US$ 12")).toBe("$25.900 COP");
     expect(textoNaMoeda(MERCADOS.CL, "$14")).toBe("$7.490 CLP");
     expect(textoNaMoeda(MERCADOS.PE, "$19")).toBe("S/ 39");

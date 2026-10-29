@@ -29,8 +29,22 @@ export const Route = createFileRoute("/es/pago-oxxo")({
   component: PagoOxxo,
 });
 
+// COLÔMBIA, CHILE E PERU (29/10) voltam pela mesma porta, mas o pagamento deles
+// quase sempre é na hora (PSE, Webpay, Yape): "pendente" ali é "ainda
+// confirmando", não "vá até a loja". Só a ficha em dinheiro espera os 3 dias.
+const PENDENTE_LATAM = {
+  titulo: "Tu pago está en proceso",
+  texto:
+    "Si ya pagaste desde tu banco o tu app, se confirma en unos minutos y tu canción completa llega a tu correo. Si elegiste pagar en efectivo, págalo en el punto indicado en tu ficha (vale 3 días).",
+  botao: "Ver mi pago",
+};
+
 function PagoOxxo() {
   const [estado, setEstado] = useState<EstadoDlocal | null>(null);
+  const [latam] = useState(() => {
+    const p = typeof document !== "undefined" ? document.documentElement.getAttribute("data-pais") : null;
+    return p === "CO" || p === "CL" || p === "PE";
+  });
 
   useEffect(() => {
     if (window.top && window.top !== window.self) {
@@ -73,17 +87,20 @@ function PagoOxxo() {
             <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-full bg-primary/10 text-primary">
               <Store className="h-6 w-6" />
             </div>
-            <h1 className="font-display text-2xl font-semibold leading-tight">Tu ficha de pago está lista</h1>
+            <h1 className="font-display text-2xl font-semibold leading-tight">
+              {latam ? PENDENTE_LATAM.titulo : "Tu ficha de pago está lista"}
+            </h1>
             <p className="mx-auto mt-4 max-w-sm text-muted-foreground">
-              Págala en cualquier OXXO (o haz la transferencia) en un plazo de 3 días. En cuanto se confirme el pago,
-              tu canción completa llega a tu correo. No necesitas hacer nada más.
+              {latam
+                ? PENDENTE_LATAM.texto
+                : "Págala en cualquier OXXO (o haz la transferencia) en un plazo de 3 días. En cuanto se confirme el pago, tu canción completa llega a tu correo. No necesitas hacer nada más."}
             </p>
             {estado.url && (
               <a
                 href={estado.url}
                 className="cta mt-6 inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-medium"
               >
-                Ver mi ficha de pago
+                {latam ? PENDENTE_LATAM.botao : "Ver mi ficha de pago"}
               </a>
             )}
             <p className="mt-6 text-xs text-muted-foreground">

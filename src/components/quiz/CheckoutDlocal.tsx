@@ -4,6 +4,17 @@ import { criarCheckoutDlocal } from "@/lib/dlocalgo-checkout";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { guardarTransacao } from "@/lib/google-ads";
 import { trackEvent } from "@/lib/track";
+import { Button } from "@/components/ui/button";
+import { nomeCompletoValido } from "@/lib/documento-mx";
+import { CAMPO_DOCUMENTO, validarDocumento, type PaisDocumento } from "@/lib/documento-pais";
+
+/** O que a pessoa vê antes de abrir a página da dLocal, com os métodos do país dela. */
+const COMO_FUNCIONA: Record<PaisDocumento, string> = {
+  MX: "Elige OXXO para recibir tu ficha y pagarla en efectivo en cualquier OXXO (vale 3 días), o transferencia para pagar desde tu banco. Tu canción completa llega a tu correo en cuanto se confirme el pago.",
+  CO: "Paga con PSE desde tu banco, con Nequi o en efectivo (Efecty y otros puntos). Tu canción completa llega a tu correo en cuanto se confirme el pago.",
+  CL: "Paga con Webpay o con transferencia desde tu banco. Tu canción completa llega a tu correo en cuanto se confirme el pago.",
+  PE: "Paga con Yape, con transferencia desde tu banco o en efectivo (PagoEfectivo, Tambo+ y otros). Tu canción completa llega a tu correo en cuanto se confirme el pago.",
+};
 
 // OXXO E TRANSFERÊNCIA (México, teste `oxxo_mx`), a partir da folha do Stripe.
 //
@@ -15,16 +26,27 @@ import { trackEvent } from "@/lib/track";
 // cai na `/es/pago-oxxo`, que diz se já pagou ou se a ficha está esperando.
 
 const T = {
+  dadosTitulo: "Tus datos para el pago",
+  nome: "Nombre completo",
+  nomeErro: "Escribe tu nombre y apellido.",
+  gerar: "Continuar al pago",
+  docRecusado: "Revisa tu nombre y tu documento e inténtalo de nuevo.",
   voltar: "Pagar con tarjeta",
   abrindo: "Abriendo el pago seguro…",
-  erro: "No pudimos abrir el pago en efectivo en este momento. Inténtalo de nuevo o paga con tarjeta.",
+  erro: "No pudimos abrir el pago en este momento. Inténtalo de nuevo o paga con tarjeta.",
   tentar: "Intentar de nuevo",
   voltou: "¿No terminaste el pago? Puedes abrirlo de nuevo o pagar con tarjeta.",
-  comoFunciona:
-    "Elige OXXO para recibir tu ficha y pagarla en efectivo en cualquier OXXO (vale 3 días), o transferencia para pagar desde tu banco. Tu canción completa llega a tu correo en cuanto se confirme el pago.",
 };
 
-export function CheckoutDlocal({ aoVoltar, aoSemMusica }: { aoVoltar: () => void; aoSemMusica: () => void }) {
+export function CheckoutDlocal({
+  pais,
+  aoVoltar,
+  aoSemMusica,
+}: {
+  pais: PaisDocumento;
+  aoVoltar: () => void;
+  aoSemMusica: () => void;
+}) {
   const [erro, setErro] = useState(false);
   // VOLTOU DA DLOCAL PELO "VOLTAR" (29/10). O Safari e o Chrome do celular
   // devolvem a página congelada (bfcache), com o "Abriendo el pago seguro…"
@@ -33,6 +55,32 @@ export function CheckoutDlocal({ aoVoltar, aoSemMusica }: { aoVoltar: () => void
   // reabre a MESMA cobrança (o servidor devolve a que está aberta).
   const [voltou, setVoltou] = useState(false);
   const [tentativa, setTentativa] = useState(0);
+  // O DOCUMENTO É PEDIDO AQUI, NÃO NA PÁGINA DA DLOCAL (29/10). Lá a pessoa
+  // escrevia "ife" ou o RFC sem homoclave e a ficha voltava "Documento
+  // inválido" depois de ela já ter escolhido pagar. Conferido na hora
+  // (`documento-mx.ts`) e mandado pronto; a página deles não pede de novo.
+  // Fica só na memória desta folha: nunca vai pro storage.
+  const [nome, setNome] = useState("");
+  const [documento, setDocumento] = useState("");
+  const [tocou, setTocou] = useState(false);
+  const [dados, setDados] = useState<{ nome: string; documento: string } | null>(null);
+  const [recusado, setRecusado] = useState(false);
+  const docOk = validarDocumento(pais, documento);
+  const campo = CAMPO_DOCUMENTO[pais];
+  const nomeOk = nomeCompletoValido(nome);
+
+  const enviarDados = () => {
+    setTocou(true);
+    if (!docOk.ok) {
+      trackEvent("dlocal_documento_invalido", { motivo: docOk.motivo, pais });
+      return;
+    }
+    if (!nomeOk) return;
+    trackEvent("dlocal_documento_ok", { tipo: docOk.tipo, pais });
+    setRecusado(false);
+    setDados({ nome: nome.trim().replace(/\s+/g, " "), documento: docOk.documento });
+    setTentativa((n) => n + 1);
+  };
 
   useEffect(() => {
     const aoMostrar = (e: PageTransitionEvent) => {
@@ -45,10 +93,11 @@ export function CheckoutDlocal({ aoVoltar, aoSemMusica }: { aoVoltar: () => void
   }, []);
 
   useEffect(() => {
+    if (!dados) return;
     let vivo = true;
     setErro(false);
     setVoltou(false);
-    criarCheckoutDlocal({ data: { sessionId: getOrCreateSessionId() } })
+    criarCheckoutDlocal({ data: { sessionId: getOrCreateSessionId(), ...dados } })
       .then((r) => {
         if (!vivo) return;
         if (r.ok) {
@@ -63,6 +112,11 @@ export function CheckoutDlocal({ aoVoltar, aoSemMusica }: { aoVoltar: () => void
         }
         trackEvent("dlocal_checkout_erro", { erro: r.erro });
         if (r.erro === "sem-musica") return aoSemMusica();
+        if (r.erro === "documento") {
+          setRecusado(true);
+          setDados(null);
+          return;
+        }
         if (r.erro === "ja-pago") {
           window.location.href = "/es/gracias";
           return;
@@ -92,9 +146,49 @@ export function CheckoutDlocal({ aoVoltar, aoSemMusica }: { aoVoltar: () => void
         <ArrowLeft className="h-4 w-4" /> {T.voltar}
       </button>
       <p className="mx-2 mb-3 rounded-xl bg-muted/50 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
-        {T.comoFunciona}
+        {COMO_FUNCIONA[pais]}
       </p>
-      {erro || voltou ? (
+      {!dados ? (
+        <div className="mx-2 space-y-4 rounded-2xl border border-border bg-card px-4 py-5 text-left">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold">{T.dadosTitulo}</p>
+            <p className="text-xs leading-snug text-muted-foreground">{campo.sub}</p>
+          </div>
+          <div className="space-y-1.5">
+            <input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              autoComplete="name"
+              placeholder={T.nome}
+              aria-label={T.nome}
+              className="w-full rounded-xl border border-input bg-background px-3 py-3 text-base outline-none focus:border-ring"
+            />
+            {tocou && !nomeOk ? <p className="text-xs text-amber-700">{T.nomeErro}</p> : null}
+          </div>
+          <div className="space-y-1.5">
+            <input
+              value={documento}
+              onChange={(e) => setDocumento(e.target.value.toUpperCase().slice(0, 24))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") enviarDados();
+              }}
+              autoComplete="off"
+              autoCapitalize="characters"
+              inputMode={pais === "CO" || pais === "PE" ? "numeric" : "text"}
+              spellCheck={false}
+              placeholder={campo.rotulo}
+              aria-label={campo.rotulo}
+              aria-invalid={tocou && !docOk.ok}
+              className="w-full rounded-xl border border-input bg-background px-3 py-3 text-base uppercase tracking-wide outline-none focus:border-ring"
+            />
+            {tocou && !docOk.ok ? <p className="text-xs text-amber-700">{docOk.mensagem}</p> : null}
+            {recusado ? <p className="text-xs text-amber-700">{T.docRecusado}</p> : null}
+          </div>
+          <Button size="lg" className="w-full" onClick={enviarDados}>
+            {T.gerar}
+          </Button>
+        </div>
+      ) : erro || voltou ? (
         <div className="px-3 py-6 text-center">
           <p className={voltou && !erro ? "text-sm text-muted-foreground" : "text-sm text-amber-900"}>
             {voltou && !erro ? T.voltou : T.erro}

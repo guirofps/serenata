@@ -254,7 +254,7 @@ describe("na Ballad, o país do acesso escolhe o espanhol e a moeda", () => {
 
   it("o preço do vídeo no e-mail sai na moeda da compra", () => {
     const { precoDoVideoNoEmail } = m.video;
-    expect(precoDoVideoNoEmail("es", "ab12", "eur")).toBe("9,99 €");
+    expect(precoDoVideoNoEmail("es", "ab12", "eur")).toBe("12 €");
     expect(precoDoVideoNoEmail("es", "ab12", "cop")).toBe("$25.900 COP");
     expect(precoDoVideoNoEmail("es", "ab12", "clp")).toBe("$6.490 CLP");
     expect(precoDoVideoNoEmail("es", "ab12", "pen")).toBe("S/ 25");
