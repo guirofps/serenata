@@ -27,6 +27,7 @@ import { ofertaQuadro } from "../inngest/functions/ofertaQuadro.js";
 import { vigiaGeracao } from "../inngest/functions/vigiaGeracao.js";
 import { quaseComprou } from "../inngest/functions/quaseComprou.js";
 import { recusaRapida } from "../inngest/functions/recusaRapida.js";
+import { oxxoPendente } from "../inngest/functions/oxxoPendente.js";
 import { resgatarCoautoria } from "../inngest/functions/resgatarCoautoria.js";
 import { quadroParado } from "../inngest/functions/quadroParado.js";
 import { creditoParado } from "../inngest/functions/creditoParado.js";
@@ -65,6 +66,12 @@ const DA_BALLAD = [
   // Cartão recusado no Stripe: aviso com o motivo 10 minutos depois (teste
   // `recusa_rapida`, 28/10). Só existe aqui: a Serenata não usa Stripe.
   recusaRapida,
+  // A ficha do OXXO gerada e não paga (teste `oxxo_pendente`, 28/10): o
+  // equivalente do PIX não pago, no tempo do OXXO. Só o México tem ficha.
+  oxxoPendente,
+  // Crédito pago e não usado (28/10): com a música extra vendida aqui
+  // (`extra_ballad`), o mesmo lembrete da Serenata, em inglês e espanhol.
+  creditoParado,
   // O gasto do Google pro painel (custo por venda e ROAS por campanha). Lê a
   // conta de `GOOGLE_ADS_CUSTOMER_ID`, que no projeto da Ballad é a Projeto GM2.
   puxarMetricasAds,

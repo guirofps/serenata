@@ -19,21 +19,78 @@
 // navegador e sai pro funil. Sem isso a pessoa faria o quiz inteiro e a tela
 // de oferta cobraria de novo, porque a sessão nova não sabe quem ela é.
 
-type IdiomaEmail = "pt" | "es";
+//
+// ── NA BALLAD (28/10) ────────────────────────────────────────────
+//
+// Com a música extra vendida lá (teste `extra_ballad`), o mesmo lembrete em
+// inglês e no espanhol dos hispanos dos EUA e do México (`tú`, não o `vos` da
+// Serenata argentina). Quem escolhe é `copyDe`, pela marca.
 
-const COPY: Record<
-  IdiomaEmail,
-  {
-    assunto: string;
-    titulo: string;
-    corpo: string;
-    passos: string[];
-    botao: string;
-    aviso: string;
-    ajuda: string;
-    rodape: string;
-  }
-> = {
+import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
+
+type IdiomaEmail = "pt" | "es" | "en";
+
+type Copy = {
+  assunto: string;
+  titulo: string;
+  corpo: string;
+  passos: string[];
+  botao: string;
+  aviso: string;
+  ajuda: string;
+  rodape: string;
+  /** "Você tem 2 créditos guardados." */
+  varios: (n: number) => string;
+};
+
+const EN: Copy = {
+  assunto: "You have a paid song waiting",
+  titulo: "All that's missing is who it's for.",
+  corpo:
+    "You bought one more song and it's saved, waiting for just one thing: the story of the person who'll get it. You don't need to pay anything again.",
+  passos: [
+    "Open the link below. Your credit is already recognized.",
+    "Tell that person's story, just like you did the first time.",
+    "At the end, instead of charging you, the site uses the credit that's already yours.",
+  ],
+  botao: "USE MY SONG",
+  aviso: "You already paid for it. The credit is yours and it doesn't expire.",
+  ajuda: "If anything doesn't open, just reply to this email and we'll sort it out.",
+  rodape: `${MARCA_ATIVA.nome} · a song made from the story of someone you love`,
+  varios: (n) => `You have <strong style="color:#2a1518;">${n} credits</strong> saved.`,
+};
+
+const ES_EUA: Copy = {
+  assunto: "Tienes una canción pagada esperando",
+  titulo: "Solo falta que digas para quién es.",
+  corpo:
+    "Compraste una canción más y quedó guardada esperando una sola cosa: que cuentes la historia de quien la va a recibir. No tienes que pagar nada de nuevo.",
+  passos: [
+    "Abre el link de abajo. Ya entra con tu crédito reconocido.",
+    "Cuenta la historia de esa persona, como lo hiciste la primera vez.",
+    "Al final, en vez de cobrarte, el sitio usa el crédito que ya es tuyo.",
+  ],
+  botao: "USAR MI CANCIÓN",
+  aviso: "Ya la pagaste. El crédito es tuyo y no vence.",
+  ajuda: "Si algo no abre, responde este correo y lo resolvemos.",
+  rodape: `${MARCA_ATIVA.nome} · una canción hecha de la historia de quien tú quieres`,
+  varios: (n) => `Tienes <strong style="color:#2a1518;">${n} créditos</strong> guardados.`,
+};
+
+/** A copy do idioma NESTE deploy: o espanhol e o inglês da Ballad têm a sua. */
+function copyDe(locale: IdiomaEmail | undefined): Copy {
+  if (locale === "en") return EN;
+  if (locale === "es" && MARCA_ATIVA.chave === "ballad") return ES_EUA;
+  return COPY[locale === "es" ? "es" : "pt"];
+}
+
+/** O texto puro do lembrete, no idioma da música. */
+export function textoCreditoParado(link: string, locale: IdiomaEmail = "pt"): string {
+  const C = copyDe(locale);
+  return `${C.titulo}\n\n${C.corpo}\n\n${link}\n\n${C.ajuda}`;
+}
+
+const COPY: Record<"pt" | "es", Copy> = {
   pt: {
     assunto: "Você tem uma música paga esperando",
     titulo: "Falta você dizer pra quem é.",
@@ -48,6 +105,7 @@ const COPY: Record<
     aviso: "Você já pagou por ela. O crédito é seu e não tem prazo pra usar.",
     ajuda: "Se alguma coisa não abrir, é só responder este e-mail que a gente resolve.",
     rodape: "Serenata · uma música feita da história de quem você ama",
+    varios: (n) => `Você tem <strong style="color:#2a1518;">${n} créditos</strong> guardados.`,
   },
   es: {
     assunto: "Tenés una canción pagada esperando",
@@ -63,11 +121,12 @@ const COPY: Record<
     aviso: "Ya la pagaste. El crédito es tuyo y no vence.",
     ajuda: "Si algo no abre, respondé este correo y lo resolvemos.",
     rodape: "Serenata · una canción hecha de la historia de quien vos querés",
+    varios: (n) => `Tenés <strong style="color:#2a1518;">${n} créditos</strong> guardados.`,
   },
 };
 
 export function assuntoCreditoParado(locale: IdiomaEmail = "pt") {
-  return COPY[locale].assunto;
+  return copyDe(locale).assunto;
 }
 
 export function emailCreditoParado(args: {
@@ -77,13 +136,12 @@ export function emailCreditoParado(args: {
   saldo?: number;
   locale?: IdiomaEmail;
 }) {
-  const C = COPY[args.locale ?? "pt"] ?? COPY.pt;
+  const C = copyDe(args.locale);
   const { link } = args;
   const saldo = args.saldo ?? 1;
-  const es = args.locale === "es";
 
   return `<!DOCTYPE html>
-<html lang="${es ? "es" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto}</title></head>
+<html lang="${args.locale === "es" ? "es" : args.locale === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${C.assunto}</title></head>
 <body style="margin:0;padding:0;background-color:#f2e9dc;font-family:Georgia,'Times New Roman',serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2e9dc;padding:40px 16px;">
     <tr><td align="center">
@@ -102,7 +160,7 @@ export function emailCreditoParado(args: {
           ${
             saldo > 1
               ? `<p style="margin:10px 0 0;font-size:14px;color:rgba(42,21,24,0.55);font-family:Helvetica,Arial,sans-serif;">
-            ${es ? "Tenés" : "Você tem"} <strong style="color:#2a1518;">${saldo} ${es ? "créditos" : "créditos"}</strong> ${es ? "guardados" : "guardados"}.
+            ${C.varios(saldo)}
           </p>`
               : ""
           }

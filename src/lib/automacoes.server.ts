@@ -19,6 +19,8 @@ import { assuntoIndicacao, emailIndicacao } from "../../emails/indicacao";
 import { assuntoLetraPronta, emailLetraPronta } from "../../emails/letra-pronta";
 import { assuntoQuaseComprou, emailQuaseComprou } from "../../emails/quase-comprou";
 import { assuntoRecusaRapida, emailRecusaRapida } from "../../emails/recusa-rapida";
+import { assuntoOxxoPendente, emailOxxoPendente } from "../../emails/oxxo-pendente";
+import { quandoVence } from "./oxxo-pendente";
 import { assuntoPixNaoPago, emailPixNaoPago } from "../../emails/pix-nao-pago";
 import { assuntoPresentePronto, emailPresentePronto } from "../../emails/presente-pronto";
 import { assuntoEmProducao, emailEmProducao } from "../../emails/entrega-em-producao";
@@ -202,6 +204,31 @@ export const AUTOMACOES: Automacao[] = [
         template: "recusa_rapida",
         nome: "Seu pagamento não passou",
         quando: "10 min depois da última recusa do cartão (en e es)",
+        idiomas: ["es"],
+      },
+    ],
+  },
+  {
+    id: "oxxo-pendente",
+    nome: "Ficha do OXXO não paga (Ballad)",
+    fase: "antes",
+    gatilho: "a cada 20 min, 8h–21h do México",
+    quemRecebe:
+      "Teste oxxo_pendente, braço B: quem gerou a ficha do OXXO/transferência no México e não pagou. 1º toque 2h depois de gerar, 2º no último dia da ficha (vale 3 dias). Pergunta à dLocal antes: se pagou, entrega e não manda.",
+    quemNao: "Braço A. Quem pagou (pela ficha ou por cartão). Ficha vencida ou a menos de 2h de vencer.",
+    remetente: "transacional",
+    arquivo: "inngest/functions/oxxoPendente.ts",
+    emails: [
+      {
+        template: "oxxo_pendente_1",
+        nome: "Sua ficha do OXXO segue ativa",
+        quando: "2h depois de gerar a ficha",
+        idiomas: ["es"],
+      },
+      {
+        template: "oxxo_pendente_2",
+        nome: "Sua ficha do OXXO vence amanhã",
+        quando: "no último dia da ficha",
         idiomas: ["es"],
       },
     ],
@@ -633,6 +660,20 @@ export function renderizarPreview(template: string, locale: "pt" | "es"): Previe
         assuntoQuaseComprou(E.nome, l),
         emailQuaseComprou({ nome: E.nome, titulo: E.titulo, link: E.linkPrevia, locale: l }),
       );
+    case "oxxo_pendente_1":
+    case "oxxo_pendente_2": {
+      const toque = template.endsWith("2") ? 2 : 1;
+      const a = {
+        nome: E.nome,
+        toque: toque as 1 | 2,
+        linkFicha: "https://checkout.dlocalgo.com/exemplo",
+        linkCartao: E.linkPrevia,
+        vence: quandoVence(Date.now() + (toque === 2 ? 20 : 70) * 3600e3),
+        quando: toque === 2 ? ("mañana" as const) : null,
+        valor: "$199 MXN",
+      };
+      return { template, locale: "es", assunto: assuntoOxxoPendente(a), html: emailOxxoPendente(a) };
+    }
     case "recusa_rapida": {
       const a = { nome: E.nome, titulo: E.titulo, link: E.linkPrevia, locale: l === "es" ? ("es" as const) : ("en" as const), grupo: "banco" as const, mexico: l === "es" };
       return pt(assuntoRecusaRapida(a), emailRecusaRapida(a));

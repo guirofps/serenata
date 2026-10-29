@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { guardarCreditoNoNavegador } from "@/lib/credito-no-navegador";
 import { trackEvent } from "@/lib/track";
+import { ehBallad } from "@/lib/marca-identidade";
 
 // A PORTA DE ENTRADA DE QUEM TEM CRÉDITO E VEIO DO E-MAIL.
 //
@@ -44,7 +45,10 @@ function Pagina() {
     guardarCreditoNoNavegador(tokenEdicao);
     trackEvent("credito_link_aberto", {});
 
-    const es = window.location.pathname.startsWith("/es/");
+    // O espanhol: pelo caminho, ou pelo `?l=es` que o lembrete da Ballad põe
+    // (28/10): lá não existe `/es/credito`, e o espanhol de lá é o `/es/criar`.
+    const es =
+      window.location.pathname.startsWith("/es/") || new URLSearchParams(window.location.search).get("l") === "es";
 
     // ── APAGA O TOKEN DA URL ANTES DE SAIR ───────────────────
     //
@@ -79,14 +83,15 @@ function Pagina() {
     <div className="flex min-h-screen items-center justify-center px-6 text-center">
       <div>
         <p className="text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)" }}>
-          Abrindo o seu crédito...
+          {/* Na Ballad, os dois idiomas dela: o servidor não sabe qual é. */}
+          {ehBallad() ? "Opening your credit… · Abriendo tu crédito…" : "Abrindo o seu crédito..."}
         </p>
         <a
           href="/criar"
           className="mt-3 inline-block text-[var(--acento)] underline underline-offset-4"
           style={{ fontSize: "var(--t-sm)" }}
         >
-          Continuar
+          {ehBallad() ? "Continue · Continuar" : "Continuar"}
         </a>
       </div>
     </div>

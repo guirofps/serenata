@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { comUtm } from "../../src/lib/utm-email.js";
 import { REMETENTE_TRANSACIONAL } from "../../emails/remetentes.js";
-import { emailCreditoParado, assuntoCreditoParado } from "../../emails/credito-parado.js";
+import { emailCreditoParado, assuntoCreditoParado, textoCreditoParado } from "../../emails/credito-parado.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { todasAsPaginas } from "../lib/paginar.js";
@@ -134,7 +134,7 @@ export const creditoParado = inngest.createFunction(
         if (l.origem === "compra") compradoEm.set(e, l.created_at);
       }
 
-      const out: Array<{ email: string; saldo: number; link: string; locale: "pt" | "es" }> = [];
+      const out: Array<{ email: string; saldo: number; link: string; locale: "pt" | "es" | "en" }> = [];
 
       for (const [email, n] of saldo) {
         if (out.length >= MAX_POR_RODADA) break;
@@ -195,11 +195,14 @@ export const creditoParado = inngest.createFunction(
         // mandaria a pessoa pra uma cobrança. Caso de suporte, não de cron.
         if (!token) continue;
 
+        // O idioma da música. Na Ballad (28/10) também o inglês, e o espanhol
+        // de lá cai no `/es/criar` (o `?l=es` diz isso à `/credito`).
+        const idioma = locale === "es" ? "es" : locale === "en" ? "en" : "pt";
         out.push({
           email,
           saldo: n,
-          link: `${SITE}/credito/${token}`,
-          locale: locale === "es" ? "es" : "pt",
+          link: `${SITE}/credito/${token}${idioma === "es" && MARCA_ATIVA.chave === "ballad" ? "?l=es" : ""}`,
+          locale: idioma,
         });
       }
       return out;
@@ -236,10 +239,7 @@ export const creditoParado = inngest.createFunction(
           to: [c.email],
           subject: assuntoCreditoParado(c.locale),
           html: emailCreditoParado({ link: c.link, saldo: c.saldo, locale: c.locale }),
-          text:
-            `Falta você dizer pra quem é.\n\n` +
-            `Você comprou uma música a mais e ela ficou guardada. Não precisa pagar nada de novo.\n\n` +
-            `${c.link}\n\nSe alguma coisa não abrir, é só responder este e-mail.`,
+          text: textoCreditoParado(c.link, c.locale),
         });
         if (error) {
           console.error("[credito-parado] envio falhou:", error.message);
