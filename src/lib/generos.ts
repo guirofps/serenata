@@ -1,5 +1,7 @@
 import type { Locale } from "@/lib/i18n";
-import { ehEspanha, ehArgentina, ehEua } from "./mercado-es.js";
+import { ehEspanha, ehArgentina, herdaEua, paisAtual } from "./mercado-es.js";
+import { ehBallad } from "./marca-identidade.js";
+import { normalizarPais } from "./mercados.js";
 
 // OS GÊNEROS, num lugar só.
 //
@@ -441,11 +443,35 @@ const TODAS: Record<string, Genero[]> = {
   gospel_en: GOSPEL_EN,
 };
 
+// A LISTA NEUTRA COM O GÊNERO DO PAÍS NA FRENTE (Ballad, 29/10).
+//
+// A `ES` foi ordenada pra quatro países dividindo a mesma verba, e por isso o
+// gênero mais de cada um ficou lá embaixo: o colombiano rolava até o 10º chip
+// pra achar o vallenato. Com o país do acesso conhecido, o dele sobe, e o
+// resto fica na ordem de sempre. Os objetos são OS MESMOS da `ES` (mesmo
+// `value`, mesmo estilo do Suno): nenhuma música muda de estilo por isso.
+const FRENTE_LATAM: Record<string, string[]> = {
+  CO: ["vallenato"],
+  CL: ["cueca", "cumbia"],
+  PE: ["huayno"],
+};
+
+function latamDoPais(pais: string | null): Genero[] {
+  const frente = FRENTE_LATAM[String(pais ?? "")] ?? [];
+  if (!frente.length) return ES;
+  const primeiros = frente.map((v) => ES.find((g) => g.value === v)).filter((g): g is Genero => !!g);
+  return [...primeiros, ...ES.filter((g) => !frente.includes(g.value))];
+}
+
 export function generos(locale: Locale): Genero[] {
   if (locale === "es") {
-    if (ehEua()) return ES_EUA;
-    if (ehEspanha()) return ES_ESPANHA;
-    if (ehArgentina()) return ES_AR;
+    // `herdaEua`: o México fica com a lista dos hispanos dos EUA, que já tem
+    // o regional mexicano na frente. O país é lido UMA vez por chamada.
+    const pais = paisAtual();
+    if (herdaEua(pais)) return ES_EUA;
+    if (ehEspanha(pais)) return ES_ESPANHA;
+    if (ehArgentina(pais)) return ES_AR;
+    if (ehBallad()) return latamDoPais(normalizarPais(pais));
     return ES;
   }
   return TODAS[locale] ?? PT;

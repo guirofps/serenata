@@ -19,6 +19,8 @@
 // no banco no primeiro passo do quiz. Ver a migration 20260807000000_locale.
 
 import { chaveDaMarca, ehBallad } from "./marca-identidade.js";
+import { paisAtual } from "./mercado-es.js";
+import { mercadoDoPais } from "./mercados.js";
 
 export const LOCALES = ["pt", "es", "en"] as const;
 export type Locale = (typeof LOCALES)[number];
@@ -80,9 +82,13 @@ export const TAG_IDIOMA: Record<Locale, string> = {
  * pra quem está nos EUA" no `<html lang>` e no hreflang, e o reconhecimento de
  * voz do Chrome tem o modelo `es-US` treinado justamente no sotaque de lá (que
  * mistura inglês no meio da frase). Na Serenata nada muda.
+ *
+ * Desde 29/10 o espanhol da Ballad segue o PAÍS do acesso (`mercados.ts`):
+ * `es-ES` na Espanha, `es-CO`/`es-CL`/`es-PE`, `es-MX`, e `es-US` no resto.
+ * O ditado por voz (`StoryStep`) ganha junto o sotaque certo.
  */
 export function tagIdioma(locale: Locale): string {
-  if (locale === "es" && ehBallad()) return "es-US";
+  if (locale === "es" && ehBallad()) return mercadoDoPais(paisAtual()).tagIdioma;
   return TAG_IDIOMA[locale];
 }
 

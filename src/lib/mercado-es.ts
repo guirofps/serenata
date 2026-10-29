@@ -60,13 +60,66 @@
 // EUA, e trocar o mercado de uma nunca mexe na outra. Onde o código pergunta
 // `ehArgentina()` / `ehEspanha()`, a Ballad cai no ramo neutro (`tú`), que é
 // o certo pra ela; onde precisa de mais que isso, pergunta `ehEua()`.
+//
+// ── NA BALLAD, O PAÍS DO ACESSO ESCOLHE O ESPANHOL (29/10/2026) ──
+//
+// A Ballad passou a vender no México, na Espanha, na Colômbia, no Chile e no
+// Peru (`mercados.ts`). O deploy é um só e a URL também (`/es`), então quem
+// decide é o PAÍS da requisição (`x-vercel-ip-country`), lido no servidor e
+// carimbado no `<html data-pais>` do HTML que ele manda. Nada de redirecionar
+// por IP: a URL anunciada é a URL que abre, em todo país.
+//
+//   EUA      → `eua`      o de sempre (spanglish na letra, regional mexicano)
+//   México   → `mexico`   o `eua` sem as frases que só valem dentro dos EUA
+//   Espanha  → `espanha`  `vosotros`, copla e cantautor (já existia, sem porta)
+//   CO/CL/PE → `latam`    neutro, `tú`, com o gênero do país na frente
+//   resto    → `eua`      como era antes de 29/10
+//
+// A Serenata não muda: continua na Argentina, pela marca.
+//
+// ── DE ONDE VEM O PAÍS, EM CADA LADO ─────────────────────────────
+//
+// Este arquivo é puro (roda no navegador, no servidor e nos jobs), então ele
+// não lê cabeçalho nenhum: pergunta a uma FONTE. No navegador a fonte padrão
+// é o `data-pais` do `<html>`, que o servidor já mandou carimbado, e por isso
+// a hidratação vê o mesmo país que desenhou o HTML. No servidor, o middleware
+// de `start.ts` liga a fonte do cabeçalho (`pais-requisicao.server.ts`). Nos
+// jobs e webhooks não há requisição de visitante: quem precisa do mercado lá
+// passa o país gravado na linha do quiz (`quiz_responses.pais`) como
+// argumento, e sem argumento vale o padrão de sempre (EUA).
 import { ehBallad } from "./marca-identidade.js";
+import { mercadoDoPais } from "./mercados.js";
 
-export type MercadoEs = "latam" | "espanha" | "argentina" | "eua";
+export type MercadoEs = "latam" | "espanha" | "argentina" | "eua" | "mexico";
+
+/** O país do `<html data-pais>`, no navegador. Fora dele, ninguém sabe. */
+function paisDoDocumento(): string | null {
+  if (typeof document === "undefined") return null;
+  return document.documentElement.getAttribute("data-pais");
+}
+
+let fontePais: () => string | null | undefined = paisDoDocumento;
+
+/** O servidor troca a fonte pela do cabeçalho da requisição (`pais-requisicao.server.ts`). */
+export function definirFontePais(fonte: () => string | null | undefined): void {
+  fontePais = fonte;
+}
+
+/** O país desta requisição (servidor) ou desta página (navegador). Fonte que falha = `null`. */
+export function paisAtual(): string | null {
+  try {
+    return fontePais() ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
- * O mercado que a rota `/es` atende hoje. **Na Serenata, é a linha do `return`
- * final que se troca.**
+ * O mercado que a rota `/es` atende NESTA requisição. Na Serenata, a linha do
+ * `return` final continua sendo a chave (Argentina hoje).
+ *
+ * `pais` explícito vence a fonte: é como os jobs e o servidor da letra dizem
+ * "este quiz é da Espanha" sem depender de quem está pedindo agora.
  *
  * FUNÇÃO e não `const`, e a razão é chata mas real: com `const MERCADO_ES =
  * "latam"` o TypeScript estreita o valor pro literal e passa a acusar
@@ -75,11 +128,23 @@ export type MercadoEs = "latam" | "espanha" | "argentina" | "eua";
  * declarado impede esse estreitamento, e as duas posições da chave compilam
  * igual.
  */
-export function mercadoEs(): MercadoEs {
-  if (ehBallad()) return "eua";
+export function mercadoEs(pais?: string | null): MercadoEs {
+  if (ehBallad()) return mercadoDoPais(pais === undefined ? paisAtual() : pais).conteudo;
   return "argentina";
 }
 
-export const ehEspanha = () => mercadoEs() === "espanha";
-export const ehArgentina = () => mercadoEs() === "argentina";
-export const ehEua = () => mercadoEs() === "eua";
+export const ehEspanha = (pais?: string | null) => mercadoEs(pais) === "espanha";
+export const ehArgentina = (pais?: string | null) => mercadoEs(pais) === "argentina";
+/** Só os EUA. Pra o que vale também no México (a base americana), `herdaEua`. */
+export const ehEua = (pais?: string | null) => mercadoEs(pais) === "eua";
+export const ehMexico = (pais?: string | null) => mercadoEs(pais) === "mexico";
+export const ehLatam = (pais?: string | null) => mercadoEs(pais) === "latam";
+/**
+ * EUA ou México: o conteúdo nascido pros hispanos dos EUA (gêneros com o
+ * regional mexicano na frente, exemplos, copy do Stripe). O México herda tudo,
+ * menos o que fala de morar nos EUA e de dólar.
+ */
+export const herdaEua = (pais?: string | null) => {
+  const m = mercadoEs(pais);
+  return m === "eua" || m === "mexico";
+};

@@ -41,6 +41,8 @@ import { LOCALE_PADRAO, localeDaRota, tagIdioma } from "@/lib/i18n";
 import { FONTES, MARCA } from "@/lib/marca";
 import { ehBallad } from "@/lib/marca-identidade";
 import { descobrirPais, scriptCarimbarPais } from "@/lib/pais-acesso";
+import { paisAtual } from "@/lib/mercado-es";
+import { cssPrecoPorPais } from "@/lib/mercados";
 import {
   rotaDeConversao,
   scriptCarregaGtag,
@@ -249,6 +251,16 @@ function RootShell({ children }: { children: React.ReactNode }) {
   // que o tradutor do Chrome lê antes de oferecer "traduzir". Na Serenata fica
   // como sempre esteve (o padrão do deploy em toda rota), pra nada mudar lá.
   const idiomaDaPagina = ehBallad() ? localeDaRota(caminho) : LOCALE_PADRAO;
+  // O PAÍS DO ACESSO NO HTML (Ballad, 29/10). No servidor vem do cabeçalho
+  // (`pais-requisicao.server.ts`, ligado em `start.ts`); no navegador, do
+  // próprio `<html>` que o servidor mandou, então a hidratação desenha o MESMO
+  // espanhol e o mesmo preço que o HTML já mostrava. `data-pais-fonte` diz ao
+  // `descobrirPais` que não precisa perguntar de novo. Ver `pais-acesso.ts`.
+  const pais = ehBallad() ? paisAtual() : null;
+  const paisDoServidor =
+    typeof document === "undefined"
+      ? !!pais
+      : document.documentElement.getAttribute("data-pais-fonte") === "servidor";
   return (
     // `suppressHydrationWarning` é a declaração de que o `<html>` é do
     // CLIENTE, não do servidor.
@@ -263,7 +275,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
     // cliente, e o CSS tem o `:not([data-exp-...])` como rede). O que não é
     // inofensivo é o console cheio: erro de verdade some no meio do barulho, e
     // foi assim que a queda de 4 horas do `/api/inngest` passou despercebida.
-    <html lang={tagIdioma(idiomaDaPagina)} suppressHydrationWarning>
+    <html
+      lang={tagIdioma(idiomaDaPagina)}
+      data-pais={pais ?? undefined}
+      data-pais-fonte={paisDoServidor ? "servidor" : undefined}
+      suppressHydrationWarning
+    >
       <head>
         <HeadContent />
         {/* TESTE A/B — os três <script>/<style> abaixo precisam ser a
@@ -285,8 +302,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
             Precisa vir depois do sorteio, que é quem carimba o <html>. Na
             Serenata o carimbo não existe e ele não faz nada. Ver `abertura-en.ts`. */}
         <script dangerouslySetInnerHTML={{ __html: scriptPularAbertura() }} />
-        {/* O país guardado vira `data-pais` antes de pintar: o preço em peso
-            pra quem está no México (`pais-acesso.ts`). Só na Ballad. */}
+        {/* O preço na moeda do país (`mercados.ts`): o CSS que escolhe a
+            moeda pelo `data-pais`, e a rede do carimbo pra quando o servidor
+            não soube o país (`pais-acesso.ts`). Só na Ballad. */}
+        {ehBallad() && <style dangerouslySetInnerHTML={{ __html: cssPrecoPorPais() }} />}
         {ehBallad() && <script dangerouslySetInnerHTML={{ __html: scriptCarimbarPais() }} />}
         {/* Depois dos três do teste A/B: a porta dos scripts que esperam a
             página carregar (gtag e TikTok, mais abaixo) e a fonte sem travar a

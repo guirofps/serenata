@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n";
-import { ehArgentina, ehEua } from "@/lib/mercado-es";
+import { mercadoEs } from "@/lib/mercado-es";
+import { ehBallad } from "@/lib/marca-identidade";
 
 // O DICIONÁRIO da interface.
 //
@@ -568,25 +569,68 @@ const EN: Textos = {
 // O resto é o que depende do PAÍS, igual ao inglês da Ballad: o link vai por
 // mensagem de texto, não por WhatsApp. Os campos `zap*` só satisfazem o tipo
 // (o bloco que os usa não aparece na Ballad, ver `AvisarWhatsApp`).
-const EUA: Partial<Textos> = {
+//
+// 29/10: as cinco travas em `tú` e o "Serenata" do `zapTexto` valem pra todo
+// espanhol da Ballad, em qualquer país (`BALLAD_TU`). Só o que depende do país
+// fica por mercado.
+const BALLAD_TU: Partial<Textos> = {
   faltaResponder: "Responde esta para continuar",
   bloqueioEmailVazio: "Escribe tu correo para recibir la letra",
   bloqueioChips: "Toca una de las opciones de arriba",
   bloqueioTexto: "Completa ese campo para continuar",
   compradorPlaceholder: "cómo te llamas",
+  zapTexto: "Solo te escribimos sobre este pedido.",
+};
+
+const EUA: Partial<Textos> = {
+  ...BALLAD_TU,
   comoVaiChegar:
     "Le mandas el link por mensaje. La persona lo toca, y la letra se ilumina al ritmo de la canción, con las fotos de ustedes.",
   zapTitulo: "¿Avisos de tu pedido por mensaje?",
-  zapTexto: "Solo te escribimos sobre este pedido.",
   zapCampo: "Tu teléfono (opcional)",
   zapBotao: "Quiero recibir",
+};
+
+// LATAM DA BALLAD (Colômbia, Chile, Peru; 29/10). Lá o presente vai pelo
+// WhatsApp, como no Brasil: a frase da base já diz isso. O "ahorita" é
+// mexicano e sai.
+const LATAM: Partial<Textos> = {
+  ...BALLAD_TU,
+  naoLembro: "No me acuerdo de nada ahora, seguir sin esto",
+};
+
+// ESPANHA NA BALLAD (29/10). `vosotros` onde a frase fala com o CASAL (as
+// fotos e os detalhes "de vocês dois"); o resto já é `tú` singular, que é
+// igual na Espanha. WhatsApp, como na LatAm.
+const ESPANHA: Partial<Textos> = {
+  ...BALLAD_TU,
+  naoLembro: "No me acuerdo de nada ahora, seguir sin esto",
+  comoVaiChegar:
+    "Le mandas el link por WhatsApp. La persona lo toca, y la letra se enciende al ritmo de la canción, con vuestras fotos.",
+  loadingLetra: [
+    "Leyendo tu historia…",
+    "Buscando los detalles que solo vosotros tenéis…",
+    "Escribiendo dos caminos para el coro…",
+  ],
 };
 
 const POR_IDIOMA: Record<Locale, Textos> = { pt: PT, es: ES, en: EN };
 
 /** Os textos da moldura no idioma dado. Idioma desconhecido cai em português. */
-export function t(locale: Locale): Textos {
-  if (locale === "es" && ehEua()) return { ...ES, ...EUA };
-  if (locale === "es" && ehArgentina()) return { ...ES, ...AR };
+export function t(locale: Locale, pais?: string | null): Textos {
+  if (locale === "es") {
+    // O México herda o `EUA` inteiro: nenhuma frase daqui fala de morar lá.
+    switch (mercadoEs(pais)) {
+      case "eua":
+      case "mexico":
+        return { ...ES, ...EUA };
+      case "espanha":
+        return ehBallad() ? { ...ES, ...ESPANHA } : ES;
+      case "latam":
+        return ehBallad() ? { ...ES, ...LATAM } : ES;
+      case "argentina":
+        return { ...ES, ...AR };
+    }
+  }
   return POR_IDIOMA[locale] ?? PT;
 }

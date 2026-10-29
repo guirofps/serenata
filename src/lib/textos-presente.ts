@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n";
-import { ehArgentina, ehEua } from "@/lib/mercado-es";
+import { mercadoEs } from "@/lib/mercado-es";
+import { ehBallad } from "@/lib/marca-identidade";
 
 // Textos da PÁGINA-PRESENTE e do EDITOR.
 //
@@ -454,10 +455,42 @@ const EUA: Partial<TextosPresente> = {
   copieEMande: "Cópialo y mándaselo por mensaje. Quien entrega el regalo eres tú.",
 };
 
+// LATAM DA BALLAD (Colômbia, Chile, Peru; 29/10). Lá o presente vai pelo
+// WhatsApp, como a base já diz; só o "usá" do voseo sai.
+const LATAM: Partial<TextosPresente> = {
+  ajudaCelular:
+    "El MP3 va a tus descargas. Para mandarla directo por WhatsApp, usa el botón de enviar.",
+};
+
+// ESPANHA NA BALLAD (29/10): WhatsApp, `ordenador` e `vosotros` onde a frase
+// fala do casal ("de vocês dois").
+const ESPANHA: Partial<TextosPresente> = {
+  ...LATAM,
+  ajudaDesktop: "El MP3 va a la carpeta de descargas de tu ordenador.",
+  conviteSub: "Cuenta vuestra historia y la letra sale al instante, gratis.",
+  umaFotoUmaFrase:
+    "Una foto y una frase tuya. Es lo que convierte la página en algo que solo vosotros dos entendéis.",
+};
+
 const POR_IDIOMA: Record<Locale, TextosPresente> = { pt: PT, es: ES, en: EN };
 
-export function tp(locale: Locale): TextosPresente {
-  if (locale === "es" && ehEua()) return { ...ES, ...EUA };
-  if (locale === "es" && ehArgentina()) return { ...ES, ...AR };
+/**
+ * `pais`: o país gravado no quiz, quando quem chama o tem. Sem ele vale o do
+ * acesso (`mercado-es.ts`), que no editor é o de quem comprou.
+ */
+export function tp(locale: Locale, pais?: string | null): TextosPresente {
+  if (locale === "es") {
+    switch (mercadoEs(pais)) {
+      case "eua":
+      case "mexico":
+        return { ...ES, ...EUA };
+      case "espanha":
+        return ehBallad() ? { ...ES, ...ESPANHA } : ES;
+      case "latam":
+        return ehBallad() ? { ...ES, ...LATAM } : ES;
+      case "argentina":
+        return { ...ES, ...AR };
+    }
+  }
   return POR_IDIOMA[locale] ?? PT;
 }

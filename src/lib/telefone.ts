@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/i18n";
-import { mercadoEs, type MercadoEs } from "@/lib/mercado-es";
+import { mercadoEs, paisAtual, type MercadoEs } from "@/lib/mercado-es";
 
 // Telefone nos dois funis. Não existia máscara em lugar nenhum do projeto (nem
 // nos dois repositórios herdados), e o campo do WhatsApp é o primeiro lugar em
@@ -49,10 +49,26 @@ const ES_POR_MERCADO: Record<MercadoEs, Pais> = {
   // em tela nenhuma (o contato lá é só e-mail), mas o tipo exige o país, e se
   // um dia pedir, o número sai com o DDI de onde a pessoa mora.
   eua: { ddi: "1", digitos: [10], exemplo: "(213) 555-0147" },
+  // México na Ballad (29/10): o mesmo número mexicano que o `latam` antigo usava.
+  mexico: { ddi: "52", digitos: [10], exemplo: "55 1234 5678" },
+};
+
+// O `latam` DA BALLAD (29/10) não é o México: é Colômbia, Chile ou Peru, e o
+// país do acesso diz qual. Sem país conhecido, fica o de sempre (52). A Ballad
+// não pede telefone em tela nenhuma; isto existe pra o dia em que pedir não
+// gravar DDI de outro país.
+const LATAM_POR_PAIS: Record<string, Pais> = {
+  CO: { ddi: "57", digitos: [10], exemplo: "300 123 4567" },
+  CL: { ddi: "56", digitos: [9], exemplo: "9 1234 5678" },
+  PE: { ddi: "51", digitos: [9], exemplo: "912 345 678" },
 };
 
 function paisDe(locale: Locale): Pais {
-  if (locale === "es") return ES_POR_MERCADO[mercadoEs()] ?? ES_POR_MERCADO.latam;
+  if (locale === "es") {
+    const m = mercadoEs();
+    if (m === "latam") return LATAM_POR_PAIS[String(paisAtual() ?? "")] ?? ES_POR_MERCADO.latam;
+    return ES_POR_MERCADO[m] ?? ES_POR_MERCADO.latam;
+  }
   return BR;
 }
 

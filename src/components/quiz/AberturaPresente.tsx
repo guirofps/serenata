@@ -7,7 +7,8 @@ import { ProvaImediata } from "@/components/landing/Secoes";
 import { Button } from "@/components/ui/button";
 import { CORES, FONTES, TEMA_CLARO } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
-import { ehEspanha, ehArgentina, ehEua } from "@/lib/mercado-es";
+import { ehEspanha, ehArgentina } from "@/lib/mercado-es";
+import { ehBallad } from "@/lib/marca-identidade";
 import { trackEvent } from "@/lib/track";
 import { exemploEn, audioDoExemplo } from "@/lib/exemplos-en";
 import type { Tema } from "@/lib/tema";
@@ -330,7 +331,10 @@ export function AberturaPresente({
   aoEscolher?: (valor: string) => void;
 }) {
   const gospel = tema === "gospel" && (locale === "pt" || locale === "en");
-  const espanholDaBallad = locale === "es" && ehEua();
+  // Pela MARCA (29/10): o espanhol da Ballad é a tela do vídeo em todo país
+  // (EUA, México, Espanha, LatAm). A copy de cima é `tú` neutro, que serve
+  // nos cinco; o que muda por país mora no prompt, nos gêneros e no preço.
+  const espanholDaBallad = locale === "es" && ehBallad();
   // O vídeo de reações no lugar do cartão: o inglês e o espanhol da Ballad.
   const comVideo = (locale === "en" || espanholDaBallad) && !gospel;
   // O espanhol troca o EXEMPLO conforme o mercado que a mídia está comprando.

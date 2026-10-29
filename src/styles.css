@@ -324,15 +324,7 @@
   }
 }
 
-/* O preço em peso pra quem está no México (Ballad, `pais-acesso.ts`). As duas
-   moedas vêm no HTML (`NaMoeda`) e o carimbo `data-pais` escolhe qual aparece:
-   sem carimbo, dólar, que é o que o caixa cobra fora do México. */
-.preco-mxn {
-  display: none;
-}
-html[data-pais="MX"] .preco-usd {
-  display: none;
-}
-html[data-pais="MX"] .preco-mxn {
-  display: inline;
-}
+/* O preço na moeda do país (Ballad) SAIU daqui em 29/10: com cinco moedas, o
+   CSS é gerado da tabela de `mercados.ts` (`cssPrecoPorPais`) e entra num
+   <style> do `__root.tsx`. Um país novo na tabela não depende de alguém
+   lembrar deste arquivo. */

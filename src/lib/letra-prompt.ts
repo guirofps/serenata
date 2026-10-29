@@ -5,11 +5,13 @@ import {
   LETRA_SYSTEM_ES_ESPANHA,
   LETRA_SYSTEM_ES_AR,
   LETRA_SYSTEM_ES_EUA,
+  LETRA_SYSTEM_ES_LATAM,
   RELACAO_ES,
   OCASIAO_ES,
   VOZ_ES,
 } from "./letra-prompt-es.js";
-import { ehEspanha, ehArgentina, ehEua } from "./mercado-es.js";
+import { mercadoEs } from "./mercado-es.js";
+import { ehBallad } from "./marca-identidade.js";
 import { LETRA_SYSTEM_EN, RELACAO_EN, OCASIAO_EN, VOZ_EN, TOM_EN, WORSHIP_INSTRUCTIONS_EN } from "./letra-prompt-en.js";
 
 // Prompt de geração de letra (de prompts/letra.md). System estável e cacheável;
@@ -376,14 +378,31 @@ ${recado}${blocoNome}`;
  *
  * Na Ballad (hispanos dos EUA) sai o latino com a regra do inglês/spanglish
  * (`LETRA_SYSTEM_ES_EUA`). Decidido pela MARCA, então a Serenata nunca o vê.
+ *
+ * Desde 29/10 a Ballad escolhe pelo PAÍS (`mercado-es.ts`): o México fica com
+ * o latino puro (a regra do spanglish fala de quem "vive en Estados Unidos"),
+ * a Espanha com o peninsular, Colômbia/Chile/Peru com o latino sem a gíria
+ * mexicana. `pais` vem do quiz gravado no banco quando quem chama o tem: a
+ * letra de um quiz da Espanha sai em `vosotros` mesmo que a pessoa termine a
+ * coautoria de outro lugar.
  */
-export function systemDaLetra(locale: Locale): string {
+export function systemDaLetra(locale: Locale, pais?: string | null): string {
   if (locale === "en") return LETRA_SYSTEM_EN;
   if (locale !== "es") return LETRA_SYSTEM;
-  if (ehEua()) return LETRA_SYSTEM_ES_EUA;
-  if (ehEspanha()) return LETRA_SYSTEM_ES_ESPANHA;
-  if (ehArgentina()) return LETRA_SYSTEM_ES_AR;
-  return LETRA_SYSTEM_ES;
+  switch (mercadoEs(pais)) {
+    case "eua":
+      return LETRA_SYSTEM_ES_EUA;
+    case "mexico":
+      return LETRA_SYSTEM_ES;
+    case "espanha":
+      return LETRA_SYSTEM_ES_ESPANHA;
+    case "argentina":
+      return LETRA_SYSTEM_ES_AR;
+    case "latam":
+      // Só a Ballad tem o `latam` limpo; a Serenata, se um dia voltar pro
+      // neutro, volta pro texto de antes.
+      return ehBallad() ? LETRA_SYSTEM_ES_LATAM : LETRA_SYSTEM_ES;
+  }
 }
 
 // Schema de saída (structured output).

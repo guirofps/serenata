@@ -382,6 +382,24 @@ historia en inglés, o mezclando inglés y español en la misma frase.
 - Entiende el spanglish como lo que es, el idioma de la familia, y nunca lo
   corrijas ni lo comentes.`;
 
+// ── LATAM DA BALLAD (Colômbia, Chile, Peru; 29/10/2026) ──────────
+//
+// O `LETRA_SYSTEM_ES` nasceu neutro-MEXICANO e carrega uma gíria de lá no
+// exemplo da regra 7: "esa rola que solo ustedes dos entienden". Um modelo
+// copia o exemplo que recebe, e "rola" pra um colombiano ou um chileno é
+// palavra estrangeira (ou pior). Aqui sai a gíria e entra a palavra que todo
+// país usa.
+//
+// DERIVADO e não editado no lugar, de propósito: o `LETRA_SYSTEM_ES` é a base
+// do prompt dos EUA e do México, que estão vendendo, e o cache do prompt é
+// casamento de prefixo. Mexer nele mudaria a letra deles sem teste.
+// O teste `mercados-conteudo.test.ts` exige que a troca tenha acontecido: se
+// alguém reescrever o exemplo lá em cima, ele avisa em vez de calar.
+export const LETRA_SYSTEM_ES_LATAM = LETRA_SYSTEM_ES.replace(
+  "esa rola que solo ustedes dos entienden",
+  "esa canción que solo ustedes dos entienden",
+);
+
 // Os mapas do quiz para o prompt. Mesmas chaves do português (o `value` é o
 // que está gravado no banco e nunca muda), rótulos em espanhol.
 export const RELACAO_ES: Record<string, string> = {

@@ -31,6 +31,19 @@ const configMiddleware = createMiddleware().server(async ({ next }) => {
   return next();
 });
 
+// O PAÍS DA REQUISIÇÃO, ligado antes de qualquer render (Ballad, 29/10).
+//
+// O `mercadoEs()` é puro e pergunta o país a uma fonte; no servidor a fonte é
+// o cabeçalho da Vercel (`pais-requisicao.server.ts`). Ligar aqui, e não no
+// módulo da página, garante que o PRIMEIRO HTML já sai com o espanhol e o
+// `data-pais` do país certo: é o que a hidratação vai reler no navegador. Na
+// Serenata o mercado é a Argentina pela marca, e isto não muda nada lá.
+const paisMiddleware = createMiddleware().server(async ({ next }) => {
+  const { ligarPaisDaRequisicao } = await import("./lib/pais-requisicao.server");
+  ligarPaisDaRequisicao();
+  return next();
+});
+
 export const startInstance = createStart(() => ({
-  requestMiddleware: [errorMiddleware, configMiddleware],
+  requestMiddleware: [errorMiddleware, configMiddleware, paisMiddleware],
 }));
