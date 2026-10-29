@@ -395,9 +395,11 @@ historia en inglés, o mezclando inglés y español en la misma frase.
 // casamento de prefixo. Mexer nele mudaria a letra deles sem teste.
 // O teste `mercados-conteudo.test.ts` exige que a troca tenha acontecido: se
 // alguém reescrever o exemplo lá em cima, ele avisa em vez de calar.
+// A frase quebra linha no meio ("esa rola que solo" / "ustedes dos…"): a troca
+// é por expressão, pra quebra e recuo continuarem os mesmos.
 export const LETRA_SYSTEM_ES_LATAM = LETRA_SYSTEM_ES.replace(
-  "esa rola que solo ustedes dos entienden",
-  "esa canción que solo ustedes dos entienden",
+  /esa rola que solo(\s+)ustedes dos entienden/,
+  "esa canción que solo$1ustedes dos entienden",
 );
 
 // Os mapas do quiz para o prompt. Mesmas chaves do português (o `value` é o

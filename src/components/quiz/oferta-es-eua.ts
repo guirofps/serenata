@@ -8,6 +8,7 @@ import {
   Pencil,
   RefreshCw,
 } from "lucide-react";
+import { formatarNaMoeda, fraseDaMoeda, naMoedaPorExtenso, type Mercado } from "@/lib/mercados";
 
 // A OFERTA EM ESPANHOL DA BALLAD GIFT (hispanos dos EUA, `/es` no balladgift.com).
 //
@@ -127,3 +128,76 @@ export const OFERTA_ES_EUA = {
   creditoValor: "US$ 0",
   gateway: "Tarjeta, Apple Pay o Google Pay. Pago único y seguro",
 };
+
+// ── A OFERTA POR PAÍS (29/10/2026) ───────────────────────────────
+//
+// A mesma oferta, com o que depende do país trocado (`mercados.ts`):
+//   - A MOEDA. A frase "el precio es en dólares" e a fatura "en dólares"
+//     mentiam pra quem já via "$199 MXN" ou "14,99 €" no preço. Cada país lê
+//     a sua moeda, e a Espanha lê que o IVA está incluído.
+//   - O ENVIO. Nos EUA o link vai "por mensaje"; na Espanha e na LatAm o
+//     presente vai pelo WhatsApp, e escrever "por mensaje" lá soa traduzido.
+//     O México herda os EUA (decisão de 29/10: só sai o que é de lá dentro).
+//   - O APARELHO. `celular` na América, `móvil` na Espanha.
+// Os EUA continuam IDÊNTICOS ao `OFERTA_ES_EUA` (o teste confere).
+
+type VarianteOferta = "eua" | "mexico" | "espanha" | "latam";
+
+function trocar<T extends { titulo?: string; p?: string }>(
+  lista: readonly T[],
+  achar: (x: T) => boolean,
+  novo: (x: T) => T,
+): T[] {
+  return lista.map((x) => (achar(x) ? novo(x) : x));
+}
+
+/** O `OFERTA_ES_EUA` com a moeda, o envio e o aparelho do país. */
+export function ofertaEsDoMercado(variante: VarianteOferta, mercado: Mercado) {
+  if (variante === "eua" && mercado.moeda === "usd") return OFERTA_ES_EUA;
+  const whatsapp = variante === "espanha" || variante === "latam";
+  const aparelho = variante === "espanha" ? "móvil" : "celular";
+
+  const entregaveis = trocar(
+    trocar(
+      ENTREGAVEIS_ES_EUA,
+      (x) => x.titulo === "Link y código QR para regalar",
+      (x) => ({
+        ...x,
+        detalhe: whatsapp
+          ? "Mándale el link por WhatsApp, o imprime el código QR y ponlo en una tarjeta o en la caja del regalo. El regalo digital se vuelve un regalo que se entrega en la mano."
+          : x.detalhe,
+      }),
+    ),
+    (x) => x.titulo === "El MP3 para descargar y guardar",
+    (x) => ({
+      ...x,
+      detalhe: `La canción se queda en tu ${aparelho}, para escucharla cuando quieras, con o sin internet.`,
+    }),
+  );
+
+  const duvidas = trocar(
+    trocar(
+      DUVIDAS_ES_EUA,
+      (x) => x.p === "¿Cómo aparece el cargo en mi tarjeta?",
+      (x) => ({
+        ...x,
+        r: `Como STRIPEONLI* BALLADGIFT. Es un solo cargo ${naMoedaPorExtenso(mercado)} a través de Stripe, nuestro procesador de pagos, sin suscripción.`,
+      }),
+    ),
+    (x) => x.p === "¿Cómo entrego el regalo?",
+    (x) => ({
+      ...x,
+      r: whatsapp
+        ? "Cuando esté lista, te damos el link y un mensaje para copiar y pegar en WhatsApp. Quien lo entrega eres tú."
+        : x.r,
+    }),
+  );
+
+  return {
+    ...OFERTA_ES_EUA,
+    entregaveis,
+    duvidas,
+    conversao: fraseDaMoeda(mercado),
+    creditoValor: formatarNaMoeda(mercado, 0),
+  };
+}

@@ -18,9 +18,10 @@ import { meuPlano, meuPlanoCobravel } from "@/lib/preco";
 import { PrecoCurto, PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
 import { descontoNaTela } from "@/lib/cupom";
 import { valorDoCheckout } from "@/lib/valor-conversao";
-import { ehArgentina } from "@/lib/mercado-es";
+import { ehArgentina, paisAtual } from "@/lib/mercado-es";
+import { mercadoDoPais } from "@/lib/mercados";
 import { ehBallad } from "@/lib/marca-identidade";
-import { OFERTA_ES_EUA } from "@/components/quiz/oferta-es-eua";
+import { OFERTA_ES_EUA, ofertaEsDoMercado } from "@/components/quiz/oferta-es-eua";
 import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
 import { varianteDe, EXP_PROVA_BLOCOS } from "@/lib/experimentos";
@@ -491,7 +492,14 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   // Pelo idioma E pela marca: o `/es` da Ballad paga pelo Stripe em dólar e
   // nunca vê a copy argentina nem a Centerpag.
   const espanholDaBallad = locale === "es" && ehBallad();
-  const C = espanholDaBallad ? COPY_ES_EUA : (COPY[locale] ?? COPY.pt);
+  // 29/10: a moeda, o envio e o aparelho seguem o país do acesso (o mesmo
+  // `data-pais` que o servidor carimbou e que escolhe o preço na tela).
+  const mercado = espanholDaBallad ? mercadoDoPais(paisAtual()) : null;
+  const C = mercado
+    ? mercado.conteudo === "eua"
+      ? COPY_ES_EUA
+      : { ...COPY.es, ...ofertaEsDoMercado(mercado.conteudo, mercado) }
+    : (COPY[locale] ?? COPY.pt);
   const G = GARANTIA[locale] ?? GARANTIA.pt;
   // NÃO EXISTE MAIS UM `preco` NESTE CORPO, e isso é a trava.
   //

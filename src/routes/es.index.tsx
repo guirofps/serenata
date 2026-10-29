@@ -15,6 +15,8 @@ import { useProfundidadeRolagem } from "@/lib/rolagem";
 import { OfereceIdioma, lembrarIdioma } from "@/components/OfereceIdioma";
 import { moeda } from "@/lib/i18n";
 import { ehBallad } from "@/lib/marca-identidade";
+import { paisAtual } from "@/lib/mercado-es";
+import { mercadoDoPais, naMoedaPorExtenso, type Mercado, type VarianteConteudo } from "@/lib/mercados";
 import { exemplosEsUsProntos } from "@/lib/exemplos-es-us";
 import { ZapFlutuante } from "@/components/marca/ZapFlutuante";
 import { NaMoeda } from "@/components/quiz/PrecoDaOferta";
@@ -89,7 +91,8 @@ export const Route = createFileRoute("/es/")({
           : "Contá su historia y recibí la letra al instante, gratis. Después la canción cantada y una página regalo con link y código QR para enviarla.",
       },
       { property: "og:title", content: "Una canción hecha de su historia" },
-      { property: "og:locale", content: BALLAD ? "es_US" : "es_MX" },
+      // O país do acesso (29/10): `es_ES` na Espanha, `es_CO`… Sem país, `es_US`.
+      { property: "og:locale", content: BALLAD ? mercadoDoPais(paisAtual()).tagIdioma.replace("-", "_") : "es_MX" },
       { property: "og:type", content: "website" },
       ...METATAGS_COMPARTILHAR,
     ],
@@ -192,6 +195,50 @@ const PREGUNTAS_EUA = [
   },
 ];
 
+// ── AS PERGUNTAS POR PAÍS (Ballad, 29/10) ────────────────────────
+//
+// As de cima são as dos EUA. Nos outros países saem três coisas que só valem
+// lá dentro: o spanglish (quem conta em inglês é quem mora nos EUA), o
+// pagamento "en dólares" (o caixa cobra na moeda do país, `mercados.ts`) e o
+// "por mensaje" (na Espanha e na LatAm o presente vai pelo WhatsApp). A
+// Espanha ganha ainda o `pequeño` no lugar do `chiquito`, que é mexicano.
+function preguntasBallad(variante: VarianteConteudo, mercado: Mercado) {
+  if (variante === "eua") return PREGUNTAS_EUA;
+  const whatsapp = variante === "espanha" || variante === "latam";
+  return PREGUNTAS_EUA.map((p) => {
+    switch (p.q) {
+      case "¿Necesito escribir bonito para que quede bien?":
+        return {
+          ...p,
+          a: `No. Mientras más simple y verdadero, mejor. Un detalle ${variante === "espanha" ? "pequeño" : "chiquito"} (el apodo, la comida del domingo, su manía) vale más que un texto bonito. Puedes hablar en vez de escribir.`,
+        };
+      case "¿Cómo se lo entrego a la persona?":
+        return whatsapp ? { ...p, a: p.a.replace("Se la mandas por mensaje", "Se la mandas por WhatsApp") } : p;
+      case "¿Cómo se paga?":
+        return {
+          ...p,
+          a: `Con tarjeta, Apple Pay o Google Pay, ${naMoedaPorExtenso(mercado)} y en un solo pago, sin suscripción. En tu estado de cuenta aparece como STRIPEONLI* BALLADGIFT.`,
+        };
+      default:
+        return p;
+    }
+  });
+}
+
+/** O "Fácil de entregar" e o primeiro passo, com o envio e o `vosotros` do país. */
+function textosBallad(variante: VarianteConteudo) {
+  const whatsapp = variante === "espanha" || variante === "latam";
+  return {
+    entregar: whatsapp
+      ? "Recibes un link con una página lista. La mandas por WhatsApp y se abre con la canción sonando y la letra iluminándose."
+      : "Recibes un link con una página lista. La mandas por mensaje y se abre con la canción sonando y la letra iluminándose.",
+    passo1:
+      variante === "espanha"
+        ? "Quién es la persona, qué habéis vivido, ese detalle que solo vosotros dos sabéis. Puedes escribirlo o decirlo hablando."
+        : PASOS[0].texto,
+  };
+}
+
 const PREGUNTAS = [
   {
     q: "¿Y si la letra no queda bien?",
@@ -226,7 +273,11 @@ function HomeEs() {
   const [faqAberta, setFaqAberta] = useState<number | null>(0);
   const heroRef = useRef<HTMLElement>(null);
   const preco = moeda("es");
-  const perguntas = BALLAD ? PREGUNTAS_EUA : PREGUNTAS;
+  // O país do acesso (29/10): o mesmo que o servidor carimbou no `<html>`, então
+  // o HTML e a hidratação concordam (`mercado-es.ts`).
+  const mercado = mercadoDoPais(paisAtual());
+  const perguntas = BALLAD ? preguntasBallad(mercado.conteudo, mercado) : PREGUNTAS;
+  const doPais = BALLAD ? textosBallad(mercado.conteudo) : null;
   // Sem exemplo gerado na Ballad, a vitrine some: o link "Ver un ejemplo"
   // apontaria pra uma âncora que não existe.
   const temExemplos = !BALLAD || exemplosEsUsProntos().length > 0;
@@ -447,7 +498,9 @@ function HomeEs() {
                 <h3 className="mt-3 text-xl" style={{ fontFamily: FONTES.display, fontWeight: 500 }}>
                   {p.titulo}
                 </h3>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--tinta-suave)]">{p.texto}</p>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--tinta-suave)]">
+                  {doPais && p.n === "01" ? doPais.passo1 : p.texto}
+                </p>
               </div>
             ))}
           </div>
@@ -478,7 +531,7 @@ function HomeEs() {
                     className="mt-1 text-[var(--tinta-suave)] sm:mt-1.5"
                     style={{ fontSize: "var(--t-xs)", lineHeight: 1.55 }}
                   >
-                    {b.texto}
+                    {doPais && b.icone === Link2 ? doPais.entregar : b.texto}
                   </p>
                 </div>
               </div>
