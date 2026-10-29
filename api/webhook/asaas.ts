@@ -32,7 +32,7 @@ import { musicaDoQuiz, refazerSeFaltou, mandarEmailDeEntrega } from "../lib/entr
 import { subirVendaTiktok } from "../lib/pos-pagamento.js";
 import { creditarUpsell, liberarItensDoBump } from "../lib/creditar-upsell.js";
 import { ofertaDaReferencia } from "../../src/lib/creditos.js";
-import { valorEsperadoDoUpsell, type Alvo } from "../../src/lib/cupom.js";
+import { valorEsperadoDoUpsell, valorGravadoNoPedido, type Alvo } from "../../src/lib/cupom.js";
 import { centavosDoVideoDaMusica } from "../../src/lib/preco-video.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
 import {
@@ -99,7 +99,14 @@ async function pagarUpsell(
   args: {
     referencia: string;
     idCobranca: string;
-    pendente: { id: string; email: string | null; cupom?: string | null; created_at?: string | null; musica_id?: string | null } | null;
+    pendente: {
+      id: string;
+      email: string | null;
+      cupom?: string | null;
+      created_at?: string | null;
+      musica_id?: string | null;
+      valor_centavos?: number | null;
+    } | null;
     status: { statusCru: string; valorCentavos: number | null; taxaCentavos: number | null };
   },
 ) {
@@ -117,11 +124,20 @@ async function pagarUpsell(
   // linha, nunca do gateway.
   // O vídeo tem preço por música (teste `preco_video`): o catálogo dele sai da
   // música do pedido, a mesma conta que a cobrança fez.
-  const catalogo =
-    oferta.id === "video"
-      ? await centavosDoVideoDaMusica(sb, pendente?.musica_id ?? null)
-      : Math.round(oferta.precoBrl * 100);
-  const esperado = valorEsperadoDoUpsell(catalogo, oferta.id as Alvo, pendente);
+  //
+  // O VALOR DO PRÓPRIO PEDIDO PRIMEIRO (29/10). A linha pendente foi escrita
+  // pelo nosso servidor com o que ele cobrou (cupom incluso). Recalcular pelo
+  // braço de AGORA prendia quem pagou antes de o preço mudar. Catálogo + cupom
+  // só pra pedido sem valor gravado.
+  const esperado =
+    valorGravadoNoPedido(pendente) ??
+    valorEsperadoDoUpsell(
+      oferta.id === "video"
+        ? await centavosDoVideoDaMusica(sb, pendente?.musica_id ?? null)
+        : Math.round(oferta.precoBrl * 100),
+      oferta.id as Alvo,
+      pendente,
+    );
   if (status.valorCentavos && status.valorCentavos !== esperado) {
     await auditar(sb, "asaas_upsell_valor_divergente", { referencia, esperado, recebido: status.valorCentavos });
     await alertarDono(
@@ -404,6 +420,15 @@ export default async function handler(req: Req, res: Res) {
       esperado: existente.valor_centavos,
       recebido: status.valorCentavos,
     });
+    // AVISA (29/10). Pago e não liberado em silêncio é o pior estado: o
+    // dinheiro entrou, a pessoa não recebe, e ninguém olha o funnel_events.
+    // O upsell já avisava (`pagarUpsell`); a música não.
+    await alertarDono(
+      "PIX pago no Asaas com valor divergente: NÃO liberado",
+      `<p>${paymentId}: esperado ${existente.valor_centavos}, recebido ${status.valorCentavos}</p>` +
+        `<p>${existente.email ?? "sem e-mail"} · quiz ${existente.quiz_response_id ?? "-"}</p>` +
+        `<p>Conferir no painel do Asaas e liberar ou devolver à mão.</p>`,
+    );
     return res.status(200).json({ ok: true, nota: "valor divergente" });
   }
 

@@ -89,6 +89,10 @@ export const DUVIDAS_ES_EUA = [
   {
     p: "¿Cómo aparece el cargo en mi tarjeta?",
     r: "Como STRIPEONLI* BALLADGIFT. Es un solo cargo en dólares a través de Stripe, nuestro procesador de pagos, sin suscripción.",
+    // Quem está no México paga em PESO (28/10, `preco-mxn.ts`): "en dólares"
+    // do lado de um preço em peso era a dúvida que a frase existe pra matar.
+    // As duas vão no HTML e o `data-pais` escolhe (29/10).
+    rMx: "Como STRIPEONLI* BALLADGIFT. Es un solo cargo en pesos mexicanos (MXN) a través de Stripe, nuestro procesador de pagos, sin suscripción.",
   },
   {
     p: "¿Cuánto tarda?",
@@ -124,6 +128,11 @@ export const OFERTA_ES_EUA = {
   // resposta vai antes do clique, e diz também que é o total (o Stripe não
   // soma nada no caixa).
   conversao: "El precio es en dólares (USD) y es el total: no se suma nada al pagar.",
+  // No México o preço e o caixa estão em peso (29/10). O OXXO só entra na
+  // frase pra quem tem o botão (braço B do `oxxo_mx`, CSS `.so-oxxo-mx`).
+  conversaoMx: "El precio es en pesos mexicanos (MXN) y es el total: no se suma nada al pagar. Pagas con tarjeta.",
+  conversaoMxOxxo: " Sin tarjeta, también puedes pagar en efectivo en OXXO o por transferencia.",
   creditoValor: "US$ 0",
+  creditoValorMx: "$0 MXN",
   gateway: "Tarjeta, Apple Pay o Google Pay. Pago único y seguro",
 };

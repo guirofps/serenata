@@ -8,6 +8,7 @@ import {
   descontoNaTela,
   prazoDoCodigo,
   valorEsperadoDoUpsell,
+  valorGravadoNoPedido,
   validadeCurta,
 } from "./cupom";
 
@@ -140,5 +141,18 @@ describe("SRN27 com prazo (SRN27P + AAMMDD)", () => {
 
   it("minúscula vale (o código passa pelo toUpperCase)", () => {
     expect(centavosComCupom(3800, "srn27p261009", new Date("2026-10-09T10:00:00-03:00"))).toBe(2800);
+  });
+});
+
+describe("valorGravadoNoPedido (29/10)", () => {
+  it("o valor que o nosso servidor gravou no pedido vale, com ou sem cupom", () => {
+    expect(valorGravadoNoPedido({ valor_centavos: 2490 })).toBe(2490);
+    expect(valorGravadoNoPedido({ valor_centavos: "1990" })).toBe(1990);
+  });
+  it("sem valor gravado (pedido antigo, zero, lixo), quem chama recalcula", () => {
+    expect(valorGravadoNoPedido(null)).toBeNull();
+    expect(valorGravadoNoPedido({ valor_centavos: null })).toBeNull();
+    expect(valorGravadoNoPedido({ valor_centavos: 0 })).toBeNull();
+    expect(valorGravadoNoPedido({ valor_centavos: 19.5 })).toBeNull();
   });
 });

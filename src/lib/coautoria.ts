@@ -2,6 +2,7 @@
 import { type Locale, normalizarLocale } from "@/lib/i18n";
 import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { atribuicaoDoCliente, emailDoCliente } from "@/lib/lead-fallback";
 import { registrarCustoLetra, type UsoClaude } from "@/lib/custos";
 import { dispararGeracaoMusica } from "@/lib/gerar-letra";
 import { recusaDeConteudo } from "@/lib/recusa-provedor";
@@ -216,7 +217,7 @@ ${INSTRUCOES[locale].refroes}`;
     const refroes = (p.refroes ?? []).map((s) => String(s).trim()).filter(Boolean);
     if (refroes.length < 2) throw new Error("modelo não devolveu dois refrões");
     return {
-      titulo: String(p.titulo ?? "Sua música"),
+      titulo: String(p.titulo ?? (locale === "en" ? "Your song" : locale === "es" ? "Tu canción" : "Sua música")),
       estiloSuno: String(p.estilo_suno ?? ""),
       refroes: [refroes[0], refroes[1]],
     };
@@ -613,6 +614,9 @@ export const finalizarLetra = createServerFn({ method: "POST" })
       estiloSuno: string;
       versoDestaque: string;
       locale?: string;
+      /** Só pra linha que nasce AQUI (29/10). Ver `lead-fallback.ts`. */
+      email?: string | null;
+      attribution?: Record<string, unknown> | null;
     }) => data,
   )
   .handler(async ({ data }): Promise<{ musicaId: string | null; statusMusica: string }> => {
@@ -649,17 +653,34 @@ export const finalizarLetra = createServerFn({ method: "POST" })
     //
     // Os passos vão NULOS de propósito: quem sabe em que passo a pessoa está
     // é o cliente, e chutar daqui um número alto estragaria o funil do painel.
+    //
+    // COM O E-MAIL E A ATRIBUIÇÃO (29/10). Nos casos em que a linha NUNCA
+    // nasceu, o navegador tinha perdido a rede: a linha criada aqui saía sem
+    // e-mail (sem "letra pronta", sem recuperação) e sem o clique do anúncio.
+    // O cliente agora manda os dois; só entram se a linha nasce agora, e o
+    // e-mail só preenche campo VAZIO (a captura verdadeira pode chegar no
+    // meio e nunca é sobrescrita).
     let quizId = await quizIdDaSessao(data.sessionId);
     if (!quizId) {
+      const emailCliente = emailDoCliente(data.email);
       const { error: erroLead } = await db.rpc("upsert_quiz_response", {
         p_session_id: data.sessionId,
         p_respostas: data.respostas,
         p_locale: locale,
+        p_attribution: atribuicaoDoCliente(data.attribution),
       });
       if (erroLead) {
         console.error("[coautoria] não deu pra criar o lead da sessão:", erroLead);
       }
       quizId = await quizIdDaSessao(data.sessionId);
+      if (quizId && emailCliente) {
+        const { error: erroEmail } = await db
+          .from("quiz_responses")
+          .update({ email: emailCliente })
+          .eq("id", quizId)
+          .is("email", null);
+        if (erroEmail) console.error("[coautoria] e-mail do lead criado aqui não gravou:", erroEmail);
+      }
     }
     if (!quizId) {
       console.error("[coautoria] sessão sem quiz_response; letra não persistida", data.sessionId);

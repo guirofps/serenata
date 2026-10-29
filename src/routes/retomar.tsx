@@ -10,6 +10,8 @@ import { trackEvent } from "@/lib/track";
 import { novaSessao, adotarSessao, getStoredAttribution } from "@/lib/session-context";
 import { atributoDe, carimbarExperimentos, experimentosAtivos } from "@/lib/experimentos";
 import { bracosQueValem, mesclarAtribuicao } from "@/lib/retomar-sessao";
+import { comRetentativas } from "@/lib/retentar";
+import { ehBallad } from "@/lib/marca-identidade";
 import { Loader2 } from "lucide-react";
 
 // RETOMAR A SESSÃO a partir de um link de e-mail.
@@ -119,18 +121,27 @@ const COPY = {
     erro: "Não achei essa letra.",
     erroSub: "O link pode ter vindo cortado no e-mail. Você pode fazer uma nova em menos de dois minutos, de graça.",
     botao: "Criar minha música",
+    redeErro: "Não consegui carregar a sua letra.",
+    redeSub: "Parece que a internet oscilou. A sua letra continua guardada: tente de novo em alguns segundos.",
+    tentar: "Tentar de novo",
   },
   es: {
     indo: "abriendo tu letra…",
     erro: "No encontré esa letra.",
     erroSub: "El link pudo venir cortado en el correo. Puedes hacer una nueva en menos de dos minutos, gratis.",
     botao: "Crear mi canción",
+    redeErro: "No pude cargar tu letra.",
+    redeSub: "Parece que la conexión falló. Tu letra sigue guardada: inténtalo de nuevo en unos segundos.",
+    tentar: "Intentar de nuevo",
   },
   en: {
     indo: "opening your lyrics…",
     erro: "I couldn't find these lyrics.",
     erroSub: "The link may have been cut off in the email. You can make new ones in under two minutes, for free.",
     botao: "Create my song",
+    redeErro: "I couldn't load your lyrics.",
+    redeSub: "Looks like the connection dropped. Your lyrics are still saved: try again in a few seconds.",
+    tentar: "Try again",
   },
 } as const;
 
@@ -149,21 +160,40 @@ export const Route = createFileRoute("/retomar")({
 function Retomar() {
   const { s, cupom } = Route.useSearch();
   const navigate = useNavigate();
-  const [erro, setErro] = useState(false);
+  // "rede" é diferente de "não achei" (29/10). Antes, uma falha de rede caía
+  // em "Não achei essa letra" e o botão abandonava a música que EXISTE (sessão
+  // nova, store zerada). Sem rede, depois de duas tentativas automáticas, a
+  // tela pede pra tentar de novo com a MESMA sessão.
+  const [erro, setErro] = useState<false | "nao_achou" | "rede">(false);
+  const [tentativa, setTentativa] = useState(0);
   const [locale, setLocale] = useState<Locale>(LOCALE_PADRAO);
 
   useEffect(() => {
     if (!s) {
       trackEvent("retomar_falhou", { motivo: "link_sem_sessao" });
-      setErro(true);
+      setErro("nao_achou");
       return;
     }
-    buscarSessao({ data: { sessao: s } })
-      .then((r) => {
+    // Sem a resposta do servidor não há idioma da linha: na Ballad, o do
+    // aparelho decide entre inglês e espanhol na tela de erro de rede.
+    try {
+      if (ehBallad() && navigator.language?.toLowerCase().startsWith("es")) setLocale("es");
+    } catch {
+      // segue no padrão da marca
+    }
+    setErro(false);
+    comRetentativas(() => buscarSessao({ data: { sessao: s } }), [1000, 3000])
+      .then((res) => {
+        if (!res.ok) {
+          trackEvent("retomar_falhou", { motivo: "erro_de_rede", tentativas: res.tentativas });
+          setErro("rede");
+          return;
+        }
+        const r = res.valor;
         if ("erro" in r) {
           trackEvent("retomar_falhou", { motivo: r.erro });
           if (r.locale) setLocale(r.locale);
-          setErro(true);
+          setErro("nao_achou");
           return;
         }
         setLocale(r.locale);
@@ -277,9 +307,9 @@ function Retomar() {
       })
       .catch(() => {
         trackEvent("retomar_falhou", { motivo: "erro_de_rede" });
-        setErro(true);
+        setErro("rede");
       });
-  }, [s, navigate]);
+  }, [s, navigate, tentativa]);
 
   const C = COPY[normalizarLocale(locale)] ?? COPY.pt;
 
@@ -292,7 +322,25 @@ function Retomar() {
         <div className="mb-8 flex justify-center">
           <Logo tamanho="md" />
         </div>
-        {erro ? (
+        {erro === "rede" ? (
+          <>
+            <p style={{ fontSize: "var(--t-xl)" }}>{C.redeErro}</p>
+            <p className="mt-3 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)", lineHeight: 1.6 }}>
+              {C.redeSub}
+            </p>
+            {/* Tenta de novo a MESMA sessão: nada de sessão nova nem store zerada. */}
+            <button
+              onClick={() => {
+                trackEvent("retomar_tentou_de_novo", { locale });
+                setTentativa((n) => n + 1);
+              }}
+              className="cta mt-6 inline-flex h-12 items-center justify-center rounded-full px-8 font-medium"
+              style={{ fontSize: "var(--t-base)" }}
+            >
+              {C.tentar}
+            </button>
+          </>
+        ) : erro ? (
           <>
             <p style={{ fontSize: "var(--t-xl)" }}>{C.erro}</p>
             <p className="mt-3 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-sm)", lineHeight: 1.6 }}>

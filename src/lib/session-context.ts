@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { normalizarCodigo } from "@/lib/indicacao";
 import { ultimoCliqueDaUrl, type UltimoClique } from "@/lib/clique-recente";
+import { uuidV4 } from "@/lib/uuid";
 
 const SESSION_KEY = "mp_session_id";
 const SESSION_TS_KEY = "mp_session_ts";
@@ -126,7 +127,9 @@ export function getOrCreateSessionId(): string {
     agora - ultimoToque < COMPRA_EM_ANDAMENTO_TTL_MS &&
     compraEmAndamento();
   if (!id || (expirou && !segura)) {
-    id = crypto.randomUUID();
+    // `uuidV4` e não `crypto.randomUUID` (29/10): celular velho e webview
+    // não têm o segundo, e o funil morria no primeiro passo. Ver `uuid.ts`.
+    id = uuidV4();
     localStorage.setItem(SESSION_KEY, id);
   }
   // Desliza a cada evento: trackEvent chama isto em toda chamada.
@@ -153,7 +156,7 @@ export function getOrCreateSessionId(): string {
 // do mesmo anúncio da primeira vez, e é lá que o crédito deve ficar.
 export function novaSessao(): string {
   if (typeof window === "undefined") return "ssr";
-  const id = crypto.randomUUID();
+  const id = uuidV4();
   localStorage.setItem(SESSION_KEY, id);
   localStorage.setItem(SESSION_TS_KEY, String(Date.now()));
   localStorage.removeItem(SESSION_GASTA_KEY);

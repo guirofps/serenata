@@ -185,6 +185,10 @@ const PREGUNTAS_EUA = [
   {
     q: "¿Cómo se paga?",
     a: "Con tarjeta, Apple Pay o Google Pay, en dólares y en un solo pago, sin suscripción. En tu estado de cuenta aparece como STRIPEONLI* BALLADGIFT.",
+    // No México o preço e o caixa estão em peso (28/10): as duas respostas vão
+    // no HTML e o `data-pais` escolhe (29/10, `.preco-usd`/`.preco-mxn`).
+    aMx: "Con tarjeta, Apple Pay o Google Pay, en pesos mexicanos (MXN) y en un solo pago, sin suscripción. En tu estado de cuenta aparece como STRIPEONLI* BALLADGIFT.",
+    aMxOxxo: " Sin tarjeta, también puedes pagar en efectivo en OXXO o por transferencia.",
   },
   {
     q: "¿Y si no le gusta?",
@@ -226,7 +230,9 @@ function HomeEs() {
   const [faqAberta, setFaqAberta] = useState<number | null>(0);
   const heroRef = useRef<HTMLElement>(null);
   const preco = moeda("es");
-  const perguntas = BALLAD ? PREGUNTAS_EUA : PREGUNTAS;
+  const perguntas: Array<{ q: string; a: string; aMx?: string; aMxOxxo?: string }> = BALLAD
+    ? PREGUNTAS_EUA
+    : PREGUNTAS;
   // Sem exemplo gerado na Ballad, a vitrine some: o link "Ver un ejemplo"
   // apontaria pra uma âncora que não existe.
   const temExemplos = !BALLAD || exemplosEsUsProntos().length > 0;
@@ -616,7 +622,17 @@ function HomeEs() {
                     className="pb-5 text-[var(--tinta-suave)]"
                     style={{ fontSize: "var(--t-sm)", lineHeight: 1.65 }}
                   >
-                    {p.a}
+                    {p.aMx ? (
+                      <>
+                        <span className="preco-usd">{p.a}</span>
+                        <span className="preco-mxn">
+                          {p.aMx}
+                          <span className="so-oxxo-mx">{p.aMxOxxo}</span>
+                        </span>
+                      </>
+                    ) : (
+                      p.a
+                    )}
                   </p>
                 )}
               </div>

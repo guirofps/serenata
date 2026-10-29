@@ -205,7 +205,9 @@ export function CheckoutStripe({
         }}
         className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]"
       />
-      <div className="relative max-h-[94vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-primary/10 bg-background px-3 pb-6 pt-4 shadow-2xl sm:rounded-3xl">
+      {/* `dvh` onde existe (29/10): no Safari do iPhone `vh` é a altura SEM a barra
+          do navegador, e o pé da folha (o botão de pagar) ficava atrás dela. */}
+      <div className="relative max-h-[94vh] supports-[height:100dvh]:max-h-[94dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-primary/10 bg-background px-3 pb-6 pt-4 shadow-2xl sm:rounded-3xl">
         <button
           aria-label={T.fecharPagamento}
           onClick={() => {

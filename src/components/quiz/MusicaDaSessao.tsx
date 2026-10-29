@@ -4,6 +4,7 @@ import { statusMusica } from "@/lib/gerar-letra";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { vitrineTiktok } from "@/lib/tiktok-pixel";
 import { meuPlano } from "@/lib/preco";
+import { noPaisDoAcesso, paisDaTela } from "@/lib/valor-conversao";
 import { MusicaKaraoke, type PalavraAlinhada } from "@/components/quiz/MusicaKaraoke";
 import { KaraokePlayer } from "@/components/quiz/KaraokePlayer";
 import { ProgressoGeracao } from "@/components/quiz/ProgressoGeracao";
@@ -27,6 +28,11 @@ import { t } from "@/lib/textos";
 // do fim, 4s corta a espera entre "ficou pronta" e "apareceu".
 const INTERVALO_MS = 4000;
 const TENTATIVAS_MAX = 90; // ~6 minutos
+// DEPOIS DO `falhou` (29/10): a repescagem e o gerador reserva regravam a
+// música sozinhos, e o polling parava no primeiro `falhou`. Quem ficava na
+// tela nunca via a música que nasceu minutos depois. Segue olhando, devagar.
+const INTERVALO_FALHOU_MS = 20_000;
+const JANELA_FALHOU_MS = 10 * 60_000;
 // Quanto a barra fica em "Pronta! 100%" antes de revelar o player. Curto o
 // bastante pra não atrasar de verdade, longo o bastante pra o olho ver a
 // barra completar em vez de a peça sumir no meio.
@@ -82,6 +88,7 @@ export function MusicaDaSessao({
   // instante em que a prévia FICA pronta do instante em que ENTRA na tela.
   const [revelar, setRevelar] = useState(false);
   const tentativas = useRef(0);
+  const falhouEm = useRef<number | null>(null);
 
   useEffect(() => {
     let vivo = true;
@@ -99,13 +106,24 @@ export function MusicaDaSessao({
           trackEventOnce("musica_pronta", "v1");
           // O "ver o produto" pro TikTok: a música da pessoa pronta. Ver
           // `vitrineTiktok` (o funil completo que o painel cobra).
-          vitrineTiktok({ valor: meuPlano(locale).valor, moeda: locale === "pt" ? "BRL" : "USD" });
+          // No México, o equivalente do peso que o caixa cobra (29/10).
+          vitrineTiktok({
+            valor: noPaisDoAcesso(meuPlano(locale).valor, locale, paisDaTela()),
+            moeda: locale === "pt" ? "BRL" : "USD",
+          });
           return; // para o polling
         }
         // Guarda e SEGUE: a prévia é ganho de espera, não fim de polling.
         // O laço só para quando o arquivo final existe.
         if (r.previaUrl) setPreviaUrl(r.previaUrl);
-        if (r.status === "falhou") return;
+        if (r.status === "falhou") {
+          falhouEm.current ??= Date.now();
+          if (Date.now() - falhouEm.current >= JANELA_FALHOU_MS) return;
+          timer = setTimeout(checar, INTERVALO_FALHOU_MS);
+          return;
+        }
+        // Voltou a gerar (a repescagem pegou): a janela recomeça no próximo `falhou`.
+        falhouEm.current = null;
       } catch (err) {
         console.error("[musica] polling falhou:", err);
       }

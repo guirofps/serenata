@@ -48,6 +48,8 @@ import { emLotes, faltamEntregar } from "../src/lib/entrega-atrasada.js";
 import { confirmarPagamentoDlocal, dlocalConfigurado, idDlocalValido } from "./lib/dlocalgo.js";
 
 const PARA = donosMais("agenciarocketfy@gmail.com");
+/** Pedido pago com valor divergente que já virou aviso (29/10). */
+const MARCA_DIVERGENTE = "valor_divergente_avisado";
 
 /**
  * Quanto tempo pra trás olhar, e quantos por rodada.
@@ -151,7 +153,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   try {
     let consulta = sb
       .from("pedidos")
-      .select("id, payment_id, gateway, email, telefone, quiz_response_id, valor_centavos, created_at, bump_video, bump_quadro")
+      .select("id, payment_id, gateway, email, telefone, quiz_response_id, valor_centavos, created_at, bump_video, bump_quadro, status_gateway")
       .eq("status", "pendente");
     if (pedidoUnico) consulta = consulta.eq("payment_id", pedidoUnico);
     const { data: pendentes } = await consulta
@@ -211,6 +213,24 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       // liberar produto em cima disso é pior que não liberar.
       if (st.valorCentavos != null && st.valorCentavos !== p.valor_centavos) {
         console.error(`[vigia-pagamento] valor divergente em ${p.payment_id}: ${st.valorCentavos} vs ${p.valor_centavos}`);
+        // AVISA UMA VEZ (29/10). Antes era só o log: pago e não liberado em
+        // silêncio. O vigia roda de 30 em 30 minutos sobre 72h, então a marca
+        // no `status_gateway` (só lida pelo painel de recuperação) segura o
+        // aviso repetido; o pedido continua pendente, pra liberar à mão.
+        if (p.status_gateway !== MARCA_DIVERGENTE) {
+          await avisarDonos({
+            assunto: "PIX pago com valor divergente: NÃO liberado (vigia de pagamento)",
+            html:
+              `<p>${p.payment_id}: esperado ${p.valor_centavos}, pago ${st.valorCentavos}</p>` +
+              `<p>${p.email ?? "sem e-mail"} · quiz ${p.quiz_response_id ?? "-"}</p>` +
+              `<p>Conferir no painel do gateway e liberar ou devolver à mão.</p>`,
+          }).catch((err) => console.error("[vigia-pagamento] aviso de divergência falhou:", err));
+          await sb
+            .from("pedidos")
+            .update({ status_gateway: MARCA_DIVERGENTE })
+            .eq("id", p.id)
+            .eq("status", "pendente");
+        }
         continue;
       }
 

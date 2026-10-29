@@ -29,7 +29,7 @@ import { oQueLeva } from "../../src/lib/bump.js";
 import { enviarVendaUtmify } from "../lib/utmify.js";
 import { venderNoTiktok } from "../lib/tiktok-eventos.js";
 import { OFERTAS } from "../../src/lib/creditos.js";
-import { valorEsperadoDoUpsell, type Alvo } from "../../src/lib/cupom.js";
+import { valorEsperadoDoUpsell, valorGravadoNoPedido, type Alvo } from "../../src/lib/cupom.js";
 import { centavosDoVideoDaMusica } from "../../src/lib/preco-video.js";
 import { Resend } from "resend";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
@@ -122,21 +122,25 @@ async function pagarUpsell(
 
   const { data: pendente } = await sb
     .from("pedidos")
-    .select("id, email, status, cupom, created_at, musica_id")
+    .select("id, email, status, cupom, created_at, musica_id, valor_centavos")
     .eq("payment_id", paymentId)
     .maybeSingle();
 
   // O VALOR TEM QUE BATER com o catálogo (ou o catálogo com o cupom que o
   // pedido gravou ao nascer, 07/10), e não com o que a Woovi ecoa: é a segunda
   // trava contra alguém pagar R$ 1 num crédito de R$ 28. O vídeo tem preço por
-  // música (teste `preco_video`, 11/10).
-  const esperado = valorEsperadoDoUpsell(
-    oferta.id === "video"
-      ? await centavosDoVideoDaMusica(sb, (pendente as { musica_id?: string | null } | null)?.musica_id ?? null)
-      : Math.round(oferta.precoBrl * 100),
-    oferta.id as Alvo,
-    pendente as { cupom?: string | null; created_at?: string | null } | null,
-  );
+  // música (teste `preco_video`, 11/10). O valor que o PRÓPRIO pedido gravou
+  // vem primeiro (29/10, o mesmo conserto do `asaas.ts`): recalcular pelo braço
+  // de agora prendia quem pagou antes de o preço mudar.
+  const esperado =
+    valorGravadoNoPedido(pendente as { valor_centavos?: number | null } | null) ??
+    valorEsperadoDoUpsell(
+      oferta.id === "video"
+        ? await centavosDoVideoDaMusica(sb, (pendente as { musica_id?: string | null } | null)?.musica_id ?? null)
+        : Math.round(oferta.precoBrl * 100),
+      oferta.id as Alvo,
+      pendente as { cupom?: string | null; created_at?: string | null } | null,
+    );
   if (status.valorCentavos && status.valorCentavos !== esperado) {
     await auditar(sb, "woovi_upsell_valor_divergente", {
       correlationID,

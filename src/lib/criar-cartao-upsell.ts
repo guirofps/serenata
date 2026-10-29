@@ -72,6 +72,9 @@ export type ResultadoCartaoUpsell =
  */
 const JANELA_DUPLO_MS = 2 * 60_000;
 
+/** Cobrança de cartão pendente (sem resposta do Asaas) que segura a próxima (29/10). */
+const JANELA_EM_VOO_MS = 10 * 60_000;
+
 async function cobrar(
   email: string,
   args: { ofertaId: string; cartao: DadosCartao; titular: TitularCartao; musicaId?: string | null; cupom?: string },
@@ -103,6 +106,27 @@ async function cobrar(
   if (musicaDoPedido) recente = recente.eq("musica_id", musicaDoPedido);
   const { data: jaPago } = await recente.limit(1).maybeSingle();
   if (jaPago) return { ok: true, pago: true };
+
+  // COBRANÇA DE CARTÃO AINDA SEM RESPOSTA (29/10). A trava acima só vê o que
+  // já virou `pago`. Quando o Asaas demora e a chamada estoura o tempo, o
+  // pedido fica `pendente` e o cartão pode ter sido cobrado do lado de lá; a
+  // pessoa toca de novo e levava uma SEGUNDA cobrança real. Pedido de cartão
+  // pendente da mesma pessoa e oferta nos últimos 10 minutos = "em análise"
+  // (a tela já trata), e o webhook libera quando o Asaas confirmar. Só cartão:
+  // o PIX do upsell usa a mesma referência, mas tem `pix_codigo`, e quem gerou
+  // um PIX e preferiu o cartão não pode ficar barrado.
+  let emVoo = db
+    .from("pedidos")
+    .select("id")
+    .eq("gateway", "asaas")
+    .eq("status", "pendente")
+    .is("pix_codigo", null)
+    .ilike("email", literalLike(email))
+    .like("payment_id", `asaas:up:${oferta.id}:%`)
+    .gte("created_at", new Date(Date.now() - JANELA_EM_VOO_MS).toISOString());
+  if (musicaDoPedido) emVoo = emVoo.eq("musica_id", musicaDoPedido);
+  const { data: semResposta } = await emVoo.limit(1).maybeSingle();
+  if (semResposta) return { ok: true, pago: false };
 
   const referencia = `up:${oferta.id}:${crypto.randomUUID()}`;
   const paymentId = `asaas:${referencia}`;

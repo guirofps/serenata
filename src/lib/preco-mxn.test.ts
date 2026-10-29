@@ -6,6 +6,7 @@ import {
   textoEmPeso,
   usdDoPeso,
   valorPagoConfere,
+  valorUsdNoPais,
 } from "./preco-mxn";
 
 describe("checkout em peso pro México", () => {
@@ -67,5 +68,15 @@ describe("checkout em peso pro México", () => {
     expect(valorPagoConfere("mxn", 12900, pedido)).toBe(true);
     expect(valorPagoConfere("usd", 1200, 1200)).toBe(true);
     expect(valorPagoConfere("mxn", 1200, pedido)).toBe(false);
+  });
+});
+
+describe("valorUsdNoPais (29/10)", () => {
+  it("no México, o equivalente em dólar do preço em peso; fora, o mesmo número", () => {
+    expect(valorUsdNoPais(19, "MX")).toBe(10.82);
+    expect(valorUsdNoPais(19, "mx")).toBe(10.82);
+    expect(valorUsdNoPais(19, "US")).toBe(19);
+    expect(valorUsdNoPais(19, null)).toBe(19);
+    expect(valorUsdNoPais(0, "MX")).toBe(0);
   });
 });

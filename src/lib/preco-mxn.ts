@@ -63,6 +63,19 @@ export function usdDoPeso(centavosMxn: number): number {
 }
 
 /**
+ * O valor em dólar que o ANÚNCIO recebe, no país do acesso (29/10). No México
+ * o caixa cobra a tabela em peso e o pedido grava o equivalente em dólar
+ * (US$ 19 → $199 → US$ 10,82); os eventos do navegador (TikTok, GA4, Google)
+ * mandavam os US$ 19 da tela americana. Fora do México, o mesmo número.
+ */
+export function valorUsdNoPais(valorUsd: number, pais: string | null | undefined): number {
+  if (!cobrarEmPeso(pais)) return valorUsd;
+  const centavos = Math.round(valorUsd * 100);
+  if (!(centavos > 0)) return valorUsd;
+  return usdDoPeso(centavosMxnDe(centavos)) / 100;
+}
+
+/**
  * A sessão do Stripe cobrou o valor certo pra um pedido de `valorUsdCentavos`?
  * Moeda desconhecida = `false` (o webhook retém e avisa).
  *

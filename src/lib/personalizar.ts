@@ -168,8 +168,9 @@ export const carregarParaEditar = createServerFn({ method: "GET" })
 
     return {
       locale,
-      // O inglês ganha o seu; pt e es seguem com o de sempre.
-      titulo: m.titulo ?? (locale === "en" ? "Your song" : "Sua música"),
+      // Cada idioma o seu (29/10): o espanhol (Ballad e Serenata) via "Sua
+      // música" em português no editor.
+      titulo: m.titulo ?? (locale === "en" ? "Your song" : locale === "es" ? "Tu canción" : "Sua música"),
       // O espanhol recebia "você" no título do editor (08/10).
       nome: r.nome ?? (locale === "en" ? "you" : locale === "es" ? (ehArgentina() ? "vos" : "ti") : "você"),
       // Pra o editor já marcar o tipo de data certo (aniversário de casamento

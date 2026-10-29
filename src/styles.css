@@ -336,3 +336,11 @@ html[data-pais="MX"] .preco-usd {
 html[data-pais="MX"] .preco-mxn {
   display: inline;
 }
+/* O OXXO só existe pra quem está no México E caiu no braço B do `oxxo_mx`
+   (29/10): a frase que oferece pagar em dinheiro some de todo o resto. */
+.so-oxxo-mx {
+  display: none;
+}
+html[data-pais="MX"][data-exp-oxxo_mx^="B"] .so-oxxo-mx {
+  display: inline;
+}

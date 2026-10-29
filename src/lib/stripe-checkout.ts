@@ -7,6 +7,7 @@ import { stripeApi, confirmarSessaoStripe, ErroStripe } from "../../api/lib/stri
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { centavosMxnDe, cobrarEmPeso, usdDoPeso } from "@/lib/preco-mxn";
+import { impressaoDoCorpo } from "@/lib/impressao-corpo";
 
 // O CHECKOUT DA BALLAD GIFT, do lado do servidor.
 //
@@ -14,13 +15,6 @@ import { centavosMxnDe, cobrarEmPeso, usdDoPeso } from "@/lib/preco-mxn";
 // de `api/lib/stripe.ts`): o preço sai do banco, nunca do navegador; não se
 // cobra música que não existe; o pedido nasce pendente ANTES do pagamento,
 // pra que o webhook saiba de quem é o dinheiro sem adivinhar.
-
-/** SHA-256 curto do corpo, pela Web Crypto (sem `node:crypto` no bundle do cliente). */
-async function impressaoDoCorpo(corpo: unknown): Promise<string> {
-  const bytes = new TextEncoder().encode(JSON.stringify(corpo));
-  const hash = await globalThis.crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(hash).slice(0, 12), (b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 /** O preço do braço que ESTA sessão sorteou, em centavos. Mesmo leitor do PIX. */
 export async function valorCentavosDaSessao(

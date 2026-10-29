@@ -347,16 +347,21 @@ export const cobrarCartao = createServerFn({ method: "POST" })
     // pago; aqui a proteção é ler antes e só carimbar na primeira vez.
     const { data: jaExiste } = await db
       .from("pedidos")
-      .select("paid_at")
+      .select("paid_at, status")
       .eq("payment_id", `asaas:${r.idExterno}`)
       .maybeSingle();
+    // O STATUS TAMBÉM NÃO VOLTA (29/10). Cartão "em análise" (`confirmado`
+    // falso) gravava `pendente` por cima de uma linha que o webhook já tinha
+    // marcado `pago` (a confirmação do Asaas chegando antes desta resposta):
+    // a venda sumia do painel e o vigia tentava liberar de novo. Linha já paga
+    // (ou estornada) fica como está.
+    const statusTravado = jaExiste?.status === "pago" || jaExiste?.status === "reembolsado";
 
     const { data: gravado, error } = await db.from("pedidos").upsert(
       {
         payment_id: `asaas:${r.idExterno}`,
         gateway: "asaas",
-        status: r.confirmado ? "pago" : "pendente",
-        status_gateway: r.statusCru,
+        ...(statusTravado ? {} : { status: r.confirmado ? "pago" : "pendente", status_gateway: r.statusCru }),
         email: emailDaVenda,
         titular_pix: data.titular.nome,
         telefone: (quiz.whatsapp as string | null) || data.titular.telefone,

@@ -7,7 +7,7 @@ import {
   finalizarLetra,
   type RefroesGerados,
 } from "@/lib/coautoria";
-import { getOrCreateSessionId } from "@/lib/session-context";
+import { getOrCreateSessionId, getStoredAttribution } from "@/lib/session-context";
 import type { LetraGerada } from "@/lib/letra-prompt";
 import { useQuizStore } from "@/lib/quiz-store";
 import { primeiraVez, trackEvent, trackEventOnce } from "@/lib/track";
@@ -313,6 +313,10 @@ export function RevealStep({ locale = "pt" }: { locale?: Locale }) {
         estiloSuno: base.estilo_suno,
         versoDestaque: base.verso_destaque,
         locale,
+        // Pro caso de a linha do lead nunca ter chegado ao banco (rede caiu
+        // no passo do e-mail): o servidor cria com eles (29/10).
+        email: useQuizStore.getState().email ?? null,
+        attribution: getStoredAttribution() as Record<string, unknown> | null,
       };
       let r = await finalizarLetra({ data: pedido });
 
