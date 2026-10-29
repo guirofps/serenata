@@ -3,23 +3,39 @@ import type { Locale } from "@/lib/i18n";
 import type { Cupom } from "@/lib/cupom";
 import { EXP_PRECO, planoCobravelDe, planoControle, variantesComPlano } from "@/lib/preco";
 import { ehBallad } from "@/lib/marca-identidade";
-import { textoEmPeso } from "@/lib/preco-mxn";
+import { MERCADOS_LOCAIS, textoNaMoeda } from "@/lib/mercados";
 
 /**
- * Um preço em dólar, com a versão em peso ao lado pra quem está no México.
+ * Um preço em dólar, com a versão de cada mercado local ao lado (peso
+ * mexicano, euro, peso colombiano, peso chileno, sol).
  *
- * Só na Ballad, a única que cobra em peso (`preco-mxn.ts`). As duas moedas vão
- * no HTML e o `data-pais` do `<html>` escolhe qual aparece (`pais-acesso.ts`),
- * pelo mesmo motivo das variantes de preço: nada renderiza de novo e o número
- * não pisca. `como` monta a frase em volta ("a partir de …") nas duas moedas.
+ * Só na Ballad, a única que cobra em moeda local (`mercados.ts`). Todas as
+ * moedas vão no HTML e o `data-pais` do `<html>` escolhe qual aparece
+ * (`cssPrecoPorPais`), pelo mesmo motivo das variantes de preço: nada
+ * renderiza de novo e o número não pisca. `como` monta a frase em volta ("a
+ * partir de …") em todas as moedas.
+ *
+ * POR QUE AINDA UM SPAN POR MOEDA, com o servidor já sabendo o país (29/10):
+ * o `data-pais` é a ÚNICA coisa que decide o preço na tela, carimbado pelo
+ * servidor ou, sem ele, pela rede do navegador (`pais-acesso.ts`). Desenhar um
+ * preço só exigiria que o país do desenho e o do `<html>` nunca discordassem,
+ * e no dia em que discordarem a tela mostraria um número e o caixa outro.
+ * Com todos no HTML, o que aparece é sempre o do carimbo, que é o do caixa.
  */
 export function NaMoeda({ texto, como = (t) => t }: { texto: string; como?: (preco: string) => string }) {
-  const peso = ehBallad() ? textoEmPeso(texto) : null;
-  if (!peso) return <>{como(texto)}</>;
+  if (!ehBallad()) return <>{como(texto)}</>;
+  const locais = MERCADOS_LOCAIS.map((m) => ({ moeda: m.moeda, texto: textoNaMoeda(m, texto) })).filter(
+    (x): x is { moeda: typeof x.moeda; texto: string } => !!x.texto,
+  );
+  if (!locais.length) return <>{como(texto)}</>;
   return (
     <>
       <span className="preco-usd">{como(texto)}</span>
-      <span className="preco-mxn">{como(peso)}</span>
+      {locais.map((x) => (
+        <span key={x.moeda} className={`preco-${x.moeda}`}>
+          {como(x.texto)}
+        </span>
+      ))}
     </>
   );
 }
@@ -71,10 +87,14 @@ export function PrecoDaOferta({
         <p className="text-sm text-muted-foreground">
           {/* No português a âncora é o preço REAL da pessoa (o braço dela), o
               mesmo que o cupom descontou. No espanhol, o de sempre. */}
-          <span className="line-through">{locale === "pt" ? descontado.de : planoControle(locale).texto}</span>{" "}
+          {/* `NaMoeda` também aqui (29/10): fora da Ballad ele devolve o texto
+              puro, e na Ballad o riscado e o preço saem na moeda do país. */}
+          <span className="line-through">
+            <NaMoeda texto={locale === "pt" ? descontado.de : planoControle(locale).texto} />
+          </span>{" "}
           {hojePor}
         </p>
-        <p className="font-display text-5xl font-semibold tracking-tight">{descontado.por}</p>
+        <p className="font-display text-5xl font-semibold tracking-tight"><NaMoeda texto={descontado.por} /></p>
       </>
     );
   }
@@ -114,7 +134,7 @@ export function PrecoCurto({
   className: string;
 }) {
   if (descontado) {
-    return <p className={className}>{descontado.por}</p>;
+    return <p className={className}><NaMoeda texto={descontado.por} /></p>;
   }
   return (
     <>
