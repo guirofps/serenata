@@ -233,10 +233,13 @@ export function MusicaKaraoke({
   useEffect(() => {
     const a = audioRef.current;
     if (!a || completo) return; // modo completo: sem trava
-    const trava = () => {
+    // `noFim`: o `ended` chegou. Conta como corte mesmo antes do limite.
+    const trava = (noFim?: unknown) => {
       const { s, motivo } = corteRef.current;
-      const lim = noRefrao ? corteNoAudio(s, a.duration) : s;
-      if (a.currentTime >= lim) {
+      const corteDoBraco = noRefrao ? corteNoAudio(s, a.duration) : s;
+      const acabou = noFim === true;
+      const lim = acabou ? Math.min(corteDoBraco, a.currentTime) : corteDoBraco;
+      if (acabou || a.currentTime >= lim) {
         travouRef.current = true;
         a.pause();
         a.currentTime = lim;
@@ -253,15 +256,18 @@ export function MusicaKaraoke({
     };
     a.addEventListener("timeupdate", trava);
     a.addEventListener("seeking", trava); // seek além do limite também trava
-    // B: arquivo mais curto que o corte (prévia parcial) trava no fim dele, e
-    // o cartão aparece do mesmo jeito.
-    if (noRefrao) a.addEventListener("ended", trava);
+    // Arquivo mais curto que o corte (prévia parcial) trava no fim dele, e o
+    // cartão (B) ou o popup de desbloquear (A) aparece do mesmo jeito. Era só
+    // no B: no A, uma prévia de 35s com o corte aos 40s terminava em silêncio,
+    // sem popup e sem caminho pra comprar (29/10).
+    const noFim = () => trava(true);
+    a.addEventListener("ended", noFim);
     const onPause = () => setTocando(false);
     a.addEventListener("pause", onPause);
     return () => {
       a.removeEventListener("timeupdate", trava);
       a.removeEventListener("seeking", trava);
-      a.removeEventListener("ended", trava);
+      a.removeEventListener("ended", noFim);
       a.removeEventListener("pause", onPause);
     };
   }, []);

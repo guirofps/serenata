@@ -17,7 +17,7 @@ import { type Locale } from "@/lib/i18n";
 import { meuPlano, meuPlanoCobravel } from "@/lib/preco";
 import { PrecoCurto, PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
 import { descontoNaTela } from "@/lib/cupom";
-import { valorDoCheckout } from "@/lib/valor-conversao";
+import { paisDaTela, valorDoCheckout } from "@/lib/valor-conversao";
 import { ehArgentina, paisAtual } from "@/lib/mercado-es";
 import { mercadoDoPais } from "@/lib/mercados";
 import { ehBallad } from "@/lib/marca-identidade";
@@ -686,6 +686,8 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       valorDaTela: meuPlano(locale, { temCupom: Boolean(cupom && descontado) }).valor,
       valorCobravel: meuPlanoCobravel(locale).valor,
       comCupomCentavos: descontado?.porCentavos,
+      // No México, o equivalente do peso que o caixa cobra (29/10).
+      pais: paisDaTela(),
     });
     // O "pôr no carrinho" pro TikTok: abriu a oferta. Ver `carrinhoTiktok`.
     carrinhoTiktok({ valor, moeda: locale === "pt" ? "BRL" : "USD" });
@@ -892,6 +894,9 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           estiloSuno: letra.estiloSuno,
           versoDestaque: letra.versoDestaque ?? "",
           locale,
+          // Ver o `RevealStep`: só usados se a linha do lead nunca nasceu (29/10).
+          email: useQuizStore.getState().email ?? null,
+          attribution: getStoredAttribution() as Record<string, unknown> | null,
         },
       });
     } catch (err) {
@@ -1023,6 +1028,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       valorCobravel: plano.valor,
       comCupomCentavos: descontado?.porCentavos,
       comConviteCentavos: conviteFinalC,
+      pais: paisDaTela(),
     });
     trackEvent("checkout_click", { valor: valorCheckout, locale, preco: plano.texto });
 
@@ -1152,7 +1158,9 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
             }}
             className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]"
           />
-          <div className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-primary/10 bg-background px-5 pb-8 pt-4 shadow-2xl sm:rounded-3xl">
+          {/* `dvh` onde existe (29/10): no Safari do iPhone `vh` é a altura SEM a barra
+          do navegador, e o pé da folha (o botão de pagar) ficava atrás dela. */}
+          <div className="relative max-h-[92vh] supports-[height:100dvh]:max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-primary/10 bg-background px-5 pb-8 pt-4 shadow-2xl sm:rounded-3xl">
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted-foreground/25 sm:hidden" />
             <PixTransparente
               nome={nome}
@@ -1301,7 +1309,14 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
               <p className="mt-1 text-xs text-muted-foreground">{C.pagamentoUnico}</p>
               {C.conversao && (
                 <p className="mx-auto mt-2 max-w-xs text-[11px] leading-relaxed text-muted-foreground">
+                  {/* A frase já vem na moeda do país (`ofertaEsDoMercado`, o
+                      mesmo país do `data-pais` que o servidor carimbou). No
+                      México, o OXXO só aparece pro braço B do `oxxo_mx`, que é
+                      carimbo do NAVEGADOR: por isso o CSS `.so-oxxo-mx`. */}
                   {C.conversao}
+                  {(C as { conversaoOxxo?: string }).conversaoOxxo ? (
+                    <span className="so-oxxo-mx">{(C as { conversaoOxxo?: string }).conversaoOxxo}</span>
+                  ) : null}
                 </p>
               )}
             </div>
@@ -1456,7 +1471,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           {(locale === "pt" && varianteDe("duvidas_pagamento") === "B"
             ? [...DUVIDAS_PAGAMENTO_PT, ...C.duvidas]
             : C.duvidas
-          ).map((d, i) => (
+          ).map((d: { p: string; r: string }, i) => (
             <div key={d.p}>
               <button
                 onClick={() => setAberta(aberta === i ? null : i)}
@@ -1470,7 +1485,9 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
                 />
               </button>
               {aberta === i && (
-                <p className="px-5 pb-4 text-sm leading-relaxed text-muted-foreground">{d.r}</p>
+                <p className="px-5 pb-4 text-sm leading-relaxed text-muted-foreground">
+                  {d.r}
+                </p>
               )}
             </div>
           ))}
@@ -1499,7 +1516,9 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
               {credito ? C.creditoLabel : C.unicoLabel}
             </p>
             {credito ? (
-              <p className="font-display text-lg font-semibold leading-tight">{C.creditoValor}</p>
+              <p className="font-display text-lg font-semibold leading-tight">
+                {C.creditoValor}
+              </p>
             ) : (
               <PrecoCurto
                 locale={locale}

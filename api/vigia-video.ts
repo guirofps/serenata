@@ -52,7 +52,7 @@ function autorizado(req: IncomingMessage): boolean {
   return segredoConfere(token, esperado);
 }
 
-type Video = { id: string; email: string | null; musica_id: string | null; render_id: string | null; render_bucket: string | null; render_iniciado_em: string | null; created_at: string };
+type Video = { id: string; email: string | null; musica_id: string | null; render_id: string | null; render_bucket: string | null; render_iniciado_em: string | null; created_at: string; atualizacoes: number | null };
 
 async function entregar(sb: SupabaseClient, v: Video, bucket: string, key: string): Promise<string> {
   const url = await presignUrl({ region: REGIAO, bucketName: bucket, objectKey: key, expiresInSeconds: 900, checkIfObjectExists: true });
@@ -72,14 +72,25 @@ async function entregar(sb: SupabaseClient, v: Video, bucket: string, key: strin
   const { error } = await sb.storage.from("videos").upload(destino, bytes, { contentType: "video/mp4", upsert: true });
   if (error) throw new Error(`upload falhou: ${error.message}`);
   // A assinatura das entradas, como o job grava: sem ela, o "atualizar meu vídeo" acharia a página mudada.
-  await sb
+  const { data: virou, error: erroUp } = await sb
     .from("videos")
     .update({ status: "pronto", video_path: destino, assinatura: assinaturaDoVideo(entradaDaMusica(m as never)), pronto_em: new Date().toISOString(), erro: null })
     .eq("id", v.id)
-    .eq("status", "renderizando");
+    .eq("status", "renderizando")
+    .select("id");
+  if (erroUp) throw new Error(`marcar pronto falhou: ${erroUp.message}`);
+  // NINGUÉM VIROU (29/10): o job voltou e entregou entre a leitura e agora, ou
+  // a linha mudou de estado. O update é condicional, mas o resultado não era
+  // lido e o "vídeo pronto" saía de novo, por cima do e-mail do job.
+  if (!virou?.length) return "já entregue por outro caminho";
+
+  // ATUALIZAÇÃO É SILENCIOSA (29/10), como no job (`renderizarVideo`,
+  // "avisar-cliente"): quem pediu "atualizar meu vídeo" está com o editor
+  // aberto, e um segundo "seu vídeo está pronto" é só ruído.
+  const atualizacao = Number(v.atualizacoes) > 0;
 
   const chave = process.env.RESEND_API_KEY;
-  if (chave && v.email) {
+  if (chave && v.email && !atualizacao) {
     const locale = (m.locale as string | null) ?? "pt";
     const linkVideo = `${SITE}/editar/${m.token_edicao}#video`;
     const { data: enviado, error: e } = await comUtm(new Resend(chave)).emails.send({
@@ -106,7 +117,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   const agora = Date.now();
   const { data, error } = await sb
     .from("videos")
-    .select("id, email, musica_id, render_id, render_bucket, render_iniciado_em, created_at")
+    .select("id, email, musica_id, render_id, render_bucket, render_iniciado_em, created_at, atualizacoes")
     .eq("status", "renderizando")
     .gte("created_at", new Date(agora - 7 * 86400000).toISOString())
     .limit(50);

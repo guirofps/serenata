@@ -7,6 +7,7 @@ import { OFERTAS } from "@/lib/creditos";
 import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { stripeApi, confirmarSessaoStripe, ErroStripe } from "../../api/lib/stripe";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
+import { impressaoDoCorpo } from "@/lib/impressao-corpo";
 
 // O VÍDEO-PRESENTE NA BALLAD GIFT (EUA), pelo Stripe (30/09/2026).
 //
@@ -102,72 +103,74 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
     const valorDoPedido = usdDe(mercado, valorNaMoeda);
 
     try {
-      const criar = () =>
-        stripeApi<{ id: string; client_secret: string }>(
-          "POST",
-          "/checkout/sessions",
+      const corpo = {
+        ui_mode: "embedded",
+        // Ver `stripe-checkout.ts`: o nome e a cor da Ballad, não os da conta.
+        branding_settings: { display_name: MARCA_ATIVA.nome, button_color: "#bd404d" },
+        mode: "payment",
+        locale: localeStripeDe(mercado, espanhol ? "es" : "en"),
+        // Sem redirecionar: a folha fica no editor, e o `onComplete` do
+        // navegador chama a confirmação. O webhook confirma do mesmo jeito
+        // se a pessoa fechar a aba no meio.
+        redirect_on_completion: "never",
+        line_items: [
           {
-            ui_mode: "embedded",
-            // Ver `stripe-checkout.ts`: o nome e a cor da Ballad, não os da conta.
-            branding_settings: { display_name: MARCA_ATIVA.nome, button_color: "#bd404d" },
-            mode: "payment",
-            locale: localeStripeDe(mercado, espanhol ? "es" : "en"),
-            // Sem redirecionar: a folha fica no editor, e o `onComplete` do
-            // navegador chama a confirmação. O webhook confirma do mesmo jeito
-            // se a pessoa fechar a aba no meio.
-            redirect_on_completion: "never",
-            line_items: [
-              {
-                quantity: 1,
-                price_data: {
-                  currency: moeda,
-                  unit_amount: valorNaMoeda,
-                  product_data: extra
-                    ? espanhol
-                      ? {
-                          name: "Otra canción personalizada",
-                          description:
-                            "Una canción nueva hecha de la historia de quien tú elijas, cantada, con su página regalo. Se activa al terminar el cuestionario.",
-                        }
-                      : {
-                          name: "Another personalized song",
-                          description:
-                            "A brand-new song made from the story of whoever you choose, sung, with its gift page. It's applied when you finish the questions.",
-                        }
-                    : espanhol
-                    ? {
-                        name: m.titulo ? `Video regalo: ${m.titulo}` : "Tu video regalo",
-                        description:
-                          "Sus fotos al ritmo de tu canción, con la letra iluminándose palabra por palabra. En HD, para descargar y compartir.",
-                      }
-                    : {
-                        name: m.titulo ? `Gift video: ${m.titulo}` : "Your gift video",
-                        description:
-                          "Your photos moving to the rhythm of your song, with the lyrics lighting up word by word. In HD, to download and share.",
-                      },
-                },
-              },
-            ],
-            customer_email: email,
-            // Na extra, `musica_id` é a música de ONDE se comprou (rastro), não
-            // a que vai nascer: a confirmação só usa a oferta e o e-mail.
-            metadata: { tipo: "upsell", oferta: data.oferta, musica_id: m.id },
-            payment_intent_data: {
-              statement_descriptor_suffix: "BALLADGIFT",
-              description: `${MARCA_ATIVA.nome} · ${extra ? "Extra song" : "Gift video"}`,
-              metadata: { tipo: "upsell", oferta: data.oferta, musica_id: m.id },
+            quantity: 1,
+            price_data: {
+              currency: moeda,
+              unit_amount: valorNaMoeda,
+              product_data: extra
+                ? espanhol
+                  ? {
+                      name: "Otra canción personalizada",
+                      description:
+                        "Una canción nueva hecha de la historia de quien tú elijas, cantada, con su página regalo. Se activa al terminar el cuestionario.",
+                    }
+                  : {
+                      name: "Another personalized song",
+                      description:
+                        "A brand-new song made from the story of whoever you choose, sung, with its gift page. It's applied when you finish the questions.",
+                    }
+                : espanhol
+                ? {
+                    name: m.titulo ? `Video regalo: ${m.titulo}` : "Tu video regalo",
+                    description:
+                      "Sus fotos al ritmo de tu canción, con la letra iluminándose palabra por palabra. En HD, para descargar y compartir.",
+                  }
+                : {
+                    name: m.titulo ? `Gift video: ${m.titulo}` : "Your gift video",
+                    description:
+                      "Your photos moving to the rhythm of your song, with the lyrics lighting up word by word. In HD, to download and share.",
+                  },
             },
           },
-          // Reabrir a folha devolve a MESMA sessão (idempotência de 24h do
-          // Stripe). Mexeu no corpo, sobe a versão da chave (v3 em 09/10: o
-          // idioma do caixa e do produto passou a seguir o da compra; v4 em
-          // 28/10: a moeda, peso no México). A extra leva o `nonce` da folha.
-          {
-            idempotencia: extra
-              ? `ballad-extra:v1:${m.id}:${data.nonce}:${moeda}:${valorNaMoeda}`
-              : `ballad-video:v4:${m.id}:${moeda}:${valorNaMoeda}`,
-          },
-        );
+        ],
+        customer_email: email,
+        // Na extra, `musica_id` é a música de ONDE se comprou (rastro), não
+        // a que vai nascer: a confirmação só usa a oferta e o e-mail.
+        metadata: { tipo: "upsell", oferta: data.oferta, musica_id: m.id },
+        payment_intent_data: {
+          statement_descriptor_suffix: "BALLADGIFT",
+          description: `${MARCA_ATIVA.nome} · ${extra ? "Extra song" : "Gift video"}`,
+          metadata: { tipo: "upsell", oferta: data.oferta, musica_id: m.id },
+        },
+      };
+      // Reabrir a folha devolve a MESMA sessão (idempotência de 24h do
+      // Stripe). Mexeu no corpo, sobe a versão da chave (v3 em 09/10: o
+      // idioma do caixa e do produto passou a seguir o da compra; v4 em
+      // 28/10: a moeda, peso no México). A extra leva o `nonce` da folha.
+      // A CHAVE LEVA A IMPRESSÃO DO CORPO (29/10), igual ao caixa da música
+      // (`stripe-checkout.ts`, 16/10): o título da música, o e-mail e o idioma
+      // mudam sem a gente mexer no código (a pessoa ajusta a música, corrige o
+      // e-mail), e o Stripe recusa a mesma chave com corpo diferente (400 por
+      // 24h). Corpo igual continua devolvendo a mesma sessão.
+      const impressao = await impressaoDoCorpo(corpo);
+      const criar = () =>
+        stripeApi<{ id: string; client_secret: string }>("POST", "/checkout/sessions", corpo, {
+          idempotencia: extra
+            ? `ballad-extra:v1:${m.id}:${data.nonce}:${moeda}:${valorNaMoeda}:${impressao}`
+            : `ballad-video:v4:${m.id}:${moeda}:${valorNaMoeda}:${impressao}`,
+        });
       let sessao: { id: string; client_secret: string } | null = null;
       for (let tentativa = 0; !sessao; tentativa++) {
         try {

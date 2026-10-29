@@ -59,6 +59,13 @@ export function usdDoPeso(centavosMxn: number): number {
 }
 
 /**
+ * O valor em dólar que o ANÚNCIO recebe, no país do acesso (29/10). Desde a
+ * fusão com `mercados-es` é a versão de `mercados.ts`, que vale pra todo país
+ * da tabela; no México o número é o mesmo (US$ 19 → $199 → US$ 10,82).
+ */
+export { valorUsdNoPais } from "./mercados.js";
+
+/**
  * A sessão cobrou o valor certo pra um pedido de `valorUsdCentavos`? Agora vale
  * pra toda moeda da tabela de `mercados.ts` (euro, peso colombiano…), com o
  * mesmo formato antigo do peso mexicano aceito. Moeda desconhecida = `false`.

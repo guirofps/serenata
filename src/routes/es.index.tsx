@@ -17,6 +17,7 @@ import { moeda } from "@/lib/i18n";
 import { ehBallad } from "@/lib/marca-identidade";
 import { paisAtual } from "@/lib/mercado-es";
 import { mercadoDoPais, naMoedaPorExtenso, type Mercado, type VarianteConteudo } from "@/lib/mercados";
+import { CONVERSAO_MX_OXXO } from "@/components/quiz/oferta-es-eua";
 import { exemplosEsUsProntos } from "@/lib/exemplos-es-us";
 import { ZapFlutuante } from "@/components/marca/ZapFlutuante";
 import { NaMoeda } from "@/components/quiz/PrecoDaOferta";
@@ -188,6 +189,9 @@ const PREGUNTAS_EUA = [
   {
     q: "¿Cómo se paga?",
     a: "Con tarjeta, Apple Pay o Google Pay, en dólares y en un solo pago, sin suscripción. En tu estado de cuenta aparece como STRIPEONLI* BALLADGIFT.",
+    // No México e nos outros mercados locais a resposta sai na moeda do país
+    // (`preguntasBallad`, 29/10); no México, "en pesos mexicanos (MXN)" com o
+    // OXXO só pro braço B do `oxxo_mx` (`.so-oxxo-mx`).
   },
   {
     q: "¿Y si no le gusta?",
@@ -202,7 +206,7 @@ const PREGUNTAS_EUA = [
 // pagamento "en dólares" (o caixa cobra na moeda do país, `mercados.ts`) e o
 // "por mensaje" (na Espanha e na LatAm o presente vai pelo WhatsApp). A
 // Espanha ganha ainda o `pequeño` no lugar do `chiquito`, que é mexicano.
-function preguntasBallad(variante: VarianteConteudo, mercado: Mercado) {
+function preguntasBallad(variante: VarianteConteudo, mercado: Mercado): Array<{ q: string; a: string; aOxxo?: string }> {
   if (variante === "eua") return PREGUNTAS_EUA;
   const whatsapp = variante === "espanha" || variante === "latam";
   return PREGUNTAS_EUA.map((p) => {
@@ -218,6 +222,8 @@ function preguntasBallad(variante: VarianteConteudo, mercado: Mercado) {
         return {
           ...p,
           a: `Con tarjeta, Apple Pay o Google Pay, ${naMoedaPorExtenso(mercado)} y en un solo pago, sin suscripción. En tu estado de cuenta aparece como STRIPEONLI* BALLADGIFT.`,
+          // O OXXO, só no México e só pro braço B do `oxxo_mx` (CSS `.so-oxxo-mx`).
+          aOxxo: mercado.temDlocal ? CONVERSAO_MX_OXXO : undefined,
         };
       default:
         return p;
@@ -670,6 +676,7 @@ function HomeEs() {
                     style={{ fontSize: "var(--t-sm)", lineHeight: 1.65 }}
                   >
                     {p.a}
+                    {(p as { aOxxo?: string }).aOxxo ? <span className="so-oxxo-mx">{(p as { aOxxo?: string }).aOxxo}</span> : null}
                   </p>
                 )}
               </div>

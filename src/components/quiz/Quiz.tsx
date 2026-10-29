@@ -794,7 +794,11 @@ export function Quiz({
                 />
               ))}
             {step.input === "story" && (
+              // `key` pelo passo (29/10): historia1 e historia2 são o mesmo
+              // componente na mesma posição, e sem a chave o React o reaproveitava
+              // com o ditado e o estado da gravação da pergunta anterior.
               <StoryStep
+                key={step.id}
                 step={step}
                 value={respostas[step.field] as string}
                 onChange={(v) => setResposta(step.field, v)}

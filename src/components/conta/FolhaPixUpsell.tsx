@@ -206,7 +206,9 @@ export function FolhaPixUpsell({
         }}
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
       />
-      <div className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-[var(--papel)] px-5 pb-8 pt-4 shadow-2xl sm:rounded-3xl">
+      {/* `dvh` onde existe (29/10): no Safari do iPhone `vh` é a altura SEM a barra
+          do navegador, e o pé da folha (o botão de pagar) ficava atrás dela. */}
+      <div className="relative max-h-[92vh] supports-[height:100dvh]:max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-[var(--papel)] px-5 pb-8 pt-4 shadow-2xl sm:rounded-3xl">
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--tinta-fraca)]/40 sm:hidden" />
         <p className="mb-4 text-center text-sm text-[var(--tinta-fraca)]">{titulo}</p>
 

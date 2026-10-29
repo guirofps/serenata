@@ -130,6 +130,14 @@ export const renderizarVideo = inngest.createFunction(
     // (abaixo) não disputar entre execuções. Quantos renders ficam no ar ao mesmo
     // tempo quem decide é `RENDERS_SIMULTANEOS`, não este número.
     concurrency: { limit: 1 },
+    // UMA EXECUÇÃO VIVA POR VÍDEO (29/10). O `concurrency` acima conta só o
+    // passo que está rodando, não a execução dormindo no polling da Lambda: um
+    // segundo `video/renderizar` do mesmo vídeo (o `videoPendente` repedindo,
+    // o vigia, o clique de atualizar, um webhook repetido) disparava OUTRO
+    // render na AWS e mandava o "vídeo pronto" duas vezes. Mesmo remédio do
+    // `gerarMusica` (08/10): `skip` descarta o evento novo enquanto houver uma
+    // viva cuidando do mesmo vídeo.
+    singleton: { key: "event.data.videoId", mode: "skip" },
     retries: 2,
     triggers: [{ event: "video/renderizar" }],
     onFailure: async ({ event, error }) => {

@@ -117,3 +117,25 @@ export function venceHojeOuAmanha(venceEm: number, agora: number): "hoy" | "mañ
   if (venc === dia(agora + 86400e3)) return "mañana";
   return null;
 }
+
+/**
+ * UMA FICHA POR QUIZ, A MAIS NOVA (29/10).
+ *
+ * Quem gera a ficha de novo (fechou a folha e voltou, trocou de OXXO pra SPEI)
+ * fica com duas pendentes no mesmo quiz. O job lia em ordem crescente e
+ * ficava com a PRIMEIRA, a mais velha: o e-mail mandava pagar a ficha que a
+ * pessoa já tinha trocado, e o "vence em" era o dela. Agora fica a de
+ * `created_at` maior, e as outras do mesmo quiz saem da fila, mesmo que a
+ * mais nova não tenha toque devido agora (senão a velha passaria no lugar).
+ */
+export function fichaMaisNovaPorQuiz<T extends { quiz_response_id: string | null; created_at: string }>(
+  pedidos: T[],
+): T[] {
+  const porQuiz = new Map<string, T>();
+  for (const p of pedidos) {
+    if (!p.quiz_response_id) continue;
+    const atual = porQuiz.get(p.quiz_response_id);
+    if (!atual || Date.parse(p.created_at) > Date.parse(atual.created_at)) porQuiz.set(p.quiz_response_id, p);
+  }
+  return [...porQuiz.values()].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+}

@@ -89,6 +89,8 @@ export const DUVIDAS_ES_EUA = [
   // Trocar junto com ela quando o dono renomear a conta Stripe.
   {
     p: "¿Cómo aparece el cargo en mi tarjeta?",
+    // Quem está no México (ou em outro mercado local) paga na moeda dele: a
+    // frase sai de `ofertaEsDoMercado`, "en pesos mexicanos (MXN)" lá (28/10).
     r: "Como STRIPEONLI* BALLADGIFT. Es un solo cargo en dólares a través de Stripe, nuestro procesador de pagos, sin suscripción.",
   },
   {
@@ -125,9 +127,18 @@ export const OFERTA_ES_EUA = {
   // resposta vai antes do clique, e diz também que é o total (o Stripe não
   // soma nada no caixa).
   conversao: "El precio es en dólares (USD) y es el total: no se suma nada al pagar.",
+  // A frase do OXXO (só o México tem; ver `CONVERSAO_MX_OXXO`). Vazia aqui.
+  conversaoOxxo: "",
   creditoValor: "US$ 0",
   gateway: "Tarjeta, Apple Pay o Google Pay. Pago único y seguro",
 };
+
+// O MÉXICO (29/10, da auditoria de master): preço e caixa em peso, e a frase
+// diz que se paga com cartão. O OXXO só entra pra quem tem o botão (braço B do
+// `oxxo_mx`): o braço é carimbo do NAVEGADOR, então a frase vai sempre no HTML
+// e o CSS `.so-oxxo-mx` (styles.css) a mostra só no `data-pais="MX"` com B.
+export const CONVERSAO_MX = "El precio es en pesos mexicanos (MXN) y es el total: no se suma nada al pagar. Pagas con tarjeta.";
+export const CONVERSAO_MX_OXXO = " Sin tarjeta, también puedes pagar en efectivo en OXXO o por transferencia.";
 
 // ── A OFERTA POR PAÍS (29/10/2026) ───────────────────────────────
 //
@@ -197,7 +208,9 @@ export function ofertaEsDoMercado(variante: VarianteOferta, mercado: Mercado) {
     ...OFERTA_ES_EUA,
     entregaveis,
     duvidas,
-    conversao: fraseDaMoeda(mercado),
+    conversao: mercado.pais === "MX" ? CONVERSAO_MX : fraseDaMoeda(mercado),
+    // Só o México tem o OXXO (`temDlocal`); a frase entra num `.so-oxxo-mx`.
+    conversaoOxxo: mercado.pais === "MX" ? CONVERSAO_MX_OXXO : "",
     creditoValor: formatarNaMoeda(mercado, 0),
   };
 }

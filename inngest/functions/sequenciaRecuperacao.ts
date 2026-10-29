@@ -372,6 +372,10 @@ export const sequenciaRecuperacao = inngest.createFunction(
         "email_sequencia_enviado",
         "quase_comprou_enviado",
         "pix_nao_pago_enviado",
+        // Os dirigidos da Ballad (29/10): só o braço B conta, quem filtra é
+        // `posicoesNaRegua` (`contaNaRegua`, `src/lib/regua-escada.ts`).
+        "recusa_rapida",
+        "oxxo_pendente",
       ]) {
         enviados.push(...(await trilhaDoEvento(sb, nome, desde)));
       }
@@ -623,13 +627,27 @@ export const sequenciaRecuperacao = inngest.createFunction(
       //
       // Uma consulta só pra fila inteira, e só pra quem vai receber o 2:
       // fora dele o sinal não muda nada e não vale a ida ao banco.
+      //
+      // COM JANELA E FALHA FECHADA (29/10). Sem `created_at`, a consulta
+      // varria a trilha inteira das sessões (o formato que estourou o
+      // PostgREST em 04/10), e o erro dela era lido como "ninguém ouviu": quem
+      // tocou a prévia recebia "a gravação ficou pronta depois que você saiu",
+      // que pra ele é falso. Janela de OLHAR_ATE_DIAS (os leads da escada são
+      // só desse período, e o play é posterior ao quiz); erro tira os do
+      // degrau 2 desta rodada, e eles voltam na próxima.
       const doDois = out.filter((o) => o.numero === 2 && o.sessao && !o.toque);
       if (doDois.length) {
-        const { data: tocaram } = await sb
+        const { data: tocaram, error: erroOuviu } = await sb
           .from("funnel_events")
           .select("session_id")
           .in("event_name", ["musica_play", "preview_limite"])
-          .in("session_id", doDois.map((o) => o.sessao));
+          .in("session_id", doDois.map((o) => o.sessao))
+          .gte("created_at", new Date(agora - OLHAR_ATE_DIAS * 86400000).toISOString());
+        if (erroOuviu) {
+          console.error("[escada] não deu pra saber quem ouviu, o degrau 2 fica pra próxima rodada:", erroOuviu.message);
+          const fora = new Set(doDois);
+          return out.filter((o) => !fora.has(o));
+        }
         const ouviram = new Set((tocaram ?? []).map((t) => t.session_id));
         for (const item of doDois) item.ouviu = ouviram.has(item.sessao);
       }

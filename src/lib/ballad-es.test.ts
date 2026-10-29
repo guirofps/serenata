@@ -202,6 +202,18 @@ describe("na Ballad, o /es é dos hispanos dos EUA", () => {
     ).toBe(19);
   });
 
+  it("no México o anúncio recebe o equivalente do peso, não os US$ 19 da tela (29/10)", () => {
+    // US$ 19 → $199 MXN pela tabela → US$ 10,82, o mesmo que o pedido grava.
+    expect(m.valor.valorDoCheckout({ locale: "es", valorDaTela: 19, valorCobravel: 19, pais: "MX" })).toBe(10.82);
+    expect(m.valor.valorDoCheckout({ locale: "en", valorDaTela: 19, valorCobravel: 19, pais: "MX" })).toBe(10.82);
+    expect(m.valor.valorDoCheckout({ locale: "es", valorDaTela: 19, valorCobravel: 19, pais: "US" })).toBe(19);
+    expect(m.valor.valorDaCompra({ locale: "es", pedido: null, reserva: 19, pais: "MX" })).toBe(10.82);
+    // O banco já tem o equivalente: não converte de novo.
+    expect(
+      m.valor.valorDaCompra({ locale: "es", pedido: { valorCentavos: 1082, gateway: "dlocalgo" }, reserva: 19, pais: "MX" }),
+    ).toBe(10.82);
+  });
+
   it("os gêneros: regional mexicano na frente, nada de tango nem vallenato", () => {
     const lista = m.generos.generos("es").map((g) => g.value);
     expect(lista.slice(0, 3)).toEqual(["mariachi", "banda", "nortena"]);
@@ -404,6 +416,9 @@ describe("na Serenata, o /es continua argentino", () => {
     expect(preco.varianteDePreco("es")).toBe("A");
     expect(cupom.cupomAtivo("es", new Date("2026-10-10T12:00:00Z"))?.codigo).toBe("SRN7");
     expect(valor.valorDoCheckout({ locale: "es", valorDaTela: 9.9, valorCobravel: 19 })).toBe(9.9);
+    // Na Serenata o México não muda nada (29/10): quem cobra é a Perfect Pay.
+    expect(valor.valorDoCheckout({ locale: "es", valorDaTela: 9.9, valorCobravel: 19, pais: "MX" })).toBe(9.9);
+    expect(valor.valorDoCheckout({ locale: "pt", valorDaTela: 38, valorCobravel: 38, pais: "MX" })).toBe(38);
     expect(
       valor.valorDaCompra({ locale: "es", pedido: { valorCentavos: 5000, gateway: "stripe" }, reserva: 9.9 }),
     ).toBe(9.9);

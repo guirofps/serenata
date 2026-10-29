@@ -8,6 +8,7 @@ import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
 import { localeStripeDe, mercadoDoPais, usdDe, valorNaMoeda as naMoedaDoMercado } from "@/lib/mercados";
 import { paisDaRequisicao } from "@/lib/pais-requisicao.server";
 import { marcarMoedaDoPedido } from "@/lib/pais-quiz";
+import { impressaoDoCorpo } from "@/lib/impressao-corpo";
 
 // O CHECKOUT DA BALLAD GIFT, do lado do servidor.
 //
@@ -15,13 +16,6 @@ import { marcarMoedaDoPedido } from "@/lib/pais-quiz";
 // de `api/lib/stripe.ts`): o preço sai do banco, nunca do navegador; não se
 // cobra música que não existe; o pedido nasce pendente ANTES do pagamento,
 // pra que o webhook saiba de quem é o dinheiro sem adivinhar.
-
-/** SHA-256 curto do corpo, pela Web Crypto (sem `node:crypto` no bundle do cliente). */
-async function impressaoDoCorpo(corpo: unknown): Promise<string> {
-  const bytes = new TextEncoder().encode(JSON.stringify(corpo));
-  const hash = await globalThis.crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(hash).slice(0, 12), (b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 /** O preço do braço que ESTA sessão sorteou, em centavos. Mesmo leitor do PIX. */
 export async function valorCentavosDaSessao(

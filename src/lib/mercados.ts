@@ -227,6 +227,21 @@ export function casasDaMoeda(moeda: string | null | undefined): 0 | 2 {
   return SEM_DECIMAL.has(String(moeda ?? "").trim().toLowerCase()) ? 0 : 2;
 }
 
+/**
+ * O valor em dólar que o ANÚNCIO recebe, no país do acesso (29/10). O caixa
+ * cobra a tabela do país e o pedido grava o equivalente em dólar (US$ 19 →
+ * $199 MXN → US$ 10,82; → 14,99 € → US$ 17,43); os eventos do navegador
+ * (TikTok, GA4, Google) têm que mandar o MESMO número, não os US$ 19 da tela
+ * americana. Nos EUA, ou com país desconhecido, o mesmo valor.
+ */
+export function valorUsdNoPais(valorUsd: number, pais: string | null | undefined): number {
+  const m = mercadoDoPais(pais);
+  if (m.moeda === "usd") return valorUsd;
+  const centavos = Math.round(valorUsd * 100);
+  if (!(centavos > 0)) return valorUsd;
+  return usdDe(m, valorNaMoeda(m, centavos)) / 100;
+}
+
 /** Valor em unidade MAIOR (o que a dLocal devolve, "199.00") → unidade menor do mercado. */
 export function unidadeMenorDe(m: Mercado, valorMaior: number): number {
   return Math.round(valorMaior * 10 ** m.decimais);
@@ -348,14 +363,14 @@ export function naMoedaPorExtenso(m: Mercado): string {
     case "usd":
       return "en dólares";
     case "mxn":
-      return "en pesos mexicanos";
+      return "en pesos mexicanos (MXN)";
     case "eur":
       return "en euros";
     case "cop":
-      return "en pesos colombianos";
+      return "en pesos colombianos (COP)";
     case "clp":
-      return "en pesos chilenos";
+      return "en pesos chilenos (CLP)";
     case "pen":
-      return "en soles";
+      return "en soles (PEN)";
   }
 }

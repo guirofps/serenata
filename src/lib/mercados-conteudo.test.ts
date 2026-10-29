@@ -184,8 +184,21 @@ describe("na Ballad, o país do acesso escolhe o espanhol e a moeda", () => {
       expect(tudo, p).not.toMatch(/d[óo]lar/i);
       expect(tudo, p).not.toContain("USD");
       expect(tudo, p).not.toContain("US$");
-      expect(o.conversao, p).toBe(m.mercados.fraseDaMoeda(mercado));
+      if (p !== "MX") {
+        expect(o.conversao, p).toBe(m.mercados.fraseDaMoeda(mercado));
+        expect(o.conversaoOxxo, p).toBe("");
+      }
     }
+    // O México fica com a redação de master (29/10), e o OXXO à parte, pro `.so-oxxo-mx`.
+    const omx = m.oferta.ofertaEsDoMercado("mexico", MERCADOS.MX);
+    expect(omx.conversao).toBe(
+      "El precio es en pesos mexicanos (MXN) y es el total: no se suma nada al pagar. Pagas con tarjeta.",
+    );
+    expect(omx.conversaoOxxo).toContain("OXXO");
+    expect(omx.creditoValor).toBe("$0 MXN");
+    expect(omx.duvidas.find((d) => d.p === "¿Cómo aparece el cargo en mi tarjeta?")?.r).toBe(
+      "Como STRIPEONLI* BALLADGIFT. Es un solo cargo en pesos mexicanos (MXN) a través de Stripe, nuestro procesador de pagos, sin suscripción.",
+    );
     expect(m.oferta.ofertaEsDoMercado("espanha", MERCADOS.ES).conversao).toContain("IVA incluido");
     const es = textoDe(m.oferta.ofertaEsDoMercado("espanha", MERCADOS.ES));
     expect(es).toContain("móvil");

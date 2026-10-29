@@ -1,5 +1,27 @@
 import type { Locale } from "@/lib/i18n";
 import { ehBallad } from "./marca-identidade.js";
+import { valorUsdNoPais } from "./mercados.js";
+import { paisAtual } from "./mercado-es.js";
+
+/**
+ * O país que o servidor carimbou no `<html>` (`pais-acesso.ts`). Desde a fusão
+ * com `mercados-es` é o `paisAtual()` de `mercado-es.ts`: no navegador, o mesmo
+ * `data-pais`; no servidor, o cabeçalho da requisição (antes, nenhum).
+ */
+export function paisDaTela(): string | null {
+  return paisAtual();
+}
+
+/**
+ * O valor do plano em dólar da Ballad, no país do acesso (29/10): o caixa
+ * cobra na moeda do país e o pedido grava o equivalente (`mercados.ts`). No
+ * México é o mesmo número de antes. A Serenata (real) e o espanhol da
+ * Serenata (Perfect Pay) não mudam.
+ */
+export function noPaisDoAcesso(valor: number, locale: Locale, pais: string | null | undefined): number {
+  if (!ehBallad() || locale === "pt") return valor;
+  return valorUsdNoPais(valor, pais);
+}
 
 // O VALOR QUE VAI PROS ANÚNCIOS (08/10).
 //
@@ -37,12 +59,15 @@ export function valorDaCompra(args: {
   pedido?: { valorCentavos?: number | null; gateway?: string | null } | null;
   /** O que a tela calcula (plano cobrável com cupom). Só pra quando o banco não serve. */
   reserva: number;
+  /** `paisDaTela()`: no México a reserva vira o equivalente do peso (29/10). */
+  pais?: string | null;
 }): number {
   const c = Number(args.pedido?.valorCentavos);
   if (Number.isFinite(c) && c > 0 && moedaBate(args.locale, args.pedido?.gateway)) {
+    // O banco já grava o equivalente em dólar do que se cobrou em peso.
     return Math.round(c) / 100;
   }
-  return args.reserva;
+  return noPaisDoAcesso(args.reserva, args.locale, args.pais);
 }
 
 /**
@@ -65,9 +90,15 @@ export function valorDoCheckout(args: {
   comCupomCentavos?: number | null;
   /** O preço final com o desconto do convite, quando há. */
   comConviteCentavos?: number | null;
+  /** `paisDaTela()`: no México, o equivalente em dólar do preço em peso (29/10). */
+  pais?: string | null;
 }): number {
   if (args.locale === "es" && !ehBallad()) return args.valorDaTela;
-  if (args.comCupomCentavos && args.comCupomCentavos > 0) return args.comCupomCentavos / 100;
-  if (args.comConviteCentavos && args.comConviteCentavos > 0) return args.comConviteCentavos / 100;
-  return args.valorCobravel;
+  const valor =
+    args.comCupomCentavos && args.comCupomCentavos > 0
+      ? args.comCupomCentavos / 100
+      : args.comConviteCentavos && args.comConviteCentavos > 0
+        ? args.comConviteCentavos / 100
+        : args.valorCobravel;
+  return noPaisDoAcesso(valor, args.locale, args.pais);
 }

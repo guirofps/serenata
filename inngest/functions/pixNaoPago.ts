@@ -167,6 +167,11 @@ async function toquesJaDados(sb: ReturnType<typeof db>, quizId: string) {
     .select("created_at")
     .eq("event_name", "pix_nao_pago_enviado")
     .contains("event_data", { quiz_response_id: quizId })
+    // COM JANELA (29/10): era a única trava de `funnel_events` deste job sem
+    // `created_at`, o formato que estourou o PostgREST em 04/10 e virou "não
+    // mandei". Sete dias e não as 80h do pedido: o mesmo quiz pode ter gerado
+    // um PIX antes deste, e os toques daquele ainda contam no teto.
+    .gte("created_at", new Date(Date.now() - 7 * 86400000).toISOString())
     .order("created_at", { ascending: false })
     .limit(5);
   if (error) return { quantos: Number.MAX_SAFE_INTEGER, ultimo: Date.now() }; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.

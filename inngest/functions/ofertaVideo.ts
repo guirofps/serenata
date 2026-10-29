@@ -21,6 +21,7 @@ import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { moedaDaCompra } from "../lib/compra-em-peso.js";
 import { paisPraEmail } from "../../src/lib/pais-quiz.js";
 import { noPais } from "../../emails/mercado-email.js";
+import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 
 // O VÍDEO, no dia seguinte à compra, pra quem já subiu foto.
 //
@@ -102,16 +103,15 @@ function db() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-/** Já mandou este tipo de e-mail pra esta música? Por MÚSICA: cada uma tem o seu vídeo. */
+/**
+ * Já mandou este tipo de e-mail pra esta música? Por MÚSICA: cada uma tem o seu vídeo.
+ *
+ * Com janela (29/10): a compra mais velha da fila tem MAX_DIAS, e a marca nasce
+ * depois dela. Erro conta como "já mandou" (`jaTravado`, 04/10).
+ */
 async function jaOfertado(sb: ReturnType<typeof db>, musicaId: string, tipo: Tipo) {
-  const { data, error } = await sb
-    .from("funnel_events")
-    .select("id")
-    .eq("event_name", MARCA[tipo])
-    .contains("event_data", { musica_id: musicaId })
-    .limit(1);
-  if (error) return true; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
-  return (data ?? []).length > 0;
+  const desde = new Date(Date.now() - (MAX_DIAS + 2) * 86400000).toISOString();
+  return jaTravado(sb, MARCA[tipo], { musica_id: musicaId }, desde);
 }
 
 export const ofertaVideo = inngest.createFunction(
@@ -262,6 +262,18 @@ export const ofertaVideo = inngest.createFunction(
           // Execução que começou antes de 29/10 traz a saída memorizada com `emPeso`.
           c.moeda ?? ((c as { emPeso?: boolean }).emPeso === true ? "mxn" : null));
         if (!preco) return false;
+
+        // A TRAVA ANTES DO ENVIO (29/10): a marca era gravada DEPOIS do Resend
+        // e sem ler o erro. Uma gravação perdida (banco lento, como em 04/10)
+        // repetia a oferta na rodada seguinte, e na outra também. Mesmo evento
+        // e mesmo conteúdo que o `jaOfertado` e a fila leem. Não gravou, não
+        // manda.
+        const trava = await travarEnvio(sb, {
+          event_name: MARCA[c.tipo],
+          event_data: { musica_id: c.musicaId, email: c.email },
+        });
+        if (!trava) return false;
+
         const { data: enviado, error } = await noPais(
           comUtm(new Resend(chave)),
           c.locale,
@@ -291,13 +303,10 @@ export const ofertaVideo = inngest.createFunction(
         });
         if (error) {
           console.error("[oferta-video] envio falhou:", error.message);
+          await soltarTrava(sb, trava);
           return false;
         }
         await registrarEnvio(sb, { emailId: enviado?.id, template, para: c.email });
-        await sb.from("funnel_events").insert({
-          event_name: MARCA[c.tipo],
-          event_data: { musica_id: c.musicaId, email: c.email },
-        });
         return true;
       });
       if (ok) enviados += 1;

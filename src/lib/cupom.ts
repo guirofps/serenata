@@ -244,6 +244,21 @@ export function valorEsperadoDoUpsell(
   return centavosComCupom(precoCatalogoCentavos, pedido.cupom, quando, alvo);
 }
 
+/**
+ * O VALOR QUE O PRÓPRIO PEDIDO GRAVOU AO NASCER (29/10). O pedido pendente do
+ * upsell é escrito pelo NOSSO servidor (`criar-pix-upsell.ts`, `criar-cartao-upsell.ts`)
+ * com o valor que ele cobrou, já com o cupom. Recalcular pelo catálogo/braço de
+ * AGORA deixava preso quem pagou um preço que mudou depois (o braço do
+ * `preco_video` trocado no meio do caminho): pago e não liberado. A linha é
+ * nossa, nunca do gateway, então continua sendo a trava contra pagar R$ 1 num
+ * crédito de R$ 28. Sem valor gravado (pedido antigo), devolve null e quem chama
+ * recalcula pelo catálogo com o cupom (`valorEsperadoDoUpsell`).
+ */
+export function valorGravadoNoPedido(pedido: { valor_centavos?: number | string | null } | null): number | null {
+  const v = Number(pedido?.valor_centavos);
+  return Number.isInteger(v) && v > 0 ? v : null;
+}
+
 /** "20/10": a validade como o e-mail escreve. */
 export function validadeCurta(codigo: string): string {
   const c = CUPONS.find((x) => x.codigo === codigo.trim().toUpperCase());

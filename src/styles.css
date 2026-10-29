@@ -328,3 +328,13 @@
    CSS é gerado da tabela de `mercados.ts` (`cssPrecoPorPais`) e entra num
    <style> do `__root.tsx`. Um país novo na tabela não depende de alguém
    lembrar deste arquivo. */
+/* O OXXO só existe pra quem está no México E caiu no braço B do `oxxo_mx`
+   (29/10): a frase que oferece pagar em dinheiro some de todo o resto. Fica
+   aqui (e não no CSS gerado de `mercados.ts`) porque depende do braço do
+   teste, que é carimbo do navegador. */
+.so-oxxo-mx {
+  display: none;
+}
+html[data-pais="MX"][data-exp-oxxo_mx^="B"] .so-oxxo-mx {
+  display: inline;
+}
