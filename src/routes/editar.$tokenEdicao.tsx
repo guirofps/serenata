@@ -474,7 +474,16 @@ function Editor() {
         fotosNaGaleria: galeria.length,
       });
     } catch {
-      setErro(T.erroCopiar);
+      // O NAVEGADOR DE DENTRO DO APP (Gmail, Instagram) costuma recusar a área
+      // de transferência, e o editor chega quase sempre por link de e-mail. A
+      // `/obrigado` ganhou esta saída em 08/10; aqui faltava (29/10): a
+      // mensagem aparece numa caixa já selecionável, em vez de só um aviso.
+      trackEvent("editor_copiar_falhou", {});
+      try {
+        window.prompt(T.erroCopiar, mensagemPronta);
+      } catch {
+        setErro(T.erroCopiar);
+      }
     }
   }
 

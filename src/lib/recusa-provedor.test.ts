@@ -98,6 +98,13 @@ describe("falhaTransitoria: o que a repescagem pode tentar de novo", () => {
     expect(falhaTransitoria("timeout no provedor")).toBe(true);
   });
 
+  it("o que o gerador reserva desistiu volta pra repescagem (29/10)", () => {
+    expect(falhaTransitoria("gerador reserva: timeout no provedor")).toBe(true);
+    expect(falhaTransitoria("gerador reserva: provedor não respondeu ao disparo")).toBe(true);
+    expect(falhaTransitoria("gerador reserva: provedor recusou: 500 · Internal Error")).toBe(true);
+    expect(falhaTransitoria("gerador reserva: provedor recusou: 400 · SENSITIVE_WORD_ERROR")).toBe(false);
+  });
+
   it("5xx do provedor passa (os 100 leads de 03/10)", () => {
     expect(falhaTransitoria("provedor recusou 4x: 500 · Internal Error")).toBe(true);
     expect(falhaTransitoria("provedor recusou 4x: 500 · Audio decrypt failed")).toBe(true);

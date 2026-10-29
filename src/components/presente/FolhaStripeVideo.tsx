@@ -154,6 +154,9 @@ export function FolhaStripeVideo({
           <EmbeddedCheckoutProvider stripe={promessa} options={opcoes}>
             <EmbeddedCheckout />
           </EmbeddedCheckoutProvider>
+        ) : !promessa ? (
+          // Sem a chave pública o Stripe nunca carrega: o erro, não "abrindo" pra sempre.
+          <p className="py-10 text-center text-sm">{T.erro}</p>
         ) : (
           <p className="py-10 text-center text-sm text-muted-foreground">{T.abrindo}</p>
         )}

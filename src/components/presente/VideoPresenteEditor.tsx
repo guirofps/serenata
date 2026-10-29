@@ -306,13 +306,32 @@ export function VideoPresenteEditor({
     return () => obs.disconnect();
   }, [mostraOferta, esperandoFotos, perto, tokenEdicao]);
 
+  // PEDIDO RECUSADO NÃO PODE SER MUDO (29/10). O servidor devolve `{ ok: false }`
+  // quando não conseguiu pedir o render (evento recusado): o botão só voltava a
+  // ficar ativo, e quem pagou o vídeo tocava de novo sem nada acontecer.
+  const [avisoPedido, setAvisoPedido] = useState<string | null>(null);
+  const AVISO_PEDIDO =
+    locale === "es"
+      ? { erro: "No pudimos empezar tu video ahora. Inténtalo de nuevo en un minuto.", igual: "Tu video ya está igual a la página." }
+      : locale === "en"
+        ? { erro: "We couldn't start your video right now. Please try again in a minute.", igual: "Your video already matches the page." }
+        : { erro: "Não conseguimos começar o seu vídeo agora. Tente de novo em um minuto.", igual: "O seu vídeo já está igual à página." };
+  const avisarRecusa = (motivo?: string) => {
+    setAvisoPedido(motivo === "o vídeo já é igual à página" ? AVISO_PEDIDO.igual : AVISO_PEDIDO.erro);
+    trackEvent("video_pedido_recusado", { origem: "editor", motivo: motivo ?? "?" });
+  };
+
   const pedirGeracao = async () => {
     setPedindo(true);
+    setAvisoPedido(null);
     trackEvent("video_presente_gerar", { origem: "editor", fotos: fotos.length });
     try {
       const r = await gerarVideoPago({ data: { tokenEdicao } });
       if (r.ok) setPagou(true); // cai na mesma tela de "montando"
+      else avisarRecusa(r.motivo);
       await atualizar();
+    } catch {
+      avisarRecusa("rede");
     } finally {
       setPedindo(false);
     }
@@ -353,11 +372,15 @@ export function VideoPresenteEditor({
 
   const pedirAtualizacao = async () => {
     setPedindo(true);
+    setAvisoPedido(null);
     trackEvent("video_presente_atualizar", { origem: "editor" });
     try {
       const r = await atualizarVideo({ data: { tokenEdicao } });
       if (r.ok) setPagou(true); // mesma tela de "montando" de quem acabou de pagar
+      else avisarRecusa(r.motivo);
       await atualizar();
+    } catch {
+      avisarRecusa("rede");
     } finally {
       setPedindo(false);
     }
@@ -427,6 +450,11 @@ export function VideoPresenteEditor({
           {pedindo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Film className="h-4 w-4" />}
           {t.gerar}
         </button>
+        {avisoPedido && (
+          <p className="mx-auto mt-2 max-w-[300px] text-center text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
+            {avisoPedido}
+          </p>
+        )}
       </section>
     );
   }
@@ -464,6 +492,11 @@ export function VideoPresenteEditor({
               )}
               {t.atualizar}
             </button>
+            {avisoPedido && (
+              <p className="mt-2 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
+                {avisoPedido}
+              </p>
+            )}
           </div>
         ) : null}
         {estado.urlDownload ? (

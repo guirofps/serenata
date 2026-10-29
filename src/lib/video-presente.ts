@@ -151,7 +151,11 @@ export const atualizarVideo = createServerFn({ method: "POST" })
 
     const { data: trocou } = await db
       .from("videos")
-      .update({ status: "aguardando", atualizacoes: feitas + 1, erro: null })
+      // O `render_id` do render ANTERIOR sai junto (29/10): o `videoPendente` só
+      // repede `aguardando` SEM render_id. Com o id velho, um evento aceito e
+      // não executado (as quedas do Inngest de 04/09 e 09/10) deixava o vídeo
+      // preso em "montando" pra sempre, e o comprador sem o vídeo que já tinha.
+      .update({ status: "aguardando", atualizacoes: feitas + 1, erro: null, render_id: null, render_bucket: null })
       .eq("id", v.id)
       .eq("status", "pronto")
       .select("id");

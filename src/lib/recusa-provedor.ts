@@ -95,9 +95,14 @@ export function semOTermo(texto: string, termo: string): string {
  * provedor quebrado por dentro, não a letra, e passa como a fila cheia passa.
  */
 export function falhaTransitoria(erro: string | null | undefined): boolean {
-  const e = String(erro ?? "").trim();
+  // O GERADOR RESERVA escreve com prefixo próprio (29/10): "gerador reserva:
+  // timeout no provedor", "... provedor não respondeu ao disparo", "...
+  // provedor recusou: 500". Sem tirar o prefixo, nada de que ele desistia
+  // voltava pra repescagem, e o lead ficava sem música (o caixa exige `pronta`).
+  const e = String(erro ?? "").trim().replace(/^gerador reserva:\s*/i, "");
   if (/^timeout/i.test(e)) return true;
-  return /^provedor recusou \d+x: 5\d\d(?!\d)/i.test(e);
+  if (/^provedor não respondeu/i.test(e)) return true;
+  return /^provedor recusou(?: \d+x)?: 5\d\d(?!\d)/i.test(e);
 }
 
 /**

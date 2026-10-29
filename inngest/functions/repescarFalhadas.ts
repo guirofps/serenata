@@ -99,13 +99,15 @@ export const repescarFalhadas = inngest.createFunction(
           .lte("updated_at", new Date(agora - ESPERAR_MIN * 60000).toISOString())
           .order("created_at", { ascending: true })
           .limit(MAX_POR_RODADA * 3);
-      const [timeouts, quebras] = await Promise.all([
+      const [timeouts, quebras, reserva] = await Promise.all([
         buscar("timeout%"),
         buscar("provedor recusou%: 5%"),
+        // O que o gerador reserva desistiu (29/10): o prefixo dele ficava de fora.
+        buscar("gerador reserva:%"),
       ]);
       // O `like` é a peneira grossa; quem decide é `falhaTransitoria`, que
       // exige o código de 3 dígitos começando com 5.
-      const data = [...(timeouts.data ?? []), ...(quebras.data ?? [])]
+      const data = [...(timeouts.data ?? []), ...(quebras.data ?? []), ...(reserva.data ?? [])]
         .filter((m) => falhaTransitoria(m.erro))
         .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
 

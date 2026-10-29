@@ -4,6 +4,7 @@ import { OFERTAS, PRECO_CHEIO, TEXTO_OFERTA } from "@/lib/creditos";
 import { FolhaPixUpsell } from "@/components/conta/FolhaPixUpsell";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { guardarCreditoNoNavegador } from "@/lib/credito-no-navegador";
+import { meusCreditos } from "@/lib/meus-creditos";
 import { novaSessao } from "@/lib/session-context";
 import { useQuizStore } from "@/lib/quiz-store";
 import { useBraco, useContextoPosCompra } from "@/lib/use-pos-compra";
@@ -82,6 +83,22 @@ export function CartaoOutraMusica24h({
     return () => clearInterval(id);
   }, [emB]);
 
+  // O saldo de crédito, pela mesma credencial da cobrança (`token_edicao`).
+  // Falhou a leitura: 0, e o caminho é o de sempre.
+  const [saldo, setSaldo] = useState(0);
+  useEffect(() => {
+    if (!emB) return;
+    let vivo = true;
+    meusCreditos({ data: { tokenEdicao } })
+      .then((c) => {
+        if (vivo) setSaldo(c.saldo ?? 0);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [emB, tokenEdicao]);
+
   const restante = emB && ctx ? msRestantesOutraMusica(ctx.pagoEm, agora) : null;
   const visivel = restante !== null && Boolean(oferta);
 
@@ -102,11 +119,11 @@ export function CartaoOutraMusica24h({
   const preco = (v: number) => `R$ ${v.toFixed(2).replace(".00", "").replace(".", ",")}`;
   const t = TEXTO_OFERTA.pt.extra;
 
-  async function depoisDePagar() {
+  async function depoisDePagar(evNome = "outra_musica_24h_pago") {
     if (saindo) return;
     setSaindo(true);
     // O evento sai ANTES da sessão nova: ele é da sessão que comprou.
-    const evento = trackEvent("outra_musica_24h_pago", {
+    const evento = trackEvent(evNome, {
       exp_outra_musica_24h: "B",
       origem,
       token_publico: tokenPublico ?? null,
@@ -164,6 +181,9 @@ export function CartaoOutraMusica24h({
             token_publico: tokenPublico ?? null,
             horas_desde_compra: horasDesdeCompra(ctx.pagoEm, Date.now()),
           });
+          // Quem já tem crédito não vê cobrança (29/10): o mesmo conserto do
+          // `AtalhoOutraMusica` de 14/10, que este cartão não tinha.
+          if (saldo > 0) return void depoisDePagar("outra_musica_24h_com_credito");
           setAberto(true);
         }}
         className="cta mx-auto mt-4 flex h-12 w-full max-w-[300px] items-center justify-center gap-2 rounded-full px-6 font-medium disabled:opacity-60"
