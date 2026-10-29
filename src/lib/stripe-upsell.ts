@@ -29,10 +29,28 @@ export type ResultadoCheckoutVideo =
   | { ok: true; clientSecret: string; sessaoId: string }
   | { ok: false; erro: "indisponivel" | "sem-musica" | "nao-pago" | "ja-tem" | "falhou" };
 
+/** As ofertas que a Ballad vende pelo Stripe depois da compra. */
+export type OfertaStripe = "video" | "extra";
+
+// A MÚSICA EXTRA (28/10, teste `extra_ballad`) usa o mesmo caixa, com três
+// diferenças, as mesmas do PIX da Serenata (`criar-pix-upsell.ts`):
+//   - o pedido nasce SEM `musica_id` (é crédito pra uma música que não
+//     existe ainda; com ele, as consultas de "esta música já tem vídeo/pago"
+//     confundiriam a extra com a música de agora);
+//   - não há "já tem": dá pra comprar outra e outra. Por isso a chave de
+//     idempotência leva o `nonce` da folha aberta, não só a música: reabrir a
+//     MESMA folha devolve a mesma sessão, comprar de novo depois abre outra;
+//   - o crédito vai pro razão (`creditos`) pelo e-mail da compra.
 export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
-  .validator((data: { tokenEdicao: string }) => ({ tokenEdicao: String(data?.tokenEdicao ?? "").slice(0, 100) }))
+  .validator((data: { tokenEdicao: string; oferta?: OfertaStripe; nonce?: string }) => ({
+    tokenEdicao: String(data?.tokenEdicao ?? "").slice(0, 100),
+    oferta: (data?.oferta === "extra" ? "extra" : "video") as OfertaStripe,
+    nonce: /^[a-z0-9]{8,32}$/.test(String(data?.nonce ?? "")) ? String(data?.nonce) : "",
+  }))
   .handler(async ({ data }): Promise<ResultadoCheckoutVideo> => {
-    const oferta = OFERTAS.find((o) => o.id === "video");
+    const extra = data.oferta === "extra";
+    const oferta = OFERTAS.find((o) => o.id === data.oferta);
+    if (extra && !data.nonce) return { ok: false, erro: "indisponivel" };
     if (MARCA_ATIVA.chave !== "ballad" || !process.env.STRIPE_SECRET_KEY || !oferta?.precoUsd) {
       return { ok: false, erro: "indisponivel" };
     }
@@ -54,8 +72,10 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
       .limit(1);
     if (!pago?.length) return { ok: false, erro: "nao-pago" };
 
-    const { data: jaTem } = await db.from("videos").select("id").eq("musica_id", m.id).limit(1);
-    if (jaTem?.length) return { ok: false, erro: "ja-tem" };
+    if (!extra) {
+      const { data: jaTem } = await db.from("videos").select("id").eq("musica_id", m.id).limit(1);
+      if (jaTem?.length) return { ok: false, erro: "ja-tem" };
+    }
 
     const { data: q } = await db
       .from("quiz_responses")
@@ -63,6 +83,8 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
       .eq("id", m.quiz_response_id)
       .maybeSingle();
     const email = String(q?.email ?? "").trim().toLowerCase() || undefined;
+    // O crédito da extra é do E-MAIL: sem ele, não há a quem creditar.
+    if (extra && !email) return { ok: false, erro: "indisponivel" };
     // O idioma da compra, da linha do quiz (ver `stripe-checkout.ts`): quem
     // comprou pelo `/es` vê o caixa do vídeo em espanhol também.
     const espanhol = q?.locale === "es";
@@ -97,7 +119,19 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
                 price_data: {
                   currency: moeda,
                   unit_amount: valorNaMoeda,
-                  product_data: espanhol
+                  product_data: extra
+                    ? espanhol
+                      ? {
+                          name: "Otra canción personalizada",
+                          description:
+                            "Una canción nueva hecha de la historia de quien tú elijas, cantada, con su página regalo. Se activa al terminar el cuestionario.",
+                        }
+                      : {
+                          name: "Another personalized song",
+                          description:
+                            "A brand-new song made from the story of whoever you choose, sung, with its gift page. It's applied when you finish the questions.",
+                        }
+                    : espanhol
                     ? {
                         name: m.titulo ? `Video regalo: ${m.titulo}` : "Tu video regalo",
                         description:
@@ -112,18 +146,24 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
               },
             ],
             customer_email: email,
-            metadata: { tipo: "upsell", oferta: "video", musica_id: m.id },
+            // Na extra, `musica_id` é a música de ONDE se comprou (rastro), não
+            // a que vai nascer: a confirmação só usa a oferta e o e-mail.
+            metadata: { tipo: "upsell", oferta: data.oferta, musica_id: m.id },
             payment_intent_data: {
               statement_descriptor_suffix: "BALLADGIFT",
-              description: `${MARCA_ATIVA.nome} · Gift video`,
-              metadata: { tipo: "upsell", oferta: "video", musica_id: m.id },
+              description: `${MARCA_ATIVA.nome} · ${extra ? "Extra song" : "Gift video"}`,
+              metadata: { tipo: "upsell", oferta: data.oferta, musica_id: m.id },
             },
           },
           // Reabrir a folha devolve a MESMA sessão (idempotência de 24h do
           // Stripe). Mexeu no corpo, sobe a versão da chave (v3 em 09/10: o
           // idioma do caixa e do produto passou a seguir o da compra; v4 em
-          // 28/10: a moeda, peso no México).
-          { idempotencia: `ballad-video:v4:${m.id}:${moeda}:${valorNaMoeda}` },
+          // 28/10: a moeda, peso no México). A extra leva o `nonce` da folha.
+          {
+            idempotencia: extra
+              ? `ballad-extra:v1:${m.id}:${data.nonce}:${moeda}:${valorNaMoeda}`
+              : `ballad-video:v4:${m.id}:${moeda}:${valorNaMoeda}`,
+          },
         );
       let sessao: { id: string; client_secret: string } | null = null;
       for (let tentativa = 0; !sessao; tentativa++) {
@@ -145,7 +185,8 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
           // Sem `quiz_response_id` de propósito, igual ao upsell por PIX: o
           // pedido base daquele quiz já existe, e as consultas de "quiz pago"
           // não podem confundir o vídeo com uma segunda compra da música.
-          musica_id: m.id,
+          // A extra nem `musica_id` leva (ver o topo deste arquivo).
+          musica_id: extra ? null : m.id,
         },
         { onConflict: "payment_id", ignoreDuplicates: true },
       );
@@ -153,7 +194,7 @@ export const criarCheckoutVideoStripe = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
 
       await db.from("funnel_events").insert({
-        event_name: "stripe_video_criado",
+        event_name: extra ? "stripe_extra_criado" : "stripe_video_criado",
         session_id: "sistema",
         event_data: { sessao: sessao.id, musica_id: m.id, valor_centavos: valorDoPedido, moeda, valor_na_moeda: valorNaMoeda },
       });

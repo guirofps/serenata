@@ -36,9 +36,9 @@ export const PESOS_POR_DOLAR = 18.4;
  * Preço em dólar (centavos) → preço no México (centavos de peso). A música e a
  * âncora dela, e o vídeo-presente (28/10): pela conversão o vídeo sairia a
  * $249, mais caro que a música a $199. Fica na mesma proporção do dólar
- * (US$ 12 é ~63% de US$ 19): $129.
+ * (US$ 12 é ~63% de US$ 19): $129. A música extra (US$ 14, 74%), $149.
  */
-export const PRECO_MEXICO: Readonly<Record<number, number>> = { 1900: 19900, 4900: 54900, 1200: 12900 };
+export const PRECO_MEXICO: Readonly<Record<number, number>> = { 1900: 19900, 4900: 54900, 1200: 12900, 1400: 14900 };
 
 /** O preço em centavos de peso pro preço em centavos de dólar (US$ 19 → 19900 pela tabela). */
 export function centavosMxnDe(centavosUsd: number): number {

@@ -20,6 +20,7 @@ import { ehBallad } from "@/lib/marca-identidade";
 import { Logo } from "@/components/marca/Logo";
 import { ConviteOutraMusica } from "@/components/conta/ConviteOutraMusica";
 import { AtalhoOutraMusica } from "@/components/conta/AtalhoOutraMusica";
+import { AtalhoExtraBallad } from "@/components/conta/AtalhoExtraBallad";
 import { CartaoOutraMusica24h } from "@/components/conta/CartaoOutraMusica24h";
 import { linkSuporte, TEXTO_SUPORTE } from "@/lib/suporte-whatsapp";
 import { Check, Mail, Inbox, Pencil, Loader2, ArrowRight } from "lucide-react";
@@ -746,6 +747,14 @@ export function Obrigado({
           {!ehBallad() && presente?.tokenEdicao && (
             <AtalhoOutraMusica
               locale={locale === "es" ? "es" : "pt"}
+              tokenEdicao={presente.tokenEdicao}
+              origem="obrigado"
+            />
+          )}
+          {/* Na Ballad, o mesmo caminho barato pelo Stripe (teste `extra_ballad`, 28/10). */}
+          {ehBallad() && presente?.tokenEdicao && (
+            <AtalhoExtraBallad
+              locale={locale === "es" ? "es" : "en"}
               tokenEdicao={presente.tokenEdicao}
               origem="obrigado"
             />

@@ -24,6 +24,7 @@ import { VideoPresenteEditor } from "@/components/presente/VideoPresenteEditor";
 import { DatasEspeciais } from "@/components/presente/DatasEspeciais";
 import { tipoSugerido } from "@/lib/datas-especiais";
 import { AtalhoOutraMusica } from "@/components/conta/AtalhoOutraMusica";
+import { AtalhoExtraBallad } from "@/components/conta/AtalhoExtraBallad";
 import { trackEvent, trackEventOnce } from "@/lib/track";
 import { TEMA_CLARO, FONTES, MARCA, CORES_PRESENTE, nomeCor } from "@/lib/marca";
 import { ehBallad } from "@/lib/marca-identidade";
@@ -1192,9 +1193,14 @@ function Editor() {
                 convite de criar outra pelo funil, que é o mesmo destino do
                 link do e-mail. */}
             {ballad ? (
-              <div className="mt-6 text-center">
-                <ConviteOutraMusica locale={en ? "en" : "es"} origem="editor" variante="discreto" />
-              </div>
+              <>
+                {/* Teste `extra_ballad` (28/10): no B, a outra música por
+                    US$ 14 pelo Stripe, acima do convite (`extra-ballad.ts`). */}
+                <AtalhoExtraBallad locale={en ? "en" : "es"} tokenEdicao={tokenEdicao} origem="editor" />
+                <div className="mt-6 text-center">
+                  <ConviteOutraMusica locale={en ? "en" : "es"} origem="editor" variante="discreto" />
+                </div>
+              </>
             ) : (
               <AtalhoOutraMusica
                 locale={locale === "es" ? "es" : "pt"}

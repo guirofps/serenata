@@ -42,7 +42,7 @@ export type Oferta = {
   precoBrl: number;
   /**
    * O preço na Ballad Gift (EUA), em dólar, cobrado pelo Stripe. Sem ele a
-   * oferta não existe lá. Só o vídeo tem, por enquanto (30/09/2026).
+   * oferta não existe lá. O vídeo (30/09/2026) e a música extra (28/10).
    */
   precoUsd?: number;
   /** Link de checkout da Perfect Pay. */
@@ -97,6 +97,10 @@ export const OFERTAS: Oferta[] = [
     id: "extra",
     creditos: 1,
     precoBrl: 28,
+    // Ballad (28/10, teste `extra_ballad`): a mesma proporção do Brasil
+    // (R$ 28 sobre R$ 38 = 74% do preço base) sobre os US$ 19: US$ 14. No
+    // México, $149 MXN pela tabela de `preco-mxn.ts`.
+    precoUsd: 14,
     checkout: "https://go.perfectpay.com.br/PPU38CQFE9E",
     productCode: "PPPBFA6E",
   },
@@ -147,7 +151,12 @@ export const OFERTAS: Oferta[] = [
  * Inngest arrastaria a função de servidor e o cliente do Stripe junto.
  */
 export function precoVideoUsdTexto(): string | null {
-  const v = OFERTAS.find((o) => o.id === "video")?.precoUsd;
+  return precoUsdTexto("video");
+}
+
+/** O preço em dólar de uma oferta da Ballad, como a tela mostra ("$14"). Sem preço em dólar, `null`. */
+export function precoUsdTexto(id: Oferta["id"]): string | null {
+  const v = OFERTAS.find((o) => o.id === id)?.precoUsd;
   return v ? `$${Number.isInteger(v) ? v : v.toFixed(2)}` : null;
 }
 

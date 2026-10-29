@@ -31,6 +31,7 @@ import { venderNoTiktok } from "./tiktok-eventos.js";
 import { ttclidDaVenda } from "../../src/lib/clique-recente.js";
 import { creditarUpsell } from "./creditar-upsell.js";
 import { valorPagoConfere } from "../../src/lib/preco-mxn.js";
+import { OFERTAS } from "../../src/lib/creditos.js";
 
 const API = "https://api.stripe.com/v1";
 
@@ -342,30 +343,34 @@ async function confirmarUpsellStripe(
     .select("id");
   if (!virou?.length) return { ok: true, entregue: false, duplicado: true, quizId: "" };
 
-  const oferta = s.metadata?.oferta;
-  if (oferta !== "video" || !email) {
+  // A oferta sai do CATÁLOGO pelo id que o nosso servidor gravou na sessão:
+  // o vídeo (30/09) e a música extra (28/10, teste `extra_ballad`). Id que não
+  // está no catálogo, ou sem e-mail, não libera nada e avisa.
+  const oferta = OFERTAS.find((o) => o.id === s.metadata?.oferta && (o.id === "video" || o.id === "extra"));
+  if (!oferta || !email) {
     await alertarDono(
       "Upsell pago sem o que liberar (Stripe)",
-      `<p>Sessão <code>${s.id}</code> paga, oferta <code>${oferta ?? "?"}</code>, e-mail ${email ? "ok" : "ausente"}. Liberar à mão.</p>`,
+      `<p>Sessão <code>${s.id}</code> paga, oferta <code>${s.metadata?.oferta ?? "?"}</code>, e-mail ${email ? "ok" : "ausente"}. Liberar à mão.</p>`,
     );
     return { ok: true, entregue: false, quizId: "" };
   }
   const r = await creditarUpsell(sb, {
-    oferta: { id: "video", creditos: 0 },
+    oferta: { id: oferta.id, creditos: oferta.creditos },
     email,
     pedidoId: pedido.id,
     nota: { gateway: "stripe", sessao: s.id },
   });
-  if (r.erro || !r.video) {
+  const liberou = oferta.id === "video" ? r.video : r.creditou;
+  if (r.erro || !liberou) {
     await alertarDono(
-      "Vídeo pago e NÃO liberado (Stripe)",
-      `<p>Sessão <code>${s.id}</code>, pedido <code>${pedido.id}</code>: ${r.erro ?? "linha do vídeo não criada"}.</p>`,
+      oferta.id === "video" ? "Vídeo pago e NÃO liberado (Stripe)" : "Música extra paga e crédito NÃO lançado (Stripe)",
+      `<p>Sessão <code>${s.id}</code>, pedido <code>${pedido.id}</code>: ${r.erro ?? "linha não criada"}.</p>`,
     );
   }
   await sb.from("funnel_events").insert({
-    event_name: "stripe_video_pago",
+    event_name: oferta.id === "video" ? "stripe_video_pago" : "stripe_extra_pago",
     session_id: "sistema",
-    event_data: { sessao: s.id, pedido: pedido.id, video: r.video, erro: r.erro },
+    event_data: { sessao: s.id, pedido: pedido.id, video: r.video, creditou: r.creditou, erro: r.erro },
   });
-  return { ok: true, entregue: r.video, quizId: "" };
+  return { ok: true, entregue: liberou, quizId: "" };
 }

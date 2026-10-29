@@ -4,7 +4,8 @@ import { loadStripe } from "@stripe/stripe-js/pure";
 import type { Stripe } from "@stripe/stripe-js";
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
 import { ShieldCheck, RefreshCw } from "lucide-react";
-import { criarCheckoutVideoStripe, confirmarVideoStripe } from "@/lib/stripe-upsell";
+import { criarCheckoutVideoStripe, confirmarVideoStripe, type OfertaStripe } from "@/lib/stripe-upsell";
+import { TEXTO_EXTRA_BALLAD } from "@/lib/extra-ballad";
 import { trackEvent } from "@/lib/track";
 import { NaMoeda } from "@/components/quiz/PrecoDaOferta";
 
@@ -51,6 +52,7 @@ export function FolhaStripeVideo({
   aoPagar,
   aoFechar,
   locale = "en",
+  oferta = "video",
 }: {
   tokenEdicao: string;
   precoTexto: string;
@@ -58,8 +60,14 @@ export function FolhaStripeVideo({
   aoFechar: () => void;
   /** O idioma da moldura. Fora do espanhol, inglês (o padrão da Ballad). */
   locale?: string;
+  /** O vídeo, ou a música extra (teste `extra_ballad`): o mesmo caixa. */
+  oferta?: OfertaStripe;
 }) {
-  const T = locale === "es" ? TEXTOS.es : TEXTOS.en;
+  const base = locale === "es" ? TEXTOS.es : TEXTOS.en;
+  const T = oferta === "extra" ? { ...base, titulo: TEXTO_EXTRA_BALLAD[locale === "es" ? "es" : "en"].folha } : base;
+  // Uma folha aberta = uma compra (a extra pode ser comprada de novo depois).
+  const nonce = useRef(Math.random().toString(36).slice(2, 12) + Date.now().toString(36));
+  const ev = oferta === "extra" ? "stripe_extra" : "stripe_video";
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [tentativa, setTentativa] = useState(0);
@@ -73,21 +81,21 @@ export function FolhaStripeVideo({
     let vivo = true;
     setErro(null);
     setClientSecret(null);
-    criarCheckoutVideoStripe({ data: { tokenEdicao } })
+    criarCheckoutVideoStripe({ data: { tokenEdicao, oferta, nonce: nonce.current } })
       .then((r) => {
         if (!vivo) return;
         if (r.ok) {
           sessao.current = r.sessaoId;
           setClientSecret(r.clientSecret);
-          trackEvent("stripe_video_abriu", { sessao: r.sessaoId });
+          trackEvent(`${ev}_abriu`, { sessao: r.sessaoId });
           return;
         }
-        trackEvent("stripe_video_erro", { erro: r.erro });
+        trackEvent(`${ev}_erro`, { erro: r.erro });
         setErro(r.erro === "ja-tem" ? T.jaTem : T.erro);
       })
       .catch(() => {
         if (!vivo) return;
-        trackEvent("stripe_video_erro", { erro: "rede" });
+        trackEvent(`${ev}_erro`, { erro: "rede" });
         setErro(T.erro);
       });
     return () => {
@@ -100,7 +108,7 @@ export function FolhaStripeVideo({
     () => ({
       clientSecret,
       onComplete: () => {
-        trackEvent("stripe_video_completo", { sessao: sessao.current });
+        trackEvent(`${ev}_completo`, { sessao: sessao.current });
         // O navegador só avisa; quem confirma é a API do Stripe, no servidor.
         // Se isto falhar, o webhook libera do mesmo jeito.
         if (sessao.current) void confirmarVideoStripe({ data: { sessaoId: sessao.current } }).catch(() => {});
@@ -117,7 +125,7 @@ export function FolhaStripeVideo({
       <button
         aria-label={T.fechar}
         onClick={() => {
-          trackEvent("stripe_video_fechou");
+          trackEvent(`${ev}_fechou`);
           aoFechar();
         }}
         className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]"

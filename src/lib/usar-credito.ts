@@ -173,10 +173,18 @@ export const usarCredito = createServerFn({ method: "POST" })
     try {
       const chave = process.env.RESEND_API_KEY;
       if (chave) {
-        const locale = quiz.locale === "es" ? "es" : "pt";
+        // O inglês da Ballad (28/10): antes caía no português. Com a música
+        // extra vendida lá (`extra_ballad`), o resgate passou a ser comum.
+        const locale = quiz.locale === "es" ? "es" : quiz.locale === "en" ? "en" : "pt";
         const nome =
           ((quiz.respostas ?? {}) as Record<string, string>).nome?.trim() ||
-          (locale === "es" ? (MARCA_ATIVA.chave === "ballad" ? "quien tú quieres" : "quien vos querés") : "quem você ama");
+          (locale === "es"
+            ? MARCA_ATIVA.chave === "ballad"
+              ? "quien tú quieres"
+              : "quien vos querés"
+            : locale === "en"
+              ? "someone you love"
+              : "quem você ama");
         const site = process.env.SITE_URL ?? MARCA_ATIVA.url;
         const linkEditor = `${site}/editar/${musica.token_edicao}`;
         const linkPresente = `${site}/p/${musica.token}`;
@@ -191,12 +199,19 @@ export const usarCredito = createServerFn({ method: "POST" })
           subject: assuntoPresentePronto(nome, locale),
           html: emailPresentePronto({
             nome,
-            titulo: musica.titulo ?? "Sua música",
+            titulo: musica.titulo ?? (locale === "en" ? "Your song" : locale === "es" ? "Tu canción" : "Sua música"),
             linkEditor,
             linkPresente,
             locale,
           }),
-          text: `A música de ${nome} está pronta.\n\nMonte o presente (coloque uma foto e uma frase):\n${linkEditor}\n\nO presente já funciona do jeito que está:\n${linkPresente}`,
+          text:
+            locale === "en"
+              ? `${nome}'s song is ready.\n\nSet up the gift (add a photo and a message):\n${linkEditor}\n\nThe gift already works as it is:\n${linkPresente}`
+              : locale === "es"
+                ? MARCA_ATIVA.chave === "ballad"
+                  ? `La canción de ${nome} está lista.\n\nArma el regalo (agrega una foto y una frase):\n${linkEditor}\n\nEl regalo ya funciona así como está:\n${linkPresente}`
+                  : `La canción de ${nome} está lista.\n\nArmá el regalo (agregá una foto y una frase):\n${linkEditor}\n\nEl regalo ya funciona así como está:\n${linkPresente}`
+                : `A música de ${nome} está pronta.\n\nMonte o presente (coloque uma foto e uma frase):\n${linkEditor}\n\nO presente já funciona do jeito que está:\n${linkPresente}`,
         });
 
         // ── O ERRO DO RESEND NÃO LANÇA ───────────────────────────
