@@ -20,6 +20,8 @@ import {
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { caminhoDeVolta } from "../../src/lib/volta-ao-funil.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { paisDoQuiz } from "../../src/lib/pais-quiz.js";
+import { formatarNaMoeda, mercadoDaMoeda, unidadeMenorDe } from "../../src/lib/mercados.js";
 import { confirmarPagamentoDlocal, lerPagamentoDlocal, dlocalConfigurado } from "../../api/lib/dlocalgo.js";
 
 // A FICHA DO OXXO QUE NÃO FOI PAGA (Ballad México, teste `oxxo_pendente`, 28/10).
@@ -122,6 +124,12 @@ export const oxxoPendente = inngest.createFunction(
           .maybeSingle();
         const email = String(q?.email ?? p.email ?? "").trim();
         if (!q || q.locale !== "es" || !email) continue;
+        // A COPY FALA DE OXXO (29/10). Hoje a dLocal só existe no México
+        // (`temDlocal`), mas no dia em que ligar em outro país a ficha de lá
+        // não é OXXO: até esse e-mail ganhar texto próprio, quiz com país
+        // gravado fora do México não recebe. Quiz sem país (antigo) segue.
+        const pais = await paisDoQuiz(sb, { id: quizId });
+        if (pais && pais !== "MX") continue;
         // Pagou de outro jeito (cartão), ou comprou outra música: não é com ela.
         const { data: pago } = await sb.from("pedidos").select("id").eq("quiz_response_id", quizId).eq("status", "pago").limit(1);
         if (pago?.length) continue;
@@ -164,8 +172,10 @@ export const oxxoPendente = inngest.createFunction(
             return false;
           }
           if (pg.status !== "PENDING") return false;
-          if (String(pg.currency).toUpperCase() === "MXN" && Number(pg.amount) > 0) {
-            valor = `$${Number(pg.amount).toLocaleString("es-MX", { maximumFractionDigits: 2 })} MXN`;
+          // O valor da ficha escrito como a página escreve (`mercados.ts`).
+          const mercado = mercadoDaMoeda(pg.currency);
+          if (mercado && mercado.moeda !== "usd" && Number(pg.amount) > 0) {
+            valor = formatarNaMoeda(mercado, unidadeMenorDe(mercado, Number(pg.amount)));
           }
         } catch (err) {
           console.error("[oxxo-pendente] dLocal ilegível, sem envio:", c.paymentId, err);

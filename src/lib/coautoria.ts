@@ -7,6 +7,8 @@ import { dispararGeracaoMusica } from "@/lib/gerar-letra";
 import { recusaDeConteudo } from "@/lib/recusa-provedor";
 import { systemDaLetra, buildUserMessage, sanitizeNome, type LetraGerada } from "@/lib/letra-prompt";
 import { EXP_NOME_CANTADO, nomeCantadoLigado } from "@/lib/nome-cantado";
+import { garantirPaisDoQuiz } from "@/lib/pais-quiz";
+import { paisDaRequisicao } from "@/lib/pais-requisicao.server";
 import {
   MODEL,
   MODEL_CURTO,
@@ -174,6 +176,24 @@ async function nomeCantadoDaSessao(
   }
 }
 
+/**
+ * O PAÍS DESTE QUIZ (Ballad, 29/10). Na primeira vez que o servidor da letra
+ * toca no quiz, grava o país do acesso em `quiz_responses.pais`; depois, lê
+ * de lá e nunca sobrescreve (`pais-quiz.ts`). É o que escolhe o espanhol do
+ * prompt (`systemDaLetra`) e, mais tarde, a moeda dos e-mails.
+ *
+ * Só na Ballad: a Serenata vende num país só e não ganha consulta nenhuma a
+ * mais por letra. Nunca lança: sem país, vale o da requisição.
+ */
+async function paisDaSessao(sessionId: string): Promise<string | null> {
+  if (MARCA_ATIVA.chave !== "ballad") return null;
+  try {
+    return await garantirPaisDoQuiz(supabaseAdmin(), sessionId, paisDaRequisicao());
+  } catch {
+    return paisDaRequisicao();
+  }
+}
+
 /** Erro de entrada grande demais. Mensagem única: não descreve o teto. */
 function exigirTamanho(valor: unknown, teto: number, campo: string): void {
   const texto = typeof valor === "string" ? valor : JSON.stringify(valor ?? "");
@@ -189,9 +209,10 @@ export const gerarRefroes = createServerFn({ method: "POST" })
     exigirTamanho(data.respostas, MAX_RESPOSTAS, "respostas");
     const locale = normalizarLocale(data.locale);
     // O braço do `nome_cantado` é lido junto com a cobrança: não soma espera.
-    const [, nomeCantado] = await Promise.all([
+    const [, nomeCantado, pais] = await Promise.all([
       cobrarLetra(data.sessionId),
       nomeCantadoDaSessao(data.sessionId, data.respostas, locale),
+      paisDaSessao(data.sessionId),
     ]);
     const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas, locale), locale, { nomeCantado })}
 
@@ -201,7 +222,7 @@ ${INSTRUCOES[locale].refroes}`;
     // frases curtas, e a medição de 26/08 mostrou que o Haiku perde na letra
     // LONGA (menos detalhe concreto, versos mais rasos), não em escolher.
     // Vale 45% do custo da letra e não é o que o Suno canta.
-    const { texto, uso } = await chamarClaude(userMsg, 1500, locale, MODEL_CURTO);
+    const { texto, uso } = await chamarClaude(userMsg, 1500, locale, MODEL_CURTO, pais);
     const p = extrairJson<{ titulo: string; estilo_suno: string; refroes: string[] }>(texto);
 
     // Custo atribuído à sessão (musicaId ainda não existe). O modelo passado
@@ -232,15 +253,16 @@ export const montarLetra = createServerFn({ method: "POST" })
     exigirTamanho(data.refrao, MAX_REFRAO, "refrão");
     const locale = normalizarLocale(data.locale);
     // O braço do `nome_cantado` é lido junto com a cobrança: não soma espera.
-    const [, nomeCantado] = await Promise.all([
+    const [, nomeCantado, pais] = await Promise.all([
       cobrarLetra(data.sessionId),
       nomeCantadoDaSessao(data.sessionId, data.respostas, locale),
+      paisDaSessao(data.sessionId),
     ]);
     const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas, locale), locale, { nomeCantado })}
 
 ${INSTRUCOES[locale].montar(data.refrao)}`;
 
-    const { texto, uso, stopReason } = await chamarClaude(userMsg, 4000, locale);
+    const { texto, uso, stopReason } = await chamarClaude(userMsg, 4000, locale, MODEL, pais);
     if (stopReason === "max_tokens") throw new Error("Letra truncada pelo limite de tokens");
     const tituloPadrao = locale === "en" ? "Your song" : locale === "es" ? "Tu canción" : "Sua música";
     let p: LetraGerada;
@@ -288,9 +310,10 @@ export const montarLetraStream = createServerFn({ method: "POST" })
     exigirTamanho(data.refrao, MAX_REFRAO, "refrão");
     const locale = normalizarLocale(data.locale);
     // O braço do `nome_cantado` é lido junto com a cobrança: não soma espera.
-    const [, nomeCantado] = await Promise.all([
+    const [, nomeCantado, pais] = await Promise.all([
       cobrarLetra(data.sessionId),
       nomeCantadoDaSessao(data.sessionId, data.respostas, locale),
+      paisDaSessao(data.sessionId),
     ]);
     const userMsg = `${buildUserMessage(respostasSanitizadas(data.respostas, locale), locale, { nomeCantado })}
 
@@ -306,7 +329,7 @@ ${INSTRUCOES[locale].montar(data.refrao)}`;
         model: MODEL,
         max_tokens: 4000,
         stream: true,
-        system: [{ type: "text", text: systemDaLetra(locale), cache_control: { type: "ephemeral" } }],
+        system: [{ type: "text", text: systemDaLetra(locale, pais), cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: userMsg }],
       }),
     });
@@ -420,13 +443,13 @@ export const aprimorarLetra = createServerFn({ method: "POST" })
   .validator((data: { sessionId: string; letra: string; locale?: string }) => data)
   .handler(async ({ data }): Promise<{ letra: string }> => {
     exigirTamanho(data.letra, MAX_LETRA, "letra");
-    await cobrarLetra(data.sessionId);
+    const [, pais] = await Promise.all([cobrarLetra(data.sessionId), paisDaSessao(data.sessionId)]);
     const locale = normalizarLocale(data.locale);
     const userMsg = `${INSTRUCOES[locale].aprimorar}
 
 ${data.letra}`;
 
-    const { texto, uso, stopReason } = await chamarClaude(userMsg, 4000, locale);
+    const { texto, uso, stopReason } = await chamarClaude(userMsg, 4000, locale, MODEL, pais);
     if (stopReason === "max_tokens") throw new Error("Letra truncada pelo limite de tokens");
     const p = extrairJson<{ letra: string }>(texto);
 
@@ -733,6 +756,9 @@ export const finalizarLetra = createServerFn({ method: "POST" })
     // porque é aqui que a sessão vira compra em potencial — e a RPC de
     // progresso parcial nunca sobrescreve o campo.
     await db.from("quiz_responses").update({ locale }).eq("id", quizId);
+    // O PAÍS junto (29/10): quem pulou a coautoria por algum caminho chega
+    // aqui sem ele. Grava se faltar, nunca troca (`pais-quiz.ts`).
+    await paisDaSessao(data.sessionId);
 
     const { data: inserida, error } = await db
       .from("musicas")

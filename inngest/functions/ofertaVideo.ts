@@ -18,7 +18,7 @@ import {
 import { emailFotosVideo, assuntoFotosVideo, textoFotosVideo } from "../../emails/fotos-video.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
-import { compraEmPeso } from "../lib/compra-em-peso.js";
+import { moedaDaCompra } from "../lib/compra-em-peso.js";
 
 // O VÍDEO, no dia seguinte à compra, pra quem já subiu foto.
 //
@@ -152,7 +152,8 @@ export const ofertaVideo = inngest.createFunction(
         tipo: Tipo;
         quizId: string | null;
         locale: IdiomaOfertaVideo;
-        emPeso: boolean;
+        /** A moeda da compra (29/10): o vídeo no e-mail sai nela ("9,99 €"). */
+        moeda: string;
       }> = [];
       const conta = { comFoto: 0, semFoto: 0 };
       // Quem JÁ recebeu cada tipo, numa consulta só por tipo. Com a janela
@@ -227,8 +228,9 @@ export const ofertaVideo = inngest.createFunction(
           tipo,
           quizId: p.quiz_response_id ?? null,
           locale,
-          // México: o preço do vídeo no e-mail em peso, como o editor mostra lá.
-          emPeso: ballad ? await compraEmPeso(p) : false,
+          // O preço do vídeo no e-mail na moeda de quem comprou, como o editor
+          // mostra lá: o país gravado no quiz, ou a moeda que o caixa cobrou.
+          moeda: ballad ? await moedaDaCompra(sb, p) : "usd",
         });
         conta[tipo] += 1;
       }
@@ -254,7 +256,9 @@ export const ofertaVideo = inngest.createFunction(
         const template = semFoto ? "fotos_video" : "oferta_video";
         // O preço da música DESTA pessoa (teste `preco_video`): o e-mail diz o que a tela vai cobrar.
         // Na Ballad, o dólar do catálogo; sem ele a oferta não existe no editor, e o e-mail não sai.
-        const preco = precoDoVideoNoEmail(c.locale, c.link.match(/\/editar\/([0-9a-f]+)/)?.[1], c.emPeso);
+        const preco = precoDoVideoNoEmail(c.locale, c.link.match(/\/editar\/([0-9a-f]+)/)?.[1],
+          // Execução que começou antes de 29/10 traz a saída memorizada com `emPeso`.
+          c.moeda ?? ((c as { emPeso?: boolean }).emPeso === true ? "mxn" : null));
         if (!preco) return false;
         const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: template }],

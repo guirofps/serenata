@@ -35,6 +35,7 @@ function fetchClaude(
   maxTokens: number,
   locale: Locale,
   userMsg: string,
+  pais?: string | null,
 ): Promise<Response> {
   return fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -55,7 +56,7 @@ function fetchClaude(
       // de cache a partir de 1.024 tokens de prefixo e este system tem ~1.200.
       // Nas opções de refrão continua sem efeito, porque o Haiku 4.5 exige
       // 4.096 (ver `custos.ts`).
-      system: [{ type: "text", text: systemDaLetra(locale), cache_control: { type: "ephemeral" } }],
+      system: [{ type: "text", text: systemDaLetra(locale, pais), cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: userMsg }],
     }),
   });
@@ -68,6 +69,9 @@ export async function chamarClaude(
   // O padrão é o modelo BOM. Etapa nova que esquecer de escolher cai no caro e
   // certo, nunca no barato e raso — o erro que ninguém percebe olhando a tela.
   modelo: string = MODEL,
+  // O país gravado no quiz (29/10, `pais-quiz.ts`): escolhe o espanhol do
+  // prompt na Ballad. Sem ele, vale o país da requisição (`mercado-es.ts`).
+  pais?: string | null,
 ): Promise<RespClaude> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error("ANTHROPIC_API_KEY ausente no servidor");
@@ -97,7 +101,7 @@ export async function chamarClaude(
   for (let tentativa = 0; tentativa <= ESPERAS.length; tentativa++) {
     if (tentativa > 0) await new Promise((s) => setTimeout(s, ESPERAS[tentativa - 1]));
     try {
-      r = await fetchClaude(key, modelo, maxTokens, locale, userMsg);
+      r = await fetchClaude(key, modelo, maxTokens, locale, userMsg, pais);
     } catch (err) {
       // Rede caiu no meio: é o caso mais passageiro de todos.
       ultimoErro = err;

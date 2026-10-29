@@ -25,7 +25,7 @@ import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
 import { precoVideoUsdTexto } from "../src/lib/creditos.js";
 import { emDolarExplicito } from "../src/lib/i18n.js";
 import { textoPrecoVideo } from "../src/lib/preco-video.js";
-import { textoEmPeso } from "../src/lib/preco-mxn.js";
+import { mercadoDaMoeda, textoNaMoeda } from "../src/lib/mercados.js";
 
 export type IdiomaOfertaVideo = "pt" | "en" | "es";
 
@@ -56,16 +56,21 @@ export function idiomaDaOfertaVideo(
  * Quem pagou a MÚSICA em peso (México, `emPeso`) lê o preço em peso, pela
  * mesma tabela do caixa ("$129 MXN"), em qualquer idioma (28/10).
  * `null` = a Ballad sem preço em dólar no catálogo: sem preço, sem oferta.
+ *
+ * 29/10: o terceiro argumento é a MOEDA da compra (`moedaDaCompra`), e cada
+ * mercado lê o vídeo na sua ("9,99 €", "$25.900 COP"), pela tabela de
+ * `mercados.ts`. `true` continua valendo peso mexicano.
  */
 export function precoDoVideoNoEmail(
   locale: IdiomaOfertaVideo,
   tokenEdicao: string | null | undefined,
-  emPeso = false,
+  moeda: boolean | string | null = false,
 ): string | null {
   if (locale === "pt") return textoPrecoVideo(tokenEdicao);
   const usd = precoVideoUsdTexto();
   if (!usd) return null;
-  if (emPeso) return textoEmPeso(usd) ?? usd;
+  const mercado = mercadoDaMoeda(moeda === true ? "mxn" : typeof moeda === "string" ? moeda : null);
+  if (mercado && mercado.moeda !== "usd") return textoNaMoeda(mercado, usd) ?? usd;
   return locale === "es" ? emDolarExplicito(usd) : usd;
 }
 

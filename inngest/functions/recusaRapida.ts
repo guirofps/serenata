@@ -14,6 +14,8 @@ import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { normalizarLocale } from "../../src/lib/i18n.js";
 import { caminhoDeVolta } from "../../src/lib/volta-ao-funil.js";
 import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
+import { paisDoQuiz } from "../../src/lib/pais-quiz.js";
+import { mercadoDoPais } from "../../src/lib/mercados.js";
 
 // CARTÃO RECUSADO, AVISO EM 10 MINUTOS (Ballad, teste `recusa_rapida`, 28/10).
 // A regra e os textos moram em `src/lib/recusa-rapida.ts`.
@@ -48,6 +50,16 @@ async function stripeGet<T>(caminho: string): Promise<T | null> {
 
 type Cobranca = { id: string; status: string; created: number; payment_intent: string | null; failure_code: string | null; outcome?: { reason?: string | null } | null };
 type Sessao = { id: string; status: string; payment_status: string; currency: string; metadata?: { quiz_id?: string } };
+
+/**
+ * Este quiz é do México? O país gravado no quiz vence (29/10); sem ele, a
+ * moeda em que a sessão cobrou, como era antes.
+ */
+async function ehDoMexico(sb: ReturnType<typeof db>, quizId: string, moedaDaSessao: string | null | undefined): Promise<boolean> {
+  const pais = await paisDoQuiz(sb, { id: quizId });
+  if (pais) return mercadoDoPais(pais).temDlocal && pais === "MX";
+  return String(moedaDaSessao ?? "").toLowerCase() === "mxn";
+}
 
 /** O quiz já tem pedido PAGO? Na dúvida, sim (consulta que falha não vira e-mail). */
 async function quizPago(sb: ReturnType<typeof db>, quizId: string): Promise<boolean> {
@@ -151,8 +163,10 @@ export const recusaRapida = inngest.createFunction(
           locale,
           grupo,
           motivo,
-          // O caixa em peso é só pra quem está no México (`preco-mxn.ts`).
-          mexico: String(sessao.currency).toLowerCase() === "mxn",
+          // O OXXO do e-mail é só pra quem está no México. Desde 29/10 vale o
+          // país gravado no quiz (`pais-quiz.ts`), que é o que decide a dLocal
+          // (`temDlocal`); quiz antigo, sem país, cai na moeda da sessão.
+          mexico: await ehDoMexico(sb, q.id as string, sessao.currency),
         });
       }
       return out;
