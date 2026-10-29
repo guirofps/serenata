@@ -16,6 +16,8 @@ import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { normalizarLocale } from "../../src/lib/i18n.js";
 import { caminhoDeVolta } from "../../src/lib/volta-ao-funil.js";
 import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
+import { paisPraEmail } from "../../src/lib/pais-quiz.js";
+import { noPais } from "../../emails/mercado-email.js";
 
 /** A pessoa (por e-mail, qualquer quiz) comprou nos últimos 14 dias? */
 async function pessoaJaComprou(sb: ReturnType<typeof db>, email: string): Promise<boolean> {
@@ -321,7 +323,12 @@ export const quaseComprou = inngest.createFunction(
         });
         if (!trava) return false;
 
-        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
+        const { data: enviado, error } = await noPais(
+          comUtm(new Resend(chave)),
+          c.locale,
+          // O espanhol do país do quiz (29/10): WhatsApp e `vosotros` na Espanha.
+          await paisPraEmail(sb, c.quizId, c.locale),
+        ).emails.send({
           tags: [{ name: "template", value: textoRecusa ? "quase_comprou_recusa" : "quase_comprou" }],
           // REMETENTE DE RECUPERAÇÃO, não o transacional.
           //

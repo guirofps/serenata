@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizarPais } from "./mercados.js";
+import { MARCA_ATIVA } from "./marca-identidade.js";
 
 // O PAÍS GRAVADO NO QUIZ E A MOEDA GRAVADA NO PEDIDO (Ballad, 29/10/2026).
 //
@@ -32,6 +33,20 @@ export async function paisDoQuiz(db: Db, filtro: { id?: string | null; sessionId
   } catch {
     return null;
   }
+}
+
+/**
+ * O país do quiz pra adaptar um e-mail (`emails/mercado-email.ts`). Só consulta
+ * no espanhol da Ballad, o único e-mail que muda por país: a Serenata e o
+ * inglês não ganham consulta nenhuma a mais.
+ */
+export async function paisPraEmail(
+  db: Db,
+  quizId: string | null | undefined,
+  locale: string | null | undefined,
+): Promise<string | null> {
+  if (MARCA_ATIVA.chave !== "ballad" || locale !== "es" || !quizId) return null;
+  return paisDoQuiz(db, { id: quizId });
 }
 
 /**

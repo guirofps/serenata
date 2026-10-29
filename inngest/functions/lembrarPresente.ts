@@ -9,6 +9,8 @@ import { emailLembretePresente, assuntoLembrete, textoLembreteEn, textoLembreteE
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { todasAsPaginas } from "../lib/paginar.js";
+import { paisPraEmail } from "../../src/lib/pais-quiz.js";
+import { noPais } from "../../emails/mercado-email.js";
 
 // LEMBRETE de quem pagou e não montou o presente.
 //
@@ -210,7 +212,12 @@ export const lembrarPresente = inngest.createFunction(
         // volta na próxima rodada. No A não vai ao banco.
         if (!(await podeMandarMarketing(sb, c.email, c.quizId, { locale: c.locale }))) return false;
 
-        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
+        const { data: enviado, error } = await noPais(
+          comUtm(new Resend(chave)),
+          c.locale,
+          // O espanhol do país do quiz (29/10): WhatsApp e `vosotros` na Espanha.
+          await paisPraEmail(sb, c.quizId, c.locale),
+        ).emails.send({
       // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
       // (entregue, aberto, clicado, devolvido), e e o unico jeito de
       // saber DEPOIS qual e-mail performou: o assunto carrega o nome da

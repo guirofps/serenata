@@ -35,6 +35,8 @@ import { literalLike } from "../../src/lib/sql-like.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { normalizarLocale } from "../../src/lib/i18n.js";
+import { paisDoQuiz } from "../../src/lib/pais-quiz.js";
+import { noPais } from "../../emails/mercado-email.js";
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
@@ -129,6 +131,10 @@ export async function mandarEmailDeEntrega(
     // O espanhol da Ballad (hispanos dos EUA) tem texto puro próprio, em
     // espanhol e sem WhatsApp. O da Serenata segue como sempre foi.
     const espanholDaBallad = locale === "es" && MARCA_ATIVA.chave === "ballad";
+    // O PAÍS DO QUIZ (29/10, `pais-quiz.ts`): na Espanha e na LatAm o link vai
+    // pelo WhatsApp, e na Espanha o casal é `vosotros` (`noPais`). Consulta à
+    // parte, só no espanhol da Ballad: sem a coluna, `null` e o e-mail de sempre.
+    const pais = espanholDaBallad ? await paisDoQuiz(sb, { id: args.musica.quiz_response_id }) : null;
     // `.trim()`: o nome digitado no quiz costuma vir com espaço sobrando
     // ("Cardoso "), e o assunto saía com espaço duplo.
     const nome =
@@ -191,7 +197,7 @@ export async function mandarEmailDeEntrega(
     // pronta" fica pra quando for verdade — quem o manda é o próprio job de
     // geração, ao terminar (`gerarMusica.ts`).
     if (!(args.musica.status === "pronta" && args.musica.audio_path)) {
-      const { data: aviso, error: erroAviso } = await comUtm(new Resend(chave)).emails.send({
+      const { data: aviso, error: erroAviso } = await noPais(comUtm(new Resend(chave)), locale, pais).emails.send({
         tags: [{ name: "template", value: "entrega_em_producao" }],
         from: MARCA_ATIVA.remetenteTransacional,
         to: [args.email],
@@ -229,7 +235,7 @@ ${linkEditor}`
     // extras iguais, ~2 mil compradores por braço). Fica o B pra todo português.
     const varianteEntrega: "a" | "b" = locale === "pt" ? "b" : "a";
 
-    const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
+    const { data: enviado, error } = await noPais(comUtm(new Resend(chave)), locale, pais).emails.send({
       // A ETIQUETA DO ENVIO, que o Resend devolve em todo evento. É o único
       // jeito de medir DEPOIS qual e-mail performou: o assunto carrega o nome
       // da pessoa e nem sempre vem no evento.

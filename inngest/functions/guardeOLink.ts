@@ -9,6 +9,8 @@ import { emailGuardeOLink, assuntoGuardeOLink, textoGuardeOLinkEn, textoGuardeOL
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { todasAsPaginas } from "../lib/paginar.js";
+import { paisPraEmail } from "../../src/lib/pais-quiz.js";
+import { noPais } from "../../emails/mercado-email.js";
 
 // O CAMINHO DE VOLTA, três dias depois da compra.
 //
@@ -245,7 +247,12 @@ export const guardeOLink = inngest.createFunction(
         // volta na próxima rodada. No A não vai ao banco.
         if (!(await podeMandarMarketing(sb, c.email, c.quizId, { locale: c.locale }))) return false;
 
-        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
+        const { data: enviado, error } = await noPais(
+          comUtm(new Resend(chave)),
+          c.locale,
+          // O espanhol do país do quiz (29/10): WhatsApp e `vosotros` na Espanha.
+          await paisPraEmail(sb, c.quizId, c.locale),
+        ).emails.send({
           tags: [{ name: "template", value: "guarde_o_link" }],
           from: MARCA_ATIVA.remetenteTransacional,
           to: [c.email],

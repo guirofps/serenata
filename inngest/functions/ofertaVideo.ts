@@ -19,6 +19,8 @@ import { emailFotosVideo, assuntoFotosVideo, textoFotosVideo } from "../../email
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { moedaDaCompra } from "../lib/compra-em-peso.js";
+import { paisPraEmail } from "../../src/lib/pais-quiz.js";
+import { noPais } from "../../emails/mercado-email.js";
 
 // O VÍDEO, no dia seguinte à compra, pra quem já subiu foto.
 //
@@ -260,7 +262,12 @@ export const ofertaVideo = inngest.createFunction(
           // Execução que começou antes de 29/10 traz a saída memorizada com `emPeso`.
           c.moeda ?? ((c as { emPeso?: boolean }).emPeso === true ? "mxn" : null));
         if (!preco) return false;
-        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
+        const { data: enviado, error } = await noPais(
+          comUtm(new Resend(chave)),
+          c.locale,
+          // O espanhol do país do quiz (29/10): WhatsApp e `vosotros` na Espanha.
+          await paisPraEmail(sb, c.quizId, c.locale),
+        ).emails.send({
           tags: [{ name: "template", value: template }],
           // Remetente de RECUPERAÇÃO: é oferta, não entrega (ver `emails/remetentes.ts`).
           from: REMETENTE_RECUPERACAO,

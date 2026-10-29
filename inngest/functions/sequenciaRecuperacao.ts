@@ -30,6 +30,8 @@ import { estadoDosToques, prazoDoToque1, proximoToquePrazo } from "../../src/lib
 import { centavosComCupom, codigoComPrazo } from "../../src/lib/cupom.js";
 import { caminhoDeVolta } from "../../src/lib/volta-ao-funil.js";
 import { assuntoPrazo, emailPrazo, textoPrazo } from "../../emails/recuperacao-prazo.js";
+import { paisPraEmail } from "../../src/lib/pais-quiz.js";
+import { noPais } from "../../emails/mercado-email.js";
 
 /** Teste `recuperacao_prazo`: encerrado em 15/10 (B sem venda). `true` religa o braço B. */
 const RECUPERACAO_PRAZO_LIGADO = false;
@@ -820,7 +822,13 @@ export const sequenciaRecuperacao = inngest.createFunction(
         });
         if (!trava) continue;
 
-        const { data: enviado, error } = await resend.emails.send({
+        // O espanhol do país do quiz (29/10, `emails/mercado-email.ts`): WhatsApp
+        // e `vosotros` na Espanha. Cliente novo por envio: o `noPais` embrulha o
+        // `send`, e embrulhar o `resend` da fila acumularia um país por pessoa.
+        const remetente = p.locale === "es"
+          ? noPais(comUtm(new Resend(chave)), p.locale, await paisPraEmail(sb, p.quizId, p.locale))
+          : resend;
+        const { data: enviado, error } = await remetente.emails.send({
           // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
           // (entregue, aberto, clicado, devolvido), e e o unico jeito de
           // saber DEPOIS qual e-mail performou: o assunto carrega o nome da
