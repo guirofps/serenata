@@ -617,6 +617,7 @@ painel_eventos_dia`) e o cron refazer.
   Google também vai na fração. Hoje até agora continua vindo de
   `metricas_campanha`, que atualiza de hora em hora (até ~1h de atraso).
 - Cada painel loga `[admin] painel …` com os tempos nos logs da Vercel.
+- **Sessão de 30 dias, renovada no uso (28/10).** Era 12h fixas: o painel deslogava todo dia nas duas marcas. Agora o cookie assinado vale 30 dias e toda consulta do painel o regrava se ele tem mais de 1 dia (`admin-sessao.ts`, chamado em `exigirAdmin`/`exigirRecuperacao`); o papel reemitido é o mesmo da assinatura. Derrubar todas as sessões: trocar `ADMIN_SECRET` (ou `RECUPERACAO_SECRET`) na Vercel.
 - **O cartão CPA é SÓ do Google Ads (18/10, dono)**: gasto do Google (API + manual de "google" em dia sem API, `somarGasto().googleBrl`) ÷ vendas do canal Google (`vendasPorCanal.google`), em `cpaDoGoogle` (`gasto-midia.ts`). Antes era o gasto de tudo ÷ vendas de tudo, e e-mail/orgânico derrubavam o número (R$ 5,66 em 18/10, com a conta nova começando). Gasto, ROAS e lucro continuam somando toda a mídia. **CPA TikTok** (18/10): cartão que só aparece com gasto lançado à mão com origem "tiktok" (opção nova no formulário de gasto; antes só google/meta/outro), gasto do TikTok ÷ vendas do canal TikTok (`cpaDoCanal`). TikTok lançado como "outro" antes de 18/10 não entra nele.
 - **Vendas por canal (08/10)**, abaixo da linha de mídia: Google, TikTok,
   e-mail e orgânico, somando o cartão "Vendas" (`canal-venda.ts`). Venda com

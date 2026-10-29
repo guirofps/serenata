@@ -1,6 +1,7 @@
 import { getCookie, setCookie } from "@tanstack/react-start/server";
 import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
 import { emailLiberado, lerListaDeAdmins } from "@/lib/admin-emails";
+import { DURACAO_SESSAO_S, deveRenovarSessao } from "@/lib/admin-sessao";
 
 // Lógica de autenticação do painel. Arquivo `.server.ts` de propósito: o
 // bundler nunca o inclui no cliente (o import de node:crypto quebrava o build
@@ -15,7 +16,8 @@ import { emailLiberado, lerListaDeAdmins } from "@/lib/admin-emails";
 //     o oposto: `!secretEsperado || ...` aceitava qualquer POST.)
 
 const COOKIE = "mp_admin";
-const DURACAO_S = 60 * 60 * 12; // 12h
+// 30 dias, renovados a cada uso (era 12h fixas até 28/10): `admin-sessao.ts`.
+const DURACAO_S = DURACAO_SESSAO_S;
 
 // DOIS PAPÉIS, e a diferença não é conforto: é o que a pessoa consegue ver.
 //
@@ -61,6 +63,11 @@ function iguaisSeguro(a: string, b: string): boolean {
  * `admin_session=true` forjável que este arquivo existe pra não repetir.
  */
 function papelDoToken(token: string | undefined): Papel | null {
+  return lerToken(token)?.papel ?? null;
+}
+
+/** O papel e a expiração de um token íntegro e dentro da validade. */
+function lerToken(token: string | undefined): { papel: Papel; expira: number } | null {
   if (!token) return null;
   const partes = token.split(".");
   if (partes.length !== 4) return null;
@@ -68,7 +75,20 @@ function papelDoToken(token: string | undefined): Papel | null {
   if (!iguaisSeguro(assinatura, assinar(`${expira}.${nonce}.${papel}`))) return null;
   const exp = Number(expira);
   if (!Number.isFinite(exp) || exp <= Date.now()) return null;
-  return papel === "admin" || papel === "recuperacao" ? papel : null;
+  return papel === "admin" || papel === "recuperacao" ? { papel, expira: exp } : null;
+}
+
+/**
+ * O papel de quem está logado, renovando a sessão de quem usa o painel.
+ *
+ * A renovação reemite o MESMO papel que já estava dentro da assinatura: usar
+ * o painel nunca muda o que a pessoa pode ver, só empurra a validade.
+ */
+function papelComRenovacao(): Papel | null {
+  const sessao = lerToken(getCookie(COOKIE));
+  if (!sessao) return null;
+  if (deveRenovarSessao(sessao.expira, Date.now())) abrirSessao(sessao.papel);
+  return sessao.papel;
 }
 
 /** Valida a senha e, se bater, grava o cookie assinado com o papel. */
@@ -119,7 +139,7 @@ function abrirSessao(papel: Papel): void {
  * ENTRADA PELO GOOGLE — a segunda forma de provar quem você é.
  *
  * O que muda em relação à senha é só a PROVA. A sessão que sai daqui é a mesma:
- * o mesmo cookie assinado, o mesmo papel dentro da assinatura, as mesmas 12h.
+ * o mesmo cookie assinado, o mesmo papel dentro da assinatura, a mesma validade.
  * `exigirAdmin` não sabe por onde a pessoa entrou, e é isso que faz este
  * caminho ser um acréscimo em vez de um segundo sistema de autenticação.
  *
@@ -181,7 +201,7 @@ export function encerrarSessao(): void {
 
 /** Chamada no topo de TODA consulta do painel. Lança se não for o dono. */
 export function exigirAdmin(): void {
-  if (papelDoToken(getCookie(COOKIE)) !== "admin") throw new Error("nao-autorizado");
+  if (papelComRenovacao() !== "admin") throw new Error("nao-autorizado");
 }
 
 /**
@@ -191,7 +211,7 @@ export function exigirAdmin(): void {
  * senha pra ver a própria fila é o tipo de atrito que faz ninguém usar.
  */
 export function exigirRecuperacao(): void {
-  const p = papelDoToken(getCookie(COOKIE));
+  const p = papelComRenovacao();
   if (p !== "recuperacao" && p !== "admin") throw new Error("nao-autorizado");
 }
 
