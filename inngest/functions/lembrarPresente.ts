@@ -9,6 +9,7 @@ import { emailLembretePresente, assuntoLembrete, textoLembreteEn, textoLembreteE
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { todasAsPaginas } from "../lib/paginar.js";
+import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 
 // LEMBRETE de quem pagou e não montou o presente.
 //
@@ -52,14 +53,10 @@ function db() {
  * deixa o histórico visível junto do resto. A checagem é por musica_id.
  */
 async function jaLembrado(sb: ReturnType<typeof db>, musicaId: string) {
-  const { data, error } = await sb
-    .from("funnel_events")
-    .select("id")
-    .eq("event_name", "lembrete_presente_enviado")
-    .contains("event_data", { musica_id: musicaId })
-    .limit(1);
-  if (error) return true; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
-  return (data ?? []).length > 0;
+  // Com janela (29/10), a mesma da fila: `funnel_events` sem `created_at` foi o
+  // que estourou o PostgREST em 04/10. Erro conta como "já mandou" (`jaTravado`).
+  const desde = new Date(Date.now() - (MAX_H + 48) * 3600000).toISOString();
+  return jaTravado(sb, "lembrete_presente_enviado", { musica_id: musicaId }, desde);
 }
 
 export const lembrarPresente = inngest.createFunction(
@@ -210,6 +207,16 @@ export const lembrarPresente = inngest.createFunction(
         // volta na próxima rodada. No A não vai ao banco.
         if (!(await podeMandarMarketing(sb, c.email, c.quizId, { locale: c.locale }))) return false;
 
+        // A TRAVA ANTES DO ENVIO (29/10): a marca era gravada DEPOIS do Resend
+        // e sem ler o erro, e uma gravação perdida repetia o lembrete de hora
+        // em hora. Mesmo evento e conteúdo que o `jaLembrado` lê. Não gravou,
+        // não manda.
+        const trava = await travarEnvio(sb, {
+          event_name: "lembrete_presente_enviado",
+          event_data: { musica_id: c.musicaId, email: c.email },
+        });
+        if (!trava) return false;
+
         const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
       // A ETIQUETA DO ENVIO. O Resend devolve isto em todo evento
       // (entregue, aberto, clicado, devolvido), e e o unico jeito de
@@ -232,6 +239,7 @@ export const lembrarPresente = inngest.createFunction(
         });
         if (error) {
           console.error("[lembrete] envio falhou:", error.message);
+          await soltarTrava(sb, trava);
           return false;
         }
         await registrarEnvio(sb, {
@@ -243,11 +251,6 @@ export const lembrarPresente = inngest.createFunction(
           // por e-mail tem resposta — era o caso dos 978 `letra_pronta`
           // registrados em dois dias, todos com `quiz_response_id` nulo.
           quizResponseId: c.quizId ?? undefined,
-        });
-
-        await sb.from("funnel_events").insert({
-          event_name: "lembrete_presente_enviado",
-          event_data: { musica_id: c.musicaId, email: c.email },
         });
         return true;
       });

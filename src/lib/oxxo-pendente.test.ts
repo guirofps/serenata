@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bracoOxxoPendente,
+  fichaMaisNovaPorQuiz,
   horaBoaNoMexico,
   quandoVence,
   toqueDevido,
@@ -96,5 +97,25 @@ describe("e-mail da ficha", () => {
   it("sem travessão, sem real, em tú", () => {
     const tudo = [emailOxxoPendente(base), textoOxxoPendente(base), emailOxxoPendente({ ...base, toque: 2, quando: "mañana" })].join(" ");
     expect(tudo).not.toMatch(/—|R\$|PIX|\bvos\b|querés|tenés/);
+  });
+});
+
+describe("fichaMaisNovaPorQuiz", () => {
+  it("fica com a ficha MAIS NOVA de cada quiz, venha em que ordem vier", () => {
+    const r = fichaMaisNovaPorQuiz([
+      { payment_id: "dlocalgo:DP-1", quiz_response_id: "q1", created_at: "2026-10-28T10:00:00Z" },
+      { payment_id: "dlocalgo:DP-2", quiz_response_id: "q1", created_at: "2026-10-28T12:00:00Z" },
+      { payment_id: "dlocalgo:DP-3", quiz_response_id: "q2", created_at: "2026-10-28T11:00:00Z" },
+      { payment_id: "dlocalgo:DP-4", quiz_response_id: null, created_at: "2026-10-28T13:00:00Z" },
+    ]);
+    expect(r.map((p) => p.payment_id)).toEqual(["dlocalgo:DP-2", "dlocalgo:DP-3"]);
+  });
+
+  it("a ordem de entrada não muda a escolha", () => {
+    const r = fichaMaisNovaPorQuiz([
+      { payment_id: "dlocalgo:DP-2", quiz_response_id: "q1", created_at: "2026-10-28T12:00:00Z" },
+      { payment_id: "dlocalgo:DP-1", quiz_response_id: "q1", created_at: "2026-10-28T10:00:00Z" },
+    ]);
+    expect(r.map((p) => p.payment_id)).toEqual(["dlocalgo:DP-2"]);
   });
 });

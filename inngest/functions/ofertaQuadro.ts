@@ -11,6 +11,7 @@ import { emailQuadro, assuntoQuadro } from "../../emails/quadro-na-parede.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { literalLike } from "../../src/lib/sql-like.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
+import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 
 // O QUADRO, sete dias depois da compra.
 //
@@ -84,14 +85,10 @@ function db() {
 /** Já ofereceu o quadro pra esta música? Por MÚSICA, não por pessoa: quem tem
  *  duas músicas pode querer dois quadros, um de cada. */
 async function jaOfertado(sb: ReturnType<typeof db>, musicaId: string) {
-  const { data, error } = await sb
-    .from("funnel_events")
-    .select("id")
-    .eq("event_name", "oferta_quadro_enviada")
-    .contains("event_data", { musica_id: musicaId })
-    .limit(1);
-  if (error) return true; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
-  return (data ?? []).length > 0;
+  // Com janela (29/10), a mesma da fila: `funnel_events` sem `created_at` foi o
+  // que estourou o PostgREST em 04/10. Erro conta como "já mandou" (`jaTravado`).
+  const desde = new Date(Date.now() - (MAX_DIAS + 2) * 86400000).toISOString();
+  return jaTravado(sb, "oferta_quadro_enviada", { musica_id: musicaId }, desde);
 }
 
 export const ofertaQuadro = inngest.createFunction(
@@ -227,6 +224,16 @@ export const ofertaQuadro = inngest.createFunction(
         // volta na próxima rodada. No A não vai ao banco.
         if (!(await podeMandarMarketing(sb, c.email, c.quizId, { locale: c.locale }))) return false;
 
+        // A TRAVA ANTES DO ENVIO (29/10): a marca era gravada DEPOIS do Resend
+        // e sem ler o erro, e uma gravação perdida repetia a oferta na rodada
+        // seguinte. Mesmo evento e conteúdo que o `jaOfertado` e a fila leem.
+        // Não gravou, não manda.
+        const trava = await travarEnvio(sb, {
+          event_name: "oferta_quadro_enviada",
+          event_data: { musica_id: c.musicaId, email: c.email },
+        });
+        if (!trava) return false;
+
         const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: "oferta_quadro" }],
           // REMETENTE DE RECUPERAÇÃO, não o transacional.
@@ -258,6 +265,7 @@ export const ofertaQuadro = inngest.createFunction(
         });
         if (error) {
           console.error("[oferta-quadro] envio falhou:", error.message);
+          await soltarTrava(sb, trava);
           return false;
         }
 
@@ -265,10 +273,6 @@ export const ofertaQuadro = inngest.createFunction(
           emailId: enviado?.id,
           template: "oferta_quadro",
           para: c.email,
-        });
-        await sb.from("funnel_events").insert({
-          event_name: "oferta_quadro_enviada",
-          event_data: { musica_id: c.musicaId, email: c.email },
         });
         return true;
       });

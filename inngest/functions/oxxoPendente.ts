@@ -12,6 +12,7 @@ import {
   LIGADO,
   bracoOxxoPendente,
   horaBoaNoMexico,
+  fichaMaisNovaPorQuiz,
   quandoVence,
   toqueDevido,
   venceHojeOuAmanha,
@@ -88,9 +89,22 @@ export const oxxoPendente = inngest.createFunction(
         .eq("status", "pendente")
         .gte("created_at", new Date(agora - 4 * 86400e3).toISOString())
         .gt("pix_expira", new Date(agora).toISOString())
-        .order("created_at", { ascending: true })
+        // DO MAIS NOVO PRO MAIS VELHO (29/10): com o teto de 200, o crescente
+        // deixava de fora justamente as fichas recém-geradas.
+        .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw new Error(error.message);
+      // Uma ficha por quiz, a MAIS NOVA (`fichaMaisNovaPorQuiz`, 29/10).
+      const fichas = fichaMaisNovaPorQuiz(
+        (pedidos ?? []) as Array<{
+          payment_id: string;
+          quiz_response_id: string | null;
+          email: string | null;
+          pix_url: string | null;
+          pix_expira: string;
+          created_at: string;
+        }>,
+      );
 
       const out: Array<{
         paymentId: string;
@@ -103,12 +117,11 @@ export const oxxoPendente = inngest.createFunction(
         venceEm: number;
         toque: Toque;
       }> = [];
-      const vistos = new Set<string>();
-      for (const p of pedidos ?? []) {
+      for (const p of fichas) {
         if (out.length >= MAX_POR_RODADA) break;
         const quizId = p.quiz_response_id as string | null;
         const link = String(p.pix_url ?? "");
-        if (!quizId || !link.startsWith("https://") || vistos.has(quizId)) continue;
+        if (!quizId || !link.startsWith("https://")) continue;
         const venceEm = Date.parse(p.pix_expira as string);
         const r = await toquesFeitos(sb, p.payment_id as string, p.created_at as string);
         if (!r) continue;
@@ -127,7 +140,6 @@ export const oxxoPendente = inngest.createFunction(
         if (pago?.length) continue;
         if (await jaComprou(sb, quizId, email)) continue;
 
-        vistos.add(quizId);
         out.push({
           paymentId: p.payment_id as string,
           quizId,
@@ -191,16 +203,27 @@ export const oxxoPendente = inngest.createFunction(
           quando: venceHojeOuAmanha(c.venceEm, agora),
           valor,
         };
-        const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
-          tags: [{ name: "template", value: `oxxo_pendente_${c.toque}` }],
-          from: REMETENTE_TRANSACIONAL,
-          replyTo: RESPONDER_PARA,
-          to: [c.email],
-          headers: cabecalhosDescadastro(c.email),
-          subject: assuntoOxxoPendente(args),
-          html: emailOxxoPendente(args),
-          text: textoOxxoPendente(args),
-        });
+        // O Resend LANÇANDO (rede, corpo inválido), e não só devolvendo erro
+        // (29/10): a trava ficava gravada sem e-mail nenhum, e aquele toque
+        // nunca mais saía. Solta e relança: o passo tenta de novo com a trava
+        // livre.
+        let resposta;
+        try {
+          resposta = await comUtm(new Resend(chave)).emails.send({
+            tags: [{ name: "template", value: `oxxo_pendente_${c.toque}` }],
+            from: REMETENTE_TRANSACIONAL,
+            replyTo: RESPONDER_PARA,
+            to: [c.email],
+            headers: cabecalhosDescadastro(c.email),
+            subject: assuntoOxxoPendente(args),
+            html: emailOxxoPendente(args),
+            text: textoOxxoPendente(args),
+          });
+        } catch (err) {
+          await soltarTrava(sb, trava);
+          throw err;
+        }
+        const { data: enviado, error } = resposta;
         if (error) {
           console.error("[oxxo-pendente] envio falhou:", error.message);
           await soltarTrava(sb, trava);

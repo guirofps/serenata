@@ -9,6 +9,10 @@ import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { todasAsPaginas } from "../lib/paginar.js";
 import { estaBloqueado } from "../lib/emails-mortos.js";
 import { soltarTrava, travarEnvio } from "../lib/trava-envio.js";
+import { cabecalhosDescadastro } from "../lib/descadastro.js";
+import { RESPONDER_PARA } from "../../emails/remetentes.js";
+import { literalLike } from "../../src/lib/sql-like.js";
+import { JANELA_AVISOS_DIAS, TETO_AVISOS, podeLembrarCredito } from "../../src/lib/credito-parado-regra.js";
 
 // QUEM COMPROU CRÉDITO E NÃO USOU.
 //
@@ -84,6 +88,23 @@ async function jaAvisado(sb: ReturnType<typeof db>, email: string) {
   return (data ?? []).length > 0;
 }
 
+/**
+ * Quantos lembretes de crédito este endereço já levou na janela (29/10).
+ * `null` quando a leitura falha: `podeLembrarCredito` trata como "não lembra".
+ * Só precisa saber se chegou no teto, então lê no máximo TETO_AVISOS linhas.
+ */
+async function avisosDeCredito(sb: ReturnType<typeof db>, email: string): Promise<number | null> {
+  const { data, error } = await sb
+    .from("funnel_events")
+    .select("id")
+    .eq("event_name", "credito_parado_avisado")
+    .contains("event_data", { email })
+    .gte("created_at", new Date(Date.now() - JANELA_AVISOS_DIAS * 86400000).toISOString())
+    .limit(TETO_AVISOS);
+  if (error) return null;
+  return (data ?? []).length;
+}
+
 export const creditoParado = inngest.createFunction(
   {
     id: "credito-parado",
@@ -143,6 +164,16 @@ export const creditoParado = inngest.createFunction(
         const quando = compradoEm.get(email);
         if (!quando || quando > limite) continue;
         if (await jaAvisado(sb, email)) continue;
+        // TETO (29/10): no máximo 3 lembretes por endereço e nunca crédito
+        // comprado há mais de 60 dias. Antes era um por semana pra sempre.
+        if (
+          !podeLembrarCredito({
+            compradoEm: quando,
+            agora: Date.now(),
+            avisosAnteriores: await avisosDeCredito(sb, email),
+          })
+        )
+          continue;
 
         // ── DOIS CAMINHOS ATÉ O TOKEN, o mesmo do quadro ────
         //
@@ -153,15 +184,24 @@ export const creditoParado = inngest.createFunction(
         let token: string | null = null;
         let locale: string | null = null;
 
-        const { data: pedidos } = await sb
+        // POR `ilike` COM CURINGA ESCAPADO, E CONFERIDO EM JS (29/10). O
+        // endereço aqui saiu do razão em minúsculas, e `.eq` não achava o
+        // pedido nem a conta gravados com maiúscula (o banco tem e-mail
+        // gravado por três caminhos, nem todos normalizam a caixa): a pessoa
+        // ficava sem token e sem lembrete. O `literalLike` mata o `%`/`_`, e a
+        // conferência em JS garante que o link vai pra dona do pedido.
+        const mesmoEmail = (e: string | null | undefined) =>
+          String(e ?? "").trim().toLowerCase() === email;
+        const { data: pedidosBrutos } = await sb
           .from("pedidos")
-          .select("musica_id")
-          .eq("email", email)
+          .select("musica_id, email")
+          .ilike("email", literalLike(email))
           .eq("status", "pago")
           .not("musica_id", "is", null)
           .order("paid_at", { ascending: false })
           .limit(5);
-        for (const p of pedidos ?? []) {
+        const pedidos = (pedidosBrutos ?? []).filter((p) => mesmoEmail(p.email as string | null));
+        for (const p of pedidos) {
           const { data: m } = await sb
             .from("musicas")
             .select("token_edicao, status, locale")
@@ -174,7 +214,12 @@ export const creditoParado = inngest.createFunction(
           }
         }
         if (!token) {
-          const { data: conta } = await sb.from("users").select("id").eq("email", email).maybeSingle();
+          const { data: contas } = await sb
+            .from("users")
+            .select("id, email")
+            .ilike("email", literalLike(email))
+            .limit(5);
+          const conta = (contas ?? []).find((u) => mesmoEmail(u.email as string | null));
           if (conta?.id) {
             const { data: m } = await sb
               .from("musicas")
@@ -236,7 +281,12 @@ export const creditoParado = inngest.createFunction(
         const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: "credito_parado" }],
           from: REMETENTE_TRANSACIONAL,
+          // Descadastro e resposta (29/10), como as outras réguas: era o único
+          // lembrete sem o cabeçalho de um clique, e quem não queria mais o
+          // recado só tinha o botão de spam.
+          replyTo: RESPONDER_PARA,
           to: [c.email],
+          headers: cabecalhosDescadastro(c.email),
           subject: assuntoCreditoParado(c.locale),
           html: emailCreditoParado({ link: c.link, saldo: c.saldo, locale: c.locale }),
           text: textoCreditoParado(c.link, c.locale),

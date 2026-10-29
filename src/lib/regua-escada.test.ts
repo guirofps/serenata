@@ -52,3 +52,23 @@ describe("posicoesNaRegua", () => {
     expect(m.size).toBe(0);
   });
 });
+
+describe("disparos dirigidos da Ballad (29/10)", () => {
+  it("recusa_rapida e oxxo_pendente do braço B valem 2 e movem o relógio", () => {
+    const m = posicoesNaRegua([
+      ev("email_letra_enviado", "2026-10-01T00:00:00Z"),
+      ev("recusa_rapida", "2026-10-01T05:00:00Z", { braco: "B" }),
+      ev("oxxo_pendente", "2026-10-01T09:00:00Z", { braco: "B", toque: 1 }),
+    ]);
+    expect(m.get(Q)).toEqual({ numero: 2, quando: t("2026-10-01T09:00:00Z") });
+  });
+
+  it("a trava do braço A não é envio: não sobe degrau nem mexe no relógio", () => {
+    const m = posicoesNaRegua([
+      ev("email_letra_enviado", "2026-10-01T00:00:00Z"),
+      ev("recusa_rapida", "2026-10-01T05:00:00Z", { braco: "A" }),
+      ev("oxxo_pendente", "2026-10-01T09:00:00Z", { braco: "A", toque: 1 }),
+    ]);
+    expect(m.get(Q)).toEqual({ numero: 1, quando: t("2026-10-01T00:00:00Z") });
+  });
+});

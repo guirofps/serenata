@@ -257,13 +257,21 @@ export async function podeGerar(
   // ── 1. Já pagou? Então nem pergunta. ──
   if (quizResponseId) {
     try {
-      const { data: pago } = await sb
+      const { data: pago, error } = await sb
         .from("pedidos")
         .select("id")
         .eq("quiz_response_id", quizResponseId)
         .eq("status", "pago")
         .limit(1)
         .maybeSingle();
+      // O ERRO VEM DEVOLVIDO, NÃO LANÇADO (29/10): o supabase-js não joga
+      // exceção em erro de consulta, então o `catch` abaixo nunca rodava e um
+      // banco lento lia "não pagou". Com o teto cheio, o comprador ficava sem
+      // música. Mesma regra do `catch`: na dúvida, libera.
+      if (error) {
+        console.error("[disjuntor] status de pagamento não lido; liberando:", error.message);
+        return { ok: true };
+      }
       if (pago) return { ok: true };
     } catch (err) {
       // Não deu pra saber se pagou. Na dúvida, ENTREGA: o custo de errar pra

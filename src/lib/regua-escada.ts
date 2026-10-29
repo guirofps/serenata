@@ -35,13 +35,34 @@ export type PosicaoNaRegua = { quando: number; numero: number };
 export function degrauDoEvento(e: EventoDeEnvio): number {
   if (e.event_data?.numero !== undefined) return Number(e.event_data.numero);
   if (e.event_name === "quase_comprou_enviado" || e.event_name === "pix_nao_pago_enviado") return 2;
+  if (DIRIGIDOS_COM_BRACO.includes(e.event_name)) return 2;
   return 1;
+}
+
+/**
+ * OS DISPAROS DIRIGIDOS DA BALLAD TAMBÉM SÃO DEGRAU (29/10).
+ *
+ * `recusa_rapida` (cartão recusado no Stripe) e `oxxo_pendente` (ficha do
+ * OXXO não paga) são oferta pra uma pessoa num momento, como o
+ * `quase_comprou`. Fora desta conta, a escada mandava o degrau 2 genérico
+ * por cima deles no mesmo dia. MAS a trava dos dois é gravada nos DOIS braços
+ * do teste (no A ela é só o registro pra leitura, ninguém recebe): só conta
+ * a linha com `braco = "B"`, a que virou e-mail. Contar o A tiraria da
+ * escada quem não recebeu nada e quebraria a comparação dos braços.
+ */
+export const DIRIGIDOS_COM_BRACO = ["recusa_rapida", "oxxo_pendente"];
+
+/** Este evento é um envio de verdade? Trava do braço A dos dirigidos não é. */
+export function contaNaRegua(e: EventoDeEnvio): boolean {
+  if (!DIRIGIDOS_COM_BRACO.includes(e.event_name)) return true;
+  return e.event_data?.braco === "B";
 }
 
 /** Por quiz: o maior degrau alcançado e o horário do envio mais recente. */
 export function posicoesNaRegua(eventos: EventoDeEnvio[]): Map<string, PosicaoNaRegua> {
   const ultimo = new Map<string, PosicaoNaRegua>();
   for (const e of eventos) {
+    if (!contaNaRegua(e)) continue;
     const id = String(e.event_data?.quiz_response_id ?? "");
     if (!id) continue;
     const numero = degrauDoEvento(e);

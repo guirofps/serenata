@@ -75,10 +75,20 @@ export const videoPendente = inngest.createFunction(
         .select("id");
       let ok = 0;
       for (const v of data ?? []) if (await pedirRender(v.id as string)) ok += 1;
-      return { marcados: data?.length ?? 0, pedidos: ok };
+      return { marcados: data?.length ?? 0, pedidos: ok, ids: (data ?? []).map((v) => v.id as string) };
     });
 
     // ── Presos em `aguardando` sem render ──────────────────────────
+    //
+    // O RELÓGIO DO "PRESO" (29/10). O certo seria a hora em que a linha ENTROU
+    // em `aguardando`, mas `videos` não tem `updated_at`: a idade é a da
+    // compra. Com isso, o vídeo que o passo de cima acabou de tirar de
+    // `aguardando_fotos` (criado há 72h) era pedido DE NOVO aqui, no mesmo
+    // minuto, e dois renders corriam juntos. Os pedidos desta rodada saem da
+    // lista; o resto (atualização, resgate, render esperando a vez na fila)
+    // pode ser repedido, e o `singleton` do `renderizarVideo` descarta o
+    // evento enquanto houver uma execução viva pro mesmo vídeo.
+    const pedidosAgora = new Set(gerados.ids);
     const repedidos = await step.run("repedir-os-presos", async () => {
       const sb = db();
       const { data } = await sb
@@ -89,7 +99,10 @@ export const videoPendente = inngest.createFunction(
         .lt("created_at", new Date(agora - PRESO_MIN * 60_000).toISOString())
         .limit(10);
       let ok = 0;
-      for (const v of data ?? []) if (await pedirRender(v.id as string)) ok += 1;
+      for (const v of data ?? []) {
+        if (pedidosAgora.has(v.id as string)) continue;
+        if (await pedirRender(v.id as string)) ok += 1;
+      }
       return ok;
     });
 

@@ -45,6 +45,7 @@ import { avisarDonos } from "../src/lib/avisar-donos.js";
 import { outroPagamentoDoQuiz } from "../src/lib/asaas-regras.js";
 import { todasAsPaginas } from "../inngest/lib/paginar.js";
 import { emLotes, faltamEntregar } from "../src/lib/entrega-atrasada.js";
+import { confirmarPagamentoDlocal, dlocalConfigurado, idDlocalValido } from "./lib/dlocalgo.js";
 
 const PARA = donosMais("agenciarocketfy@gmail.com");
 
@@ -92,6 +93,15 @@ const ENTREGA_MAX_POR_RODADA = 40;
  * Geração leva ~2 minutos; 15 cobre a fila cheia sem pisar no webhook.
  */
 const ENTREGA_IDADE_MIN_MIN = 15;
+
+/**
+ * OXXO/SPEI da Ballad (29/10). A ficha vale alguns dias e é paga na loja bem
+ * depois de gerada, por isso a janela é maior que a do PIX. O teto e o tempo
+ * máximo seguram a rodada dentro dos 60s da função.
+ */
+const DLOCAL_JANELA_H = 96;
+const DLOCAL_MAX_POR_RODADA = 30;
+const DLOCAL_TEMPO_MAX_MS = 40_000;
 
 function db() {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -364,6 +374,59 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         horas: Math.round((agora - Date.parse(p.created_at)) / 3600000),
         entregue,
       });
+    }
+
+    // ── OXXO E SPEI DA BALLAD (dLocal Go), QUANDO O AVISO SE PERDE (29/10) ──
+    //
+    // A ficha do OXXO é paga na loja horas (ou dias) depois, com a folha já
+    // fechada: o único caminho até a entrega era o aviso da dLocal. Se ele se
+    // perdesse (ou a nossa rota respondesse erro por 30 dias seguidos), o
+    // mexicano pagava em dinheiro e não recebia nada. Esta passada reconsulta
+    // os pendentes `dlocalgo` pela mesma `confirmarPagamentoDlocal` do aviso e
+    // da folha: ela só entrega na chamada que VIROU o pedido de pendente pra
+    // pago (update condicional), então correr junto com o aviso não duplica.
+    //
+    // Janela de 96h, contando a ficha VENCIDA há pouco: o pedido continua
+    // `pendente` no banco depois que `pix_expira` passa, e a loja pode ter
+    // recebido no último minuto. Só onde a dLocal está configurada: na
+    // Serenata `dlocalConfigurado()` é falso e a passada nem consulta o banco.
+    // Erro por pedido é anotado e a próxima rodada tenta de novo.
+    if (!pedidoUnico && dlocalConfigurado()) {
+      try {
+        const { data: oxxo, error: erroOxxo } = await sb
+          .from("pedidos")
+          .select("payment_id, email, created_at")
+          .eq("status", "pendente")
+          .eq("gateway", "dlocalgo")
+          .gte("created_at", new Date(agora - DLOCAL_JANELA_H * 3600000).toISOString())
+          .lte("created_at", new Date(agora - IDADE_MIN_MIN * 60000).toISOString())
+          .order("created_at", { ascending: false })
+          .limit(DLOCAL_MAX_POR_RODADA);
+        if (erroOxxo) throw new Error(erroOxxo.message);
+        for (const p of oxxo ?? []) {
+          // O `maxDuration` é de 60s e a passada do PIX vem antes: o que não
+          // couber fica pra rodada seguinte, sem derrubar a resposta do cron.
+          if (Date.now() - agora > DLOCAL_TEMPO_MAX_MS) break;
+          const id = String(p.payment_id).replace(/^dlocalgo:/, "");
+          if (!idDlocalValido(id)) continue;
+          try {
+            const r = await confirmarPagamentoDlocal(sb, id);
+            if (r.ok && !r.duplicado) {
+              consertados.push({
+                email: String(p.email ?? ""),
+                pedido: String(p.payment_id),
+                horas: Math.round((agora - Date.parse(p.created_at as string)) / 3600000),
+                entregue: r.entregue,
+              });
+            }
+          } catch (err) {
+            console.error(`[vigia-pagamento] dLocal ${p.payment_id} não respondeu:`, err);
+            semResposta.push(String(p.payment_id));
+          }
+        }
+      } catch (err) {
+        console.error("[vigia-pagamento] passada da dLocal pulada nesta rodada:", err);
+      }
     }
 
     // Conferência de um pedido só (a folha do PIX): responde aqui. A segunda

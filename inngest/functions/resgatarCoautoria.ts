@@ -147,6 +147,30 @@ export const resgatarCoautoria = inngest.createFunction(
     for (const e of escolhidos.filter((x) => x.braco === "C")) {
       const musicaId = await step.run(`letra-${e.id}`, async () => {
         const sb = db();
+
+        // JÁ EXISTE MÚSICA DESTE QUIZ? (29/10) O passo pode ser repetido pelo
+        // Inngest DEPOIS do insert (a função morreu antes de devolver o id), e
+        // a repetição escrevia outra letra e inseria OUTRA música: duas
+        // gravações pagas no Suno pro mesmo lead. E a pessoa pode ter voltado e
+        // finalizado a letra DELA entre a fila e este passo. Nos dois casos não
+        // insere. Se a que existe é a nossa (o `musica_id` do resgate aponta
+        // pra ela), devolve o id e o `gerarMusica` (singleton por música)
+        // cuida do resto; se não, sai calado. Consulta que falha também não
+        // insere: duplicar custa Suno, e música `aguardando` parada o gerador
+        // reserva pega.
+        const [{ data: existentes, error: eExiste }, { data: resgate }] = await Promise.all([
+          sb.from("musicas").select("id, status").eq("quiz_response_id", e.id).limit(5),
+          sb.from("coautoria_resgates").select("musica_id").eq("quiz_response_id", e.id).maybeSingle(),
+        ]);
+        if (eExiste) {
+          console.error("[resgate] não deu pra conferir música existente, sem inserir:", e.id, eExiste.message);
+          return null;
+        }
+        if (existentes?.length) {
+          const nossa = existentes.find((x) => x.id === resgate?.musica_id);
+          return nossa && nossa.status === "aguardando" ? (nossa.id as string) : null;
+        }
+
         const { data: q } = await sb.from("quiz_responses").select("respostas").eq("id", e.id).maybeSingle();
         try {
           const respostas = (q?.respostas ?? {}) as Record<string, unknown>;

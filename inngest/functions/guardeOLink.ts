@@ -9,6 +9,7 @@ import { emailGuardeOLink, assuntoGuardeOLink, textoGuardeOLinkEn, textoGuardeOL
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { todasAsPaginas } from "../lib/paginar.js";
+import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 
 // O CAMINHO DE VOLTA, três dias depois da compra.
 //
@@ -74,14 +75,10 @@ function db() {
  * pessoa porque convida uma vez só.
  */
 async function jaMandado(sb: ReturnType<typeof db>, musicaId: string) {
-  const { data, error } = await sb
-    .from("funnel_events")
-    .select("id")
-    .eq("event_name", "guarde_link_enviado")
-    .contains("event_data", { musica_id: musicaId })
-    .limit(1);
-  if (error) return true; // Na dúvida, já mandou (04/10): consulta que falha não pode virar reenvio.
-  return (data ?? []).length > 0;
+  // Com janela (29/10), a mesma da fila: `funnel_events` sem `created_at` foi o
+  // que estourou o PostgREST em 04/10. Erro conta como "já mandou" (`jaTravado`).
+  const desde = new Date(Date.now() - (MAX_DIAS + 2) * 86400000).toISOString();
+  return jaTravado(sb, "guarde_link_enviado", { musica_id: musicaId }, desde);
 }
 
 export const guardeOLink = inngest.createFunction(
@@ -245,6 +242,16 @@ export const guardeOLink = inngest.createFunction(
         // volta na próxima rodada. No A não vai ao banco.
         if (!(await podeMandarMarketing(sb, c.email, c.quizId, { locale: c.locale }))) return false;
 
+        // A TRAVA ANTES DO ENVIO (29/10): a marca era gravada DEPOIS do Resend
+        // e sem ler o erro, e uma gravação perdida repetia este e-mail de hora
+        // em hora. Mesmo evento e conteúdo que o `jaMandado` lê. Não gravou,
+        // não manda.
+        const trava = await travarEnvio(sb, {
+          event_name: "guarde_link_enviado",
+          event_data: { musica_id: c.musicaId, email: c.email },
+        });
+        if (!trava) return false;
+
         const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [{ name: "template", value: "guarde_o_link" }],
           from: MARCA_ATIVA.remetenteTransacional,
@@ -270,6 +277,7 @@ export const guardeOLink = inngest.createFunction(
         });
         if (error) {
           console.error("[guarde-o-link] envio falhou:", error.message);
+          await soltarTrava(sb, trava);
           return false;
         }
 
@@ -282,10 +290,6 @@ export const guardeOLink = inngest.createFunction(
           // por e-mail tem resposta — era o caso dos 978 `letra_pronta`
           // registrados em dois dias, todos com `quiz_response_id` nulo.
           quizResponseId: c.quizId ?? undefined,
-        });
-        await sb.from("funnel_events").insert({
-          event_name: "guarde_link_enviado",
-          event_data: { musica_id: c.musicaId, email: c.email },
         });
         return true;
       });
