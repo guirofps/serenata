@@ -7,6 +7,7 @@ import { trackEvent } from "@/lib/track";
 import { Button } from "@/components/ui/button";
 import { nomeCompletoValido } from "@/lib/documento-mx";
 import { CAMPO_DOCUMENTO, validarDocumento, type PaisDocumento } from "@/lib/documento-pais";
+import { TEXTO_SPEI_DESTAQUE as S, type MetodoDlocal } from "@/lib/spei-destaque";
 
 /** O que a pessoa vê antes de abrir a página da dLocal, com os métodos do país dela. */
 const COMO_FUNCIONA: Record<PaisDocumento, string> = {
@@ -42,12 +43,20 @@ export function CheckoutDlocal({
   pais,
   aoVoltar,
   aoSemMusica,
+  escolherMetodo = false,
 }: {
   pais: PaisDocumento;
   aoVoltar: () => void;
   aoSemMusica: () => void;
+  /** Teste `spei_destaque` (B, México): a pessoa escolhe aqui, transferência primeiro. */
+  escolherMetodo?: boolean;
 }) {
   const [erro, setErro] = useState(false);
+  const [metodo, setMetodo] = useState<MetodoDlocal | null>(null);
+  const escolher = (m: MetodoDlocal) => {
+    trackEvent("spei_destaque_escolheu", { metodo: m });
+    setMetodo(m);
+  };
   // VOLTOU DA DLOCAL PELO "VOLTAR" (29/10). O Safari e o Chrome do celular
   // devolvem a página congelada (bfcache), com o "Abriendo el pago seguro…"
   // girando pra sempre: o efeito já tinha terminado e nada o refaz. No
@@ -97,7 +106,7 @@ export function CheckoutDlocal({
     let vivo = true;
     setErro(false);
     setVoltou(false);
-    criarCheckoutDlocal({ data: { sessionId: getOrCreateSessionId(), ...dados } })
+    criarCheckoutDlocal({ data: { sessionId: getOrCreateSessionId(), ...dados, ...(metodo ? { metodo } : {}) } })
       .then((r) => {
         if (!vivo) return;
         if (r.ok) {
@@ -145,10 +154,40 @@ export function CheckoutDlocal({
       >
         <ArrowLeft className="h-4 w-4" /> {T.voltar}
       </button>
-      <p className="mx-2 mb-3 rounded-xl bg-muted/50 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
-        {COMO_FUNCIONA[pais]}
-      </p>
-      {!dados ? (
+      {escolherMetodo && !metodo ? (
+        <div className="mx-2 space-y-3 text-left">
+          <p className="px-1 text-sm font-semibold">{S.titulo}</p>
+          <button
+            onClick={() => escolher("transferencia")}
+            className="w-full rounded-2xl border-2 border-primary bg-primary/5 px-4 py-4 text-left"
+          >
+            <span className="flex items-center justify-between gap-2">
+              <span className="text-base font-semibold">{S.transferencia}</span>
+              <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+                {S.rapido}
+              </span>
+            </span>
+            <span className="mt-1 block text-xs leading-snug text-muted-foreground">{S.transferenciaSub}</span>
+          </button>
+          <button
+            onClick={() => escolher("oxxo")}
+            className="w-full rounded-2xl border border-border bg-card px-4 py-3.5 text-left"
+          >
+            <span className="block text-sm font-medium">{S.oxxo}</span>
+            <span className="mt-1 block text-xs leading-snug text-muted-foreground">{S.oxxoSub}</span>
+          </button>
+        </div>
+      ) : (
+        <p className="mx-2 mb-3 rounded-xl bg-muted/50 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+          {metodo === "transferencia" ? S.comoTransferencia : metodo === "oxxo" ? S.comoOxxo : COMO_FUNCIONA[pais]}
+          {metodo && !dados ? (
+            <button onClick={() => setMetodo(null)} className="ml-1 font-medium text-primary underline">
+              {S.trocar}
+            </button>
+          ) : null}
+        </p>
+      )}
+      {escolherMetodo && !metodo ? null : !dados ? (
         <div className="mx-2 space-y-4 rounded-2xl border border-border bg-card px-4 py-5 text-left">
           <div className="space-y-1">
             <p className="text-sm font-semibold">{T.dadosTitulo}</p>

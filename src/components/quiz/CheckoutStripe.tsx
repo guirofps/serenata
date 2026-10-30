@@ -17,6 +17,7 @@ import { varianteDe } from "@/lib/experimentos";
 import { NaMoeda } from "@/components/quiz/PrecoDaOferta";
 import { EXP_AVISO_RECUSA, TEXTO_AVISO_RECUSA, avisoRecusaLigado } from "@/lib/aviso-recusa";
 import { EXP_OXXO_MX, oxxoLigado } from "@/lib/oxxo-mx";
+import { EXP_SPEI_DESTAQUE, TEXTO_SPEI_DESTAQUE, speiDestaqueLigado } from "@/lib/spei-destaque";
 
 /** O botão de pagar sem cartão, com os métodos que a dLocal mostra em cada país. */
 const BOTAO_SEM_CARTAO: Record<string, string> = {
@@ -131,9 +132,13 @@ export function CheckoutStripe({
       ? oxxoLigado(varianteDe(EXP_OXXO_MX), "MX", locale)
       : locale === "es" && (pais === "CO" || pais === "CL" || pais === "PE"),
   );
+  // Teste `spei_destaque` (30/10): a transferência na frente do OXXO, com a
+  // escolha na nossa folha (ver `spei-destaque.ts`). Só pra quem vê o botão.
+  const [speiDestaque] = useState(() => oxxo && speiDestaqueLigado(varianteDe(EXP_SPEI_DESTAQUE), pais));
   const [metodo, setMetodo] = useState<"cartao" | "oxxo">("cartao");
   useEffect(() => {
     if (paisMx && locale === "es") trackEvent("oxxo_mx_exposto", { braco: varianteDe(EXP_OXXO_MX) });
+    if (paisMx && oxxo) trackEvent("spei_destaque_exposto", { braco: varianteDe(EXP_SPEI_DESTAQUE) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -247,6 +252,7 @@ export function CheckoutStripe({
             pais={pais === "CO" || pais === "CL" || pais === "PE" ? pais : "MX"}
             aoVoltar={() => setMetodo("cartao")}
             aoSemMusica={aoSemMusica}
+            escolherMetodo={speiDestaque}
           />
         ) : !sp ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
@@ -276,7 +282,7 @@ export function CheckoutStripe({
                 }}
                 className="mx-2 mb-3 flex w-[calc(100%-1rem)] items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-3 text-sm font-medium text-primary"
               >
-                {BOTAO_SEM_CARTAO[pais] ?? BOTAO_SEM_CARTAO.MX}
+                {speiDestaque ? TEXTO_SPEI_DESTAQUE.botao : (BOTAO_SEM_CARTAO[pais] ?? BOTAO_SEM_CARTAO.MX)}
               </button>
             )}
             <CheckoutEmbutido stripe={sp} options={opcoes} />

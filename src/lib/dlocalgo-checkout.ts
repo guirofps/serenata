@@ -8,6 +8,7 @@ import { marcarMoedaDoPedido } from "@/lib/pais-quiz";
 import { valorCentavosDaSessao, urlDoSite } from "@/lib/stripe-checkout";
 import { nomeCompletoValido } from "@/lib/documento-mx";
 import { paisTemDocumento, validarDocumento } from "@/lib/documento-pais";
+import { metodoDlocalValido, tipoPagamentoDlocal } from "@/lib/spei-destaque";
 import {
   dlocalApi,
   dlocalConfigurado,
@@ -36,10 +37,13 @@ export type ResultadoCheckoutDlocal =
   | { ok: false; erro: "sem-musica" | "ja-pago" | "indisponivel" | "falhou" | "documento" };
 
 export const criarCheckoutDlocal = createServerFn({ method: "POST" })
-  .validator((data: { sessionId: string; nome?: string; documento?: string }) => ({
+  .validator((data: { sessionId: string; nome?: string; documento?: string; metodo?: string }) => ({
     sessionId: String(data?.sessionId ?? "").slice(0, 100),
     nome: String(data?.nome ?? "").trim().replace(/\s+/g, " ").slice(0, 100),
     documento: String(data?.documento ?? "").slice(0, 40),
+    // Teste `spei_destaque` (30/10): a escolha feita na nossa folha. Só muda
+    // QUAIS métodos a página da dLocal mostra, nunca o valor.
+    metodo: metodoDlocalValido(data?.metodo),
   }))
   .handler(async ({ data }): Promise<ResultadoCheckoutDlocal> => {
     if (MARCA_ATIVA.chave !== "ballad" || !dlocalConfigurado()) return { ok: false, erro: "indisponivel" };
@@ -158,8 +162,9 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
           : email
             ? { email }
             : undefined,
-        // O cartão continua no Stripe: aqui só dinheiro e transferência.
-        payment_type: "VOUCHER,BANK_TRANSFER",
+        // O cartão continua no Stripe: aqui só dinheiro e transferência. No B do
+        // `spei_destaque` (México), só o método que a pessoa escolheu.
+        payment_type: tipoPagamentoDlocal(mercado.pais, data.metodo),
         expiration_type: "DAYS",
         expiration_value: VALIDADE_DIAS,
         success_url: volta,
