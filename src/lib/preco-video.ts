@@ -12,14 +12,15 @@
 // única coisa que todos eles têm. Mesmo token, mesmo preço, em qualquer
 // aparelho e em qualquer e-mail. Recalculável na leitura.
 //
-// ENCERRAR: trocar `LIGADO` por false fixa o A pra todos; ganhando o B, trocar
-// o `precoBrl` do vídeo em `creditos.ts` e desligar aqui.
+// ENCERRADO EM 31/10 (dono): R$ 3,20 × R$ 3,11 de vídeo por comprador, com 971 e
+// 920 compradores. O B vendeu 21% a mais e precisava de 25%. `LIGADO = false`
+// fixa os R$ 24,90 pra todos.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const VIDEO_A_CENTAVOS = 2490;
 export const VIDEO_B_CENTAVOS = 1990;
-const LIGADO = true;
+const LIGADO = false;
 
 export type BracoPrecoVideo = "A" | "B";
 

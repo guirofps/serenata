@@ -77,6 +77,9 @@ const CUPONS: DefCupom[] = [
   { tipo: "preco_final", codigo: "SRN27", locale: "pt", texto: "R$ 10", de: "R$ 38", por: "R$ 28", valeAte: "2026-10-13" },
   { tipo: "preco_final", codigo: "SRN7", locale: "es", texto: "20%", de: "US$ 9,90", por: "US$ 7,92", valeAte: "2026-10-13" },
   { tipo: "fixo", codigo: MUSICA10, locale: "pt", texto: "R$ 10", centavos: 1000, valeAte: MUSICA10_VALE_ATE },
+  // Desconto de 30% dado a um cliente pelo suporte (dono, 31/10): R$ 38 → R$ 26,60.
+  // É "fixo" de propósito: `cupomAtivo` só olha `preco_final` e mostraria este a todo mundo.
+  { tipo: "fixo", codigo: "APOIO30", locale: "pt", texto: "R$ 11,40", centavos: 1140, valeAte: "2026-11-30" },
 ];
 
 /** Vale até 23h59min59s de Brasília do `valeAte`. */

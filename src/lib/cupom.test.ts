@@ -5,6 +5,7 @@ import {
   centavosComCupom,
   codigoAplicado,
   codigoComPrazo,
+  cupomAtivo,
   descontoNaTela,
   prazoDoCodigo,
   valorEsperadoDoUpsell,
@@ -26,6 +27,11 @@ describe("centavosComCupom", () => {
   });
   it("vencido não vale", () => {
     expect(centavosComCupom(3800, "SRN27", new Date("2026-10-20T12:00:00Z"))).toBe(3800);
+  });
+  it("APOIO30 leva R$ 38 a R$ 26,60 e não aparece como cupom da recuperação", () => {
+    const novembro = new Date("2026-11-10T12:00:00Z");
+    expect(centavosComCupom(3800, "APOIO30", novembro)).toBe(2660);
+    expect(cupomAtivo("pt", novembro)).toBeNull();
   });
 });
 
