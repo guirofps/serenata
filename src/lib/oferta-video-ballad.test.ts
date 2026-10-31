@@ -110,8 +110,8 @@ describe("na Serenata, o e-mail do vídeo é o de sempre", () => {
         "Já está montado: é só abrir e dar o play.\n\nL\n\n" +
         "Assistir não custa nada. Pra baixar em HD e mandar no WhatsApp, são R$ 24,90.",
     );
-    // O preço do teste `preco_video` sai do token: par = A (R$ 24,90), ímpar = B.
+    // Teste `preco_video` encerrado em 31/10: todo token paga R$ 24,90.
     expect(v.precoDoVideoNoEmail("pt", "abc2")).toBe("R$ 24,90");
-    expect(v.precoDoVideoNoEmail("pt", "abc3")).toBe("R$ 19,90");
+    expect(v.precoDoVideoNoEmail("pt", "abc3")).toBe("R$ 24,90");
   });
 });
