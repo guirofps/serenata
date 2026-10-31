@@ -44,15 +44,25 @@ export function CheckoutDlocal({
   aoVoltar,
   aoSemMusica,
   escolherMetodo = false,
+  semDocumento = false,
+  metodoInicial,
+  textoComo,
+  aoTrocar,
 }: {
   pais: PaisDocumento;
   aoVoltar: () => void;
   aoSemMusica: () => void;
   /** Teste `spei_destaque` (B, México): a pessoa escolhe aqui, transferência primeiro. */
   escolherMetodo?: boolean;
+  /** Teste `documento_depois` (B, México): sem o campo, a página da dLocal é quem pede. */
+  semDocumento?: boolean;
+  /** Teste `local_primeiro` (B): o método já escolhido antes, e o texto dele. */
+  metodoInicial?: MetodoDlocal;
+  textoComo?: string;
+  aoTrocar?: () => void;
 }) {
   const [erro, setErro] = useState(false);
-  const [metodo, setMetodo] = useState<MetodoDlocal | null>(null);
+  const [metodo, setMetodo] = useState<MetodoDlocal | null>(metodoInicial ?? null);
   const escolher = (m: MetodoDlocal) => {
     trackEvent("spei_destaque_escolheu", { metodo: m });
     setMetodo(m);
@@ -72,11 +82,21 @@ export function CheckoutDlocal({
   const [nome, setNome] = useState("");
   const [documento, setDocumento] = useState("");
   const [tocou, setTocou] = useState(false);
-  const [dados, setDados] = useState<{ nome: string; documento: string } | null>(null);
+  const [dados, setDados] = useState<{ nome?: string; documento?: string } | null>(null);
   const [recusado, setRecusado] = useState(false);
   const docOk = validarDocumento(pais, documento);
   const campo = CAMPO_DOCUMENTO[pais];
   const nomeOk = nomeCompletoValido(nome);
+  // No B do `documento_depois` a cobrança sai sem passar pelo formulário. Se o
+  // servidor recusar (`recusado`), o formulário aparece como no A.
+  const pulaDados = semDocumento && !recusado;
+
+  useEffect(() => {
+    if (!pulaDados || dados || (escolherMetodo && !metodo)) return;
+    setDados({});
+    setTentativa((n) => n + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pulaDados, metodo]);
 
   const enviarDados = () => {
     setTocou(true);
@@ -106,7 +126,14 @@ export function CheckoutDlocal({
     let vivo = true;
     setErro(false);
     setVoltou(false);
-    criarCheckoutDlocal({ data: { sessionId: getOrCreateSessionId(), ...dados, ...(metodo ? { metodo } : {}) } })
+    criarCheckoutDlocal({
+      data: {
+        sessionId: getOrCreateSessionId(),
+        ...dados,
+        ...(metodo ? { metodo } : {}),
+        ...(dados.documento ? {} : { semDocumento: true }),
+      },
+    })
       .then((r) => {
         if (!vivo) return;
         if (r.ok) {
@@ -179,15 +206,18 @@ export function CheckoutDlocal({
         </div>
       ) : (
         <p className="mx-2 mb-3 rounded-xl bg-muted/50 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
-          {metodo === "transferencia" ? S.comoTransferencia : metodo === "oxxo" ? S.comoOxxo : COMO_FUNCIONA[pais]}
+          {textoComo ?? (metodo === "transferencia" ? S.comoTransferencia : metodo === "oxxo" ? S.comoOxxo : COMO_FUNCIONA[pais])}
           {metodo && !dados ? (
-            <button onClick={() => setMetodo(null)} className="ml-1 font-medium text-primary underline">
+            <button
+              onClick={() => (aoTrocar ? aoTrocar() : setMetodo(null))}
+              className="ml-1 font-medium text-primary underline"
+            >
               {S.trocar}
             </button>
           ) : null}
         </p>
       )}
-      {escolherMetodo && !metodo ? null : !dados ? (
+      {escolherMetodo && !metodo ? null : !dados && !pulaDados ? (
         <div className="mx-2 space-y-4 rounded-2xl border border-border bg-card px-4 py-5 text-left">
           <div className="space-y-1">
             <p className="text-sm font-semibold">{T.dadosTitulo}</p>

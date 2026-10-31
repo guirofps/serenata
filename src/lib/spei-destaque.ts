@@ -32,10 +32,16 @@ export function speiDestaqueLigado(variante: string | null | undefined, pais: st
   );
 }
 
-/** O que vai no `payment_type` da dLocal. Fora do México, ou sem escolha, os dois de sempre. */
+/**
+ * O que vai no `payment_type` da dLocal. Sem escolha, os dois de sempre. A escolha
+ * vale no México (`spei_destaque`) e na Colômbia e no Peru (`local_primeiro`), onde
+ * "oxxo" é o VOUCHER: dinheiro na Colômbia, dinheiro e Yape no Peru.
+ */
 export function tipoPagamentoDlocal(pais: string, metodo: unknown): string {
-  if (pais === "MX" && metodo === "transferencia") return "BANK_TRANSFER";
-  if (pais === "MX" && metodo === "oxxo") return "VOUCHER";
+  if (pais === "MX" || pais === "CO" || pais === "PE") {
+    if (metodo === "transferencia") return "BANK_TRANSFER";
+    if (metodo === "oxxo") return "VOUCHER";
+  }
   return "VOUCHER,BANK_TRANSFER";
 }
 

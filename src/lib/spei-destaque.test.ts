@@ -10,11 +10,14 @@ describe("spei_destaque", () => {
     expect(speiDestaqueLigado(null, "MX")).toBe(false);
   });
 
-  it("a cobrança nasce só com o método escolhido, e só no México", () => {
+  it("a cobrança nasce só com o método escolhido, fora do Chile", () => {
     expect(tipoPagamentoDlocal("MX", "transferencia")).toBe("BANK_TRANSFER");
     expect(tipoPagamentoDlocal("MX", "oxxo")).toBe("VOUCHER");
     expect(tipoPagamentoDlocal("MX", undefined)).toBe("VOUCHER,BANK_TRANSFER");
-    expect(tipoPagamentoDlocal("CO", "transferencia")).toBe("VOUCHER,BANK_TRANSFER");
+    expect(tipoPagamentoDlocal("CO", "transferencia")).toBe("BANK_TRANSFER");
+    expect(tipoPagamentoDlocal("PE", "oxxo")).toBe("VOUCHER");
+    expect(tipoPagamentoDlocal("CO", undefined)).toBe("VOUCHER,BANK_TRANSFER");
+    expect(tipoPagamentoDlocal("CL", "transferencia")).toBe("VOUCHER,BANK_TRANSFER");
     expect(tipoPagamentoDlocal("MX", "CARD")).toBe("VOUCHER,BANK_TRANSFER");
   });
 

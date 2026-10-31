@@ -52,7 +52,7 @@ const Z_CORTE = -2.5; // o braço testado convertendo pior que o controle
 //    00h, sem ninguém mandar, no meio da leitura (B estava na frente).
 //    O `pix_reabre` (16/10) também: ele só age depois de o PIX ser GERADO,
 //    que vem depois do clique, então a régua dele é pago ÷ PIX gerado.
-const POS_COMPRA = new Set(["outra_musica_24h", "video_fotos_ja", "obrigado_direto", "folha_pix", "pix_reabre", "aviso_recusa", "oxxo_mx", "spei_destaque"]);
+const POS_COMPRA = new Set(["outra_musica_24h", "video_fotos_ja", "obrigado_direto", "folha_pix", "pix_reabre", "aviso_recusa", "oxxo_mx", "spei_destaque", "documento_depois", "local_primeiro"]);
 
 type Ev = { session_id: string; event_name: string; event_data: Record<string, unknown> | null };
 

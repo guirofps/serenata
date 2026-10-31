@@ -17,7 +17,10 @@ import { varianteDe } from "@/lib/experimentos";
 import { NaMoeda } from "@/components/quiz/PrecoDaOferta";
 import { EXP_AVISO_RECUSA, TEXTO_AVISO_RECUSA, avisoRecusaLigado } from "@/lib/aviso-recusa";
 import { EXP_OXXO_MX, oxxoLigado } from "@/lib/oxxo-mx";
-import { EXP_SPEI_DESTAQUE, TEXTO_SPEI_DESTAQUE, speiDestaqueLigado } from "@/lib/spei-destaque";
+import { EXP_SPEI_DESTAQUE, TEXTO_SPEI_DESTAQUE, speiDestaqueLigado, type MetodoDlocal } from "@/lib/spei-destaque";
+import { EXP_DOCUMENTO_DEPOIS, documentoDepoisLigado } from "@/lib/documento-depois";
+import { EXP_LOCAL_PRIMEIRO, TEXTO_LOCAL_PRIMEIRO, localPrimeiroLigado } from "@/lib/local-primeiro";
+import { EscolhaLocal } from "@/components/quiz/EscolhaLocal";
 
 /** O botão de pagar sem cartão, com os métodos que a dLocal mostra em cada país. */
 const BOTAO_SEM_CARTAO: Record<string, string> = {
@@ -135,10 +138,21 @@ export function CheckoutStripe({
   // Teste `spei_destaque` (30/10): a transferência na frente do OXXO, com a
   // escolha na nossa folha (ver `spei-destaque.ts`). Só pra quem vê o botão.
   const [speiDestaque] = useState(() => oxxo && speiDestaqueLigado(varianteDe(EXP_SPEI_DESTAQUE), pais));
-  const [metodo, setMetodo] = useState<"cartao" | "oxxo">("cartao");
+  // Teste `documento_depois` (31/10): o CURP sai da nossa folha (ver `documento-depois.ts`).
+  const [semDocumento] = useState(() => oxxo && documentoDepoisLigado(varianteDe(EXP_DOCUMENTO_DEPOIS), pais));
+  // Teste `local_primeiro` (31/10): Colômbia e Peru escolhem antes de ver o cartão (ver `local-primeiro.ts`).
+  const paisLocal = pais === "CO" || pais === "PE" ? pais : null;
+  const [localPrimeiro] = useState(() => oxxo && localPrimeiroLigado(varianteDe(EXP_LOCAL_PRIMEIRO), pais));
+  const [metodoLocal, setMetodoLocal] = useState<MetodoDlocal | undefined>();
+  const [metodo, setMetodo] = useState<"cartao" | "oxxo" | "escolha">(() => (localPrimeiro ? "escolha" : "cartao"));
+  const opcaoLocal =
+    paisLocal && metodoLocal
+      ? [TEXTO_LOCAL_PRIMEIRO[paisLocal].principal, TEXTO_LOCAL_PRIMEIRO[paisLocal].outra].find((o) => o.metodo === metodoLocal)
+      : undefined;
   useEffect(() => {
     if (paisMx && locale === "es") trackEvent("oxxo_mx_exposto", { braco: varianteDe(EXP_OXXO_MX) });
     if (paisMx && oxxo) trackEvent("spei_destaque_exposto", { braco: varianteDe(EXP_SPEI_DESTAQUE) });
+    if (paisLocal && oxxo) trackEvent("local_primeiro_exposto", { braco: varianteDe(EXP_LOCAL_PRIMEIRO), pais });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -247,12 +261,30 @@ export function CheckoutStripe({
           </p>
         </div>
 
-        {metodo === "oxxo" ? (
+        {metodo === "escolha" && paisLocal ? (
+          <EscolhaLocal
+            pais={paisLocal}
+            aoEscolher={(m) => {
+              trackEvent("local_primeiro_escolheu", { metodo: m, pais });
+              trackEvent("dlocal_oxxo_escolhido", { pais });
+              setMetodoLocal(m);
+              setMetodo("oxxo");
+            }}
+            aoCartao={() => {
+              trackEvent("local_primeiro_escolheu", { metodo: "cartao", pais });
+              setMetodo("cartao");
+            }}
+          />
+        ) : metodo === "oxxo" ? (
           <CheckoutDlocal
             pais={pais === "CO" || pais === "CL" || pais === "PE" ? pais : "MX"}
             aoVoltar={() => setMetodo("cartao")}
             aoSemMusica={aoSemMusica}
             escolherMetodo={speiDestaque}
+            semDocumento={semDocumento}
+            metodoInicial={metodoLocal}
+            textoComo={opcaoLocal?.como}
+            aoTrocar={localPrimeiro ? () => setMetodo("escolha") : undefined}
           />
         ) : !sp ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
@@ -277,7 +309,9 @@ export function CheckoutStripe({
             {oxxo && (
               <button
                 onClick={() => {
+                  if (localPrimeiro) return setMetodo("escolha");
                   trackEvent("dlocal_oxxo_escolhido", { pais });
+                  if (paisMx) trackEvent("documento_depois_exposto", { braco: varianteDe(EXP_DOCUMENTO_DEPOIS) });
                   setMetodo("oxxo");
                 }}
                 className="mx-2 mb-3 flex w-[calc(100%-1rem)] items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-3 text-sm font-medium text-primary"

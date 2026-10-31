@@ -37,10 +37,14 @@ export type ResultadoCheckoutDlocal =
   | { ok: false; erro: "sem-musica" | "ja-pago" | "indisponivel" | "falhou" | "documento" };
 
 export const criarCheckoutDlocal = createServerFn({ method: "POST" })
-  .validator((data: { sessionId: string; nome?: string; documento?: string; metodo?: string }) => ({
+  .validator((data: { sessionId: string; nome?: string; documento?: string; metodo?: string; semDocumento?: boolean }) => ({
     sessionId: String(data?.sessionId ?? "").slice(0, 100),
     nome: String(data?.nome ?? "").trim().replace(/\s+/g, " ").slice(0, 100),
     documento: String(data?.documento ?? "").slice(0, 40),
+    // Teste `documento_depois` (31/10): a página da dLocal pede o documento. Não
+    // precisa conferir o braço aqui: quem forçar isso só digita o documento lá,
+    // e o valor sai do servidor do mesmo jeito.
+    semDocumento: data?.semDocumento === true,
     // Teste `spei_destaque` (30/10): a escolha feita na nossa folha. Só muda
     // QUAIS métodos a página da dLocal mostra, nunca o valor.
     metodo: metodoDlocalValido(data?.metodo),
@@ -60,8 +64,8 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
     // na página da dLocal a pessoa digitava "ife" ou o RFC sem homoclave e a
     // ficha era recusada. Vai pronto no `payer`, e a página deles não pede de
     // novo. Nunca é gravado no banco nem nos logs.
-    const doc = validarDocumento(mercado.pais, data.documento);
-    if (!doc.ok || !nomeCompletoValido(data.nome)) return { ok: false, erro: "documento" };
+    const doc = data.semDocumento && mercado.pais === "MX" ? null : validarDocumento(mercado.pais, data.documento);
+    if (doc && (!doc.ok || !nomeCompletoValido(data.nome))) return { ok: false, erro: "documento" };
     const db = supabaseAdmin();
 
     const { data: quiz } = await db
@@ -157,13 +161,14 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
         order_id: orderIdDlocal(quiz.id),
         description: (nome ? `Canción personalizada para ${nome}` : "Tu canción personalizada").slice(0, 100),
         // Tudo que vai aqui a página da dLocal NÃO pede de novo.
-        payer: comDocumento
+        payer: comDocumento && doc
           ? { ...(email ? { email } : {}), name: data.nome, document_type: doc.tipo, document: doc.documento }
           : email
             ? { email }
             : undefined,
         // O cartão continua no Stripe: aqui só dinheiro e transferência. No B do
-        // `spei_destaque` (México), só o método que a pessoa escolheu.
+        // `spei_destaque` (México) e do `local_primeiro` (Colômbia e Peru), só o
+        // método que a pessoa escolheu.
         payment_type: tipoPagamentoDlocal(mercado.pais, data.metodo),
         expiration_type: "DAYS",
         expiration_value: VALIDADE_DIAS,
@@ -178,9 +183,9 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
       // antes deste conserto. O motivo vai pro evento, sem o documento.
       let p: { id: string; redirect_url: string };
       try {
-        p = await criar(true);
+        p = await criar(Boolean(doc));
       } catch (err) {
-        if (!(err instanceof ErroDlocal) || err.status !== 400) throw err;
+        if (!doc || !(err instanceof ErroDlocal) || err.status !== 400) throw err;
         await db.from("funnel_events").insert({
           event_name: "dlocal_documento_api_recusou",
           session_id: sessionId,
