@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  algumPaisEmHoraBoa,
   bracoOxxoPendente,
   fichaMaisNovaPorQuiz,
   horaBoaNoMexico,
+  horaBoaNoPais,
+  paisRecebeLembrete,
   quandoVence,
   toqueDevido,
   venceHojeOuAmanha,
@@ -13,6 +16,66 @@ import { assuntoOxxoPendente, emailOxxoPendente, textoOxxoPendente } from "../..
 const H = 3600e3;
 const T0 = Date.parse("2026-10-28T18:00:00Z"); // 12h no México
 const nada = new Set<Toque>();
+
+describe("ficha em Colômbia, Peru e Chile (01/11)", () => {
+  const args = {
+    nome: "Marta",
+    toque: 1 as Toque,
+    linkFicha: "https://pay.dlocalgo.com/x",
+    linkCartao: null,
+    vence: "el jueves 5 de noviembre a las 3:40 p. m.",
+    quando: null,
+    valor: "$39.900 COP",
+  };
+
+  it("recebe, e fora da lista não", () => {
+    for (const p of ["CO", "PE", "CL", "MX", null]) expect(paisRecebeLembrete(p)).toBe(true);
+    expect(paisRecebeLembrete("US")).toBe(false);
+    expect(paisRecebeLembrete("ES")).toBe(false);
+  });
+
+  it("nenhum texto fala de OXXO fora do México", () => {
+    for (const pais of ["CO", "PE", "CL"]) {
+      for (const toque of [1, 2] as Toque[]) {
+        const a = { ...args, toque, pais, quando: toque === 2 ? ("mañana" as const) : null };
+        expect(assuntoOxxoPendente(a)).not.toMatch(/OXXO/);
+        expect(emailOxxoPendente(a)).not.toMatch(/OXXO/);
+        expect(textoOxxoPendente(a)).not.toMatch(/OXXO/);
+        expect(textoOxxoPendente(a)).toContain("$39.900 COP");
+      }
+    }
+  });
+
+  it("México e quiz sem país seguem com o texto de sempre", () => {
+    expect(assuntoOxxoPendente({ ...args, pais: "MX" })).toMatch(/OXXO/);
+    expect(assuntoOxxoPendente({ ...args, pais: null })).toMatch(/OXXO/);
+    expect(emailOxxoPendente({ ...args })).toMatch(/OXXO/);
+  });
+
+  it("cada país no seu relógio", () => {
+    // 05h UTC: meia-noite na Colômbia e 23h no México; 2h no Chile (horário de verão).
+    const noite = Date.parse("2026-11-02T05:00:00Z");
+    expect(horaBoaNoPais(noite, "CO")).toBe(false);
+    // 13h UTC: 8h na Colômbia e no Peru, 7h no México.
+    const manha = Date.parse("2026-11-02T13:00:00Z");
+    expect(horaBoaNoPais(manha, "CO")).toBe(true);
+    expect(horaBoaNoPais(manha, "PE")).toBe(true);
+    expect(horaBoaNoPais(manha, "MX")).toBe(false);
+    expect(horaBoaNoPais(manha, null)).toBe(false);
+    expect(algumPaisEmHoraBoa(manha)).toBe(true);
+    expect(algumPaisEmHoraBoa(Date.parse("2026-11-02T07:00:00Z"))).toBe(false);
+  });
+
+  it("o vencimento e o 'hoy/mañana' saem no calendário do país", () => {
+    // 04h UTC do dia 5: ainda dia 4 no México (22h), dia 4 em Bogotá (23h), dia 5 em Santiago (01h).
+    const vence = Date.parse("2026-11-05T04:00:00Z");
+    expect(quandoVence(vence, "CO")).toMatch(/4 de noviembre/);
+    expect(quandoVence(vence, "CL")).toMatch(/5 de noviembre/);
+    const agora = Date.parse("2026-11-04T15:00:00Z");
+    expect(venceHojeOuAmanha(vence, agora, "CO")).toBe("hoy");
+    expect(venceHojeOuAmanha(vence, agora, "CL")).toBe("mañana");
+  });
+});
 
 describe("teste oxxo_pendente: quando cada toque sai", () => {
   const ficha = { criadaEm: T0, venceEm: T0 + 72 * H };

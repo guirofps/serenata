@@ -8,6 +8,16 @@ import { criarCheckoutVideoStripe, confirmarVideoStripe, type OfertaStripe } fro
 import { TEXTO_EXTRA_BALLAD } from "@/lib/extra-ballad";
 import { trackEvent } from "@/lib/track";
 import { NaMoeda } from "@/components/quiz/PrecoDaOferta";
+import { criarUpsellDlocal } from "@/lib/dlocalgo-upsell";
+import {
+  BOTAO_SEM_CARTAO,
+  CHAVE_VOLTA_UPSELL,
+  EXP_UPSELL_DLOCAL,
+  TEXTO_UPSELL_DLOCAL,
+  bracoUpsellDlocal,
+  paisVendeUpsellDlocal,
+  semCartaoNaFolha,
+} from "@/lib/upsell-dlocal";
 
 // A FOLHA DO VÍDEO NA BALLAD GIFT: o checkout embutido do Stripe dentro do
 // editor, no lugar da folha de PIX da Serenata (`FolhaPixUpsell`).
@@ -76,6 +86,46 @@ export function FolhaStripeVideo({
   // depois de montado é mudança que o provedor não aceita.
   const aoPagarRef = useRef(aoPagar);
   aoPagarRef.current = aoPagar;
+  // Teste `upsell_dlocal` (01/11): o país carimbado pelo servidor no `<html>`. A
+  // folha só abre depois de um clique, então o documento sempre existe aqui.
+  const [pais] = useState(() =>
+    typeof document !== "undefined" ? document.documentElement.getAttribute("data-pais") : null,
+  );
+  const semCartao = semCartaoNaFolha({ tokenEdicao, pais, locale });
+  const [abrindoSemCartao, setAbrindoSemCartao] = useState(false);
+  const [erroSemCartao, setErroSemCartao] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Os DOIS braços, só onde a dLocal existe: é o denominador da leitura.
+    if (locale !== "es" || !paisVendeUpsellDlocal(pais)) return;
+    trackEvent("upsell_dlocal_exposto", { [`exp_${EXP_UPSELL_DLOCAL}`]: bracoUpsellDlocal(tokenEdicao), oferta, pais });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function pagarSemCartao() {
+    if (abrindoSemCartao) return;
+    setAbrindoSemCartao(true);
+    setErroSemCartao(null);
+    trackEvent("upsell_dlocal_click", { [`exp_${EXP_UPSELL_DLOCAL}`]: "B", oferta, pais });
+    try {
+      const r = await criarUpsellDlocal({ data: { tokenEdicao, oferta } });
+      if (r.ok) {
+        try {
+          localStorage.setItem(CHAVE_VOLTA_UPSELL, JSON.stringify({ tokenEdicao, oferta }));
+        } catch {
+          // Sem isto a volta só não reabre o editor; o pagamento libera igual.
+        }
+        window.location.href = r.url;
+        return;
+      }
+      trackEvent("upsell_dlocal_erro", { erro: r.erro, oferta });
+      setErroSemCartao(r.erro === "ja-tem" ? TEXTO_UPSELL_DLOCAL.jaTem : TEXTO_UPSELL_DLOCAL.erro);
+    } catch {
+      trackEvent("upsell_dlocal_erro", { erro: "rede", oferta });
+      setErroSemCartao(TEXTO_UPSELL_DLOCAL.erro);
+    }
+    setAbrindoSemCartao(false);
+  }
 
   useEffect(() => {
     let vivo = true;
@@ -141,6 +191,22 @@ export function FolhaStripeVideo({
             <ShieldCheck className="h-3.5 w-3.5" /> {T.seguro}
           </p>
         </div>
+        {semCartao && (
+          <div className="mb-3 px-2">
+            <button
+              type="button"
+              disabled={abrindoSemCartao}
+              onClick={() => void pagarSemCartao()}
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-3 text-sm font-medium text-primary disabled:opacity-60"
+            >
+              {abrindoSemCartao ? TEXTO_UPSELL_DLOCAL.abrindo : BOTAO_SEM_CARTAO[String(pais)]}
+            </button>
+            <p className="mt-1.5 text-center text-xs text-muted-foreground">
+              {oferta === "extra" ? TEXTO_UPSELL_DLOCAL.avisoExtra : TEXTO_UPSELL_DLOCAL.avisoVideo}
+            </p>
+            {erroSemCartao && <p className="mt-1.5 text-center text-xs text-destructive">{erroSemCartao}</p>}
+          </div>
+        )}
         {erro ? (
           <div className="space-y-3 px-2 py-6 text-center">
             <p className="text-sm">{erro}</p>

@@ -26,6 +26,8 @@ import { segredoConfere } from "./lib/segredo.js";
 import { comUtm } from "../src/lib/utm-email.js";
 import { registrarEnvio } from "../src/lib/registro-email.js";
 import { emailVideoPronto, assuntoVideoPronto } from "../emails/video-pronto.js";
+import { noPais } from "../emails/mercado-email.js";
+import { paisPraEmail } from "../src/lib/pais-quiz.js";
 import { assinaturaDoVideo, entradaDaMusica } from "../src/lib/assinatura-video.js";
 import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
 import { avisarDonos } from "../src/lib/avisar-donos.js";
@@ -93,7 +95,8 @@ async function entregar(sb: SupabaseClient, v: Video, bucket: string, key: strin
   if (chave && v.email && !atualizacao) {
     const locale = (m.locale as string | null) ?? "pt";
     const linkVideo = `${SITE}/editar/${m.token_edicao}#video`;
-    const { data: enviado, error: e } = await comUtm(new Resend(chave)).emails.send({
+    const pais = await paisPraEmail(sb, m.quiz_response_id as string | null, locale);
+    const { data: enviado, error: e } = await noPais(comUtm(new Resend(chave)), locale, pais).emails.send({
       tags: [{ name: "template", value: "video_pronto" }],
       from: MARCA_ATIVA.remetenteTransacional,
       to: [v.email],

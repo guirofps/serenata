@@ -49,6 +49,9 @@ export const PREFIXOS: readonly string[] = [
   // Ela só guarda o crachá e sai pro `/criar`, mas enquanto está na barra de
   // endereço é token de cliente numa URL, e é isso que a lista protege.
   "/credito/",
+  // A volta do upsell pela dLocal: a URL não tem token, mas a tela sim (o link
+  // pro editor, lido do `localStorage`).
+  "/pago-upsell",
   "/descadastrar",
   "/auth/",
 ];

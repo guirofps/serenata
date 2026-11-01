@@ -22,13 +22,7 @@ import { EXP_DOCUMENTO_DEPOIS, documentoDepoisLigado } from "@/lib/documento-dep
 import { EXP_LOCAL_PRIMEIRO, TEXTO_LOCAL_PRIMEIRO, localPrimeiroLigado } from "@/lib/local-primeiro";
 import { EscolhaLocal } from "@/components/quiz/EscolhaLocal";
 
-/** O botão de pagar sem cartão, com os métodos que a dLocal mostra em cada país. */
-const BOTAO_SEM_CARTAO: Record<string, string> = {
-  MX: "¿Sin tarjeta? Paga en efectivo en OXXO o con transferencia",
-  CO: "¿Sin tarjeta? Paga con PSE, Nequi o en efectivo",
-  CL: "¿Sin tarjeta? Paga con Webpay o transferencia",
-  PE: "¿Sin tarjeta? Paga con Yape, transferencia o en efectivo",
-};
+import { BOTAO_SEM_CARTAO } from "@/lib/upsell-dlocal";
 import { CheckoutDlocal } from "@/components/quiz/CheckoutDlocal";
 
 // O PAGAMENTO DA BALLAD GIFT, na própria página.

@@ -504,6 +504,12 @@ export const AUTOMACOES: Automacao[] = [
         quando: "48h depois de comprar o crédito",
         idiomas: ["pt", "es"],
       },
+      {
+        template: "credito_pago",
+        nome: "Sua música extra está paga (Ballad, sem cartão)",
+        quando: "Quando a dLocal confirma a música extra (teste upsell_dlocal)",
+        idiomas: ["es"],
+      },
     ],
   },
 ];
@@ -748,6 +754,7 @@ export function renderizarPreview(template: string, locale: "pt" | "es"): Previe
         emailQuadroParado({ link: E.linkQuadro, titulo: E.titulo, locale: l }),
       );
     case "credito_parado":
+    case "credito_pago":
       return pt(
         assuntoCreditoParado(l),
         emailCreditoParado({ link: E.linkCredito, saldo: 1, locale: l }),

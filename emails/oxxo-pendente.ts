@@ -10,7 +10,7 @@
 // volta pro funil embaixo, discreta.
 
 import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
-import type { Toque } from "../src/lib/oxxo-pendente.js";
+import { ehFichaLatam, type Toque } from "../src/lib/oxxo-pendente.js";
 
 export type ArgsOxxoPendente = {
   nome: string;
@@ -25,17 +25,55 @@ export type ArgsOxxoPendente = {
   quando: "hoy" | "mañana" | null;
   /** "$199 MXN", quando a dLocal disse o valor. */
   valor: string | null;
+  /** O país do quiz. Colômbia, Peru e Chile têm texto próprio; o resto é o do México. */
+  pais?: string | null;
 };
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
-export function assuntoOxxoPendente(a: Pick<ArgsOxxoPendente, "nome" | "toque" | "quando">): string {
+export function assuntoOxxoPendente(a: Pick<ArgsOxxoPendente, "nome" | "toque" | "quando" | "pais">): string {
+  if (ehFichaLatam(a.pais)) {
+    if (a.toque === 2) return `Tu pago vence ${a.quando ?? "pronto"}`;
+    return `Tu pago para la canción de ${a.nome} sigue pendiente`;
+  }
   if (a.toque === 2) return `Tu ficha de OXXO vence ${a.quando ?? "pronto"}`;
   return `Tu ficha de OXXO para la canción de ${a.nome} sigue activa`;
 }
 
+/** O "já pagou?" do rodapé: a loja só no México. */
+function jaPagou(a: Pick<ArgsOxxoPendente, "pais">): string {
+  return ehFichaLatam(a.pais)
+    ? "Si ya pagaste, no hagas nada: el pago puede tardar unas horas en confirmarse y la canción llega sola."
+    : "Si ya pagaste, no hagas nada: el pago en OXXO tarda unas horas en confirmarse y la canción llega sola.";
+}
+
 function linhas(a: ArgsOxxoPendente) {
   const valor = a.valor ? ` de ${a.valor}` : "";
+  // COLÔMBIA, PERU E CHILE (01/11): sem nome de loja nem de método. A cobrança
+  // pode ter nascido só com um deles (`local_primeiro`), e o botão reabre
+  // exatamente aquela página, que diz o que falta fazer.
+  if (ehFichaLatam(a.pais)) {
+    const como = "Abre tu pago y complétalo con el método que elegiste, desde tu banco o app, o en efectivo con el código de la ficha.";
+    const entrega = "En cuanto se acredite, la canción completa y su página regalo llegan a este correo.";
+    if (a.toque === 2) {
+      return {
+        titulo: `Tu pago vence ${a.quando ?? "pronto"}.`,
+        corpo: [
+          `La canción de ${a.nome} ya está grabada y esperando. Solo falta completar el pago${valor}, que vence ${a.vence}.`,
+          `${como} ${entrega}`,
+        ],
+        botao: "VER MI PAGO",
+      };
+    }
+    return {
+      titulo: "Tu pago sigue pendiente.",
+      corpo: [
+        `Empezaste un pago${valor} para la canción de ${a.nome}. Sigue válido hasta ${a.vence}.`,
+        `${como} ${entrega}`,
+      ],
+      botao: "VER MI PAGO",
+    };
+  }
   if (a.toque === 2) {
     return {
       titulo: `Tu ficha vence ${a.quando ?? "pronto"}.`,
@@ -81,7 +119,7 @@ export function emailOxxoPendente(a: ArgsOxxoPendente): string {
             </a>
           </td></tr></table>
           <p style="margin:22px 0 0;padding-top:16px;border-top:1px solid rgba(42,21,24,0.08);font-size:13px;line-height:1.55;color:rgba(42,21,24,0.6);font-family:Helvetica,Arial,sans-serif;">
-            Si ya pagaste, no hagas nada: el pago en OXXO tarda unas horas en confirmarse y la canción llega sola.${
+            ${esc(jaPagou(a))}${
               a.linkCartao
                 ? `<br>¿Prefieres pagar con tarjeta? <a href="${esc(a.linkCartao)}" style="color:#7d2b3a;">Termina aquí</a>.`
                 : ""
@@ -104,9 +142,9 @@ export function textoOxxoPendente(a: ArgsOxxoPendente): string {
     "",
     ...L.corpo,
     "",
-    `Tu ficha: ${a.linkFicha}`,
+    `${ehFichaLatam(a.pais) ? "Tu pago" : "Tu ficha"}: ${a.linkFicha}`,
     "",
-    "Si ya pagaste, no hagas nada: el pago en OXXO tarda unas horas en confirmarse y la canción llega sola.",
+    jaPagou(a),
     ...(a.linkCartao ? [`¿Prefieres pagar con tarjeta? ${a.linkCartao}`] : []),
   ].join("\n");
 }

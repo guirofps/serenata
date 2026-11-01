@@ -31,6 +31,13 @@ import { avisarDonos } from "../../src/lib/avisar-donos.js";
 import { venderNoTiktok } from "./tiktok-eventos.js";
 import { ttclidDaVenda } from "../../src/lib/clique-recente.js";
 import { mercadoDaMoeda, unidadeMenorDe, valorPagoConfere } from "../../src/lib/mercados.js";
+import { creditarUpsell } from "./creditar-upsell.js";
+import { OFERTAS } from "../../src/lib/creditos.js";
+import { lerOrderIdUpsell } from "../../src/lib/upsell-dlocal.js";
+import { Resend } from "resend";
+import { comUtm } from "../../src/lib/utm-email.js";
+import { registrarEnvio } from "../../src/lib/registro-email.js";
+import { assuntoCreditoParado, emailCreditoParado, textoCreditoParado } from "../../emails/credito-parado.js";
 
 const API = "https://api.dlocalgo.com/v1";
 
@@ -150,18 +157,14 @@ export async function confirmarPagamentoDlocal(sb: SupabaseClient, id: string): 
     );
     return { ok: false, motivo: "sem-pedido" };
   }
+  // UPSELL (vídeo e música extra, teste `upsell_dlocal`): o pedido não tem quiz,
+  // e tudo abaixo é a entrega da música. O mesmo desvio do Stripe.
+  if (!pedido.quiz_response_id) return confirmarUpsellDlocal(sb, p, pedido);
+
   const quizId = String(pedido.quiz_response_id);
   if (pedido.status === "pago") return { ok: true, entregue: false, duplicado: true, quizId };
 
-  // O pedido é em dólar; a dLocal cobrou na moeda local, pela MESMA tabela do
-  // caixa. A dLocal devolve unidade MAIOR ("199.00"): leva pra unidade menor
-  // pelas casas da moeda (29/10), senão um peso chileno, que não tem centavo,
-  // chegaria 100 vezes maior e toda venda ficaria retida.
-  const mercadoPago = mercadoDaMoeda(p.currency);
-  const pagoNaUnidadeMenor = mercadoPago
-    ? unidadeMenorDe(mercadoPago, Number(p.amount))
-    : Math.round(Number(p.amount) * 100);
-  if (!valorPagoConfere(p.currency, pagoNaUnidadeMenor, Number(pedido.valor_centavos))) {
+  if (!valorDlocalConfere(p, Number(pedido.valor_centavos))) {
     await alertar(
       "Valor pago diferente do pedido (dLocal)",
       `<p>Pagamento <code>${p.id}</code>: pago ${p.amount} ${p.currency}, pedido ${pedido.valor_centavos} usd. Entrega retida.</p>`,
@@ -223,6 +226,129 @@ export async function confirmarPagamentoDlocal(sb: SupabaseClient, id: string): 
     await sb.from("funnel_events").insert({ event_name: "tiktok_venda_servidor", event_data: { dlocal: p.id, ...t } });
   }
   return { ok: true, entregue: true, quizId };
+}
+
+/**
+ * O pedido é em dólar; a dLocal cobrou na moeda local, pela MESMA tabela do
+ * caixa. A dLocal devolve unidade MAIOR ("199.00"): leva pra unidade menor pelas
+ * casas da moeda (29/10), senão um peso chileno, que não tem centavo, chegaria
+ * 100 vezes maior e toda venda ficaria retida.
+ */
+function valorDlocalConfere(p: PagamentoDlocal, valorUsdCentavos: number): boolean {
+  const mercado = mercadoDaMoeda(p.currency);
+  const pago = mercado ? unidadeMenorDe(mercado, Number(p.amount)) : Math.round(Number(p.amount) * 100);
+  return valorPagoConfere(p.currency, pago, valorUsdCentavos);
+}
+
+/**
+ * UPSELL PAGO PELA dLOCAL (teste `upsell_dlocal`, 01/11).
+ *
+ * A mesma forma do `confirmarUpsellStripe`: confere valor, vira o pedido de
+ * pendente pra pago numa escrita condicional (quem não virou não libera), e só
+ * então libera pelo `creditarUpsell`. A oferta sai do CATÁLOGO pelo `order_id`
+ * que o nosso servidor gerou e a API deles devolve.
+ */
+async function confirmarUpsellDlocal(
+  sb: SupabaseClient,
+  p: PagamentoDlocal,
+  pedido: { id: string; status: string | null; valor_centavos: number | null; email: string | null },
+): Promise<ResultadoDlocal> {
+  if (pedido.status === "pago") return { ok: true, entregue: false, duplicado: true, quizId: "" };
+  if (!valorDlocalConfere(p, Number(pedido.valor_centavos))) {
+    await alertar(
+      "Valor pago diferente do pedido (upsell dLocal)",
+      `<p>Pagamento <code>${p.id}</code>: pago ${p.amount} ${p.currency}, pedido ${pedido.valor_centavos} usd. Nada liberado.</p>`,
+    );
+    return { ok: false, motivo: "valor-diferente" };
+  }
+
+  const email = String(pedido.email ?? "").trim() || String(p.payer?.email ?? "").trim() || null;
+  const nomePagador = [p.payer?.first_name, p.payer?.last_name].filter(Boolean).join(" ").trim() || null;
+  const { data: virou } = await sb
+    .from("pedidos")
+    .update({
+      status: "pago",
+      status_gateway: `${p.status}${p.payment_method_type ? `:${p.payment_method_type}` : ""}`,
+      paid_at: new Date().toISOString(),
+      taxa_centavos: taxaDlocalCentavos(Number(pedido.valor_centavos)),
+      email,
+      nome_pagador: nomePagador,
+    })
+    .eq("id", pedido.id)
+    .eq("status", "pendente")
+    .select("id");
+  if (!virou?.length) return { ok: true, entregue: false, duplicado: true, quizId: "" };
+
+  const lido = lerOrderIdUpsell(p.order_id);
+  const oferta = OFERTAS.find((o) => o.id === lido?.oferta);
+  if (!oferta || !email) {
+    await alertar(
+      "Upsell pago sem o que liberar (dLocal)",
+      `<p>Pagamento <code>${p.id}</code> pago, order_id <code>${p.order_id ?? "?"}</code>, e-mail ${email ? "ok" : "ausente"}. Liberar à mão.</p>`,
+    );
+    return { ok: true, entregue: false, quizId: "" };
+  }
+
+  // A ficha pode ser paga dias depois: nesse meio-tempo ela pode ter comprado o
+  // vídeo no cartão. O dinheiro entrou duas vezes, então avisa em vez de renderizar outro.
+  if (oferta.id === "video" && lido) {
+    const { data: jaTem } = await sb.from("videos").select("id").eq("musica_id", lido.musicaId).limit(1);
+    if (jaTem?.length) {
+      await alertar(
+        "Vídeo pago duas vezes (dLocal)",
+        `<p>Pagamento <code>${p.id}</code> (${p.amount} ${p.currency}) de um vídeo que já existe, música <code>${lido.musicaId}</code>. Nada novo foi gerado; avalie devolver pelo painel da dLocal Go.</p>`,
+      );
+      return { ok: true, entregue: false, quizId: "" };
+    }
+  }
+
+  const r = await creditarUpsell(sb, {
+    oferta: { id: oferta.id, creditos: oferta.creditos },
+    email,
+    pedidoId: pedido.id,
+    nota: { gateway: "dlocalgo", pagamento: p.id },
+  });
+  const liberou = oferta.id === "video" ? r.video : r.creditou;
+  if (r.erro || !liberou) {
+    await alertar(
+      oferta.id === "video" ? "Vídeo pago e NÃO liberado (dLocal)" : "Música extra paga e crédito NÃO lançado (dLocal)",
+      `<p>Pagamento <code>${p.id}</code>, pedido <code>${pedido.id}</code>: ${r.erro ?? "linha não criada"}.</p>`,
+    );
+  }
+  // A ficha pode ser paga dias depois, com a folha fechada: o vídeo avisa quando
+  // fica pronto, e a extra precisa deste aviso. Falha aqui não desfaz nada: o
+  // `creditoParado` lembra depois de 48h.
+  if (oferta.id === "extra" && r.creditou && lido) {
+    await avisarExtraPaga(sb, email, lido.musicaId).catch((err) => console.error("[dlocal] aviso da extra falhou:", err));
+  }
+  await sb.from("funnel_events").insert({
+    event_name: oferta.id === "video" ? "dlocal_video_pago" : "dlocal_extra_pago",
+    session_id: "sistema",
+    event_data: { pagamento: p.id, pedido: pedido.id, video: r.video, creditou: r.creditou, erro: r.erro },
+  });
+  return { ok: true, entregue: liberou, quizId: "" };
+}
+
+/** "Sua música extra está paga", com o link que já entra com o crédito. */
+async function avisarExtraPaga(sb: SupabaseClient, email: string, musicaId: string): Promise<void> {
+  const chave = process.env.RESEND_API_KEY;
+  if (!chave) return;
+  const { data: m } = await sb.from("musicas").select("token_edicao").eq("id", musicaId).maybeSingle();
+  if (!m?.token_edicao) return;
+  const site = process.env.VITE_APP_URL?.startsWith("http") ? process.env.VITE_APP_URL : MARCA_ATIVA.url;
+  const link = `${site}/credito/${m.token_edicao}`;
+  const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
+    tags: [{ name: "template", value: "credito_pago" }],
+    from: MARCA_ATIVA.remetenteTransacional,
+    to: [email],
+    subject: assuntoCreditoParado("es"),
+    html: emailCreditoParado({ link, locale: "es" }),
+    text: textoCreditoParado(link, "es"),
+  });
+  if (error) throw new Error(error.message);
+  await registrarEnvio(sb, { emailId: enviado?.id, template: "credito_pago", para: email });
+  // Conta como recado de "coisa parada": o `creditoParado` não repete na mesma semana.
+  await sb.from("funnel_events").insert({ event_name: "credito_parado_avisado", session_id: "sistema", event_data: { email } });
 }
 
 async function alertar(assunto: string, html: string) {

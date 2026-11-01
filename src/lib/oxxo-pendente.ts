@@ -73,44 +73,81 @@ export function toqueDevido(a: {
   return null;
 }
 
-/** A hora no México (o país não tem mais horário de verão: UTC-6 o ano todo). */
-function horaNoMexico(agora: number): number {
+// COLÔMBIA, PERU E CHILE (01/11). A ficha de lá ficava sem aviso nenhum: o job
+// recusava quiz fora do México porque a copy fala de OXXO, e o `quaseComprou`
+// pula pedido que não é do Stripe. Em 01/11 eram 8 fichas de Colômbia e Peru em
+// 5 dias. Mesmo calendário e mesmo braço, com texto próprio, sem nome de loja
+// (`emails/oxxo-pendente.ts`) e no relógio de cada país. A trava grava o `pais`:
+// a leitura sai por país.
+
+/** Os países com ficha, e o relógio de cada um. */
+const FUSO: Readonly<Record<string, string>> = {
+  MX: "America/Mexico_City",
+  CO: "America/Bogota",
+  PE: "America/Lima",
+  CL: "America/Santiago",
+};
+
+const fusoDe = (pais: string | null | undefined): string => FUSO[String(pais ?? "")] ?? FUSO.MX;
+
+/** Quiz com país gravado fora destes não recebe. Sem país (antigo) é o México. */
+export function paisRecebeLembrete(pais: string | null | undefined): boolean {
+  return !pais || pais in FUSO;
+}
+
+/** Fala de OXXO só no México; quiz sem país é o México. */
+export function ehFichaLatam(pais: string | null | undefined): boolean {
+  return pais === "CO" || pais === "PE" || pais === "CL";
+}
+
+/** A hora local (México não tem mais horário de verão: UTC-6 o ano todo). */
+function horaNoPais(agora: number, pais?: string | null): number {
   return Number(
-    new Intl.DateTimeFormat("en-US", { timeZone: "America/Mexico_City", hour: "numeric", hourCycle: "h23" }).format(
+    new Intl.DateTimeFormat("en-US", { timeZone: fusoDe(pais), hour: "numeric", hourCycle: "h23" }).format(
       new Date(agora),
     ),
   );
 }
 
-/** Hora de mandar e-mail pra quem está no México: 8h às 21h59 de lá. */
-export function horaBoaNoMexico(agora: number): boolean {
-  const h = horaNoMexico(agora);
+/** Hora de mandar e-mail pra quem está no país: 8h às 21h59 de lá. */
+export function horaBoaNoPais(agora: number, pais?: string | null): boolean {
+  const h = horaNoPais(agora, pais);
   return h >= 8 && h < 22;
 }
 
-/** "el jueves 30 de octubre a las 3:40 p. m." no horário do México. */
-export function quandoVence(venceEm: number): string {
+/** Hora de mandar e-mail pra quem está no México: 8h às 21h59 de lá. */
+export function horaBoaNoMexico(agora: number): boolean {
+  return horaBoaNoPais(agora, "MX");
+}
+
+/** Algum dos países está em hora boa? Se nenhum, o job nem lê a fila. */
+export function algumPaisEmHoraBoa(agora: number): boolean {
+  return Object.keys(FUSO).some((p) => horaBoaNoPais(agora, p));
+}
+
+/** "el jueves 30 de octubre a las 3:40 p. m." no horário do país (sem país, México). */
+export function quandoVence(venceEm: number, pais?: string | null): string {
   const d = new Date(venceEm);
+  const fuso = fusoDe(pais);
   // Por partes: o formato inteiro do es-MX põe vírgula ("viernes, 30 de
   // octubre"), que no meio da frase lê errado.
   const p = Object.fromEntries(
-    new Intl.DateTimeFormat("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long" })
+    new Intl.DateTimeFormat("es-MX", { timeZone: fuso, weekday: "long", day: "numeric", month: "long" })
       .formatToParts(d)
       .map((x) => [x.type, x.value]),
   );
   const dia = `${p.weekday} ${p.day} de ${p.month}`;
   const hora = new Intl.DateTimeFormat("es-MX", {
-    timeZone: "America/Mexico_City",
+    timeZone: fuso,
     hour: "numeric",
     minute: "2-digit",
   }).format(d);
   return `el ${dia} a las ${hora}`;
 }
 
-/** "hoy" ou "mañana", pelo calendário do México; mais longe, `null`. */
-export function venceHojeOuAmanha(venceEm: number, agora: number): "hoy" | "mañana" | null {
-  const dia = (t: number) =>
-    new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City" }).format(new Date(t));
+/** "hoy" ou "mañana", pelo calendário do país (sem país, México); mais longe, `null`. */
+export function venceHojeOuAmanha(venceEm: number, agora: number, pais?: string | null): "hoy" | "mañana" | null {
+  const dia = (t: number) => new Intl.DateTimeFormat("en-CA", { timeZone: fusoDe(pais) }).format(new Date(t));
   const hoje = dia(agora);
   const venc = dia(venceEm);
   if (venc === hoje) return "hoy";

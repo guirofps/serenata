@@ -252,6 +252,22 @@ describe("na Ballad, o país do acesso escolhe o espanhol e a moeda", () => {
     }
   });
 
+  it("o 'vídeo pronto' também segue o país (01/11)", async () => {
+    const { adaptarAoPais } = m.emailMercado;
+    const { emailVideoPronto } = await import("../../emails/video-pronto");
+    const html = emailVideoPronto({ titulo: "El Mandil Azul", linkVideo: "https://www.balladgift.com/editar/abc#video", locale: "es" });
+    expect(html).toMatch(/ustedes/);
+    expect(html).toContain("por mensaje");
+    const espanha = adaptarAoPais(html, "es", "ES");
+    expect(espanha).not.toMatch(/\bustedes\b/);
+    expect(espanha).toContain("Vuestro vídeo");
+    expect(espanha).toContain("WhatsApp");
+    const latam = adaptarAoPais(html, "es", "PE");
+    expect(latam).toContain("WhatsApp");
+    for (const v of VOSOTROS) expect(latam).not.toMatch(v);
+    expect(adaptarAoPais(html, "es", "US")).toBe(html);
+  });
+
   it("o preço do vídeo no e-mail sai na moeda da compra", () => {
     const { precoDoVideoNoEmail } = m.video;
     expect(precoDoVideoNoEmail("es", "ab12", "eur")).toBe("12 €");

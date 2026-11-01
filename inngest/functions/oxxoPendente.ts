@@ -10,8 +10,10 @@ import { REMETENTE_TRANSACIONAL, RESPONDER_PARA } from "../../emails/remetentes.
 import { assuntoOxxoPendente, emailOxxoPendente, textoOxxoPendente } from "../../emails/oxxo-pendente.js";
 import {
   LIGADO,
+  algumPaisEmHoraBoa,
   bracoOxxoPendente,
-  horaBoaNoMexico,
+  horaBoaNoPais,
+  paisRecebeLembrete,
   fichaMaisNovaPorQuiz,
   quandoVence,
   toqueDevido,
@@ -79,7 +81,7 @@ export const oxxoPendente = inngest.createFunction(
   },
   async ({ step }) => {
     if (MARCA_ATIVA.chave !== "ballad" || !LIGADO || !dlocalConfigurado()) return { pulado: "fora" };
-    if (!horaBoaNoMexico(Date.now())) return { pulado: "fora-do-horario" };
+    if (!algumPaisEmHoraBoa(Date.now())) return { pulado: "fora-do-horario" };
 
     const candidatos = await step.run("achar-fichas", async () => {
       const sb = db();
@@ -118,6 +120,7 @@ export const oxxoPendente = inngest.createFunction(
         criadaEm: string;
         venceEm: number;
         toque: Toque;
+        pais: string | null;
       }> = [];
       for (const p of fichas) {
         if (out.length >= MAX_POR_RODADA) break;
@@ -137,12 +140,11 @@ export const oxxoPendente = inngest.createFunction(
           .maybeSingle();
         const email = String(q?.email ?? p.email ?? "").trim();
         if (!q || q.locale !== "es" || !email) continue;
-        // A COPY FALA DE OXXO (29/10). Hoje a dLocal só existe no México
-        // (`temDlocal`), mas no dia em que ligar em outro país a ficha de lá
-        // não é OXXO: até esse e-mail ganhar texto próprio, quiz com país
-        // gravado fora do México não recebe. Quiz sem país (antigo) segue.
+        // CADA PAÍS NO SEU RELÓGIO E COM O SEU TEXTO (01/11): Colômbia, Peru e
+        // Chile deixaram de ficar de fora (`oxxo-pendente.ts`). Quiz sem país
+        // (antigo) segue como México.
         const pais = await paisDoQuiz(sb, { id: quizId });
-        if (pais && pais !== "MX") continue;
+        if (!paisRecebeLembrete(pais) || !horaBoaNoPais(agora, pais)) continue;
         // Pagou de outro jeito (cartão), ou comprou outra música: não é com ela.
         const { data: pago } = await sb.from("pedidos").select("id").eq("quiz_response_id", quizId).eq("status", "pago").limit(1);
         if (pago?.length) continue;
@@ -158,6 +160,7 @@ export const oxxoPendente = inngest.createFunction(
           criadaEm: p.created_at as string,
           venceEm,
           toque,
+          pais,
         });
       }
       return out;
@@ -198,7 +201,7 @@ export const oxxoPendente = inngest.createFunction(
         const braco = bracoOxxoPendente(c.quizId);
         const trava = await travarEnvio(sb, {
           event_name: EVENTO,
-          event_data: { payment_id: c.paymentId, quiz_response_id: c.quizId, email: c.email, toque: c.toque, braco },
+          event_data: { payment_id: c.paymentId, quiz_response_id: c.quizId, email: c.email, toque: c.toque, braco, pais: c.pais ?? null },
         });
         if (!trava || braco !== "B") return false;
 
@@ -209,9 +212,10 @@ export const oxxoPendente = inngest.createFunction(
           toque: c.toque,
           linkFicha: c.linkFicha,
           linkCartao: volta.startsWith("/retomar") ? `${SITE}${volta}&de=oxxo` : null,
-          vence: quandoVence(c.venceEm),
-          quando: venceHojeOuAmanha(c.venceEm, agora),
+          vence: quandoVence(c.venceEm, c.pais),
+          quando: venceHojeOuAmanha(c.venceEm, agora, c.pais),
           valor,
+          pais: c.pais,
         };
         // O Resend LANÇANDO (rede, corpo inválido), e não só devolvendo erro
         // (29/10): a trava ficava gravada sem e-mail nenhum, e aquele toque

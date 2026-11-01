@@ -13,6 +13,8 @@ import { montarKaraoke } from "../../src/lib/karaoke-video.js";
 import { assinaturaDoVideo, entradaDaMusica } from "../../src/lib/assinatura-video.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { emailVideoPronto, assuntoVideoPronto } from "../../emails/video-pronto.js";
+import { noPais } from "../../emails/mercado-email.js";
+import { paisPraEmail } from "../../src/lib/pais-quiz.js";
 import type { PropsPresente } from "../../video/src/props.js";
 import { MARCA_ATIVA, MARCA_VIDEO } from "../../src/lib/marca-identidade.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
@@ -461,7 +463,9 @@ export const renderizarVideo = inngest.createFunction(
       // sozinha. Um segundo "seu vídeo está pronto" seria só ruído.
       if (preparo.atualizacoes > 0) return;
       const linkVideo = `${SITE}/editar/${preparo.tokenEdicao}#video`;
-      const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
+      // O espanhol do país do quiz (01/11): `vuestro vídeo` na Espanha, WhatsApp fora dos EUA e do México.
+      const pais = await paisPraEmail(db(), preparo.quizId, preparo.locale);
+      const { data: enviado, error } = await noPais(comUtm(new Resend(chave)), preparo.locale, pais).emails.send({
         tags: [{ name: "template", value: "video_pronto" }],
         from: MARCA_ATIVA.remetenteTransacional,
         to: [preparo.email],
