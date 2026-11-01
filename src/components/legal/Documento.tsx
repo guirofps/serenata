@@ -30,7 +30,7 @@ const MOLDURA = EN
     }
   : {
       atualizado: "Última atualização: ",
-      empresa: RESPONSAVEL.razaoSocial,
+      empresa: RESPONSAVEL.nome,
       duvidas: "Dúvidas ou pedidos:",
       voltar: "Voltar para o site",
     };

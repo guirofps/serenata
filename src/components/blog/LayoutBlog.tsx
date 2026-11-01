@@ -45,7 +45,7 @@ export function LayoutBlog({
             ))}
           </nav>
           <p className="mt-4">
-            {RESPONSAVEL.razaoSocial} · CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}
+            {RESPONSAVEL.nome} · CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}
             <br />
             {RESPONSAVEL.endereco}
           </p>

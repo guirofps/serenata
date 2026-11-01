@@ -52,8 +52,8 @@ function Pagina() {
   return (
     <Documento titulo="Termos de Uso" atualizado="18 de outubro de 2026">
       <p>
-        Estes termos valem entre você e a {RESPONSAVEL.razaoSocial} (CNPJ{" "}
-        {cnpjFormatado(RESPONSAVEL.cnpj)}), responsável pela Serenata, com sede na{" "}
+        Estes termos valem entre você e a {RESPONSAVEL.nome} (CNPJ{" "}
+        {cnpjFormatado(RESPONSAVEL.cnpj)}), com sede na{" "}
         {RESPONSAVEL.endereco}. Ao usar o site ou comprar, você concorda com eles.
       </p>
 

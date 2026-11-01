@@ -25,17 +25,18 @@ export const EMPRESA = {
   cnpj: "45835258000146",
 } as const;
 
-// QUEM RESPONDE PELA SERENATA no rodapé, nos termos e na privacidade (18/10).
-// É a empresa da conta do Google Ads, e o que o site mostra tem que bater com
-// ela na verificação de operações comerciais. O bloco da tela de pagamento
-// continua no EMPRESA acima, que é quem recebe hoje (bate com o comprovante do
-// PIX); quando o Asaas migrar pra este CNPJ, o EMPRESA passa a ser este.
+// QUEM RESPONDE PELA SERENATA no rodapé, nos termos e na privacidade (01/11).
+// É a mesma empresa do perfil de pagamento da conta nova do Google Ads e a que
+// recebe o PIX e o cartão (RECEBEDOR abaixo): o site, o anúncio e o banco têm
+// que dizer o mesmo. Até 01/11 ficou aqui a EM CIMA, a empresa da conta antiga
+// do Google, que nunca vendeu nada e continuou no rodapé depois da troca de 21/10.
+// Vai o nome fantasia (é o que o banco mostra no PIX), não a razão social, e o
+// endereço sem casa e conjunto (decisão do dono).
 // Só Serenata: a Ballad segue com o EMPRESA.
 export const RESPONSAVEL = {
-  razaoSocial: "EM CIMA ASSISTÊNCIA MÉDICA LTDA",
-  cnpj: "06974663000193",
-  endereco:
-    "Rua Manuel de Oliveira, 269, salas 212, 213 e 220, Vila Mogilar, Mogi das Cruzes/SP, CEP 08773-130",
+  nome: "Serenata Gift",
+  cnpj: "69498792000172",
+  endereco: "Rua Taubaté, 450, Vila Camilópolis, Santo André/SP, CEP 09230-310",
 } as const;
 
 // QUEM RECEBE O PAGAMENTO DA SERENATA (22/10): o titular da conta do Asaas

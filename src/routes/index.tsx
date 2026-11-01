@@ -416,7 +416,7 @@ function Home() {
         {/* A IDENTIFICAÇÃO DO FORNECEDOR é obrigação do CDC pra venda online
             (razão social, CNPJ e endereço físico, Decreto 7.962/2013). */}
         <p className="mt-1 text-center text-xs text-[var(--tinta-fraca)]">
-          {RESPONSAVEL.razaoSocial} · CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}
+          {RESPONSAVEL.nome} · CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}
           <br />
           {RESPONSAVEL.endereco}
         </p>

@@ -58,7 +58,14 @@ describe("o CNPJ que vai na tela de pagamento", () => {
 
   it("o CNPJ do responsável (rodapé e termos) também passa na conta", () => {
     expect(digitosConferem(RESPONSAVEL.cnpj)).toBe(true);
-    expect(cnpjFormatado(RESPONSAVEL.cnpj)).toBe("06.974.663/0001-93");
+    expect(cnpjFormatado(RESPONSAVEL.cnpj)).toBe("69.498.792/0001-72");
+  });
+
+  it("quem responde no rodapé é quem recebe o pagamento", () => {
+    // Em 21/10 a conta de recebimento mudou e o rodapé ficou com a empresa
+    // antiga por 11 dias: o site dizia uma empresa e o banco outra.
+    expect(RESPONSAVEL.cnpj).toBe(RECEBEDOR.cnpj);
+    expect(ehDoRecebedor(RESPONSAVEL.nome)).toBe(true);
   });
 
   it("o CNPJ de quem recebe o pagamento (Asaas/Woovi novos) passa na conta", () => {

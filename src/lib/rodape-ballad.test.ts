@@ -58,7 +58,7 @@ describe.each(["en", "es"] as const)("rodapé da Ballad (%s)", (idioma) => {
 
   it("quem vende é o EMPRESA (o RESPONSAVEL é só da Serenata)", () => {
     expect(r.empresa).toContain(cnpjFormatado());
-    expect(JSON.stringify(r)).not.toContain(RESPONSAVEL.razaoSocial);
+    expect(JSON.stringify(r)).not.toContain(RESPONSAVEL.nome);
     expect(JSON.stringify(r)).not.toContain(cnpjFormatado(RESPONSAVEL.cnpj));
   });
 });
