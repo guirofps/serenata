@@ -37,6 +37,8 @@ import { TIKTOK_PIXEL_ID, scriptTiktok } from "@/lib/tiktok-pixel";
 import { CLARITY_ID, scriptClarity } from "@/lib/clarity";
 import { OMNISEND_ID, scriptOmnisend } from "@/lib/omnisend";
 import { GOOGLE_ADS_ID, scriptConfigGtag } from "@/lib/google-ads";
+import { scriptConsentimento } from "@/lib/consentimento-cookies";
+import { AvisoCookies } from "@/components/AvisoCookies";
 import { LOCALE_PADRAO, localeDaRota, tagIdioma } from "@/lib/i18n";
 import { FONTES, MARCA } from "@/lib/marca";
 import { ehBallad } from "@/lib/marca-identidade";
@@ -308,6 +310,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
             não soube o país (`pais-acesso.ts`). Só na Ballad. */}
         {ehBallad() && <style dangerouslySetInnerHTML={{ __html: cssPrecoPorPais() }} />}
         {ehBallad() && <script dangerouslySetInnerHTML={{ __html: scriptCarimbarPais() }} />}
+        {/* Na Espanha, Google e TikTok esperam o "sim" do aviso de cookies. Depois
+            do carimbo do país e antes de qualquer pixel. Ver `consentimento-cookies.ts`. */}
+        {ehBallad() && <script dangerouslySetInnerHTML={{ __html: scriptConsentimento() }} />}
         {/* Depois dos três do teste A/B: a porta dos scripts que esperam a
             página carregar (gtag e TikTok, mais abaixo) e a fonte sem travar a
             pintura. Ver `carregar-depois.ts`. */}
@@ -451,6 +456,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      {ehBallad() && <AvisoCookies />}
     </QueryClientProvider>
   );
 }
