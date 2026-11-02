@@ -141,7 +141,8 @@ function Pagina() {
             <strong>Resend</strong> — envio dos e-mails.
           </li>
           <li>
-            <strong>Woovi</strong> (PIX) e <strong>Perfect Pay</strong> (cartão) —
+            <strong>Asaas</strong> (PIX e cartão), <strong>Woovi</strong> (PIX) e{" "}
+            <strong>Perfect Pay</strong> (cartão em dólar, no site em espanhol) —
             processamento do pagamento.
           </li>
           <li>

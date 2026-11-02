@@ -8,7 +8,7 @@ import { marcarMoedaDoPedido } from "@/lib/pais-quiz";
 import { valorCentavosDaSessao, urlDoSite } from "@/lib/stripe-checkout";
 import { nomeCompletoValido } from "@/lib/documento-mx";
 import { paisTemDocumento, validarDocumento } from "@/lib/documento-pais";
-import { metodoDlocalValido, tipoPagamentoDlocal } from "@/lib/spei-destaque";
+import { fichaServeAoVoltar, metodoDlocalValido, tipoPagamentoDlocal } from "@/lib/spei-destaque";
 import {
   dlocalApi,
   dlocalConfigurado,
@@ -102,7 +102,7 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
     // presente confundem quem vai pagar na loja.
     const { data: aberta } = await db
       .from("pedidos")
-      .select("payment_id, pix_url, pix_expira")
+      .select("payment_id, pix_url, pix_expira, created_at")
       .eq("quiz_response_id", quiz.id)
       .eq("gateway", "dlocalgo")
       .eq("status", "pendente")
@@ -122,14 +122,19 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
       const pagamentoId = String(aberta.payment_id).slice("dlocalgo:".length);
       let status = "PENDING";
       let detalhe = "";
+      let tipo: string | null | undefined;
       try {
         const lido = await lerPagamentoDlocal(pagamentoId);
         status = lido.status;
         detalhe = String(lido.status_detail ?? "");
+        tipo = lido.payment_method_type;
       } catch (err) {
         console.error("[dlocal] ler pagamento aberto falhou:", err instanceof ErroDlocal ? err.status : err);
       }
-      if (status === "PENDING" && detalhe !== "CREATED") return { ok: true, url: aberta.pix_url, pagamentoId };
+      const idadeMs = Date.now() - new Date(String(aberta.created_at)).getTime();
+      if (status === "PENDING" && detalhe !== "CREATED" && fichaServeAoVoltar(mercado.pais, data.metodo, tipo, idadeMs)) {
+        return { ok: true, url: aberta.pix_url, pagamentoId };
+      }
       if (status === "PAID") return { ok: false, erro: "ja-pago" };
       await db
         .from("pedidos")
@@ -139,7 +144,7 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
       await db.from("funnel_events").insert({
         event_name: "dlocal_ficha_trocada",
         session_id: sessionId,
-        event_data: { pagamento: pagamentoId, status_antigo: `${status}/${detalhe}`.slice(0, 40) },
+        event_data: { pagamento: pagamentoId, status_antigo: `${status}/${detalhe}/${tipo ?? ""}`.slice(0, 40), metodo: data.metodo ?? null },
       });
     }
 

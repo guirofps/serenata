@@ -194,7 +194,10 @@ export async function confirmarPagamentoDlocal(sb: SupabaseClient, id: string): 
       nome_pagador: nomePagador,
     })
     .eq("payment_id", paymentId)
-    .eq("status", "pendente")
+    // `cancelado` é a ficha trocada por outra (`dlocalgo-checkout.ts`): na dLocal
+    // ela segue viva, e se foi paga o dinheiro entrou. Só `pendente` aqui devolvia
+    // "duplicado": pago, sem entrega e sem aviso.
+    .in("status", ["pendente", "cancelado"])
     .select("id");
   if (!virou?.length) return { ok: true, entregue: false, duplicado: true, quizId };
 
@@ -275,7 +278,8 @@ async function confirmarUpsellDlocal(
       nome_pagador: nomePagador,
     })
     .eq("id", pedido.id)
-    .eq("status", "pendente")
+    // Ficha trocada e paga mesmo assim: igual à música, em `confirmarPagamentoDlocal`.
+    .in("status", ["pendente", "cancelado"])
     .select("id");
   if (!virou?.length) return { ok: true, entregue: false, duplicado: true, quizId: "" };
 

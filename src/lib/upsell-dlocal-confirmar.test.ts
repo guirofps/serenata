@@ -30,6 +30,10 @@ function bancoFalso(pedido: Pedido) {
         filtros[c] = v;
         return q;
       },
+      in: (c: string, v: unknown[]) => {
+        filtros[c] = v;
+        return q;
+      },
       neq: () => q,
       limit: () => q,
       update: (p: Record<string, unknown>) => {
@@ -43,7 +47,8 @@ function bancoFalso(pedido: Pedido) {
       maybeSingle: async () => ({ data: tabela === "pedidos" ? pedido : null }),
       then: (ok: (r: unknown) => unknown) => {
         if (patch && tabela === "pedidos") {
-          if (filtros.status === pedido.status) {
+          const aceitos = Array.isArray(filtros.status) ? filtros.status : [filtros.status];
+          if (aceitos.includes(pedido.status)) {
             Object.assign(pedido, patch);
             return Promise.resolve(ok({ data: [{ id: pedido.id }] }));
           }
@@ -134,6 +139,42 @@ describe("upsell pago pela dLocal", () => {
     expect(r).toMatchObject({ ok: true, entregue: false });
     expect(creditarUpsell).not.toHaveBeenCalled();
     expect(avisarDonos).toHaveBeenCalledTimes(1);
+  });
+
+  it("a ficha trocada e paga mesmo assim libera, não vira 'duplicado'", async () => {
+    const { confirmarPagamentoDlocal } = await import("../../api/lib/dlocalgo");
+    const pedido = { ...pendente(701), status: "cancelado" };
+    const { sb } = bancoFalso(pedido);
+    dlocalDiz({ amount: 129, currency: "MXN", order_id: `up-video-${UUID}-abc` });
+
+    const r = await confirmarPagamentoDlocal(sb, "DP-1");
+    expect(r).toMatchObject({ ok: true, entregue: true });
+    expect(pedido.status).toBe("pago");
+    expect(creditarUpsell).toHaveBeenCalledTimes(1);
+  });
+
+  it("a música de uma ficha trocada e paga mesmo assim entrega", async () => {
+    const { confirmarPagamentoDlocal } = await import("../../api/lib/dlocalgo");
+    const { musicaDoQuiz } = await import("../../api/lib/entrega.js");
+    vi.mocked(musicaDoQuiz).mockClear();
+    const pedido = { ...pendente(1082), status: "cancelado", quiz_response_id: "q1" };
+    const { sb } = bancoFalso(pedido);
+    dlocalDiz({ amount: 199, currency: "MXN", order_id: "q1-abc" });
+
+    await confirmarPagamentoDlocal(sb, "DP-1");
+    expect(pedido.status).toBe("pago");
+    expect(musicaDoQuiz).toHaveBeenCalledTimes(1);
+  });
+
+  it("pedido estornado não volta a pago", async () => {
+    const { confirmarPagamentoDlocal } = await import("../../api/lib/dlocalgo");
+    const pedido = { ...pendente(701), status: "reembolsado" };
+    const { sb } = bancoFalso(pedido);
+    dlocalDiz({ amount: 129, currency: "MXN", order_id: `up-video-${UUID}-abc` });
+
+    await confirmarPagamentoDlocal(sb, "DP-1");
+    expect(pedido.status).toBe("reembolsado");
+    expect(creditarUpsell).not.toHaveBeenCalled();
   });
 
   it("ficha ainda não paga não mexe em nada", async () => {

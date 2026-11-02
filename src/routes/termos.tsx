@@ -168,7 +168,7 @@ function Pagina() {
 
       <Secao n={9} titulo="Pagamento">
         <p>
-          PIX processado pela Woovi e cartão pela Perfect Pay. O valor é o que aparece na
+          PIX processado pela Woovi ou pelo Asaas e cartão pelo Asaas. O valor é o que aparece na
           tela no momento da compra. Podemos mudar preços a qualquer momento, e{" "}
           <strong>a mudança nunca vale para pedido já feito</strong>.
         </p>

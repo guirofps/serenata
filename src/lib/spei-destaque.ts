@@ -45,6 +45,35 @@ export function tipoPagamentoDlocal(pais: string, metodo: unknown): string {
   return "VOUCHER,BANK_TRANSFER";
 }
 
+/**
+ * Transferência paga sai em até 54 minutos (medido, topo do arquivo). Quem volta
+ * depois de 1 hora sem ter pago não está no app do banco.
+ */
+const TRANSFERENCIA_VIVA_MS = 3600e3;
+
+/**
+ * A FICHA JÁ EMITIDA SERVE PRA QUEM VOLTOU À FOLHA? (01/11)
+ *
+ * Reabrir devolvia a ficha pendente sem olhar o método: o José escolheu OXXO e
+ * caiu na transferência de 21 horas antes, sem ter como mudar. Com método
+ * escolhido, a ficha tem que ser dele. Sem escolha (a página da dLocal mostra os
+ * dois), a do OXXO volta, porque ela é o papel que a pessoa leva à loja, e a
+ * transferência só volta na primeira hora. Sem saber o tipo, volta a de sempre.
+ *
+ * A ficha trocada continua viva na dLocal: se for paga, `confirmarPagamentoDlocal`
+ * libera mesmo com o pedido `cancelado`.
+ */
+export function fichaServeAoVoltar(
+  pais: string,
+  metodo: MetodoDlocal | undefined,
+  tipoEmitido: string | null | undefined,
+  idadeMs: number,
+): boolean {
+  if (!tipoEmitido) return true;
+  if (metodo) return tipoPagamentoDlocal(pais, metodo).split(",").includes(tipoEmitido);
+  return tipoEmitido !== "BANK_TRANSFER" || idadeMs < TRANSFERENCIA_VIVA_MS;
+}
+
 /** Só os dois valores conhecidos passam; o resto vira "sem escolha". */
 export function metodoDlocalValido(metodo: unknown): MetodoDlocal | undefined {
   return metodo === "transferencia" || metodo === "oxxo" ? metodo : undefined;

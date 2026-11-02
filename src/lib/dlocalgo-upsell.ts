@@ -7,7 +7,7 @@ import { mercadoDoPais, usdDe, valorNaMoeda } from "@/lib/mercados";
 import { paisDaRequisicao } from "@/lib/pais-requisicao.server";
 import { marcarMoedaDoPedido } from "@/lib/pais-quiz";
 import { urlDoSite } from "@/lib/stripe-checkout";
-import { tipoPagamentoDlocal } from "@/lib/spei-destaque";
+import { fichaServeAoVoltar, tipoPagamentoDlocal } from "@/lib/spei-destaque";
 import { bracoUpsellDlocal, orderIdUpsellDlocal, paisVendeUpsellDlocal, type OfertaDlocal } from "@/lib/upsell-dlocal";
 import { confirmarPagamentoDlocal, dlocalApi, dlocalConfigurado, ErroDlocal, lerPagamentoDlocal } from "../../api/lib/dlocalgo";
 
@@ -84,7 +84,7 @@ export const criarUpsellDlocal = createServerFn({ method: "POST" })
     // recusada lá, nasce outra; sem resposta da dLocal, volta a de sempre.
     let abertas = db
       .from("pedidos")
-      .select("payment_id, pix_url")
+      .select("payment_id, pix_url, created_at")
       .eq("gateway", "dlocalgo")
       .eq("status", "pendente")
       .is("quiz_response_id", null)
@@ -95,12 +95,18 @@ export const criarUpsellDlocal = createServerFn({ method: "POST" })
     if (aberta?.pix_url) {
       const pagamentoId = String(aberta.payment_id).slice("dlocalgo:".length);
       let status = "PENDING";
+      let tipo: string | null | undefined;
       try {
-        status = (await lerPagamentoDlocal(pagamentoId)).status;
+        const lido = await lerPagamentoDlocal(pagamentoId);
+        status = lido.status;
+        tipo = lido.payment_method_type;
       } catch (err) {
         console.error("[dlocal-upsell] ler aberto falhou:", err instanceof ErroDlocal ? err.status : err);
       }
-      if (status === "PENDING") return { ok: true, url: aberta.pix_url, pagamentoId };
+      const idadeMs = Date.now() - new Date(String(aberta.created_at)).getTime();
+      if (status === "PENDING" && fichaServeAoVoltar(mercado.pais, undefined, tipo, idadeMs)) {
+        return { ok: true, url: aberta.pix_url, pagamentoId };
+      }
       // Pagou e o aviso ainda não chegou: confirma agora, e o vídeo não é cobrado de novo.
       if (status === "PAID") {
         await confirmarPagamentoDlocal(db, pagamentoId).catch((err) => console.error("[dlocal-upsell] confirmar falhou:", err));
