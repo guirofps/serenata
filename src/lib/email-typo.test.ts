@@ -16,6 +16,15 @@ describe("corrigirTypoCerto", () => {
     expect(corrigirTypoCerto("ana@empresa.com.br")).toBe("ana@empresa.com.br");
     expect(corrigirTypoCerto("ana@he.com")).toBe("ana@he.com");
   });
+  it("não troca domínio real com país no fim nem provedor parecido com o Gmail (03/11)", () => {
+    for (const e of ["ana@yahoo.com.mx", "ana@live.com.mx", "ana@hotmail.com.mx", "ana@hotmail.es", "ana@yahoo.es", "ana@outlook.com.pe", "ana@hotmail.co.uk", "ana@ymail.com", "ana@mail.com", "ana@aol.com"]) {
+      expect(corrigirTypoCerto(e)).toBe(e);
+      expect(pareceTypo(e)).toBe(false);
+      expect(sugerirEmail(e)).toBeNull();
+    }
+    expect(corrigirTypoCerto("ana@gmail.com.mx")).toBe("ana@gmail.com");
+    expect(corrigirTypoCerto("ana@hotmail.comm")).toBe("ana@hotmail.com");
+  });
   it("sem palpite, devolve como veio", () => {
     expect(corrigirTypoCerto("ana")).toBe("ana");
     expect(corrigirTypoCerto("")).toBe("");

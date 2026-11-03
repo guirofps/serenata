@@ -7,7 +7,7 @@ import { Resend } from "resend";
 import { comUtm } from "../../src/lib/utm-email.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { emailQuaseComprou, assuntoQuaseComprou, textoQuaseComprouEsEua, textoQuaseComprouRecusa, temCopyRecusa } from "../../emails/quase-comprou.js";
-import { bracoRecusaEmail } from "../../src/lib/aviso-recusa.js";
+import { bracoRecusaEmail, EMAIL_RECUSA_LIGADO } from "../../src/lib/aviso-recusa.js";
 import { teveRecusaStripe } from "../lib/recusa-stripe.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
@@ -312,7 +312,7 @@ export const quaseComprou = inngest.createFunction(
         // Teste de recusa (18/10): só quem teve o cartão recusado entra; no B
         // ela recebe o texto de recusa. O braço vai na trava pra leitura.
         const braco = bracoRecusaEmail(c.quizId);
-        const textoRecusa = c.recusado && braco === "B";
+        const textoRecusa = EMAIL_RECUSA_LIGADO && c.recusado && braco === "B";
         const trava = await travarEnvio(sb, {
           event_name: "quase_comprou_enviado",
           event_data: {

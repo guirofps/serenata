@@ -43,6 +43,32 @@ const DOMINIOS = [
   "prodigy.net.mx",
 ];
 
+// DOMÍNIOS REAIS QUE PARECEM TYPO (03/11). A regra "começa com um provedor
+// conhecido e continua" trocava `yahoo.com.mx` por `yahoo.com` e
+// `live.com.mx` por `live.com`, e o "a um caractere do Gmail" trocava
+// `ymail.com` (do Yahoo) e `mail.com` por `gmail.com`: 47 endereços de
+// verdade na Ballad em 18 dias, 4 deles de compradores, com a letra e a
+// entrega saindo pra uma caixa que não existe ou é de outra pessoa. Nunca
+// são corrigidos nem sugeridos, e não entram na lista de palpites.
+const OUTROS_REAIS = [
+  "ymail.com",
+  "rocketmail.com",
+  "mail.com",
+  "aol.com",
+  "gmx.com",
+  "gmx.es",
+  "protonmail.com",
+  "proton.me",
+];
+
+/** Hotmail, Outlook, Live e Yahoo existem com o país no fim: `.es`, `.com.mx`, `.co.uk`. */
+const VARIANTE_DE_PAIS =
+  /^(hotmail|outlook|live|yahoo)\.(es|fr|it|de|cl|co\.uk|com\.(mx|ar|pe|co|br|ve|ec|uy|py|bo|gt|do|pr))$/;
+
+function dominioReal(dominio: string): boolean {
+  return DOMINIOS.includes(dominio) || OUTROS_REAIS.includes(dominio) || VARIANTE_DE_PAIS.test(dominio);
+}
+
 function partes(email: string): [string, string] | null {
   const e = (email ?? "").trim().toLowerCase();
   const at = e.lastIndexOf("@");
@@ -102,7 +128,7 @@ export function pareceTypo(email: string): boolean {
   const p = partes(email);
   if (!p) return true; // sem "@" ou sem nada depois dele: não dá pra entregar
   const [, dominio] = p;
-  if (DOMINIOS.includes(dominio)) return false;
+  if (dominioReal(dominio)) return false;
   if (!dominio.includes(".")) return true; // "gmail" sozinho não é entregável
   if (DOMINIOS.some((bom) => dominio.startsWith(bom))) return true;
 
@@ -128,7 +154,7 @@ export function sugerirEmail(email: string): string | null {
   const p = partes(email);
   if (!p) return null;
   const [conta, dominio] = p;
-  if (DOMINIOS.includes(dominio)) return null;
+  if (dominioReal(dominio)) return null;
 
   // Primeiro a regra dura, que é a mais confiável.
   const sufixo = DOMINIOS.find((bom) => dominio.startsWith(bom));

@@ -55,6 +55,12 @@ export const TEXTO_AVISO_RECUSA = {
   },
 } as const;
 
+// ENCERRADO EM 03/11 (dono: "sim"): entre quem teve recusa, venda em 72h no
+// A 5 de 35 (14%) × B 1 de 32 (3%). O texto de recusa espanta mais do que
+// ajuda. Todo mundo recebe o "quase comprou" de sempre; a trava continua
+// gravando `recusado` e `braco_recusa`, sem efeito.
+export const EMAIL_RECUSA_LIGADO = false;
+
 export type BracoRecusaEmail = "A" | "B";
 
 /** O braço do e-mail de recusa, pelo 6º caractere do fim do id do quiz. */
