@@ -6,6 +6,11 @@
 //             (+ charge.refunded e charge.dispute.created, a marcar no painel)
 //   Segredo (whsec_...) em STRIPE_WEBHOOK_SECRET, SÓ no projeto balladgift.
 //
+// DUAS CONTAS desde 03/11 (teste `stripe_conta`): a conta do Reino Unido tem
+// o PRÓPRIO endpoint, na MESMA URL, com o segredo em STRIPE_UK_WEBHOOK_SECRET.
+// O segredo que confere a assinatura diz de qual conta é o evento, e a
+// reconsulta vai nessa conta.
+//
 // FAIL-CLOSED: sem segredo configurado, recusa (o erro herdado que o CLAUDE.md
 // manda não repetir é `!secretEsperado || ...` aceitando qualquer POST).
 //
@@ -17,6 +22,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { assinaturaStripeConfere, confirmarSessaoStripe } from "../lib/stripe.js";
 import { EVENTOS_ESTORNO, registrarEstornoStripe } from "../lib/stripe-estorno.js";
+import type { ContaStripe } from "../../src/lib/stripe-conta.js";
 
 type Req = IncomingMessage & { method?: string; headers: Record<string, string | string[] | undefined> };
 type Res = ServerResponse & { status: (c: number) => Res; json: (b: unknown) => void };
@@ -38,8 +44,11 @@ const EVENTOS = new Set(["checkout.session.completed", "checkout.session.async_p
 export default async function handler(req: Req, res: Res) {
   if (req.method !== "POST") return res.status(405).json({ error: "method not allowed" });
 
-  const segredo = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!segredo) {
+  const segredos: Array<[ContaStripe, string | undefined]> = [
+    ["br", process.env.STRIPE_WEBHOOK_SECRET],
+    ["uk", process.env.STRIPE_UK_WEBHOOK_SECRET],
+  ];
+  if (!segredos.some(([, s]) => s)) {
     console.error("[stripe] STRIPE_WEBHOOK_SECRET ausente, recusando");
     return res.status(500).json({ error: "webhook nao configurado" });
   }
@@ -52,7 +61,9 @@ export default async function handler(req: Req, res: Res) {
   }
 
   const sig = req.headers["stripe-signature"];
-  if (!assinaturaStripeConfere(Array.isArray(sig) ? sig[0] : sig, corpo, segredo)) {
+  const cabecalho = Array.isArray(sig) ? sig[0] : sig;
+  const conta = segredos.find(([, s]) => s && assinaturaStripeConfere(cabecalho, corpo, s))?.[0];
+  if (!conta) {
     console.warn("[stripe] assinatura invalida");
     return res.status(401).json({ error: "assinatura invalida" });
   }
@@ -74,7 +85,7 @@ export default async function handler(req: Req, res: Res) {
       const r = await registrarEstornoStripe(createClient(url, chave, { auth: { persistSession: false } }), {
         type: ev.type,
         data: ev.data,
-      });
+      }, conta);
       return res.status(200).json({ ok: true, ...r });
     } catch (err) {
       console.error("[stripe] estorno falhou:", err);
@@ -93,10 +104,10 @@ export default async function handler(req: Req, res: Res) {
   const sb = createClient(url, chave, { auth: { persistSession: false } });
 
   try {
-    const r = await confirmarSessaoStripe(sb, sessaoId);
+    const r = await confirmarSessaoStripe(sb, sessaoId, conta);
     await sb.from("funnel_events").insert({
       event_name: "stripe_webhook",
-      event_data: { tipo: ev.type, sessao: sessaoId, resultado: r },
+      event_data: { tipo: ev.type, sessao: sessaoId, conta, resultado: r },
     });
     // "não pago" num evento de sessão completa é pagamento assíncrono ainda
     // pendente: 200, e o `async_payment_succeeded` chega depois.

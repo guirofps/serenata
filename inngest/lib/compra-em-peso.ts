@@ -16,6 +16,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mercadoDaMoeda, mercadoDoPais, type Moeda } from "../../src/lib/mercados.js";
 import { paisDoQuiz } from "../../src/lib/pais-quiz.js";
+import { chaveSecretaDa, contasStripeLigadas, VERSAO_API_STRIPE } from "../../src/lib/stripe-conta.js";
 
 type Pedido = { gateway?: string | null; payment_id?: string | null; quiz_response_id?: string | null };
 
@@ -26,18 +27,22 @@ async function moedaDoGateway(pedido: Pedido): Promise<Moeda> {
   // A dLocal Go só está ligada no México (`temDlocal`).
   if (gateway === "dlocalgo" || ref.startsWith("dlocalgo:")) return "mxn";
   const sessao = /^stripe:(cs_(?:test|live)_[A-Za-z0-9]+)$/.exec(ref)?.[1];
-  const chave = process.env.STRIPE_SECRET_KEY;
-  if (!sessao || !chave) return "usd";
-  try {
-    const r = await fetch(`https://api.stripe.com/v1/checkout/sessions/${sessao}`, {
-      headers: { Authorization: `Bearer ${chave}` },
-    });
-    if (!r.ok) return "usd";
-    const s = (await r.json()) as { currency?: string | null };
-    return mercadoDaMoeda(s.currency)?.moeda ?? "usd";
-  } catch {
-    return "usd";
+  if (!sessao) return "usd";
+  // As duas contas (teste `stripe_conta`, 03/11): a sessão só existe numa.
+  for (const conta of contasStripeLigadas()) {
+    try {
+      const r = await fetch(`https://api.stripe.com/v1/checkout/sessions/${sessao}`, {
+        headers: { Authorization: `Bearer ${chaveSecretaDa(conta)}`, "Stripe-Version": VERSAO_API_STRIPE },
+      });
+      if (r.status === 404) continue;
+      if (!r.ok) return "usd";
+      const s = (await r.json()) as { currency?: string | null };
+      return mercadoDaMoeda(s.currency)?.moeda ?? "usd";
+    } catch {
+      return "usd";
+    }
   }
+  return "usd";
 }
 
 /** A moeda desta compra: o país do quiz, se gravado; senão, a moeda que o gateway cobrou. */

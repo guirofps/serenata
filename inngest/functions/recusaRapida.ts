@@ -16,6 +16,7 @@ import { caminhoDeVolta } from "../../src/lib/volta-ao-funil.js";
 import { jaTravado, soltarTrava, travarEnvio } from "../lib/trava-envio.js";
 import { paisDoQuiz } from "../../src/lib/pais-quiz.js";
 import { mercadoDoPais } from "../../src/lib/mercados.js";
+import { chaveSecretaDa, contasStripeLigadas, VERSAO_API_STRIPE, type ContaStripe } from "../../src/lib/stripe-conta.js";
 
 // CARTÃO RECUSADO, AVISO EM 10 MINUTOS (Ballad, teste `recusa_rapida`, 28/10).
 // A regra e os textos moram em `src/lib/recusa-rapida.ts`.
@@ -37,18 +38,18 @@ function db() {
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http") ? process.env.VITE_APP_URL : MARCA_ATIVA.url;
 
-async function stripeGet<T>(caminho: string): Promise<T | null> {
-  const chave = process.env.STRIPE_SECRET_KEY;
+async function stripeGet<T>(caminho: string, conta: ContaStripe = "br"): Promise<T | null> {
+  const chave = chaveSecretaDa(conta);
   if (!chave) return null;
   try {
-    const r = await fetch(`https://api.stripe.com/v1/${caminho}`, { headers: { Authorization: `Bearer ${chave}` } });
+    const r = await fetch(`https://api.stripe.com/v1/${caminho}`, { headers: { Authorization: `Bearer ${chave}`, "Stripe-Version": VERSAO_API_STRIPE } });
     return r.ok ? ((await r.json()) as T) : null;
   } catch {
     return null;
   }
 }
 
-type Cobranca = { id: string; status: string; created: number; payment_intent: string | null; failure_code: string | null; outcome?: { reason?: string | null } | null };
+type Cobranca = { conta?: ContaStripe; id: string; status: string; created: number; payment_intent: string | null; failure_code: string | null; outcome?: { reason?: string | null } | null };
 type Sessao = { id: string; status: string; payment_status: string; currency: string; metadata?: { quiz_id?: string } };
 
 /**
@@ -95,15 +96,20 @@ export const recusaRapida = inngest.createFunction(
       const agora = Date.now();
       const desde = Math.floor((agora - (JANELA_MIN + 10) * 60000) / 1000);
       const cobrancas: Cobranca[] = [];
-      let depois: string | null = null;
-      for (let i = 0; i < 5; i++) {
-        const pg: { data: Cobranca[]; has_more: boolean } | null = await stripeGet<{ data: Cobranca[]; has_more: boolean }>(
-          `charges?limit=100&created[gte]=${desde}${depois ? `&starting_after=${depois}` : ""}`,
-        );
-        if (!pg) break;
-        cobrancas.push(...pg.data);
-        if (!pg.has_more || !pg.data.length) break;
-        depois = pg.data[pg.data.length - 1].id;
+      // As duas contas (teste `stripe_conta`, 03/11): cada cobrança leva a sua,
+      // e a sessão é procurada na mesma.
+      for (const conta of contasStripeLigadas()) {
+        let depois: string | null = null;
+        for (let i = 0; i < 5; i++) {
+          const pg: { data: Cobranca[]; has_more: boolean } | null = await stripeGet<{ data: Cobranca[]; has_more: boolean }>(
+            `charges?limit=100&created[gte]=${desde}${depois ? `&starting_after=${depois}` : ""}`,
+            conta,
+          );
+          if (!pg) break;
+          cobrancas.push(...pg.data.map((c) => ({ ...c, conta })));
+          if (!pg.has_more || !pg.data.length) break;
+          depois = pg.data[pg.data.length - 1].id;
+        }
       }
 
       // Por PaymentIntent: a ÚLTIMA recusa decide a hora e o motivo; uma
@@ -130,7 +136,10 @@ export const recusaRapida = inngest.createFunction(
         const grupo = grupoDoMotivo(motivo);
         if (!grupo) continue;
 
-        const lista = await stripeGet<{ data: Sessao[] }>(`checkout/sessions?payment_intent=${encodeURIComponent(pi)}&limit=1`);
+        const lista = await stripeGet<{ data: Sessao[] }>(
+          `checkout/sessions?payment_intent=${encodeURIComponent(pi)}&limit=1`,
+          ultima.conta,
+        );
         const sessao = lista?.data?.[0];
         const quizId = sessao?.metadata?.quiz_id;
         if (!sessao || !quizId || vistos.has(quizId)) continue;

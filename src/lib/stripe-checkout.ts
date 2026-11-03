@@ -9,6 +9,7 @@ import { localeStripeDe, mercadoDoPais, usdDe, valorNaMoeda as naMoedaDoMercado 
 import { paisDaRequisicao } from "@/lib/pais-requisicao.server";
 import { marcarMoedaDoPedido } from "@/lib/pais-quiz";
 import { impressaoDoCorpo } from "@/lib/impressao-corpo";
+import { contaStripeDoQuiz } from "@/lib/stripe-conta";
 
 // O CHECKOUT DA BALLAD GIFT, do lado do servidor.
 //
@@ -38,7 +39,13 @@ export function urlDoSite(): string {
 }
 
 export type ResultadoCheckout =
-  | { ok: true; clientSecret: string; sessaoId: string }
+  | {
+      ok: true;
+      clientSecret: string;
+      sessaoId: string;
+      /** A chave pública da conta que criou a sessão: o iframe só abre com a mesma conta. */
+      chavePublica?: string;
+    }
   | { ok: false; erro: "sem-musica" | "ja-pago" | "indisponivel" | "falhou" };
 
 export const criarCheckoutStripe = createServerFn({ method: "POST" })
@@ -95,6 +102,8 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
     const valorNaMoeda = naMoedaDoMercado(mercado, centavos);
     // O pedido grava o dólar do que se COBROU (o México tem preço próprio, $199).
     const valorDoPedido = usdDe(mercado, valorNaMoeda);
+    // Teste `stripe_conta` (03/11): qual conta cobra (ver `stripe-conta.ts`).
+    const conta = contaStripeDoQuiz(String(quiz.id));
     const nome = String((quiz.respostas as Record<string, unknown> | null)?.nome ?? "").trim().slice(0, 40);
     const email = String(quiz.email ?? "").trim() || undefined;
 
@@ -172,7 +181,9 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
         "POST",
         "/checkout/sessions",
         corpo,
-        { idempotencia: `ballad-checkout:v6:${quiz.id}:${impressao}` },
+        // A conta entra na chave: a idempotência do Stripe é por conta, mas a
+        // nossa leitura do log fica sem ambiguidade.
+        { idempotencia: `ballad-checkout:v6:${conta}:${quiz.id}:${impressao}`, conta },
       );
       let sessao: { id: string; client_secret: string } | null = null;
       for (let tentativa = 0; !sessao; tentativa++) {
@@ -205,9 +216,14 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
       await db.from("funnel_events").insert({
         event_name: "stripe_checkout_criado",
         session_id: sessionId,
-        event_data: { sessao: sessao.id, valor_centavos: valorDoPedido, moeda, valor_na_moeda: valorNaMoeda, pais },
+        event_data: { sessao: sessao.id, valor_centavos: valorDoPedido, moeda, valor_na_moeda: valorNaMoeda, pais, conta },
       });
-      return { ok: true, clientSecret: sessao.client_secret, sessaoId: sessao.id };
+      return {
+        ok: true,
+        clientSecret: sessao.client_secret,
+        sessaoId: sessao.id,
+        ...(conta === "uk" ? { chavePublica: process.env.STRIPE_UK_PUBLISHABLE_KEY?.trim() } : {}),
+      };
     } catch (err) {
       console.error("[stripe] criar sessão falhou:", err instanceof ErroStripe ? `${err.status} ${err.message}` : err);
       return { ok: false, erro: "falhou" };

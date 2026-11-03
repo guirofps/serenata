@@ -32,6 +32,7 @@ import { ttclidDaVenda } from "../../src/lib/clique-recente.js";
 import { creditarUpsell } from "./creditar-upsell.js";
 import { casasDaMoeda, valorPagoConfere } from "../../src/lib/mercados.js";
 import { OFERTAS } from "../../src/lib/creditos.js";
+import { chaveSecretaDa, contasStripeLigadas, VERSAO_API_STRIPE, type ContaStripe } from "../../src/lib/stripe-conta.js";
 
 const API = "https://api.stripe.com/v1";
 
@@ -62,11 +63,14 @@ export async function stripeApi<T>(
   metodo: "GET" | "POST",
   caminho: string,
   corpo?: Record<string, unknown>,
-  opcoes?: { idempotencia?: string },
+  opcoes?: { idempotencia?: string; conta?: ContaStripe },
 ): Promise<T> {
-  const chave = process.env.STRIPE_SECRET_KEY;
-  if (!chave) throw new ErroStripe("STRIPE_SECRET_KEY ausente", 500);
-  const headers: Record<string, string> = { Authorization: `Bearer ${chave}` };
+  // DUAS CONTAS desde 03/11 (teste `stripe_conta`, `stripe-conta.ts`): sem
+  // dizer qual, a de sempre.
+  const conta = opcoes?.conta ?? "br";
+  const chave = chaveSecretaDa(conta);
+  if (!chave) throw new ErroStripe(`chave do Stripe ausente (${conta})`, 500);
+  const headers: Record<string, string> = { Authorization: `Bearer ${chave}`, "Stripe-Version": VERSAO_API_STRIPE };
   if (corpo) headers["Content-Type"] = "application/x-www-form-urlencoded";
   if (opcoes?.idempotencia) headers["Idempotency-Key"] = opcoes.idempotencia;
   const r = await fetch(`${API}${caminho}`, {
@@ -132,11 +136,24 @@ export type SessaoStripe = {
     | null;
 };
 
-export async function lerSessao(id: string): Promise<SessaoStripe> {
-  return stripeApi<SessaoStripe>(
-    "GET",
-    `/checkout/sessions/${encodeURIComponent(id)}?expand[]=payment_intent.latest_charge.balance_transaction`,
-  );
+/**
+ * A sessão, na conta que a criou. O `payment_id` (`stripe:<sessão>`) não diz
+ * a conta: sem ela, pergunta à de sempre e, se a sessão não existe lá (404),
+ * à do Reino Unido. Quem já sabe a conta (o webhook, pela assinatura) passa.
+ */
+export async function lerSessao(id: string, conta?: ContaStripe): Promise<SessaoStripe & { conta: ContaStripe }> {
+  const caminho = `/checkout/sessions/${encodeURIComponent(id)}?expand[]=payment_intent.latest_charge.balance_transaction`;
+  const contas = conta ? [conta] : contasStripeLigadas();
+  let ultimoErro: unknown = new ErroStripe("nenhuma conta do Stripe configurada", 500);
+  for (const c of contas) {
+    try {
+      return { ...(await stripeApi<SessaoStripe>("GET", caminho, undefined, { conta: c })), conta: c };
+    } catch (err) {
+      ultimoErro = err;
+      if (!(err instanceof ErroStripe) || err.status !== 404) throw err;
+    }
+  }
+  throw ultimoErro;
 }
 
 /**
@@ -203,8 +220,9 @@ export type ResultadoConfirmacao =
 export async function confirmarSessaoStripe(
   sb: SupabaseClient,
   sessaoId: string,
+  conta?: ContaStripe,
 ): Promise<ResultadoConfirmacao> {
-  const s = await lerSessao(sessaoId);
+  const s = await lerSessao(sessaoId, conta);
   if (s.payment_status !== "paid") return { ok: false, motivo: "nao-pago" };
 
   const paymentId = `stripe:${s.id}`;
@@ -274,7 +292,7 @@ export async function confirmarSessaoStripe(
   if (outroPago?.length) {
     await alertarDono(
       "Segundo pagamento do mesmo quiz (Stripe)",
-      `<p>Quiz <code>${quizId}</code> já estava pago por <code>${outroPago[0].payment_id}</code> e foi pago de novo pela sessão <code>${s.id}</code>. NÃO reentregue; avalie reembolso no painel do Stripe.</p>`,
+      `<p>Quiz <code>${quizId}</code> já estava pago por <code>${outroPago[0].payment_id}</code> e foi pago de novo pela sessão <code>${s.id}</code>. NÃO reentregue; avalie reembolso no painel do Stripe (conta ${s.conta === "uk" ? "do Reino Unido" : "de sempre"}).</p>`,
     );
     return { ok: true, entregue: false, quizId };
   }

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { stripeApi } from "./stripe.js";
+import type { ContaStripe } from "../../src/lib/stripe-conta.js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { avisarDonos } from "../../src/lib/avisar-donos.js";
 
@@ -37,10 +38,12 @@ async function alertar(assunto: string, html: string) {
 }
 
 /** Os pedidos nossos daquele pagamento: a sessão do checkout é a nossa chave (`stripe:<sessão>`). */
-async function pedidosDoPagamento(sb: SupabaseClient, paymentIntent: string) {
+async function pedidosDoPagamento(sb: SupabaseClient, paymentIntent: string, conta: ContaStripe) {
   const r = await stripeApi<{ data: Array<{ id: string }> }>(
     "GET",
     `/checkout/sessions?payment_intent=${encodeURIComponent(paymentIntent)}&limit=5`,
+    undefined,
+    { conta },
   );
   const ids = (r.data ?? []).map((s) => `stripe:${s.id}`);
   if (!ids.length) return [];
@@ -55,6 +58,8 @@ async function pedidosDoPagamento(sb: SupabaseClient, paymentIntent: string) {
 export async function registrarEstornoStripe(
   sb: SupabaseClient,
   ev: { type: string; data?: { object?: { id?: string } } },
+  /** A conta do evento, pela assinatura que conferiu (`api/webhook/stripe.ts`). */
+  conta: ContaStripe = "br",
 ): Promise<Record<string, unknown>> {
   const id = ev.data?.object?.id;
   if (!id) return { ignorado: "sem id" };
@@ -65,14 +70,14 @@ export async function registrarEstornoStripe(
   let parcial = false;
   let detalhe = "";
   if (chargeback) {
-    const d = await stripeApi<Disputa>("GET", `/disputes/${encodeURIComponent(id)}`);
+    const d = await stripeApi<Disputa>("GET", `/disputes/${encodeURIComponent(id)}`, undefined, { conta });
     paymentIntent = d.payment_intent ?? null;
     const prazo = d.evidence_details?.due_by
       ? new Date(d.evidence_details.due_by * 1000).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
       : "?";
     detalhe = `Contestação ${d.id}: motivo ${d.reason ?? "?"}, US$ ${(d.amount / 100).toFixed(2)}, prazo de defesa ${prazo}.`;
   } else {
-    const c = await stripeApi<Charge>("GET", `/charges/${encodeURIComponent(id)}`);
+    const c = await stripeApi<Charge>("GET", `/charges/${encodeURIComponent(id)}`, undefined, { conta });
     paymentIntent = c.payment_intent ?? null;
     parcial = !c.refunded && c.amount_refunded > 0 && c.amount_refunded < c.amount;
     if (!c.refunded && !parcial) return { ignorado: "cobrança sem estorno na reconsulta" };
@@ -83,7 +88,8 @@ export async function registrarEstornoStripe(
     return { nota: "sem payment_intent" };
   }
 
-  const lista = await pedidosDoPagamento(sb, paymentIntent);
+  const lista = await pedidosDoPagamento(sb, paymentIntent, conta);
+  if (conta === "uk") detalhe += " (conta do Reino Unido)";
   const resumo = lista.map((p) => `${p.payment_id} (${p.status}, ${p.valor_centavos}, ${p.email ?? "sem e-mail"})`);
 
   if (parcial) {

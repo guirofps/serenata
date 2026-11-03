@@ -66,13 +66,20 @@ const TEXTOS = {
   },
 } as const;
 
-// Só quando a folha de pagamento ABRE, e uma vez só (o `useMemo` abaixo chama).
-let stripePromise: Promise<Stripe | null> | null = null;
-function stripe() {
-  const chave = (import.meta.env?.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined)?.trim();
+// Só quando a folha de pagamento ABRE, e uma vez só por conta (o `useMemo`
+// abaixo chama). DUAS CONTAS desde 03/11 (teste `stripe_conta`): a sessão
+// criada na conta do Reino Unido só abre com a chave pública dela, que o
+// servidor devolve junto com a sessão. Sem ela, a de sempre.
+const stripePromises = new Map<string, Promise<Stripe | null>>();
+function stripe(chavePublica?: string) {
+  const chave = chavePublica?.trim() || (import.meta.env?.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined)?.trim();
   if (!chave) return null;
-  stripePromise ??= import("@stripe/stripe-js/pure").then((m) => m.loadStripe(chave));
-  return stripePromise;
+  let p = stripePromises.get(chave);
+  if (!p) {
+    p = import("@stripe/stripe-js/pure").then((m) => m.loadStripe(chave));
+    stripePromises.set(chave, p);
+  }
+  return p;
 }
 
 // O componente do iframe, pela mesma porta: pedido quando a folha monta, em
@@ -109,7 +116,9 @@ export function CheckoutStripe({
   const [tentativa, setTentativa] = useState(0);
   // A folha montou = a pessoa tocou em pagar: só agora o Stripe.js baixa, em
   // paralelo com a criação da sessão.
-  const sp = useMemo(() => stripe(), []);
+  const spPadrao = useMemo(() => stripe(), []);
+  const [chavePublica, setChavePublica] = useState<string | undefined>();
+  const sp = useMemo(() => (chavePublica ? stripe(chavePublica) : spPadrao), [chavePublica, spPadrao]);
   const abertaEm = useRef(Date.now());
   const [CheckoutEmbutido, setCheckoutEmbutido] = useState<typeof Embutido | null>(null);
   // Teste `aviso_recusa` (18/10): ver `aviso-recusa.ts`.
@@ -177,6 +186,7 @@ export function CheckoutStripe({
       .then((r) => {
         if (!vivo) return;
         if (r.ok) {
+          setChavePublica(r.chavePublica);
           setClientSecret(r.clientSecret);
           trackEvent("stripe_checkout_abriu", { sessao: r.sessaoId });
           return;

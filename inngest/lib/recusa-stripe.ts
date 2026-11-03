@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { sessaoTeveRecusa } from "../../src/lib/aviso-recusa.js";
+import { chaveSecretaDa, contasStripeLigadas, VERSAO_API_STRIPE } from "../../src/lib/stripe-conta.js";
 
 // O CARTÃO DESTE QUIZ FOI RECUSADO NO STRIPE? (Ballad, 18/10)
 //
@@ -11,8 +12,9 @@ import { sessaoTeveRecusa } from "../../src/lib/aviso-recusa.js";
 // Erro aqui vira "não sei" (false): o pior caso é ela receber o e-mail de
 // sempre, que é o que recebia antes deste teste.
 export async function teveRecusaStripe(sb: SupabaseClient, quizId: string): Promise<boolean> {
-  const chave = process.env.STRIPE_SECRET_KEY;
-  if (MARCA_ATIVA.chave !== "ballad" || !chave) return false;
+  // As duas contas (teste `stripe_conta`, 03/11): a sessão só existe numa.
+  const chaves = contasStripeLigadas().map((c) => chaveSecretaDa(c)).filter(Boolean) as string[];
+  if (MARCA_ATIVA.chave !== "ballad" || !chaves.length) return false;
   const { data, error } = await sb
     .from("pedidos")
     .select("payment_id, status")
@@ -22,15 +24,18 @@ export async function teveRecusaStripe(sb: SupabaseClient, quizId: string): Prom
   for (const p of (data ?? []).slice(0, 5)) {
     const id = String(p.payment_id ?? "").slice("stripe:".length);
     if (!id.startsWith("cs_")) continue;
-    try {
-      const r = await fetch(
-        `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(id)}?expand[]=payment_intent`,
-        { headers: { Authorization: `Bearer ${chave}` } },
-      );
-      if (!r.ok) continue;
-      if (sessaoTeveRecusa(await r.json())) return true;
-    } catch {
-      // Rede piscou: segue pra próxima sessão; nada achado = e-mail de sempre.
+    for (const chave of chaves) {
+      try {
+        const r = await fetch(
+          `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(id)}?expand[]=payment_intent`,
+          { headers: { Authorization: `Bearer ${chave}`, "Stripe-Version": VERSAO_API_STRIPE } },
+        );
+        if (!r.ok) continue;
+        if (sessaoTeveRecusa(await r.json())) return true;
+        break;
+      } catch {
+        // Rede piscou: segue pra próxima sessão; nada achado = e-mail de sempre.
+      }
     }
   }
   return false;
