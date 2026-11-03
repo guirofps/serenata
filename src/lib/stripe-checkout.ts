@@ -118,6 +118,13 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
       const corpo = {
           ui_mode: "embedded",
           mode: "payment",
+          // SÓ CARTÃO na conta do Reino Unido (teste `stripe_conta`, 03/11). Ela
+          // nasceu com Link, Amazon Pay, Klarna e outros ligados, e com mais de
+          // um método o Stripe mostra o cartão FECHADO numa lista (um toque a
+          // mais antes de digitar). A conta de sempre só tem cartão. Apple Pay e
+          // Google Pay continuam: são carteiras do tipo `card`. Assim o teste
+          // compara a conta, não o caixa.
+          ...(conta === "uk" ? { payment_method_types: ["card"] } : {}),
           // O idioma DA PÁGINA, nunca o do navegador: o Stripe seguia o do
           // aparelho, e um americano com o celular em espanhol (comum nos EUA)
           // via o caixa em outra língua que não a da página que acabou de ler.
