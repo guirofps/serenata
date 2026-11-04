@@ -15,6 +15,7 @@ import { conviteDaCompra } from "@/lib/indicacao-db";
 import { descontoDoConvite } from "@/lib/indicacao";
 import { MARCA_ATIVA } from "./marca-identidade.js";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
+import { gatewayDoTeste } from "@/lib/pix-gateway-ab";
 
 // GERA O PIX DO CHECKOUT TRANSPARENTE.
 //
@@ -412,16 +413,18 @@ export const criarPix = createServerFn({ method: "POST" })
     // correção na tela, com a pessoa ainda olhando o campo. Se fosse o Asaas
     // recusando, ela veria "não consegui gerar o PIX agora" — o aviso
     // genérico, que não diz o que fazer e vira abandono.
-    const gw = gatewayPix();
+    //
+    // TESTE `pix_gateway` (04/11): metade das sessões no Asaas, metade na
+    // Woovi (`pix-gateway-ab.ts`). Fora do teste, o `gatewayPix()` de sempre.
+    const gwTeste = gatewayDoTeste(data.sessionId);
+    let gw: GatewayPix = gwTeste === "asaas" ? asaasPix : gwTeste === "woovi" ? woovi : gatewayPix();
     const cpf = soDigitosCpf(data.cpf);
     if (gw.exigeCpf) {
       if (!cpf) return { ok: false, erro: "cpf-necessario" };
       if (!cpfValido(cpf)) return { ok: false, erro: "cpf-invalido" };
     }
 
-    let cobranca;
-    try {
-      cobranca = await gw.criar({
+    const pedidoAoGateway = {
         referencia,
         valorCentavos,
         descricao: `Serenata · ${musica.titulo ?? "sua música"}`,
@@ -438,13 +441,40 @@ export const criarPix = createServerFn({ method: "POST" })
         // inteira com telefone torto, e perder a venda pra mandar um numero
         // errado seria o pior negocio possivel.
         telefone: telefoneDaVenda,
-      });
+      };
+
+    let cobranca;
+    try {
+      cobranca = await gw.criar(pedidoAoGateway);
     } catch (err) {
-      // Sem failover automático de propriedade: os dois gateways pedem coisas
-      // diferentes (o Asaas exige CPF, a Woovi não), então cair de um pro
-      // outro no meio da chamada pediria um dado que a tela nem mostrou. A
-      // troca é pelo `PIX_GATEWAY`, consciente, e aqui a falha é limpa: a
-      // tela oferece o checkout antigo, que sempre funciona.
+      // ── O ASAAS DO TESTE FALHOU: A WOOVI GERA NA HORA (04/11) ────
+      //
+      // O Asaas ficou só no cartão de 21/10 a 04/11 e o PIX dele voltou pelo
+      // teste sem uma cobrança real antes. Desde 21/10 os dois pedem CPF, então
+      // a Woovi recebe exatamente o que a tela mandou: a pessoa ganha o QR e
+      // nem vê. O evento conta quantas vezes, e vários seguidos = desligar
+      // o teste (`PIX_GATEWAY_AB_OFF=1`). Cobrança já paga não cai: é resposta,
+      // não falha.
+      const jaPaga = err instanceof ErroGateway && err.message === COBRANCA_JA_PAGA;
+      if (gwTeste === "asaas" && !jaPaga) {
+        const motivoAsaas = String((err as Error)?.message ?? err).slice(0, 300);
+        try {
+          cobranca = await woovi.criar(pedidoAoGateway);
+          gw = woovi;
+          void db
+            .from("funnel_events")
+            .insert({
+              event_name: "pix_gateway_failover",
+              event_data: { de: "asaas", para: "woovi", motivo: motivoAsaas, sessionId: data.sessionId },
+            })
+            .then(({ error }) => {
+              if (error) console.error("[criar-pix] gravar failover falhou:", error.message);
+            });
+        } catch {
+          // A Woovi também falhou: segue com o erro do Asaas, abaixo.
+        }
+      }
+      if (!cobranca) {
       const g = err instanceof ErroGateway ? err : null;
       const motivo = String(g?.message ?? (err as Error)?.message ?? err).slice(0, 300);
       // O GATEWAY SABE QUE JÁ FOI PAGA e o nosso banco não (webhook perdido,
@@ -486,7 +516,9 @@ export const criarPix = createServerFn({ method: "POST" })
           if (error) console.error("[criar-pix] gravar recusa falhou:", error.message);
         });
       return { ok: false, erro: "gateway" };
+      }
     }
+    if (!cobranca) return { ok: false, erro: "gateway" };
 
     // A REFERÊNCIA QUE VALE É A QUE VOLTOU, não a que mandamos: quando a
     // cobrança anterior daquele quiz venceu, a Woovi recusa reaproveitar o id
