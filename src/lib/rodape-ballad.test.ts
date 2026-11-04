@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { PAUTA_ES } from "@/conteudo/blog-es/pauta";
-import { RESPONSAVEL, cnpjFormatado } from "@/lib/empresa";
+import { RESPONSAVEL, VENDEDOR_BALLAD, cnpjFormatado } from "@/lib/empresa";
 import { rodapeBallad, type LinkRodape } from "./rodape-ballad";
 
 const ROTAS = new Set(["/", "/criar", "/termos", "/privacidade", "/es", "/es/criar", "/es/blog"]);
@@ -56,10 +56,11 @@ describe.each(["en", "es"] as const)("rodapé da Ballad (%s)", (idioma) => {
     expect(r.selos.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("quem vende é o EMPRESA (o RESPONSAVEL é só da Serenata)", () => {
-    expect(r.empresa).toContain(cnpjFormatado());
+  it("quem vende é a razão social + CNPJ do VENDEDOR_BALLAD (exigência da dLocal Go)", () => {
+    expect(r.empresa).toContain(VENDEDOR_BALLAD.razaoSocial);
+    expect(r.empresa).toContain(cnpjFormatado(VENDEDOR_BALLAD.cnpj));
+    expect(r.empresa).not.toContain(cnpjFormatado());
     expect(JSON.stringify(r)).not.toContain(RESPONSAVEL.nome);
-    expect(JSON.stringify(r)).not.toContain(cnpjFormatado(RESPONSAVEL.cnpj));
   });
 });
 

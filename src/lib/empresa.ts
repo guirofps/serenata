@@ -61,6 +61,17 @@ export const RECEBEDOR = {
   cnpj: "69498792000172",
 } as const;
 
+// QUEM VENDE NA BALLAD (04/11): a mesma ROCKETFY da Serenata, pela RAZÃO SOCIAL.
+// O compliance da dLocal Go recusou a conta nova até os termos trazerem razão
+// social e CNPJ iguais ao cadastro ("Operated by a company registered in Brazil"
+// sem nome não basta). Até 04/11 a Ballad mostrava o CNPJ antigo do EMPRESA, de
+// São Caetano. Termos, privacidade e rodapé (inglês e espanhol) leem daqui.
+export const VENDEDOR_BALLAD = {
+  razaoSocial: "ROCKETFY TECNOLOGIA LTDA",
+  cnpj: "69498792000172",
+  endereco: "Rua Taubaté, 450, Vila Camilópolis, Santo André, SP, 09230-310, Brazil",
+} as const;
+
 /** O nome que veio no código PIX é da nossa conta? */
 export function ehDoRecebedor(nome: string): boolean {
   const n = nome.trim().toUpperCase();

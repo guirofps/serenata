@@ -3,8 +3,8 @@
 // `MARCAS.ballad` direto, sem depender da env.
 //
 // Sem promessa de devolução nem garantia (regra da casa, `rodape-ballad.test.ts`).
-// Quem vende é o EMPRESA: o RESPONSAVEL do `empresa.ts` é só da Serenata.
-import { cnpjFormatado } from "./empresa";
+// Quem vende é o VENDEDOR_BALLAD (razão social + CNPJ, exigência da dLocal Go, 04/11).
+import { VENDEDOR_BALLAD, cnpjFormatado } from "./empresa";
 import type { Locale } from "./i18n";
 import { MARCAS } from "./marca-identidade";
 
@@ -99,7 +99,7 @@ export function rodapeBallad(idioma: "en" | "es", ano: number = new Date().getFu
         },
       ],
       idiomas,
-      empresa: `Operada por una empresa registrada en Brasil · CNPJ ${cnpjFormatado()}`,
+      empresa: `Operada por ${VENDEDOR_BALLAD.razaoSocial}, empresa registrada en Brasil · CNPJ ${cnpjFormatado(VENDEDOR_BALLAD.cnpj)}`,
       copyright,
     };
   }
@@ -141,7 +141,7 @@ export function rodapeBallad(idioma: "en" | "es", ano: number = new Date().getFu
       },
     ],
     idiomas,
-    empresa: `Operated by a company registered in Brazil · CNPJ ${cnpjFormatado()}`,
+    empresa: `Operated by ${VENDEDOR_BALLAD.razaoSocial}, a company registered in Brazil · CNPJ ${cnpjFormatado(VENDEDOR_BALLAD.cnpj)}`,
     copyright,
   };
 }

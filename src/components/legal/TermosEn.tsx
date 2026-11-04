@@ -1,5 +1,5 @@
 import { Documento, Secao, SUPORTE } from "@/components/legal/Documento";
-import { cnpjFormatado } from "@/lib/empresa";
+import { VENDEDOR_BALLAD, cnpjFormatado } from "@/lib/empresa";
 import { DIAS_GARANTIA } from "@/lib/garantia";
 import { MARCA } from "@/lib/marca";
 
@@ -35,11 +35,11 @@ const linkSuporte = (
 
 export function TermosEn() {
   return (
-    <Documento titulo="Terms of Service" atualizado="September 29, 2026">
+    <Documento titulo="Terms of Service" atualizado="November 4, 2026">
       <p>
         These terms are an agreement between you and {MARCA.nome} ("we", "us"). {MARCA.nome} is
-        operated by a company registered in Brazil (CNPJ {cnpjFormatado()}, São Caetano do Sul, SP,
-        Brazil). By using <strong>{MARCA.dominio}</strong> or making a purchase, you agree to these
+        operated by {VENDEDOR_BALLAD.razaoSocial}, a company registered in Brazil (CNPJ{" "}
+        {cnpjFormatado(VENDEDOR_BALLAD.cnpj)}, {VENDEDOR_BALLAD.endereco}). By using <strong>{MARCA.dominio}</strong> or making a purchase, you agree to these
         terms. If you don't agree, please don't use the site.
       </p>
       <p>You must be at least 18 years old to make a purchase.</p>

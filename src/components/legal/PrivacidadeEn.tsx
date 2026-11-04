@@ -1,5 +1,5 @@
 import { Documento, Secao, SUPORTE } from "@/components/legal/Documento";
-import { cnpjFormatado } from "@/lib/empresa";
+import { VENDEDOR_BALLAD, cnpjFormatado } from "@/lib/empresa";
 import { MARCA } from "@/lib/marca";
 
 // POLÍTICA DE PRIVACIDADE DA BALLAD GIFT (EUA, inglês).
@@ -32,7 +32,7 @@ const linkSuporte = (
 
 export function PrivacidadeEn() {
   return (
-    <Documento titulo="Privacy Policy" atualizado="September 29, 2026">
+    <Documento titulo="Privacy Policy" atualizado="November 4, 2026">
       <p>
         This policy explains what data {MARCA.nome} collects, why we collect it, who we share it
         with, and what you can ask us to do with it at any time. It applies to{" "}
@@ -41,8 +41,9 @@ export function PrivacidadeEn() {
 
       <Secao n={1} titulo="Who we are">
         <p>
-          {MARCA.nome} is operated by a company registered in Brazil (CNPJ {cnpjFormatado()}, São
-          Caetano do Sul, SP, Brazil), which is responsible for your data. For any privacy question
+          {MARCA.nome} is operated by {VENDEDOR_BALLAD.razaoSocial}, a company registered in Brazil
+          (CNPJ {cnpjFormatado(VENDEDOR_BALLAD.cnpj)}, {VENDEDOR_BALLAD.endereco}), which is
+          responsible for your data. For any privacy question
           or request, email {linkSuporte}. We reply within 30 days, and usually much sooner.
         </p>
       </Secao>

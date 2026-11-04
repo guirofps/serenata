@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Logo } from "@/components/marca/Logo";
 import { MARCA, TEMA_CLARO } from "@/lib/marca";
-import { RESPONSAVEL, cnpjFormatado } from "@/lib/empresa";
+import { RESPONSAVEL, VENDEDOR_BALLAD, cnpjFormatado } from "@/lib/empresa";
 import { LOCALE_PADRAO } from "@/lib/i18n";
 
 /**
@@ -24,7 +24,7 @@ const MOLDURA = EN
       atualizado: "Last updated: ",
       // O americano não sabe o que é CNPJ: diz primeiro que é empresa
       // brasileira, e o número vem depois, como identificação.
-      empresa: `${MARCA.nome} is operated by a company registered in Brazil`,
+      empresa: `${MARCA.nome} is operated by ${VENDEDOR_BALLAD.razaoSocial}, a company registered in Brazil`,
       duvidas: "Questions or requests:",
       voltar: "Back to the site",
     }
@@ -79,7 +79,10 @@ export function Documento({
         <div className="mt-12 border-t border-primary/10 pt-6 text-sm text-muted-foreground">
           <p className="font-medium text-foreground">{MOLDURA.empresa}</p>
           {EN ? (
-            <p>CNPJ (Brazilian company ID) {cnpjFormatado()}, São Caetano do Sul, SP, Brazil</p>
+            <>
+              <p>CNPJ (Brazilian company ID) {cnpjFormatado(VENDEDOR_BALLAD.cnpj)}</p>
+              <p>{VENDEDOR_BALLAD.endereco}</p>
+            </>
           ) : (
             <>
               <p>CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}</p>
