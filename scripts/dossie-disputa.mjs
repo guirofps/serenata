@@ -357,7 +357,15 @@ const inicioQuiz = quiz?.created_at ?? pedido.created_at;
 const nomeNoQuiz = String(respostas.nome ?? "").trim();
 const nomeNoPix = String(pedido.nome_pagador ?? "").trim();
 const normal = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
+// NA WOOVI E NO ASAAS ESSE TEXTO É NOSSO (04/11): o `criar-pix.ts` grava em
+// `nome_pagador` o nome do comprador ou, sem ele, o `respostas.nome` do quiz.
+// Comparar os dois é comparar o campo com ele mesmo: em 15 dias, 419 de 497
+// pedidos da Woovi "batiam". Afirmar isso como prova independente é exatamente
+// a frase que o analista derruba. Só vale onde o texto veio do checkout do
+// cliente (Perfect Pay, Stripe).
+const nomeEhNosso = ["woovi", "asaas"].includes(String(pedido.gateway ?? ""));
 const batemOsNomes = Boolean(
+  !nomeEhNosso &&
   nomeNoQuiz && nomeNoPix &&
   nomeNoPix !== (pedido.titular_pix ?? "") &&
   (normal(nomeNoPix).includes(normal(nomeNoQuiz)) || normal(nomeNoQuiz).includes(normal(nomeNoPix))),
@@ -525,7 +533,7 @@ const html = `<!DOCTYPE html>
   ${bloco("Cobrança criada em", dataHora(pedido.created_at))}
   ${bloco("Pagamento confirmado em", `<span class="forte">${dataHora(pedido.paid_at)}</span>`)}
   ${bloco("Titular da conta pagadora", esc(pedido.titular_pix ?? pedido.nome_pagador))}
-  ${nomeNoPix && nomeNoPix !== (pedido.titular_pix ?? "") ? bloco("Descrição escrita pelo pagador", `“${esc(nomeNoPix)}”`) : ""}
+  ${!nomeEhNosso && nomeNoPix && nomeNoPix !== (pedido.titular_pix ?? "") ? bloco("Descrição escrita pelo pagador", `“${esc(nomeNoPix)}”`) : ""}
   ${bloco("E-mail informado pelo comprador", esc(pedido.email))}
   ${bloco("Telefone informado pelo comprador", esc(pedido.telefone))}
 </dl>

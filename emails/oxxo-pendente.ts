@@ -40,11 +40,18 @@ export function assuntoOxxoPendente(a: Pick<ArgsOxxoPendente, "nome" | "toque" |
   return `Tu ficha de OXXO para la canción de ${a.nome} sigue activa`;
 }
 
-/** O "já pagou?" do rodapé: a loja só no México. */
+/**
+ * O "já pagou?", logo abaixo do título (04/11). Ficava no rodapé e dizia "unas
+ * horas", e não é: a dLocal confirma o pagamento em dinheiro NO DIA SEGUINTE,
+ * num lote só (medido 30/10-04/11: todas as fichas pagas na loja aprovadas às
+ * 13h31 de Brasília, 10h31 no centro do México, 1 a 3 dias depois de gerar; o
+ * nosso lado marca pago no mesmo minuto). Quem já tinha pago recebia "tu ficha
+ * sigue activa" e escrevia "ya pagué y no me llegó" (Gabriela, 3 músicas, 02/11).
+ */
 function jaPagou(a: Pick<ArgsOxxoPendente, "pais">): string {
   return ehFichaLatam(a.pais)
-    ? "Si ya pagaste, no hagas nada: el pago puede tardar unas horas en confirmarse y la canción llega sola."
-    : "Si ya pagaste, no hagas nada: el pago en OXXO tarda unas horas en confirmarse y la canción llega sola.";
+    ? "¿Ya pagaste? No hagas nada y no pagues de nuevo: el pago en efectivo se confirma hasta el día siguiente, y la canción llega sola a este correo."
+    : "¿Ya pagaste en OXXO? No hagas nada y no pagues de nuevo: OXXO nos confirma el pago al día siguiente, en la mañana, y la canción llega sola a este correo.";
 }
 
 function linhas(a: ArgsOxxoPendente) {
@@ -107,6 +114,7 @@ export function emailOxxoPendente(a: ArgsOxxoPendente): string {
         <tr><td height="4" style="background:linear-gradient(90deg,#7d2b3a,#c9a227);"></td></tr>
         <tr><td style="padding:34px 28px 30px;">
           <p style="margin:0;font-size:22px;line-height:1.3;color:#2a1518;">${esc(L.titulo)}</p>
+          <p style="margin:14px 0 0;padding:12px 14px;background:#f2e9dc;border-radius:10px;font-size:14px;line-height:1.5;color:#2a1518;font-family:Helvetica,Arial,sans-serif;">${esc(jaPagou(a))}</p>
           ${corpo
             .map(
               (p, i) =>
@@ -119,11 +127,11 @@ export function emailOxxoPendente(a: ArgsOxxoPendente): string {
             </a>
           </td></tr></table>
           <p style="margin:22px 0 0;padding-top:16px;border-top:1px solid rgba(42,21,24,0.08);font-size:13px;line-height:1.55;color:rgba(42,21,24,0.6);font-family:Helvetica,Arial,sans-serif;">
-            ${esc(jaPagou(a))}${
+            ${
               a.linkCartao
-                ? `<br>¿Prefieres pagar con tarjeta? <a href="${esc(a.linkCartao)}" style="color:#7d2b3a;">Termina aquí</a>.`
+                ? `¿Prefieres pagar con tarjeta? <a href="${esc(a.linkCartao)}" style="color:#7d2b3a;">Termina aquí</a>.<br>`
                 : ""
-            }<br>Si algo no abre, responde este correo y lo resolvemos.
+            }Si algo no abre, responde este correo y lo resolvemos.
           </p>
           <p style="margin:18px 0 0;color:rgba(42,21,24,0.4);font-size:11px;font-family:Helvetica,Arial,sans-serif;">
             ${esc(MARCA_ATIVA.nome)} · una canción hecha de la historia de quien tú quieres
@@ -140,11 +148,12 @@ export function textoOxxoPendente(a: ArgsOxxoPendente): string {
   return [
     L.titulo,
     "",
+    jaPagou(a),
+    "",
     ...L.corpo,
     "",
     `${ehFichaLatam(a.pais) ? "Tu pago" : "Tu ficha"}: ${a.linkFicha}`,
     "",
-    jaPagou(a),
     ...(a.linkCartao ? [`¿Prefieres pagar con tarjeta? ${a.linkCartao}`] : []),
   ].join("\n");
 }

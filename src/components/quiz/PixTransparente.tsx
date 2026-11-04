@@ -14,6 +14,7 @@ import { usePausarVideosAtras, useVoltarFechaAFolha } from "@/lib/folha-pagament
 import { guardarTransacao } from "@/lib/google-ads";
 import { pagamentoGa4 } from "@/lib/ga4";
 import { PixPagamento } from "@/components/quiz/PixPagamento";
+import { EXP_PIX_VOLTE, emailDaCaixa, pixVolteLigado } from "@/lib/pix-volte";
 import { ResumoDoPedido } from "@/components/quiz/ResumoDoPedido";
 import { Button } from "@/components/ui/button";
 import { TelaCpf } from "@/components/quiz/TelaCpf";
@@ -135,6 +136,16 @@ export function PixTransparente({
   // fica exatamente como era, sem nem encostar no armazenamento.
   const [braco] = useState(() => bracoDaFolha(varianteDe(EXP_FOLHA_PIX)));
   const [cpfLembrado] = useState(() => (cpfNoResumo(braco) ? lerCpfGuardado() : ""));
+  // TESTE `pix_volte` (`pix-volte.ts`): a caixa "depois de pagar, volte aqui"
+  // na tela do QR. Esta folha só existe no funil pt. Lido uma vez por abertura.
+  const [bracoVolte] = useState(() => varianteDe(EXP_PIX_VOLTE));
+  const volte = pixVolteLigado(bracoVolte, "pt");
+  const contouVolte = useRef(false);
+  useEffect(() => {
+    if (fase.t !== "pronto" || contouVolte.current) return;
+    contouVolte.current = true;
+    trackEvent("pix_volte_exposto", { braco: bracoVolte });
+  }, [fase.t, bracoVolte]);
   // Uma vez por abertura (a folha monta a cada "comprar"). A trava existe
   // pro StrictMode do dev, que roda o efeito duas vezes.
   const contouAbertura = useRef(false);
@@ -432,6 +443,7 @@ export function PixTransparente({
   if (fase.t === "pronto") {
     return (
       <PixPagamento
+        avisoVolte={volte ? { email: emailDaCaixa(ultimaTentativa.current?.[0] ?? email) } : undefined}
         copiaECola={fase.dados.copiaECola}
         // O VALOR AQUI SAI DA COBRANCA, NAO DA OFERTA.
         //

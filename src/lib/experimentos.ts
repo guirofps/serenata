@@ -425,6 +425,14 @@ export const EXPERIMENTOS: Experimento[] = [
     ativo: false,
     nota: "SERENATA, 16/10. ~7% das letras não têm o nome como foi digitado (apelido, 'meu amor') e convertem 14,5% contra 16,8%. A = a mensagem da letra de hoje. B = a mesma mensagem + instrução: o nome exatamente como digitado, cantado pelo menos no refrão ou na intro, apelido só junto. Braço lido pelo servidor (quiz_responses.attribution.exp.nome_cantado + esta linha). Ler por RECEITA POR LEAD e % de letras finais com o nome exato, por braço.",
   },
+  {
+    // SÓ SERENATA (a folha do PIX é do funil pt). Ver `pix-volte.ts`.
+    id: "pix_volte",
+    variantes: ["A", "B"],
+    peso: [1, 1],
+    ativo: false,
+    nota: "SERENATA, 04/11. Tela do QR do PIX. A = como é hoje. B = caixa logo abaixo do botão de copiar: depois de pagar, volte para esta tela, a sua música abre aqui sozinha, + o e-mail onde ela também chega. Motivo: 'paguei e não recebi' é o 1º assunto do suporte e quase sempre a pessoa recebeu; a Teresinha abriu MED 25 min depois de pagar sem voltar à aba. Ler por MED/suporte 'não recebi' por comprador e PAGO ÷ PIX GERADO (não pode cair); diagnóstico pix_volte_exposto (braco). Pós-clique: no POS_COMPRA do vigiaExperimento.",
+  },
 ];
 
 /**

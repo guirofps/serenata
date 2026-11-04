@@ -93,7 +93,14 @@ export function PixPagamento({
   referencia,
   aoPagar,
   aoEscolherCartao,
+  avisoVolte,
 }: {
+  /**
+   * TESTE `pix_volte` (`pix-volte.ts`), braço B: a caixa "depois de pagar, volte
+   * aqui" logo abaixo do botão de copiar, com o e-mail onde a música chega
+   * (`null` = sem e-mail na caixa). `undefined` = como sempre foi.
+   */
+  avisoVolte?: { email: string | null };
   copiaECola: string;
   /** O preço como a pessoa viu na oferta, só pra confirmar na tela. */
   valorTexto: string;
@@ -257,6 +264,22 @@ export function PixPagamento({
           Abra o aplicativo do seu banco, escolha PIX, e use{" "}
           <span className="font-medium text-foreground">Pix Copia e Cola</span>.
         </p>
+        {avisoVolte ? (
+          <div className="rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-center">
+            <p className="text-sm font-semibold text-foreground">
+              Depois de pagar, volte para esta tela 👈
+            </p>
+            <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
+              A sua música abre aqui sozinha.
+              {avisoVolte.email ? (
+                <>
+                  {" "}Ela também chega no seu e-mail:{" "}
+                  <span className="break-all font-medium text-foreground">{avisoVolte.email}</span>
+                </>
+              ) : null}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <AvisoNomeNoBanco copiaECola={copiaECola} />
