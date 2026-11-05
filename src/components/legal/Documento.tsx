@@ -81,12 +81,10 @@ export function Documento({
           {EN ? (
             <>
               <p>CNPJ (Brazilian company ID) {cnpjFormatado(VENDEDOR_BALLAD.cnpj)}</p>
-              <p>{VENDEDOR_BALLAD.endereco}</p>
             </>
           ) : (
             <>
               <p>CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}</p>
-              <p>{RESPONSAVEL.endereco}</p>
             </>
           )}
           <p className="mt-2">

@@ -413,12 +413,10 @@ function Home() {
         <p className="mt-10 text-center text-xs text-[var(--tinta-fraca)]">
           {MARCA.dominio} · © {new Date().getFullYear()} {MARCA.nome}
         </p>
-        {/* A IDENTIFICAÇÃO DO FORNECEDOR é obrigação do CDC pra venda online
-            (razão social, CNPJ e endereço físico, Decreto 7.962/2013). */}
+        {/* Identificação do fornecedor: nome e CNPJ. SEM endereço (05/11, dono):
+            o endereço do CNPJ é a casa dele. Ver `RESPONSAVEL` em empresa.ts. */}
         <p className="mt-1 text-center text-xs text-[var(--tinta-fraca)]">
           {RESPONSAVEL.nome} · CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}
-          <br />
-          {RESPONSAVEL.endereco}
         </p>
         {/* Espaço pra barra flutuante não cobrir o rodapé no mobile. */}
         <div className="h-16" aria-hidden />

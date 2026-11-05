@@ -30,13 +30,14 @@ export const EMPRESA = {
 // recebe o PIX e o cartão (RECEBEDOR abaixo): o site, o anúncio e o banco têm
 // que dizer o mesmo. Até 01/11 ficou aqui a EM CIMA, a empresa da conta antiga
 // do Google, que nunca vendeu nada e continuou no rodapé depois da troca de 21/10.
-// Vai o nome fantasia (é o que o banco mostra no PIX), não a razão social, e o
-// endereço sem casa e conjunto (decisão do dono).
+// Vai o nome fantasia (é o que o banco mostra no PIX), não a razão social.
+// SEM ENDEREÇO (05/11, dono): o endereço do CNPJ é a CASA do dono, e cliente
+// que não achou o e-mail foi bater na porta dele. Só nome e CNPJ, em todo o site.
+// Não volte a pôr endereço aqui nem no VENDEDOR_BALLAD.
 // Só Serenata: a Ballad segue com o EMPRESA.
 export const RESPONSAVEL = {
   nome: "Serenata Gift",
   cnpj: "69498792000172",
-  endereco: "Rua Taubaté, 450, Vila Camilópolis, Santo André/SP, CEP 09230-310",
 } as const;
 
 // QUEM RECEBE O PAGAMENTO DA SERENATA (22/10): o titular da conta do Asaas
@@ -69,7 +70,6 @@ export const RECEBEDOR = {
 export const VENDEDOR_BALLAD = {
   razaoSocial: "ROCKETFY TECNOLOGIA LTDA",
   cnpj: "69498792000172",
-  endereco: "Rua Taubaté, 450, Vila Camilópolis, Santo André, SP, 09230-310, Brazil",
 } as const;
 
 /** O nome que veio no código PIX é da nossa conta? */
