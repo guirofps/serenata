@@ -56,7 +56,8 @@ function Pagina() {
 
       <Secao n={1} titulo="Quem é o responsável">
         <p>
-          A {RESPONSAVEL.nome} (CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}) é a controladora
+          A {RESPONSAVEL.nome} (CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}),
+          com sede na {RESPONSAVEL.endereco}, é a controladora
           dos seus dados. Para
           qualquer pedido relacionado a esta política, escreva para{" "}
           <a href={`mailto:${SUPORTE}`} className="text-primary underline underline-offset-4">

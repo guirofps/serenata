@@ -39,7 +39,7 @@ export function TermosEn() {
       <p>
         These terms are an agreement between you and {MARCA.nome} ("we", "us"). {MARCA.nome} is
         operated by {VENDEDOR_BALLAD.razaoSocial}, a company registered in Brazil (CNPJ{" "}
-        {cnpjFormatado(VENDEDOR_BALLAD.cnpj)}). By using <strong>{MARCA.dominio}</strong> or making a purchase, you agree to these
+        {cnpjFormatado(VENDEDOR_BALLAD.cnpj)}, {VENDEDOR_BALLAD.endereco}). By using <strong>{MARCA.dominio}</strong> or making a purchase, you agree to these
         terms. If you don't agree, please don't use the site.
       </p>
       <p>You must be at least 18 years old to make a purchase.</p>

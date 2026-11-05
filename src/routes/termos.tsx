@@ -53,7 +53,8 @@ function Pagina() {
     <Documento titulo="Termos de Uso" atualizado="18 de outubro de 2026">
       <p>
         Estes termos valem entre você e a {RESPONSAVEL.nome} (CNPJ{" "}
-        {cnpjFormatado(RESPONSAVEL.cnpj)}). Ao usar o site ou comprar, você concorda com eles.
+        {cnpjFormatado(RESPONSAVEL.cnpj)}), com sede na{" "}
+        {RESPONSAVEL.endereco}. Ao usar o site ou comprar, você concorda com eles.
       </p>
 
       <Secao n={1} titulo="O que você compra">

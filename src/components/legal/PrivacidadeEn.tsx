@@ -42,7 +42,7 @@ export function PrivacidadeEn() {
       <Secao n={1} titulo="Who we are">
         <p>
           {MARCA.nome} is operated by {VENDEDOR_BALLAD.razaoSocial}, a company registered in Brazil
-          (CNPJ {cnpjFormatado(VENDEDOR_BALLAD.cnpj)}), which is
+          (CNPJ {cnpjFormatado(VENDEDOR_BALLAD.cnpj)}, {VENDEDOR_BALLAD.endereco}), which is
           responsible for your data. For any privacy question
           or request, email {linkSuporte}. We reply within 30 days, and usually much sooner.
         </p>
