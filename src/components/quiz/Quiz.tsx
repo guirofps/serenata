@@ -383,6 +383,39 @@ export function Quiz({
   const [confirmarEmail, setConfirmarEmail] = useState<{ email: string; recebe: boolean; dominio: string | null } | null>(null);
   const [conferindoEmail, setConferindoEmail] = useState(false);
 
+  // ── QUEM JÁ PAGOU E VOLTOU PELA ABERTURA (05/11) ──────────────────────
+  //
+  // O desvio de comprador acima só vale no reveal e na oferta. Quem fecha a
+  // folha do PIX, paga no app do banco e volta por uma ABA NOVA cai na abertura
+  // do /criar, vê "começar a sua música" e não acha a dele (04/11: pagou 14h42,
+  // voltou 14h49 na abertura, e-mail no lixo do Outlook, foi bater na porta do
+  // dono). Aqui a abertura pergunta ao servidor, SÓ pra quem tem nome ou letra
+  // guardados no navegador, e mostra a música paga no topo. Não redireciona à
+  // força: a pessoa pode estar ali pra fazer OUTRA música, e o "começar" segue
+  // embaixo. Falha aberta: consulta que cai só não mostra o aviso.
+  const [musicaPaga, setMusicaPaga] = useState<string | null>(null);
+  useEffect(() => {
+    if (stepId && stepId !== "abertura") return;
+    let vivo = true;
+    const conferir = () => {
+      if (!temContexto()) return;
+      sessaoJaPagou({ data: { sessionId: getOrCreateSessionId() } })
+        .then((r) => {
+          if (!vivo || !r.pago || !(r.tokenEdicao || r.token)) return;
+          setMusicaPaga(r.tokenEdicao ? `/editar/${r.tokenEdicao}` : `/p/${r.token}`);
+          trackEvent("abertura_comprador_aviso", { locale });
+        })
+        .catch(() => {
+          /* indisponível: abertura normal */
+        });
+    };
+    if (useQuizStore.persist.hasHydrated()) conferir();
+    else useQuizStore.persist.onFinishHydration(conferir);
+    return () => {
+      vivo = false;
+    };
+  }, [stepId, locale]);
+
   // O TECLADO ESTÁ COBRINDO O BOTÃO?
   //
   // A barra do rodapé é `sticky bottom-0`, e sticky se ancora no viewport de
@@ -609,6 +642,31 @@ export function Quiz({
 
       {/* Corpo do passo */}
       <div ref={corpoRef} className="flex flex-1 flex-col justify-center">
+        {isIntro(step) && musicaPaga && (
+          <a
+            href={musicaPaga}
+            onClick={() => trackEvent("abertura_comprador_clicou", { locale })}
+            className="mb-5 block rounded-2xl border border-emerald-600/30 bg-emerald-50 px-4 py-3.5 text-left shadow-sm"
+          >
+            <p className="text-[15px] font-semibold leading-snug text-emerald-950">
+              {locale === "en"
+                ? `Your song for ${(respostas.nome as string)?.trim() || "them"} is ready`
+                : locale === "es"
+                  ? `Tu canción para ${(respostas.nome as string)?.trim() || "esa persona"} ya está lista`
+                  : `Sua música pra ${(respostas.nome as string)?.trim() || "quem você ama"} já está pronta`}
+            </p>
+            <p className="mt-0.5 text-[13px] leading-snug text-emerald-900/80">
+              {locale === "en"
+                ? "Your payment went through. Tap here to listen to it now."
+                : locale === "es"
+                  ? "Tu pago entró. Toca aquí para escucharla ahora."
+                  : "Seu pagamento entrou. Toque aqui pra ouvir agora."}
+            </p>
+            <span className="mt-2 inline-block rounded-full bg-emerald-700 px-4 py-1.5 text-[13px] font-semibold text-white">
+              {locale === "en" ? "Listen now" : locale === "es" ? "Escuchar ahora" : "Ouvir agora"}
+            </span>
+          </a>
+        )}
         {isIntro(step) && locale === "en" && <MedirAbertura />}
         {isIntro(step) && (
           <AberturaPresente

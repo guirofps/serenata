@@ -37,6 +37,7 @@ import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { normalizarLocale } from "../../src/lib/i18n.js";
 import { paisDoQuiz } from "../../src/lib/pais-quiz.js";
 import { noPais } from "../../emails/mercado-email.js";
+import { reforcarEntregaOutlook } from "./entrega-outlook.js";
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http")
   ? process.env.VITE_APP_URL
@@ -312,6 +313,16 @@ O SEU VÍDEO: já está pago. Suba as fotos na página e toque em "Gerar meu ví
       template: "entrega",
       para: args.email,
       quizResponseId: args.musica.quiz_response_id ?? null,
+    });
+    // OUTLOOK/HOTMAIL (05/11): o mesmo link de novo, pela caixa da Hostinger.
+    // O Outlook abre 6% do e-mail acima (Gmail 53%). Nunca derruba a entrega.
+    await reforcarEntregaOutlook(sb, {
+      email: args.email,
+      nome,
+      titulo: args.musica.titulo ?? null,
+      linkEditor,
+      quizResponseId: args.musica.quiz_response_id ?? null,
+      locale,
     });
     return { ok: true, emailId: enviado?.id ?? null };
   } catch (err) {

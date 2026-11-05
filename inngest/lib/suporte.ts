@@ -292,6 +292,20 @@ export async function triar(token: string): Promise<{
   return { caixa: msgs.length, auto, paraVoce, mailbox: box.resourceId };
 }
 
+/** E-mail novo (não resposta) em texto puro pela caixa, pelo MESMO caminho do suporte. */
+export async function enviarTextoPelaCaixa(
+  token: string,
+  mailbox: string,
+  e: { to: string; subject: string; text: string },
+): Promise<boolean> {
+  const r = await ferramenta(token, "email_call_api_write", {
+    method: "POST",
+    path: `/api/v1/mailboxes/${mailbox}/send`,
+    body: { to: [e.to], subject: e.subject, text: e.text, displayName: "Serenata" },
+  });
+  return Boolean(r?.status && r.status < 300);
+}
+
 /** Manda uma resposta e devolve se deu certo. */
 export async function responder(token: string, mailbox: string, c: Caso): Promise<boolean> {
   const r = await ferramenta(token, "email_call_api_write", {

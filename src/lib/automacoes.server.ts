@@ -37,6 +37,7 @@ import { assuntoLembreteData, emailLembreteData } from "../../emails/lembrete-da
 import { assuntoPrazo, emailPrazo } from "../../emails/recuperacao-prazo";
 import { assuntoPedidoReacao, emailPedidoReacao } from "../../emails/pedido-reacao";
 import { MARCA_ATIVA } from "./marca-identidade.js";
+import { assuntoReforco, textoReforco } from "./reforco-outlook";
 
 // O CATÁLOGO DAS AUTOMAÇÕES DE E-MAIL, do jeito que elas rodam hoje.
 //
@@ -274,6 +275,12 @@ export const AUTOMACOES: Automacao[] = [
         nome: "Pagamento confirmado, gravando",
         quando: "no pagamento, quando a música ainda não terminou",
         idiomas: ["pt", "es"],
+      },
+      {
+        template: "entrega_outlook",
+        nome: "O link de novo, pela Hostinger (Outlook/Hotmail)",
+        quando: "logo depois da entrega, só pra Hotmail/Outlook/Live/MSN, texto puro pela caixa contato@ (05/11)",
+        idiomas: ["pt"],
       },
       {
         template: "entrega_credito",
@@ -706,6 +713,13 @@ export function renderizarPreview(template: string, locale: "pt" | "es"): Previe
           linkPresente: E.linkPresente,
           locale: l,
         }),
+      );
+    case "entrega_outlook":
+      return pt(
+        assuntoReforco(E.nome),
+        `<pre style="font-family:inherit;white-space:pre-wrap">${textoReforco({ nome: E.nome, titulo: E.titulo, linkEditor: E.linkEditor })
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")}</pre>`,
       );
     case "entrega_em_producao":
       return pt(

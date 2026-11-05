@@ -28,6 +28,7 @@ export const JANELA_FREQUENCIA_MS = 24 * 3600 * 1000;
 export const TRANSACIONAIS: ReadonlySet<string> = new Set([
   "entrega",
   "entrega_em_producao",
+  "entrega_outlook",
   "entrega_credito",
   "video_pronto",
   "acesso",
