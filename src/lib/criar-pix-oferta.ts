@@ -7,6 +7,7 @@ import { conferirOferta } from "@/lib/oferta-assinada";
 import { OFERTA, type DegrauEscada } from "../../emails/escada";
 import { MARCA_ATIVA } from "./marca-identidade.js";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
+import { descricaoCobrancaMusica } from "@/lib/descricao-cobranca";
 
 // O PIX DO DEGRAU DA ESCADA.
 //
@@ -179,7 +180,7 @@ export const criarPixOferta = createServerFn({ method: "POST" })
       cobranca = await gw.criar({
         referencia,
         valorCentavos,
-        descricao: `Serenata · ${musica.titulo ?? "sua música"}`,
+        descricao: descricaoCobrancaMusica(musica.titulo),
         nome: nome || null,
         email: email || null,
         cpf: conferido.cpf || null,

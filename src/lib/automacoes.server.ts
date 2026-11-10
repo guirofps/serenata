@@ -38,6 +38,7 @@ import { assuntoPrazo, emailPrazo } from "../../emails/recuperacao-prazo";
 import { assuntoPedidoReacao, emailPedidoReacao } from "../../emails/pedido-reacao";
 import { MARCA_ATIVA } from "./marca-identidade.js";
 import { assuntoReforco, textoReforco } from "./reforco-outlook";
+import { assuntoAcesso, textoAcesso } from "./acesso-lembrete";
 
 // O CATÁLOGO DAS AUTOMAÇÕES DE E-MAIL, do jeito que elas rodam hoje.
 //
@@ -280,6 +281,12 @@ export const AUTOMACOES: Automacao[] = [
         template: "entrega_outlook",
         nome: "O link de novo, pela Hostinger (Outlook/Hotmail)",
         quando: "logo depois da entrega, só pra Hotmail/Outlook/Live/MSN, texto puro pela caixa contato@ (05/11)",
+        idiomas: ["pt"],
+      },
+      {
+        template: "acesso_lembrete",
+        nome: "Você ainda não ouviu a sua música (teste acesso_lembrete, braço B)",
+        quando: "24 a 72h depois de pagar, só pra quem não abriu editor nem página nem clicou e-mail, texto puro pela caixa contato@ (10/11)",
         idiomas: ["pt"],
       },
       {
@@ -713,6 +720,13 @@ export function renderizarPreview(template: string, locale: "pt" | "es"): Previe
           linkPresente: E.linkPresente,
           locale: l,
         }),
+      );
+    case "acesso_lembrete":
+      return pt(
+        assuntoAcesso(E.nome),
+        `<pre style="font-family:inherit;white-space:pre-wrap">${textoAcesso({ nome: E.nome, titulo: E.titulo, linkEditor: E.linkEditor })
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")}</pre>`,
       );
     case "entrega_outlook":
       return pt(

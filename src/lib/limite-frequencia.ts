@@ -29,6 +29,7 @@ export const TRANSACIONAIS: ReadonlySet<string> = new Set([
   "entrega",
   "entrega_em_producao",
   "entrega_outlook",
+  "acesso_lembrete",
   "entrega_credito",
   "video_pronto",
   "acesso",

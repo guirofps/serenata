@@ -18,7 +18,8 @@ import { enviarTextoPelaCaixa } from "../../inngest/lib/suporte.js";
 const CAIXA_PADRAO = "AC47d94fb6e95b57ea639f9d4a29c7";
 const PRAZO_MS = 10_000;
 
-async function enviar(e: { to: string; subject: string; text: string }): Promise<boolean> {
+/** Manda um e-mail em texto puro pela caixa contato@ (também usado pelo `lembrarAcesso`). */
+export async function enviarPelaCaixaContato(e: { to: string; subject: string; text: string }): Promise<boolean> {
   const caixa = process.env.HOSTINGER_MAILBOX_ID || CAIXA_PADRAO;
   const rest = process.env.HOSTINGER_API_TOKEN;
   if (rest) {
@@ -55,7 +56,7 @@ export async function reforcarEntregaOutlook(
       .eq("quiz_response_id", args.quizResponseId)
       .limit(1);
     if (error || (ja ?? []).length > 0) return; // na dúvida, não manda de novo
-    const ok = await enviar({
+    const ok = await enviarPelaCaixaContato({
       to: args.email.trim(),
       subject: assuntoReforco(args.nome),
       text: textoReforco({ nome: args.nome, titulo: args.titulo, linkEditor: args.linkEditor }),

@@ -16,6 +16,7 @@ import { descontoDoConvite } from "@/lib/indicacao";
 import { outroPagamentoDoQuiz } from "@/lib/asaas-regras";
 import { avisarDonos } from "@/lib/avisar-donos";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
+import { descricaoCobrancaMusica } from "@/lib/descricao-cobranca";
 
 // A COBRANÇA NO CARTÃO, transparente.
 //
@@ -294,7 +295,7 @@ export const cobrarCartao = createServerFn({ method: "POST" })
     try {
       r = await asaas.cobrar({
         valorCentavos,
-        descricao: `Serenata · ${musica.titulo ?? "sua música"}`,
+        descricao: descricaoCobrancaMusica(musica.titulo),
         referencia,
         cartao: data.cartao,
         titular: data.titular,

@@ -15,6 +15,7 @@ import { conviteDaCompra } from "@/lib/indicacao-db";
 import { descontoDoConvite } from "@/lib/indicacao";
 import { MARCA_ATIVA } from "./marca-identidade.js";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
+import { descricaoCobrancaMusica } from "@/lib/descricao-cobranca";
 import { gatewayDoTeste } from "@/lib/pix-gateway-ab";
 
 // GERA O PIX DO CHECKOUT TRANSPARENTE.
@@ -427,7 +428,7 @@ export const criarPix = createServerFn({ method: "POST" })
     const pedidoAoGateway = {
         referencia,
         valorCentavos,
-        descricao: `Serenata · ${musica.titulo ?? "sua música"}`,
+        descricao: descricaoCobrancaMusica(musica.titulo),
         nome: nome || null,
         email: emailDaVenda,
         cpf: cpf || null,

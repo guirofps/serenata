@@ -6,6 +6,7 @@ import { inngest } from "../inngest/client.js";
 import { healthcheck } from "../inngest/functions/healthcheck.js";
 import { gerarMusica } from "../inngest/functions/gerarMusica.js";
 import { lembrarPresente } from "../inngest/functions/lembrarPresente.js";
+import { lembrarAcesso } from "../inngest/functions/lembrarAcesso.js";
 import { volteCriar } from "../inngest/functions/volteCriar.js";
 import { ocasiaoCalendario } from "../inngest/functions/ocasiaoCalendario.js";
 import { limparAudioAntigo } from "../inngest/functions/limparAudioAntigo.js";
@@ -120,6 +121,8 @@ export default serve({
     healthcheck,
     gerarMusica,
     lembrarPresente,
+    // Teste `acesso_lembrete` (10/11): só Serenata, quem pagou e não chegou na música.
+    lembrarAcesso,
     volteCriar,
     ocasiaoCalendario,
     limparAudioAntigo,
