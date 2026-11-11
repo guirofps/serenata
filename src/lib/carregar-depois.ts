@@ -32,9 +32,13 @@ export function scriptFontes(url: string): string {
   return `(function(){var l=document.createElement("link");l.rel="stylesheet";l.href=${JSON.stringify(url)};document.head.appendChild(l)})();`;
 }
 
-/** O gtag de verdade, pela mesma porta. A fila (`gtag()`) fica no HTML. */
-export function scriptCarregaGtag(id: string, imediato: boolean): string {
-  return `window.__depoisDaPagina(function(){var s=document.createElement("script");s.async=true;s.src="https://www.googletagmanager.com/gtag/js?id=${id}";document.head.appendChild(s)},${imediato ? "true" : "false"});`;
+/**
+ * O gtag de verdade, pela mesma porta. A fila (`gtag()`) fica no HTML.
+ * Com `idBr` (11/11), o serenatagift.com.br carrega a tag da conta dele.
+ */
+export function scriptCarregaGtag(id: string, imediato: boolean, idBr: string | null = null): string {
+  const qual = idBr ? `(/\\.com\\.br$/.test(location.hostname)?"${idBr}":"${id}")` : `"${id}"`;
+  return `window.__depoisDaPagina(function(){var s=document.createElement("script");s.async=true;s.src="https://www.googletagmanager.com/gtag/js?id="+${qual};document.head.appendChild(s)},${imediato ? "true" : "false"});`;
 }
 
 /** As rotas em que os pixels NÃO esperam: é nelas que a venda é contada. */

@@ -36,7 +36,7 @@ import { GA4_ID, scriptGuardaGa4 } from "@/lib/ga4";
 import { TIKTOK_PIXEL_ID, scriptTiktok } from "@/lib/tiktok-pixel";
 import { CLARITY_ID, scriptClarity } from "@/lib/clarity";
 import { OMNISEND_ID, scriptOmnisend } from "@/lib/omnisend";
-import { GOOGLE_ADS_ID, scriptConfigGtag } from "@/lib/google-ads";
+import { GOOGLE_ADS_ID, GOOGLE_ADS_ID_BR, scriptConfigGtag } from "@/lib/google-ads";
 import { scriptConsentimento } from "@/lib/consentimento-cookies";
 import { AvisoCookies } from "@/components/AvisoCookies";
 import { LOCALE_PADRAO, localeDaRota, tagIdioma } from "@/lib/i18n";
@@ -350,11 +350,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
             {/* O arquivo de googletagmanager.com/gtag/js espera a página
                 (exceto na /obrigado); a fila `gtag()` logo abaixo nasce na hora. */}
             <script
-              dangerouslySetInnerHTML={{ __html: scriptCarregaGtag(GOOGLE_ADS_ID, imediato) }}
+              dangerouslySetInnerHTML={{ __html: scriptCarregaGtag(GOOGLE_ADS_ID, imediato, GOOGLE_ADS_ID_BR) }}
             />
             <script
               dangerouslySetInnerHTML={{
-                __html: scriptConfigGtag(GOOGLE_ADS_ID, GA4_ID),
+                __html: scriptConfigGtag(GOOGLE_ADS_ID, GA4_ID, GOOGLE_ADS_ID_BR),
               }}
             />
           </>

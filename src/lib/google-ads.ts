@@ -35,6 +35,24 @@ const CONVERSAO: string | null =
     ? "AW-18519340909/rRbZCLzNo6AdEO3u2v5E"
     : ENV.VITE_GOOGLE_ADS_CONVERSAO?.trim() || null;
 
+// ── O .COM.BR TEM A PRÓPRIA CONTA (11/11) ─────────────────────────
+//
+// O serenatagift.com.br anuncia pela conta Rosenau (773-326-4856). No .com.br a
+// tag e a conversão da /obrigado são as DELA (a conversão é secundária lá; a
+// principal sobe pelo servidor, `conversoes-tempo-real.ts`). O HTML é o mesmo
+// nos dois domínios, então quem escolhe é o navegador, pelo `location`.
+export const GOOGLE_ADS_ID_BR: string | null = MARCA_ATIVA.chave === "serenata" ? "AW-18443405359" : null;
+const CONVERSAO_BR: string | null = MARCA_ATIVA.chave === "serenata" ? "AW-18443405359/TfixCLyiz7EdEK-QwNpE" : null;
+
+/** Expressão JS (pro script inline) que escolhe o id da conta pelo domínio. */
+export function exprIdDoDominio(adsId: string, adsIdBr: string | null): string {
+  return adsIdBr ? `(/\\.com\\.br$/.test(location.hostname)?'${adsIdBr}':'${adsId}')` : `'${adsId}'`;
+}
+
+function noPontoComPontoBr(): boolean {
+  return typeof location !== "undefined" && /\.com\.br$/.test(location.hostname);
+}
+
 /**
  * A fila do gtag com o Ads e o GA4 configurados PELO SITE.
  *
@@ -44,10 +62,10 @@ const CONVERSAO: string | null =
  * de receber visita. Não adicionar o GA4 como destino da tag nova no painel
  * do Google: com este `config` junto, cada página contaria duas vezes.
  */
-export function scriptConfigGtag(adsId: string, ga4Id: string | null): string {
+export function scriptConfigGtag(adsId: string, ga4Id: string | null, adsIdBr: string | null = null): string {
   return (
     `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());` +
-    `gtag('config','${adsId}');` +
+    `gtag('config',${exprIdDoDominio(adsId, adsIdBr)});` +
     (ga4Id ? `gtag('config','${ga4Id}');` : "")
   );
 }
@@ -223,7 +241,8 @@ export function conversaoCompra(args: {
   /** O e-mail de quem comprou. Só é usado na Ballad (ver abaixo). */
   email?: string | null;
 }) {
-  if (typeof window === "undefined" || !window.gtag || !CONVERSAO) return;
+  const destino = noPontoComPontoBr() && CONVERSAO_BR ? CONVERSAO_BR : CONVERSAO;
+  if (typeof window === "undefined" || !window.gtag || !destino) return;
   const id = idDaTransacao(args.transactionId);
   // ── CONVERSÕES OTIMIZADAS, SÓ NA BALLAD (16/10) ──────────────────
   //
@@ -244,7 +263,7 @@ export function conversaoCompra(args: {
     if (email) window.gtag("set", "user_data", { email });
   }
   window.gtag("event", "conversion", {
-    send_to: CONVERSAO,
+    send_to: destino,
     // Sem default mágico: o valor vem do catálogo de moeda pelo chamador.
     // Um 37 cravado aqui sobreviveria à mudança de preço e o Google passaria
     // a otimizar em cima de um número que não existe mais.

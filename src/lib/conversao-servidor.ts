@@ -114,3 +114,16 @@ export function emailNormalizado(email: string | null | undefined): string | nul
   const e = (email ?? "").trim().toLowerCase();
   return e.includes("@") ? e : null;
 }
+
+// ── QUAL CONTA DO GOOGLE ADS RECEBE A VENDA (11/11) ───────────────
+//
+// O serenatagift.com.br anuncia por OUTRA conta (`GOOGLE_DM_*_BR`). O clique de
+// um anúncio dela só existe nela: mandado pra conta do .com, o Google recusa a
+// linha. A atribuição guarda o domínio da visita (`host`, `session-context.ts`)
+// e o do último clique. Sem domínio gravado (visita de antes de 11/11), é o .com.
+export function dominioDoClique(attr: Atrib): "br" | "com" {
+  const u = attr?.ultimo_clique;
+  const doClique = u && typeof u === "object" ? texto((u as Record<string, unknown>).host) : undefined;
+  const host = (doClique ?? texto(attr?.host) ?? "").toLowerCase();
+  return host.endsWith(".com.br") ? "br" : "com";
+}

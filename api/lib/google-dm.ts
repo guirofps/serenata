@@ -18,10 +18,17 @@ const BASE = "https://datamanager.googleapis.com/v1";
 
 export type ConfigDm = { conta: string; login: string; acao: string };
 
-export function configDm(): ConfigDm | null {
-  const conta = (process.env.GOOGLE_DM_CONTA ?? "").replace(/\D/g, "");
-  const acao = (process.env.GOOGLE_DM_ACAO ?? "").replace(/\D/g, "");
-  const login = (process.env.GOOGLE_DM_LOGIN ?? "").replace(/\D/g, "") || conta;
+/**
+ * `br` (11/11): a conta do Google Ads que anuncia o serenatagift.com.br, pelas
+ * mesmas envs com `_BR` no fim (GOOGLE_DM_CONTA_BR, GOOGLE_DM_ACAO_BR,
+ * GOOGLE_DM_LOGIN_BR). O token é o mesmo. Sem elas, `null`: a venda do .com.br
+ * fica esperando em vez de ir pra conta errada.
+ */
+export function configDm(dominio: "com" | "br" = "com"): ConfigDm | null {
+  const s = dominio === "br" ? "_BR" : "";
+  const conta = (process.env[`GOOGLE_DM_CONTA${s}`] ?? "").replace(/\D/g, "");
+  const acao = (process.env[`GOOGLE_DM_ACAO${s}`] ?? "").replace(/\D/g, "");
+  const login = (process.env[`GOOGLE_DM_LOGIN${s}`] ?? "").replace(/\D/g, "") || conta;
   if (!conta || !acao || !process.env.GOOGLE_DM_REFRESH_TOKEN) return null;
   return { conta, login, acao };
 }

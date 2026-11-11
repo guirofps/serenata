@@ -53,6 +53,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
 import { autorizadoBasic, logRequisicao } from "./lib/basic-auth.js";
 import { gclidParaConversao } from "../src/lib/clique-recente.js";
+import { dominioDoClique } from "../src/lib/conversao-servidor.js";
 
 type Req = IncomingMessage & {
   method?: string;
@@ -209,6 +210,10 @@ export default async function handler(req: Req, res: Res) {
 
   for (const p of linhas) {
     const attr = p.quiz_responses?.attribution as Record<string, unknown> | null;
+    // Venda do serenatagift.com.br é da OUTRA conta (11/11): esta lista é
+    // importada só na conta do .com, e o clique da outra viraria linha recusada.
+    // Ela sobe pelo servidor (`conversoes-tempo-real.ts`, GOOGLE_DM_*_BR).
+    if (dominioDoClique(attr) === "br") continue;
     // O CLIQUE MAIS NOVO DENTRO DOS 90 DIAS (16/10): o do último clique se
     // estiver fresco, senão o do primeiro toque se estiver. Antes ia sempre o
     // do primeiro toque, que nunca expira no navegador: venda de quem clicou

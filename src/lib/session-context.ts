@@ -68,8 +68,22 @@ export type Attribution = {
    * com `ttclid`. Ver `clique-recente.ts` e `capturarUltimoClique`.
    */
   ultimo_clique?: UltimoClique;
+  /**
+   * O DOMÍNIO onde a visita aconteceu (11/11): `www.serenatagift.com` ou
+   * `www.serenatagift.com.br`. Cada domínio tem a sua conta do Google Ads
+   * (`google-ads.ts`), e a venda pelo servidor vai pra conta do domínio do
+   * clique (`dominioDoClique`, `conversao-servidor.ts`). O localStorage é por
+   * origem, então tudo que está nesta atribuição nasceu neste mesmo domínio.
+   */
+  host?: string;
   captured_at: string;
 };
+
+/** O domínio desta página, sem www (vazio fora do navegador). */
+function hostAtual(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return String(window.location?.hostname ?? "").replace(/^www\./, "") || undefined;
+}
 
 export type SessionContext = {
   sessionId: string;
@@ -279,6 +293,7 @@ export function captureFirstTouchAttribution(): Attribution | null {
     fbclid,
     ttclid,
     referrer,
+    host: hostAtual(),
     captured_at: new Date().toISOString(),
   };
 
@@ -304,7 +319,7 @@ export function capturarUltimoClique(): boolean {
     const clique = ultimoCliqueDaUrl(window.location.search);
     if (!clique) return false;
     const base: Attribution = getStoredAttribution() ?? { captured_at: clique.em };
-    localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify({ ...base, ultimo_clique: clique }));
+    localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify({ ...base, host: hostAtual(), ultimo_clique: clique }));
     return true;
   } catch {
     // localStorage bloqueado: fica o primeiro toque, como antes. Não pode
@@ -370,7 +385,7 @@ export function stampVariantIntoAttribution(variant: QuizVariant): void {
     if (existing.variant === variant) return;
     localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify({ ...existing, variant }));
   } else {
-    const stub: Attribution = { variant, captured_at: new Date().toISOString() };
+    const stub: Attribution = { variant, host: hostAtual(), captured_at: new Date().toISOString() };
     localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(stub));
   }
 }

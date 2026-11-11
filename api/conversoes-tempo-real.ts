@@ -34,7 +34,7 @@ import { createHash } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { segredoConfere } from "./lib/segredo.js";
 import { configDm, enviarEventos, statusDoEnvio } from "./lib/google-dm.js";
-import { emailNormalizado, eventoDoPedido, type EventoGoogle } from "../src/lib/conversao-servidor.js";
+import { dominioDoClique, emailNormalizado, eventoDoPedido, type EventoGoogle } from "../src/lib/conversao-servidor.js";
 import { avisarDonos } from "../src/lib/avisar-donos.js";
 import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
 
@@ -137,8 +137,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     res.end(JSON.stringify({ ok: false }));
     return;
   }
+  // Duas contas (11/11): a do .com e a do .com.br (`dominioDoClique`).
   const cfg = configDm();
-  if (!cfg) {
+  const cfgBr = configDm("br");
+  if (!cfg && !cfgBr) {
     res.end(JSON.stringify({ ok: true, desligado: true }));
     return;
   }
@@ -162,37 +164,45 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return;
   }
 
-  const eventos: EventoGoogle[] = [];
+  // Uma fila por conta. Venda de um domínio sem conta configurada fica sem marca
+  // (a próxima volta tenta de novo): nunca vai pra conta do outro domínio.
+  const filas: Record<"com" | "br", EventoGoogle[]> = { com: [], br: [] };
   const pulados: Record<"sem_clique" | "sem_valor", string[]> = { sem_clique: [], sem_valor: [] };
   for (const p of (data ?? []) as unknown as Linha[]) {
+    const attr = p.quiz_responses?.attribution ?? null;
     const r = eventoDoPedido(
-      { id: p.id, paid_at: p.paid_at, valor_centavos: p.valor_centavos, gateway: p.gateway, attribution: p.quiz_responses?.attribution ?? null },
+      { id: p.id, paid_at: p.paid_at, valor_centavos: p.valor_centavos, gateway: p.gateway, attribution: attr },
       agora,
       hashEmail(p.email),
     );
-    if ("evento" in r) eventos.push(r.evento);
+    if ("evento" in r) filas[dominioDoClique(attr)].push(r.evento);
     else pulados[r.pula].push(p.id);
   }
+  const eventos = [...(cfg ? filas.com : []), ...(cfgBr ? filas.br : [])];
 
   if (seco) {
-    res.end(JSON.stringify({ ok: true, seco, sobe: eventos.length, sem_clique: pulados.sem_clique.length, sem_valor: pulados.sem_valor.length, amostra: eventos.slice(0, 3).map((e) => ({ ...e, userData: e.userData ? "hash" : undefined })) }));
+    res.end(JSON.stringify({ ok: true, seco, sobe: eventos.length, sobe_com: cfg ? filas.com.length : 0, sobe_br: cfgBr ? filas.br.length : 0, br_sem_conta: cfgBr ? 0 : filas.br.length, sem_clique: pulados.sem_clique.length, sem_valor: pulados.sem_valor.length, amostra: eventos.slice(0, 3).map((e) => ({ ...e, userData: e.userData ? "hash" : undefined })) }));
     return;
   }
 
   let envio: { ok: boolean; requestId?: string; erro?: string } = { ok: true };
-  if (eventos.length) {
-    envio = await enviarEventos(cfg, eventos);
-    if (envio.ok && envio.requestId) {
-      await marcar(sb, eventos.map((e) => e.transactionId), { google_conversao: "enviado", google_conversao_em: new Date().toISOString(), google_conversao_req: envio.requestId }, null);
+  let enviados = 0;
+  for (const [config, lista] of [[cfg, filas.com], [cfgBr, filas.br]] as const) {
+    if (!config || !lista.length) continue;
+    const r = await enviarEventos(config, lista);
+    if (r.ok && r.requestId) {
+      enviados += lista.length;
+      await marcar(sb, lista.map((e) => e.transactionId), { google_conversao: "enviado", google_conversao_em: new Date().toISOString(), google_conversao_req: r.requestId }, null);
     } else {
+      envio = r;
       // Não marca: a próxima volta tenta de novo. Só avisa se está parado há um tempo.
-      const maisVelha = Date.parse(eventos[0].eventTimestamp);
+      const maisVelha = Date.parse(lista[0].eventTimestamp);
       if (agora - maisVelha > 20 * 60000) {
         await avisarUmaVez(
           sb,
-          "envio",
-          "as vendas não estão subindo pro Google",
-          `<p>${eventos.length} venda(s) esperando, a mais antiga paga há ${Math.round((agora - maisVelha) / 60000)} min.</p><pre>${String(envio.erro).replace(/</g, "&lt;")}</pre>`,
+          `envio-${config.conta}`,
+          `as vendas não estão subindo pro Google (conta ${config.conta})`,
+          `<p>${lista.length} venda(s) esperando, a mais antiga paga há ${Math.round((agora - maisVelha) / 60000)} min.</p><pre>${String(r.ok ? "" : r.erro).replace(/</g, "&lt;")}</pre>`,
         );
       }
     }
@@ -209,7 +219,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     console.error("[conversoes-tempo-real] conferência falhou:", (err as Error).message);
   }
 
-  const resumo = { ok: true, enviados: envio.ok ? eventos.length : 0, erro: envio.ok ? undefined : envio.erro, sem_clique: pulados.sem_clique.length, sem_valor: pulados.sem_valor.length, conferidos: resultados, ms: Date.now() - agora };
+  const resumo = { ok: true, enviados, br: filas.br.length, br_sem_conta: cfgBr ? 0 : filas.br.length, erro: envio.ok ? undefined : envio.erro, sem_clique: pulados.sem_clique.length, sem_valor: pulados.sem_valor.length, conferidos: resultados, ms: Date.now() - agora };
   if (eventos.length || !envio.ok) console.log("[conversoes-tempo-real]", JSON.stringify(resumo));
   res.end(JSON.stringify(resumo));
 }
