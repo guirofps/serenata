@@ -1228,6 +1228,51 @@ function Corpo({
               })}
             </div>
 
+            {/* ── O VÍDEO DA TV (10/11) ─────────────────────────────
+              Quem chegou pelo QR code do comercial (`?utm_source=tv`), pelo
+              primeiro toque (`admin-tv.ts`). Também entra em "orgânico" acima. */}
+            {dados.tv && (
+              <div>
+                <p className="mb-2 text-[11px] uppercase tracking-wider text-[var(--tinta-suave)]">
+                  Vídeo da TV · QR code
+                </p>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <Cartao
+                    rotulo="Visitas pelo QR"
+                    valor={dados.tv.visitas === null ? "—" : String(dados.tv.visitas)}
+                    apoio={dados.tv.visitas === null ? "não carregou agora" : "sessões que entraram pelo QR"}
+                    atual={dados.tv.visitas ?? undefined}
+                    anterior={comparativo?.tv?.visitas ?? undefined}
+                  />
+                  <Cartao
+                    rotulo="Letras geradas"
+                    valor={String(dados.tv.letras)}
+                    apoio={`${dados.tv.leads} começaram o quiz`}
+                    atual={dados.tv.letras}
+                    anterior={comparativo?.tv?.letras}
+                  />
+                  <Cartao
+                    rotulo="Vendas pela TV"
+                    valor={String(dados.tv.vendas)}
+                    apoio={
+                      dados.tv.conversaoPct !== null
+                        ? `${pc(dados.tv.conversaoPct)} das visitas`
+                        : "primeiro toque no QR"
+                    }
+                    atual={dados.tv.vendas}
+                    anterior={comparativo?.tv?.vendas}
+                  />
+                  <Cartao
+                    rotulo="Receita pela TV"
+                    valor={dados.tv.receitaBrl > 0 ? brl(dados.tv.receitaBrl) : "—"}
+                    apoio="pedidos pagos de quem veio da TV"
+                    atual={dados.tv.receitaBrl}
+                    anterior={comparativo?.tv?.receitaBrl}
+                  />
+                </div>
+              </div>
+            )}
+
             <LancarGasto aoSalvar={carregar} gastos={dados.gastos} />
 
             <p className="text-xs text-[var(--tinta-suave)]">

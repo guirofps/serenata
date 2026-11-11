@@ -6,6 +6,7 @@ import { isQuestion } from "@/lib/flow-engine";
 import { cambioDoDia } from "@/lib/cambio";
 import { filtroCursor, lerJanela } from "@/lib/ler-janela";
 import { porTemaDe, type LinhaTema } from "@/lib/admin-tema";
+import { resumoTv, type ResumoTv } from "@/lib/admin-tv";
 import { cortarDiaDoGasto, cpaDoCanal, diasDaJanela, gastoAteOMinuto, somarGasto, type CorteDoGasto } from "@/lib/gasto-midia";
 import { taxaDoPedido } from "@/lib/taxa-gateway";
 import { contarPorCanal, type CanalVenda } from "@/lib/canal-venda";
@@ -252,6 +253,9 @@ export type Painel = {
   /** Quem entrou por `/criar?t=gospel` contra o resto (`admin-tema.ts`). Vazio sem lead gospel. */
   porTema: LinhaTema[];
 
+  /** Quem chegou pelo QR code do vídeo da TV (`admin-tv.ts`), pelo primeiro toque. */
+  tv: ResumoTv;
+
   /**
    * POR PÁGINA DE ENTRADA. Qual porta converte melhor.
    *
@@ -377,6 +381,8 @@ export type Comparativo = {
   de: string;
   ate: string;
   topo: Painel["topo"];
+  /** O card da TV no período anterior, pra setinha. */
+  tv?: ResumoTv;
   /** id do degrau -> quantos chegaram nele. */
   funil: Record<string, number>;
   /**
@@ -1333,6 +1339,41 @@ async function montarPainel(
     comMusica,
   );
 
+  // ── O VÍDEO DA TV (10/11) ────────────────────────────────────
+  //
+  // As VISITAS saem de `page_view` com primeiro toque `utm_source=tv`. Não é
+  // o `funnel_events` inteiro vindo pro Node (o que derrubou o painel em
+  // 17/08): o filtro roda no banco, fatia por fatia no índice
+  // `(event_name, created_at)`, e só voltam as linhas da TV. Falhou, o card
+  // mostra "—" nas visitas e o resto do painel segue.
+  let sessoesTv: string[] | null = null;
+  try {
+    const linhas = await lerJanela<{ id: string; created_at: string; session_id: string }>(
+      ({ desde: d, ate: a, cursor, limite }) => {
+        const base = db
+          .from("funnel_events")
+          .select("id, created_at, session_id")
+          .eq("event_name", "page_view")
+          .eq("event_data->attribution->>utm_source", "tv")
+          .gte("created_at", d)
+          .lt("created_at", a);
+        const comCursor = cursor ? base.or(filtroCursor(cursor)) : base;
+        return comCursor.order("created_at").order("id").limit(limite) as never;
+      },
+      inicio,
+      fim,
+    );
+    sessoesTv = linhas.map((l) => l.session_id);
+  } catch (err) {
+    console.error("[admin] visitas da TV nao lidas:", err);
+  }
+  const tv = resumoTv({
+    sessoesVisita: sessoesTv,
+    leads,
+    comMusica,
+    vendas: pagos.map((p) => ({ quiz_response_id: p.quiz_response_id, receitaBrl: valorEmBrl(p) })),
+  });
+
   // ── OS TESTES A/B ────────────────────────────────────────────
   //
   // A variante viaja em `attribution.exp` desde que `carimbarExperimentos`
@@ -1556,6 +1597,7 @@ async function montarPainel(
     porExperimento,
     porOrigem,
     porTema,
+    tv,
     porEntrada,
     gastos,
 
@@ -1857,6 +1899,7 @@ export const carregarComparativo = createServerFn({ method: "POST" })
       de: antes.inicio.toISOString(),
       ate: antes.fim.toISOString(),
       topo: anterior.topo,
+      tv: anterior.tv,
       // Só o alcance de cada degrau. As taxas do funil se recalculam sozinhas
       // a partir daí, e guardar as duas coisas abriria espaço pra elas
       // discordarem.
