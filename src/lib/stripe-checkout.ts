@@ -10,6 +10,7 @@ import { paisDaRequisicao } from "@/lib/pais-requisicao.server";
 import { marcarMoedaDoPedido } from "@/lib/pais-quiz";
 import { impressaoDoCorpo } from "@/lib/impressao-corpo";
 import { contaStripeDoQuiz } from "@/lib/stripe-conta";
+import { chaveDepoisDaMorta, decidirSessao } from "@/lib/stripe-sessao-viva";
 
 // O CHECKOUT DA BALLAD GIFT, do lado do servidor.
 //
@@ -184,22 +185,36 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
       // compradores do `/es` em 15-16/10, os dois sem pagar). Corpo igual =
       // mesma chave = mesma sessão (reabrir a folha continua sem criar outra).
       const impressao = await impressaoDoCorpo(corpo);
-      const criar = () => stripeApi<{ id: string; client_secret: string }>(
-        "POST",
-        "/checkout/sessions",
-        corpo,
-        // A conta entra na chave: a idempotência do Stripe é por conta, mas a
-        // nossa leitura do log fica sem ambiguidade.
-        { idempotencia: `ballad-checkout:v6:${conta}:${quiz.id}:${impressao}`, conta },
-      );
-      let sessao: { id: string; client_secret: string } | null = null;
-      for (let tentativa = 0; !sessao; tentativa++) {
-        try {
-          sessao = await criar();
-        } catch (err) {
-          if (!(err instanceof ErroStripe) || err.status !== 409 || tentativa >= 3) throw err;
-          await new Promise((r) => setTimeout(r, 1200));
+      // A conta entra na chave: a idempotência do Stripe é por conta, mas a
+      // nossa leitura do log fica sem ambiguidade.
+      const chaveBase = `ballad-checkout:v6:${conta}:${quiz.id}:${impressao}`;
+      const criar = (chave: string) => stripeApi<{ id: string; client_secret: string }>("POST", "/checkout/sessions", corpo, { idempotencia: chave, conta });
+      const criarComRespiro = async (chave: string) => {
+        for (let tentativa = 0; ; tentativa++) {
+          try {
+            return await criar(chave);
+          } catch (err) {
+            if (!(err instanceof ErroStripe) || err.status !== 409 || tentativa >= 3) throw err;
+            await new Promise((r) => setTimeout(r, 1200));
+          }
         }
+      };
+      let sessao: { id: string; client_secret: string } = await criarComRespiro(chaveBase);
+
+      // A SESSÃO QUE A CHAVE DEVOLVE PODE JÁ TER MORRIDO (11/11): ver
+      // `stripe-sessao-viva.ts`. Pergunta o estado de agora; morta, troca por
+      // uma nova (até 3 vezes); paga, manda pro obrigado.
+      for (let troca = 0; troca < 3; troca++) {
+        const atual = await stripeApi<{ status?: string }>("GET", `/checkout/sessions/${encodeURIComponent(sessao.id)}`, undefined, { conta }).catch(() => null);
+        const decisao = decidirSessao(atual?.status);
+        if (decisao === "usa") break;
+        if (decisao === "ja-pago") return { ok: false, erro: "ja-pago" };
+        await db.from("funnel_events").insert({
+          event_name: "stripe_checkout_sessao_morta",
+          session_id: sessionId,
+          event_data: { sessao: sessao.id, status: atual?.status ?? null, troca },
+        });
+        sessao = await criarComRespiro(chaveDepoisDaMorta(chaveBase, sessao.id));
       }
 
       const { error } = await db.from("pedidos").upsert(
