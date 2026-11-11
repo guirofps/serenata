@@ -67,7 +67,7 @@ import { recarregarSeArquivoVelho } from "@/lib/arquivo-velho";
 // EUA (Stripe em dólar, `tú`), não a home argentina da Serenata. O que decide
 // qual espanhol sai é `mercadoEs()`, pela marca.
 const SO_DA_SERENATA =
-  /^\/(gleysi|musica-personalizada-para-esposa|indique|meu-quadro|quadro\/|pix\/|oferta\/|credito\/|demo-musica|marca)/;
+  /^\/(gleysi|presente$|musica-personalizada-para-esposa|indique|meu-quadro|quadro\/|pix\/|oferta\/|credito\/|demo-musica|marca)/;
 
 const NAO_ACHEI_EN = {
   titulo: "Page not found",

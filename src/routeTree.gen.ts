@@ -22,6 +22,7 @@ import { Route as MarcaRouteImport } from './routes/marca'
 import { Route as MeuQuadroRouteImport } from './routes/meu-quadro'
 import { Route as MusicaPersonalizadaParaEsposaRouteImport } from './routes/musica-personalizada-para-esposa'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
+import { Route as PresenteRouteImport } from './routes/presente'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as RecuperarRouteImport } from './routes/recuperar'
 import { Route as RetomarRouteImport } from './routes/retomar'
@@ -110,6 +111,11 @@ const MusicaPersonalizadaParaEsposaRoute =
 const ObrigadoRoute = ObrigadoRouteImport.update({
   id: '/obrigado',
   path: '/obrigado',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PresenteRoute = PresenteRouteImport.update({
+  id: '/presente',
+  path: '/presente',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
@@ -242,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/meu-quadro': typeof MeuQuadroRoute
   '/musica-personalizada-para-esposa': typeof MusicaPersonalizadaParaEsposaRoute
   '/obrigado': typeof ObrigadoRoute
+  '/presente': typeof PresenteRoute
   '/privacidade': typeof PrivacidadeRoute
   '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
@@ -280,6 +287,7 @@ export interface FileRoutesByTo {
   '/meu-quadro': typeof MeuQuadroRoute
   '/musica-personalizada-para-esposa': typeof MusicaPersonalizadaParaEsposaRoute
   '/obrigado': typeof ObrigadoRoute
+  '/presente': typeof PresenteRoute
   '/privacidade': typeof PrivacidadeRoute
   '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
@@ -319,6 +327,7 @@ export interface FileRoutesById {
   '/meu-quadro': typeof MeuQuadroRoute
   '/musica-personalizada-para-esposa': typeof MusicaPersonalizadaParaEsposaRoute
   '/obrigado': typeof ObrigadoRoute
+  '/presente': typeof PresenteRoute
   '/privacidade': typeof PrivacidadeRoute
   '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
@@ -359,6 +368,7 @@ export interface FileRouteTypes {
     | '/meu-quadro'
     | '/musica-personalizada-para-esposa'
     | '/obrigado'
+    | '/presente'
     | '/privacidade'
     | '/recuperar'
     | '/retomar'
@@ -397,6 +407,7 @@ export interface FileRouteTypes {
     | '/meu-quadro'
     | '/musica-personalizada-para-esposa'
     | '/obrigado'
+    | '/presente'
     | '/privacidade'
     | '/recuperar'
     | '/retomar'
@@ -435,6 +446,7 @@ export interface FileRouteTypes {
     | '/meu-quadro'
     | '/musica-personalizada-para-esposa'
     | '/obrigado'
+    | '/presente'
     | '/privacidade'
     | '/recuperar'
     | '/retomar'
@@ -474,6 +486,7 @@ export interface RootRouteChildren {
   MeuQuadroRoute: typeof MeuQuadroRoute
   MusicaPersonalizadaParaEsposaRoute: typeof MusicaPersonalizadaParaEsposaRoute
   ObrigadoRoute: typeof ObrigadoRoute
+  PresenteRoute: typeof PresenteRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   RecuperarRoute: typeof RecuperarRoute
   RetomarRoute: typeof RetomarRoute
@@ -590,6 +603,13 @@ declare module '@tanstack/react-router' {
       path: '/obrigado'
       fullPath: '/obrigado'
       preLoaderRoute: typeof ObrigadoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/presente': {
+      id: '/presente'
+      path: '/presente'
+      fullPath: '/presente'
+      preLoaderRoute: typeof PresenteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacidade': {
@@ -770,6 +790,7 @@ const rootRouteChildren: RootRouteChildren = {
   MeuQuadroRoute: MeuQuadroRoute,
   MusicaPersonalizadaParaEsposaRoute: MusicaPersonalizadaParaEsposaRoute,
   ObrigadoRoute: ObrigadoRoute,
+  PresenteRoute: PresenteRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   RecuperarRoute: RecuperarRoute,
   RetomarRoute: RetomarRoute,

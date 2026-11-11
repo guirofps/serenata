@@ -433,6 +433,15 @@ export const EXPERIMENTOS: Experimento[] = [
     ativo: false,
     nota: "SERENATA, 04/11. Tela do QR do PIX. A = como é hoje. B = caixa logo abaixo do botão de copiar: depois de pagar, volte para esta tela, a sua música abre aqui sozinha, + o e-mail onde ela também chega. Motivo: 'paguei e não recebi' é o 1º assunto do suporte e quase sempre a pessoa recebeu; a Teresinha abriu MED 25 min depois de pagar sem voltar à aba. Ler por MED/suporte 'não recebi' por comprador e PAGO ÷ PIX GERADO (não pode cair); diagnóstico pix_volte_exposto (braco). Pós-clique: no POS_COMPRA do vigiaExperimento.",
   },
+  {
+    // SÓ SERENATA, landing de anúncio `/presente`. Ver `lp-presente.ts`.
+    id: "lp_headline",
+    variantes: ["A", "B", "C"],
+    peso: [1, 1, 1],
+    // NUNCA `true` aqui: quem liga é a linha da tabela `experimentos`.
+    ativo: false,
+    nota: "SERENATA, 11/11. Headline da landing /presente (anúncio). A = 'Flores murcham. Chocolate acaba. Uma música fica pra sempre.' B = 'O único presente do mundo com o nome e a história de quem você ama'. C = 'O presente que faz quem você ama chorar na primeira nota'. O resto da página é igual. Ler RECEITA POR SESSÃO por braço, SÓ entre sessões com page_view em /presente (o sorteio roda no site inteiro); saúde: lp_presente_cta por sessão.",
+  },
 ];
 
 /**
