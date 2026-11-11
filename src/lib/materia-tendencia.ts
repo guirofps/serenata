@@ -7,9 +7,10 @@
 //
 // ── O QUE DEIXA ISTO DENTRO DAS REGRAS DO GOOGLE ─────────────────
 //
-//  - Não imita portal nenhum: nosso domínio, nosso logo, selo "Publicidade"
-//    no topo e rodapé dizendo de quem é o conteúdo, com o CNPJ.
-//  - Assina "Redação Serenata". Sem repórter inventado.
+//  - Não imita portal nenhum que exista: nosso domínio, um nome de publicação
+//    nosso (`NOME_PUBLICACAO`), selo "Publicidade" no topo e rodapé dizendo de
+//    quem é a publicação e o conteúdo, com o CNPJ.
+//  - Assina "Redação" + o nome da publicação. Sem repórter inventado.
 //  - Só dado nosso. Sem seção de comentários, sem contagem regressiva, sem
 //    "últimas vagas". Sem preço e sem falar em pagar (como a `/presente`):
 //    a promessa é ouvir a prévia de graça.
@@ -55,6 +56,15 @@ export const PARA_QUEM = [
   { rotulo: "Namorada", pct: 12 },
   { rotulo: "Mãe, pai, filhos, avós e amigos", pct: 41 },
 ] as const;
+
+// O NOME DA PUBLICAÇÃO (Ralph, 11/11 à noite): a barra do topo e a assinatura
+// levam "Notícias da Família" no lugar do logo da Serenata, pra a matéria ler
+// como notícia e não como página de loja. Decisão dele, avisado de que o Google
+// é rígido com página de anúncio que se apresenta como veículo. É um nome
+// NOSSO (não achei veículo com esse nome), e por isso a página continua
+// dizendo de quem é: selo "Publicidade" no topo e, no rodapé, que a publicação
+// é um espaço de conteúdo da Serenata Gift, com o CNPJ. Não tire esses dois.
+export const NOME_PUBLICACAO = "Notícias da Família";
 
 /** A data que a matéria mostra (a da publicação). */
 export const DATA_MATERIA = "11/11/2026";

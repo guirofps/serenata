@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, ArrowUpRight, Check, Facebook, Link2, Menu, MessageCircle, Pause, Play, X } from "lucide-react";
-import { Logo } from "@/components/marca/Logo";
 import { PresenteNoTopo } from "@/components/landing/PresenteNoTopo";
 import { BarraCTA } from "@/components/landing/BarraCTA";
 import { FONTES, TEMA_CLARO } from "@/lib/marca";
@@ -16,6 +15,7 @@ import {
   DATA_MATERIA,
   HORA_MATERIA,
   MANCHETES,
+  NOME_PUBLICACAO,
   PARA_QUEM,
   PERIODO_PARA_QUEM,
   SLUGS_EXEMPLO_MATERIA,
@@ -31,7 +31,8 @@ import {
 // fina, assinatura com avatar, botões de compartilhar e a mídia grande logo
 // abaixo. O FORMATO é o de um portal; a IDENTIDADE é a nossa, e nada é de
 // enfeite:
-//   - a barra leva o nosso logo e a nossa cor, não um nome de portal inventado;
+//   - a barra leva o nome da NOSSA publicação (`NOME_PUBLICACAO`, decisão do
+//     Ralph) na nossa cor, e o rodapé diz que ela é da Serenata Gift;
 //   - a data é a da publicação, sem relógio falso de "atualizado agora há pouco";
 //   - o menu abre e os botões compartilham de verdade; não há campo de
 //     pesquisa, porque não haveria o que pesquisar.
@@ -41,7 +42,7 @@ import {
 // só aparece depois que a manchete e o vídeo saem da tela.
 
 const URL = "https://www.serenatagift.com/tendencia";
-const TITULO = `${MANCHETES.A} | Serenata`;
+const TITULO = `${MANCHETES.A} | ${NOME_PUBLICACAO}`;
 const LINHA_FINA = `Mais de ${FAMILIAS.replace("+", "")} famílias já deram uma canção com o nome e a história de quem amam. A prévia fica pronta em minutos e pode ser ouvida de graça.`;
 
 // A tipografia de portal: uma sem serifa pesada e apertada. Só nesta página.
@@ -221,14 +222,16 @@ function Materia() {
             style={{ fontSize: "0.75rem", letterSpacing: "0.12em" }}
           >
             {menu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            <span>Menu</span>
+            {/* No celular fica só o ícone: o nome da publicação precisa do espaço. */}
+            <span className="hidden sm:inline">Menu</span>
+            <span className="sr-only sm:hidden">Menu</span>
           </button>
-          <Link to="/" aria-label="Serenata, página inicial" className="flex items-center">
-            {/* O logo é vinho e ouro; sobre a barra vinho ele vai inteiro em branco. */}
-            <span style={{ filter: "brightness(0) invert(1)" }}>
-              <Logo tamanho="sm" />
-            </span>
-          </Link>
+          <span
+            className="whitespace-nowrap"
+            style={{ fontWeight: 800, fontSize: "clamp(1.0625rem, 4.8vw, 1.375rem)", letterSpacing: "-0.035em", lineHeight: 1 }}
+          >
+            {NOME_PUBLICACAO}
+          </span>
           <span className="border-l border-white/40 pl-4 text-white/90" style={{ fontSize: "0.9375rem" }}>
             Presentes
           </span>
@@ -294,11 +297,11 @@ function Materia() {
                   className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--acento)] font-semibold text-white"
                   aria-hidden
                 >
-                  S
+                  N
                 </span>
                 <div style={{ fontSize: "0.9375rem", lineHeight: 1.35 }}>
                   <p>
-                    Por <span className="font-semibold">Redação Serenata</span>
+                    Por <span className="font-semibold">Redação {NOME_PUBLICACAO}</span>
                   </p>
                   <p style={{ color: "#777", fontSize: "0.8125rem" }}>
                     {DATA_MATERIA} {HORA_MATERIA}
@@ -484,8 +487,8 @@ function Materia() {
         style={{ fontSize: "0.8125rem", lineHeight: 1.6, color: "#777", borderColor: LINHA }}
       >
         <p>
-          Este conteúdo é publicidade da {RESPONSAVEL.nome}, CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}. Os números citados são
-          da própria empresa.
+          {NOME_PUBLICACAO} é um espaço de conteúdo da {RESPONSAVEL.nome}, CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}. Este
+          conteúdo é publicidade, e os números citados são da própria empresa.
         </p>
         <p className="mt-2">
           <Link to="/" className="underline underline-offset-4">Página inicial</Link> ·{" "}
