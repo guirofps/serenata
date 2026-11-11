@@ -4,6 +4,8 @@ import { ArrowRight, Pause, Play } from "lucide-react";
 import { Logo } from "@/components/marca/Logo";
 import { ProvaSocial } from "@/components/landing/ProvaSocial";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
+import { Entregavel } from "@/components/landing/Entregavel";
+import { BarraCTA } from "@/components/landing/BarraCTA";
 import { MARCA, FONTES, TEMA_CLARO } from "@/lib/marca";
 import { useProfundidadeRolagem } from "@/lib/rolagem";
 import { trackEvent } from "@/lib/track";
@@ -14,13 +16,31 @@ import { BRACOS_LP, HEADLINES_LP, SLUGS_EXEMPLO_LP, cssLpHeadline } from "@/lib/
 // A LANDING DE ANÚNCIO (11/11/2026). Desenho e teste da headline em
 // `lp-presente.ts`. Pouco texto de propósito: quem chega do anúncio decide em
 // segundos, e o que convence é ouvir uma música e ver gente se emocionando.
+//
+// REVISÃO DO SÓCIO (11/11, mesma tarde), quatro pontos:
+//  1. O que sai de graça é a PRÉVIA cantada, não "a letra na hora". A página
+//     não fala de cobrança nem de preço: a promessa é ouvir a prévia de graça.
+//  2. A gente não vende a música, vende a EXPERIÊNCIA: a página-presente entra
+//     na landing (o `Entregavel` da home, com o exemplo vivo pra abrir).
+//  3. SEM BOTÃO NO TOPO NEM NO HERÓI. Com o botão ali a pessoa clica antes de
+//     ver o que o presente é e chega fria ao quiz, que é o que o `/criar`
+//     direto já faz. O primeiro botão é a barra de baixo, que só aparece
+//     depois que a headline e o vídeo de reações saíram da tela.
+//  4. Promessa na frente: cada bloco diz uma coisa só, na ordem
+//     emoção (vídeo) → por que não flor → o que ela recebe → ouvir → como.
 
 const URL = "https://www.serenatagift.com/presente";
 const TITULO = "Uma música de presente, com o nome de quem você ama | Serenata";
 const DESCRICAO =
-  "Flores murcham, chocolate acaba. Uma música feita da história de vocês fica pra sempre. A letra sai na hora, de graça, e você ouve antes de pagar.";
+  "Flores murcham, chocolate acaba. Uma música feita da história de vocês fica pra sempre, numa página só de quem você ama. Ouça a prévia de graça.";
 
 const EXEMPLOS = SLUGS_EXEMPLO_LP.map((s) => exemploPorSlug(s)).filter((e): e is ExemploPt => Boolean(e));
+
+// O presente de exemplo que a seção da página-presente abre (o do pai, o mesmo da home).
+const TOKEN_EXEMPLO = exemploPorSlug("antonio")?.token;
+
+/** A coluna de leitura. A seção da página-presente sai dela e vai de borda a borda. */
+const COLUNA = "mx-auto max-w-3xl px-4 sm:px-5";
 
 const COMUNS = [
   { emoji: "🌹", nome: "Flores", fim: "murcham em uma semana" },
@@ -30,8 +50,8 @@ const COMUNS = [
 
 const PASSOS = [
   { n: "1", texto: "Você conta a história de vocês, escrevendo ou por áudio." },
-  { n: "2", texto: "A letra fica pronta na hora, com o nome de quem vai ganhar. De graça." },
-  { n: "3", texto: "Você ouve cantada antes de pagar e manda o link com QR Code." },
+  { n: "2", texto: "Em poucos minutos ela vira música, com o nome de quem vai ganhar. Você ouve a prévia de graça." },
+  { n: "3", texto: "Quem você ama recebe uma página só dela: a música, a letra acendendo e as fotos de vocês. Por link ou QR Code." },
 ];
 
 export const Route = createFileRoute("/presente")({
@@ -56,7 +76,7 @@ export const Route = createFileRoute("/presente")({
   component: Pagina,
 });
 
-function BotaoCriar({ posicao, texto = "Criar a música agora" }: { posicao: string; texto?: string }) {
+function BotaoCriar({ posicao, texto = "Criar minha música" }: { posicao: string; texto?: string }) {
   return (
     <Link
       to="/criar"
@@ -71,6 +91,8 @@ function BotaoCriar({ posicao, texto = "Criar a música agora" }: { posicao: str
 function Pagina() {
   useProfundidadeRolagem("lp-presente");
   const audioRef = useRef<HTMLAudioElement>(null);
+  // A barra de baixo espera ESTE bloco sair da tela: headline + vídeo.
+  const heroiRef = useRef<HTMLElement>(null);
   const [tocando, setTocando] = useState<string | null>(null);
 
   // O braço da headline vai junto com o lead desde a landing, não só a partir
@@ -103,22 +125,15 @@ function Pagina() {
       <div className="fio-marca fixed inset-x-0 top-0 z-40" aria-hidden />
       <audio ref={audioRef} onEnded={() => setTocando(null)} preload="none" />
 
-      <header className="sticky top-0 z-30 border-b border-[var(--tinta-fraca)]/30 bg-[var(--papel)]/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-5 sm:py-4">
+      <header className="border-b border-[var(--tinta-fraca)]/30">
+        <div className="mx-auto flex max-w-5xl items-center justify-center px-4 py-3 sm:px-5 sm:py-4">
           <Logo tamanho="sm" />
-          <Link
-            to="/criar"
-            onClick={() => void trackEvent("lp_presente_cta", { posicao: "topo" })}
-            className="cta rounded-full px-4 py-2 text-sm font-medium sm:px-5 sm:py-2.5"
-          >
-            Criar minha música
-          </Link>
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 sm:px-5">
-        {/* ── HERO: a headline do teste ───────────────────────── */}
-        <section className="pt-10 text-center sm:pt-16">
+      <main>
+        {/* ── HERÓI: a headline do teste + as reações. Sem botão. ── */}
+        <section ref={heroiRef} className={`${COLUNA} pt-8 text-center sm:pt-14`}>
           <p className="uppercase tracking-[0.3em] text-[var(--acento)]" style={{ fontSize: "var(--t-xs)" }}>
             um presente que ninguém mais tem
           </p>
@@ -138,21 +153,19 @@ function Pagina() {
             })}
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-lg)", lineHeight: 1.55 }}>
-            Uma canção original, com o nome e a história de quem você ama. A letra sai na hora,
-            de graça, e você ouve antes de pagar.
+            A história de vocês vira uma música original, entregue numa página só de quem você
+            ama, com as fotos e a letra acendendo. A prévia você ouve de graça.
           </p>
-          <div className="mt-7 flex flex-col items-center gap-4">
-            <BotaoCriar posicao="hero" />
+          <div className="mt-8 sm:mt-10">
+            <VitrineVideo caption="Gente de verdade ouvindo a própria música pela primeira vez" />
+          </div>
+          <div className="mt-7 flex justify-center">
             <ProvaSocial />
           </div>
         </section>
 
-        <section className="mt-10 sm:mt-14">
-          <VitrineVideo caption="Gente de verdade ouvindo a própria música pela primeira vez" />
-        </section>
-
         {/* ── O PRESENTE COMUM DURA POUCO ─────────────────────── */}
-        <section className="mt-16 sm:mt-24">
+        <section className={`${COLUNA} mt-16 sm:mt-24`}>
           <h2
             className="text-balance text-center"
             style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-2xl)", lineHeight: 1.15 }}
@@ -182,8 +195,17 @@ function Pagina() {
           </div>
         </section>
 
+        {/* ── O QUE ELA RECEBE: a página-presente (a noite da home) ── */}
+        <div className="mt-12 sm:mt-16">
+          <Entregavel exemploToken={TOKEN_EXEMPLO} />
+        </div>
+        <section className={`${COLUNA} text-center`}>
+          <BotaoCriar posicao="presente" />
+          <p className="mt-3 text-sm text-[var(--tinta-suave)]">A prévia é grátis e fica pronta em poucos minutos.</p>
+        </section>
+
         {/* ── OUÇA: três músicas de verdade ───────────────────── */}
-        <section className="mt-16 sm:mt-24">
+        <section className={`${COLUNA} mt-16 sm:mt-24`}>
           <h2
             className="text-balance text-center"
             style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-2xl)", lineHeight: 1.15 }}
@@ -234,8 +256,14 @@ function Pagina() {
         </section>
 
         {/* ── COMO FUNCIONA ───────────────────────────────────── */}
-        <section className="mt-16 sm:mt-24">
-          <ol className="space-y-3">
+        <section className={`${COLUNA} mt-16 sm:mt-24`}>
+          <h2
+            className="text-balance text-center"
+            style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-2xl)", lineHeight: 1.15 }}
+          >
+            Fica pronto hoje
+          </h2>
+          <ol className="mx-auto mt-7 max-w-xl space-y-4">
             {PASSOS.map((p) => (
               <li key={p.n} className="flex items-start gap-4">
                 <span
@@ -251,7 +279,7 @@ function Pagina() {
         </section>
 
         {/* ── CTA FINAL ───────────────────────────────────────── */}
-        <section className="mt-16 pb-20 text-center sm:mt-24">
+        <section className={`${COLUNA} mt-16 pb-16 text-center sm:mt-24`}>
           <h2
             className="mx-auto max-w-lg text-balance"
             style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-2xl)", lineHeight: 1.15 }}
@@ -259,17 +287,25 @@ function Pagina() {
             Um presente que vai ser ouvido de novo em todo aniversário
           </h2>
           <div className="mt-6">
-            <BotaoCriar posicao="final" texto="Começar a música" />
+            <BotaoCriar posicao="final" />
           </div>
-          <p className="mt-4 text-sm text-[var(--tinta-suave)]">A letra é grátis. Você só paga se quiser ouvir cantada.</p>
+          <p className="mt-4 text-sm text-[var(--tinta-suave)]">Conte a história agora e ouça a prévia de graça.</p>
         </section>
       </main>
 
-      <footer className="border-t border-[var(--tinta-fraca)]/30 py-8 text-center text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
+      <footer className="border-t border-[var(--tinta-fraca)]/30 pb-28 pt-8 text-center text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
         <Link to="/" className="underline underline-offset-4">{MARCA.nome}</Link> ·{" "}
         <Link to="/termos" className="underline underline-offset-4">Termos</Link> ·{" "}
         <Link to="/privacidade" className="underline underline-offset-4">Privacidade</Link>
       </footer>
+
+      <BarraCTA
+        alvoRef={heroiRef}
+        rotulo="Criar minha música"
+        titulo="Uma música com o nome de quem você ama"
+        sub="A prévia é grátis"
+        aoClicar={() => void trackEvent("lp_presente_cta", { posicao: "barra" })}
+      />
     </div>
   );
 }

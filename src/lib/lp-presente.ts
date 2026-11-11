@@ -2,9 +2,10 @@
 //
 // Pra quem chega pelo anúncio e ainda não entendeu o produto: uma música é um
 // presente personalizado, único, que emociona e dura, ao contrário de flor,
-// chocolate e perfume. Pouco texto, o vídeo de reações reais, três músicas de
-// exemplo tocáveis e o botão pro `/criar`. Sem preço (decisão do dono): a
-// letra é grátis e a pessoa ouve antes de pagar, o preço aparece na oferta.
+// chocolate e perfume. Pouco texto, o vídeo de reações reais, a página-presente
+// (o que a pessoa recebe), três músicas de exemplo tocáveis e o botão pro
+// `/criar`. Sem preço e sem falar em pagar (decisão dos donos): a promessa é
+// ouvir a prévia de graça, e o preço só aparece na oferta.
 //
 // ── O TESTE `lp_headline` ────────────────────────────────────────
 //

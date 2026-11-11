@@ -39,4 +39,19 @@ describe("lp_headline", () => {
   it("as três músicas de exemplo existem na lista da home", () => {
     for (const s of SLUGS_EXEMPLO_LP) expect(exemploPorSlug(s)).toBeDefined();
   });
+
+  // Sócio, 11/11: o que sai de graça é a PRÉVIA cantada (não "a letra na
+  // hora"), a página não fala em pagar, e o primeiro botão só vem depois de a
+  // pessoa ver o que o presente é (herói sem botão).
+  it("a página promete a prévia grátis, sem falar em pagar nem em preço", () => {
+    const tsx = readFileSync(new URL("../routes/presente.tsx", import.meta.url), "utf8");
+    expect(tsx).toMatch(/prévia/);
+    expect(tsx).not.toMatch(/\bpag(ar|a|ue)\b|R\$|letra sai na hora|letra fica pronta na hora|60 segundos/i);
+  });
+
+  it("mostra a página-presente e não tem botão no herói nem no topo", () => {
+    const tsx = readFileSync(new URL("../routes/presente.tsx", import.meta.url), "utf8");
+    expect(tsx).toContain("<Entregavel");
+    expect(tsx).not.toMatch(/posicao[:=]\s*["']?(topo|hero)/);
+  });
 });

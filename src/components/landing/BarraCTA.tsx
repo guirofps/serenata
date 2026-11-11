@@ -35,6 +35,7 @@ export function BarraCTA({
   rotulo,
   titulo,
   sub,
+  aoClicar,
 }: {
   alvoRef: React.RefObject<HTMLElement | null>;
   locale?: Locale;
@@ -43,6 +44,8 @@ export function BarraCTA({
   rotulo?: string;
   titulo?: string;
   sub?: string;
+  /** Pra medir o clique da barra em página que conta clique por posição. */
+  aoClicar?: () => void;
 }) {
   const T = t(locale);
   const _destino = destino ?? caminho("/criar", locale);
@@ -96,6 +99,7 @@ export function BarraCTA({
         </div>
         <Link
           to={_destino}
+          onClick={aoClicar}
           tabIndex={visivel ? 0 : -1}
           // Alvo de toque confortável (§3.6: mínimo 44px).
           className="cta inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full px-6 font-medium sm:flex-none"
