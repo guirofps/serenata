@@ -59,7 +59,18 @@ describe("lerPagamentoDlocal", () => {
     expect(f).toHaveBeenCalledTimes(2);
   });
 
-  it("erro que não é 404 sobe na hora, sem tentar a outra conta", async () => {
+  it("cobrança da conta antiga do jeito que a dLocal responde de verdade: 403 na nova", async () => {
+    const f = vi.fn(async (_url: string, init: { headers: Record<string, string> }) =>
+      init.headers.Authorization.includes("chave-antiga")
+        ? resposta(200, { id: "DP-9052404", status: "PENDING" })
+        : resposta(403, { code: 3001, message: "Invalid Credentials." }),
+    );
+    vi.stubGlobal("fetch", f);
+    expect((await lerPagamentoDlocal("DP-9052404", [NOVA, ANTIGA])).status).toBe("PENDING");
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+
+  it("erro que não é 403/404 sobe na hora, sem tentar a outra conta", async () => {
     const f = vi.fn(async () => resposta(500, { message: "internal" }));
     vi.stubGlobal("fetch", f);
     await expect(lerPagamentoDlocal("DP-3", [NOVA, ANTIGA])).rejects.toBeInstanceOf(ErroDlocal);

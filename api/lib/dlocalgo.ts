@@ -132,8 +132,10 @@ export type PagamentoDlocal = {
 };
 
 /**
- * Lê o pagamento na conta que o criou: tenta a nova e, se ela disser que não
- * existe (404), a antiga. Qualquer outro erro sobe na hora (nada de adivinhar).
+ * Lê o pagamento na conta que o criou: tenta a nova e, se ela não reconhecer a
+ * cobrança, a antiga. Medido em 11/11: perguntada por cobrança da OUTRA conta, a
+ * dLocal responde 403 `{"code":3001,"message":"Invalid Credentials."}`, não 404
+ * (404 é id que não existe em lugar nenhum). Qualquer outro erro sobe na hora.
  */
 export async function lerPagamentoDlocal(id: string, contas: ContaDlocal[] = contasDlocal()): Promise<PagamentoDlocal> {
   if (!contas.length) throw new ErroDlocal("DLOCALGO_API_KEY/SECRET ausente", 500);
@@ -142,7 +144,7 @@ export async function lerPagamentoDlocal(id: string, contas: ContaDlocal[] = con
     try {
       return await dlocalApi<PagamentoDlocal>("GET", `/payments/${encodeURIComponent(id)}`, undefined, conta);
     } catch (err) {
-      if (!(err instanceof ErroDlocal) || err.status !== 404) throw err;
+      if (!(err instanceof ErroDlocal) || (err.status !== 404 && err.status !== 403)) throw err;
       ultimo = err;
     }
   }
