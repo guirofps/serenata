@@ -26,6 +26,7 @@ import { Route as PresenteRouteImport } from './routes/presente'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as RecuperarRouteImport } from './routes/recuperar'
 import { Route as RetomarRouteImport } from './routes/retomar'
+import { Route as TendenciaRouteImport } from './routes/tendencia'
 import { Route as TermosRouteImport } from './routes/termos'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
@@ -131,6 +132,11 @@ const RecuperarRoute = RecuperarRouteImport.update({
 const RetomarRoute = RetomarRouteImport.update({
   id: '/retomar',
   path: '/retomar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TendenciaRoute = TendenciaRouteImport.update({
+  id: '/tendencia',
+  path: '/tendencia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermosRoute = TermosRouteImport.update({
@@ -252,6 +258,7 @@ export interface FileRoutesByFullPath {
   '/privacidade': typeof PrivacidadeRoute
   '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
+  '/tendencia': typeof TendenciaRoute
   '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -291,6 +298,7 @@ export interface FileRoutesByTo {
   '/privacidade': typeof PrivacidadeRoute
   '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
+  '/tendencia': typeof TendenciaRoute
   '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -331,6 +339,7 @@ export interface FileRoutesById {
   '/privacidade': typeof PrivacidadeRoute
   '/recuperar': typeof RecuperarRoute
   '/retomar': typeof RetomarRoute
+  '/tendencia': typeof TendenciaRoute
   '/termos': typeof TermosRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -372,6 +381,7 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/recuperar'
     | '/retomar'
+    | '/tendencia'
     | '/termos'
     | '/auth/callback'
     | '/blog/$slug'
@@ -411,6 +421,7 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/recuperar'
     | '/retomar'
+    | '/tendencia'
     | '/termos'
     | '/auth/callback'
     | '/blog/$slug'
@@ -450,6 +461,7 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/recuperar'
     | '/retomar'
+    | '/tendencia'
     | '/termos'
     | '/auth/callback'
     | '/blog/$slug'
@@ -490,6 +502,7 @@ export interface RootRouteChildren {
   PrivacidadeRoute: typeof PrivacidadeRoute
   RecuperarRoute: typeof RecuperarRoute
   RetomarRoute: typeof RetomarRoute
+  TendenciaRoute: typeof TendenciaRoute
   TermosRoute: typeof TermosRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   BlogSlugRoute: typeof BlogSlugRoute
@@ -631,6 +644,13 @@ declare module '@tanstack/react-router' {
       path: '/retomar'
       fullPath: '/retomar'
       preLoaderRoute: typeof RetomarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tendencia': {
+      id: '/tendencia'
+      path: '/tendencia'
+      fullPath: '/tendencia'
+      preLoaderRoute: typeof TendenciaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/termos': {
@@ -794,6 +814,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacidadeRoute: PrivacidadeRoute,
   RecuperarRoute: RecuperarRoute,
   RetomarRoute: RetomarRoute,
+  TendenciaRoute: TendenciaRoute,
   TermosRoute: TermosRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   BlogSlugRoute: BlogSlugRoute,

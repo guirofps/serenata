@@ -442,6 +442,15 @@ export const EXPERIMENTOS: Experimento[] = [
     ativo: false,
     nota: "SERENATA, 11/11. Headline da landing /presente (anúncio). A = 'Flores murcham. Chocolate acaba. Uma música fica pra sempre.' B = 'O único presente do mundo com o nome e a história de quem você ama'. C = 'O presente que faz quem você ama chorar na primeira nota'. O resto da página é igual. Ler RECEITA POR SESSÃO por braço, SÓ entre sessões com page_view em /presente (o sorteio roda no site inteiro); saúde: lp_presente_cta por sessão.",
   },
+  {
+    // SÓ SERENATA, matéria de anúncio `/tendencia`. Ver `materia-tendencia.ts`.
+    id: "materia_titulo",
+    variantes: ["A", "B", "C"],
+    peso: [1, 1, 1],
+    // NUNCA `true` aqui: quem liga é a linha da tabela `experimentos`.
+    ativo: false,
+    nota: "SERENATA, 11/11. Manchete da matéria /tendencia (anúncio em formato de notícia). A = 'Brasileiros estão trocando flores e perfume por músicas feitas com a história do casal'. B = 'O presente que já fez mais de 6.600 famílias chorarem não se compra em loja'. C = 'Quase metade é para a esposa: o presente que virou febre entre maridos brasileiros'. O resto da matéria é igual. Ler RECEITA POR SESSÃO por braço, SÓ entre sessões com page_view em /tendencia; saúde: materia_cta por sessão.",
+  },
 ];
 
 /**
