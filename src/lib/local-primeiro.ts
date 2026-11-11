@@ -24,10 +24,16 @@ export const EXP_LOCAL_PRIMEIRO = "local_primeiro";
 
 export type PaisLocalPrimeiro = "CO" | "PE";
 
-/** O B só existe na Colômbia e no Peru. Pela inicial, como os outros testes. */
+/**
+ * O B só existe na Colômbia e no Peru. Pela inicial, como os outros testes.
+ * PERU FIXO NO B (11/11, dono): pagou ÷ exposto 14,7% × 8,4% (z 2,2), quase o
+ * dobro de receita por exposto (`scratch/leitura-testes-ab-11nov.md`). A
+ * Colômbia segue no teste (pouco dado).
+ */
 export function localPrimeiroLigado(variante: string | null | undefined, pais: string | null | undefined): boolean {
   const p = String(pais ?? "").trim().toUpperCase();
-  return (p === "CO" || p === "PE") && String(variante ?? "").trim().toUpperCase().startsWith("B");
+  if (p === "PE") return true;
+  return p === "CO" && String(variante ?? "").trim().toUpperCase().startsWith("B");
 }
 
 type Opcao = { metodo: MetodoDlocal; rotulo: string; sub: string; como: string };

@@ -14,13 +14,14 @@ describe("documento_depois", () => {
 });
 
 describe("local_primeiro", () => {
-  it("só o B da Colômbia e do Peru liga; o Chile fica de fora", () => {
+  it("só o B da Colômbia liga; o Peru é fixo no B desde 11/11; o Chile fica de fora", () => {
     expect(localPrimeiroLigado("B", "CO")).toBe(true);
     expect(localPrimeiroLigado("b", " pe ")).toBe(true);
     expect(localPrimeiroLigado("A", "CO")).toBe(false);
     expect(localPrimeiroLigado("B", "CL")).toBe(false);
     expect(localPrimeiroLigado("B", "MX")).toBe(false);
-    expect(localPrimeiroLigado(undefined, "PE")).toBe(false);
+    expect(localPrimeiroLigado(undefined, "PE")).toBe(true);
+    expect(localPrimeiroLigado("A", "PE")).toBe(true);
   });
 
   it("a opção principal abre o método que ela promete", () => {

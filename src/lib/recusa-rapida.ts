@@ -24,6 +24,13 @@
 
 export type BracoRecusaRapida = "A" | "B";
 
+/**
+ * ENCERRADO 11/11 (dono): o B (e-mail logo depois da recusa) ficou atrás, 19% × 27%
+ * de quem pagou em 72h (z -1,1), na mesma direção do e-mail de recusa encerrado em
+ * 03/11. Todos voltam pro A; a trava continua registrando (com o braço "A").
+ */
+export const ENVIA_B = false;
+
 /** O braço, pelo 7º caractere do fim do id do quiz (o 5º e o 6º já são de outros testes). */
 export function bracoRecusaRapida(quizId: string): BracoRecusaRapida {
   const limpo = quizId.replace(/-/g, "");

@@ -6,7 +6,7 @@ import { Resend } from "resend";
 import { comUtm } from "../../src/lib/utm-email.js";
 import { REMETENTE_RECUPERACAO, RESPONDER_PARA } from "../../emails/remetentes.js";
 import { assuntoRecusaRapida, emailRecusaRapida, textoRecusaRapida } from "../../emails/recusa-rapida.js";
-import { bracoRecusaRapida, grupoDoMotivo, naHoraDeAvisar, JANELA_MIN, type GrupoRecusa } from "../../src/lib/recusa-rapida.js";
+import { ENVIA_B, bracoRecusaRapida, grupoDoMotivo, naHoraDeAvisar, JANELA_MIN, type GrupoRecusa } from "../../src/lib/recusa-rapida.js";
 import { registrarEnvio } from "../../src/lib/registro-email.js";
 import { pareceTypo } from "../../src/lib/email-typo.js";
 import { literalLike } from "../../src/lib/sql-like.js";
@@ -194,7 +194,7 @@ export const recusaRapida = inngest.createFunction(
         // A trava vale pros DOIS braços: no A ela é o registro de quem teve
         // recusa (a leitura), no B é o "já mandei" e o sinal pro "quase
         // comprou" não mandar outro por cima.
-        const braco = bracoRecusaRapida(c.quizId);
+        const braco = ENVIA_B ? bracoRecusaRapida(c.quizId) : "A";
         const trava = await travarEnvio(sb, {
           event_name: "recusa_rapida",
           event_data: { quiz_response_id: c.quizId, email: c.email, braco, motivo: c.motivo, grupo: c.grupo, mexico: c.mexico },

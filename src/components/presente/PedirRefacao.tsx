@@ -51,7 +51,11 @@ const T = {
     aviso: "A música é gravada de novo inteira: a melodia e a voz podem mudar, mesmo se você trocar uma palavra só. É o seu único ajuste incluído, e a música anterior fica guardada.",
     pronto: "Pedido enviado. A nova versão fica pronta em 1 ou 2 minutos, e a anterior continua guardada.",
     erros: {
-      curto: "Escreva um pouquinho mais sobre o que mudar.",
+      // 11/11: o "curto" chega quase sempre com o campo VAZIO e a mesma voz e o
+      // mesmo estilo que a música já tem (14 pessoas em 4 semanas; o servidor
+      // barra pra não gastar o ajuste regravando igual). A frase antiga mandava
+      // "escrever mais", e a pessoa não entendia o que faltava.
+      curto: "A voz e o estilo que você escolheu já são os da sua música. Escreva o que quer mudar na letra, ou escolha outra voz ou outro estilo.",
       longo: "O texto ficou maior que o limite. Mande só a letra ou só o que quer mudar.",
       limite: "Foram muitas tentativas seguidas. Espere alguns minutos e tente de novo. Seu ajuste continua guardado.",
       "sem-direito": "Você já usou o ajuste incluído nesta música.",
@@ -80,7 +84,7 @@ const T = {
     aviso: "La canción se graba de nuevo completa: la melodía y la voz pueden cambiar, aunque cambies una sola palabra. Es tu único ajuste incluido, y la canción anterior queda guardada.",
     pronto: "Pedido enviado. La nueva versión queda lista en 1 o 2 minutos, y la anterior sigue guardada.",
     erros: {
-      curto: "Escribe un poco más sobre lo que quieres cambiar.",
+      curto: "La voz y el estilo que elegiste ya son los de tu canción. Escribe qué quieres cambiar en la letra, o elige otra voz u otro estilo.",
       longo: "El texto pasó del límite. Manda solo la letra o solo lo que quieres cambiar.",
       limite: "Fueron muchos intentos seguidos. Espera unos minutos e inténtalo de nuevo. Tu ajuste sigue guardado.",
       "sem-direito": "Ya usaste el ajuste incluido en esta canción.",
@@ -106,7 +110,7 @@ const T = {
     aviso: "The whole song is recorded again: the melody and the voice can change, even if you only change one word. This is your only included adjustment, and the previous song stays saved.",
     pronto: "Request sent. The new version will be ready in 1 or 2 minutes, and the previous one stays saved.",
     erros: {
-      curto: "Write a little more about what to change.",
+      curto: "The voice and style you picked are already your song's. Write what you'd like to change in the lyrics, or pick a different voice or style.",
       longo: "The text is over the limit. Send just the lyrics or just what you want changed.",
       limite: "Too many tries in a row. Wait a few minutes and try again. Your adjustment is still saved.",
       "sem-direito": "You've already used the included adjustment on this song.",
