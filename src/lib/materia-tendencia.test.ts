@@ -67,6 +67,23 @@ describe("matéria /tendencia", () => {
     expect(tsx).not.toMatch(/coment[áa]rio/i);
   });
 
+  // Visual de portal de notícia (pedido do Ralph, 11/11, com um print de referência):
+  // barra colorida com menu, selo, manchete pesada, assinatura com avatar e
+  // botões de compartilhar. O formato pode; o que NÃO pode é o que a referência
+  // tinha de falso: nome de portal inventado, "atualizado há 2 horas" fixo e
+  // busca que não busca.
+  it("tem cara de portal, mas a marca da barra é a nossa e nada na página é de mentira", () => {
+    const tsx = ler("../routes/tendencia.tsx");
+    expect(tsx).toContain("<Logo");
+    expect(tsx).not.toMatch(/Notícias de|Portal d|Jornal d|Gazeta|Diário d/);
+    expect(tsx).not.toMatch(/Atualizado há|há \d+ (hora|minuto)/i);
+    expect(tsx).not.toMatch(/\bbuscar\b/i);
+    // compartilhar e menu funcionam de verdade
+    expect(tsx).toContain("api.whatsapp.com/send");
+    expect(tsx).toContain("navigator.clipboard");
+    expect(tsx).toMatch(/aria-expanded/);
+  });
+
   it("a rota só responde na Serenata", () => {
     expect(ler("../routes/__root.tsx")).toContain("tendencia$");
   });

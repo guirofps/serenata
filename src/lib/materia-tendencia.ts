@@ -58,6 +58,8 @@ export const PARA_QUEM = [
 
 /** A data que a matéria mostra (a da publicação). */
 export const DATA_MATERIA = "11/11/2026";
+/** A hora em que ela foi ao ar. É a da publicação de verdade: nada de relógio que se atualiza sozinho. */
+export const HORA_MATERIA = "16h00";
 
 /** O parágrafo de Natal vale até o dia 25/12/2026, no horário de Brasília. */
 export function mostraNatal(agora: Date = new Date()): boolean {

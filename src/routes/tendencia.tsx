@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, ArrowUpRight, Pause, Play } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, Facebook, Link2, Menu, MessageCircle, Pause, Play, X } from "lucide-react";
 import { Logo } from "@/components/marca/Logo";
-import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { PresenteNoTopo } from "@/components/landing/PresenteNoTopo";
 import { BarraCTA } from "@/components/landing/BarraCTA";
 import { FONTES, TEMA_CLARO } from "@/lib/marca";
@@ -15,6 +14,7 @@ import { AUDIO_EXEMPLOS, VERSAO_CAPAS, exemploPorSlug, type ExemploPt } from "@/
 import {
   BRACOS_MATERIA,
   DATA_MATERIA,
+  HORA_MATERIA,
   MANCHETES,
   PARA_QUEM,
   PERIODO_PARA_QUEM,
@@ -24,9 +24,18 @@ import {
 } from "@/lib/materia-tendencia";
 
 // A MATÉRIA DE ANÚNCIO (11/11/2026). Ângulo, regras e teste da manchete em
-// `materia-tendencia.ts`. O formato é o de uma notícia (manchete, linha fina,
-// data, intertítulos, foto com legenda, dados), mas a página é NOSSA e se diz
-// publicidade no topo e no rodapé. Não imita portal nenhum.
+// `materia-tendencia.ts`.
+//
+// VISUAL DE PORTAL DE NOTÍCIA (Ralph, 11/11, a partir de um print): barra
+// colorida com menu, selo de publicidade, manchete pesada sem serifa, linha
+// fina, assinatura com avatar, botões de compartilhar e a mídia grande logo
+// abaixo. O FORMATO é o de um portal; a IDENTIDADE é a nossa, e nada é de
+// enfeite:
+//   - a barra leva o nosso logo e a nossa cor, não um nome de portal inventado;
+//   - a data é a da publicação, sem relógio falso de "atualizado agora há pouco";
+//   - o menu abre e os botões compartilham de verdade; não há campo de
+//     pesquisa, porque não haveria o que pesquisar.
+// O teste `materia-tendencia.test.ts` segura essas três coisas.
 //
 // Como na `/presente`: sem botão no topo. O primeiro é a barra de baixo, que
 // só aparece depois que a manchete e o vídeo saem da tela.
@@ -34,6 +43,10 @@ import {
 const URL = "https://www.serenatagift.com/tendencia";
 const TITULO = `${MANCHETES.A} | Serenata`;
 const LINHA_FINA = `Mais de ${FAMILIAS.replace("+", "")} famílias já deram uma canção com o nome e a história de quem amam. A prévia fica pronta em minutos e pode ser ouvida de graça.`;
+
+// A tipografia de portal: uma sem serifa pesada e apertada. Só nesta página.
+const INTER = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap";
+const SANS = "'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
 
 const EXEMPLOS = SLUGS_EXEMPLO_MATERIA.map((s) => exemploPorSlug(s)).filter((e): e is ExemploPt => Boolean(e));
 const TOKEN_EXEMPLO = exemploPorSlug("antonio")?.token;
@@ -61,18 +74,22 @@ export const Route = createFileRoute("/tendencia")({
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       { rel: "stylesheet", href: FONTES.googleFonts },
+      { rel: "stylesheet", href: INTER },
     ],
   }),
   component: Materia,
 });
 
-const P = "mt-5 text-[var(--tinta)]";
-const ESTILO_P = { fontSize: "1.0625rem", lineHeight: 1.75 } as const;
-const ESTILO_H2 = { fontFamily: FONTES.display, fontWeight: 600, fontSize: "var(--t-xl)", lineHeight: 1.2 } as const;
+const COR_TEXTO = "#222";
+const COR_SUAVE = "#555";
+const LINHA = "#e2e2e2";
+const P = "mt-5";
+const ESTILO_P = { fontSize: "1.125rem", lineHeight: 1.7, color: "#333" } as const;
+const ESTILO_H2 = { fontWeight: 800, fontSize: "1.5rem", lineHeight: 1.2, letterSpacing: "-0.02em", color: COR_TEXTO } as const;
 
-function Intertitulo({ children }: { children: React.ReactNode }) {
+function Intertitulo({ id, children }: { id?: string; children: React.ReactNode }) {
   return (
-    <h2 className="mt-12 text-balance" style={ESTILO_H2}>
+    <h2 id={id} className="mt-12 scroll-mt-20 text-balance" style={ESTILO_H2}>
       {children}
     </h2>
   );
@@ -83,10 +100,76 @@ function BotaoCriar({ posicao }: { posicao: string }) {
     <Link
       to="/criar"
       onClick={() => void trackEvent("materia_cta", { posicao })}
-      className="cta cta-pulse inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-medium"
+      className="cta cta-pulse inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-semibold"
     >
       Criar minha música <ArrowRight className="h-4 w-4" />
     </Link>
+  );
+}
+
+const BOTAO_REDE =
+  "grid h-10 w-10 place-items-center rounded-full border text-[#444] transition-colors hover:bg-[#f3f3f3]";
+
+/** Os quatro botões de compartilhar. Abrem a rede de verdade; o último copia o link. */
+function Compartilhar() {
+  const [copiado, setCopiado] = useState(false);
+  const texto = encodeURIComponent(`${MANCHETES.A} ${URL}`);
+  const link = encodeURIComponent(URL);
+  const medir = (rede: string) => void trackEvent("materia_compartilhar", { rede });
+  async function copiar() {
+    medir("link");
+    try {
+      await navigator.clipboard.writeText(URL);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch (err) {
+      console.error("[materia] copiar o link falhou:", err);
+    }
+  }
+  return (
+    <div className="flex items-center gap-2.5">
+      <a
+        href={`https://www.facebook.com/sharer/sharer.php?u=${link}`}
+        target="_blank"
+        rel="noreferrer"
+        onClick={() => medir("facebook")}
+        aria-label="Compartilhar no Facebook"
+        className={BOTAO_REDE}
+        style={{ borderColor: LINHA }}
+      >
+        <Facebook className="h-[18px] w-[18px]" />
+      </a>
+      <a
+        href={`https://api.whatsapp.com/send?text=${texto}`}
+        target="_blank"
+        rel="noreferrer"
+        onClick={() => medir("whatsapp")}
+        aria-label="Compartilhar no WhatsApp"
+        className={BOTAO_REDE}
+        style={{ borderColor: LINHA }}
+      >
+        <MessageCircle className="h-[18px] w-[18px]" />
+      </a>
+      <a
+        href={`https://twitter.com/intent/tweet?text=${texto}`}
+        target="_blank"
+        rel="noreferrer"
+        onClick={() => medir("x")}
+        aria-label="Compartilhar no X"
+        className={BOTAO_REDE}
+        style={{ borderColor: LINHA }}
+      >
+        <X className="h-[18px] w-[18px]" />
+      </a>
+      <button
+        onClick={copiar}
+        aria-label={copiado ? "Link copiado" : "Copiar o link"}
+        className={BOTAO_REDE}
+        style={{ borderColor: LINHA }}
+      >
+        {copiado ? <Check className="h-[18px] w-[18px]" /> : <Link2 className="h-[18px] w-[18px]" />}
+      </button>
+    </div>
   );
 }
 
@@ -96,6 +179,7 @@ function Materia() {
   // A barra de baixo espera ESTE bloco sair da tela: manchete + vídeo.
   const topoRef = useRef<HTMLElement>(null);
   const [tocando, setTocando] = useState<string | null>(null);
+  const [menu, setMenu] = useState(false);
 
   // O braço da manchete vai junto com o lead desde a matéria, não só a partir
   // do quiz: quem clica e volta outro dia continua no braço que viu.
@@ -122,33 +206,74 @@ function Materia() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-[var(--tinta)]" style={TEMA_CLARO}>
+    <div className="min-h-screen bg-white" style={{ ...TEMA_CLARO, fontFamily: SANS, color: COR_TEXTO }}>
       <style dangerouslySetInnerHTML={{ __html: cssMateriaTitulo() }} />
       <audio ref={audioRef} onEnded={() => setTocando(null)} preload="none" />
 
-      {/* ── CABEÇALHO: a nossa marca e o selo. Sem botão. ───── */}
-      <header className="border-b border-[var(--tinta-fraca)]/40">
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3 sm:px-5">
-          <Logo tamanho="sm" />
-          <span
-            className="rounded border border-[var(--tinta-fraca)]/60 px-2 py-0.5 uppercase tracking-[0.14em] text-[var(--tinta-suave)]"
-            style={{ fontSize: "0.6875rem" }}
+      {/* ── BARRA DO TOPO: menu, a nossa marca e a editoria. Sem botão de venda. ── */}
+      <header className="relative bg-[var(--acento)] text-white">
+        <div className="mx-auto flex h-12 max-w-5xl items-center gap-4 px-4 sm:h-14 sm:px-6">
+          <button
+            onClick={() => setMenu((v) => !v)}
+            aria-expanded={menu}
+            aria-controls="menu-materia"
+            className="flex items-center gap-2 font-semibold uppercase"
+            style={{ fontSize: "0.75rem", letterSpacing: "0.12em" }}
           >
-            Publicidade
+            {menu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            <span>Menu</span>
+          </button>
+          <Link to="/" aria-label="Serenata, página inicial" className="flex items-center">
+            {/* O logo é vinho e ouro; sobre a barra vinho ele vai inteiro em branco. */}
+            <span style={{ filter: "brightness(0) invert(1)" }}>
+              <Logo tamanho="sm" />
+            </span>
+          </Link>
+          <span className="border-l border-white/40 pl-4 text-white/90" style={{ fontSize: "0.9375rem" }}>
+            Presentes
           </span>
         </div>
+        {menu && (
+          <nav
+            id="menu-materia"
+            className="absolute inset-x-0 top-full z-40 border-b bg-white text-[#222] shadow-lg"
+            style={{ borderColor: LINHA }}
+          >
+            <ul className="mx-auto max-w-5xl px-4 py-2 sm:px-6" style={{ fontSize: "1rem" }}>
+              <li><Link to="/" className="block py-3 font-medium">Página inicial</Link></li>
+              <li className="border-t" style={{ borderColor: LINHA }}>
+                <a href="#como-fazer" onClick={() => setMenu(false)} className="block py-3 font-medium">Como funciona</a>
+              </li>
+              <li className="border-t" style={{ borderColor: LINHA }}>
+                <Link to="/blog" className="block py-3 font-medium">Blog</Link>
+              </li>
+              <li className="border-t" style={{ borderColor: LINHA }}>
+                <Link
+                  to="/criar"
+                  onClick={() => void trackEvent("materia_cta", { posicao: "menu" })}
+                  className="block py-3 font-medium text-[var(--acento)]"
+                >
+                  Criar minha música
+                </Link>
+              </li>
+            </ul>
+          </nav>
+        )}
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 sm:px-5">
+      <main className="mx-auto max-w-[46rem] px-4 sm:px-6">
         <article>
-          {/* ── MANCHETE, LINHA FINA, ASSINATURA, VÍDEO ───────── */}
+          {/* ── SELO, MANCHETE, LINHA FINA, ASSINATURA, VÍDEO ─── */}
           <section ref={topoRef} className="pt-7 sm:pt-10">
-            <p className="font-semibold uppercase tracking-[0.16em] text-[var(--acento)]" style={{ fontSize: "var(--t-xs)" }}>
-              Presentes
-            </p>
+            <span
+              className="inline-block rounded-[3px] border px-2 py-1 font-semibold uppercase"
+              style={{ fontSize: "0.6875rem", letterSpacing: "0.16em", color: COR_SUAVE, borderColor: "#bdbdbd" }}
+            >
+              Publicidade
+            </span>
             <h1
-              className="mt-3 text-balance"
-              style={{ fontFamily: FONTES.display, fontWeight: 600, fontSize: "clamp(1.75rem, 6.2vw, 2.6rem)", lineHeight: 1.12 }}
+              className="mt-4 text-balance"
+              style={{ fontWeight: 800, fontSize: "clamp(1.85rem, 7.4vw, 3rem)", lineHeight: 1.08, letterSpacing: "-0.035em" }}
             >
               {BRACOS_MATERIA.map((b) => (
                 <span key={b} className={b === "A" ? "mtt-A" : `mtt-v mtt-${b}`}>
@@ -156,22 +281,50 @@ function Materia() {
                 </span>
               ))}
             </h1>
-            <p className="mt-4 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-lg)", lineHeight: 1.5 }}>
+            <p className="mt-4" style={{ fontSize: "clamp(1.0625rem, 4.4vw, 1.3rem)", lineHeight: 1.5, color: COR_SUAVE }}>
               {LINHA_FINA}
             </p>
-            <p
-              className="mt-5 border-y border-[var(--tinta-fraca)]/40 py-3 text-[var(--tinta-suave)]"
-              style={{ fontSize: "var(--t-xs)" }}
-            >
-              Por <span className="font-medium text-[var(--tinta)]">Redação Serenata</span> · {DATA_MATERIA} · Leitura de 3 minutos
-            </p>
 
-            <div className="mt-6">
-              <VitrineVideo
-                selo="reações reais"
-                caption="Momento em que famílias ouvem pela primeira vez a música feita com a própria história."
-              />
+            <div
+              className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-y py-3.5"
+              style={{ borderColor: LINHA }}
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--acento)] font-semibold text-white"
+                  aria-hidden
+                >
+                  S
+                </span>
+                <div style={{ fontSize: "0.9375rem", lineHeight: 1.35 }}>
+                  <p>
+                    Por <span className="font-semibold">Redação Serenata</span>
+                  </p>
+                  <p style={{ color: "#777", fontSize: "0.8125rem" }}>
+                    {DATA_MATERIA} {HORA_MATERIA}
+                  </p>
+                </div>
+              </div>
+              <Compartilhar />
             </div>
+
+            <figure className="mt-6">
+              <div className="relative overflow-hidden bg-black">
+                <video
+                  src="/video/reacoes.mp4"
+                  poster="/video/reacoes-poster.jpg"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  className="block w-full"
+                />
+              </div>
+              <figcaption className="mt-2.5" style={{ fontSize: "0.8125rem", lineHeight: 1.45, color: "#777" }}>
+                Momento em que famílias ouvem pela primeira vez a música feita com a própria história.
+              </figcaption>
+            </figure>
           </section>
 
           {/* ── ABERTURA ─────────────────────────────────────── */}
@@ -192,24 +345,24 @@ function Materia() {
             Um levantamento da Serenata com as {PERIODO_PARA_QUEM}, mostra para quem os brasileiros mais fazem: 47% foram
             para a esposa e 12% para a namorada. O restante se divide entre mães, pais, filhos, avós e amigos.
           </p>
-          <figure className="mt-6 rounded-[var(--raio-lg)] border border-[var(--tinta-fraca)]/40 p-4 sm:p-5">
-            <figcaption className="font-medium" style={{ fontSize: "var(--t-sm)" }}>
+          <figure className="mt-6 rounded-md border p-4 sm:p-5" style={{ borderColor: LINHA, background: "#fafafa" }}>
+            <figcaption className="font-semibold" style={{ fontSize: "0.9375rem" }}>
               Para quem as músicas são feitas
             </figcaption>
             <div className="mt-4 space-y-3">
               {PARA_QUEM.map((p) => (
                 <div key={p.rotulo}>
-                  <div className="flex items-baseline justify-between gap-3" style={{ fontSize: "var(--t-sm)" }}>
+                  <div className="flex items-baseline justify-between gap-3" style={{ fontSize: "0.9375rem" }}>
                     <span>{p.rotulo}</span>
                     <span className="font-semibold tabular-nums">{p.pct}%</span>
                   </div>
-                  <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-[var(--tinta-fraca)]/25">
-                    <div className="h-full rounded-full bg-[var(--acento)]" style={{ width: `${p.pct}%` }} />
+                  <div className="mt-1.5 h-2.5 overflow-hidden rounded-sm bg-[#e6e6e6]">
+                    <div className="h-full bg-[var(--acento)]" style={{ width: `${p.pct}%` }} />
                   </div>
                 </div>
               ))}
             </div>
-            <p className="mt-4 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
+            <p className="mt-4" style={{ fontSize: "0.75rem", color: "#777" }}>
               Fonte: Serenata, {PERIODO_PARA_QUEM}.
             </p>
           </figure>
@@ -229,7 +382,7 @@ function Materia() {
             letra acendendo palavra por palavra e as fotos da família passando. O link pode ir por mensagem ou virar um QR
             Code colado num cartão ou numa caixa de bombom.
           </p>
-          <div className="mt-7">
+          <div className="mt-7" style={{ fontFamily: FONTES.texto }}>
             <PresenteNoTopo />
           </div>
           {TOKEN_EXEMPLO && (
@@ -239,8 +392,8 @@ function Materia() {
                 target="_blank"
                 rel="noreferrer"
                 onClick={() => void trackEvent("materia_exemplo", {})}
-                className="inline-flex items-center gap-1.5 font-medium text-[var(--acento)] underline underline-offset-4"
-                style={{ fontSize: "var(--t-sm)" }}
+                className="inline-flex items-center gap-1.5 font-semibold text-[var(--acento)] underline underline-offset-4"
+                style={{ fontSize: "0.9375rem" }}
               >
                 Abrir um presente de exemplo <ArrowUpRight className="h-4 w-4" />
               </a>
@@ -257,11 +410,10 @@ function Materia() {
                   key={ex.slug}
                   onClick={() => alternar(ex.slug)}
                   aria-label={ativa ? `Pausar ${ex.titulo}` : `Ouvir ${ex.titulo}`}
-                  className={`flex w-full items-center gap-4 rounded-[var(--raio-lg)] border bg-white p-3 text-left transition-colors ${
-                    ativa ? "border-[var(--acento)]" : "border-[var(--tinta-fraca)]/40"
-                  }`}
+                  className="flex w-full items-center gap-4 rounded-md border bg-white p-3 text-left transition-colors"
+                  style={{ borderColor: ativa ? "var(--acento)" : LINHA }}
                 >
-                  <span className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl">
+                  <span className="relative h-16 w-16 shrink-0 overflow-hidden rounded">
                     <img
                       src={`/img/exemplos/${ex.capa}.webp?v=${VERSAO_CAPAS}`}
                       alt=""
@@ -273,10 +425,10 @@ function Materia() {
                     </span>
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate" style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-base)" }}>
+                    <span className="block truncate font-semibold" style={{ fontSize: "1.0625rem" }}>
                       {ex.titulo}
                     </span>
-                    <span className="block text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
+                    <span className="block" style={{ fontSize: "0.8125rem", color: "#777" }}>
                       {ex.para} · {ex.genero}
                     </span>
                   </span>
@@ -284,22 +436,19 @@ function Materia() {
               );
             })}
           </div>
-          <p className="mt-3 text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-xs)" }}>
+          <p className="mt-3" style={{ fontSize: "0.8125rem", color: "#777" }}>
             Trechos de 45 segundos. A música completa tem cerca de 4 minutos.
           </p>
 
           {/* ── COMO FUNCIONA ────────────────────────────────── */}
-          <Intertitulo>Como fazer uma</Intertitulo>
+          <Intertitulo id="como-fazer">Como fazer uma</Intertitulo>
           <ol className="mt-5 space-y-4">
             {PASSOS.map((texto, i) => (
               <li key={texto} className="flex items-start gap-4">
-                <span
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--acento)]/10 text-[var(--acento)]"
-                  style={{ fontFamily: FONTES.display, fontWeight: 600 }}
-                >
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--acento)] font-semibold text-white">
                   {i + 1}
                 </span>
-                <p className="pt-1" style={ESTILO_P}>{texto}</p>
+                <p className="pt-0.5" style={ESTILO_P}>{texto}</p>
               </li>
             ))}
           </ol>
@@ -312,11 +461,14 @@ function Materia() {
           )}
 
           {/* ── CAIXA FINAL ──────────────────────────────────── */}
-          <section className="mt-12 rounded-[var(--raio-lg)] border border-[var(--acento)]/40 bg-[var(--acento)]/5 px-5 py-8 text-center">
+          <section
+            className="mt-12 rounded-md border-t-4 border-[var(--acento)] px-5 py-8 text-center"
+            style={{ background: "#f6f6f6" }}
+          >
             <h2 className="mx-auto max-w-md text-balance" style={ESTILO_H2}>
               Ouça a prévia da sua música de graça
             </h2>
-            <p className="mx-auto mt-3 max-w-sm text-[var(--tinta-suave)]" style={{ fontSize: "var(--t-base)", lineHeight: 1.55 }}>
+            <p className="mx-auto mt-3 max-w-sm" style={{ fontSize: "1rem", lineHeight: 1.55, color: COR_SUAVE }}>
               Conte a história de vocês agora. A prévia fica pronta em poucos minutos.
             </p>
             <div className="mt-6">
@@ -328,8 +480,8 @@ function Materia() {
 
       {/* ── RODAPÉ: de quem é o conteúdo ────────────────────── */}
       <footer
-        className="mx-auto mt-12 max-w-2xl border-t border-[var(--tinta-fraca)]/40 px-4 pb-28 pt-6 text-[var(--tinta-suave)] sm:px-5"
-        style={{ fontSize: "var(--t-xs)", lineHeight: 1.6 }}
+        className="mx-auto mt-12 max-w-[46rem] border-t px-4 pb-28 pt-6 sm:px-6"
+        style={{ fontSize: "0.8125rem", lineHeight: 1.6, color: "#777", borderColor: LINHA }}
       >
         <p>
           Este conteúdo é publicidade da {RESPONSAVEL.nome}, CNPJ {cnpjFormatado(RESPONSAVEL.cnpj)}. Os números citados são
