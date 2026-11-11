@@ -10,7 +10,7 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
-import { assinaturaDlocalConfere, confirmarPagamentoDlocal, idDlocalValido } from "../lib/dlocalgo.js";
+import { confirmarPagamentoDlocal, contaDaAssinatura, contasDlocal, idDlocalValido } from "../lib/dlocalgo.js";
 
 type Req = IncomingMessage & { method?: string; headers: Record<string, string | string[] | undefined> };
 type Res = ServerResponse & { status: (c: number) => Res; json: (b: unknown) => void };
@@ -30,9 +30,10 @@ function corpoCru(req: Req): Promise<string> {
 export default async function handler(req: Req, res: Res) {
   if (req.method !== "POST") return res.status(405).json({ error: "method not allowed" });
 
-  const apiKey = process.env.DLOCALGO_API_KEY;
-  const secretKey = process.env.DLOCALGO_SECRET_KEY;
-  if (!apiKey || !secretKey) {
+  // Duas contas (11/11): o aviso vem assinado pela conta que criou a cobrança,
+  // a nova ou a antiga (ver `contasDlocal` em `dlocalgo.ts`).
+  const contas = contasDlocal();
+  if (!contas.length) {
     console.error("[dlocal] chaves ausentes, recusando");
     return res.status(500).json({ error: "webhook nao configurado" });
   }
@@ -45,7 +46,8 @@ export default async function handler(req: Req, res: Res) {
   }
 
   const auth = req.headers.authorization;
-  if (!assinaturaDlocalConfere(Array.isArray(auth) ? auth[0] : auth, corpo, apiKey, secretKey)) {
+  const conta = contaDaAssinatura(Array.isArray(auth) ? auth[0] : auth, corpo, contas);
+  if (!conta) {
     console.warn("[dlocal] assinatura invalida");
     return res.status(401).json({ error: "assinatura invalida" });
   }
@@ -65,7 +67,7 @@ export default async function handler(req: Req, res: Res) {
 
   try {
     const r = await confirmarPagamentoDlocal(sb, id);
-    await sb.from("funnel_events").insert({ event_name: "dlocal_webhook", event_data: { pagamento: id, resultado: r } });
+    await sb.from("funnel_events").insert({ event_name: "dlocal_webhook", event_data: { pagamento: id, conta: conta.nome, resultado: r } });
     // "não pago" é ficha do OXXO gerada e ainda não paga, ou vencida: 200.
     return res.status(200).json(r);
   } catch (err) {

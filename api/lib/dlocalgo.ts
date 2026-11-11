@@ -50,14 +50,35 @@ export class ErroDlocal extends Error {
   }
 }
 
-export function dlocalConfigurado(): boolean {
-  return Boolean(process.env.DLOCALGO_API_KEY && process.env.DLOCALGO_SECRET_KEY);
+// ── DUAS CONTAS (11/11) ───────────────────────────────────────────
+//
+// A conta nova (CNPJ novo) está em DLOCALGO_API_KEY/SECRET_KEY: é nela que nasce
+// toda cobrança. A antiga fica em DLOCALGO_API_KEY_ANTIGA/SECRET_KEY_ANTIGA
+// enquanto houver ficha dela viva (OXXO, transferência, PagoEfectivo, Efecty,
+// PSE... valem 3 dias, e no México ~30 por semana pagam 6h+ depois de gerar).
+// O aviso de pagamento vem assinado pela conta que criou a cobrança, e só ela
+// sabe responder o GET do pagamento: sem a antiga aqui, quem pagou uma ficha
+// velha depois da troca ficaria sem a música. Tirar a antiga só depois que não
+// houver mais pedido `dlocalgo` pendente e válido criado antes da troca.
+
+export type ContaDlocal = { nome: "nova" | "antiga"; chave: string; segredo: string };
+
+export function contasDlocal(env: Record<string, string | undefined> = process.env): ContaDlocal[] {
+  const contas: ContaDlocal[] = [];
+  if (env.DLOCALGO_API_KEY && env.DLOCALGO_SECRET_KEY) contas.push({ nome: "nova", chave: env.DLOCALGO_API_KEY, segredo: env.DLOCALGO_SECRET_KEY });
+  if (env.DLOCALGO_API_KEY_ANTIGA && env.DLOCALGO_SECRET_KEY_ANTIGA) contas.push({ nome: "antiga", chave: env.DLOCALGO_API_KEY_ANTIGA, segredo: env.DLOCALGO_SECRET_KEY_ANTIGA });
+  return contas;
 }
 
-export async function dlocalApi<T>(metodo: "GET" | "POST", caminho: string, corpo?: unknown): Promise<T> {
-  const chave = process.env.DLOCALGO_API_KEY;
-  const segredo = process.env.DLOCALGO_SECRET_KEY;
-  if (!chave || !segredo) throw new ErroDlocal("DLOCALGO_API_KEY/SECRET ausente", 500);
+export function dlocalConfigurado(): boolean {
+  return contasDlocal().some((c) => c.nome === "nova");
+}
+
+/** Chama a API na conta indicada; sem conta, na NOVA (onde a cobrança nasce). */
+export async function dlocalApi<T>(metodo: "GET" | "POST", caminho: string, corpo?: unknown, conta?: ContaDlocal): Promise<T> {
+  const c = conta ?? contasDlocal().find((x) => x.nome === "nova");
+  if (!c) throw new ErroDlocal("DLOCALGO_API_KEY/SECRET ausente", 500);
+  const { chave, segredo } = c;
   const r = await fetch(`${API}${caminho}`, {
     method: metodo,
     headers: {
@@ -91,6 +112,11 @@ export function assinaturaDlocalConfere(
   return veio.length === esperada.length && timingSafeEqual(veio, esperada);
 }
 
+/** A conta que assinou o aviso (nova ou antiga), ou null se nenhuma confere. */
+export function contaDaAssinatura(cabecalho: string | null | undefined, corpo: string, contas: ContaDlocal[] = contasDlocal()): ContaDlocal | null {
+  return contas.find((c) => assinaturaDlocalConfere(cabecalho, corpo, c.chave, c.segredo)) ?? null;
+}
+
 // ── O PAGAMENTO, LIDO NA FONTE ────────────────────────────────────
 
 export type PagamentoDlocal = {
@@ -105,8 +131,22 @@ export type PagamentoDlocal = {
   payer?: { first_name?: string | null; last_name?: string | null; email?: string | null } | null;
 };
 
-export async function lerPagamentoDlocal(id: string): Promise<PagamentoDlocal> {
-  return dlocalApi<PagamentoDlocal>("GET", `/payments/${encodeURIComponent(id)}`);
+/**
+ * Lê o pagamento na conta que o criou: tenta a nova e, se ela disser que não
+ * existe (404), a antiga. Qualquer outro erro sobe na hora (nada de adivinhar).
+ */
+export async function lerPagamentoDlocal(id: string, contas: ContaDlocal[] = contasDlocal()): Promise<PagamentoDlocal> {
+  if (!contas.length) throw new ErroDlocal("DLOCALGO_API_KEY/SECRET ausente", 500);
+  let ultimo: unknown;
+  for (const conta of contas) {
+    try {
+      return await dlocalApi<PagamentoDlocal>("GET", `/payments/${encodeURIComponent(id)}`, undefined, conta);
+    } catch (err) {
+      if (!(err instanceof ErroDlocal) || err.status !== 404) throw err;
+      ultimo = err;
+    }
+  }
+  throw ultimo;
 }
 
 /**
