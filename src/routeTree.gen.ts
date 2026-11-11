@@ -40,6 +40,7 @@ import { Route as EsCriarRouteImport } from './routes/es.criar'
 import { Route as EsGraciasRouteImport } from './routes/es.gracias'
 import { Route as EsLoginRouteImport } from './routes/es.login'
 import { Route as EsPagoOxxoRouteImport } from './routes/es.pago-oxxo'
+import { Route as EsPagoTarjetaRouteImport } from './routes/es.pago-tarjeta'
 import { Route as EsPagoUpsellRouteImport } from './routes/es.pago-upsell'
 import { Route as OfertaTokenRouteImport } from './routes/oferta.$token'
 import { Route as PTokenRouteImport } from './routes/p.$token'
@@ -204,6 +205,11 @@ const EsPagoOxxoRoute = EsPagoOxxoRouteImport.update({
   path: '/es/pago-oxxo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EsPagoTarjetaRoute = EsPagoTarjetaRouteImport.update({
+  id: '/es/pago-tarjeta',
+  path: '/es/pago-tarjeta',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EsPagoUpsellRoute = EsPagoUpsellRouteImport.update({
   id: '/es/pago-upsell',
   path: '/es/pago-upsell',
@@ -270,6 +276,7 @@ export interface FileRoutesByFullPath {
   '/es/gracias': typeof EsGraciasRoute
   '/es/login': typeof EsLoginRoute
   '/es/pago-oxxo': typeof EsPagoOxxoRoute
+  '/es/pago-tarjeta': typeof EsPagoTarjetaRoute
   '/es/pago-upsell': typeof EsPagoUpsellRoute
   '/oferta/$token': typeof OfertaTokenRoute
   '/p/$token': typeof PTokenRoute
@@ -310,6 +317,7 @@ export interface FileRoutesByTo {
   '/es/gracias': typeof EsGraciasRoute
   '/es/login': typeof EsLoginRoute
   '/es/pago-oxxo': typeof EsPagoOxxoRoute
+  '/es/pago-tarjeta': typeof EsPagoTarjetaRoute
   '/es/pago-upsell': typeof EsPagoUpsellRoute
   '/oferta/$token': typeof OfertaTokenRoute
   '/p/$token': typeof PTokenRoute
@@ -351,6 +359,7 @@ export interface FileRoutesById {
   '/es/gracias': typeof EsGraciasRoute
   '/es/login': typeof EsLoginRoute
   '/es/pago-oxxo': typeof EsPagoOxxoRoute
+  '/es/pago-tarjeta': typeof EsPagoTarjetaRoute
   '/es/pago-upsell': typeof EsPagoUpsellRoute
   '/oferta/$token': typeof OfertaTokenRoute
   '/p/$token': typeof PTokenRoute
@@ -393,6 +402,7 @@ export interface FileRouteTypes {
     | '/es/gracias'
     | '/es/login'
     | '/es/pago-oxxo'
+    | '/es/pago-tarjeta'
     | '/es/pago-upsell'
     | '/oferta/$token'
     | '/p/$token'
@@ -433,6 +443,7 @@ export interface FileRouteTypes {
     | '/es/gracias'
     | '/es/login'
     | '/es/pago-oxxo'
+    | '/es/pago-tarjeta'
     | '/es/pago-upsell'
     | '/oferta/$token'
     | '/p/$token'
@@ -473,6 +484,7 @@ export interface FileRouteTypes {
     | '/es/gracias'
     | '/es/login'
     | '/es/pago-oxxo'
+    | '/es/pago-tarjeta'
     | '/es/pago-upsell'
     | '/oferta/$token'
     | '/p/$token'
@@ -514,6 +526,7 @@ export interface RootRouteChildren {
   EsGraciasRoute: typeof EsGraciasRoute
   EsLoginRoute: typeof EsLoginRoute
   EsPagoOxxoRoute: typeof EsPagoOxxoRoute
+  EsPagoTarjetaRoute: typeof EsPagoTarjetaRoute
   EsPagoUpsellRoute: typeof EsPagoUpsellRoute
   OfertaTokenRoute: typeof OfertaTokenRoute
   PTokenRoute: typeof PTokenRoute
@@ -744,6 +757,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EsPagoOxxoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/es/pago-tarjeta': {
+      id: '/es/pago-tarjeta'
+      path: '/es/pago-tarjeta'
+      fullPath: '/es/pago-tarjeta'
+      preLoaderRoute: typeof EsPagoTarjetaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/es/pago-upsell': {
       id: '/es/pago-upsell'
       path: '/es/pago-upsell'
@@ -826,6 +846,7 @@ const rootRouteChildren: RootRouteChildren = {
   EsGraciasRoute: EsGraciasRoute,
   EsLoginRoute: EsLoginRoute,
   EsPagoOxxoRoute: EsPagoOxxoRoute,
+  EsPagoTarjetaRoute: EsPagoTarjetaRoute,
   EsPagoUpsellRoute: EsPagoUpsellRoute,
   OfertaTokenRoute: OfertaTokenRoute,
   PTokenRoute: PTokenRoute,

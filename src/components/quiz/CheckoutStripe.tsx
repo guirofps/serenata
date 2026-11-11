@@ -24,6 +24,8 @@ import { EscolhaLocal } from "@/components/quiz/EscolhaLocal";
 
 import { BOTAO_SEM_CARTAO } from "@/lib/upsell-dlocal";
 import { CheckoutDlocal } from "@/components/quiz/CheckoutDlocal";
+import { CartaoDlocal } from "@/components/quiz/CartaoDlocal";
+import { EXP_CARTAO_DLOCAL, cartaoDlocalLigado, expostoCartaoDlocal, paisCartaoDlocal } from "@/lib/cartao-dlocal";
 
 // O PAGAMENTO DA BALLAD GIFT, na própria página.
 //
@@ -97,6 +99,11 @@ function carregarEmbutido() {
   return embutidoPromise;
 }
 
+/** O país que o servidor carimbou no `<html>` (o mesmo do preço local). */
+function paisDoHtml(): string {
+  return typeof document !== "undefined" ? String(document.documentElement.getAttribute("data-pais") ?? "").toUpperCase() : "";
+}
+
 export function CheckoutStripe({
   precoTexto,
   aoFechar,
@@ -116,7 +123,8 @@ export function CheckoutStripe({
   const [tentativa, setTentativa] = useState(0);
   // A folha montou = a pessoa tocou em pagar: só agora o Stripe.js baixa, em
   // paralelo com a criação da sessão.
-  const spPadrao = useMemo(() => stripe(), []);
+  // No B do `cartao_dlocal` o Stripe.js nem baixa (ver abaixo).
+  const spPadrao = useMemo(() => (cartaoDlocalLigado(varianteDe(EXP_CARTAO_DLOCAL), paisDoHtml(), locale) ? null : stripe()), [locale]);
   const [chavePublica, setChavePublica] = useState<string | undefined>();
   const sp = useMemo(() => (chavePublica ? stripe(chavePublica) : spPadrao), [chavePublica, spPadrao]);
   const abertaEm = useRef(Date.now());
@@ -126,9 +134,7 @@ export function CheckoutStripe({
   const AVISO = locale === "es" ? TEXTO_AVISO_RECUSA.es : TEXTO_AVISO_RECUSA.en;
   // Teste `oxxo_mx` (23/10): no México, o OXXO e a transferência da dLocal Go
   // ao lado do cartão (ver `oxxo-mx.ts`). O país é o que o servidor carimbou.
-  const [pais] = useState(() =>
-    typeof document !== "undefined" ? String(document.documentElement.getAttribute("data-pais") ?? "").toUpperCase() : "",
-  );
+  const [pais] = useState(paisDoHtml);
   const paisMx = pais === "MX";
   // COLÔMBIA, CHILE E PERU (29/10): a dLocal entra como CANAL do mercado novo,
   // não como teste (quem está lá nunca viu outra folha). Métodos conferidos com
@@ -148,6 +154,10 @@ export function CheckoutStripe({
   const [localPrimeiro] = useState(() => oxxo && localPrimeiroLigado(varianteDe(EXP_LOCAL_PRIMEIRO), pais));
   const [metodoLocal, setMetodoLocal] = useState<MetodoDlocal | undefined>();
   const [metodo, setMetodo] = useState<"cartao" | "oxxo" | "escolha">(() => (localPrimeiro ? "escolha" : "cartao"));
+  // Teste `cartao_dlocal` (11/11): no B o cartão é o da dLocal Go, na própria
+  // folha (ver `cartao-dlocal.ts`). O Stripe nem abre sessão nesse braço.
+  const [cartaoDlocal] = useState(() => cartaoDlocalLigado(varianteDe(EXP_CARTAO_DLOCAL), pais, locale));
+  const paisCartao = paisCartaoDlocal(pais);
   const opcaoLocal =
     paisLocal && metodoLocal
       ? [TEXTO_LOCAL_PRIMEIRO[paisLocal].principal, TEXTO_LOCAL_PRIMEIRO[paisLocal].outra].find((o) => o.metodo === metodoLocal)
@@ -156,12 +166,14 @@ export function CheckoutStripe({
     if (paisMx && locale === "es") trackEvent("oxxo_mx_exposto", { braco: varianteDe(EXP_OXXO_MX) });
     if (paisMx && oxxo) trackEvent("spei_destaque_exposto", { braco: varianteDe(EXP_SPEI_DESTAQUE) });
     if (paisLocal && oxxo) trackEvent("local_primeiro_exposto", { braco: varianteDe(EXP_LOCAL_PRIMEIRO), pais });
+    if (expostoCartaoDlocal(pais, locale)) trackEvent("cartao_dlocal_exposto", { braco: varianteDe(EXP_CARTAO_DLOCAL), pais });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // O iframe (ver `carregarEmbutido`). Junto com o "Try again": se o arquivo
   // não veio, a nova tentativa pede de novo.
   useEffect(() => {
+    if (cartaoDlocal) return;
     let vivo = true;
     carregarEmbutido()
       .then((c) => {
@@ -179,6 +191,7 @@ export function CheckoutStripe({
   }, [tentativa]);
 
   useEffect(() => {
+    if (cartaoDlocal) return;
     let vivo = true;
     setErro(null);
     setClientSecret(null);
@@ -290,6 +303,28 @@ export function CheckoutStripe({
             textoComo={opcaoLocal?.como}
             aoTrocar={localPrimeiro ? () => setMetodo("escolha") : undefined}
           />
+        ) : cartaoDlocal && paisCartao ? (
+          <>
+            {oxxo && (
+              <button
+                onClick={() => {
+                  if (localPrimeiro) return setMetodo("escolha");
+                  trackEvent("dlocal_oxxo_escolhido", { pais });
+                  if (paisMx) trackEvent("documento_depois_exposto", { braco: varianteDe(EXP_DOCUMENTO_DEPOIS) });
+                  setMetodo("oxxo");
+                }}
+                className="mx-2 mb-3 flex w-[calc(100%-1rem)] items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-3 text-sm font-medium text-primary"
+              >
+                {speiDestaque ? TEXTO_SPEI_DESTAQUE.botao : (BOTAO_SEM_CARTAO[pais] ?? BOTAO_SEM_CARTAO.MX)}
+              </button>
+            )}
+            <CartaoDlocal
+              pais={paisCartao}
+              precoTexto={precoTexto}
+              aoSemMusica={aoSemMusica}
+              aoSemCartao={oxxo ? () => (localPrimeiro ? setMetodo("escolha") : setMetodo("oxxo")) : undefined}
+            />
+          </>
         ) : !sp ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
             {T.indisponivel}

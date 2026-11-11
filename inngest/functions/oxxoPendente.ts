@@ -26,6 +26,7 @@ import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 import { paisDoQuiz } from "../../src/lib/pais-quiz.js";
 import { formatarNaMoeda, mercadoDaMoeda, unidadeMenorDe } from "../../src/lib/mercados.js";
 import { confirmarPagamentoDlocal, lerPagamentoDlocal, dlocalConfigurado } from "../../api/lib/dlocalgo.js";
+import { STATUS_TRANSPARENTE } from "../../src/lib/cartao-dlocal.js";
 
 // A FICHA DO OXXO QUE NÃO FOI PAGA (Ballad México, teste `oxxo_pendente`, 28/10).
 // A regra e o porquê moram em `src/lib/oxxo-pendente.ts`, a copy em
@@ -91,6 +92,8 @@ export const oxxoPendente = inngest.createFunction(
         .select("payment_id, quiz_response_id, email, pix_url, pix_expira, created_at")
         .eq("gateway", "dlocalgo")
         .eq("status", "pendente")
+        // O cartão pendente (teste `cartao_dlocal`) não é ficha de pagar na loja.
+        .or(`status_gateway.is.null,status_gateway.neq.${STATUS_TRANSPARENTE}`)
         .gte("created_at", new Date(agora - 4 * 86400e3).toISOString())
         .gt("pix_expira", new Date(agora).toISOString())
         // DO MAIS NOVO PRO MAIS VELHO (29/10): com o teto de 200, o crescente

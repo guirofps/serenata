@@ -9,6 +9,7 @@ import { valorCentavosDaSessao, urlDoSite } from "@/lib/stripe-checkout";
 import { nomeCompletoValido } from "@/lib/documento-mx";
 import { paisTemDocumento, validarDocumento } from "@/lib/documento-pais";
 import { fichaServeAoVoltar, metodoDlocalValido, tipoPagamentoDlocal } from "@/lib/spei-destaque";
+import { STATUS_TRANSPARENTE } from "@/lib/cartao-dlocal";
 import {
   dlocalApi,
   dlocalConfigurado,
@@ -249,6 +250,9 @@ export const confirmarCheckoutDlocal = createServerFn({ method: "POST" })
       .select("payment_id, status, pix_url")
       .eq("quiz_response_id", quiz.id)
       .eq("gateway", "dlocalgo")
+      // O cartão pendente da dLocal (teste `cartao_dlocal`) não é ficha: a volta
+      // do OXXO não mostra ele. Pago, ele vira `PAID:<tipo>` e conta.
+      .or(`status_gateway.is.null,status_gateway.neq.${STATUS_TRANSPARENTE}`)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
