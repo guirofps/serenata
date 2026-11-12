@@ -11,6 +11,7 @@ import type { CheckoutStripeEmbutido as Embutido } from "@/components/quiz/Check
 import { criarCheckoutStripe } from "@/lib/stripe-checkout";
 import { getOrCreateSessionId } from "@/lib/session-context";
 import { trackEvent } from "@/lib/track";
+import { marcarCaixaAberto } from "@/lib/arquivo-velho";
 import { usePausarVideosAtras, useVoltarFechaAFolha } from "@/lib/folha-pagamento";
 import { ShieldCheck, RefreshCw, X } from "lucide-react";
 import { varianteDe } from "@/lib/experimentos";
@@ -157,6 +158,14 @@ export function CheckoutStripe({
     if (paisMx && oxxo) trackEvent("spei_destaque_exposto", { braco: varianteDe(EXP_SPEI_DESTAQUE) });
     if (paisLocal && oxxo) trackEvent("local_primeiro_exposto", { braco: varianteDe(EXP_LOCAL_PRIMEIRO), pais });
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Marca o caixa aberto enquanto ele está na tela: se uma recarga por arquivo
+  // velho acontecer agora, a oferta o reabre ao voltar (ver `arquivo-velho.ts`).
+  // Fechar (desmontar) limpa a marca. Recarregar a página não roda o cleanup.
+  useEffect(() => {
+    marcarCaixaAberto(true);
+    return () => marcarCaixaAberto(false);
   }, []);
 
   // O iframe (ver `carregarEmbutido`). Junto com o "Try again": se o arquivo

@@ -37,6 +37,7 @@ import {
   pixReabreLigado,
 } from "@/lib/pix-reabre";
 import { CheckoutStripe } from "@/components/quiz/CheckoutStripe";
+import { consumirReabrirCaixa } from "@/lib/arquivo-velho";
 import { MARCA } from "@/lib/marca";
 import { SorteioSemanal } from "@/components/quiz/SorteioSemanal";
 import { DepoimentoContato } from "@/components/quiz/DepoimentoContato";
@@ -655,6 +656,15 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
   // O pagamento da Ballad Gift. Guarda só o preço já formatado, pro título da
   // folha: quem decide o valor cobrado é o servidor (`stripe-checkout.ts`).
   const [pagandoComStripe, setPagandoComStripe] = useState<string | null>(null);
+  // A recarga por arquivo velho fechou o caixa que a pessoa tinha acabado de
+  // abrir (ver `arquivo-velho.ts`): reabre uma vez, pelo mesmo `pagar()` do
+  // botão (crédito, música pronta e preço continuam conferidos por ele).
+  useEffect(() => {
+    if (!consumirReabrirCaixa()) return;
+    trackEvent("caixa_reaberto_apos_recarga", { locale });
+    void pagar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const nome =
     (respostas.nome as string)?.trim() ||
     (locale === "es"
