@@ -1273,6 +1273,64 @@ function Corpo({
               </div>
             )}
 
+            {/* ── AS LANDINGS DE ANÚNCIO (11/11) ────────────────────
+              `/presente` e `/tendencia`, uma linha cada (`admin-lps.ts`).
+              Visitas e cliques por sessão; letras, vendas e receita pelo
+              carimbo `attribution.lp` do lead, que existe desde 11/11 à noite. */}
+            {(dados.lps ?? []).map((lp) => {
+              const antes = comparativo?.lps?.find((x) => x.id === lp.id);
+              return (
+                <div key={lp.id}>
+                  <p className="mb-2 text-[11px] uppercase tracking-wider text-[var(--tinta-suave)]">
+                    {lp.nome}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                    <Cartao
+                      rotulo="Visitas"
+                      valor={lp.visitas === null ? "—" : String(lp.visitas)}
+                      apoio={lp.visitas === null ? "não carregou agora" : "sessões que abriram a página"}
+                      atual={lp.visitas ?? undefined}
+                      anterior={antes?.visitas ?? undefined}
+                    />
+                    <Cartao
+                      rotulo="Cliques no botão"
+                      valor={lp.cliques === null ? "—" : String(lp.cliques)}
+                      apoio={
+                        lp.cliques === null
+                          ? "não carregou agora"
+                          : lp.cliquePct !== null
+                            ? `${pc(lp.cliquePct)} das visitas`
+                            : "sessões que foram pro quiz"
+                      }
+                      atual={lp.cliques ?? undefined}
+                      anterior={antes?.cliques ?? undefined}
+                    />
+                    <Cartao
+                      rotulo="Letras geradas"
+                      valor={String(lp.letras)}
+                      apoio={`${lp.leads} começaram o quiz`}
+                      atual={lp.letras}
+                      anterior={antes?.letras}
+                    />
+                    <Cartao
+                      rotulo="Vendas"
+                      valor={String(lp.vendas)}
+                      apoio={lp.conversaoPct !== null ? `${pc(lp.conversaoPct)} das visitas` : "de quem passou pela página"}
+                      atual={lp.vendas}
+                      anterior={antes?.vendas}
+                    />
+                    <Cartao
+                      rotulo="Receita"
+                      valor={lp.receitaBrl > 0 ? brl(lp.receitaBrl) : "—"}
+                      apoio="pedidos pagos de quem passou pela página"
+                      atual={lp.receitaBrl}
+                      anterior={antes?.receitaBrl}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+
             <LancarGasto aoSalvar={carregar} gastos={dados.gastos} />
 
             <p className="text-xs text-[var(--tinta-suave)]">

@@ -12,6 +12,7 @@ import { trackEvent } from "@/lib/track";
 import { carimbarExperimentos } from "@/lib/experimentos";
 import { AUDIO_EXEMPLOS, VERSAO_CAPAS, exemploPorSlug, type ExemploPt } from "@/lib/exemplos-pt";
 import { BRACOS_LP, HEADLINES_LP, SLUGS_EXEMPLO_LP, cssLpHeadline } from "@/lib/lp-presente";
+import { carimbarLp } from "@/lib/lp-origem";
 
 // A LANDING DE ANÚNCIO (11/11/2026). Desenho e teste da headline em
 // `lp-presente.ts`. Pouco texto de propósito: quem chega do anúncio decide em
@@ -76,11 +77,19 @@ export const Route = createFileRoute("/presente")({
   component: Pagina,
 });
 
+// Todo botão que leva ao /criar passa por aqui: carimba a landing e a posição
+// do botão na atribuição (`lp-origem.ts`) ANTES do evento, pra o evento, o lead
+// e a venda saberem de qual página e de qual botão vieram.
+function irProCriar(posicao: string) {
+  carimbarLp("presente", posicao);
+  void trackEvent("lp_presente_cta", { posicao, lp: "presente" });
+}
+
 function BotaoCriar({ posicao, texto = "Criar minha música" }: { posicao: string; texto?: string }) {
   return (
     <Link
       to="/criar"
-      onClick={() => void trackEvent("lp_presente_cta", { posicao })}
+      onClick={() => irProCriar(posicao)}
       className="cta cta-pulse inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-medium"
     >
       {texto} <ArrowRight className="h-4 w-4" />
@@ -97,7 +106,10 @@ function Pagina() {
 
   // O braço da headline vai junto com o lead desde a landing, não só a partir
   // do quiz: quem clica e volta outro dia continua no braço que viu.
-  useEffect(() => carimbarExperimentos(), []);
+  useEffect(() => {
+    carimbarExperimentos();
+    carimbarLp("presente");
+  }, []);
   useEffect(() => () => audioRef.current?.pause(), []);
 
   // UM <audio> pros três: duas músicas tocando juntas é impossível por construção.
@@ -304,7 +316,7 @@ function Pagina() {
         rotulo="Criar minha música"
         titulo="Uma música com o nome de quem você ama"
         sub="A prévia é grátis"
-        aoClicar={() => void trackEvent("lp_presente_cta", { posicao: "barra" })}
+        aoClicar={() => irProCriar("barra")}
       />
     </div>
   );

@@ -9,6 +9,7 @@ import { FAMILIAS } from "@/lib/prova-numeros";
 import { useProfundidadeRolagem } from "@/lib/rolagem";
 import { trackEvent } from "@/lib/track";
 import { carimbarExperimentos } from "@/lib/experimentos";
+import { carimbarLp } from "@/lib/lp-origem";
 import { AUDIO_EXEMPLOS, VERSAO_CAPAS, exemploPorSlug, type ExemploPt } from "@/lib/exemplos-pt";
 import {
   BRACOS_MATERIA,
@@ -96,11 +97,19 @@ function Intertitulo({ id, children }: { id?: string; children: React.ReactNode 
   );
 }
 
+// Todo botão que leva ao /criar passa por aqui: carimba a landing e a posição
+// do botão na atribuição (`lp-origem.ts`) ANTES do evento, pra o evento, o lead
+// e a venda saberem de qual página e de qual botão vieram.
+function irProCriar(posicao: string) {
+  carimbarLp("tendencia", posicao);
+  void trackEvent("materia_cta", { posicao, lp: "tendencia" });
+}
+
 function BotaoCriar({ posicao }: { posicao: string }) {
   return (
     <Link
       to="/criar"
-      onClick={() => void trackEvent("materia_cta", { posicao })}
+      onClick={() => irProCriar(posicao)}
       className="cta cta-pulse inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-semibold"
     >
       Criar minha música <ArrowRight className="h-4 w-4" />
@@ -184,7 +193,10 @@ function Materia() {
 
   // O braço da manchete vai junto com o lead desde a matéria, não só a partir
   // do quiz: quem clica e volta outro dia continua no braço que viu.
-  useEffect(() => carimbarExperimentos(), []);
+  useEffect(() => {
+    carimbarExperimentos();
+    carimbarLp("tendencia");
+  }, []);
   useEffect(() => () => audioRef.current?.pause(), []);
 
   // UM <audio> pros três: duas músicas tocando juntas é impossível por construção.
@@ -253,7 +265,7 @@ function Materia() {
               <li className="border-t" style={{ borderColor: LINHA }}>
                 <Link
                   to="/criar"
-                  onClick={() => void trackEvent("materia_cta", { posicao: "menu" })}
+                  onClick={() => irProCriar("menu")}
                   className="block py-3 font-medium text-[var(--acento)]"
                 >
                   Criar minha música
@@ -502,7 +514,7 @@ function Materia() {
         rotulo="Criar minha música"
         titulo="Uma música com o nome de quem você ama"
         sub="A prévia é grátis"
-        aoClicar={() => void trackEvent("materia_cta", { posicao: "barra" })}
+        aoClicar={() => irProCriar("barra")}
       />
     </div>
   );

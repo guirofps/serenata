@@ -7,6 +7,8 @@ import { cambioDoDia } from "@/lib/cambio";
 import { filtroCursor, lerJanela } from "@/lib/ler-janela";
 import { porTemaDe, type LinhaTema } from "@/lib/admin-tema";
 import { resumoTv, type ResumoTv } from "@/lib/admin-tv";
+import { resumoLps, type ResumoLp } from "@/lib/admin-lps";
+import { LPS } from "@/lib/lp-origem";
 import { cortarDiaDoGasto, cpaDoCanal, diasDaJanela, gastoAteOMinuto, somarGasto, type CorteDoGasto } from "@/lib/gasto-midia";
 import { taxaDoPedido } from "@/lib/taxa-gateway";
 import { contarPorCanal, type CanalVenda } from "@/lib/canal-venda";
@@ -256,6 +258,9 @@ export type Painel = {
   /** Quem chegou pelo QR code do vídeo da TV (`admin-tv.ts`), pelo primeiro toque. */
   tv: ResumoTv;
 
+  /** As landings de anúncio `/presente` e `/tendencia`, uma linha cada (`admin-lps.ts`). */
+  lps: ResumoLp[];
+
   /**
    * POR PÁGINA DE ENTRADA. Qual porta converte melhor.
    *
@@ -383,6 +388,8 @@ export type Comparativo = {
   topo: Painel["topo"];
   /** O card da TV no período anterior, pra setinha. */
   tv?: ResumoTv;
+  /** As landings de anúncio no período anterior, pra setinha. */
+  lps?: ResumoLp[];
   /** id do degrau -> quantos chegaram nele. */
   funil: Record<string, number>;
   /**
@@ -1374,6 +1381,53 @@ async function montarPainel(
     vendas: pagos.map((p) => ({ quiz_response_id: p.quiz_response_id, receitaBrl: valorEmBrl(p) })),
   });
 
+  // ── AS LANDINGS DE ANÚNCIO (11/11) ───────────────────────────
+  //
+  // Visitas (`page_view` com o `path` da landing) e cliques no botão (o evento
+  // de cada página), filtrados NO BANCO, fatia por fatia, como as visitas da
+  // TV. Falhou uma leitura, o cartão dela mostra "—" e o resto segue.
+  const vendasPorQuiz = pagos.map((p) => ({ quiz_response_id: p.quiz_response_id, receitaBrl: valorEmBrl(p) }));
+  let visitasLp: { session_id: string; path: string | null }[] | null = null;
+  try {
+    visitasLp = await lerJanela<{ id: string; created_at: string; session_id: string; path: string | null }>(
+      ({ desde: d, ate: a, cursor, limite }) => {
+        const base = db
+          .from("funnel_events")
+          .select("id, created_at, session_id, path:event_data->>path")
+          .eq("event_name", "page_view")
+          .in("event_data->>path", LPS.map((l) => l.caminho))
+          .gte("created_at", d)
+          .lt("created_at", a);
+        const comCursor = cursor ? base.or(filtroCursor(cursor)) : base;
+        return comCursor.order("created_at").order("id").limit(limite) as never;
+      },
+      inicio,
+      fim,
+    );
+  } catch (err) {
+    console.error("[admin] visitas das landings nao lidas:", err);
+  }
+  let cliquesLp: { session_id: string; event_name: string }[] | null = null;
+  try {
+    cliquesLp = await lerJanela<{ id: string; created_at: string; session_id: string; event_name: string }>(
+      ({ desde: d, ate: a, cursor, limite }) => {
+        const base = db
+          .from("funnel_events")
+          .select("id, created_at, session_id, event_name")
+          .in("event_name", LPS.map((l) => l.eventoCta))
+          .gte("created_at", d)
+          .lt("created_at", a);
+        const comCursor = cursor ? base.or(filtroCursor(cursor)) : base;
+        return comCursor.order("created_at").order("id").limit(limite) as never;
+      },
+      inicio,
+      fim,
+    );
+  } catch (err) {
+    console.error("[admin] cliques das landings nao lidos:", err);
+  }
+  const lps = resumoLps({ visitas: visitasLp, cliques: cliquesLp, leads, comMusica, vendas: vendasPorQuiz });
+
   // ── OS TESTES A/B ────────────────────────────────────────────
   //
   // A variante viaja em `attribution.exp` desde que `carimbarExperimentos`
@@ -1598,6 +1652,7 @@ async function montarPainel(
     porOrigem,
     porTema,
     tv,
+    lps,
     porEntrada,
     gastos,
 
@@ -1900,6 +1955,7 @@ export const carregarComparativo = createServerFn({ method: "POST" })
       ate: antes.fim.toISOString(),
       topo: anterior.topo,
       tv: anterior.tv,
+      lps: anterior.lps,
       // Só o alcance de cada degrau. As taxas do funil se recalculam sozinhas
       // a partir daí, e guardar as duas coisas abriria espaço pra elas
       // discordarem.

@@ -76,6 +76,13 @@ export type Attribution = {
    * origem, então tudo que está nesta atribuição nasceu neste mesmo domínio.
    */
   host?: string;
+  /**
+   * A landing de anúncio por onde a pessoa passou (`lp-origem.ts`, 11/11):
+   * "presente" ou "tendencia", o botão que a levou ao /criar e quando.
+   */
+  lp?: string;
+  lp_botao?: string;
+  lp_em?: string;
   captured_at: string;
 };
 
