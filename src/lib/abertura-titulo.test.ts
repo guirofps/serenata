@@ -148,7 +148,7 @@ describe("contrato da tela", () => {
   });
 
   it("o título sai das frases do funil, não das do português cravadas", () => {
-    expect(ABERTURA).toMatch(/const titulos = titulosDe\(locale\)/);
+    expect(ABERTURA).toMatch(/const titulos = titulosDe\(locale, espanholDaBallad && ehArgentina\(\)\)/);
     expect(ABERTURA).toMatch(/\{titulos\[b\]\.ouro\}/);
   });
 

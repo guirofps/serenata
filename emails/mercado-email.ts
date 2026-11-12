@@ -45,7 +45,9 @@ const ESPANHA: Array<[RegExp, string]> = [
 export function adaptarAoPais(conteudo: string, locale: string | null | undefined, pais: string | null | undefined): string {
   if (MARCA_ATIVA.chave !== "ballad" || locale !== "es" || !pais) return conteudo;
   const variante = mercadoDoPais(pais).conteudo;
-  if (variante !== "espanha" && variante !== "latam") return conteudo;
+  // A Argentina (12/11) ganha o WhatsApp, como a LatAm. Os e-mails seguem em
+  // `tú` lá: a cópia em voseo de cada e-mail é pendência, não troca de frase.
+  if (variante !== "espanha" && variante !== "latam" && variante !== "argentina") return conteudo;
   let s = conteudo;
   for (const [de, para] of WHATSAPP) s = s.replace(de, para);
   if (variante === "espanha") for (const [de, para] of ESPANHA) s = s.replace(de, para);

@@ -8,12 +8,13 @@
 //   Colômbia  CC  (cédula de ciudadanía, 6 a 10 dígitos)
 //   Chile     RUN (com dígito verificador módulo 11, 0-9 ou K)
 //   Peru      DNI (8 dígitos)
+//   Argentina DNI (7 ou 8 dígitos; 12/11). Em voseo, como o resto do funil de lá.
 //
 // Puro, sem imports além do México: a folha e o servidor usam a mesma regra.
 
 import { MENSAGEM_DOCUMENTO_MX, validarDocumentoMx } from "./documento-mx";
 
-export type PaisDocumento = "MX" | "CO" | "CL" | "PE";
+export type PaisDocumento = "MX" | "CO" | "CL" | "PE" | "AR";
 
 export type Documento =
   { ok: true; tipo: string; documento: string } | { ok: false; mensagem: string; motivo: string };
@@ -35,6 +36,10 @@ export const CAMPO_DOCUMENTO: Record<PaisDocumento, { rotulo: string; sub: strin
   PE: {
     rotulo: "DNI (8 números)",
     sub: "Yape y tu banco piden tu nombre y tu DNI para generar el pago. No se publican ni se comparten.",
+  },
+  AR: {
+    rotulo: "DNI (7 u 8 números)",
+    sub: "Rapipago, Pago Fácil y tu banco piden tu nombre y tu DNI para generar el pago. No se publican ni se comparten.",
   },
 };
 
@@ -64,6 +69,12 @@ export function validarDocumento(pais: PaisDocumento, texto: string): Documento 
   const bruto = String(texto ?? "")
     .toUpperCase()
     .replace(/[\s.\-_/]/g, "");
+  if (pais === "AR") {
+    if (!bruto) return erro("vazio", "Escribí tu DNI para generar el pago.");
+    if (NOMES_DE_DOCUMENTO.test(bruto)) return erro("nome_do_documento", "Escribí el número del documento, no su nombre.");
+    if (/^\d{7,8}$/.test(bruto)) return { ok: true, tipo: "DNI", documento: bruto };
+    return erro("formato", "Tu DNI tiene 7 u 8 números, sin letras.");
+  }
   if (!bruto)
     return erro(
       "vazio",
@@ -90,5 +101,5 @@ export function validarDocumento(pais: PaisDocumento, texto: string): Documento 
 }
 
 export function paisTemDocumento(pais: string): pais is PaisDocumento {
-  return pais === "MX" || pais === "CO" || pais === "CL" || pais === "PE";
+  return pais === "MX" || pais === "CO" || pais === "CL" || pais === "PE" || pais === "AR";
 }

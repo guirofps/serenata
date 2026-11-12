@@ -48,7 +48,18 @@ describe("documento de quem paga pela dLocal, por país", () => {
       expect(validarDocumento(p, "").ok).toBe(false);
   });
 
+  it("Argentina: DNI de 7 ou 8 dígitos, com ponto ou sem, e mensagens em voseo", () => {
+    expect(validarDocumento("AR", "30.123.456")).toEqual({ ok: true, tipo: "DNI", documento: "30123456" });
+    expect(validarDocumento("AR", "5123456")).toMatchObject({ ok: true, documento: "5123456" });
+    expect(validarDocumento("AR", "123456")).toMatchObject({ ok: false, motivo: "formato" });
+    expect(validarDocumento("AR", "dni")).toMatchObject({ ok: false, motivo: "nome_do_documento" });
+    const vazio = validarDocumento("AR", "");
+    expect(vazio.ok).toBe(false);
+    if (!vazio.ok) expect(vazio.mensagem).toBe("Escribí tu DNI para generar el pago.");
+  });
+
   it("só os países da dLocal têm documento", () => {
+    expect(paisTemDocumento("AR")).toBe(true);
     expect(paisTemDocumento("PE")).toBe(true);
     expect(paisTemDocumento("ES")).toBe(false);
     expect(paisTemDocumento("US")).toBe(false);

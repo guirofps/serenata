@@ -69,6 +69,13 @@ const TEXTOS = {
   },
 } as const;
 
+const TEXTOS_ES_AR = {
+  ...TEXTOS.es,
+  erro: "No pudimos abrir el pago en este momento. Probá de nuevo en un ratito.",
+  titulo: (preco: string) => `Desbloqueá tu canción · ${preco}`,
+  indisponivel: "El pago no está disponible en este momento. Escribinos y lo resolvemos.",
+};
+
 // Só quando a folha de pagamento ABRE, e uma vez só por conta (o `useMemo`
 // abaixo chama). DUAS CONTAS desde 03/11 (teste `stripe_conta`): a sessão
 // criada na conta do Reino Unido só abre com a chave pública dela, que o
@@ -118,7 +125,10 @@ export function CheckoutStripe({
   /** O idioma da moldura. Fora do espanhol, inglês (o padrão da Ballad). */
   locale?: string;
 }) {
-  const T = locale === "es" ? TEXTOS.es : TEXTOS.en;
+  // A Argentina em voseo (12/11). O país é o carimbo do servidor, igual ao de baixo.
+  const argentina =
+    typeof document !== "undefined" && document.documentElement.getAttribute("data-pais")?.toUpperCase() === "AR";
+  const T = locale === "es" ? (argentina ? TEXTOS_ES_AR : TEXTOS.es) : TEXTOS.en;
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [tentativa, setTentativa] = useState(0);
@@ -140,10 +150,11 @@ export function CheckoutStripe({
   // COLÔMBIA, CHILE E PERU (29/10): a dLocal entra como CANAL do mercado novo,
   // não como teste (quem está lá nunca viu outra folha). Métodos conferidos com
   // cobranças de teste: PSE e Nequi, Webpay, Yape. O México segue no `oxxo_mx`.
+  // A ARGENTINA (12/11) entra do mesmo jeito: Rapipago, Pago Fácil, transferência
+  // e QR, vistos numa cobrança real.
+  const paisDlocal = pais === "CO" || pais === "CL" || pais === "PE" || pais === "AR" ? pais : null;
   const [oxxo] = useState(() =>
-    paisMx
-      ? oxxoLigado(varianteDe(EXP_OXXO_MX), "MX", locale)
-      : locale === "es" && (pais === "CO" || pais === "CL" || pais === "PE"),
+    paisMx ? oxxoLigado(varianteDe(EXP_OXXO_MX), "MX", locale) : locale === "es" && paisDlocal !== null,
   );
   // Teste `spei_destaque` (30/10): a transferência na frente do OXXO, com a
   // escolha na nossa folha (ver `spei-destaque.ts`). Só pra quem vê o botão.
@@ -303,7 +314,7 @@ export function CheckoutStripe({
           />
         ) : metodo === "oxxo" ? (
           <CheckoutDlocal
-            pais={pais === "CO" || pais === "CL" || pais === "PE" ? pais : "MX"}
+            pais={paisDlocal ?? "MX"}
             aoVoltar={() => setMetodo("cartao")}
             aoSemMusica={aoSemMusica}
             escolherMetodo={speiDestaque}

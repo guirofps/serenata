@@ -20,14 +20,15 @@
 // Puro, sem imports: usado pela tela, pelo checkout, pelos webhooks (api/) e
 // pelos jobs (inngest/), que rodam como Node sem o atalho `@/`.
 
-export type Pais = "US" | "MX" | "ES" | "CO" | "CL" | "PE";
-export type Moeda = "usd" | "mxn" | "eur" | "cop" | "clp" | "pen";
+export type Pais = "US" | "MX" | "ES" | "CO" | "CL" | "PE" | "AR";
+export type Moeda = "usd" | "mxn" | "eur" | "cop" | "clp" | "pen" | "ars";
 /**
  * Qual espanhol a página fala. `eua` é o de hoje (hispano dos EUA, spanglish
  * na letra); `mexico` herda o `eua` sem as frases que só valem lá dentro;
- * `espanha` é `vosotros`; `latam` é o neutro, sem gíria mexicana.
+ * `espanha` é `vosotros`; `latam` é o neutro, sem gíria mexicana;
+ * `argentina` é o rioplatense (`vos`), o mesmo da Serenata de agosto (12/11).
  */
-export type VarianteConteudo = "eua" | "mexico" | "espanha" | "latam";
+export type VarianteConteudo = "eua" | "mexico" | "espanha" | "latam" | "argentina";
 
 export type Mercado = {
   pais: Pais;
@@ -83,6 +84,52 @@ const MX: Mercado = {
   localeStripe: "es-419",
   conteudo: "mexico",
   tagIdioma: "es-MX",
+  temDlocal: true,
+};
+
+// ── ARGENTINA (12/11/2026) ────────────────────────────────────────
+//
+// A TESE DO PREÇO. Cobrar em PESO, não em dólar. Na tela, "US$ 19" pra um
+// argentino é a pergunta "¿a qué dólar?": oficial, tarjeta, blue. E o cartão
+// argentino que paga em moeda estrangeira leva a percepção de ganancias (~30%)
+// em cima na fatura (o "dólar tarjeta" de 11/11 estava a $2.041 contra $1.570 do
+// oficial). Em peso, o número da tela é o número que ela reconhece.
+//
+// O NÍVEL. O mesmo de Chile e Peru em reais (R$ 52 a 63 a música, ver acima):
+// $15.990 ≈ US$ 10,30 ≈ R$ 57. Preço de loja em peso termina em .990, como o
+// argentino vê no varejo. Âncora 2,5x (igual Chile), vídeo e extra na mesma
+// proporção de Chile/Peru.
+//
+// O PAGAMENTO, conferido com chamadas reais em 12/11:
+//   - dLocal Go (conta nova): cobrança em ARS aceita; a página deles mostra
+//     Tarjeta, Efectivo (Rapipago/Pago Fácil), Transferencia bancaria e QR
+//     Interoperable (QR do Mercado Pago e das carteiras). Pela dLocal o cartão
+//     é LOCAL (adquirência na Argentina), sem a percepção do exterior: é por
+//     isso que a Argentina é o país onde a dLocal mais deve ganhar do Stripe.
+//   - Stripe (conta BR): sessão em ARS aceita (live e teste). Mas o Stripe é
+//     comércio ESTRANGEIRO pro banco argentino: a percepção pode vir na fatura
+//     mesmo cobrando em peso. Não dá pra conferir sem um pagamento real.
+//
+// O RISCO DA INFLAÇÃO. Peso perde valor todo mês (~2% ao mês em 2026). A tabela
+// é FIXA: revisar `precos` e `porDolar` uma vez por mês (o mesmo número em
+// reais). E o efeito do câmbio fixo no webhook vale aqui com mais força que em
+// qualquer outro país: mexeu no `porDolar`, pedido pendente criado antes da troca
+// (ficha de Rapipago vale dias) falha a conferência do dólar e fica retido com
+// alerta. Trocar a tabela de madrugada e liberar à mão o que cair retido.
+//
+// Câmbio de 11/11 (dolarapi.com): oficial $1.520/$1.570, mayorista $1.535/$1.544,
+// open.er-api.com $1.548. `porDolar` 1550.
+const AR: Mercado = {
+  pais: "AR",
+  moeda: "ars",
+  // O Stripe trata ARS com 2 casas; o preço é sempre em peso inteiro.
+  decimais: 2,
+  porDolar: 1550,
+  // $15.990 / $39.990 / $9.990 / $11.990, em centavos.
+  precos: { 1900: 1599000, 4900: 3999000, 1200: 999000, 1400: 1199000 },
+  localeStripe: "es-419",
+  conteudo: "argentina",
+  tagIdioma: "es-AR",
   temDlocal: true,
 };
 
@@ -148,6 +195,7 @@ export const MERCADOS: Readonly<Record<Pais, Mercado>> = {
     tagIdioma: "es-PE",
     temDlocal: true,
   },
+  AR,
 };
 
 /** O país do acesso no formato do cabeçalho da Vercel ("es" → "ES"). Lixo = `null`. */
@@ -199,6 +247,8 @@ function porCambio(m: Mercado, centavosUsd: number): number {
       return (Math.ceil(local / 1000) * 1000 - 100) * 100; // $39.900
     case "clp":
       return Math.ceil(local / 1000) * 1000 - 10; // $9.990
+    case "ars":
+      return (Math.ceil(local / 1000) * 1000 - 10) * 100; // $15.990, em centavos
   }
 }
 
@@ -297,6 +347,8 @@ export function formatarNaMoeda(m: Mercado, unidadeMenor: number): string {
       return `$${milhar(maior)} CLP`;
     case "pen":
       return `S/ ${Number.isInteger(maior) ? maior : maior.toFixed(2)}`;
+    case "ars":
+      return `$${milhar(maior)} ARS`;
   }
 }
 
@@ -355,6 +407,11 @@ export function fraseDaMoeda(m: Mercado): string {
       return "El precio es en pesos chilenos (CLP) y es el total: no se suma nada al pagar.";
     case "pen":
       return "El precio es en soles (PEN) y es el total: no se suma nada al pagar.";
+    case "ars":
+      // Voseo, e sem prometer "no se suma nada": no cartão do exterior (Stripe)
+      // o banco argentino pode somar a percepção na fatura. O que é nosso, não
+      // soma: é isso que a frase diz.
+      return "El precio es en pesos argentinos (ARS) y es lo que te cobramos: no sumamos nada al pagar.";
   }
 }
 
@@ -373,5 +430,7 @@ export function naMoedaPorExtenso(m: Mercado): string {
       return "en pesos chilenos (CLP)";
     case "pen":
       return "en soles (PEN)";
+    case "ars":
+      return "en pesos argentinos (ARS)";
   }
 }

@@ -259,6 +259,11 @@ const COPY_ES_EUA: (typeof COPY)["es"] = {
   explicacao: "Tú cuentas la historia. La canción queda lista en 1 minuto, gratis.",
 };
 
+// A ARGENTINA DA BALLAD (12/11): a mesma tela do vídeo, com o título e a
+// promessa no voseo de cima ("de quien querés", "Vos contás"), que foi escrito
+// pra Argentina. O exemplo de cima não aparece: a Ballad mostra o vídeo.
+const COPY_ES_AR: (typeof COPY)["es"] = { ...COPY.es };
+
 // ── O EXEMPLO SEGUE O MERCADO, e isso é um buraco que eu deixei ──
 //
 // O interruptor de `mercado-es.ts` já trocava prompt e gêneros, mas esta tela
@@ -344,7 +349,7 @@ export function AberturaPresente({
   const C = gospel
     ? locale === "en" ? COPY_GOSPEL_EN : COPY_GOSPEL
     : espanholDaBallad
-      ? COPY_ES_EUA
+      ? ehArgentina() ? COPY_ES_AR : COPY_ES_EUA
       : locale === "es"
       ? { ...base, ...EXEMPLO_ES[ehEspanha() ? "espanha" : ehArgentina() ? "argentina" : "latam"] }
       : locale === "en" && EXEMPLO_EN
@@ -357,7 +362,7 @@ export function AberturaPresente({
   const comPergunta = Boolean(pergunta && aoEscolher);
   // TESTE `abertura_titulo`: seis títulos no HTML, o carimbo do braço escolhe.
   const comTitulo = aberturaTituloVale(locale, tema, espanholDaBallad);
-  const titulos = titulosDe(locale);
+  const titulos = titulosDe(locale, espanholDaBallad && ehArgentina());
 
   // ── O PLAY PASSA A TOCAR ─────────────────────────────────────────
   //

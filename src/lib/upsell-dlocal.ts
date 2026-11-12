@@ -77,6 +77,7 @@ export const BOTAO_SEM_CARTAO: Record<string, string> = {
   CO: "¿Sin tarjeta? Paga con PSE, Nequi o en efectivo",
   CL: "¿Sin tarjeta? Paga con Webpay o transferencia",
   PE: "¿Sin tarjeta? Paga con Yape, transferencia o en efectivo",
+  AR: "¿Sin tarjeta? Pagá en Rapipago, Pago Fácil o con transferencia",
 };
 
 export const TEXTO_UPSELL_DLOCAL = {

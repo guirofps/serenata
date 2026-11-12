@@ -82,7 +82,8 @@ describe("na Ballad, o país do acesso escolhe o espanhol e a moeda", () => {
     expect(mercadoEs("CO")).toBe("latam");
     expect(mercadoEs("CL")).toBe("latam");
     expect(mercadoEs("PE")).toBe("latam");
-    expect(mercadoEs("AR")).toBe("eua");
+    expect(mercadoEs("AR")).toBe("argentina");
+    expect(mercadoEs("UY")).toBe("eua");
     expect(mercadoEs("BR")).toBe("eua");
     expect(mercadoEs(null)).toBe("eua");
     // Sem argumento, pergunta à fonte (o cabeçalho no servidor, o `<html>` no navegador).
@@ -278,6 +279,36 @@ describe("na Ballad, o país do acesso escolhe o espanhol e a moeda", () => {
     expect(precoDoVideoNoEmail("es", "ab12", true)).toBe("$129 MXN");
     expect(precoDoVideoNoEmail("es", "ab12", "usd")).toBe("US$ 12");
     expect(precoDoVideoNoEmail("en", "ab12", null)).toBe("$12");
+    expect(precoDoVideoNoEmail("es", "ab12", "ars")).toBe("$9.990 ARS");
+  });
+
+  it("a Argentina (12/11): voseo, peso argentino, gêneros e prompt de lá, WhatsApp", () => {
+    const { MERCADOS } = m.mercados;
+    // O prompt rioplatense, o mesmo da Serenata.
+    expect(m.letra.systemDaLetra("es", "AR")).toBe(m.letraEs.LETRA_SYSTEM_ES_AR);
+    // Os gêneros de lá, e o pedido do sotaque no estilo.
+    const generos = noPais("AR", () => m.generos.generos("es"));
+    expect(generos.map((g) => g.value)).toContain("cuarteto");
+    expect(generos.map((g) => g.value)).toContain("rock_nacional");
+    for (const g of generos) expect(g.estiloSuno, g.value).toContain("acento rioplatense argentino");
+    // A moldura: voseo, sem a Serenata, sem o "ahorita" mexicano, WhatsApp.
+    const tudo = textoDe(m.textos.t("es", "AR")) + textoDe(m.textosPresente.tp("es", "AR"));
+    expect(tudo).not.toContain("Serenata");
+    expect(tudo).not.toContain("ahorita");
+    expect(m.textos.t("es", "AR").quemVoceAma).toBe("quien vos querés");
+    expect(m.textos.t("es", "AR").comoVaiChegar).toContain("WhatsApp");
+    // A oferta: peso argentino, nada de dólar, voseo e WhatsApp.
+    const o = m.oferta.ofertaEsDoMercado("argentina", MERCADOS.AR);
+    const oferta = textoDe(o);
+    expect(oferta).not.toMatch(/d[óo]lar/i);
+    expect(oferta).not.toContain("US$");
+    expect(oferta).toContain("pesos argentinos (ARS)");
+    expect(oferta).toContain("WhatsApp");
+    expect(oferta).not.toMatch(/\b(Pagas|Recibes|eliges|puedes|eres tú)\b/);
+    expect(o.creditoValor).toBe("$0 ARS");
+    expect(o.entregaveis.map((x) => x.titulo)).toEqual(m.oferta.ENTREGAVEIS_ES_EUA.map((x, i) => (i === 6 ? "Vos armás el regalo a tu manera" : x.titulo)));
+    // O e-mail ganha o WhatsApp, como a LatAm.
+    expect(m.emailMercado.adaptarAoPais("se lo mandas por mensaje", "es", "AR")).toBe("se lo mandas por WhatsApp");
   });
 });
 

@@ -39,12 +39,21 @@ const PENDENTE_LATAM = {
   botao: "Ver mi pago",
 };
 
+// A ARGENTINA (12/11): o mesmo, em voseo, com as lojas de lá.
+const PENDENTE_AR: typeof PENDENTE_LATAM = {
+  titulo: "Tu pago está en proceso",
+  texto:
+    "Si ya pagaste desde tu banco o con el QR, se confirma en unos minutos y tu canción completa llega a tu mail. Si elegiste pagar en efectivo, pagalo en Rapipago o Pago Fácil con el código de tu ficha.",
+  botao: "Ver mi pago",
+};
+
 function PagoOxxo() {
   const [estado, setEstado] = useState<EstadoDlocal | null>(null);
-  const [latam] = useState(() => {
-    const p = typeof document !== "undefined" ? document.documentElement.getAttribute("data-pais") : null;
-    return p === "CO" || p === "CL" || p === "PE";
-  });
+  const [paisPagina] = useState(() =>
+    typeof document !== "undefined" ? document.documentElement.getAttribute("data-pais") : null,
+  );
+  const latam = paisPagina === "CO" || paisPagina === "CL" || paisPagina === "PE" || paisPagina === "AR";
+  const PENDENTE = paisPagina === "AR" ? PENDENTE_AR : PENDENTE_LATAM;
 
   useEffect(() => {
     if (window.top && window.top !== window.self) {
@@ -88,11 +97,11 @@ function PagoOxxo() {
               <Store className="h-6 w-6" />
             </div>
             <h1 className="font-display text-2xl font-semibold leading-tight">
-              {latam ? PENDENTE_LATAM.titulo : "Tu ficha de pago está lista"}
+              {latam ? PENDENTE.titulo : "Tu ficha de pago está lista"}
             </h1>
             <p className="mx-auto mt-4 max-w-sm text-muted-foreground">
               {latam
-                ? PENDENTE_LATAM.texto
+                ? PENDENTE.texto
                 : "Págala en cualquier OXXO (o haz la transferencia) en un plazo de 3 días. En cuanto se confirme el pago, tu canción completa llega a tu correo. No necesitas hacer nada más."}
             </p>
             {estado.url && (
@@ -100,7 +109,7 @@ function PagoOxxo() {
                 href={estado.url}
                 className="cta mt-6 inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-medium"
               >
-                {latam ? PENDENTE_LATAM.botao : "Ver mi ficha de pago"}
+                {latam ? PENDENTE.botao : "Ver mi ficha de pago"}
               </a>
             )}
             <p className="mt-6 text-xs text-muted-foreground">

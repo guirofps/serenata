@@ -614,6 +614,14 @@ const ESPANHA: Partial<Textos> = {
   ],
 };
 
+// ARGENTINA NA BALLAD (12/11). O voseo é o `AR` de cima, o mesmo da Serenata
+// de agosto (e as cinco travas da base, que já são voseo, aqui ficam). Só sai o
+// que é da Serenata ou do México: o nome da marca no aviso e o "ahorita".
+const BALLAD_AR: Partial<Textos> = {
+  zapTexto: "Solo te escribimos sobre este pedido.",
+  naoLembro: "No me acuerdo de nada ahora, seguir sin esto",
+};
+
 const POR_IDIOMA: Record<Locale, Textos> = { pt: PT, es: ES, en: EN };
 
 /** Os textos da moldura no idioma dado. Idioma desconhecido cai em português. */
@@ -629,7 +637,7 @@ export function t(locale: Locale, pais?: string | null): Textos {
       case "latam":
         return ehBallad() ? { ...ES, ...LATAM } : ES;
       case "argentina":
-        return { ...ES, ...AR };
+        return ehBallad() ? { ...ES, ...AR, ...BALLAD_AR } : { ...ES, ...AR };
     }
   }
   return POR_IDIOMA[locale] ?? PT;

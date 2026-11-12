@@ -15,6 +15,8 @@ const COMO_FUNCIONA: Record<PaisDocumento, string> = {
   CO: "Paga con PSE desde tu banco, con Nequi o en efectivo (Efecty y otros puntos). Tu canción completa llega a tu correo en cuanto se confirme el pago.",
   CL: "Paga con Webpay o con transferencia desde tu banco. Tu canción completa llega a tu correo en cuanto se confirme el pago.",
   PE: "Paga con Yape, con transferencia desde tu banco o en efectivo (PagoEfectivo, Tambo+ y otros). Tu canción completa llega a tu correo en cuanto se confirme el pago.",
+  // Métodos da página da dLocal na Argentina, vistos numa cobrança real (12/11).
+  AR: "Pagá en efectivo en Rapipago o Pago Fácil, con transferencia desde tu banco o con el QR de tu billetera. Tu canción completa llega a tu mail en cuanto se confirme el pago.",
 };
 
 // OXXO E TRANSFERÊNCIA (México, teste `oxxo_mx`), a partir da folha do Stripe.
@@ -26,7 +28,7 @@ const COMO_FUNCIONA: Record<PaisDocumento, string> = {
 // cobranças passou do formulário (todas em `CREATED`). A volta das duas portas
 // cai na `/es/pago-oxxo`, que diz se já pagou ou se a ficha está esperando.
 
-const T = {
+const T_TU = {
   dadosTitulo: "Tus datos para el pago",
   nome: "Nombre completo",
   nomeErro: "Escribe tu nombre y apellido.",
@@ -37,6 +39,15 @@ const T = {
   erro: "No pudimos abrir el pago en este momento. Inténtalo de nuevo o paga con tarjeta.",
   tentar: "Intentar de nuevo",
   voltou: "¿No terminaste el pago? Puedes abrirlo de nuevo o pagar con tarjeta.",
+};
+
+// A Argentina em voseo (12/11), como o resto do funil de lá.
+const T_AR: typeof T_TU = {
+  ...T_TU,
+  nomeErro: "Escribí tu nombre y apellido.",
+  docRecusado: "Revisá tu nombre y tu documento y probá de nuevo.",
+  erro: "No pudimos abrir el pago en este momento. Probá de nuevo o pagá con tarjeta.",
+  voltou: "¿No terminaste el pago? Podés abrirlo de nuevo o pagar con tarjeta.",
 };
 
 export function CheckoutDlocal({
@@ -61,6 +72,7 @@ export function CheckoutDlocal({
   textoComo?: string;
   aoTrocar?: () => void;
 }) {
+  const T = pais === "AR" ? T_AR : T_TU;
   const [erro, setErro] = useState(false);
   const [metodo, setMetodo] = useState<MetodoDlocal | null>(metodoInicial ?? null);
   const escolher = (m: MetodoDlocal) => {
@@ -243,7 +255,7 @@ export function CheckoutDlocal({
               }}
               autoComplete="off"
               autoCapitalize="characters"
-              inputMode={pais === "CO" || pais === "PE" ? "numeric" : "text"}
+              inputMode={pais === "CO" || pais === "PE" || pais === "AR" ? "numeric" : "text"}
               spellCheck={false}
               placeholder={campo.rotulo}
               aria-label={campo.rotulo}

@@ -78,9 +78,24 @@ export function aberturaTituloVale(
   return locale === "pt" || (locale === "es" && espanholDaBallad);
 }
 
-/** As seis frases do funil: só existem em pt e no espanhol da Ballad. */
-export function titulosDe(locale: Locale): Record<BracoTitulo, Titulo> {
-  return locale === "es" ? TITULOS_ES_EUA : TITULOS;
+// A ARGENTINA DA BALLAD (12/11): os mesmos seis ângulos em voseo ("querés",
+// "Imaginá"). "Ustedes" no E é igual na Argentina, e o milhar volta a ser ponto.
+export const TITULOS_ES_AR: Record<BracoTitulo, Titulo> = {
+  A: { antes: "Una canción hecha de la ", ouro: "historia", depois: " de quien querés" },
+  B: { antes: "El regalo que va a hacer ", ouro: "llorar", depois: " a quien más querés" },
+  C: { antes: "La única canción del mundo con ", ouro: "su nombre", depois: "" },
+  D: { antes: "Un regalo que no va a terminar en un ", ouro: "cajón", depois: "" },
+  E: { antes: "Imaginá la historia de ustedes hecha ", ouro: "canción", depois: "" },
+  F: { antes: "Más de ", ouro: `${FAMILIAS.replace("+", "")} familias`, depois: " ya hicieron este regalo" },
+};
+
+/**
+ * As seis frases do funil: só existem em pt e no espanhol da Ballad. `argentina`
+ * vem de quem chama (`ehArgentina()`), pra este arquivo continuar puro.
+ */
+export function titulosDe(locale: Locale, argentina = false): Record<BracoTitulo, Titulo> {
+  if (locale !== "es") return TITULOS;
+  return argentina ? TITULOS_ES_AR : TITULOS_ES_EUA;
 }
 
 /**
