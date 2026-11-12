@@ -79,6 +79,30 @@ type ChargeWoovi = {
   paidAt?: string;
 };
 
+// ── O COMENTÁRIO NÃO PODE TER "EMOJI", E O "EMOJI" DELES É LARGO ──
+//
+// Medido em 11/11: `400 {"error":"Emoji não é permitido no comentário"}` em 20
+// tentativas seguidas da MESMA pessoa, cuja música se chamava "Célio,amor — O
+// Amor Não Desiste". O travessão (U+2014) não é emoji, mas a Woovi recusa: a
+// regra dela pega a faixa de pontuação e símbolos (U+2000 em diante), onde
+// também moram as reticências que `descricaoCobrancaMusica` põe em título
+// longo. Em 30 dias, 7 de 14 mil títulos tinham um desses (—, ❤️, 👑); na metade
+// Woovi do `pix_gateway`, cada um era um PIX que NUNCA nascia.
+//
+// O comentário é só a descrição no app do banco: trocar o travessão por hífen,
+// as reticências por três pontos e jogar fora o resto não muda nada pra pessoa.
+export function comentarioSemEmoji(texto: string): string {
+  return texto
+    .replace(/[‒-―]/g, "-")
+    .replace(/…/g, "...")
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[ -㏿︀-️‍]|\p{Extended_Pictographic}|\p{Regional_Indicator}|[\u{1F3FB}-\u{1F3FF}]/gu, "")
+    .replace(/\s+([,.!?;:])/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 /**
  * O 400 de "já existe cobrança com este correlationID".
  *
@@ -138,7 +162,7 @@ export const woovi: GatewayPix = {
     const corpo = (referencia: string) => JSON.stringify({
       correlationID: referencia,
       value: args.valorCentavos,
-      comment: args.descricao.slice(0, 140),
+      comment: comentarioSemEmoji(args.descricao).slice(0, 140),
       // ── SETE DIAS, E ISTO SOBREPÕE O PAINEL ────────────────
       //
       // ATENÇÃO: este campo VENCE a configuração de validade do painel da
