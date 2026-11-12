@@ -86,6 +86,8 @@ const FUSO: Readonly<Record<string, string>> = {
   CO: "America/Bogota",
   PE: "America/Lima",
   CL: "America/Santiago",
+  // A Argentina (12/11): a ficha de Rapipago/Pago Fácil recebe o mesmo aviso da LatAm.
+  AR: "America/Argentina/Buenos_Aires",
 };
 
 const fusoDe = (pais: string | null | undefined): string => FUSO[String(pais ?? "")] ?? FUSO.MX;
@@ -97,7 +99,7 @@ export function paisRecebeLembrete(pais: string | null | undefined): boolean {
 
 /** Fala de OXXO só no México; quiz sem país é o México. */
 export function ehFichaLatam(pais: string | null | undefined): boolean {
-  return pais === "CO" || pais === "PE" || pais === "CL";
+  return pais === "CO" || pais === "PE" || pais === "CL" || pais === "AR";
 }
 
 /** A hora local (México não tem mais horário de verão: UTC-6 o ano todo). */

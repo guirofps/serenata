@@ -19,7 +19,8 @@ describe("a tabela de mercados", () => {
     expect(mercadoDoPais(null).pais).toBe("US");
     expect(mercadoDoPais("").pais).toBe("US");
     expect(mercadoDoPais("BR").pais).toBe("US");
-    expect(mercadoDoPais("AR").pais).toBe("US");
+    expect(mercadoDoPais("UY").pais).toBe("US");
+    expect(mercadoDoPais("ar").pais).toBe("AR");
     expect(mercadoDoPais("<script>").pais).toBe("US");
     expect(mercadoDoPais("es").pais).toBe("ES");
     expect(mercadoDoPais(" co ").pais).toBe("CO");
@@ -36,7 +37,29 @@ describe("a tabela de mercados", () => {
 
   it("a dLocal está ligada no México e na LATAM; Espanha e EUA só cartão", () => {
     const comDlocal = Object.values(MERCADOS).filter((m) => m.temDlocal).map((m) => m.pais);
-    expect(comDlocal).toEqual(["MX", "CO", "CL", "PE"]);
+    expect(comDlocal).toEqual(["MX", "CO", "CL", "PE", "AR"]);
+  });
+
+  it("a Argentina cobra em peso argentino, no nível de Chile e Peru, e o voseo", () => {
+    const ar = MERCADOS.AR;
+    expect(mercadoDoPais("AR")).toMatchObject({ moeda: "ars", conteudo: "argentina", tagIdioma: "es-AR", decimais: 2 });
+    expect(valorNaMoeda(ar, 1900)).toBe(1599000);
+    expect(formatarNaMoeda(ar, 1599000)).toBe("$15.990 ARS");
+    expect(formatarNaMoeda(ar, 3999000)).toBe("$39.990 ARS");
+    // US$ 10,32: o pedido grava o equivalente em dólar pelo câmbio fixo.
+    expect(usdDe(ar, 1599000)).toBe(1032);
+    expect(valorPagoConfere("ars", 1599000, 1032)).toBe(true);
+    expect(valorPagoConfere("ars", 1599000, 1900)).toBe(false);
+    // A dLocal devolve "15990.00".
+    expect(unidadeMenorDe(ar, 15990)).toBe(1599000);
+    expect(mercadoDaMoeda("ARS")?.pais).toBe("AR");
+    // Fora da tabela, o preço de loja termina em .990 e nunca tem centavo.
+    expect(valorNaMoeda(ar, 2400) % 100).toBe(0);
+    expect(String(valorNaMoeda(ar, 2400) / 100).endsWith("990")).toBe(true);
+    // Em reais, entre o Chile e o Peru (câmbio de 11/11: R$ 5,57/US$).
+    const reais = (m: (typeof MERCADOS)[keyof typeof MERCADOS]) => (usdDe(m, valorNaMoeda(m, 1900)) / 100) * 5.57;
+    expect(reais(ar)).toBeGreaterThan(reais(MERCADOS.CL));
+    expect(reais(ar)).toBeLessThan(reais(MERCADOS.PE));
   });
 
   it("o caixa em inglês fica em inglês; o espanhol segue o país", () => {

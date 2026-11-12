@@ -208,6 +208,7 @@ const PREGUNTAS_EUA = [
 // Espanha ganha ainda o `pequeño` no lugar do `chiquito`, que é mexicano.
 function preguntasBallad(variante: VarianteConteudo, mercado: Mercado): Array<{ q: string; a: string; aOxxo?: string }> {
   if (variante === "eua") return PREGUNTAS_EUA;
+  if (variante === "argentina") return preguntasAr(mercado);
   const whatsapp = variante === "espanha" || variante === "latam";
   return PREGUNTAS_EUA.map((p) => {
     switch (p.q) {
@@ -231,17 +232,69 @@ function preguntasBallad(variante: VarianteConteudo, mercado: Mercado): Array<{ 
   });
 }
 
+// A ARGENTINA (12/11): as mesmas perguntas e os mesmos fatos dos EUA, em voseo,
+// com o envio por WhatsApp e o pagamento em peso. Sem o spanglish (quem conta em
+// inglês mora nos EUA) e sem o `chiquito` mexicano.
+function preguntasAr(mercado: Mercado): Array<{ q: string; a: string; aOxxo?: string }> {
+  return [
+    {
+      q: "¿Y si la letra no queda bien?",
+      a: "La leés antes de pagar nada. Si no te gusta, podés pedir que se reescriba gratis. Y si aun así no es la cara de la persona, simplemente no seguís. No pagás nada por la letra.",
+    },
+    {
+      q: "¿Cuánto tarda?",
+      a: "La letra queda lista en segundos. La canción grabada tarda unos 2 minutos. No tenés que esperar frente a la pantalla: si te vas, te avisamos por mail cuando esté lista.",
+    },
+    {
+      q: "¿La canción es realmente solo mía?",
+      a: "Sí. Se compone y se graba desde cero a partir de la historia que contaste. No es catálogo, no es una plantilla con el nombre cambiado. Nadie más recibe esa canción.",
+    },
+    {
+      q: "¿Necesito escribir lindo para que quede bien?",
+      a: "No. Mientras más simple y verdadero, mejor. Un detalle chiquito (el apodo, el asado del domingo, su manía) vale más que un texto lindo. Podés hablar en vez de escribir.",
+    },
+    {
+      q: "¿Cómo se lo entrego a la persona?",
+      a: "Recibís un link con una página lista: la canción sonando, la letra iluminándose al ritmo y su nombre en la portada. Se la mandás por WhatsApp, o imprimís el código QR y lo ponés en una tarjeta o en la caja del regalo. El que la entrega sos vos.",
+    },
+    {
+      q: "¿Cómo se paga?",
+      a: `Con tarjeta, ${naMoedaPorExtenso(mercado)} y en un solo pago, sin suscripción. Si preferís, también en efectivo (Rapipago o Pago Fácil) o por transferencia.`,
+    },
+  ];
+}
+
 /** O "Fácil de entregar" e o primeiro passo, com o envio e o `vosotros` do país. */
 function textosBallad(variante: VarianteConteudo) {
-  const whatsapp = variante === "espanha" || variante === "latam";
+  const whatsapp = variante === "espanha" || variante === "latam" || variante === "argentina";
+  const ar = variante === "argentina";
   return {
-    entregar: whatsapp
+    entregar: ar
+      ? "Recibís un link con una página lista. La mandás por WhatsApp y se abre con la canción sonando y la letra iluminándose."
+      : whatsapp
       ? "Recibes un link con una página lista. La mandas por WhatsApp y se abre con la canción sonando y la letra iluminándose."
       : "Recibes un link con una página lista. La mandas por mensaje y se abre con la canción sonando y la letra iluminándose.",
     passo1:
       variante === "espanha"
         ? "Quién es la persona, qué habéis vivido, ese detalle que solo vosotros dos sabéis. Puedes escribirlo o decirlo hablando."
-        : PASOS[0].texto,
+        : ar
+          ? "Quién es la persona, qué vivieron, ese detalle que solo ustedes dos saben. Podés escribirlo o decirlo hablando."
+          : PASOS[0].texto,
+    // Os títulos dos passos e o benefício que estão em `tú` (12/11): só a Argentina troca.
+    tituloPasso: ar ? ({ "01": "Contá la historia", "02": "Leé la letra al instante", "03": "Mandá el regalo" } as Record<string, string>) : null,
+    semSaber: ar
+      ? {
+          titulo: "No necesitás saber nada",
+          texto: "No necesitás escribir lindo, ni cantar, ni saber de música. Contás la historia a tu manera. Hasta podés hablar en vez de escribir.",
+        }
+      : null,
+    quemVoceAma: ar ? "quien vos querés" : "quien tú quieres",
+    semPagar: ar
+      ? {
+          forte: "Leés la letra completa y escuchás un pedazo cantado antes de pagar.",
+          resto: "Si no es la cara de la persona, no pagás nada, y todavía podés pedir que se reescriba gratis.",
+        }
+      : null,
   };
 }
 
@@ -386,8 +439,8 @@ function HomeEs() {
                 letterSpacing: "-0.02em",
               }}
             >
-              Una canción hecha de la <span className="texto-ouro">historia</span> de
-              quien tú quieres
+              Una canción hecha de la <span className="texto-ouro">historia</span> de{" "}
+              {doPais?.quemVoceAma ?? "quien tú quieres"}
             </h1>
             <p
               className="mx-auto mt-5 max-w-lg text-[var(--tinta-suave)] lg:mx-0"
@@ -502,7 +555,7 @@ function HomeEs() {
               <div key={p.n}>
                 <p className="text-xs tracking-[0.3em] text-[var(--acento)]">{p.n}</p>
                 <h3 className="mt-3 text-xl" style={{ fontFamily: FONTES.display, fontWeight: 500 }}>
-                  {p.titulo}
+                  {doPais?.tituloPasso?.[p.n] ?? p.titulo}
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-[var(--tinta-suave)]">
                   {doPais && p.n === "01" ? doPais.passo1 : p.texto}
@@ -531,13 +584,17 @@ function HomeEs() {
                     className="leading-snug"
                     style={{ fontFamily: FONTES.display, fontWeight: 500, fontSize: "var(--t-lg)" }}
                   >
-                    {b.titulo}
+                    {doPais?.semSaber && b.icone === Clock ? doPais.semSaber.titulo : b.titulo}
                   </h3>
                   <p
                     className="mt-1 text-[var(--tinta-suave)] sm:mt-1.5"
                     style={{ fontSize: "var(--t-xs)", lineHeight: 1.55 }}
                   >
-                    {doPais && b.icone === Link2 ? doPais.entregar : b.texto}
+                    {doPais && b.icone === Link2
+                      ? doPais.entregar
+                      : doPais?.semSaber && b.icone === Clock
+                        ? doPais.semSaber.texto
+                        : b.texto}
                   </p>
                 </div>
               </div>
@@ -635,10 +692,10 @@ function HomeEs() {
                 style={{ fontSize: "var(--t-sm)", lineHeight: 1.6 }}
               >
                 <strong className="text-[var(--tinta)]">
-                  Lees la letra completa y escuchas un pedazo cantado antes de pagar.
+                  {doPais?.semPagar?.forte ?? "Lees la letra completa y escuchas un pedazo cantado antes de pagar."}
                 </strong>{" "}
-                Si no es la cara de la persona, no pagas nada, y todavía puedes
-                pedir que se reescriba gratis.
+                {doPais?.semPagar?.resto ??
+                  "Si no es la cara de la persona, no pagas nada, y todavía puedes pedir que se reescriba gratis."}
               </p>
             </div>
           </div>

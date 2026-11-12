@@ -152,7 +152,79 @@ export const CONVERSAO_MX_OXXO = " Sin tarjeta, también puedes pagar en efectiv
 //   - O APARELHO. `celular` na América, `móvil` na Espanha.
 // Os EUA continuam IDÊNTICOS ao `OFERTA_ES_EUA` (o teste confere).
 
-type VarianteOferta = "eua" | "mexico" | "espanha" | "latam";
+type VarianteOferta = "eua" | "mexico" | "espanha" | "latam" | "argentina";
+
+// ── ARGENTINA (12/11) ─────────────────────────────────────────────
+//
+// A MESMA oferta, em voseo, porque a tese do mercado (`mercado-es.ts`) é que
+// `tú` pra um argentino soa como novela dublada, e esta é a tela onde se paga.
+// Mesmos itens, mesma ordem, mesmos fatos do `ENTREGAVEIS_ES_EUA`; muda o verbo
+// (`mandas` → `mandás`, `puedes` → `podés`, `contigo` → `con vos`) e o envio
+// vai por WhatsApp, como no resto da LatAm. O possessivo (`tu`, `tuya`) é igual.
+const ENTREGAVEIS_ES_AR: typeof ENTREGAVEIS_ES_EUA = ENTREGAVEIS_ES_EUA.map((x) => {
+  const detalhe: Record<string, string> = {
+    "La canción completa, cantada":
+      "De principio a fin, sin cortes. Y en dos grabaciones distintas de la misma letra, para que elijas la que más te emocione.",
+    "La página regalo, con sus fotos":
+      "Hasta 12 fotos que van cambiando solas con la canción. Esa página es lo que mandás, no un archivo suelto.",
+    "La letra para cantar, palabra por palabra":
+      "Cada palabra se ilumina justo cuando se canta. Quien la recibe puede seguirla y cantar con vos.",
+    "Link y código QR para regalar":
+      "Mandale el link por WhatsApp, o imprimí el código QR y ponelo en una tarjeta o en la caja del regalo. El regalo digital se vuelve un regalo que se entrega en la mano.",
+    "El MP3 para descargar y guardar":
+      "La canción se queda en tu celular, para escucharla cuando quieras, con o sin internet.",
+    "¿No quedó como querías? La rehacemos":
+      "Después de comprar, pedís un ajuste desde tu cuenta: cambiar una parte de la letra, el estilo o la voz. La volvemos a grabar y te mandamos la nueva versión.",
+    "Tú armas el regalo a tu manera":
+      "Elegís el color de la página, un efecto en pantalla y escribís una frase tuya. Podés cambiarlo todas las veces que quieras.",
+    "Es tuya para siempre": "La página no vence y el link nunca deja de funcionar. Pago único, sin suscripción.",
+  };
+  const titulo = x.titulo === "Tú armas el regalo a tu manera" ? "Vos armás el regalo a tu manera" : x.titulo;
+  return { ...x, titulo, detalhe: detalhe[x.titulo] ?? x.detalhe };
+});
+
+function duvidasEsAr(mercado: Mercado): typeof DUVIDAS_ES_EUA {
+  return [
+    {
+      p: "¿Es un pago único o una suscripción?",
+      r: "Único. Pagás una vez y la canción es tuya para siempre. Sin cuota mensual, sin renovación automática, y no guardamos tu tarjeta.",
+    },
+    {
+      p: "¿Cómo aparece el cargo en mi tarjeta?",
+      r: `Como STRIPEONLI* BALLADGIFT. Es un solo cargo ${naMoedaPorExtenso(mercado)} a través de Stripe, nuestro procesador de pagos, sin suscripción.`,
+    },
+    {
+      p: "¿Cuánto tarda?",
+      r: "Hasta 30 minutos, y normalmente menos de 5. Te avisamos por mail en cuanto esté lista, y también podés armar el regalo acá mismo, en la pantalla.",
+    },
+    {
+      p: "¿La canción va a ser igual a la letra que leí?",
+      r: "Sí. Esa misma letra es la que se canta, palabra por palabra. Nada cambia después de que pagás.",
+    },
+    {
+      p: "¿Y si no me gusta la grabación?",
+      r: "Recibís dos versiones de la misma letra, con interpretaciones distintas, y elegís cuál se abre cuando la persona la reciba. Si ninguna te convence, respondé el mail y lo arreglamos.",
+    },
+    {
+      p: "¿Cómo entrego el regalo?",
+      r: "Cuando esté lista, te damos el link y un mensaje para copiar y pegar en WhatsApp. El que lo entrega sos vos.",
+    },
+  ];
+}
+
+/** A oferta da Argentina: a mesma do `latam`, em voseo e em peso argentino. */
+function ofertaEsAr(mercado: Mercado) {
+  return {
+    ...OFERTA_ES_EUA,
+    entregaveis: ENTREGAVEIS_ES_AR,
+    duvidas: duvidasEsAr(mercado),
+    sub: "Escuchaste un pedazo. Seguí, y termina justo como vos la escribiste.",
+    ancora: "Un ramo de flores sale casi lo mismo, dura una semana y nadie se acuerda.",
+    conversao: fraseDaMoeda(mercado),
+    conversaoOxxo: "",
+    creditoValor: formatarNaMoeda(mercado, 0),
+  };
+}
 
 function trocar<T extends { titulo?: string; p?: string }>(
   lista: readonly T[],
@@ -165,6 +237,7 @@ function trocar<T extends { titulo?: string; p?: string }>(
 /** O `OFERTA_ES_EUA` com a moeda, o envio e o aparelho do país. */
 export function ofertaEsDoMercado(variante: VarianteOferta, mercado: Mercado) {
   if (variante === "eua" && mercado.moeda === "usd") return OFERTA_ES_EUA;
+  if (variante === "argentina") return ofertaEsAr(mercado);
   const whatsapp = variante === "espanha" || variante === "latam";
   const aparelho = variante === "espanha" ? "móvil" : "celular";
 
