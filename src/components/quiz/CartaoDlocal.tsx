@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Lock, RefreshCw } from "lucide-react";
 import { criarCartaoDlocal, confirmarCartaoDlocal } from "@/lib/dlocalgo-cartao";
 import { getOrCreateSessionId } from "@/lib/session-context";
+import { bracoLocalParaEnviar } from "@/lib/preco-local-tela";
 import { guardarTransacao } from "@/lib/google-ads";
 import { trackEvent } from "@/lib/track";
 import { varianteDe } from "@/lib/experimentos";
@@ -88,6 +89,9 @@ export function CartaoDlocal({
   const [pedeDocumento, setPedeDocumento] = useState(false);
   const [tocou, setTocou] = useState(false);
   const [erroCartao, setErroCartao] = useState(false);
+  // O valor que o servidor VAI cobrar nesta cobrança (`valorTexto`). Enquanto
+  // ele não chega, o botão (desligado) mostra o da tela.
+  const [valorCobrado, setValorCobrado] = useState<string | null>(null);
   const caixa = useRef<HTMLDivElement>(null);
   const campo = useRef<CampoDlocal | null>(null);
   const pagamento = useRef<string | null>(null);
@@ -106,7 +110,7 @@ export function CartaoDlocal({
     setErroCartao(false);
     campo.current?.destroy?.();
     campo.current = null;
-    Promise.all([criarCartaoDlocal({ data: { sessionId: getOrCreateSessionId() } }), carregarSdk()])
+    Promise.all([criarCartaoDlocal({ data: { sessionId: getOrCreateSessionId(), bracoLocal: bracoLocalParaEnviar() } }), carregarSdk()])
       .then(async ([r, s]) => {
         if (!vivo) return;
         if (!r.ok) {
@@ -120,6 +124,7 @@ export function CartaoDlocal({
           return;
         }
         pagamento.current = r.pagamentoId;
+        setValorCobrado(r.valorTexto || null);
         setPedeDocumento((p) => p || r.documento);
         sdk.current = s;
         await s.initialize(r.chaveSmartfields, r.checkoutToken);
@@ -304,6 +309,9 @@ export function CartaoDlocal({
               <span className="inline-flex items-center gap-2">
                 <RefreshCw className="h-4 w-4 animate-spin" /> {T.pagando}
               </span>
+            ) : valorCobrado ? (
+              // O número do SERVIDOR, não o da tela: é o que a cobrança debita.
+              T.pagar(valorCobrado)
             ) : (
               <NaMoeda texto={precoTexto} como={T.pagar} />
             )}

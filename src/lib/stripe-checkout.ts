@@ -5,7 +5,8 @@ import { MOEDA } from "@/lib/i18n";
 import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { stripeApi, confirmarSessaoStripe, ErroStripe } from "../../api/lib/stripe";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
-import { localeStripeDe, mercadoDoPais, usdDe, valorNaMoeda as naMoedaDoMercado } from "@/lib/mercados";
+import { localeStripeDe, mercadoDoPais, type Mercado } from "@/lib/mercados";
+import { CONTROLE_LOCAL, bracoLocalCobravel, bracoPedido, testeLocalLigado, valorLocalDoBraco } from "@/lib/preco-local";
 import { paisDaRequisicao } from "@/lib/pais-requisicao.server";
 import { marcarMoedaDoPedido } from "@/lib/pais-quiz";
 import { impressaoDoCorpo } from "@/lib/impressao-corpo";
@@ -34,6 +35,48 @@ export async function valorCentavosDaSessao(
   return Math.round(reais * 100);
 }
 
+/**
+ * O QUE O CAIXA COBRA NESTE PAÍS, pros três caixas da música (Stripe, ficha
+ * da dLocal, cartão da dLocal): o preço do braço de `preco` (em dólar) na
+ * tabela do país, e, onde o país tem teste de preço próprio (`preco_co`,
+ * 12/11), no braço daquele teste. Um lugar só, pra regra não virar três cópias.
+ *
+ * `bracoEnviado` é o que a FOLHA mandou (o que a tela mostra); ver
+ * `bracoPedido`. Só é olhado quando o mercado DESTA requisição tem teste, e
+ * passa pela regra do braço cobrável com a linha do banco. Banco fora do ar
+ * na leitura da linha = controle: é o que a tela mostra sem config.
+ *
+ * `bracoPreco` (vai pro evento do caixa) é `null` em país sem teste E com o
+ * teste parado: "A" ali quer dizer "sorteado no A", não "o teste não rodava".
+ */
+export async function valorLocalDaSessao(
+  db: ReturnType<typeof supabaseAdmin>,
+  attribution: unknown,
+  mercado: Mercado,
+  bracoEnviado?: unknown,
+): Promise<{ valorLocal: number; valorDoPedido: number; bracoPreco: string | null }> {
+  const centavos = await valorCentavosDaSessao(db, attribution);
+  if (!mercado.teste) return { ...valorLocalDoBraco(mercado, centavos, null), bracoPreco: null };
+  let braco = CONTROLE_LOCAL;
+  let ligado = false;
+  try {
+    const { data, error } = await db
+      .from("experimentos")
+      .select("ativo, variantes")
+      .eq("id", mercado.teste.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const config = data
+      ? { ativo: Boolean(data.ativo), variantes: (Array.isArray(data.variantes) ? data.variantes : []) as Array<{ nome?: string; peso?: number | null }> }
+      : null;
+    ligado = testeLocalLigado(mercado, config);
+    braco = bracoLocalCobravel(mercado, config, bracoPedido(mercado.teste.id, bracoEnviado, attribution));
+  } catch (err) {
+    console.error(`[preco-local] linha ${mercado.teste.id} não lida, cobrando o controle:`, err);
+  }
+  return { ...valorLocalDoBraco(mercado, centavos, braco), bracoPreco: ligado ? braco : null };
+}
+
 export function urlDoSite(): string {
   const u = process.env.VITE_APP_URL;
   return u?.startsWith("http") ? u.replace(/\/+$/, "") : MARCA_ATIVA.url;
@@ -50,7 +93,7 @@ export type ResultadoCheckout =
   | { ok: false; erro: "sem-musica" | "ja-pago" | "indisponivel" | "falhou" };
 
 export const criarCheckoutStripe = createServerFn({ method: "POST" })
-  .validator((data: { sessionId: string }) => data)
+  .validator((data: { sessionId: string; bracoLocal?: string }) => data)
   .handler(async ({ data }): Promise<ResultadoCheckout> => {
     // Só a marca que vende em dólar. A Serenata nunca abre isto, nem por engano.
     if (MARCA_ATIVA.chave !== "ballad" || !process.env.STRIPE_SECRET_KEY) {
@@ -91,7 +134,6 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
       .limit(1);
     if (jaPago?.length) return { ok: false, erro: "ja-pago" };
 
-    const centavos = await valorCentavosDaSessao(db, quiz.attribution);
     // O CAIXA NA MOEDA DO PAÍS DO ACESSO (21/10 no México, 29/10 nos outros;
     // `mercados.ts`): o preço tabelado do país (US$ 19 → $199 MXN, 14,99 €,
     // $39.900 COP…). O país é o do cabeçalho DESTA requisição, nunca um valor
@@ -100,9 +142,14 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
     const pais = paisDaRequisicao();
     const mercado = mercadoDoPais(pais);
     const moeda = mercado.moeda;
-    const valorNaMoeda = naMoedaDoMercado(mercado, centavos);
     // O pedido grava o dólar do que se COBROU (o México tem preço próprio, $199).
-    const valorDoPedido = usdDe(mercado, valorNaMoeda);
+    // Na Colômbia o valor é o do braço do `preco_co` (`valorLocalDaSessao`).
+    const { valorLocal: valorNaMoeda, valorDoPedido, bracoPreco } = await valorLocalDaSessao(
+      db,
+      quiz.attribution,
+      mercado,
+      data.bracoLocal,
+    );
     // Teste `stripe_conta` (03/11): qual conta cobra (ver `stripe-conta.ts`).
     const conta = contaStripeDoQuiz(String(quiz.id));
     const nome = String((quiz.respostas as Record<string, unknown> | null)?.nome ?? "").trim().slice(0, 40);
@@ -238,7 +285,15 @@ export const criarCheckoutStripe = createServerFn({ method: "POST" })
       await db.from("funnel_events").insert({
         event_name: "stripe_checkout_criado",
         session_id: sessionId,
-        event_data: { sessao: sessao.id, valor_centavos: valorDoPedido, moeda, valor_na_moeda: valorNaMoeda, pais, conta },
+        event_data: {
+          sessao: sessao.id,
+          valor_centavos: valorDoPedido,
+          moeda,
+          valor_na_moeda: valorNaMoeda,
+          pais,
+          conta,
+          ...(bracoPreco ? { braco_preco: bracoPreco } : {}),
+        },
       });
       return {
         ok: true,

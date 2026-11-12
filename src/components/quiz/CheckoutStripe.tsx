@@ -10,6 +10,7 @@ import type { Stripe } from "@stripe/stripe-js";
 import type { CheckoutStripeEmbutido as Embutido } from "@/components/quiz/CheckoutStripeEmbutido";
 import { criarCheckoutStripe } from "@/lib/stripe-checkout";
 import { getOrCreateSessionId } from "@/lib/session-context";
+import { bracoLocalParaEnviar } from "@/lib/preco-local-tela";
 import { trackEvent } from "@/lib/track";
 import { marcarCaixaAberto } from "@/lib/arquivo-velho";
 import { usePausarVideosAtras, useVoltarFechaAFolha } from "@/lib/folha-pagamento";
@@ -215,7 +216,9 @@ export function CheckoutStripe({
     let vivo = true;
     setErro(null);
     setClientSecret(null);
-    criarCheckoutStripe({ data: { sessionId: getOrCreateSessionId() } })
+    // `bracoLocal`: o braço do teste de preço do país (`preco_co`) que ESTA
+    // tela mostra. O servidor confere e tira o número da tabela dele.
+    criarCheckoutStripe({ data: { sessionId: getOrCreateSessionId(), bracoLocal: bracoLocalParaEnviar() } })
       .then((r) => {
         if (!vivo) return;
         if (r.ok) {

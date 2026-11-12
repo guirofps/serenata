@@ -55,6 +55,14 @@ export type Mercado = {
    * bancos, PagoEfectivo), conferidos em 29/10 com cobranças de teste.
    */
   temDlocal: boolean;
+  /**
+   * TESTE DE PREÇO SÓ DESTE PAÍS (12/11): o preço local de cada braço, pelas
+   * mesmas chaves em dólar de `precos`. Chave que o braço não lista (vídeo,
+   * extra) e braço que não está aqui (o controle "A", `fora`, lixo) caem em
+   * `precos`. O `id` é o da linha na tabela `experimentos`, que só decide
+   * liga/desliga e peso: o NÚMERO mora aqui. Ver `preco-local.ts`.
+   */
+  teste?: { id: string; bracos: Readonly<Record<string, Readonly<Record<number, number>>>> };
 };
 
 // ── PREÇOS: APROVADOS PELO DONO EM 29/10 ─────────────────────────
@@ -170,6 +178,17 @@ export const MERCADOS: Readonly<Record<Pais, Mercado>> = {
     conteudo: "latam",
     tagIdioma: "es-CO",
     temDlocal: true,
+    // TESTE `preco_co` (12/11, Ralph): só a MÚSICA e a âncora dela. A = hoje
+    // ($39.900, riscado $99.900). B = $29.900 e C = $34.900, os dois com o
+    // riscado em $74.900. Vídeo e extra ficam fixos. Desenho em
+    // `docs/superpowers/specs/2026-11-12-preco-por-pais-colombia-design.md`.
+    teste: {
+      id: "preco_co",
+      bracos: {
+        B: { 1900: 2990000, 4900: 7490000 },
+        C: { 1900: 3490000, 4900: 7490000 },
+      },
+    },
   },
   CL: {
     pais: "CL",
@@ -252,10 +271,29 @@ function porCambio(m: Mercado, centavosUsd: number): number {
   }
 }
 
-/** O preço em dólar (centavos) na unidade menor da moeda do mercado. EUA: o próprio dólar. */
-export function valorNaMoeda(m: Mercado, centavosUsd: number): number {
+/**
+ * O preço em dólar (centavos) na unidade menor da moeda do mercado. EUA: o próprio dólar.
+ *
+ * `braco` é o do teste de preço DO PAÍS (`Mercado.teste`), já passado pela
+ * regra do braço cobrável (`preco-local.ts`). Sem ele, com o controle, ou num
+ * país sem teste, é a tabela de sempre.
+ */
+export function valorNaMoeda(m: Mercado, centavosUsd: number, braco?: string | null): number {
   if (m.moeda === "usd") return centavosUsd;
-  return m.precos[centavosUsd] ?? porCambio(m, centavosUsd);
+  const doBraco = precosDoBraco(m, braco)?.[centavosUsd];
+  return doBraco ?? m.precos[centavosUsd] ?? porCambio(m, centavosUsd);
+}
+
+/** A tabela de um braço do teste do país. `hasOwnProperty`: "constructor" não é braço. */
+function precosDoBraco(m: Mercado, braco: string | null | undefined): Readonly<Record<number, number>> | null {
+  const bracos = m.teste?.bracos;
+  if (!bracos || !braco || !Object.prototype.hasOwnProperty.call(bracos, braco)) return null;
+  return bracos[braco];
+}
+
+/** O mercado tem preço próprio pra este braço? (O controle e o lixo não têm.) */
+export function bracoTemPreco(m: Mercado, braco: string | null | undefined): boolean {
+  return precosDoBraco(m, braco) != null;
 }
 
 /** O equivalente em centavos de dólar de um valor local: o que o pedido grava (€14,99 → 1743). */
@@ -285,12 +323,12 @@ export function casasDaMoeda(moeda: string | null | undefined): 0 | 2 {
  * (TikTok, GA4, Google) têm que mandar o MESMO número, não os US$ 19 da tela
  * americana. Nos EUA, ou com país desconhecido, o mesmo valor.
  */
-export function valorUsdNoPais(valorUsd: number, pais: string | null | undefined): number {
+export function valorUsdNoPais(valorUsd: number, pais: string | null | undefined, braco?: string | null): number {
   const m = mercadoDoPais(pais);
   if (m.moeda === "usd") return valorUsd;
   const centavos = Math.round(valorUsd * 100);
   if (!(centavos > 0)) return valorUsd;
-  return usdDe(m, valorNaMoeda(m, centavos)) / 100;
+  return usdDe(m, valorNaMoeda(m, centavos, braco)) / 100;
 }
 
 /** Valor em unidade MAIOR (o que a dLocal devolve, "199.00") → unidade menor do mercado. */
@@ -365,11 +403,11 @@ export function centavosDoTexto(textoUsd: string): number | null {
  * O texto de um preço em dólar escrito na moeda do mercado, pela MESMA tabela
  * do caixa. EUA (ou texto sem número) = `null`: a tela fica em dólar.
  */
-export function textoNaMoeda(m: Mercado, textoUsd: string): string | null {
+export function textoNaMoeda(m: Mercado, textoUsd: string, braco?: string | null): string | null {
   if (m.moeda === "usd") return null;
   const centavos = centavosDoTexto(textoUsd);
   if (centavos == null) return null;
-  return formatarNaMoeda(m, valorNaMoeda(m, centavos));
+  return formatarNaMoeda(m, valorNaMoeda(m, centavos, braco));
 }
 
 /** Os mercados que não cobram em dólar: um `<span>` de preço por moeda na tela. */

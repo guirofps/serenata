@@ -7,6 +7,7 @@ import { compraTiktok } from "@/lib/tiktok-pixel";
 import { meuPlano, meuPlanoCobravel } from "@/lib/preco";
 import { centavosComCupom } from "@/lib/cupom";
 import { paisDaTela, valorDaCompra } from "@/lib/valor-conversao";
+import { bracoLocalDaTela } from "@/lib/preco-local-tela";
 import { useQuizStore } from "@/lib/quiz-store";
 import { buscarPresenteDaCompra, type PresenteDaCompra } from "@/lib/pos-compra";
 import { sessaoJaPagou, entrarNaConta } from "@/lib/coautoria";
@@ -297,7 +298,7 @@ export function Obrigado({
           ? Number(meuPlanoCobravel("en").valor) || 0
           : // Espanhol: o link da Perfect Pay do braço da tela (o cupom é produto de lá).
             meuPlano(locale, { temCupom: Boolean(cupom) }).valor;
-    const plano = { valor: valorDaCompra({ locale, pedido: presente, reserva, pais: paisDaTela() }) };
+    const plano = { valor: valorDaCompra({ locale, pedido: presente, reserva, pais: paisDaTela(), braco: bracoLocalDaTela() }) };
     conversaoCompra({
       valor: plano.valor,
       moeda: locale === "pt" ? "BRL" : "USD",

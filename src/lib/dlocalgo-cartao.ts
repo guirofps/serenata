@@ -2,10 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
-import { mercadoDoPais, usdDe, valorNaMoeda } from "@/lib/mercados";
+import { formatarNaMoeda, mercadoDoPais } from "@/lib/mercados";
 import { paisDaRequisicao } from "@/lib/pais-requisicao.server";
 import { marcarMoedaDoPedido } from "@/lib/pais-quiz";
-import { valorCentavosDaSessao, urlDoSite } from "@/lib/stripe-checkout";
+import { valorLocalDaSessao, urlDoSite } from "@/lib/stripe-checkout";
 import { nomeCompletoValido } from "@/lib/documento-mx";
 import { validarDocumento } from "@/lib/documento-pais";
 import {
@@ -49,7 +49,21 @@ import {
 type Db = ReturnType<typeof supabaseAdmin>;
 
 export type ResultadoCriarCartao =
-  | { ok: true; pagamentoId: string; checkoutToken: string; chaveSmartfields: string; documento: boolean }
+  | {
+      ok: true;
+      pagamentoId: string;
+      checkoutToken: string;
+      chaveSmartfields: string;
+      documento: boolean;
+      /**
+       * O valor que ESTA cobrança vai debitar, escrito na moeda do país
+       * ("$29.900 COP"). O botão de pagar desta folha é o único lugar em que a
+       * pessoa lê o valor (não há página da dLocal no meio), então ele escreve
+       * este, e não o que a tela calculou: se o teste de preço do país for
+       * desligado com a aba aberta, o botão diz o que será cobrado.
+       */
+      valorTexto: string;
+    }
   | { ok: false; erro: "sem-musica" | "ja-pago" | "indisponivel" | "falhou" };
 
 async function quizComMusica(db: Db, sessionId: string) {
@@ -85,7 +99,11 @@ async function evento(db: Db, sessionId: string, nome: string, dados: Record<str
 }
 
 export const criarCartaoDlocal = createServerFn({ method: "POST" })
-  .validator((data: { sessionId: string }) => ({ sessionId: String(data?.sessionId ?? "").slice(0, 100) }))
+  .validator((data: { sessionId: string; bracoLocal?: string }) => ({
+    sessionId: String(data?.sessionId ?? "").slice(0, 100),
+    // Teste de preço do país (`preco_co`, 12/11): o braço que a folha mostra.
+    bracoLocal: typeof data?.bracoLocal === "string" ? data.bracoLocal.slice(0, 24) : undefined,
+  }))
   .handler(async ({ data }): Promise<ResultadoCriarCartao> => {
     const chaveSmartfields = process.env.DLOCALGO_SMARTFIELDS_KEY?.trim();
     if (MARCA_ATIVA.chave !== "ballad" || !dlocalConfigurado() || !chaveSmartfields) return { ok: false, erro: "indisponivel" };
@@ -104,8 +122,12 @@ export const criarCartaoDlocal = createServerFn({ method: "POST" })
     const { quiz, musica } = achado;
     if (await quizPago(db, quiz.id)) return { ok: false, erro: "ja-pago" };
 
-    const valorLocal = valorNaMoeda(mercado, await valorCentavosDaSessao(db, quiz.attribution));
-    const valorDoPedido = usdDe(mercado, valorLocal);
+    const { valorLocal, valorDoPedido, bracoPreco } = await valorLocalDaSessao(
+      db,
+      quiz.attribution,
+      mercado,
+      data.bracoLocal,
+    );
 
     // REABRIR A FOLHA CRIA OUTRA COBRANÇA: o token do SDK vale pra uma
     // tentativa, e uma cobrança velha pode já ter sido tentada. A pendente
@@ -166,8 +188,16 @@ export const criarCartaoDlocal = createServerFn({ method: "POST" })
         pais: paisCartao,
         valor_centavos: valorDoPedido,
         valor_local: valorLocal,
+        ...(bracoPreco ? { braco_preco: bracoPreco } : {}),
       });
-      return { ok: true, pagamentoId: p.id, checkoutToken: token, chaveSmartfields, documento: documentoNoCartao(paisCartao) };
+      return {
+        ok: true,
+        pagamentoId: p.id,
+        checkoutToken: token,
+        chaveSmartfields,
+        documento: documentoNoCartao(paisCartao),
+        valorTexto: formatarNaMoeda(mercado, valorLocal),
+      };
     } catch (err) {
       console.error("[cartao-dlocal] criar falhou:", err instanceof ErroDlocal ? `${err.status} ${err.message}` : err);
       await evento(db, sessionId, "cartao_dlocal_erro", {

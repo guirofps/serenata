@@ -2,10 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { MARCA_ATIVA } from "@/lib/marca-identidade";
 import { marcarSeVeioDeEmail } from "@/lib/toque-email.server";
-import { mercadoDoPais, usdDe, valorNaMoeda } from "@/lib/mercados";
+import { mercadoDoPais } from "@/lib/mercados";
 import { paisDaRequisicao } from "@/lib/pais-requisicao.server";
 import { marcarMoedaDoPedido } from "@/lib/pais-quiz";
-import { valorCentavosDaSessao, urlDoSite } from "@/lib/stripe-checkout";
+import { valorLocalDaSessao, urlDoSite } from "@/lib/stripe-checkout";
 import { nomeCompletoValido } from "@/lib/documento-mx";
 import { paisTemDocumento, validarDocumento } from "@/lib/documento-pais";
 import { fichaServeAoVoltar, metodoDlocalValido, tipoPagamentoDlocal } from "@/lib/spei-destaque";
@@ -38,8 +38,12 @@ export type ResultadoCheckoutDlocal =
   | { ok: false; erro: "sem-musica" | "ja-pago" | "indisponivel" | "falhou" | "documento" };
 
 export const criarCheckoutDlocal = createServerFn({ method: "POST" })
-  .validator((data: { sessionId: string; nome?: string; documento?: string; metodo?: string; semDocumento?: boolean }) => ({
+  .validator((data: { sessionId: string; nome?: string; documento?: string; metodo?: string; semDocumento?: boolean; bracoLocal?: string }) => ({
     sessionId: String(data?.sessionId ?? "").slice(0, 100),
+    // Teste de preço do país (`preco_co`, 12/11): o braço que a folha mostra.
+    // Não é o valor: o servidor confere o braço e tira o número da tabela
+    // (`valorLocalDaSessao`).
+    bracoLocal: typeof data?.bracoLocal === "string" ? data.bracoLocal.slice(0, 24) : undefined,
     nome: String(data?.nome ?? "").trim().replace(/\s+/g, " ").slice(0, 100),
     documento: String(data?.documento ?? "").slice(0, 40),
     // Teste `documento_depois` (31/10): a página da dLocal pede o documento. Não
@@ -95,8 +99,12 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
       .limit(1);
     if (jaPago?.length) return { ok: false, erro: "ja-pago" };
 
-    const valorMxn = valorNaMoeda(mercado, await valorCentavosDaSessao(db, quiz.attribution));
-    const valorDoPedido = usdDe(mercado, valorMxn);
+    const { valorLocal: valorMxn, valorDoPedido, bracoPreco } = await valorLocalDaSessao(
+      db,
+      quiz.attribution,
+      mercado,
+      data.bracoLocal,
+    );
 
     // REABRIR A FOLHA NÃO CRIA OUTRA FICHA: a pendente deste quiz, do mesmo
     // valor e com folga de validade, volta igual. Duas fichas do OXXO pro mesmo
@@ -220,7 +228,12 @@ export const criarCheckoutDlocal = createServerFn({ method: "POST" })
       await db.from("funnel_events").insert({
         event_name: "dlocal_checkout_criado",
         session_id: sessionId,
-        event_data: { pagamento: p.id, valor_centavos: valorDoPedido, valor_mxn: valorMxn },
+        event_data: {
+          pagamento: p.id,
+          valor_centavos: valorDoPedido,
+          valor_mxn: valorMxn,
+          ...(bracoPreco ? { braco_preco: bracoPreco } : {}),
+        },
       });
       return { ok: true, url: p.redirect_url, pagamentoId: p.id };
     } catch (err) {

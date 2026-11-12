@@ -18,6 +18,7 @@ import { meuPlano, meuPlanoCobravel } from "@/lib/preco";
 import { PrecoCurto, PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
 import { descontoNaTela } from "@/lib/cupom";
 import { paisDaTela, valorDoCheckout } from "@/lib/valor-conversao";
+import { bracoLocalDaTela } from "@/lib/preco-local-tela";
 import { ehArgentina, paisAtual } from "@/lib/mercado-es";
 import { mercadoDoPais } from "@/lib/mercados";
 import { ehBallad } from "@/lib/marca-identidade";
@@ -698,6 +699,8 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       comCupomCentavos: descontado?.porCentavos,
       // No México, o equivalente do peso que o caixa cobra (29/10).
       pais: paisDaTela(),
+      // Na Colômbia em teste de preço (`preco_co`), o do braço desta pessoa.
+      braco: bracoLocalDaTela(),
     });
     // O "pôr no carrinho" pro TikTok: abriu a oferta. Ver `carrinhoTiktok`.
     carrinhoTiktok({ valor, moeda: locale === "pt" ? "BRL" : "USD" });
@@ -1039,6 +1042,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
       comCupomCentavos: descontado?.porCentavos,
       comConviteCentavos: conviteFinalC,
       pais: paisDaTela(),
+      braco: bracoLocalDaTela(),
     });
     trackEvent("checkout_click", { valor: valorCheckout, locale, preco: plano.texto });
 

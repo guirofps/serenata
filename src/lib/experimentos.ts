@@ -443,6 +443,15 @@ export const EXPERIMENTOS: Experimento[] = [
     nota: "SERENATA, 11/11. Headline da landing /presente (anúncio). A = 'Flores murcham. Chocolate acaba. Uma música fica pra sempre.' B = 'O único presente do mundo com o nome e a história de quem você ama'. C = 'O presente que faz quem você ama chorar na primeira nota'. O resto da página é igual. Ler RECEITA POR SESSÃO por braço, SÓ entre sessões com page_view em /presente (o sorteio roda no site inteiro); saúde: lp_presente_cta por sessão.",
   },
   {
+    // SÓ BALLAD, preço da música na COLÔMBIA. Ver `preco-local.ts`.
+    id: "preco_co",
+    variantes: ["A", "B", "C"],
+    peso: [1, 1, 1],
+    // NUNCA `true` aqui: quem liga é a linha da tabela `experimentos`.
+    ativo: false,
+    nota: "BALLAD, 12/11. Preço da MÚSICA só na Colômbia (o sorteio roda em todo país, mas o braço só muda algo com país CO). A = $39.900 COP, riscado $99.900 (como é). B = $29.900, riscado $74.900. C = $34.900, riscado $74.900. Vídeo e extra fixos. O número mora no código (mercados.ts), a linha só liga, desliga e muda peso; braço de peso 0 paga o controle. Ler por RECEITA DA MÚSICA EM DÓLAR POR SESSÃO EXPOSTA (preco_co_exposto -> pedido pago do quiz), por braço; conversão é sinal. Ignorado pelo vigiaExperimento. Encerrar com B ou C vencendo exige deploy trocando a tabela.",
+  },
+  {
     // SÓ SERENATA, matéria de anúncio `/tendencia`. Ver `materia-tendencia.ts`.
     id: "materia_titulo",
     variantes: ["A", "B", "C"],

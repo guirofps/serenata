@@ -18,9 +18,15 @@ export function paisDaTela(): string | null {
  * México é o mesmo número de antes. A Serenata (real) e o espanhol da
  * Serenata (Perfect Pay) não mudam.
  */
-export function noPaisDoAcesso(valor: number, locale: Locale, pais: string | null | undefined): number {
+export function noPaisDoAcesso(
+  valor: number,
+  locale: Locale,
+  pais: string | null | undefined,
+  /** O braço do teste de preço DO PAÍS (`bracoLocalDaTela()`, 12/11). País sem teste ignora. */
+  braco?: string | null,
+): number {
   if (!ehBallad() || locale === "pt") return valor;
-  return valorUsdNoPais(valor, pais);
+  return valorUsdNoPais(valor, pais, braco);
 }
 
 // O VALOR QUE VAI PROS ANÚNCIOS (08/10).
@@ -61,13 +67,15 @@ export function valorDaCompra(args: {
   reserva: number;
   /** `paisDaTela()`: no México a reserva vira o equivalente do peso (29/10). */
   pais?: string | null;
+  /** `bracoLocalDaTela()`: o braço do teste de preço do país, pra reserva. */
+  braco?: string | null;
 }): number {
   const c = Number(args.pedido?.valorCentavos);
   if (Number.isFinite(c) && c > 0 && moedaBate(args.locale, args.pedido?.gateway)) {
     // O banco já grava o equivalente em dólar do que se cobrou em peso.
     return Math.round(c) / 100;
   }
-  return noPaisDoAcesso(args.reserva, args.locale, args.pais);
+  return noPaisDoAcesso(args.reserva, args.locale, args.pais, args.braco);
 }
 
 /**
@@ -92,6 +100,8 @@ export function valorDoCheckout(args: {
   comConviteCentavos?: number | null;
   /** `paisDaTela()`: no México, o equivalente em dólar do preço em peso (29/10). */
   pais?: string | null;
+  /** `bracoLocalDaTela()`: na Colômbia em teste (`preco_co`), o preço do braço. */
+  braco?: string | null;
 }): number {
   if (args.locale === "es" && !ehBallad()) return args.valorDaTela;
   const valor =
@@ -100,5 +110,5 @@ export function valorDoCheckout(args: {
       : args.comConviteCentavos && args.comConviteCentavos > 0
         ? args.comConviteCentavos / 100
         : args.valorCobravel;
-  return noPaisDoAcesso(valor, args.locale, args.pais);
+  return noPaisDoAcesso(valor, args.locale, args.pais, args.braco);
 }

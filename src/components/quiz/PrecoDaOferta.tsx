@@ -1,9 +1,13 @@
+import { useEffect } from "react";
 import { Variante } from "@/components/Variante";
 import type { Locale } from "@/lib/i18n";
 import type { Cupom } from "@/lib/cupom";
 import { EXP_PRECO, planoCobravelDe, planoControle, variantesComPlano } from "@/lib/preco";
 import { ehBallad } from "@/lib/marca-identidade";
 import { MERCADOS_LOCAIS, textoNaMoeda } from "@/lib/mercados";
+import { bracoLocalDaTela, idDoTesteLocal, paisEmTesteDePreco, textosPorBracoNaTela } from "@/lib/preco-local-tela";
+import { paisAtual } from "@/lib/mercado-es";
+import { trackEventOnce } from "@/lib/track";
 
 /**
  * Um preço em dólar, com a versão de cada mercado local ao lado (peso
@@ -21,23 +25,65 @@ import { MERCADOS_LOCAIS, textoNaMoeda } from "@/lib/mercados";
  * preço só exigiria que o país do desenho e o do `<html>` nunca discordassem,
  * e no dia em que discordarem a tela mostraria um número e o caixa outro.
  * Com todos no HTML, o que aparece é sempre o do carimbo, que é o do caixa.
+ *
+ * TESTE DE PREÇO DO PAÍS (`preco_co`, 12/11; `preco-local.ts`): na moeda de um
+ * país em teste, o span da moeda leva um span por BRAÇO, e o CSS dos
+ * experimentos esconde os que não foram sorteados, pelo mesmo motivo. Só
+ * acontece quando a linha do teste existe na config e o preço muda com o braço
+ * (`textosPorBraco`); fora disso o HTML é o de antes, byte a byte.
+ *
+ * `semTeste` é pro PÓS-COMPRA: o editor abre por link em qualquer aparelho, e
+ * o carimbo daquele navegador não é o braço de quem comprou.
  */
-export function NaMoeda({ texto, como = (t) => t }: { texto: string; como?: (preco: string) => string }) {
+export function NaMoeda({
+  texto,
+  como = (t) => t,
+  semTeste = false,
+}: {
+  texto: string;
+  como?: (preco: string) => string;
+  semTeste?: boolean;
+}) {
   if (!ehBallad()) return <>{como(texto)}</>;
-  const locais = MERCADOS_LOCAIS.map((m) => ({ moeda: m.moeda, texto: textoNaMoeda(m, texto) })).filter(
-    (x): x is { moeda: typeof x.moeda; texto: string } => !!x.texto,
-  );
+  const locais = MERCADOS_LOCAIS.map((m) => ({
+    moeda: m.moeda,
+    texto: textoNaMoeda(m, texto),
+    porBraco: semTeste ? null : textosPorBracoNaTela(m, texto),
+  })).filter((x): x is { moeda: typeof x.moeda; texto: string; porBraco: typeof x.porBraco } => !!x.texto);
   if (!locais.length) return <>{como(texto)}</>;
   return (
     <>
       <span className="preco-usd">{como(texto)}</span>
       {locais.map((x) => (
         <span key={x.moeda} className={`preco-${x.moeda}`}>
-          {como(x.texto)}
+          {x.porBraco
+            ? x.porBraco.bracos.map((b) => (
+                <span key={b.nome} data-v={`${x.porBraco?.id}:${b.nome}`}>
+                  {como(b.texto)}
+                </span>
+              ))
+            : como(x.texto)}
         </span>
       ))}
     </>
   );
+}
+
+/**
+ * QUEM VIU O PREÇO num país com teste de preço ligado (`preco_co`, 12/11): o
+ * denominador da leitura. Uma vez por sessão, na primeira tela do funil que
+ * mostra o preço (revelação ou oferta). O lead não guarda país, por isso um
+ * evento próprio, com o braço JÁ pela regra do cobrável (o que a pessoa viu).
+ * Não desenha nada: mora fora dos `<Variante>`, que renderizam todos os braços.
+ */
+function ExpostoAoPrecoLocal() {
+  useEffect(() => {
+    if (!ehBallad() || !paisEmTesteDePreco()) return;
+    const id = idDoTesteLocal();
+    if (!id) return;
+    void trackEventOnce(`${id}_exposto`, "v1", { braco: bracoLocalDaTela(), pais: paisAtual() });
+  }, []);
+  return null;
 }
 
 // O NÚMERO NA TELA, no formato que sobrevive ao servidor.
@@ -84,6 +130,7 @@ export function PrecoDaOferta({
   if (descontado) {
     return (
       <>
+        <ExpostoAoPrecoLocal />
         <p className="text-sm text-muted-foreground">
           {/* No português a âncora é o preço REAL da pessoa (o braço dela), o
               mesmo que o cupom descontou. No espanhol, o de sempre. */}
@@ -101,6 +148,7 @@ export function PrecoDaOferta({
 
   return (
     <>
+      <ExpostoAoPrecoLocal />
       {variantesComPlano(locale).map((v) => {
         const plano = planoCobravelDe(locale, v);
         return (
@@ -166,6 +214,7 @@ export function APartirDe({
 }) {
   return (
     <>
+      <ExpostoAoPrecoLocal />
       {variantesComPlano(locale).map((v) => (
         <Variante key={v} exp={EXP_PRECO} v={v}>
           <p className={className}><NaMoeda texto={planoCobravelDe(locale, v).texto} como={frase} /></p>

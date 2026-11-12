@@ -10,6 +10,7 @@ import { novaSessao } from "@/lib/session-context";
 import { useQuizStore } from "@/lib/quiz-store";
 import { emDolarExplicito } from "@/lib/i18n";
 import { EXP_EXTRA_BALLAD, TEXTO_EXTRA_BALLAD, bracoExtraBallad } from "@/lib/extra-ballad";
+import { paisEmTesteDePreco } from "@/lib/preco-local-tela";
 
 // O ATALHO DA SEGUNDA MÚSICA NA BALLAD (teste `extra_ballad`, 28/10).
 //
@@ -99,12 +100,17 @@ export function AtalhoExtraBallad({
             {saldo > 0 ? t.jaTem(saldo) : <NaMoeda texto={preco} como={t.rotulo} />}
           </span>
         </button>
-        {saldo === 0 && (
+        {/* "En vez de $39.900": em país com teste de preço LIGADO (`preco_co`,
+            12/11) quem comprou pode ter pago menos que isso, e a frase seria
+            falsa. Some nos três braços, pra não virar diferença entre eles; o
+            preço cheio aqui nunca segue o braço (`semTeste`): esta tela abre
+            por link em qualquer aparelho. */}
+        {saldo === 0 && !paisEmTesteDePreco() && (
           <p
             className="mx-auto mt-2 max-w-[300px] text-[var(--tinta-suave)]"
             style={{ fontSize: "var(--t-xs)", lineHeight: 1.5 }}
           >
-            <NaMoeda texto={t.cheio} como={t.fino} />
+            <NaMoeda texto={t.cheio} como={t.fino} semTeste />
           </p>
         )}
       </div>

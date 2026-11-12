@@ -5,6 +5,7 @@ import { getOrCreateSessionId } from "@/lib/session-context";
 import { vitrineTiktok } from "@/lib/tiktok-pixel";
 import { meuPlano } from "@/lib/preco";
 import { noPaisDoAcesso, paisDaTela } from "@/lib/valor-conversao";
+import { bracoLocalDaTela } from "@/lib/preco-local-tela";
 import { MusicaKaraoke, type PalavraAlinhada } from "@/components/quiz/MusicaKaraoke";
 import { KaraokePlayer } from "@/components/quiz/KaraokePlayer";
 import { ProgressoGeracao } from "@/components/quiz/ProgressoGeracao";
@@ -108,7 +109,7 @@ export function MusicaDaSessao({
           // `vitrineTiktok` (o funil completo que o painel cobra).
           // No México, o equivalente do peso que o caixa cobra (29/10).
           vitrineTiktok({
-            valor: noPaisDoAcesso(meuPlano(locale).valor, locale, paisDaTela()),
+            valor: noPaisDoAcesso(meuPlano(locale).valor, locale, paisDaTela(), bracoLocalDaTela()),
             moeda: locale === "pt" ? "BRL" : "USD",
           });
           return; // para o polling

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import { criarCheckoutDlocal } from "@/lib/dlocalgo-checkout";
 import { getOrCreateSessionId } from "@/lib/session-context";
+import { bracoLocalParaEnviar } from "@/lib/preco-local-tela";
 import { guardarTransacao } from "@/lib/google-ads";
 import { trackEvent } from "@/lib/track";
 import { Button } from "@/components/ui/button";
@@ -141,6 +142,7 @@ export function CheckoutDlocal({
     criarCheckoutDlocal({
       data: {
         sessionId: getOrCreateSessionId(),
+        bracoLocal: bracoLocalParaEnviar(),
         ...dados,
         ...(metodo ? { metodo } : {}),
         ...(dados.documento ? {} : { semDocumento: true }),
