@@ -37,3 +37,18 @@ const FORMATO =
 export function emailPlausivel(email: string): boolean {
   return FORMATO.test(email.trim());
 }
+
+/**
+ * O e-mail que a captura parcial do lead pode gravar: limpo do ponto no fim e
+ * com o formato acima, ou `null` (a RPC mantém o que já existia na linha).
+ *
+ * 12/11: a captura roda a CADA passo com o e-mail que está no campo, e quem
+ * digita "ana maria@gmail.com" (o botão fica travado) e volta um passo gravava
+ * o endereço inválido. Em 10 dias, 10 endereços com espaço ou acento entraram
+ * no banco na Serenata e a régua tentou mandar pra eles (o Resend recusa).
+ */
+export function emailGravavel(email: string | null | undefined): string | null {
+  if (!email) return null;
+  const limpo = semPontoNoFim(email);
+  return emailPlausivel(limpo) ? limpo : null;
+}
