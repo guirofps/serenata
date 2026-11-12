@@ -1,5 +1,5 @@
 ﻿import { getOrCreateSessionId, getStoredAttribution } from "@/lib/session-context";
-import { semPontoNoFim } from "@/lib/email-limpo";
+import { emailGravavel } from "@/lib/email-limpo";
 import { comRetentativas } from "@/lib/retentar";
 import { trackEvent } from "@/lib/track";
 
@@ -81,7 +81,8 @@ export async function captureLeadProgress(args: {
         p_furthest_step: args.furthestStep ?? null,
         p_respostas: args.respostas,
         // Ponto no fim ("...@hotmail.com.") mata a entrega e o PIX (26/09).
-        p_email: args.email ? semPontoNoFim(args.email) : null,
+        // E o que ainda está sendo digitado não entra (ver `emailGravavel`).
+        p_email: emailGravavel(args.email),
         p_whatsapp: args.whatsapp ?? null,
         p_attribution: getStoredAttribution(),
         p_locale: args.locale ?? "pt",

@@ -57,6 +57,8 @@ export function recarregarSeArquivoVelho(): () => void {
     }
     try {
       sessionStorage.setItem(CHAVE, String(agora));
+      // O caixa estava aberto: depois de recarregar, a oferta o reabre.
+      if (sessionStorage.getItem(CAIXA_ABERTO)) sessionStorage.setItem(REABRIR_CAIXA, String(agora));
     } catch {
       // Sem como guardar a trava, não arrisca um laço de recarga.
       trackEvent("arquivo_velho_falhou", { sem_storage: true });
@@ -67,4 +69,46 @@ export function recarregarSeArquivoVelho(): () => void {
   };
   window.addEventListener("vite:preloadError", aoFalhar);
   return () => window.removeEventListener("vite:preloadError", aoFalhar);
+}
+
+// ── O CAIXA QUE A RECARGA FECHAVA (12/11) ──────────────────────────
+//
+// A recarga acima resolve o arquivo, mas a pessoa tinha acabado de tocar em
+// PAGAR: volta pra oferta com o caixa fechado e precisa achar o botão de novo.
+// Medido na Ballad em 10-11/11 (dias de várias publicações): 27 sessões
+// recarregaram com o caixa do Stripe abrindo, 15 tocaram em comprar de novo e
+// 12 nunca mais. Agora o caixa marca que está aberto e, se a recarga por
+// arquivo velho acontece com ele aberto, a oferta o reabre uma vez ao voltar.
+
+const CAIXA_ABERTO = "mp_caixa_aberto";
+const REABRIR_CAIXA = "mp_reabrir_caixa";
+
+/** O pedido de reabrir vale só logo depois da recarga (não reabre num retorno horas depois). */
+export function deveReabrirCaixa(agora: number, marcadoEm: number | null): boolean {
+  return marcadoEm !== null && Number.isFinite(marcadoEm) && agora - marcadoEm >= 0 && agora - marcadoEm <= JANELA_MS;
+}
+
+/** O caixa abriu (`true`) ou fechou (`false`). Fechar à mão nunca deixa pedido de reabrir. */
+export function marcarCaixaAberto(aberto: boolean): void {
+  try {
+    if (aberto) sessionStorage.setItem(CAIXA_ABERTO, "1");
+    else {
+      sessionStorage.removeItem(CAIXA_ABERTO);
+      sessionStorage.removeItem(REABRIR_CAIXA);
+    }
+  } catch {
+    // Sem sessionStorage: segue como antes (não reabre).
+  }
+}
+
+/** A oferta pergunta ao montar: a recarga de agora fechou o caixa? Consome o pedido (uma vez só). */
+export function consumirReabrirCaixa(): boolean {
+  try {
+    const v = sessionStorage.getItem(REABRIR_CAIXA);
+    sessionStorage.removeItem(REABRIR_CAIXA);
+    sessionStorage.removeItem(CAIXA_ABERTO);
+    return deveReabrirCaixa(Date.now(), v ? Number(v) : null);
+  } catch {
+    return false;
+  }
 }
