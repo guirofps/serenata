@@ -58,13 +58,18 @@ export function cartaoDlocalLigado(variante: string | null | undefined, pais: st
 }
 
 /**
- * O documento vai junto do cartão? Fora do México sim (CC, DNI, RUN, os mesmos
- * da ficha). No México não: o CURP derrubou 29 de 51 na folha do OXXO (31/10),
- * e cartão no México não costuma pedir. Se a dLocal recusar por documento, a
- * folha mostra o campo e tenta de novo (`pedeDocumento`).
+ * O documento vai junto do cartão? Sim, nos quatro países (CC, DNI, RUN e, no
+ * México, CURP ou RFC, os mesmos da ficha).
+ *
+ * Até 12/11 o México ia SEM documento (o CURP derrubou 29 de 51 na folha do
+ * OXXO em 31/10, e a aposta era que cartão no México não pedisse). Errado: no
+ * 1º dia, 8 de 8 confirms no México voltaram 400 "Missing fields" e nenhum
+ * pagou, enquanto o Chile, que vai com o RUN, pagou. E o campo que a folha
+ * mostraria depois nunca aparecia, porque "Missing fields" caía em "banco".
+ * Pedir de cara custa o atrito do CURP; ir sem ele é recusa garantida.
  */
-export function documentoNoCartao(pais: PaisCartaoDlocal): boolean {
-  return pais !== "MX";
+export function documentoNoCartao(_pais: PaisCartaoDlocal): boolean {
+  return true;
 }
 
 /** Nome do titular em primeiro nome e sobrenome, como o confirm da dLocal quer. */
@@ -99,7 +104,8 @@ export type GrupoRecusaCartao = "dados" | "saldo" | "cartao" | "risco" | "docume
  */
 export function grupoRecusaCartao(texto: string | null | undefined): GrupoRecusaCartao {
   const t = String(texto ?? "").toLowerCase();
-  if (/document|cpf|curp|\bdni\b|c[eé]dula|\brut\b|\brun\b/.test(t)) return "documento";
+  // "Missing fields" (confirm 400, México, 12/11) era o documento que não foi.
+  if (/document|cpf|curp|\bdni\b|c[eé]dula|\brut\b|\brun\b|missing fields?\b|required field/.test(t)) return "documento";
   if (/insufficient|fondos|saldo|amount exceed|limit/.test(t)) return "saldo";
   if (/cvv|cvc|security code|c[oó]digo de seguridad|expir|venc|invalid card|card number|bad.?filled|n[uú]mero de tarjeta|invalid data|payment method|card token|token/.test(t)) return "dados";
   if (/fraud|risk|riesgo|blacklist|blocked|bloque|suspect/.test(t)) return "risco";

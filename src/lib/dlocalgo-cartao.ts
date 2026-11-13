@@ -233,8 +233,8 @@ export const confirmarCartaoDlocal = createServerFn({ method: "POST" })
     if (!paisCartao) return { estado: "erro", erro: "falhou" };
     if (!data.sessionId || !idDlocalValido(data.pagamentoId) || !tokenCartaoValido(data.cardToken)) return { estado: "erro", erro: "dados" };
     if (!nomeCompletoValido(data.nome)) return { estado: "erro", erro: "dados" };
-    // Documento: obrigatório fora do México; no México vai se a pessoa escreveu
-    // (a folha só mostra o campo depois de uma recusa por documento).
+    // Documento: obrigatório nos quatro países (`documentoNoCartao`; o México
+    // passou a pedir em 12/11, depois de 8 de 8 "Missing fields").
     let doc: { tipo: string; documento: string } | null = null;
     if (documentoNoCartao(paisCartao) || data.documento) {
       const d = validarDocumento(paisCartao, data.documento);

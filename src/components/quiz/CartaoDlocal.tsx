@@ -161,7 +161,11 @@ export function CartaoDlocal({
     try {
       cardToken = (await s.createCardToken(c, { name: nome.trim().replace(/\s+/g, " ") }))?.token;
     } catch (e) {
-      trackEvent("cartao_dlocal_token_falhou", { pais, braco, erro: String((e as Error)?.message ?? e).slice(0, 80) });
+      // O SDK rejeita com objeto ({ error: {...} }), não com Error: String() dava "[object Object]".
+      const bruto = (e as Error)?.message ?? e;
+      let erro: string;
+      try { erro = typeof bruto === "string" ? bruto : JSON.stringify(bruto); } catch { erro = String(bruto); }
+      trackEvent("cartao_dlocal_token_falhou", { pais, braco, erro: String(erro).slice(0, 160) });
     }
     if (!cardToken) {
       setErroCartao(true);

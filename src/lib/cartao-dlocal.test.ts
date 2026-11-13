@@ -35,8 +35,8 @@ describe("cartao_dlocal: quem vê", () => {
 });
 
 describe("cartao_dlocal: dados do confirm", () => {
-  it("documento fora do México", () => {
-    expect(documentoNoCartao("MX")).toBe(false);
+  it("documento nos quatro países, México incluído (12/11: sem ele, 8 de 8 'Missing fields')", () => {
+    expect(documentoNoCartao("MX")).toBe(true);
     expect(documentoNoCartao("CO")).toBe(true);
     expect(documentoNoCartao("PE")).toBe(true);
     expect(documentoNoCartao("CL")).toBe(true);
@@ -82,6 +82,8 @@ describe("cartao_dlocal: recusa", () => {
     // Medido em 11/11: confirm com token de cartão inválido volta 400 {"code":406,"message":"Missing payment method"}.
     expect(grupoRecusaCartao("Missing payment method")).toBe("dados");
     expect(grupoRecusaCartao("Invalid document")).toBe("documento");
+    expect(grupoRecusaCartao("Missing fields")).toBe("documento");
+    expect(grupoRecusaCartao("Missing payment method")).toBe("dados");
     expect(grupoRecusaCartao("High risk transaction")).toBe("risco");
     expect(grupoRecusaCartao("Card not supported")).toBe("cartao");
     expect(grupoRecusaCartao("Rejected by bank")).toBe("banco");
