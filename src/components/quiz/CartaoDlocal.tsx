@@ -89,6 +89,11 @@ export function CartaoDlocal({
   const [pedeDocumento, setPedeDocumento] = useState(false);
   const [tocou, setTocou] = useState(false);
   const [erroCartao, setErroCartao] = useState(false);
+  // O campo do cartão é um iframe da dLocal que leva de 5 a 10s pra aparecer
+  // DEPOIS de montado (medido em 13/11). Até ele dizer que está pronto (ou a
+  // pessoa tocar nele), a caixa segue com o aviso de carregando: antes ela
+  // ficava vazia e sem aviso, com cara de tela quebrada.
+  const [campoPronto, setCampoPronto] = useState(false);
   // O valor que o servidor VAI cobrar nesta cobrança (`valorTexto`). Enquanto
   // ele não chega, o botão (desligado) mostra o da tela.
   const [valorCobrado, setValorCobrado] = useState<string | null>(null);
@@ -106,6 +111,7 @@ export function CartaoDlocal({
   // serve pra uma tentativa só.
   useEffect(() => {
     let vivo = true;
+    const abertoEm = Date.now();
     setFase("abrindo");
     setErroCartao(false);
     campo.current?.destroy?.();
@@ -130,9 +136,27 @@ export function CartaoDlocal({
         await s.initialize(r.chaveSmartfields, r.checkoutToken);
         if (!vivo || !caixa.current) return;
         caixa.current.innerHTML = "";
+        setCampoPronto(false);
         const c = s.fields().create("card", { style: ESTILO });
+        const montadoEm = Date.now();
+        let avisou = false;
+        const pronto = (via: string) => {
+          if (!vivo || avisou) return;
+          avisou = true;
+          setCampoPronto(true);
+          // `ms` = do mount do campo até ele avisar; `ms_total` = do toque em
+          // "pagar con tarjeta" até aqui (cobrança + SDK + campo), o que a pessoa espera.
+          trackEvent("cartao_dlocal_campo_pronto", { pais, braco, via, ms: Date.now() - montadoEm, ms_total: Date.now() - abertoEm });
+        };
         c.mount(caixa.current);
-        c.on?.("change", (e) => setErroCartao(Boolean(e?.error)));
+        c.on?.("ready", () => pronto("ready"));
+        c.on?.("focus", () => pronto("focus"));
+        c.on?.("change", (e) => {
+          pronto("change");
+          setErroCartao(Boolean(e?.error));
+        });
+        // Rede: se o SDK não avisar, o aviso sai depois de 15s de qualquer jeito.
+        window.setTimeout(() => pronto("tempo"), 15000);
         campo.current = c;
         setFase("pronto");
         trackEvent("cartao_dlocal_form_aberto", { pais, braco, pagamento: r.pagamentoId });
@@ -271,7 +295,7 @@ export function CartaoDlocal({
               className="min-h-[48px] rounded-xl border border-input bg-background px-3 py-3"
               aria-busy={fase === "abrindo"}
             />
-            {fase === "abrindo" ? (
+            {fase === "abrindo" || (fase === "pronto" && !campoPronto) ? (
               <p className="flex items-center gap-2 text-xs text-muted-foreground">
                 <RefreshCw className="h-3.5 w-3.5 animate-spin" /> {T.abrindo}
               </p>
