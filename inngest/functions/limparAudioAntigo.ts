@@ -82,12 +82,21 @@ function db() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-/** Todo quiz que tem pedido pago. Comprador nunca perde áudio. */
+/**
+ * Todo quiz que tem pedido pago. Comprador nunca perde áudio.
+ *
+ * TODO pedido pago, inclusive `dinheiro_entrou = false`. Esse campo só separa a
+ * receita: é a música paga com CRÉDITO (pacote extra que a pessoa comprou),
+ * cortesia do suporte e liberação manual. Até 13/11 o filtro tirava esses da
+ * lista e a limpeza apagou o áudio de 73 músicas pagas com crédito, 1 cortesia
+ * e 1 manual (achado pelo Nonato: "Hellen e Elaine", paga com crédito em 08/09,
+ * sem áudio desde 29/10, 50 dias depois).
+ */
 async function quizzesQueCompraram(sb: ReturnType<typeof db>): Promise<Set<string>> {
   const pagos = new Set<string>();
   for (let i = 0; i < 200000; i += 1000) {
     const { data, error } = await sb.from("pedidos").select("quiz_response_id")
-      .eq("status", "pago").not("dinheiro_entrou", "is", false)
+      .eq("status", "pago")
       .order("created_at").range(i, i + 999);
     if (error) throw new Error("pedidos: " + error.message);
     for (const p of data ?? []) if (p.quiz_response_id) pagos.add(p.quiz_response_id);
