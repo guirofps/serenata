@@ -2,6 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { iniciarGeracao, consultarGeracao } from "../lib/kie.js";
 import { acharGenero, estiloParaSuno } from "../../src/lib/generos.js";
+import { lerSotaqueDaMusica } from "../lib/sotaque-musica.js";
 import { podeGerar } from "../lib/disjuntor.js";
 import {
   CREDITOS,
@@ -264,10 +265,14 @@ export const gerarMusica = inngest.createFunction(
     // o comeco) e guarda do texto do modelo so o timbre da voz. O genero foi
     // escolhido pela PESSOA num campo do quiz; nenhum texto gerado pode
     // contradizer isso.
+    // Teste `sotaque_latam` (13/11): step próprio, pra execução em curso que
+    // já memorizou o "ler-voz" não ler outro formato.
+    const sotaque = await step.run("ler-sotaque", () => lerSotaqueDaMusica(db(), musica.quiz_response_id, musica.genero));
     const estiloDoGenero = estiloParaSuno({
       genero: musica.genero,
       estiloDoModelo: musica.estilo_suno,
       voz,
+      sotaque,
     });
 
     const estilos = [

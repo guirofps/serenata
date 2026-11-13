@@ -55,6 +55,7 @@ import {
   entregarSeJaPagou,
 } from "../inngest/lib/guardar-musica.js";
 import { acharGenero, estiloParaSuno } from "../src/lib/generos.js";
+import { lerSotaqueDaMusica } from "../inngest/lib/sotaque-musica.js";
 import { semOTermo, termoBarrado } from "../src/lib/recusa-provedor.js";
 import { avisarDonos } from "../src/lib/avisar-donos.js";
 import {
@@ -154,7 +155,8 @@ async function gerar(sb: SupabaseClient, m: Linha): Promise<string> {
 
   // Mesmo estilo do job. Na 2ª tentativa, o texto curado do gênero puro e sem
   // o termo que o provedor barrou (o `erro` guarda o motivo da recusa).
-  let estilo = estiloParaSuno({ genero: m.genero, estiloDoModelo: m.estilo_suno, voz });
+  const sotaque = await lerSotaqueDaMusica(sb, m.quiz_response_id, m.genero);
+  let estilo = estiloParaSuno({ genero: m.genero, estiloDoModelo: m.estilo_suno, voz, sotaque });
   let letra = m.letra;
   if (tentativa > 1) {
     estilo = acharGenero(m.genero)?.estiloSuno ?? estilo;

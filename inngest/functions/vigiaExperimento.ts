@@ -55,7 +55,7 @@ const Z_CORTE = -2.5; // o braço testado convertendo pior que o controle
 //    O `preco_co` (12/11) entra pelo mesmo motivo, por outro caminho: é teste
 //    de preço SÓ da Colômbia, e esta régua conta as sessões de todo país. Fora
 //    da Colômbia o braço não muda nada, então a diferença é acaso.
-const POS_COMPRA = new Set(["preco_co", "outra_musica_24h", "video_fotos_ja", "obrigado_direto", "folha_pix", "pix_reabre", "aviso_recusa", "oxxo_mx", "spei_destaque", "documento_depois", "local_primeiro", "pix_volte", "cartao_dlocal"]);
+const POS_COMPRA = new Set(["preco_co", "outra_musica_24h", "video_fotos_ja", "obrigado_direto", "folha_pix", "pix_reabre", "aviso_recusa", "oxxo_mx", "spei_destaque", "documento_depois", "local_primeiro", "pix_volte", "cartao_dlocal", "sotaque_latam"]);
 
 type Ev = { session_id: string; event_name: string; event_data: Record<string, unknown> | null };
 

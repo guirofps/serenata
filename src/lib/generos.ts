@@ -530,6 +530,8 @@ export function estiloParaSuno(args: {
   genero: string | null | undefined;
   /** O que o modelo escreveu. Usado so pra extrair a voz. */
   estiloDoModelo?: string | null;
+  /** Teste `sotaque_latam` (13/11): "acento colombiano" etc., logo depois do texto curado. */
+  sotaque?: string | null;
   voz?: string | null;
 }): string {
   const g = acharGenero(args.genero);
@@ -567,8 +569,18 @@ export function estiloParaSuno(args: {
           /voz\s+(?:masculina|feminina)\s+([a-zà-ú]+(?:\s+e\s+[a-zà-ú]+)?)/i,
         )?.[1];
 
-  return [g.estiloSuno, voz && timbre ? `${voz} ${timbre}` : voz]
+  return [g.estiloSuno, args.sotaque?.trim() || null, voz && timbre ? `${voz} ${timbre}` : voz]
     .filter(Boolean)
     .join(", ")
     .slice(0, 190);
+}
+
+/**
+ * O gênero é da lista NEUTRA do espanhol (`ES`: Colômbia, Chile, Peru)? É só
+ * nela que o teste `sotaque_latam` mexe; Espanha e Argentina já têm o sotaque
+ * no texto curado, e o México canta a lista dos EUA.
+ */
+export function ehGeneroLatamNeutro(genero: string | null | undefined): boolean {
+  const g = acharGenero(genero);
+  return !!g && ES.includes(g);
 }
