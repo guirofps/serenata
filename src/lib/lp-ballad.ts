@@ -27,15 +27,14 @@
 //
 // OS NÚMEROS DA MATÉRIA são da Ballad e verdadeiros: músicas pagas no
 // balladgift.com em 30 dias, até 13/11/2026 (`scratch/_ballad-relacao-vendas-14nov.mjs`):
-// 952 vendas, esposa 519 (54,5%), namorada 151 (15,9%). As "6,600+ famílias"
-// são o número da EMPRESA, o mesmo que a `ProvaSocial` mostra na Ballad
-// (decisão do dono, 30/09: os clientes são da empresa, nas duas marcas).
-// Atualizar os três números E o período quando alguém rodar de novo.
+// 952 vendas, esposa 519 (54,5%), namorada 151 (15,9%). Sem o número de famílias da
+// EMPRESA no texto da matéria (14/11): em formato de notícia ele vira afirmação sobre a
+// Ballad sozinha (~900 compradores). O selo da ProvaSocial continua igual.
+// Atualizar os números E o período quando alguém rodar de novo.
 
 import type { VarianteConteudo } from "@/lib/mercados";
 
 /** O número de famílias, escrito como se lê nos EUA e no México (o mesmo da `ProvaSocial` da Ballad). */
-export const FAMILIAS_BALLAD = "6,600";
 
 export const PARA_QUEM_BALLAD = { esposa: 55, namorada: 16, resto: 29 } as const;
 
@@ -43,7 +42,7 @@ export const PARA_QUEM_BALLAD = { esposa: 55, namorada: 16, resto: 29 } as const
 export const DATA_MATERIA_BALLAD = { es: "14/11/2026", en: "Nov. 14, 2026" } as const;
 
 /** O nome da publicação da matéria. Nosso, como o "Notícias da Família" da Serenata. */
-export const PUBLICACAO_BALLAD = { es: "Notas de Familia", en: "Family Notes" } as const;
+export const PUBLICACAO_BALLAD = { es: "Historias de Ballad", en: "Ballad Stories" } as const;
 
 /** As três músicas tocáveis de cada idioma: esposa, namorada e mãe (as que mais vendem na Ballad). */
 export const SLUGS_LP_BALLAD = {
@@ -238,14 +237,14 @@ export function textosMateriaEs(v: VarianteConteudo): TextosMateria {
     publicacao: pub,
     editoria: "Regalos",
     selo: "Publicidad",
-    manchete: `En lugar de flores, una canción con su historia: el regalo que ya dieron más de ${FAMILIAS_BALLAD} familias`,
-    linhaFina: `Más de ${FAMILIAS_BALLAD} familias ya regalaron una canción con el nombre y la historia de alguien que quieren. El adelanto queda listo en minutos y se escucha gratis.`,
+    manchete: `En lugar de flores, una canción con su historia: el regalo que cada vez más familias eligen`,
+    linhaFina: `Cada vez más familias regalan una canción con el nombre y la historia de alguien que quieren. El adelanto queda listo en minutos y se escucha gratis.`,
     por: `Por Redacción ${pub}`,
     data: DATA_MATERIA_BALLAD.es,
     legendaVideo:
       "El momento en que algunas familias escuchan por primera vez la canción hecha con su propia historia.",
     abertura: [
-      `Flores, perfume y chocolates son los regalos de siempre. Pero hay un formato que gana espacio entre quienes buscan algo distinto: la canción hecha a la medida, con el nombre y la historia de quien la recibe. En Ballad Gift, el estudio que crea estas canciones, más de ${FAMILIAS_BALLAD} familias ya regalaron una.`,
+      `Flores, perfume y chocolates son los regalos de siempre. Pero hay un formato que gana espacio entre quienes buscan algo distinto: la canción hecha a la medida, con el nombre y la historia de quien la recibe. Ballad Gift es una de las marcas que crean estas canciones.`,
       "La idea es simple. La persona cuenta la historia (cómo se conocieron, un apodo, una manía, un viaje) y esa historia se convierte en una canción original que habla exactamente de eso. Quien la recibe escucha su propio nombre en una canción que nadie más tiene.",
     ],
     tituloParaQuem: "Más de la mitad es para la esposa",
@@ -316,13 +315,13 @@ export const TEXTOS_TRENDING: TextosMateria = {
   publicacao: PUBLICACAO_BALLAD.en,
   editoria: "Gifts",
   selo: "Sponsored",
-  manchete: `Instead of flowers, a song about their story: the gift ${FAMILIAS_BALLAD}+ families have already given`,
-  linhaFina: `More than ${FAMILIAS_BALLAD} families have given a song with the name and story of someone they love. The preview is ready in minutes and free to hear.`,
+  manchete: `Instead of flowers, a song about their story: the gift more and more families are choosing`,
+  linhaFina: `More and more families are giving a song with the name and story of someone they love. The preview is ready in minutes and free to hear.`,
   por: `By the ${PUBLICACAO_BALLAD.en} staff`,
   data: DATA_MATERIA_BALLAD.en,
   legendaVideo: "Families hearing, for the first time, a song made from their own story.",
   abertura: [
-    `Flowers, perfume and chocolate are the usual gifts. But a different kind of present is catching on with people who want something that actually means something: a custom song with the name and story of the person getting it. At Ballad Gift, the studio that writes these songs, more than ${FAMILIAS_BALLAD} families have already given one.`,
+    `Flowers, perfume and chocolate are the usual gifts. But a different kind of present is catching on with people who want something that actually means something: a custom song with the name and story of the person getting it. Ballad Gift is one of the brands making these songs.`,
     "It works like this. Someone shares the story (how they met, a nickname, an inside joke, a road trip) and it becomes an original song about exactly that. The person who gets it hears their own name in a song nobody else has.",
   ],
   tituloParaQuem: "More than half are for a wife",
