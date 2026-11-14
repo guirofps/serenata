@@ -58,11 +58,16 @@ describe("preco_co: a tabela da Colômbia por braço", () => {
   });
 
   it("país sem teste ignora o braço", () => {
-    expect(valorNaMoeda(MERCADOS.MX, 1900, "B")).toBe(19900);
+    expect(valorNaMoeda(MERCADOS.CL, 1900, "B")).toBe(9990);
     expect(valorNaMoeda(MERCADOS.PE, 1900, "B")).toBe(3900);
     expect(valorNaMoeda(MERCADOS.US, 1900, "B")).toBe(1900);
-    expect(valorUsdNoPais(19, "MX", "B")).toBe(valorUsdNoPais(19, "MX"));
+    expect(valorUsdNoPais(19, "PE", "B")).toBe(valorUsdNoPais(19, "PE"));
     expect(valorUsdNoPais(19, "US", "B")).toBe(19);
+  });
+
+  it("só a Colômbia e o México têm teste de preço", () => {
+    const comTeste = Object.values(MERCADOS).filter((m) => m.teste).map((m) => `${m.pais}:${m.teste?.id}`);
+    expect(comTeste.sort()).toEqual(["CO:preco_co", "MX:preco_mx"]);
   });
 
   it("o texto da tela sai da mesma tabela", () => {
@@ -128,7 +133,7 @@ describe("preco_co: qual braço vale", () => {
   });
 
   it("país sem teste: sempre controle, com a config que for", () => {
-    expect(bracoLocalCobravel(MERCADOS.MX, LIGADO, "B")).toBe(CONTROLE_LOCAL);
+    expect(bracoLocalCobravel(MERCADOS.PE, LIGADO, "B")).toBe(CONTROLE_LOCAL);
     expect(bracoLocalCobravel(MERCADOS.US, LIGADO, "B")).toBe(CONTROLE_LOCAL);
   });
 });
@@ -209,6 +214,8 @@ describe("preco_co: os preços que vão no HTML", () => {
   });
 
   it("país sem teste e texto sem número: sem braço", () => {
+    expect(textosPorBraco(MERCADOS.PE, "US$ 19", cfg())).toBeNull();
+    // o México tem teste, mas a config só tem a linha da Colômbia
     expect(textosPorBraco(MERCADOS.MX, "US$ 19", cfg())).toBeNull();
     expect(textosPorBraco(MERCADOS.US, "US$ 19", cfg())).toBeNull();
     expect(textosPorBraco(CO, "gratis", cfg())).toBeNull();
@@ -231,7 +238,11 @@ describe("preco_co: o valor que o navegador manda pros anúncios", () => {
       expect(valorDoCheckout({ ...base, braco: "B" })).toBe(8.79);
       expect(valorDoCheckout({ ...base, braco: "C" })).toBe(10.26);
       // país sem teste ignora o braço
-      expect(valorDoCheckout({ ...base, pais: "MX", braco: "B" })).toBe(valorDoCheckout({ ...base, pais: "MX" }));
+      expect(valorDoCheckout({ ...base, pais: "PE", braco: "B" })).toBe(valorDoCheckout({ ...base, pais: "PE" }));
+      // México (`preco_mx`): $199 → 10,82; B $149 → 8,10; C $249 → 13,53
+      expect(valorDoCheckout({ ...base, pais: "MX" })).toBe(10.82);
+      expect(valorDoCheckout({ ...base, pais: "MX", braco: "B" })).toBe(8.1);
+      expect(valorDoCheckout({ ...base, pais: "MX", braco: "C" })).toBe(13.53);
       expect(noPaisDoAcesso(19, "es", "CO", "B")).toBe(8.79);
       // a compra paga sai do pedido; a reserva (sem pedido) segue o braço
       expect(valorDaCompra({ locale: "es", pedido: { valorCentavos: 879, gateway: "stripe" }, reserva: 19, pais: "CO" })).toBe(8.79);
@@ -249,11 +260,95 @@ describe("preco_co: o teste está rodando?", () => {
     expect(testeLocalLigado(CO, undefined)).toBe(false);
     expect(testeLocalLigado(CO, { ...LIGADO, ativo: false })).toBe(false);
     expect(testeLocalLigado(CO, { ativo: true, variantes: [] })).toBe(false);
-    expect(testeLocalLigado(MERCADOS.MX, LIGADO)).toBe(false);
+    expect(testeLocalLigado(MERCADOS.PE, LIGADO)).toBe(false);
   });
 
   it("nome de braço aceita os 24 caracteres do painel", () => {
     expect(limparBraco("a".repeat(24))).toBe("a".repeat(24));
     expect(limparBraco("a".repeat(25))).toBeNull();
+  });
+});
+
+// ── MÉXICO (`preco_mx`, 12/11) ───────────────────────────────────
+describe("preco_mx: a tabela do México por braço", () => {
+  const MX = MERCADOS.MX;
+
+  it("o teste do México se chama preco_mx e só tem os braços B e C", () => {
+    expect(MX.teste?.id).toBe("preco_mx");
+    expect(Object.keys(MX.teste?.bracos ?? {}).sort()).toEqual(["B", "C"]);
+  });
+
+  it("a música: A $199, B $149, C $249", () => {
+    expect(valorNaMoeda(MX, 1900)).toBe(19900);
+    expect(valorNaMoeda(MX, 1900, "A")).toBe(19900);
+    expect(valorNaMoeda(MX, 1900, "B")).toBe(14900);
+    expect(valorNaMoeda(MX, 1900, "C")).toBe(24900);
+  });
+
+  it("a âncora: A $549, B $399, C $699", () => {
+    expect(valorNaMoeda(MX, 4900)).toBe(54900);
+    expect(valorNaMoeda(MX, 4900, "B")).toBe(39900);
+    expect(valorNaMoeda(MX, 4900, "C")).toBe(69900);
+  });
+
+  it("vídeo ($129) e música extra ($149) NÃO mudam com o braço", () => {
+    for (const braco of [undefined, "A", "B", "C"]) {
+      expect(valorNaMoeda(MX, 1200, braco)).toBe(12900);
+      expect(valorNaMoeda(MX, 1400, braco)).toBe(14900);
+    }
+  });
+
+  it("o texto da tela", () => {
+    expect(textoNaMoeda(MX, "US$ 19")).toBe("$199 MXN");
+    expect(textoNaMoeda(MX, "US$ 19", "B")).toBe("$149 MXN");
+    expect(textoNaMoeda(MX, "US$ 19", "C")).toBe("$249 MXN");
+    expect(textoNaMoeda(MX, "US$ 49", "B")).toBe("$399 MXN");
+    expect(textoNaMoeda(MX, "US$ 49", "C")).toBe("$699 MXN");
+  });
+
+  it("o pedido grava 1082, 810 e 1353 centavos de dólar", () => {
+    expect(valorLocalDoBraco(MX, 1900, "A")).toEqual({ valorLocal: 19900, valorDoPedido: 1082 });
+    expect(valorLocalDoBraco(MX, 1900, "B")).toEqual({ valorLocal: 14900, valorDoPedido: 810 });
+    expect(valorLocalDoBraco(MX, 1900, "C")).toEqual({ valorLocal: 24900, valorDoPedido: 1353 });
+  });
+
+  it("o webhook aceita o pago contra o pedido do próprio braço e recusa contra o de outro", () => {
+    expect(valorPagoConfere("mxn", 19900, 1082)).toBe(true);
+    expect(valorPagoConfere("mxn", 14900, 810)).toBe(true);
+    expect(valorPagoConfere("mxn", 24900, 1353)).toBe(true);
+    // a regra antiga do México (US$ 19 a $349) não abre porta entre braços
+    for (const [pago, pedido] of [
+      [14900, 1082],
+      [14900, 1353],
+      [19900, 810],
+      [19900, 1353],
+      [24900, 1082],
+      [24900, 810],
+    ]) {
+      expect(valorPagoConfere("mxn", pago, pedido)).toBe(false);
+    }
+  });
+
+  it("a regra do braço é a mesma da Colômbia, com a linha DELE", () => {
+    expect(bracoLocalCobravel(MX, LIGADO, "B")).toBe("B");
+    expect(bracoLocalCobravel(MX, LIGADO, "C")).toBe("C");
+    expect(bracoLocalCobravel(MX, { ...LIGADO, ativo: false }, "B")).toBe(CONTROLE_LOCAL);
+    expect(bracoLocalCobravel(MX, null, "B")).toBe(CONTROLE_LOCAL);
+  });
+
+  it("cada país lê a SUA linha: a da Colômbia ligada não mexe no México, e vice-versa", () => {
+    const soCo = [{ id: "preco_co", ...LIGADO }];
+    const soMx = [{ id: "preco_mx", ...LIGADO }];
+    expect(textosPorBraco(MX, "US$ 19", soCo)).toBeNull();
+    expect(textosPorBraco(CO, "US$ 19", soMx)).toBeNull();
+    expect(textosPorBraco(MX, "US$ 19", soMx)).toEqual({
+      id: "preco_mx",
+      bracos: [
+        { nome: "A", texto: "$199 MXN" },
+        { nome: "B", texto: "$149 MXN" },
+        { nome: "C", texto: "$249 MXN" },
+      ],
+    });
+    expect(bracoPedido("preco_mx", undefined, { exp: { preco_co: "B" } })).toBeNull();
   });
 });

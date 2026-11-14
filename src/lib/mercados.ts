@@ -93,6 +93,20 @@ const MX: Mercado = {
   conteudo: "mexico",
   tagIdioma: "es-MX",
   temDlocal: true,
+  // TESTE `preco_mx` (12/11, Ralph): só a MÚSICA e a âncora dela, um braço pra
+  // cada lado do preço de hoje. A = $199, riscado $549 (como é). B = $149,
+  // riscado $399. C = $249, riscado $699. Vídeo ($129) e extra ($149) fixos.
+  // O único dado de preço do México era o de outubro ($349, ~4% dos leads
+  // compravam): se a $199 compram mais de 7%, baixar rendeu mais por lead; o
+  // teste responde pros dois lados sem apostar. Mesmo motor do `preco_co`
+  // (`preco-local.ts`).
+  teste: {
+    id: "preco_mx",
+    bracos: {
+      B: { 1900: 14900, 4900: 39900 },
+      C: { 1900: 24900, 4900: 69900 },
+    },
+  },
 };
 
 // ── ARGENTINA (12/11/2026) ────────────────────────────────────────

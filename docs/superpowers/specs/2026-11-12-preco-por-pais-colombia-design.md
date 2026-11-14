@@ -252,3 +252,38 @@ dela:
   abaixo de 100%, quem ficou de fora veria um preço e pagaria outro.
 - No painel, os campos de preço da linha `preco_co` não fazem nada: o número
   mora no código.
+
+## México (`preco_mx`, 12/11)
+
+Segundo país, pelo mesmo motor: um bloco `teste` no mercado do México, uma
+linha no banco da Ballad (`20261112020000_experimento_preco_mx.sql`, nasce
+desligada) e os testes. Nenhuma regra nova.
+
+| braço | música | riscado | pedido grava (US$) | contra o A |
+|---|---|---|---|---|
+| A (controle, hoje) | $199 MXN | $549 MXN | 10,82 | — |
+| B | $149 MXN | $399 MXN | 8,10 | precisa converter 34% a mais |
+| C | $249 MXN | $699 MXN | 13,53 | pode perder até 20% da conversão |
+
+Vídeo ($129) e extra ($149) fixos (decisão do Ralph, 12/11).
+
+**Por que um braço pra cada lado.** O único dado de preço do México é o de
+outubro: a $349, cerca de 4% dos leads compravam. O ponto de virada é 7%: se a
+$199 compram mais que isso, baixar rendeu mais por lead e o $149 deve render
+mais ainda; se compram menos, subir rende mais. A conversão atual não dá pra
+ler deste Mac, e o caixa mudou muito desde outubro (OXXO, transferência), então
+o teste responde pros dois lados em vez de apostar.
+
+**Volume.** Com base de 8% (suposição), o empate do B pede cerca de 1.800
+expostos por braço e o do C cerca de 3.900; com base de 12%, 1.100 e 2.500.
+
+**Na leitura.**
+
+- No braço B a música custa o mesmo que a música extra ($149, 810 centavos de
+  dólar no pedido). A entrega não se confunde: o upsell é reconhecido pelo
+  tipo da cobrança, nunca pelo valor. Mas a leitura tem que separar música de
+  upsell pelo tipo do pedido (o da música tem quiz), não pelo valor.
+- O México tem testes de caixa anotados como abertos (`spei_destaque`,
+  `documento_depois`, `cartao_dlocal`) que dividem o mesmo volume.
+- A regra antiga do México na conferência do webhook (US$ 19 cobrado a $349)
+  não abre porta entre braços; o teste cobre os seis cruzamentos.

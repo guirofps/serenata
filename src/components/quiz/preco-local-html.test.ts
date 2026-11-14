@@ -111,6 +111,49 @@ describe("NaMoeda na Ballad com o preco_co", () => {
   });
 });
 
+describe("NaMoeda na Ballad com o preco_mx", () => {
+  beforeAll(() => carregar("ballad"));
+  afterEach(() => exp._resetConfigDoServidorParaTeste());
+
+  const PRECO_MX = (extra: Partial<Cfg> = {}): Cfg => ({ ...PRECO_CO(), id: "preco_mx", ...extra });
+  /** Só o pedaço em peso mexicano. */
+  const mxn = (h: string) => h.slice(h.indexOf('<span class="preco-mxn">'), h.indexOf('<span class="preco-eur">'));
+
+  it("ligado: o peso mexicano leva um span por braço", () => {
+    expect(mxn(html([PRECO_MX()], { texto: "US$ 19" }))).toBe(
+      '<span class="preco-mxn">' +
+        '<span data-v="preco_mx:A">$199 MXN</span>' +
+        '<span data-v="preco_mx:B">$149 MXN</span>' +
+        '<span data-v="preco_mx:C">$249 MXN</span>' +
+        "</span>",
+    );
+    const ancora = mxn(html([PRECO_MX()], { texto: "US$ 49" }));
+    expect(ancora).toContain('<span data-v="preco_mx:A">$549 MXN</span>');
+    expect(ancora).toContain('<span data-v="preco_mx:B">$399 MXN</span>');
+    expect(ancora).toContain('<span data-v="preco_mx:C">$699 MXN</span>');
+  });
+
+  it("sem a linha, desligado, vídeo, extra e pós-compra: um preço só", () => {
+    expect(mxn(html([], { texto: "US$ 19" }))).toBe('<span class="preco-mxn">$199 MXN</span>');
+    expect(mxn(html([PRECO_MX({ ativo: false })], { texto: "US$ 19" }))).toBe('<span class="preco-mxn">$199 MXN</span>');
+    expect(mxn(html([PRECO_MX()], { texto: "US$ 12" }))).toBe('<span class="preco-mxn">$129 MXN</span>');
+    expect(mxn(html([PRECO_MX()], { texto: "US$ 14" }))).toBe('<span class="preco-mxn">$149 MXN</span>');
+    expect(mxn(html([PRECO_MX()], { texto: "US$ 19", semTeste: true }))).toBe('<span class="preco-mxn">$199 MXN</span>');
+  });
+
+  it("os dois testes ligados juntos: cada moeda com os braços do SEU teste", () => {
+    const h = html([PRECO_CO(), PRECO_MX()], { texto: "US$ 19" });
+    expect(mxn(h)).toContain('data-v="preco_mx:B">$149 MXN');
+    expect(mxn(h)).not.toContain("preco_co");
+    expect(cop(h)).toContain('data-v="preco_co:B">$29.900 COP');
+    expect(cop(h)).not.toContain("preco_mx");
+  });
+
+  it("só a linha da Colômbia ligada: o México fica como é", () => {
+    expect(mxn(html([PRECO_CO()], { texto: "US$ 19" }))).toBe('<span class="preco-mxn">$199 MXN</span>');
+  });
+});
+
 describe("NaMoeda na Serenata", () => {
   beforeAll(() => carregar(""));
   afterEach(() => exp._resetConfigDoServidorParaTeste());

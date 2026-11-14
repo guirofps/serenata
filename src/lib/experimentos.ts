@@ -452,6 +452,15 @@ export const EXPERIMENTOS: Experimento[] = [
     nota: "BALLAD, 12/11. Preço da MÚSICA só na Colômbia (o sorteio roda em todo país, mas o braço só muda algo com país CO). A = $39.900 COP, riscado $99.900 (como é). B = $29.900, riscado $74.900. C = $34.900, riscado $74.900. Vídeo e extra fixos. O número mora no código (mercados.ts), a linha só liga, desliga e muda peso; braço de peso 0 paga o controle. Ler por RECEITA DA MÚSICA EM DÓLAR POR SESSÃO EXPOSTA (preco_co_exposto -> pedido pago do quiz), por braço; conversão é sinal. Ignorado pelo vigiaExperimento. Encerrar com B ou C vencendo exige deploy trocando a tabela.",
   },
   {
+    // SÓ BALLAD, preço da música no MÉXICO. Ver `preco-local.ts`.
+    id: "preco_mx",
+    variantes: ["A", "B", "C"],
+    peso: [1, 1, 1],
+    // NUNCA `true` aqui: quem liga é a linha da tabela `experimentos`.
+    ativo: false,
+    nota: "BALLAD, 12/11. Preço da MÚSICA só no México (o sorteio roda em todo país, mas o braço só muda algo com país MX). A = $199 MXN, riscado $549 (como é). B = $149, riscado $399. C = $249, riscado $699. Vídeo ($129) e extra ($149) fixos. O número mora no código (mercados.ts), a linha só liga, desliga e muda peso; braço de peso 0 paga o controle; manter o A em primeiro. Ler por RECEITA DA MÚSICA EM DÓLAR POR SESSÃO EXPOSTA (preco_mx_exposto -> pedido pago do quiz), por braço; conversão é sinal. B precisa converter 34% a mais pra empatar; C pode perder até 20%. Ignorado pelo vigiaExperimento. Encerrar com B ou C vencendo exige deploy trocando a tabela.",
+  },
+  {
     // SÓ SERENATA, matéria de anúncio `/tendencia`. Ver `materia-tendencia.ts`.
     id: "materia_titulo",
     variantes: ["A", "B", "C"],
