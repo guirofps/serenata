@@ -26,6 +26,21 @@ describe("admin-dados", () => {
     expect(DADOS).toMatch(/console\.log\(\s*`\[admin\] painel /);
   });
 });
+describe("o resumo por país (Ballad)", () => {
+  it("o país NÃO entra na leitura principal dos leads: a coluna é de migration própria", () => {
+    // Um `select` com coluna que não existe derruba a consulta, e o painel junto.
+    const principal = DADOS.slice(DADOS.indexOf("janela<Lead>("), DADOS.indexOf("janela<Musica>("));
+    expect(principal).not.toMatch(/\bpais\b/);
+  });
+
+  it("só roda na Ballad, à parte, e a falha dele não derruba o painel", () => {
+    const bloco = DADOS.slice(DADOS.indexOf("let paises: ResumoPais[] | null = null;"));
+    const ate = bloco.slice(0, bloco.indexOf("// ── OS TESTES A/B"));
+    expect(ate).toMatch(/if \(ehBallad\(\)\) \{\s*try \{/);
+    expect(ate).toMatch(/\.not\("pais", "is", null\)/);
+    expect(ate).toMatch(/catch \(err\) \{\s*console\.error\("\[admin\] resumo por país não lido:"/);
+  });
+});
 const TELA = readFileSync("src/routes/admin.tsx", "utf8");
 
 describe("tela do admin", () => {

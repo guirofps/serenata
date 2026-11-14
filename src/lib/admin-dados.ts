@@ -9,9 +9,11 @@ import { porTemaDe, type LinhaTema } from "@/lib/admin-tema";
 import { resumoTv, type ResumoTv } from "@/lib/admin-tv";
 import { resumoLps, type ResumoLp } from "@/lib/admin-lps";
 import { LPS } from "@/lib/lp-origem";
+import { resumoPaises, type ResumoPais } from "@/lib/admin-paises";
+import { ehBallad } from "@/lib/marca-identidade";
 import { cortarDiaDoGasto, cpaDoCanal, diasDaJanela, gastoAteOMinuto, somarGasto, type CorteDoGasto } from "@/lib/gasto-midia";
 import { taxaDoPedido } from "@/lib/taxa-gateway";
-import { contarPorCanal, type CanalVenda } from "@/lib/canal-venda";
+import { canalDaVenda, contarPorCanal, type CanalVenda } from "@/lib/canal-venda";
 import { chaveOrigem } from "@/lib/origem";
 import {
   diaBr,
@@ -260,6 +262,12 @@ export type Painel = {
 
   /** As landings de anúncio `/presente` e `/tendencia`, uma linha cada (`admin-lps.ts`). */
   lps: ResumoLp[];
+
+  /**
+   * Vendas, conversão e CPA por país (`admin-paises.ts`). Só na Ballad;
+   * `null` na Serenata e quando a leitura do país falhou.
+   */
+  paises: ResumoPais[] | null;
 
   /**
    * POR PÁGINA DE ENTRADA. Qual porta converte melhor.
@@ -915,6 +923,9 @@ async function montarPainel(
   // por dia passa de mil em 90 dias, então pagina — por CURSOR em
   // (dia, campanha_id), nunca por OFFSET (ver `ler-janela.ts`).
   const googleApi: { dia: string; brl: number }[] = [];
+  // O mesmo gasto, somado por CAMPANHA: o cartão por país (`admin-paises.ts`)
+  // precisa do de todas, inclusive das que gastaram sem trazer lead.
+  const custoPorCampanhaGoogle = new Map<string, number>();
   let cursorMet: { dia: string; campanha_id: string } | null = null;
   for (;;) {
     const baseMet = db
@@ -938,7 +949,12 @@ async function montarPainel(
       break;
     }
     const pagina: LinhaMet[] = mets ?? [];
-    for (const m of pagina) googleApi.push({ dia: String(m.dia), brl: Number(m.custo_brl ?? 0) });
+    for (const m of pagina) {
+      const brl = Number(m.custo_brl ?? 0);
+      googleApi.push({ dia: String(m.dia), brl });
+      const campanha = String(m.campanha_id);
+      custoPorCampanhaGoogle.set(campanha, (custoPorCampanhaGoogle.get(campanha) ?? 0) + brl);
+    }
     if (pagina.length < 1000) break;
     const ultima: LinhaMet = pagina[pagina.length - 1];
     cursorMet = { dia: String(ultima.dia), campanha_id: String(ultima.campanha_id) };
@@ -1428,6 +1444,84 @@ async function montarPainel(
   }
   const lps = resumoLps({ visitas: visitasLp, cliques: cliquesLp, leads, comMusica, vendas: vendasPorQuiz });
 
+  // ── POR PAÍS (só a Ballad, 13/11) ────────────────────────────
+  //
+  // Vendas, taxa de conversão e CPA de cada mercado (`admin-paises.ts`).
+  //
+  // O PAÍS É LIDO À PARTE, e não na janela dos leads lá em cima: a coluna
+  // `quiz_responses.pais` nasceu numa migration própria (29/10) e um `select`
+  // com coluna que não existe derruba a consulta inteira, e o painel junto.
+  // Aqui, se a leitura falhar, só este cartão some. Só as linhas COM país
+  // trafegam: quem largou o quiz antes da letra não tem, e é a maioria.
+  let paises: ResumoPais[] | null = null;
+  if (ehBallad()) {
+    try {
+      const comPais = await lerJanela<{ id: string; created_at: string; pais: string | null }>(
+        ({ desde: d, ate: a, cursor, limite }) => {
+          const base = db
+            .from("quiz_responses")
+            .select("id, created_at, pais")
+            .not("pais", "is", null)
+            .gte("created_at", d)
+            .lt("created_at", a);
+          const comCursor = cursor ? base.or(filtroCursor(cursor)) : base;
+          return comCursor.order("created_at").order("id").limit(limite) as never;
+        },
+        inicio,
+        fim,
+      );
+      const paisDoQuiz = new Map<string, string | null>(comPais.map((q) => [q.id, q.pais]));
+      // A venda de quiz mais antigo que a janela (recuperação): o país dele.
+      const naJanela = new Set(leadsCru.map((l) => l.id));
+      const deFora = [
+        ...new Set(pagos.map((p) => p.quiz_response_id).filter((q): q is string => !!q && !naJanela.has(q))),
+      ];
+      for (let i = 0; i < deFora.length; i += 200) {
+        const { data: antigos, error: erroAntigos } = await db
+          .from("quiz_responses")
+          .select("id, pais")
+          .in("id", deFora.slice(i, i + 200));
+        if (erroAntigos) throw new Error(erroAntigos.message);
+        for (const q of antigos ?? []) paisDoQuiz.set(String(q.id), (q as { pais?: string | null }).pais ?? null);
+      }
+      // O nome das campanhas que gastaram: a reserva de `paisDaCampanha` pra
+      // campanha sem lead. Falhou, segue sem nome (o gasto dela cai em "sem país").
+      const nomeDaCampanha = new Map<string, string>();
+      const comGasto = [...custoPorCampanhaGoogle.entries()].filter(([, c]) => c > 0).map(([id]) => id);
+      for (let i = 0; i < comGasto.length; i += 200) {
+        const { data: nomes, error: erroNomes } = await db
+          .from("campanhas")
+          .select("id, nome")
+          .in("id", comGasto.slice(i, i + 200));
+        if (erroNomes) {
+          console.error("[admin] nome das campanhas (por país) não lido:", erroNomes.message);
+          break;
+        }
+        for (const c of nomes ?? []) nomeDaCampanha.set(String(c.id), String(c.nome ?? ""));
+      }
+      paises = resumoPaises({
+        leads: leads.map((l) => ({ id: l.id, campanha: chaveOrigem(l.attribution).campanha })),
+        paisDoQuiz,
+        vendas: pagos.map((p) => ({
+          quiz_response_id: p.quiz_response_id,
+          // Na Ballad TODO pedido é em dólar (o equivalente do que se cobrou).
+          // `valorEmBrl` só converte quando o quiz está na janela, e aqui
+          // entram vendas de quiz mais antigo.
+          receitaBrl: valorDe(p) * cambio,
+          canal: canalDaVenda(
+            (p.quiz_response_id ? atribuicaoDoQuiz.get(p.quiz_response_id) : null) as Record<string, unknown> | null,
+            p.cupom,
+            p.veio_de,
+          ),
+        })),
+        custoPorCampanha: custoPorCampanhaGoogle,
+        nomeDaCampanha,
+      });
+    } catch (err) {
+      console.error("[admin] resumo por país não lido:", err);
+    }
+  }
+
   // ── OS TESTES A/B ────────────────────────────────────────────
   //
   // A variante viaja em `attribution.exp` desde que `carimbarExperimentos`
@@ -1653,6 +1747,7 @@ async function montarPainel(
     porTema,
     tv,
     lps,
+    paises,
     porEntrada,
     gastos,
 

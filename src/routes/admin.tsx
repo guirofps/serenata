@@ -1331,6 +1331,59 @@ function Corpo({
               );
             })}
 
+            {/* ── POR PAÍS (só a Ballad, 13/11) ────────────────────
+              Vendas, taxa de conversão e CPA de cada mercado
+              (`admin-paises.ts`). `null` na Serenata e quando a leitura do
+              país falhou: aí a tabela não aparece. */}
+            {dados.paises && dados.paises.length > 0 && (
+              <div>
+                <p className="mb-2 text-[11px] uppercase tracking-wider text-[var(--tinta-suave)]">
+                  Por país
+                </p>
+                <Tabela cabecalho={["País", "Leads", "Vendas", "Conversão", "Receita", "Gasto Google", "CPA Google"]}>
+                  {dados.paises.map((l) => (
+                    <tr key={l.pais} className={cn(l.vendas > 0 && "bg-[var(--acento)]/5")}>
+                      <td className="px-3 py-2.5 font-medium">
+                        {l.nome}
+                        {l.pais === "sem" && (
+                          <span className="block text-[10px] font-normal text-[var(--tinta-suave)]">
+                            largaram o quiz antes da letra
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{l.leads}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        {l.vendas}
+                        {l.vendas > 0 && l.vendasGoogle !== l.vendas && (
+                          <span className="block text-[10px] text-[var(--tinta-suave)]">
+                            {l.vendasGoogle} do Google
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        {l.conversaoPct !== null ? pc(l.conversaoPct) : "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        {l.receitaBrl > 0 ? brl(l.receitaBrl) : "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        {l.gastoBrl > 0 ? brl(l.gastoBrl) : "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        {l.cpaBrl !== null ? brl(l.cpaBrl) : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </Tabela>
+                <p className="mt-2 text-xs text-[var(--tinta-suave)]">
+                  O país é gravado quando a pessoa chega na letra, então a conversão aqui é de quem
+                  chegou lá (vendas ÷ leads do país) e fica acima da do cartão geral. O gasto de cada
+                  campanha do Google vai inteiro pro país de onde veio a maioria dos leads dela; campanha
+                  sem lead entra pelo nome. O CPA divide esse gasto só pelas vendas que vieram do Google.
+                </p>
+              </div>
+            )}
+
             <LancarGasto aoSalvar={carregar} gastos={dados.gastos} />
 
             <p className="text-xs text-[var(--tinta-suave)]">
