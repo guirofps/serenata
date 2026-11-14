@@ -8,7 +8,7 @@ import { filtroCursor, lerJanela } from "@/lib/ler-janela";
 import { porTemaDe, type LinhaTema } from "@/lib/admin-tema";
 import { resumoTv, type ResumoTv } from "@/lib/admin-tv";
 import { resumoLps, type ResumoLp } from "@/lib/admin-lps";
-import { LPS } from "@/lib/lp-origem";
+import { lpsDaMarca } from "@/lib/lp-origem";
 import { resumoPaises, type ResumoPais } from "@/lib/admin-paises";
 import { ehBallad } from "@/lib/marca-identidade";
 import { cortarDiaDoGasto, cpaDoCanal, diasDaJanela, gastoAteOMinuto, somarGasto, type CorteDoGasto } from "@/lib/gasto-midia";
@@ -1411,7 +1411,7 @@ async function montarPainel(
           .from("funnel_events")
           .select("id, created_at, session_id, path:event_data->>path")
           .eq("event_name", "page_view")
-          .in("event_data->>path", LPS.map((l) => l.caminho))
+          .in("event_data->>path", lpsDaMarca().map((l) => l.caminho))
           .gte("created_at", d)
           .lt("created_at", a);
         const comCursor = cursor ? base.or(filtroCursor(cursor)) : base;
@@ -1430,7 +1430,7 @@ async function montarPainel(
         const base = db
           .from("funnel_events")
           .select("id, created_at, session_id, event_name")
-          .in("event_name", LPS.map((l) => l.eventoCta))
+          .in("event_name", lpsDaMarca().map((l) => l.eventoCta))
           .gte("created_at", d)
           .lt("created_at", a);
         const comCursor = cursor ? base.or(filtroCursor(cursor)) : base;

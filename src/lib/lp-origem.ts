@@ -18,12 +18,27 @@
 // Não atrapalha o primeiro toque: `captureFirstTouchAttribution` junta as UTMs
 // por cima de um toco que não tenha clique nem UTM, e o `lp` sobrevive.
 
+import { chaveDaMarca } from "@/lib/marca-identidade";
+
+// AS DA BALLAD (14/11): as irmãs em espanhol e em inglês (`lp-ballad.ts`).
+// `marca` separa os painéis: cada site lista e lê só as landings dele
+// (`lpsDaMarca`), e o da Serenata continua com as duas de sempre.
 export const LPS = [
-  { id: "presente", caminho: "/presente", nome: "Landing /presente", eventoCta: "lp_presente_cta" },
-  { id: "tendencia", caminho: "/tendencia", nome: "Matéria /tendencia", eventoCta: "materia_cta" },
+  { id: "presente", marca: "serenata", caminho: "/presente", nome: "Landing /presente", eventoCta: "lp_presente_cta" },
+  { id: "tendencia", marca: "serenata", caminho: "/tendencia", nome: "Matéria /tendencia", eventoCta: "materia_cta" },
+  { id: "regalo", marca: "ballad", caminho: "/es/regalo", nome: "Landing /es/regalo", eventoCta: "lp_regalo_cta" },
+  { id: "tendencia_es", marca: "ballad", caminho: "/es/tendencia", nome: "Matéria /es/tendencia", eventoCta: "materia_es_cta" },
+  { id: "gift", marca: "ballad", caminho: "/gift", nome: "Landing /gift", eventoCta: "lp_gift_cta" },
+  { id: "trending", marca: "ballad", caminho: "/trending", nome: "Matéria /trending", eventoCta: "materia_en_cta" },
 ] as const;
 
 export type LpId = (typeof LPS)[number]["id"];
+export type Lp = (typeof LPS)[number];
+
+/** As landings do site que está rodando (o painel de cada marca lê só as dele). */
+export function lpsDaMarca(marca: string = chaveDaMarca()): Lp[] {
+  return LPS.filter((l) => l.marca === marca);
+}
 
 /** A landing gravada na atribuição, ou `null` (inclusive pra valor que não é landing). */
 export function lpDe(attribution: unknown): LpId | null {

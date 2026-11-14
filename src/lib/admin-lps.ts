@@ -9,7 +9,7 @@
 //    landing antes disso não conta aqui.
 //
 // Puro, como `admin-tv.ts`: `admin-dados.ts` passa as listas que já leu.
-import { LPS, lpDe, type LpId } from "@/lib/lp-origem";
+import { lpDe, lpsDaMarca, type LpId } from "@/lib/lp-origem";
 
 export type ResumoLp = {
   id: LpId;
@@ -37,7 +37,7 @@ export function resumoLps(entrada: {
   /** Vendas já filtradas por `ehVenda`, com a receita já em real. */
   vendas: { quiz_response_id: string | null; receitaBrl: number }[];
 }): ResumoLp[] {
-  return LPS.map((lp) => {
+  return lpsDaMarca().map((lp) => {
     const daLp = new Set(entrada.leads.filter((l) => lpDe(l.attribution) === lp.id).map((l) => l.id));
     let letras = 0;
     for (const id of daLp) if (entrada.comMusica.has(id)) letras++;

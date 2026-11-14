@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { LPS, comLp, lpDe } from "./lp-origem";
+import { comLp, lpDe, lpsDaMarca } from "./lp-origem";
 import { resumoLps } from "./admin-lps";
 
 describe("comLp (o carimbo da landing na atribuição)", () => {
@@ -78,7 +78,7 @@ describe("resumoLps", () => {
         { quiz_response_id: null, receitaBrl: 38 },
       ],
     });
-    expect(r.map((x) => x.id)).toEqual(LPS.map((l) => l.id));
+    expect(r.map((x) => x.id)).toEqual(lpsDaMarca().map((l) => l.id));
     const p = r.find((x) => x.id === "presente")!;
     expect(p).toMatchObject({ visitas: 2, cliques: 1, cliquePct: 50, leads: 2, letras: 1, vendas: 1, receitaBrl: 38, conversaoPct: 50 });
     const t = r.find((x) => x.id === "tendencia")!;

@@ -15,6 +15,7 @@ import { Route as CriarRouteImport } from './routes/criar'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DemoMusicaRouteImport } from './routes/demo-musica'
 import { Route as DescadastrarRouteImport } from './routes/descadastrar'
+import { Route as GiftRouteImport } from './routes/gift'
 import { Route as GleysiRouteImport } from './routes/gleysi'
 import { Route as IndiqueRouteImport } from './routes/indique'
 import { Route as LoginRouteImport } from './routes/login'
@@ -28,6 +29,7 @@ import { Route as RecuperarRouteImport } from './routes/recuperar'
 import { Route as RetomarRouteImport } from './routes/retomar'
 import { Route as TendenciaRouteImport } from './routes/tendencia'
 import { Route as TermosRouteImport } from './routes/termos'
+import { Route as TrendingRouteImport } from './routes/trending'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
@@ -42,6 +44,8 @@ import { Route as EsLoginRouteImport } from './routes/es.login'
 import { Route as EsPagoOxxoRouteImport } from './routes/es.pago-oxxo'
 import { Route as EsPagoTarjetaRouteImport } from './routes/es.pago-tarjeta'
 import { Route as EsPagoUpsellRouteImport } from './routes/es.pago-upsell'
+import { Route as EsRegaloRouteImport } from './routes/es.regalo'
+import { Route as EsTendenciaRouteImport } from './routes/es.tendencia'
 import { Route as OfertaTokenRouteImport } from './routes/oferta.$token'
 import { Route as PTokenRouteImport } from './routes/p.$token'
 import { Route as PixReferenciaRouteImport } from './routes/pix.$referencia'
@@ -77,6 +81,11 @@ const DemoMusicaRoute = DemoMusicaRouteImport.update({
 const DescadastrarRoute = DescadastrarRouteImport.update({
   id: '/descadastrar',
   path: '/descadastrar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GiftRoute = GiftRouteImport.update({
+  id: '/gift',
+  path: '/gift',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GleysiRoute = GleysiRouteImport.update({
@@ -143,6 +152,11 @@ const TendenciaRoute = TendenciaRouteImport.update({
 const TermosRoute = TermosRouteImport.update({
   id: '/termos',
   path: '/termos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrendingRoute = TrendingRouteImport.update({
+  id: '/trending',
+  path: '/trending',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -215,6 +229,16 @@ const EsPagoUpsellRoute = EsPagoUpsellRouteImport.update({
   path: '/es/pago-upsell',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EsRegaloRoute = EsRegaloRouteImport.update({
+  id: '/es/regalo',
+  path: '/es/regalo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EsTendenciaRoute = EsTendenciaRouteImport.update({
+  id: '/es/tendencia',
+  path: '/es/tendencia',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OfertaTokenRoute = OfertaTokenRouteImport.update({
   id: '/oferta/$token',
   path: '/oferta/$token',
@@ -253,6 +277,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
   '/descadastrar': typeof DescadastrarRoute
+  '/gift': typeof GiftRoute
   '/gleysi': typeof GleysiRoute
   '/indique': typeof IndiqueRoute
   '/login': typeof LoginRoute
@@ -266,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/retomar': typeof RetomarRoute
   '/tendencia': typeof TendenciaRoute
   '/termos': typeof TermosRoute
+  '/trending': typeof TrendingRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
@@ -278,6 +304,8 @@ export interface FileRoutesByFullPath {
   '/es/pago-oxxo': typeof EsPagoOxxoRoute
   '/es/pago-tarjeta': typeof EsPagoTarjetaRoute
   '/es/pago-upsell': typeof EsPagoUpsellRoute
+  '/es/regalo': typeof EsRegaloRoute
+  '/es/tendencia': typeof EsTendenciaRoute
   '/oferta/$token': typeof OfertaTokenRoute
   '/p/$token': typeof PTokenRoute
   '/pix/$referencia': typeof PixReferenciaRoute
@@ -294,6 +322,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
   '/descadastrar': typeof DescadastrarRoute
+  '/gift': typeof GiftRoute
   '/gleysi': typeof GleysiRoute
   '/indique': typeof IndiqueRoute
   '/login': typeof LoginRoute
@@ -307,6 +336,7 @@ export interface FileRoutesByTo {
   '/retomar': typeof RetomarRoute
   '/tendencia': typeof TendenciaRoute
   '/termos': typeof TermosRoute
+  '/trending': typeof TrendingRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
@@ -319,6 +349,8 @@ export interface FileRoutesByTo {
   '/es/pago-oxxo': typeof EsPagoOxxoRoute
   '/es/pago-tarjeta': typeof EsPagoTarjetaRoute
   '/es/pago-upsell': typeof EsPagoUpsellRoute
+  '/es/regalo': typeof EsRegaloRoute
+  '/es/tendencia': typeof EsTendenciaRoute
   '/oferta/$token': typeof OfertaTokenRoute
   '/p/$token': typeof PTokenRoute
   '/pix/$referencia': typeof PixReferenciaRoute
@@ -336,6 +368,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/demo-musica': typeof DemoMusicaRoute
   '/descadastrar': typeof DescadastrarRoute
+  '/gift': typeof GiftRoute
   '/gleysi': typeof GleysiRoute
   '/indique': typeof IndiqueRoute
   '/login': typeof LoginRoute
@@ -349,6 +382,7 @@ export interface FileRoutesById {
   '/retomar': typeof RetomarRoute
   '/tendencia': typeof TendenciaRoute
   '/termos': typeof TermosRoute
+  '/trending': typeof TrendingRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/credito/$tokenEdicao': typeof CreditoTokenEdicaoRoute
@@ -361,6 +395,8 @@ export interface FileRoutesById {
   '/es/pago-oxxo': typeof EsPagoOxxoRoute
   '/es/pago-tarjeta': typeof EsPagoTarjetaRoute
   '/es/pago-upsell': typeof EsPagoUpsellRoute
+  '/es/regalo': typeof EsRegaloRoute
+  '/es/tendencia': typeof EsTendenciaRoute
   '/oferta/$token': typeof OfertaTokenRoute
   '/p/$token': typeof PTokenRoute
   '/pix/$referencia': typeof PixReferenciaRoute
@@ -379,6 +415,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/demo-musica'
     | '/descadastrar'
+    | '/gift'
     | '/gleysi'
     | '/indique'
     | '/login'
@@ -392,6 +429,7 @@ export interface FileRouteTypes {
     | '/retomar'
     | '/tendencia'
     | '/termos'
+    | '/trending'
     | '/auth/callback'
     | '/blog/$slug'
     | '/credito/$tokenEdicao'
@@ -404,6 +442,8 @@ export interface FileRouteTypes {
     | '/es/pago-oxxo'
     | '/es/pago-tarjeta'
     | '/es/pago-upsell'
+    | '/es/regalo'
+    | '/es/tendencia'
     | '/oferta/$token'
     | '/p/$token'
     | '/pix/$referencia'
@@ -420,6 +460,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/demo-musica'
     | '/descadastrar'
+    | '/gift'
     | '/gleysi'
     | '/indique'
     | '/login'
@@ -433,6 +474,7 @@ export interface FileRouteTypes {
     | '/retomar'
     | '/tendencia'
     | '/termos'
+    | '/trending'
     | '/auth/callback'
     | '/blog/$slug'
     | '/credito/$tokenEdicao'
@@ -445,6 +487,8 @@ export interface FileRouteTypes {
     | '/es/pago-oxxo'
     | '/es/pago-tarjeta'
     | '/es/pago-upsell'
+    | '/es/regalo'
+    | '/es/tendencia'
     | '/oferta/$token'
     | '/p/$token'
     | '/pix/$referencia'
@@ -461,6 +505,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/demo-musica'
     | '/descadastrar'
+    | '/gift'
     | '/gleysi'
     | '/indique'
     | '/login'
@@ -474,6 +519,7 @@ export interface FileRouteTypes {
     | '/retomar'
     | '/tendencia'
     | '/termos'
+    | '/trending'
     | '/auth/callback'
     | '/blog/$slug'
     | '/credito/$tokenEdicao'
@@ -486,6 +532,8 @@ export interface FileRouteTypes {
     | '/es/pago-oxxo'
     | '/es/pago-tarjeta'
     | '/es/pago-upsell'
+    | '/es/regalo'
+    | '/es/tendencia'
     | '/oferta/$token'
     | '/p/$token'
     | '/pix/$referencia'
@@ -503,6 +551,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   DemoMusicaRoute: typeof DemoMusicaRoute
   DescadastrarRoute: typeof DescadastrarRoute
+  GiftRoute: typeof GiftRoute
   GleysiRoute: typeof GleysiRoute
   IndiqueRoute: typeof IndiqueRoute
   LoginRoute: typeof LoginRoute
@@ -516,6 +565,7 @@ export interface RootRouteChildren {
   RetomarRoute: typeof RetomarRoute
   TendenciaRoute: typeof TendenciaRoute
   TermosRoute: typeof TermosRoute
+  TrendingRoute: typeof TrendingRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   BlogSlugRoute: typeof BlogSlugRoute
   CreditoTokenEdicaoRoute: typeof CreditoTokenEdicaoRoute
@@ -528,6 +578,8 @@ export interface RootRouteChildren {
   EsPagoOxxoRoute: typeof EsPagoOxxoRoute
   EsPagoTarjetaRoute: typeof EsPagoTarjetaRoute
   EsPagoUpsellRoute: typeof EsPagoUpsellRoute
+  EsRegaloRoute: typeof EsRegaloRoute
+  EsTendenciaRoute: typeof EsTendenciaRoute
   OfertaTokenRoute: typeof OfertaTokenRoute
   PTokenRoute: typeof PTokenRoute
   PixReferenciaRoute: typeof PixReferenciaRoute
@@ -580,6 +632,13 @@ declare module '@tanstack/react-router' {
       path: '/descadastrar'
       fullPath: '/descadastrar'
       preLoaderRoute: typeof DescadastrarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gift': {
+      id: '/gift'
+      path: '/gift'
+      fullPath: '/gift'
+      preLoaderRoute: typeof GiftRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gleysi': {
@@ -671,6 +730,13 @@ declare module '@tanstack/react-router' {
       path: '/termos'
       fullPath: '/termos'
       preLoaderRoute: typeof TermosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trending': {
+      id: '/trending'
+      path: '/trending'
+      fullPath: '/trending'
+      preLoaderRoute: typeof TrendingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -771,6 +837,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EsPagoUpsellRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/es/regalo': {
+      id: '/es/regalo'
+      path: '/es/regalo'
+      fullPath: '/es/regalo'
+      preLoaderRoute: typeof EsRegaloRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/es/tendencia': {
+      id: '/es/tendencia'
+      path: '/es/tendencia'
+      fullPath: '/es/tendencia'
+      preLoaderRoute: typeof EsTendenciaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/oferta/$token': {
       id: '/oferta/$token'
       path: '/oferta/$token'
@@ -823,6 +903,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   DemoMusicaRoute: DemoMusicaRoute,
   DescadastrarRoute: DescadastrarRoute,
+  GiftRoute: GiftRoute,
   GleysiRoute: GleysiRoute,
   IndiqueRoute: IndiqueRoute,
   LoginRoute: LoginRoute,
@@ -836,6 +917,7 @@ const rootRouteChildren: RootRouteChildren = {
   RetomarRoute: RetomarRoute,
   TendenciaRoute: TendenciaRoute,
   TermosRoute: TermosRoute,
+  TrendingRoute: TrendingRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   BlogSlugRoute: BlogSlugRoute,
   CreditoTokenEdicaoRoute: CreditoTokenEdicaoRoute,
@@ -848,6 +930,8 @@ const rootRouteChildren: RootRouteChildren = {
   EsPagoOxxoRoute: EsPagoOxxoRoute,
   EsPagoTarjetaRoute: EsPagoTarjetaRoute,
   EsPagoUpsellRoute: EsPagoUpsellRoute,
+  EsRegaloRoute: EsRegaloRoute,
+  EsTendenciaRoute: EsTendenciaRoute,
   OfertaTokenRoute: OfertaTokenRoute,
   PTokenRoute: PTokenRoute,
   PixReferenciaRoute: PixReferenciaRoute,
