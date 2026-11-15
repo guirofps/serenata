@@ -3,9 +3,15 @@
 //
 // SEM IMPORTS além do `braco-email` (que também não tem): lido pelo Inngest.
 //
-// A = nada (como hoje). B = um e-mail no 3º dia depois da compra pedindo o
-// vídeo de quem ganhou a música, com R$ 10 na próxima em troca (cupom mandado
-// À MÃO pelo suporte, nunca gerado aqui).
+// B = um e-mail no 3º dia depois da compra pedindo o vídeo de quem ganhou a
+// música, com R$ 10 na próxima em troca (cupom mandado À MÃO pelo suporte,
+// nunca gerado aqui). É o "como era".
+//
+// A (desde 15/11, Ralph: "fábrica de reações com os compradores") = o mesmo
+// pedido, no mesmo dia, com UMA MÚSICA NOVA de presente no lugar do cupom,
+// pra quem autoriza o uso do vídeo em anúncio (crédito de cortesia liberado À
+// MÃO pelo suporte). Até 15/11 o A não recebia nada. O que o teste mede agora
+// é o prêmio: vídeos recebidos e autorizados por e-mail enviado, A × B.
 //
 // ── POR QUE 78h A 102h, E NÃO 72h ────────────────────────────────
 //
@@ -30,7 +36,15 @@ export type ConvidadoReacao = {
   quizId: string;
   musicaId: string;
   nome: string;
+  premio: PremioReacao;
 };
+
+/** O que a pessoa ganha pelo vídeo: o cupom de R$ 10 (B, como era) ou uma música nova (A). */
+export type PremioReacao = "cupom" | "musica";
+
+export function premioDaReacao(quizId: string | null | undefined): PremioReacao {
+  return bracoDoTeste("pedido_reacao", quizId, "pt") === "b" ? "cupom" : "musica";
+}
 
 export function filaPedidoReacao(args: {
   pedidos: PedidoParaReacao[];
@@ -57,9 +71,8 @@ export function filaPedidoReacao(args: {
     if (!Number.isFinite(pago) || pago < de || pago > ate) continue;
     const q = args.quizzes.get(p.quiz_response_id);
     if (!q) continue;
-    // Português, e só o braço B. O A não recebe nada: é o "como hoje".
+    // Só português. Os dois braços recebem; o braço decide o prêmio.
     if ((q.locale ?? "pt") !== "pt") continue;
-    if (bracoDoTeste("pedido_reacao", p.quiz_response_id, "pt") !== "b") continue;
     if (!args.prontas.has(p.musica_id)) continue;
     if (args.bloqueados.has(email)) continue;
     vistos.add(email);
@@ -68,6 +81,7 @@ export function filaPedidoReacao(args: {
       quizId: p.quiz_response_id,
       musicaId: p.musica_id,
       nome: String(q.nome ?? "").trim() || "quem ganhou a música",
+      premio: premioDaReacao(p.quiz_response_id),
     });
   }
   return out;
@@ -80,7 +94,8 @@ export function filaPedidoReacao(args: {
  * Existe porque a triagem automática (`inngest/lib/suporte.ts`) classificaria
  * um comprador mandando o vídeo como "pagou e não achou a música" e
  * responderia sozinha com os links dele. Aqui o caso vai pro dono, que confere
- * o vídeo e manda o cupom de R$ 10 à mão.
+ * o vídeo e manda o prêmio à mão (cupom de R$ 10, ou a música de cortesia
+ * quando o assunto fala em "música de presente" e a pessoa autorizou o uso).
  */
 export function ehRespostaDeReacao(assunto: string): boolean {
   return /v[ií]deo de rea[cç][aã]o/i.test(assunto);

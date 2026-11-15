@@ -24,14 +24,17 @@ import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 // O PEDIDO DO VÍDEO DE REAÇÃO (teste `pedido_reacao`, 08/10).
 //
-// Metade dos compradores do português (caractere 3 do fim do id do quiz
-// ímpar) recebe, no 3º dia depois da compra, um e-mail pedindo o vídeo de
-// quem ganhou a música, com R$ 10 na próxima em troca. A outra metade não
-// recebe nada, como hoje. Quem decide é `src/lib/pedido-reacao.ts`.
+// Todo comprador do português recebe, no 3º dia depois da compra, um e-mail
+// pedindo o vídeo de quem ganhou a música. O braço (caractere 3 do fim do id
+// do quiz) decide o PRÊMIO: ímpar (B) = cupom de R$ 10, como era desde 08/10;
+// par (A) = uma música nova de presente pra quem autoriza o uso em anúncio
+// (desde 15/11; até então o A não recebia nada). Quem decide é
+// `src/lib/pedido-reacao.ts`.
 //
-// O que se mede: quantos vídeos chegam (respostas no suporte), quantos viram
-// anúncio, e se a segunda compra do B sobe com o cupom prometido. E o custo:
-// descadastro e reclamação desse e-mail.
+// O que se mede: quantos vídeos chegam e quantos vêm AUTORIZADOS por e-mail
+// enviado, por prêmio (o assunto da resposta diz qual foi; a trava
+// `pedido_reacao_enviado` grava o `premio`). E o custo: descadastro e
+// reclamação desse e-mail, e as músicas de cortesia liberadas.
 //
 // ── AS TRAVAS, NA ORDEM DE 08/10 ─────────────────────────────────
 //
@@ -43,7 +46,7 @@ import { MARCA_ATIVA } from "../../src/lib/marca-identidade.js";
 
 const SITE = process.env.VITE_APP_URL?.startsWith("http") ? process.env.VITE_APP_URL : MARCA_ATIVA.url;
 
-/** Por rodada. 11 rodadas por dia (9h35 a 19h35) dão 110/dia, contra ~75 esperados. */
+/** Por rodada. 11 rodadas por dia (9h35 a 19h35) dão 110/dia. Com os dois braços recebendo (15/11), cabe o dia inteiro de compradores. */
 const MAX_POR_RODADA = 10;
 
 /** Uma vez por pessoa: quem compra de novo em seis meses não recebe outro. */
@@ -153,27 +156,27 @@ export const pedirReacao = inngest.createFunction(
 
         const trava = await travarEnvio(sb, {
           event_name: "pedido_reacao_enviado",
-          event_data: { email: c.email, quiz_response_id: c.quizId, musica_id: c.musicaId },
+          event_data: { email: c.email, quiz_response_id: c.quizId, musica_id: c.musicaId, premio: c.premio },
         });
         if (!trava) return false;
 
-        const assunto = assuntoPedidoReacao(c.nome);
+        const assunto = assuntoPedidoReacao(c.nome, c.premio);
         const linkResposta = `mailto:${MARCA_ATIVA.emailContato}?subject=${encodeURIComponent(`Re: ${assunto}`)}`;
         const linkDescadastro = linkDescadastroUmClique(c.email) ?? `${SITE}/descadastrar`;
         const { data: enviado, error } = await comUtm(new Resend(chave)).emails.send({
           tags: [
             { name: "template", value: "pedido_reacao" },
-            { name: "teste", value: "pedido_reacao_b" },
+            { name: "teste", value: c.premio === "musica" ? "pedido_reacao_a_musica" : "pedido_reacao_b" },
           ],
           from: REMETENTE_RECUPERACAO,
           // A resposta COM O VÍDEO chega aqui. A triagem do suporte separa
-          // pro dono (`ehRespostaDeReacao`), que confere e manda o cupom.
+          // pro dono (`ehRespostaDeReacao`), que confere e manda o prêmio.
           replyTo: RESPONDER_PARA,
           to: [c.email],
           headers: cabecalhosDescadastro(c.email),
           subject: assunto,
-          html: emailPedidoReacao({ nome: c.nome, linkResposta, linkDescadastro }),
-          text: textoPedidoReacao({ nome: c.nome }),
+          html: emailPedidoReacao({ nome: c.nome, premio: c.premio, linkResposta, linkDescadastro }),
+          text: textoPedidoReacao({ nome: c.nome, premio: c.premio }),
         });
         if (error) {
           console.error("[reacao] envio falhou:", c.email, error.message);

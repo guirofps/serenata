@@ -35,9 +35,12 @@ describe("filaPedidoReacao", () => {
     expect(bracoDoTeste("pedido_reacao", QA)).toBe("a");
   });
 
-  it("só o braço B recebe; o A não recebe nada (como hoje)", () => {
+  it("os dois braços recebem: o B com o cupom (como era), o A com a música de presente (15/11)", () => {
     const fila = filaPedidoReacao(base([pedido(), pedido({ email: "x@y.com", quiz_response_id: QA, musica_id: "m2" })]));
-    expect(fila).toEqual([{ email: "ana@gmail.com", quizId: QB, musicaId: "m1", nome: "Marcos" }]);
+    expect(fila).toEqual([
+      { email: "ana@gmail.com", quizId: QB, musicaId: "m1", nome: "Marcos", premio: "cupom" },
+      { email: "x@y.com", quizId: QA, musicaId: "m2", nome: "Rita", premio: "musica" },
+    ]);
   });
 
   it(`só no 3º dia: entre ${PEDIDO_REACAO_MIN_H}h e ${PEDIDO_REACAO_MAX_H}h depois da compra`, () => {
@@ -69,6 +72,15 @@ describe("a resposta com o vídeo vai pro dono, não pro robô", () => {
     expect(ehRespostaDeReacao("RE: video de reacao")).toBe(true);
     expect(ehRespostaDeReacao("Re: sua música está pronta")).toBe(false);
   });
+
+  it("o assunto dos dois prêmios cai na mesma triagem, e dá pra saber qual foi", () => {
+    const cupom = assuntoPedidoReacao("Marcos");
+    const musica = assuntoPedidoReacao("Marcos", "musica");
+    expect(cupom).toBe("Um pedido sobre o vídeo de reação de Marcos");
+    expect(musica).not.toBe(cupom);
+    expect(ehRespostaDeReacao(`Re: ${musica}`)).toBe(true);
+    expect(musica).toContain("música de presente");
+  });
 });
 
 describe("a copy do pedido", () => {
@@ -95,5 +107,42 @@ describe("a copy do pedido", () => {
 
   it("sem travessão", () => {
     expect([assuntoPedidoReacao("Marcos"), html, texto].join(" ")).not.toContain("—");
+  });
+});
+
+describe("a copy do pedido com a música de presente (braço A, 15/11)", () => {
+  const html = emailPedidoReacao({
+    nome: "Marcos",
+    premio: "musica",
+    linkResposta: "mailto:contato@serenatagift.com",
+    linkDescadastro: "https://x/api/descadastro",
+  });
+  const texto = textoPedidoReacao({ nome: "Marcos", premio: "musica" });
+
+  it("promete uma música nova liberada pela equipe, pra quem autoriza o uso", () => {
+    for (const t of [html, texto]) {
+      expect(t).toMatch(/uma música nova/);
+      expect(t).toMatch(/autorizo/);
+      expect(t).toMatch(/Uma pessoa da equipe confere/);
+    }
+  });
+
+  it("quem não autoriza ainda pode mandar, e ganha o cupom", () => {
+    for (const t of [html, texto]) {
+      expect(t).toContain("cupom de R$ 10");
+      expect(t).toMatch(/fica só com a gente/);
+    }
+  });
+
+  it("só com o acordo de quem aparece, e sem travessão", () => {
+    for (const t of [html, texto]) {
+      expect(t).toMatch(/quem aparece no vídeo estiver de acordo/);
+      expect(t).not.toContain("—");
+    }
+  });
+
+  it("o cupom (padrão) não mudou de texto", () => {
+    expect(textoPedidoReacao({ nome: "Marcos" })).toBe(textoPedidoReacao({ nome: "Marcos", premio: "cupom" }));
+    expect(textoPedidoReacao({ nome: "Marcos" })).not.toMatch(/uma música nova/);
   });
 });

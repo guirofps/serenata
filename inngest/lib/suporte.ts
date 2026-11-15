@@ -244,9 +244,13 @@ export async function triar(token: string): Promise<{
     const texto = `${assunto} ${corpo}`;
     // Resposta ao pedido de vídeo de reação (teste `pedido_reacao`, 08/10):
     // quem manda é comprador, e sem esta linha a triagem responderia sozinha
-    // com os links da música. O cupom de R$ 10 prometido sai à mão.
+    // com os links da música. O prêmio prometido sai à mão: cupom de R$ 10,
+    // ou (15/11) a música de cortesia quando o assunto fala em "música de
+    // presente" e a pessoa escreveu que autoriza o uso em anúncio.
     if (ehRespostaDeReacao(assunto)) {
-      caso.motivo = "mandou o vídeo de reação: conferir quem aparece, perguntar antes de usar em anúncio e mandar o cupom de R$ 10";
+      caso.motivo = /m[uú]sica de presente/i.test(assunto)
+        ? "mandou o vídeo de reação (prêmio: MÚSICA DE PRESENTE): conferir quem aparece; se escreveu que autoriza o uso em anúncio, liberar 1 música de cortesia; se não autorizou, mandar o cupom de R$ 10 e não usar o vídeo"
+        : "mandou o vídeo de reação: conferir quem aparece, perguntar antes de usar em anúncio e mandar o cupom de R$ 10";
       paraVoce.push(caso);
       continue;
     }
