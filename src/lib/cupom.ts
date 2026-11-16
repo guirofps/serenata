@@ -58,7 +58,18 @@ type CupomFixo = {
   centavos: number;
   valeAte: string;
 };
-type DefCupom = CupomPrecoFinal | CupomFixo;
+// `percentual` é o da campanha METADE (16/11): uma fração do preço que aquela
+// pessoa pagaria, em QUALQUER compra, como o `fixo`. Mesmo piso.
+type CupomPercentual = {
+  tipo: "percentual";
+  codigo: string;
+  locale: "pt";
+  texto: string;
+  /** Quanto SAI do preço, em % (50 = metade). */
+  porcento: number;
+  valeAte: string;
+};
+type DefCupom = CupomPrecoFinal | CupomFixo | CupomPercentual;
 
 export const MUSICA10 = "MUSICA10";
 
@@ -69,7 +80,19 @@ export const MUSICA10 = "MUSICA10";
  */
 export const MUSICA10_VALE_ATE = "2026-10-21";
 
-/** Nenhum produto sai abaixo disto com cupom fixo. */
+// CAMPANHA METADE (Ralph, 16/11): 50% em música, extra, vídeo e quadro, por
+// e-mail, SÓ pra quem já comprou. O código não confere quem comprou (este
+// arquivo não tem banco): quem recebe o link e repassa, repassa o desconto.
+// O dano é limitado pela validade e pelo piso.
+export const METADE = "METADE";
+/**
+ * Último dia do METADE, inclusive (23h59 de Brasília): 7 dias depois da última
+ * leva prevista (envio de 17 a 19/11). É a data que o e-mail escreve
+ * (`validadeCurta`). Se o envio começar depois de 17/11, empurrar ANTES de ligar.
+ */
+export const METADE_VALE_ATE = "2026-11-26";
+
+/** Nenhum produto sai abaixo disto com cupom fixo ou percentual. */
 export const PISO_CENTAVOS = 500;
 
 // Sem cupom no inglês: a Ballad não tem régua de recuperação com desconto.
@@ -79,6 +102,7 @@ const CUPONS: DefCupom[] = [
   { tipo: "fixo", codigo: MUSICA10, locale: "pt", texto: "R$ 10", centavos: 1000, valeAte: MUSICA10_VALE_ATE },
   // Desconto de 30% dado a um cliente pelo suporte (dono, 31/10): R$ 38 → R$ 26,60.
   // É "fixo" de propósito: `cupomAtivo` só olha `preco_final` e mostraria este a todo mundo.
+  { tipo: "percentual", codigo: METADE, locale: "pt", texto: "50%", porcento: 50, valeAte: METADE_VALE_ATE },
   { tipo: "fixo", codigo: "APOIO30", locale: "pt", texto: "R$ 11,40", centavos: 1140, valeAte: "2026-11-30" },
 ];
 
@@ -194,7 +218,9 @@ export function centavosComCupom(
     return por > 0 ? Math.min(baseCentavos, por) : baseCentavos;
   }
   if (baseCentavos <= PISO_CENTAVOS) return baseCentavos;
-  return Math.max(baseCentavos - c.centavos, PISO_CENTAVOS);
+  // Percentual: o que SOBRA arredonda pra cima (nunca cobra fração de centavo a menos).
+  const com = c.tipo === "percentual" ? Math.ceil((baseCentavos * (100 - c.porcento)) / 100) : baseCentavos - c.centavos;
+  return Math.max(Math.min(com, baseCentavos), PISO_CENTAVOS);
 }
 
 /** O código normalizado, SÓ quando ele baixou o preço. É o que vai pro pedido. */

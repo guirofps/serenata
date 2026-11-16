@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  METADE,
+  METADE_VALE_ATE,
   MUSICA10,
   MUSICA10_VALE_ATE,
   centavosComCupom,
@@ -160,5 +162,37 @@ describe("valorGravadoNoPedido (29/10)", () => {
     expect(valorGravadoNoPedido({ valor_centavos: null })).toBeNull();
     expect(valorGravadoNoPedido({ valor_centavos: 0 })).toBeNull();
     expect(valorGravadoNoPedido({ valor_centavos: 19.5 })).toBeNull();
+  });
+});
+
+describe("METADE (50% pra quem já comprou, 16/11)", () => {
+  const dentro = new Date(`${METADE_VALE_ATE}T12:00:00-03:00`);
+  it("corta pela metade a música, o extra, o quadro e o vídeo", () => {
+    expect(centavosComCupom(3800, METADE, dentro, "musica")).toBe(1900);
+    expect(centavosComCupom(2800, METADE, dentro, "extra")).toBe(1400);
+    expect(centavosComCupom(2490, METADE, dentro, "video")).toBe(1245);
+    expect(centavosComCupom(2490, METADE, dentro, "quadro")).toBe(1245);
+  });
+  it("metade de valor ímpar arredonda pra cima, e respeita o piso de R$ 5", () => {
+    expect(centavosComCupom(1999, METADE, dentro, "video")).toBe(1000);
+    expect(centavosComCupom(800, METADE, dentro, "video")).toBe(500);
+    expect(centavosComCupom(400, METADE, dentro, "video")).toBe(400);
+  });
+  it("vale até 23h59 de Brasília do último dia, e não depois", () => {
+    expect(centavosComCupom(3800, METADE, new Date(`${METADE_VALE_ATE}T23:59:00-03:00`))).toBe(1900);
+    expect(centavosComCupom(3800, METADE, new Date(Date.parse(`${METADE_VALE_ATE}T23:59:59-03:00`) + 1000))).toBe(3800);
+  });
+  it("a tela mostra 50% com de/por, e o pedido grava o código", () => {
+    const d = descontoNaTela("metade", "pt", 3800, "musica", dentro);
+    expect(d).toMatchObject({ codigo: METADE, texto: "50%", de: "R$ 38", por: "R$ 19", porCentavos: 1900 });
+    expect(codigoAplicado(3800, " metade ", dentro)).toBe(METADE);
+    expect(descontoNaTela(METADE, "es", 990, "musica", dentro)).toBeNull();
+  });
+  it("não vira cupom da recuperação (cupomAtivo não mostra)", () => {
+    expect(cupomAtivo("pt", dentro)?.codigo).not.toBe(METADE);
+  });
+  it("validadeCurta escreve a data dele", () => {
+    const [, m, d] = METADE_VALE_ATE.split("-");
+    expect(validadeCurta(METADE)).toBe(`${d}/${m}`);
   });
 });

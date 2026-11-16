@@ -39,6 +39,7 @@ import { avisoVendas } from "../inngest/functions/avisoVendas.js";
 import { videoPendente } from "../inngest/functions/videoPendente.js";
 import { lembrarDatas } from "../inngest/functions/lembrarDatas.js";
 import { campanhaMusica10 } from "../inngest/functions/campanhaMusica10.js";
+import { campanhaMetade } from "../inngest/functions/campanhaMetade.js";
 import { pedirReacao } from "../inngest/functions/pedirReacao.js";
 
 import { MARCA_ATIVA } from "../src/lib/marca-identidade.js";
@@ -153,6 +154,8 @@ export default serve({
     lembrarDatas,
     // Campanha MUSICA10 (07/10): só Serenata, liga com CAMPANHA_MUSICA10_ON=1.
     campanhaMusica10,
+    // Campanha METADE (16/11): 50% pra quem já comprou. Só Serenata, liga com CAMPANHA_METADE_ON=1.
+    campanhaMetade,
     // Teste `pedido_reacao` (08/10): só português, só Serenata.
     pedirReacao,
     // Teste `resgate_coautoria` (11/10): quem largou a letra no meio. Só português.
