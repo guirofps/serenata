@@ -19,7 +19,7 @@ function cnpj(c: string): string {
 }
 
 export function assuntoCampanhaMetade(nome: string | null): string {
-  return nome ? `${nome}, a próxima música sai pela metade` : "A sua próxima música sai pela metade";
+  return nome ? `🎁 ${nome}, A Próxima Música Sai Pela Metade` : "🎁 A Sua Próxima Música Sai Pela Metade";
 }
 
 export function emailCampanhaMetade(args: {

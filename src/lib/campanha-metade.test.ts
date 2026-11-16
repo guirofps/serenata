@@ -69,7 +69,7 @@ describe("e-mail METADE", () => {
     expect(html).toContain("&lt;b&gt;Ana&lt;/b&gt;");
   });
   it("assunto com e sem nome", () => {
-    expect(assuntoCampanhaMetade("Maria")).toBe("Maria, a próxima música sai pela metade");
-    expect(assuntoCampanhaMetade(null)).toBe("A sua próxima música sai pela metade");
+    expect(assuntoCampanhaMetade("Maria")).toBe("🎁 Maria, A Próxima Música Sai Pela Metade");
+    expect(assuntoCampanhaMetade(null)).toBe("🎁 A Sua Próxima Música Sai Pela Metade");
   });
 });
