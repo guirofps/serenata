@@ -338,3 +338,47 @@
 html[data-pais="MX"][data-exp-oxxo_mx^="B"] .so-oxxo-mx {
   display: inline;
 }
+
+/* SELO DE BLACK FRIDAY na oferta (teste `black_friday`, ver `black-friday.ts`).
+   O cabeçalho nasce escondido; só o carimbo do braço B no <html> acende o
+   cartão preto. Fora de @layer de propósito: precisa vencer as utilitárias do
+   cartão (fundo e borda). Toda regra abaixo, menos a primeira, exige o braço B. */
+.bf-topo {
+  display: none;
+}
+html[data-exp-black_friday="B"] .bf-topo {
+  display: block;
+}
+html[data-exp-black_friday="B"] .bf-cartao {
+  background-color: #1b1214;
+  border-color: #1b1214;
+  color: #fbf6ee;
+  --foreground: #fbf6ee;
+  --muted-foreground: #d9c9c4;
+  --color-foreground: #fbf6ee;
+  --color-muted-foreground: #d9c9c4;
+}
+html[data-exp-black_friday="B"] .bf-cartao .bf-some {
+  display: none;
+}
+html[data-exp-black_friday="B"] .bf-cartao .cta {
+  background-image: none;
+  background-color: #f3d9a4;
+  color: #1b1214;
+  box-shadow: 0 10px 30px -12px rgb(243 217 164 / 0.55);
+}
+/* As caixas de aviso de dentro do cartão têm fundo translúcido, feito pra
+   fundo claro: no preto elas ganham fundo sólido e voltam às cores de sempre. */
+html[data-exp-black_friday="B"] .bf-cartao .bf-claro {
+  color: oklch(0.24 0.04 18);
+  --foreground: oklch(0.24 0.04 18);
+  --muted-foreground: oklch(0.44 0.03 18);
+  --color-foreground: oklch(0.24 0.04 18);
+  --color-muted-foreground: oklch(0.44 0.03 18);
+}
+html[data-exp-black_friday="B"] .bf-cartao .bf-claro-verde {
+  background-color: #ecfdf5;
+}
+html[data-exp-black_friday="B"] .bf-cartao .bf-claro-creme {
+  background-color: oklch(0.93 0.018 74);
+}

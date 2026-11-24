@@ -14,7 +14,7 @@ import { checkoutGa4, vitrineGa4 } from "@/lib/ga4";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { TEMA_CLARO } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
-import { meuPlano, meuPlanoCobravel } from "@/lib/preco";
+import { meuPlano, meuPlanoCobravel, planoCobravelDe, variantesComPlano } from "@/lib/preco";
 import { PrecoCurto, PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
 import { descontoNaTela } from "@/lib/cupom";
 import { paisDaTela, valorDoCheckout } from "@/lib/valor-conversao";
@@ -22,6 +22,7 @@ import { bracoLocalDaTela } from "@/lib/preco-local-tela";
 import { ehArgentina, paisAtual } from "@/lib/mercado-es";
 import { mercadoDoPais } from "@/lib/mercados";
 import { ehBallad } from "@/lib/marca-identidade";
+import { EXP_BLACK_FRIDAY, seloBlackFriday } from "@/lib/black-friday";
 import { OFERTA_ES_EUA, ofertaEsDoMercado } from "@/components/quiz/oferta-es-eua";
 import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
@@ -737,6 +738,24 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
     };
   }, [locale, cupom]);
   const comConvite = convitePct !== null && !descontado && !credito;
+
+  // SELO DE BLACK FRIDAY: o número do selo, ou `null` (sem selo). Só existe
+  // pra quem paga o preço cheio da tela; ver `black-friday.ts`.
+  const pctBlackFriday = seloBlackFriday({
+    agora: new Date(),
+    locale,
+    ballad: ehBallad(),
+    temCredito: !!credito,
+    temCupom: !!descontado,
+    temConvite: comConvite,
+    planos: variantesComPlano(locale).map((v) => planoCobravelDe(locale, v)),
+  });
+  // Quem abriu a oferta podendo ver o selo: o denominador da leitura.
+  const podeVerSelo = pctBlackFriday !== null;
+  useEffect(() => {
+    if (!podeVerSelo) return;
+    void trackEventOnce("black_friday_exposto", "v1", { braco: varianteDe(EXP_BLACK_FRIDAY) });
+  }, [podeVerSelo]);
   // Só é lido com `comConvite`, que só liga depois da hidratação: o braço
   // sorteado já é conhecido. COBRÁVEL (08/10): braço de peso 0 é cobrado como
   // o controle, e o desconto sai da mesma base que a cobrança.
@@ -1288,7 +1307,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           Ancoragem, cupom e "hoje por" existem pra vencer a decisão de gastar.
           Quem já gastou não tem essa decisão pela frente: mostrar preço aqui
           só levanta a dúvida de estar sendo cobrada de novo. */}
-      <div className="rounded-2xl border-2 border-primary/25 bg-primary/5 px-5 py-6 text-center">
+      <div className={`rounded-2xl border-2 border-primary/25 bg-primary/5 px-5 py-6 text-center${pctBlackFriday ? " bf-cartao" : ""}`}>
         {credito ? (
           <>
             <p className="font-display text-2xl font-semibold tracking-tight">
@@ -1300,7 +1319,20 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           </>
         ) : (
           <>
-            <p className="mx-auto max-w-xs text-sm leading-relaxed text-muted-foreground">
+            {/* SELO DE BLACK FRIDAY (teste `black_friday`, `black-friday.ts`).
+                Nasce escondido (`.bf-topo`); só o braço B acende, e aí a frase
+                do compositor (`bf-some`) dá lugar a ele. O número é a conta do
+                riscado pro preço, nunca escrito à mão. */}
+            {pctBlackFriday && (
+              <div className="bf-topo" style={{ color: "#F3D9A4" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em]">Black Friday</p>
+                <p className="mt-1 font-display text-7xl font-semibold leading-none tracking-tight">
+                  {pctBlackFriday}%
+                </p>
+                <p className="text-sm font-semibold uppercase tracking-[0.3em]">off</p>
+              </div>
+            )}
+            <p className="bf-some mx-auto max-w-xs text-sm leading-relaxed text-muted-foreground">
               {C.ancora}
             </p>
             <div className="mt-4">
@@ -1341,7 +1373,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
             em que o dedo vai no botão — não depois, quando a pessoa já
             desistiu. Verde, e não cor da marca, porque aqui o trabalho é
             parecer seguro, não parecer nosso. */}
-            <div className="mt-5 flex items-start gap-2.5 rounded-2xl border border-emerald-600/25 bg-emerald-50/60 px-4 py-3 text-left">
+            <div className="bf-claro bf-claro-verde mt-5 flex items-start gap-2.5 rounded-2xl border border-emerald-600/25 bg-emerald-50/60 px-4 py-3 text-left">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
               <div>
                 <p className="text-sm font-semibold text-emerald-900">{G.titulo}</p>
@@ -1358,7 +1390,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
             O texto conta a verdade (está gravando) e mostra o relógio, que é
             o oposto da barra que trava em 99% da Cantoria. */}
         {semMusica === "esperando" && (
-          <div ref={avisoEspera} className="mt-5 rounded-2xl border border-primary/25 bg-secondary/50 px-4 py-3 text-left">
+          <div ref={avisoEspera} className="bf-claro bf-claro-creme mt-5 rounded-2xl border border-primary/25 bg-secondary/50 px-4 py-3 text-left">
             <p className="flex items-center gap-2 text-sm font-semibold">
               <RefreshCw className="h-4 w-4 animate-spin text-primary" />
               {locale === "es"
@@ -1432,7 +1464,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
             "e se eu pagar e não receber?".
             Os dois elementos já existiam, um acima e outro abaixo do botão, em
             cinza pequeno. Juntar e dar contraste é o que faz virar leitura. */}
-        <div className="mt-3 rounded-2xl border border-emerald-600/20 bg-emerald-50/50 px-4 py-2.5">
+        <div className="bf-claro bf-claro-verde mt-3 rounded-2xl border border-emerald-600/20 bg-emerald-50/50 px-4 py-2.5">
           <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-emerald-900">
             <ShieldCheck className="h-4 w-4 shrink-0" />
             {C.gateway}

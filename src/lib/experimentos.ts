@@ -443,6 +443,15 @@ export const EXPERIMENTOS: Experimento[] = [
     nota: "SERENATA, 11/11. Headline da landing /presente (anúncio). A = 'Flores murcham. Chocolate acaba. Uma música fica pra sempre.' B = 'O único presente do mundo com o nome e a história de quem você ama'. C = 'O presente que faz quem você ama chorar na primeira nota'. O resto da página é igual. Ler RECEITA POR SESSÃO por braço, SÓ entre sessões com page_view em /presente (o sorteio roda no site inteiro); saúde: lp_presente_cta por sessão.",
   },
   {
+    // SÓ SERENATA, selo de Black Friday na oferta. Ver `black-friday.ts`.
+    id: "black_friday",
+    variantes: ["A", "B"],
+    peso: [1, 1],
+    // NUNCA `true` aqui: quem liga é a linha da tabela `experimentos`.
+    ativo: false,
+    nota: "SERENATA, 24/11. Selo de Black Friday no cartão de preço da oferta. A = cartão de sempre. B = cartão preto com BLACK FRIDAY, 60% OFF gigante e botão dourado. O PREÇO NÃO MUDA: o 60% é a conta do riscado pro preço (R$ 97 por R$ 38). Sem selo pra quem tem crédito, cupom ou convite. Some sozinho depois de 29/11 23h59 de Brasília (a tela para de desenhar; desligar a linha depois). Ler RECEITA POR LEAD por braço entre sessões com black_friday_exposto.",
+  },
+  {
     // SÓ BALLAD, preço da música na COLÔMBIA. Ver `preco-local.ts`.
     id: "preco_co",
     variantes: ["A", "B", "C"],
