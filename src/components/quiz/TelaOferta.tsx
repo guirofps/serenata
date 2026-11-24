@@ -14,7 +14,13 @@ import { checkoutGa4, vitrineGa4 } from "@/lib/ga4";
 import { VitrineVideo } from "@/components/landing/VitrineVideo";
 import { TEMA_CLARO } from "@/lib/marca";
 import { type Locale } from "@/lib/i18n";
-import { meuPlano, meuPlanoCobravel, planoCobravelDe, variantesComPlano } from "@/lib/preco";
+import {
+  meuPlano,
+  meuPlanoCobravel,
+  planoCobravelDe,
+  planoControle,
+  variantesComPlano,
+} from "@/lib/preco";
 import { PrecoCurto, PrecoDaOferta } from "@/components/quiz/PrecoDaOferta";
 import { descontoNaTela } from "@/lib/cupom";
 import { paisDaTela, valorDoCheckout } from "@/lib/valor-conversao";
@@ -23,6 +29,7 @@ import { ehArgentina, paisAtual } from "@/lib/mercado-es";
 import { mercadoDoPais } from "@/lib/mercados";
 import { ehBallad } from "@/lib/marca-identidade";
 import { EXP_BLACK_FRIDAY, seloBlackFriday } from "@/lib/black-friday";
+import { SeloBlackFriday } from "@/components/quiz/SeloBlackFriday";
 import { OFERTA_ES_EUA, ofertaEsDoMercado } from "@/components/quiz/oferta-es-eua";
 import { GARANTIA } from "@/lib/garantia";
 import { Button } from "@/components/ui/button";
@@ -1307,7 +1314,9 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
           Ancoragem, cupom e "hoje por" existem pra vencer a decisão de gastar.
           Quem já gastou não tem essa decisão pela frente: mostrar preço aqui
           só levanta a dúvida de estar sendo cobrada de novo. */}
-      <div className={`rounded-2xl border-2 border-primary/25 bg-primary/5 px-5 py-6 text-center${pctBlackFriday ? " bf-cartao" : ""}`}>
+      <div
+        className={`rounded-2xl border-2 border-primary/25 bg-primary/5 px-5 py-6 text-center${pctBlackFriday ? " bf-cartao" : ""}`}
+      >
         {credito ? (
           <>
             <p className="font-display text-2xl font-semibold tracking-tight">
@@ -1324,13 +1333,7 @@ export function TelaOferta({ aoVoltar, locale = "pt" }: { aoVoltar: () => void; 
                 do compositor (`bf-some`) dá lugar a ele. O número é a conta do
                 riscado pro preço, nunca escrito à mão. */}
             {pctBlackFriday && (
-              <div className="bf-topo" style={{ color: "#F3D9A4" }}>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em]">Black Friday</p>
-                <p className="mt-1 font-display text-7xl font-semibold leading-none tracking-tight">
-                  {pctBlackFriday}%
-                </p>
-                <p className="text-sm font-semibold uppercase tracking-[0.3em]">off</p>
-              </div>
+              <SeloBlackFriday pct={pctBlackFriday} plano={planoControle(locale)} />
             )}
             <p className="bf-some mx-auto max-w-xs text-sm leading-relaxed text-muted-foreground">
               {C.ancora}

@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
-  BLACK_FRIDAY_ATE, blackFridayAberta, pctDoSelo, reaisDoTexto, seloBlackFriday,
+  BLACK_FRIDAY_ATE,
+  BLACK_FRIDAY_ATE_BALLAD,
+  blackFridayAberta,
+  pctDeValores,
+  pctDoSelo,
+  pctNoMercado,
+  reaisDoTexto,
+  seloBlackFriday,
 } from "./black-friday";
 import { MOEDA } from "./i18n";
+import { MERCADOS, MERCADOS_LOCAIS } from "./mercados";
 
 const base = {
   agora: new Date("2026-11-27T15:00:00Z"),
@@ -72,5 +80,50 @@ describe("selo de Black Friday", () => {
       if (/\.bf-topo\s*\{\s*display:\s*none/.test(r)) continue;
       expect(r).toContain('html[data-exp-black_friday="B"]');
     }
+  });
+});
+
+describe("selo de Black Friday na Ballad", () => {
+  const plano = { texto: MOEDA.en.texto, ancora: MOEDA.en.ancora };
+  const ballad = { ...base, ballad: true, locale: "en", planos: [plano] };
+
+  it("inglês e espanhol da Ballad veem; o português não existe lá", () => {
+    expect(seloBlackFriday(ballad)).toBe(61); // $49 por $19
+    expect(seloBlackFriday({ ...ballad, locale: "es" })).toBe(61);
+    expect(seloBlackFriday({ ...ballad, locale: "pt" })).toBeNull();
+    expect(seloBlackFriday({ ...ballad, temCupom: true })).toBeNull();
+    expect(seloBlackFriday({ ...ballad, temCredito: true })).toBeNull();
+  });
+
+  it("vale até domingo 29/11, 23h59 do Pacífico", () => {
+    expect(seloBlackFriday({ ...ballad, agora: new Date(BLACK_FRIDAY_ATE_BALLAD) })).toBe(61);
+    expect(seloBlackFriday({ ...ballad, agora: new Date("2026-11-30T08:00:00Z") })).toBeNull();
+    // a Serenata já fechou a essa hora
+    expect(seloBlackFriday({ ...base, agora: new Date("2026-11-30T05:00:00Z") })).toBeNull();
+  });
+
+  it("o número de cada moeda sai da tabela do caixa daquele país", () => {
+    const porPais = Object.fromEntries(
+      MERCADOS_LOCAIS.map((m) => [m.pais, pctNoMercado(m, plano)]),
+    );
+    expect(porPais).toEqual({ MX: 63, ES: 61, CO: 60, CL: 60, PE: 60, AR: 60 });
+    expect(pctNoMercado(MERCADOS.US, plano)).toBe(61);
+    // México: $549 por $199
+    expect(pctNoMercado(MERCADOS.MX, plano)).toBe(63);
+    // todo país tem um desconto de verdade pra anunciar
+    for (const m of MERCADOS_LOCAIS) expect(pctNoMercado(m, plano)).not.toBeNull();
+  });
+
+  it("braço do teste de preço do país muda o número junto com o preço", () => {
+    const co = MERCADOS.CO;
+    expect(pctNoMercado(co, plano)).toBe(60); // $99.900 por $39.900
+    expect(pctNoMercado(co, plano, "C")).toBe(53); // $74.900 por $34.900
+  });
+
+  it("valores iguais ou invertidos não viram selo", () => {
+    expect(pctDeValores(100, 100)).toBeNull();
+    expect(pctDeValores(120, 100)).toBeNull();
+    expect(pctDeValores(null, 100)).toBeNull();
+    expect(pctDeValores(40, 100)).toBe(60);
   });
 });
